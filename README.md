@@ -199,12 +199,13 @@ Department of Information Technology
 ### Project Team
 
 - Sara Aljuraybah
-- [Team Member]
-- [Team Member]
+- Dana Alosaimi 
+- Haya Alomar
+- Dalal Alghumlas 
 
 ### Supervisor
 
-**Dr. Ebtisam**
+**Dr. Ebtisam Alabdulqader **
 
 ---
 
