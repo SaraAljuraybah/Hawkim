@@ -205,7 +205,7 @@ Department of Information Technology
 
 ### Supervisor
 
-**Dr. Ebtisam Alabdulqader **
+** Dr. Ebtisam Alabdulqader **
 
 ---
 
