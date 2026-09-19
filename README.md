@@ -1,78 +1,223 @@
-# حَوكِم | Hawkim
+# Hawkim | حَوكِم
 
-**AI-Assisted SOP Workflow Management and Regulatory Compliance Platform**
+### AI-Assisted SOP Workflow Management and Regulatory Compliance Platform
 
-Hawkim is a web-based platform designed for pharmaceutical organizations regulated by the Saudi Food and Drug Authority (SFDA). It provides a centralized environment for managing Standard Operating Procedures (SOPs), supporting their review and approval workflow, maintaining traceability, and assisting with regulatory compliance verification.
+Hawkim is a web-based platform designed for pharmaceutical organizations regulated by the Saudi Food and Drug Authority (SFDA). It provides a centralized environment for managing Standard Operating Procedures (SOPs), supporting structured review and approval workflows, maintaining traceability, and assisting with regulatory compliance verification.
 
-Hawkim combines structured SOP governance with AI-assisted compliance analysis to help organizations manage SOPs more efficiently and identify potential regulatory gaps throughout the SOP lifecycle.
-
----
-
-## Project Overview
-
-Pharmaceutical organizations rely on SOPs to standardize internal processes and maintain alignment with regulatory requirements. However, SOP management often involves multiple stakeholders, repeated reviews, version changes, and manual regulatory verification.
-
-Hawkim aims to support this process through a centralized platform that brings together:
-
-- SOP creation and management
-- Structured review and approval workflows
-- Version control and traceability
-- Role-based collaboration
-- AI-assisted regulatory compliance verification
-- Identification of potential missing, conflicting, or unsatisfied regulatory requirements
+> **Graduation Project — King Saud University | Information Technology**
 
 ---
 
-## Scope
+## About Hawkim
 
-The current project focuses on pharmaceutical organizations regulated by the **Saudi Food and Drug Authority (SFDA)**.
+Standard Operating Procedures (SOPs) are essential for maintaining consistent and controlled processes within pharmaceutical organizations. Managing these procedures often involves multiple stakeholders, several review and approval stages, document revisions, and continuous alignment with regulatory requirements.
 
-For the compliance verification component, the current scope is focused on the **SFDA Guideline on Good Pharmacovigilance Practices (GVP)**.
+Hawkim brings these activities into a centralized environment by combining **SOP workflow management and governance** with **AI-assisted regulatory compliance verification**.
+
+The platform aims to improve transparency throughout the SOP lifecycle, maintain traceability of actions and revisions, and assist users in identifying potential regulatory compliance gaps during the process.
+
+---
+
+## Key Features
+
+### SOP Management
+Centralized management of SOP documents throughout their lifecycle.
+
+### Review & Approval Workflow
+A structured workflow that supports SOP creation, review, revision, and approval across different organizational roles.
+
+### Role-Based Collaboration
+Supports the responsibilities and interactions of Authors, Reviewers, and Approvers throughout the SOP workflow.
+
+### Version & Activity Tracking
+Maintains traceability of SOP revisions, comments, decisions, and workflow activities.
+
+### AI-Assisted Compliance Verification
+Analyzes SOP content against relevant regulatory requirements to support compliance verification.
+
+### Compliance Findings
+Identifies potential compliance gaps and provides relevant regulatory evidence to support users during SOP review.
+
+---
+
+## Regulatory Scope
+
+Hawkim is designed for pharmaceutical organizations regulated by the **Saudi Food and Drug Authority (SFDA)**.
+
+The current compliance verification scope focuses on the **SFDA Guideline on Good Pharmacovigilance Practices (GVP)**.
+
+The scope may be expanded to additional regulatory guidelines in future development.
 
 ---
 
 ## User Roles
 
-Hawkim supports the main roles involved in the SOP lifecycle:
+Hawkim supports three primary roles involved in the SOP lifecycle:
 
 ### Author
-Creates and updates SOPs and responds to requested changes during the review process.
+Responsible for creating and updating SOPs and addressing requested changes throughout the review process.
 
 ### Reviewer
-Reviews SOP content, provides feedback, and coordinates required revisions before the SOP proceeds through the approval process.
+Responsible for reviewing SOP content, providing feedback, and coordinating required revisions before the SOP proceeds through the approval process.
 
 ### Approver
-Evaluates SOPs at the approval stage and makes the final approval decision according to the defined workflow.
+Responsible for evaluating SOPs during the approval stage and making approval decisions according to the defined workflow.
 
 ---
 
-## Core Features
+## SOP Workflow
 
-### SOP Management
-Centralized creation, organization, tracking, and management of SOP documents.
-
-### Review & Approval Workflow
-A structured workflow supporting collaboration between Authors, Reviewers, and Approvers.
-
-### Version & Activity Tracking
-Maintains visibility into SOP revisions, decisions, comments, and workflow history.
-
-### AI-Assisted Compliance Verification
-Analyzes SOP content against relevant SFDA regulatory requirements and provides evidence-based compliance findings.
-
-### Compliance Reporting
-Presents identified compliance findings and supporting regulatory evidence to assist users during SOP review.
-
----
-
-## Project Structure
-
-The repository structure will evolve as development progresses.
+Hawkim supports a structured SOP lifecycle involving multiple review and approval stages.
 
 ```text
-hawkim/
-├── frontend/
-├── backend/
-├── ai/
-├── docs/
-└── README.md
+SOP Creation
+     │
+     ▼
+Author
+     │
+     ▼
+Review
+     │
+     ▼
+Reviewer
+     │
+     ├── Request Changes ──► Author
+     │
+     ▼
+Approval
+     │
+     ▼
+Approver
+     │
+     ├── Return with Comments ──► Reviewer
+     │
+     ▼
+Approved
+     │
+     ▼
+Training / Distribution / Archive
+```
+
+The workflow maintains the history of actions, feedback, revisions, and decisions to provide clear traceability throughout the SOP lifecycle.
+
+---
+
+## AI-Assisted Compliance Verification
+
+Hawkim includes an AI-assisted component designed to support the regulatory verification of SOP content.
+
+The compliance verification process aims to:
+
+- Identify regulatory requirements relevant to the SOP.
+- Compare SOP content against applicable requirements.
+- Detect potential missing or conflicting information.
+- Provide supporting regulatory evidence.
+- Assist users in reviewing potential compliance findings.
+
+The AI component is intended to **support human decision-making**, while final regulatory and approval decisions remain with authorized users.
+
+---
+
+## Project Management & Development
+
+The project uses collaborative tools to organize development activities and maintain project progress.
+
+### Jira
+
+Jira is used for project management activities, including:
+
+- Requirements and task management
+- Sprint planning
+- Task assignment
+- Progress tracking
+- Development backlog
+
+### GitHub
+
+GitHub is used for source code management and collaborative development, including:
+
+- Version control
+- Branch management
+- Pull requests
+- Code review
+- Development history
+
+---
+
+## Git Workflow
+
+The repository follows a branch-based collaborative development workflow.
+
+### Main Branches
+
+- `main` — Stable and approved version of the project.
+- `develop` — Integration branch for ongoing development.
+- `feature/*` — Branches used to develop individual features.
+
+Example feature branches:
+
+```text
+feature/authentication
+feature/sop-management
+feature/sop-workflow
+feature/compliance-checker
+feature/dashboard
+```
+
+### Development Flow
+
+```text
+feature/* → develop → main
+```
+
+New functionality is developed in dedicated feature branches and integrated through pull requests to maintain a clear and controlled development history.
+
+---
+
+## Repository Structure
+
+The repository structure will be documented as the system architecture and implementation are finalized.
+
+---
+
+## Project Status
+
+> 🚧 **Currently Under Development**
+
+Hawkim is being developed as a graduation project at King Saud University. Features, architecture, and implementation details may evolve throughout the development lifecycle.
+
+---
+
+## Team
+
+**King Saud University**  
+College of Computer and Information Sciences  
+Department of Information Technology
+
+**Graduation Project — Group 11**
+
+### Project Team
+
+- Sara Aljuraybah
+- [Team Member]
+- [Team Member]
+
+### Supervisor
+
+**Dr. Ebtisam**
+
+---
+
+## Disclaimer
+
+Hawkim is an academic graduation project developed for research and educational purposes.
+
+The AI-assisted compliance verification functionality is designed to support regulatory review and does not replace professional regulatory judgment or official guidance issued by the Saudi Food and Drug Authority (SFDA).
+
+---
+
+## License
+
+This project is currently maintained as a private academic project.
+
+All rights reserved © 2026 Hawkim Team.
