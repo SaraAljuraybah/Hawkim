@@ -31,6 +31,7 @@
    *   pending  #92400E on #FEF3C7 → 6.37:1
    *   approved #166534 on #DCFCE7 → 6.49:1
    *   rejected #991B1B on #FEE2E2 → 6.80:1
+   *   cancelled #45464B on #F1F1F2 → 8.34:1 (neutral gray)
    * Never rely on colour alone: always show the status label as text.
    */
   --color-status-pending-bg: #fef3c7;
@@ -39,6 +40,8 @@
   --color-status-approved-fg: #166534;
   --color-status-rejected-bg: #fee2e2;
   --color-status-rejected-fg: #991b1b;
+  --color-status-cancelled-bg: #f1f1f2;
+  --color-status-cancelled-fg: #45464b;
 
   /* Typography */
   --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;

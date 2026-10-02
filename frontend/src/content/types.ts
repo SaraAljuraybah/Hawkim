@@ -1,4 +1,4 @@
-import type { DashboardStatKey } from '../data/mock/types'
+import type { DashboardStatKey, RequestType } from '../data/mock/types'
 
 /*
  * Shape of the landing page content.
@@ -176,6 +176,8 @@ export interface AppNavItem {
   /** Route path, e.g. `/dashboard`. */
   href: string
   icon: IconName
+  /** Also show the item as active on pages below it (e.g. /requests/new under /requests). */
+  matchSubpaths?: boolean
 }
 
 export interface AppShellContent {
@@ -211,4 +213,101 @@ export interface DashboardContent {
     primary: AppNavItem
     secondary: AppNavItem[]
   }
+}
+
+/* ---------- Signed-in app: SOPs list ---------- */
+
+export type SopTabKey = 'all' | 'myDepartment' | 'recent'
+
+export interface SopsContent {
+  /** Browser tab title. */
+  pageTitle: string
+  title: string
+  subtitle: string
+  /** Accessible name of the tab list. */
+  tabsLabel: string
+  tabs: Record<SopTabKey, string>
+  viewToggle: { label: string; grid: string; list: string }
+  /** Column headings for the list view. */
+  columns: { code: string; title: string; department: string; version: string; lastUpdated: string }
+  /** `{version}` is replaced with the version number, e.g. "Version 2.1". */
+  versionTemplate: string
+  /** Shown when a tab has no SOPs. */
+  empty: string
+}
+
+/* ---------- Signed-in app: Departments ---------- */
+
+export interface DepartmentsContent {
+  /** Browser tab title. */
+  pageTitle: string
+  title: string
+  subtitle: string
+  /** Member count wording by plural form; `{count}` is replaced with the number. */
+  memberCount: { one: string; other: string }
+}
+
+/* ---------- Signed-in app: requests ---------- */
+
+export interface SubmitRequestContent {
+  /** Browser tab title. */
+  pageTitle: string
+  title: string
+  subtitle: string
+  fields: {
+    type: { label: string; placeholder: string }
+    department: { label: string; placeholder: string }
+    title: { label: string; placeholder: string }
+    description: { label: string; placeholder: string; /** `{count}` and `{max}` are replaced. */ counter: string }
+    attachments: {
+      label: string
+      optionalTag: string
+      hint: string
+      dropPrompt: string
+      browse: string
+      remove: string
+      typeError: string
+      sizeError: string
+    }
+  }
+  errors: {
+    typeRequired: string
+    departmentRequired: string
+    titleRequired: string
+    descriptionRequired: string
+  }
+  cancel: LinkContent
+  submit: { label: string; loadingLabel: string }
+  confirmation: {
+    title: string
+    text: string
+    viewRequests: LinkContent
+    submitAnother: string
+  }
+}
+
+export type RequestTabKey = 'all' | 'pending' | 'approved' | 'rejected'
+
+export interface MyRequestsContent {
+  /** Browser tab title. */
+  pageTitle: string
+  title: string
+  subtitle: string
+  newRequest: LinkContent
+  /** Accessible name of the tab list. */
+  tabsLabel: string
+  tabs: Record<RequestTabKey, string>
+  cancelButton: string
+  cancelDialog: { title: string; text: string; keep: string; confirm: string }
+  /** Announced to screen readers after a request is cancelled. */
+  cancelledAnnouncement: string
+  /** Shown when a tab has no requests. */
+  empty: string
+}
+
+export interface RequestsContent {
+  /** Display label for each request type. */
+  types: Record<RequestType, string>
+  submit: SubmitRequestContent
+  myRequests: MyRequestsContent
 }

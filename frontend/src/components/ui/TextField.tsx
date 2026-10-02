@@ -1,5 +1,6 @@
-import { useId, type InputHTMLAttributes, type ReactNode, type Ref } from 'react'
-import { CircleAlert } from 'lucide-react'
+import type { InputHTMLAttributes, ReactNode, Ref } from 'react'
+import { FieldShell } from './FieldShell'
+import { controlClasses, useFieldIds } from './useFieldIds'
 
 export interface TextFieldProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'children'> {
   label: string
@@ -31,48 +32,31 @@ export function TextField({
   'aria-describedby': describedBy,
   ...inputProps
 }: TextFieldProps) {
-  const generatedId = useId()
-  const inputId = id ?? generatedId
-  const hintId = `${inputId}-hint`
-  const errorId = `${inputId}-error`
-
-  const describedByIds =
-    [describedBy, error ? errorId : hint ? hintId : undefined].filter(Boolean).join(' ') || undefined
+  const { inputId, hintId, errorId, describedByIds } = useFieldIds({ id, hint, error, describedBy })
 
   return (
-    <div className={className}>
-      <label htmlFor={inputId} className="mb-1.5 block text-sm font-medium text-maroon">
-        {label}
-      </label>
-
+    <FieldShell
+      label={label}
+      inputId={inputId}
+      hint={hint}
+      hintId={hintId}
+      error={error}
+      errorId={errorId}
+      className={className}
+    >
       <div className="relative">
         <input
           ref={ref}
           id={inputId}
           aria-invalid={error ? true : undefined}
           aria-describedby={describedByIds}
-          className={`h-11 w-full rounded-lg border bg-white px-3.5 text-[0.9375rem] text-maroon transition-colors placeholder:text-text-gray/85 focus:border-maroon focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:bg-beige ${
-            error ? 'border-maroon-secondary' : 'border-text-gray/70'
-          } ${endAdornment ? 'pr-12' : ''}`}
+          className={`h-11 ${controlClasses(error)} ${endAdornment ? 'pr-12' : ''}`}
           {...inputProps}
         />
         {endAdornment && (
           <div className="absolute inset-y-0 right-1 flex items-center">{endAdornment}</div>
         )}
       </div>
-
-      {error ? (
-        <p id={errorId} className="mt-1.5 flex items-start gap-1.5 text-sm text-maroon-secondary">
-          <CircleAlert aria-hidden="true" className="mt-0.5 size-4 shrink-0" strokeWidth={1.75} />
-          {error}
-        </p>
-      ) : (
-        hint && (
-          <p id={hintId} className="mt-1.5 text-sm text-text-gray">
-            {hint}
-          </p>
-        )
-      )}
-    </div>
+    </FieldShell>
   )
 }

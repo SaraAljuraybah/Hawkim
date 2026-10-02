@@ -1,3 +1,5 @@
+import { departments } from './departments'
+import { sops } from './sops'
 import type { ActivityItem, DashboardStat } from './types'
 
 /*
@@ -5,11 +7,18 @@ import type { ActivityItem, DashboardStat } from './types'
  * TODO: Replace with data from the backend API.
  */
 
-export const dashboardStats: DashboardStat[] = [
-  { key: 'myRequests', value: 5 },
-  { key: 'sops', value: 12 },
-  { key: 'employees', value: 48 },
-]
+/**
+ * Dashboard statistics, derived from the other data so every screen agrees.
+ * @param pendingRequests number of the user's pending requests (from the requests store)
+ */
+export function getDashboardStats(pendingRequests: number): DashboardStat[] {
+  return [
+    { key: 'myRequests', value: pendingRequests },
+    { key: 'sops', value: sops.length },
+    // Sum of department members (assumes each person belongs to one department).
+    { key: 'employees', value: departments.reduce((total, department) => total + department.memberCount, 0) },
+  ]
+}
 
 export const recentActivity: ActivityItem[] = [
   {

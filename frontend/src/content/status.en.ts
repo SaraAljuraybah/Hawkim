@@ -9,4 +9,5 @@ export const statusLabelsEn: Record<Status, string> = {
   pending: 'Pending',
   approved: 'Approved',
   rejected: 'Rejected',
+  cancelled: 'Cancelled',
 }

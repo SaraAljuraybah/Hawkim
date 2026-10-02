@@ -13,6 +13,7 @@ const styles: Record<Status, string> = {
   pending: 'bg-status-pending-bg text-status-pending-fg',
   approved: 'bg-status-approved-bg text-status-approved-fg',
   rejected: 'bg-status-rejected-bg text-status-rejected-fg',
+  cancelled: 'bg-status-cancelled-bg text-status-cancelled-fg',
 }
 
 /**
