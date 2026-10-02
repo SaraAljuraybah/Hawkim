@@ -88,7 +88,9 @@ export function MyRequestsPage() {
         id={ids.panel}
         aria-labelledby={ids.tab}
         tabIndex={0}
-        className="mt-6 rounded-xl"
+        // Focus lands here after cancelling a request. Show the outline only for keyboard
+        // users (:focus-visible), and keep it subtle: thin maroon line, small offset.
+        className="mt-6 rounded-xl focus:outline-none focus-visible:outline-solid focus-visible:outline-[1.5px] focus-visible:outline-offset-2 focus-visible:outline-maroon"
       >
         {visibleRequests.length === 0 ? (
           <div className="flex flex-col items-center rounded-xl border border-dashed border-beige bg-white px-6 py-14 text-center">
