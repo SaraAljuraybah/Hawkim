@@ -1,3 +1,4 @@
+import { departments } from './departments'
 import { sops } from './sops'
 import type { ActivityItem, DashboardStat } from './types'
 
@@ -8,9 +9,10 @@ import type { ActivityItem, DashboardStat } from './types'
 
 export const dashboardStats: DashboardStat[] = [
   { key: 'myRequests', value: 5 },
-  // Derived from the SOP list so the dashboard and the SOPs page always agree.
+  // Derived from the mock lists so the dashboard and the other pages always agree.
   { key: 'sops', value: sops.length },
-  { key: 'employees', value: 48 },
+  // Sum of department members (assumes each person belongs to one department).
+  { key: 'employees', value: departments.reduce((total, department) => total + department.memberCount, 0) },
 ]
 
 export const recentActivity: ActivityItem[] = [

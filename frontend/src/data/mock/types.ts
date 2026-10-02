@@ -19,13 +19,23 @@ export interface User {
 /** Department identifiers (see departments.ts). */
 export type DepartmentId =
   | 'quality-assurance'
-  | 'pharmacovigilance'
   | 'regulatory-affairs'
+  | 'pharmacovigilance'
+  | 'research-development'
   | 'information-technology'
+  | 'human-resources'
+  | 'finance-administration'
+  | 'clinical-operations'
+  | 'legal-governance'
 
 export interface Department {
   id: DepartmentId
   name: string
+  /** Short abbreviation shown in the initials circle, e.g. "QA". */
+  initials: string
+  /** One-line description of the department's function. */
+  description: string
+  memberCount: number
 }
 
 /** A Standard Operating Procedure (list information only). */
