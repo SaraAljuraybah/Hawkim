@@ -1,6 +1,6 @@
 import { useRef, useState, type FormEvent } from 'react'
 import { flushSync } from 'react-dom'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { Info, LoaderCircle } from 'lucide-react'
 import { Button } from '../components/ui/Button'
 import { HexFragment } from '../components/ui/HexFragment'
@@ -17,6 +17,9 @@ type FieldErrors = Partial<Record<Field, string>>
 /** Simple format check: something@something.something, with no spaces. */
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
+/** Where a successful sign-in leads. */
+const AFTER_SIGN_IN_PATH = '/dashboard'
+
 const linkClasses =
   'rounded-sm font-medium text-maroon-secondary underline-offset-4 hover:underline'
 
@@ -30,11 +33,12 @@ const legalLinkClasses =
 /**
  * Sign In page ("/login").
  * Split layout on large screens (brand panel + form); single column below lg.
- * Authentication is not connected yet — see src/services/auth.ts.
+ * Authentication is a temporary demo for now — see src/services/auth.ts.
  */
 export function SignInPage() {
   const content = signInEn
   useDocumentTitle(content.pageTitle)
+  const navigate = useNavigate()
 
   const [values, setValues] = useState<Record<Field, string>>({ email: '', password: '' })
   const [errors, setErrors] = useState<FieldErrors>({})
@@ -97,8 +101,12 @@ export function SignInPage() {
     const result = await signIn(values.email.trim(), values.password)
     setSubmitting(false)
 
-    // No navigation yet: show the result inline.
-    if (!result.ok) setStatusMessage(resultMessages[result.reason])
+    // DEMO ONLY: the stub always succeeds (see services/auth.ts).
+    if (result.ok) {
+      navigate(AFTER_SIGN_IN_PATH)
+    } else {
+      setStatusMessage(resultMessages[result.reason])
+    }
   }
 
   return (
