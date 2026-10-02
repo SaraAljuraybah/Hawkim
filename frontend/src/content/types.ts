@@ -113,3 +113,44 @@ export interface LandingContent {
     academicNote: string
   }
 }
+
+/* ---------- Authentication pages ---------- */
+
+export interface LinkContent {
+  label: string
+  href: string
+}
+
+export interface SignInContent {
+  /** Browser tab title. */
+  pageTitle: string
+  brand: {
+    logoAlt: string
+    tagline: string
+    /** Plain-text note at the bottom of the brand panel (no emblems or logos). */
+    regulatoryNote: string
+  }
+  title: string
+  subtitle: string
+  email: { label: string; placeholder: string }
+  password: { label: string; placeholder: string; showLabel: string; hideLabel: string }
+  forgotPassword: LinkContent
+  submit: { label: string; loadingLabel: string }
+  errors: {
+    emailRequired: string
+    emailInvalid: string
+    passwordRequired: string
+  }
+  /** Messages for the result returned by the auth service. */
+  results: {
+    notConnected: string
+  }
+  /** "By signing in, you agree to our {terms} and {privacy}." */
+  legal: {
+    prefix: string
+    terms: LinkContent
+    conjunction: string
+    privacy: LinkContent
+    suffix: string
+  }
+}
