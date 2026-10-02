@@ -166,3 +166,26 @@ export interface NotFoundContent {
   text: string
   homeLink: LinkContent
 }
+
+/* ---------- Signed-in app: shell (sidebar + top bar) ---------- */
+
+export interface AppNavItem {
+  label: string
+  /** Route path, e.g. `/dashboard`. */
+  href: string
+  icon: IconName
+}
+
+export interface AppShellContent {
+  /** Visually hidden link that lets keyboard users jump past the navigation. */
+  skipLink: string
+  logoAlt: string
+  navAriaLabel: string
+  nav: AppNavItem[]
+  signOut: AppNavItem
+  notificationsLabel: string
+  openMenu: string
+  closeMenu: string
+  /** Accessible name of the mobile navigation drawer. */
+  drawerLabel: string
+}
