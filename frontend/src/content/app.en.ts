@@ -13,8 +13,8 @@ export const appShellEn: AppShellContent = {
   navAriaLabel: 'Main',
   nav: [
     { label: 'Dashboard', href: '/dashboard', icon: 'dashboard' },
-    { label: 'My Requests', href: '/requests', icon: 'requests' },
     { label: 'SOPs', href: '/sops', icon: 'sops' },
+    { label: 'My Requests', href: '/requests', icon: 'requests' },
     { label: 'Departments', href: '/departments', icon: 'departments' },
   ],
   signOut: { label: 'Sign Out', href: '/login', icon: 'signOut' },
