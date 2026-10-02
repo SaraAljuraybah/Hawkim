@@ -6,6 +6,7 @@ import { DepartmentsPage } from './pages/DepartmentsPage'
 import { SopsPage } from './pages/SopsPage'
 import { LandingPage } from './pages/LandingPage'
 import { NotFoundPage } from './pages/NotFoundPage'
+import { RequestsProvider } from './state/RequestsProvider'
 import { SignInPage } from './pages/SignInPage'
 
 /**
@@ -30,7 +31,14 @@ function App() {
       {/* Signed-in app: every screen inside shares the sidebar + top bar.
           TODO: Protect these routes (redirect to /login when not signed in)
           once real authentication exists. */}
-      <Route element={<AppLayout />}>
+      <Route
+        element={
+          // Shared in-memory requests store for all signed-in screens
+          <RequestsProvider>
+            <AppLayout />
+          </RequestsProvider>
+        }
+      >
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/sops" element={<SopsPage />} />
         <Route path="/departments" element={<DepartmentsPage />} />

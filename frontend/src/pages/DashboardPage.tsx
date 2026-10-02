@@ -7,9 +7,10 @@ import { StatusBadge } from '../components/ui/StatusBadge'
 import { dashboardEn } from '../content/app.en'
 import type { DashboardContent } from '../content/types'
 import { currentUser } from '../data/mock/currentUser'
-import { dashboardStats, recentActivity } from '../data/mock/dashboard'
+import { getDashboardStats, recentActivity } from '../data/mock/dashboard'
 import type { ActivityKind } from '../data/mock/types'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
+import { useRequests } from '../state/requestsContext'
 
 /** Icon for each kind of activity item. */
 const activityIcons: Record<ActivityKind, LucideIcon> = {
@@ -35,6 +36,10 @@ export function DashboardPage() {
   const user = currentUser
   const firstName = user.name.split(' ')[0]
   const greeting = getGreeting(content.greetings).replace('{name}', firstName)
+
+  // "My Requests — In Progress" counts the user's pending requests.
+  const { requests } = useRequests()
+  const dashboardStats = getDashboardStats(requests.filter((request) => request.status === 'pending').length)
 
   return (
     <>

@@ -11,3 +11,10 @@ export function formatDate(isoDate: string, locale = 'en-US'): string {
     timeZone: 'UTC',
   }).format(new Date(isoDate))
 }
+
+/** Today's date in the user's local time zone as an ISO date ("2024-01-12"). */
+export function todayIsoDate(date = new Date()): string {
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${date.getFullYear()}-${month}-${day}`
+}

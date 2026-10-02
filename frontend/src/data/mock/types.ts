@@ -72,3 +72,19 @@ export interface ActivityItem {
   /** Optional: items without a status show no badge. */
   status?: Status
 }
+
+/** Kinds of request a user can send to the admin team. */
+export type RequestType = 'department-access' | 'permission-change' | 'role-change'
+
+/** A request sent to the admin team. Requests cannot be edited; a pending one can be cancelled. */
+export interface UserRequest {
+  id: string
+  title: string
+  type: RequestType
+  /** Only for department-access requests: the department asked for. */
+  departmentId?: DepartmentId
+  description: string
+  /** ISO date, e.g. "2024-01-12" */
+  createdAt: string
+  status: Status
+}
