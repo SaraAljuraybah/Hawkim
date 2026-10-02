@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { Eyebrow } from './Eyebrow'
 
 interface SectionHeadingProps {
   eyebrow?: string
@@ -14,11 +15,7 @@ interface SectionHeadingProps {
   className?: string
 }
 
-/**
- * Eyebrow label + title + optional subtitle.
- * On light backgrounds the eyebrow text is maroon-secondary (gold text would fail
- * WCAG contrast there); gold only appears as the short accent lines beside it.
- */
+/** Eyebrow label + title + optional subtitle. */
 export function SectionHeading({
   eyebrow,
   title,
@@ -35,15 +32,9 @@ export function SectionHeading({
   return (
     <div className={`${centered ? 'mx-auto max-w-3xl text-center' : 'max-w-2xl'} ${className}`}>
       {eyebrow && (
-        <p
-          className={`mb-4 inline-flex items-center gap-3 text-xs font-semibold tracking-[0.18em] uppercase ${
-            dark ? 'text-gold' : 'text-maroon-secondary'
-          }`}
-        >
-          <span aria-hidden="true" className="h-px w-8 bg-gold" />
+        <Eyebrow centered={centered} tone={tone} className="mb-4">
           {eyebrow}
-          {centered && <span aria-hidden="true" className="h-px w-8 bg-gold" />}
-        </p>
+        </Eyebrow>
       )}
       <Heading
         id={id}
