@@ -1,5 +1,7 @@
 import { useEffect } from 'react'
 import { Route, Routes, useLocation } from 'react-router-dom'
+import { AppLayout } from './components/layout/AppLayout'
+import { DashboardPage } from './pages/DashboardPage'
 import { LandingPage } from './pages/LandingPage'
 import { NotFoundPage } from './pages/NotFoundPage'
 import { SignInPage } from './pages/SignInPage'
@@ -22,6 +24,14 @@ function App() {
     <Routes>
       <Route path="/" element={<LandingPage />} />
       <Route path="/login" element={<SignInPage />} />
+
+      {/* Signed-in app: every screen inside shares the sidebar + top bar.
+          TODO: Protect these routes (redirect to /login when not signed in)
+          once real authentication exists. */}
+      <Route element={<AppLayout />}>
+        <Route path="/dashboard" element={<DashboardPage />} />
+      </Route>
+
       <Route path="*" element={<NotFoundPage />} />
     </Routes>
   )

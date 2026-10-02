@@ -1,3 +1,5 @@
+import type { DashboardStatKey } from '../data/mock/types'
+
 /*
  * Shape of the landing page content.
  * Every language file (landing.en.ts now, landing.ar.ts later) implements
@@ -188,4 +190,22 @@ export interface AppShellContent {
   closeMenu: string
   /** Accessible name of the mobile navigation drawer. */
   drawerLabel: string
+}
+
+/* ---------- Signed-in app: dashboard ---------- */
+
+export interface DashboardContent {
+  /** Browser tab title. */
+  pageTitle: string
+  /** Greeting by local time of day; `{name}` is replaced with the user's first name. */
+  greetings: { morning: string; afternoon: string; evening: string }
+  subtitle: string
+  /** Label, sublabel and icon for each statistic (values come from the data). */
+  stats: Record<DashboardStatKey, { label: string; sublabel: string; icon: IconName }>
+  recentActivity: { title: string }
+  quickActions: {
+    title: string
+    primary: AppNavItem
+    secondary: AppNavItem[]
+  }
 }

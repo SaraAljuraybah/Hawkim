@@ -1,4 +1,4 @@
-import { useEffect, useRef, type RefObject } from 'react'
+import { useEffect, useRef, type KeyboardEvent, type RefObject } from 'react'
 import type { AppShellContent } from '../../content/types'
 import { Sidebar } from './Sidebar'
 
@@ -14,7 +14,7 @@ interface MobileDrawerProps {
  * Slide-in navigation drawer for screens below lg.
  * Built on the native <dialog> element opened with showModal(), which:
  * - dims the page behind it (::backdrop),
- * - makes the rest of the page inert, so focus stays inside the drawer,
+ * - makes the rest of the page inert (Tab also wraps around inside the drawer),
  * - closes on Escape.
  */
 export function MobileDrawer({ content, open, onClose, returnFocusRef }: MobileDrawerProps) {
@@ -42,6 +42,23 @@ export function MobileDrawer({ content, open, onClose, returnFocusRef }: MobileD
     return () => desktop.removeEventListener('change', onChange)
   }, [open])
 
+  // Keep Tab / Shift+Tab cycling inside the drawer. (A modal dialog already makes
+  // the page inert, but browsers let focus leave to their own UI after the last item.)
+  function handleKeyDown(event: KeyboardEvent<HTMLDialogElement>) {
+    if (event.key !== 'Tab' || !dialogRef.current) return
+    const focusable = dialogRef.current.querySelectorAll<HTMLElement>('a[href], button:not([disabled])')
+    if (focusable.length === 0) return
+    const first = focusable[0]
+    const last = focusable[focusable.length - 1]
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault()
+      last.focus()
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault()
+      first.focus()
+    }
+  }
+
   // Runs however the dialog closes (Escape, backdrop, link, close button).
   function handleClose() {
     document.documentElement.style.overflow = ''
@@ -54,6 +71,7 @@ export function MobileDrawer({ content, open, onClose, returnFocusRef }: MobileD
       ref={dialogRef}
       aria-label={content.drawerLabel}
       onClose={handleClose}
+      onKeyDown={handleKeyDown}
       // A click on the dimmed backdrop targets the <dialog> itself.
       onClick={(event) => event.target === dialogRef.current && dialogRef.current?.close()}
       className="m-0 h-dvh max-h-none w-72 max-w-[85vw] bg-white p-0 shadow-xl backdrop:bg-maroon/40 open:block motion-safe:open:animate-[drawer-in_200ms_ease-out] lg:hidden"
