@@ -1,0 +1,82 @@
+@import 'tailwindcss';
+
+/*
+ * Hawkim design tokens — single source of truth.
+ * Tailwind v4 turns every token below into utilities
+ * (e.g. --color-maroon → bg-maroon, text-maroon, border-maroon)
+ * and also exposes it as a CSS variable (var(--color-maroon)).
+ *
+ * Colour rules (from the Hawkim Visual Identity Guidelines):
+ * - Primary colours (maroon, gold, off-white) dominate.
+ * - Secondary colours are for support only: cards, borders, states.
+ * - Gold is for buttons, accents, icons, lines and large text. It must
+ *   never be used for text on light backgrounds (contrast ≈ 2.3:1).
+ *   Gold text is only allowed on maroon (contrast ≈ 7:1).
+ */
+@theme {
+  /* Primary */
+  --color-maroon: #3a0b18;
+  --color-gold: #c9a05d;
+  --color-offwhite: #faf8f4;
+
+  /* Secondary & neutral */
+  --color-maroon-secondary: #6b0026;
+  --color-gold-light: #d8b77a;
+  --color-beige: #f1ece4;
+  --color-text-gray: #55565a;
+
+  /* Typography */
+  --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --font-arabic: 'Noto Sans Arabic', 'Inter', ui-sans-serif, system-ui, sans-serif;
+}
+
+@layer base {
+  html {
+    background-color: var(--color-offwhite);
+    color: var(--color-text-gray);
+  }
+
+  body {
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Headings: maroon, Inter SemiBold */
+  h1,
+  h2,
+  h3,
+  h4 {
+    color: var(--color-maroon);
+    font-weight: 600;
+  }
+
+  /* Any Arabic text automatically uses Noto Sans Arabic */
+  :lang(ar) {
+    font-family: var(--font-arabic);
+  }
+
+  /* Visible keyboard focus everywhere (components may override the colour) */
+  :focus-visible {
+    outline: 2px solid var(--color-maroon-secondary);
+    outline-offset: 3px;
+  }
+
+  /* Smooth scrolling for in-page links, only when motion is welcome */
+  @media (prefers-reduced-motion: no-preference) {
+    html {
+      scroll-behavior: smooth;
+    }
+  }
+
+  /* Respect users who prefer reduced motion */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
