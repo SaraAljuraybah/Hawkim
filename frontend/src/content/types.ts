@@ -1,4 +1,4 @@
-import type { DashboardStatKey } from '../data/mock/types'
+import type { DashboardStatKey, RequestType } from '../data/mock/types'
 
 /*
  * Shape of the landing page content.
@@ -176,6 +176,8 @@ export interface AppNavItem {
   /** Route path, e.g. `/dashboard`. */
   href: string
   icon: IconName
+  /** Also show the item as active on pages below it (e.g. /requests/new under /requests). */
+  matchSubpaths?: boolean
 }
 
 export interface AppShellContent {
@@ -243,4 +245,49 @@ export interface DepartmentsContent {
   subtitle: string
   /** Member count wording by plural form; `{count}` is replaced with the number. */
   memberCount: { one: string; other: string }
+}
+
+/* ---------- Signed-in app: requests ---------- */
+
+export interface SubmitRequestContent {
+  /** Browser tab title. */
+  pageTitle: string
+  title: string
+  subtitle: string
+  fields: {
+    type: { label: string; placeholder: string }
+    department: { label: string; placeholder: string }
+    title: { label: string; placeholder: string }
+    description: { label: string; placeholder: string; /** `{count}` and `{max}` are replaced. */ counter: string }
+    attachments: {
+      label: string
+      optionalTag: string
+      hint: string
+      dropPrompt: string
+      browse: string
+      remove: string
+      typeError: string
+      sizeError: string
+    }
+  }
+  errors: {
+    typeRequired: string
+    departmentRequired: string
+    titleRequired: string
+    descriptionRequired: string
+  }
+  cancel: LinkContent
+  submit: { label: string; loadingLabel: string }
+  confirmation: {
+    title: string
+    text: string
+    viewRequests: LinkContent
+    submitAnother: string
+  }
+}
+
+export interface RequestsContent {
+  /** Display label for each request type. */
+  types: Record<RequestType, string>
+  submit: SubmitRequestContent
 }

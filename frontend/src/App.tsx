@@ -4,6 +4,7 @@ import { AppLayout } from './components/layout/AppLayout'
 import { DashboardPage } from './pages/DashboardPage'
 import { DepartmentsPage } from './pages/DepartmentsPage'
 import { SopsPage } from './pages/SopsPage'
+import { SubmitRequestPage } from './pages/SubmitRequestPage'
 import { LandingPage } from './pages/LandingPage'
 import { NotFoundPage } from './pages/NotFoundPage'
 import { RequestsProvider } from './state/RequestsProvider'
@@ -42,6 +43,7 @@ function App() {
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/sops" element={<SopsPage />} />
         <Route path="/departments" element={<DepartmentsPage />} />
+        <Route path="/requests/new" element={<SubmitRequestPage />} />
       </Route>
 
       <Route path="*" element={<NotFoundPage />} />

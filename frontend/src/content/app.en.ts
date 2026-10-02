@@ -14,7 +14,7 @@ export const appShellEn: AppShellContent = {
   nav: [
     { label: 'Dashboard', href: '/dashboard', icon: 'dashboard' },
     { label: 'SOPs', href: '/sops', icon: 'sops' },
-    { label: 'My Requests', href: '/requests', icon: 'requests' },
+    { label: 'My Requests', href: '/requests', icon: 'requests', matchSubpaths: true },
     { label: 'Departments', href: '/departments', icon: 'departments' },
   ],
   signOut: { label: 'Sign Out', href: '/login', icon: 'signOut' },

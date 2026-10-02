@@ -57,7 +57,7 @@ export function Sidebar({ content, onNavigate, onClose }: SidebarProps) {
                 {/* NavLink sets aria-current="page" on the active item */}
                 <NavLink
                   to={item.href}
-                  end
+                  end={!item.matchSubpaths}
                   onClick={onNavigate}
                   className={({ isActive }) =>
                     `${itemBase} ${
