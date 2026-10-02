@@ -3,6 +3,7 @@ import { Route, Routes, useLocation } from 'react-router-dom'
 import { AppLayout } from './components/layout/AppLayout'
 import { DashboardPage } from './pages/DashboardPage'
 import { DepartmentsPage } from './pages/DepartmentsPage'
+import { MyRequestsPage } from './pages/MyRequestsPage'
 import { SopsPage } from './pages/SopsPage'
 import { SubmitRequestPage } from './pages/SubmitRequestPage'
 import { LandingPage } from './pages/LandingPage'
@@ -43,6 +44,7 @@ function App() {
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/sops" element={<SopsPage />} />
         <Route path="/departments" element={<DepartmentsPage />} />
+        <Route path="/requests" element={<MyRequestsPage />} />
         <Route path="/requests/new" element={<SubmitRequestPage />} />
       </Route>
 

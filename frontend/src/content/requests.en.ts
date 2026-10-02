@@ -52,4 +52,28 @@ export const requestsEn: RequestsContent = {
       submitAnother: 'Submit another request',
     },
   },
+
+  myRequests: {
+    pageTitle: 'My Requests | Hawkim',
+    title: 'My Requests',
+    subtitle: 'View and track your requests to the admin team.',
+    newRequest: { label: 'New Request', href: '/requests/new' },
+    tabsLabel: 'Filter requests',
+    // Cancelled requests appear under "All" only.
+    tabs: {
+      all: 'All',
+      pending: 'Pending',
+      approved: 'Approved',
+      rejected: 'Rejected',
+    },
+    cancelButton: 'Cancel request',
+    cancelDialog: {
+      title: 'Cancel this request?',
+      text: "This can't be undone.",
+      keep: 'Keep request',
+      confirm: 'Cancel request',
+    },
+    cancelledAnnouncement: 'Request cancelled.',
+    empty: 'No requests here yet.',
+  },
 }

@@ -8,7 +8,7 @@ import { Link, type LinkProps } from 'react-router-dom'
  * - accent:    gold filled with maroon text (call to action on maroon backgrounds)
  */
 type ButtonVariant = 'primary' | 'secondary' | 'accent'
-type ButtonSize = 'md' | 'lg'
+type ButtonSize = 'sm' | 'md' | 'lg'
 
 interface CommonProps {
   variant?: ButtonVariant
@@ -48,6 +48,7 @@ const variants: Record<ButtonVariant, string> = {
 }
 
 const sizes: Record<ButtonSize, string> = {
+  sm: 'h-8 px-3 text-sm',
   md: 'h-10 px-4 text-sm',
   lg: 'h-12 px-6 text-base',
 }

@@ -286,8 +286,28 @@ export interface SubmitRequestContent {
   }
 }
 
+export type RequestTabKey = 'all' | 'pending' | 'approved' | 'rejected'
+
+export interface MyRequestsContent {
+  /** Browser tab title. */
+  pageTitle: string
+  title: string
+  subtitle: string
+  newRequest: LinkContent
+  /** Accessible name of the tab list. */
+  tabsLabel: string
+  tabs: Record<RequestTabKey, string>
+  cancelButton: string
+  cancelDialog: { title: string; text: string; keep: string; confirm: string }
+  /** Announced to screen readers after a request is cancelled. */
+  cancelledAnnouncement: string
+  /** Shown when a tab has no requests. */
+  empty: string
+}
+
 export interface RequestsContent {
   /** Display label for each request type. */
   types: Record<RequestType, string>
   submit: SubmitRequestContent
+  myRequests: MyRequestsContent
 }
