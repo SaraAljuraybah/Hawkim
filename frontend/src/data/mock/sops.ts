@@ -56,7 +56,7 @@ export const sops: Sop[] = [
     title: 'Risk Management Procedure',
     departmentId: 'quality-assurance',
     version: '1.0',
-    lastUpdated: '2023-11-02',
+    lastUpdated: '2024-01-20',
     status: 'approved',
   },
 ]
