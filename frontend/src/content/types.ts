@@ -233,3 +233,14 @@ export interface SopsContent {
   /** Shown when a tab has no SOPs. */
   empty: string
 }
+
+/* ---------- Signed-in app: Departments ---------- */
+
+export interface DepartmentsContent {
+  /** Browser tab title. */
+  pageTitle: string
+  title: string
+  subtitle: string
+  /** Member count wording by plural form; `{count}` is replaced with the number. */
+  memberCount: { one: string; other: string }
+}

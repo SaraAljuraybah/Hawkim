@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { Route, Routes, useLocation } from 'react-router-dom'
 import { AppLayout } from './components/layout/AppLayout'
 import { DashboardPage } from './pages/DashboardPage'
+import { DepartmentsPage } from './pages/DepartmentsPage'
 import { SopsPage } from './pages/SopsPage'
 import { LandingPage } from './pages/LandingPage'
 import { NotFoundPage } from './pages/NotFoundPage'
@@ -32,6 +33,7 @@ function App() {
       <Route element={<AppLayout />}>
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/sops" element={<SopsPage />} />
+        <Route path="/departments" element={<DepartmentsPage />} />
       </Route>
 
       <Route path="*" element={<NotFoundPage />} />
