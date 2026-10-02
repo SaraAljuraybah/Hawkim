@@ -63,6 +63,9 @@ Responsible for reviewing SOP content, providing feedback, and coordinating requ
 ### Approver
 Responsible for evaluating SOPs during the approval stage and making approval decisions according to the defined workflow.
 
+### Admin
+Handles user requests, such as access to other departments. The Admin role is not part of the SOP review and approval workflow.
+
 ---
 
 ## SOP Workflow
