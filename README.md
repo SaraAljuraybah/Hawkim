@@ -146,31 +146,20 @@ GitHub is used for source code management and collaborative development, includi
 
 ## Git Workflow
 
-The repository follows a branch-based collaborative development workflow.
+The repository follows a two-branch workflow.
 
-### Main Branches
+### Branches
 
-- `main` — Stable and approved version of the project.
-- `develop` — Integration branch for ongoing development.
-- `feature/*` — Branches used to develop individual features.
-
-Example feature branches:
-
-```text
-feature/authentication
-feature/sop-management
-feature/sop-workflow
-feature/compliance-checker
-feature/dashboard
-```
+- `develop` — Default branch for ongoing development. All work is committed and pushed directly to `develop`.
+- `main` — Stable version of the project only. It is updated through a pull request from `develop`.
 
 ### Development Flow
 
 ```text
-feature/* → develop → main
+develop → main
 ```
 
-New functionality is developed in dedicated feature branches and integrated through pull requests to maintain a clear and controlled development history.
+Changes are committed in small, logical commits on `develop`. When a stable version is ready, `develop` is merged into `main` through a pull request.
 
 ---
 

@@ -25,9 +25,31 @@
   --color-beige: #f1ece4;
   --color-text-gray: #55565a;
 
+  /*
+   * Status colours (badges and states). Each pair is a light background with
+   * dark text; all pairs meet WCAG AA (≥ 4.5:1):
+   *   pending  #92400E on #FEF3C7 → 6.37:1
+   *   approved #166534 on #DCFCE7 → 6.49:1
+   *   rejected #991B1B on #FEE2E2 → 6.80:1
+   * Never rely on colour alone: always show the status label as text.
+   */
+  --color-status-pending-bg: #fef3c7;
+  --color-status-pending-fg: #92400e;
+  --color-status-approved-bg: #dcfce7;
+  --color-status-approved-fg: #166534;
+  --color-status-rejected-bg: #fee2e2;
+  --color-status-rejected-fg: #991b1b;
+
   /* Typography */
   --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
   --font-arabic: 'Noto Sans Arabic', 'Inter', ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Mobile navigation drawer slide-in (used with motion-safe: only) */
+@keyframes drawer-in {
+  from {
+    transform: translateX(-100%);
+  }
 }
 
 @layer base {

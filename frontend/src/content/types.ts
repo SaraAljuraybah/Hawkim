@@ -1,3 +1,5 @@
+import type { DashboardStatKey } from '../data/mock/types'
+
 /*
  * Shape of the landing page content.
  * Every language file (landing.en.ts now, landing.ar.ts later) implements
@@ -165,4 +167,48 @@ export interface NotFoundContent {
   title: string
   text: string
   homeLink: LinkContent
+}
+
+/* ---------- Signed-in app: shell (sidebar + top bar) ---------- */
+
+export interface AppNavItem {
+  label: string
+  /** Route path, e.g. `/dashboard`. */
+  href: string
+  icon: IconName
+}
+
+export interface AppShellContent {
+  /** Visually hidden link that lets keyboard users jump past the navigation. */
+  skipLink: string
+  /** Product name shown as text next to the logo mark in the sidebar. */
+  brandName: string
+  /** Accessible name of the sidebar logo link. */
+  homeLinkLabel: string
+  navAriaLabel: string
+  nav: AppNavItem[]
+  signOut: AppNavItem
+  notificationsLabel: string
+  openMenu: string
+  closeMenu: string
+  /** Accessible name of the mobile navigation drawer. */
+  drawerLabel: string
+}
+
+/* ---------- Signed-in app: dashboard ---------- */
+
+export interface DashboardContent {
+  /** Browser tab title. */
+  pageTitle: string
+  /** Greeting by local time of day; `{name}` is replaced with the user's first name. */
+  greetings: { morning: string; afternoon: string; evening: string }
+  subtitle: string
+  /** Label, sublabel and icon for each statistic (values come from the data). */
+  stats: Record<DashboardStatKey, { label: string; sublabel: string; icon: IconName }>
+  recentActivity: { title: string }
+  quickActions: {
+    title: string
+    primary: AppNavItem
+    secondary: AppNavItem[]
+  }
 }
