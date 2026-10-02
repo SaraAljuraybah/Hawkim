@@ -181,7 +181,10 @@ export interface AppNavItem {
 export interface AppShellContent {
   /** Visually hidden link that lets keyboard users jump past the navigation. */
   skipLink: string
-  logoAlt: string
+  /** Product name shown as text next to the logo mark in the sidebar. */
+  brandName: string
+  /** Accessible name of the sidebar logo link. */
+  homeLinkLabel: string
   navAriaLabel: string
   nav: AppNavItem[]
   signOut: AppNavItem

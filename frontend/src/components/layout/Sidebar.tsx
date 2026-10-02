@@ -25,9 +25,16 @@ export function Sidebar({ content, onNavigate, onClose }: SidebarProps) {
 
   return (
     <div className="flex h-full flex-col">
-      <div className="flex items-start justify-between gap-2 px-5 pt-6 pb-4">
-        <Link to={homeHref} onClick={onNavigate} className="rounded-md">
-          <Logo variant="full" alt={content.logoAlt} className="h-24" />
+      <div className="flex items-center justify-between gap-2 px-5 pt-5 pb-5">
+        {/* Mark + product name; the link's accessible name comes from aria-label */}
+        <Link
+          to={homeHref}
+          onClick={onNavigate}
+          aria-label={content.homeLinkLabel}
+          className="inline-flex items-center gap-2.5 rounded-md"
+        >
+          <Logo variant="mark" alt="" className="h-8" />
+          <span className="text-[1.1875rem] font-semibold tracking-tight text-maroon">{content.brandName}</span>
         </Link>
         {onClose && (
           <button

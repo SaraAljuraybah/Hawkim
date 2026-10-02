@@ -95,7 +95,7 @@ export function DashboardPage() {
         <Card title={content.quickActions.title} titleId="quick-actions-title">
           <ul className="space-y-3">
             <li>
-              <Button to={content.quickActions.primary.href} className="w-full">
+              <Button to={content.quickActions.primary.href} withArrow className="w-full">
                 {content.quickActions.primary.label}
               </Button>
             </li>

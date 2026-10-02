@@ -8,7 +8,8 @@ import type { AppShellContent, DashboardContent } from './types'
 
 export const appShellEn: AppShellContent = {
   skipLink: 'Skip to main content',
-  logoAlt: 'Hawkim',
+  brandName: 'Hawkim',
+  homeLinkLabel: 'Hawkim, go to dashboard',
   navAriaLabel: 'Main',
   nav: [
     { label: 'Dashboard', href: '/dashboard', icon: 'dashboard' },

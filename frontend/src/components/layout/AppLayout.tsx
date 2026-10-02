@@ -49,8 +49,9 @@ export function AppLayout() {
           onOpenMenu={() => setDrawerOpen(true)}
           menuButtonRef={menuButtonRef}
         />
-        <main id="main" tabIndex={-1} className="flex-1 px-4 py-8 focus:outline-none sm:px-6 lg:px-8 lg:py-10">
-          <div className="mx-auto w-full max-w-6xl">
+        <main id="main" tabIndex={-1} className="flex-1 px-4 py-8 focus:outline-none sm:px-6 lg:px-10 lg:py-10">
+          {/* Left-aligned next to the sidebar, capped at 1280px so lines stay readable on wide screens */}
+          <div className="w-full max-w-7xl">
             <Outlet />
           </div>
         </main>
