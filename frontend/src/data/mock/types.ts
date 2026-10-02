@@ -10,7 +10,36 @@ import type { Status } from '../../types/status'
 export interface User {
   name: string
   initials: string
+  /** Display label for the user's department (e.g. "IT Department"). */
   department: string
+  /** The user's department; used for filtering (e.g. "My Department"). */
+  departmentId: DepartmentId
+}
+
+/** Department identifiers (see departments.ts). */
+export type DepartmentId =
+  | 'quality-assurance'
+  | 'pharmacovigilance'
+  | 'regulatory-affairs'
+  | 'information-technology'
+
+export interface Department {
+  id: DepartmentId
+  name: string
+}
+
+/** A Standard Operating Procedure (list information only). */
+export interface Sop {
+  id: string
+  /** e.g. "SOP-017" */
+  code: string
+  title: string
+  departmentId: DepartmentId
+  /** Version number without the "v", e.g. "2.1" */
+  version: string
+  /** ISO date, e.g. "2024-01-12" */
+  lastUpdated: string
+  status: Status
 }
 
 /** Identifies each dashboard statistic (its label and icon come from the content file). */

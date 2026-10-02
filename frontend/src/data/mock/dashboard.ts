@@ -1,3 +1,4 @@
+import { sops } from './sops'
 import type { ActivityItem, DashboardStat } from './types'
 
 /*
@@ -7,7 +8,8 @@ import type { ActivityItem, DashboardStat } from './types'
 
 export const dashboardStats: DashboardStat[] = [
   { key: 'myRequests', value: 5 },
-  { key: 'sops', value: 12 },
+  // Derived from the SOP list so the dashboard and the SOPs page always agree.
+  { key: 'sops', value: sops.length },
   { key: 'employees', value: 48 },
 ]
 
