@@ -50,7 +50,13 @@ export interface Sop {
   /** ISO date, e.g. "2024-01-12" */
   lastUpdated: string
   status: Status
+  /** URL of the uploaded SOP file, e.g. "/sample-sops/SOP-078.pdf". */
+  fileUrl: string
+  fileType: SopFileType
 }
+
+/** File formats an SOP can be uploaded in. */
+export type SopFileType = 'pdf' | 'docx'
 
 /** Identifies each dashboard statistic (its label and icon come from the content file). */
 export type DashboardStatKey = 'myRequests' | 'sops' | 'employees'
