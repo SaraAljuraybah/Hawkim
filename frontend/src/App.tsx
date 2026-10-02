@@ -1,11 +1,13 @@
 import { useEffect } from 'react'
 import { Route, Routes, useLocation } from 'react-router-dom'
 import { LandingPage } from './pages/LandingPage'
+import { NotFoundPage } from './pages/NotFoundPage'
 import { SignInPage } from './pages/SignInPage'
 
 /**
  * Client-side routes.
- * There is intentionally no catch-all route yet: unknown URLs render nothing.
+ * Any URL without its own route (including /forgot-password, /terms and
+ * /privacy until those pages exist) shows the Not Found page.
  */
 function App() {
   const { pathname, hash } = useLocation()
@@ -20,6 +22,7 @@ function App() {
     <Routes>
       <Route path="/" element={<LandingPage />} />
       <Route path="/login" element={<SignInPage />} />
+      <Route path="*" element={<NotFoundPage />} />
     </Routes>
   )
 }

@@ -29,7 +29,8 @@ export const signInEn: SignInContent = {
     hideLabel: 'Hide password',
   },
 
-  // The forgot-password page will be built in a later feature branch.
+  // The forgot-password page will be built in a later feature branch
+  // (until then this link shows the Not Found page).
   forgotPassword: { label: 'Forgot password?', href: '/forgot-password' },
 
   submit: {
@@ -48,7 +49,7 @@ export const signInEn: SignInContent = {
   },
 
   // TODO: The Terms of Use and Privacy Policy documents don't exist yet.
-  // These routes will 404 until those pages are written and added.
+  // Until those pages are written and added, these links show the Not Found page.
   legal: {
     prefix: 'By signing in, you agree to our ',
     terms: { label: 'Terms of Use', href: '/terms' },

@@ -155,3 +155,14 @@ export interface SignInContent {
     suffix: string
   }
 }
+
+/* ---------- Not Found page ---------- */
+
+export interface NotFoundContent {
+  /** Browser tab title. */
+  pageTitle: string
+  logoAlt: string
+  title: string
+  text: string
+  homeLink: LinkContent
+}
