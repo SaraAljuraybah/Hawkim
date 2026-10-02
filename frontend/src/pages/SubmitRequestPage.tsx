@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { flushSync } from 'react-dom'
+import { useSearchParams } from 'react-router-dom'
 import { CircleCheck, LoaderCircle } from 'lucide-react'
 import { Button } from '../components/ui/Button'
 import { FileDropzone } from '../components/ui/FileDropzone'
@@ -11,6 +12,7 @@ import { currentUser } from '../data/mock/currentUser'
 import { departments } from '../data/mock/departments'
 import type { DepartmentId, RequestType } from '../data/mock/types'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
+import { REQUEST_PREFILL_PARAMS } from '../lib/routes'
 import { useRequests } from '../state/requestsContext'
 
 const TITLE_MAX = 100
@@ -26,6 +28,24 @@ type FieldErrors = Partial<Record<Field, string>>
 
 const emptyValues: Values = { type: '', departmentId: '', title: '', description: '' }
 
+/**
+ * Initial values from the URL, e.g. ?type=department-access&department=quality-assurance
+ * (used by "Request access" on locked SOPs). Unknown values are ignored, and the
+ * department is only kept for Department Access and when it is not the user's own.
+ */
+function prefillFromParams(
+  params: URLSearchParams,
+  typeOptions: RequestType[],
+  departmentOptions: DepartmentId[],
+): Values {
+  const type = params.get(REQUEST_PREFILL_PARAMS.type) as RequestType | null
+  const department = params.get(REQUEST_PREFILL_PARAMS.department) as DepartmentId | null
+  const validType = type && typeOptions.includes(type) ? type : ''
+  const validDepartment =
+    validType === 'department-access' && department && departmentOptions.includes(department) ? department : ''
+  return { ...emptyValues, type: validType, departmentId: validDepartment }
+}
+
 /** Submit a Request ("/requests/new"): form, then a confirmation panel. */
 export function SubmitRequestPage() {
   const content = requestsEn.submit
@@ -36,7 +56,7 @@ export function SubmitRequestPage() {
   // TODO: Use the authenticated user once real authentication exists.
   const user = currentUser
 
-  const [values, setValues] = useState<Values>(emptyValues)
+  const [searchParams] = useSearchParams()
   const [files, setFiles] = useState<File[]>([])
   const [errors, setErrors] = useState<FieldErrors>({})
   const [submitAttempted, setSubmitAttempted] = useState(false)
@@ -50,12 +70,21 @@ export function SubmitRequestPage() {
   const confirmationHeadingRef = useRef<HTMLHeadingElement>(null)
   const focusTypeAfterReset = useRef(false)
 
-  const needsDepartment = values.type === 'department-access'
   // Department access is to *another* department, so the user's own is left out.
   const departmentOptions = departments
     .filter((department) => department.id !== user.departmentId)
     .map((department) => ({ value: department.id, label: department.name }))
   const typeOptions = (Object.keys(typeLabels) as RequestType[]).map((type) => ({ value: type, label: typeLabels[type] }))
+
+  // Start from the URL prefill (e.g. "Request access" on a locked SOP), if any.
+  const [values, setValues] = useState<Values>(() =>
+    prefillFromParams(
+      searchParams,
+      typeOptions.map((option) => option.value),
+      departmentOptions.map((option) => option.value),
+    ),
+  )
+  const needsDepartment = values.type === 'department-access'
 
   // After submitting, move focus to the confirmation heading; after "Submit another
   // request", move it back to the first field.

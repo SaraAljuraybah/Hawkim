@@ -27,6 +27,12 @@ export const sopsEn: SopsContent = {
     department: 'Department',
     version: 'Version',
     lastUpdated: 'Last updated',
+    access: 'Access',
+  },
+  access: {
+    restricted: 'Restricted',
+    requestAccess: 'Request access',
+    accessRequested: 'Access requested',
   },
   versionTemplate: 'Version {version}',
   empty: 'No SOPs to show here yet.',

@@ -11,6 +11,8 @@ import { currentUser } from '../data/mock/currentUser'
 import { sops } from '../data/mock/sops'
 import type { Sop } from '../data/mock/types'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
+import { getSopAccess } from '../lib/sopAccess'
+import { useRequests } from '../state/requestsContext'
 
 const TAB_ID_PREFIX = 'sops'
 const VIEW_STORAGE_KEY = 'hawkim.sops.view'
@@ -48,6 +50,9 @@ export function SopsPage() {
 
   // TODO: Use the authenticated user and API data once the backend exists.
   const user = currentUser
+  // Access depends on the user's department requests, so it updates when they change.
+  const { requests } = useRequests()
+  const getAccess = (sop: Sop) => getSopAccess(sop, user, requests)
 
   const [tab, setTab] = useState<SopTabKey>('all')
   const [view, setView] = useState<ViewMode>(readStoredView)
@@ -98,9 +103,9 @@ export function SopsPage() {
             <p className="mt-4 text-text-gray">{content.empty}</p>
           </div>
         ) : view === 'grid' ? (
-          <SopGrid sops={visibleSops} content={content} />
+          <SopGrid sops={visibleSops} content={content} getAccess={getAccess} />
         ) : (
-          <SopList sops={visibleSops} content={content} />
+          <SopList sops={visibleSops} content={content} getAccess={getAccess} />
         )}
       </div>
     </>
