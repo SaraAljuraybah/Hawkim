@@ -126,7 +126,8 @@ export interface SignInContent {
   pageTitle: string
   brand: {
     logoAlt: string
-    tagline: string
+    /** Rendered one per line under the logo. */
+    taglineLines: string[]
     /** Plain-text note at the bottom of the brand panel (no emblems or logos). */
     regulatoryNote: string
   }

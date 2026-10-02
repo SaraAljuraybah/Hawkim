@@ -11,7 +11,7 @@ export const signInEn: SignInContent = {
 
   brand: {
     logoAlt: 'Hawkim',
-    tagline: 'Compliance for a Safer Tomorrow',
+    taglineLines: ['Compliance', 'for a Safer Tomorrow'],
     regulatoryNote: 'Designed for pharmaceutical organizations regulated by the SFDA',
   },
 

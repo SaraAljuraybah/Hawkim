@@ -20,6 +20,13 @@ const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const linkClasses =
   'rounded-sm font-medium text-maroon-secondary underline-offset-4 hover:underline'
 
+/*
+ * Links inside the gray legal sentence are always underlined: colour alone would
+ * not separate them enough from the surrounding text (WCAG 1.4.1).
+ */
+const legalLinkClasses =
+  'rounded-sm font-medium text-maroon underline decoration-maroon/40 underline-offset-2 hover:decoration-maroon'
+
 /**
  * Sign In page ("/login").
  * Split layout on large screens (brand panel + form); single column below lg.
@@ -95,44 +102,54 @@ export function SignInPage() {
   }
 
   return (
-    <main className="min-h-dvh bg-white lg:grid lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
-      {/* Brand panel — large screens only */}
-      <div className="relative hidden overflow-hidden border-r border-beige bg-gradient-to-b from-offwhite to-beige lg:flex lg:flex-col">
-        {/* Soft hexagon pattern echoing the logo */}
-        <div aria-hidden="true" className="pointer-events-none absolute inset-0">
-          <HexFragment className="absolute -bottom-28 -left-28 size-[30rem] text-maroon/[0.06]" strokeWidth={2} />
-          <HexFragment
-            open={false}
-            className="absolute -bottom-6 left-16 size-72 text-maroon/[0.05]"
-            strokeWidth={2}
-          />
-          <HexFragment className="absolute -top-16 -right-20 size-64 text-maroon/[0.04]" strokeWidth={2} />
-        </div>
-
-        <div className="relative flex flex-1 flex-col items-center justify-center px-10 text-center">
-          <Link to="/" className="rounded-md">
-            <Logo variant="full" alt={content.brand.logoAlt} className="h-36 xl:h-40" />
-          </Link>
-          <p className="mt-8 max-w-[15rem] text-lg leading-relaxed text-balance text-text-gray">{content.brand.tagline}</p>
-        </div>
-
-        <p className="relative max-w-xs px-10 pb-10 text-xs leading-relaxed text-text-gray">
-          {content.brand.regulatoryNote}
-        </p>
+    <main className="relative min-h-dvh overflow-hidden bg-offwhite lg:flex lg:items-center lg:justify-center lg:px-10 lg:py-12">
+      {/* Very subtle page-level hexagon pattern (large screens, behind the card) */}
+      <div aria-hidden="true" className="pointer-events-none absolute inset-0 hidden lg:block">
+        <HexFragment className="absolute -top-40 -left-40 size-[34rem] text-maroon/[0.035]" strokeWidth={2} />
+        <HexFragment open={false} className="absolute -right-32 -bottom-48 size-[38rem] text-maroon/[0.035]" strokeWidth={2} />
       </div>
 
-      {/* Form panel */}
-      <div className="flex min-h-dvh flex-col px-4 sm:px-8 lg:px-16">
-        <div className="mx-auto flex w-full max-w-md flex-1 flex-col">
-          {/* Compact logo — small screens only */}
-          <div className="pt-8 lg:hidden">
-            <Link to="/" className="inline-block rounded-md">
-              <Logo variant="mark" alt={content.brand.logoAlt} className="h-12" />
-            </Link>
+      {/* Card: split on lg+, plain single column below lg */}
+      <div className="relative w-full lg:grid lg:max-w-[1100px] lg:min-h-[640px] lg:grid-cols-[minmax(0,45fr)_minmax(0,55fr)] lg:overflow-hidden lg:rounded-2xl lg:border lg:border-beige lg:bg-white lg:shadow-[0_24px_64px_-28px_rgba(58,11,24,0.25)]">
+        {/* Brand panel — large screens only */}
+        <div className="relative hidden flex-col overflow-hidden bg-beige lg:flex">
+          {/* Hexagon outlines echoing the logo: one large off the bottom-left corner, one small at top right */}
+          <div aria-hidden="true" className="pointer-events-none absolute inset-0">
+            <HexFragment className="absolute -bottom-28 -left-28 size-[28rem] text-maroon/[0.09]" strokeWidth={3} />
+            <HexFragment open={false} className="absolute -top-12 -right-12 size-44 text-maroon/[0.08]" strokeWidth={3} />
           </div>
 
-          <div className="flex flex-1 flex-col justify-center py-10">
-            <h1 className="text-3xl tracking-tight">{content.title}</h1>
+          <div className="relative flex flex-1 flex-col items-center justify-center px-10 pt-14 text-center">
+            <Link to="/" className="rounded-md">
+              {/* h-60 ≈ 200px wide at the logo's aspect ratio */}
+              <Logo variant="full" alt={content.brand.logoAlt} className="h-60" />
+            </Link>
+            <span aria-hidden="true" className="mt-8 block h-0.5 w-10 bg-gold" />
+            <p className="mt-6 text-lg leading-relaxed text-text-gray">
+              {content.brand.taglineLines.map((line) => (
+                <span key={line} className="block">
+                  {line}
+                </span>
+              ))}
+            </p>
+          </div>
+
+          <p className="relative px-10 pt-6 pb-10 text-center text-[13px] leading-relaxed text-text-gray">
+            {content.brand.regulatoryNote}
+          </p>
+        </div>
+
+        {/* Form panel */}
+        <div className="flex flex-col px-4 pt-6 pb-10 sm:px-8 lg:justify-center lg:bg-white lg:px-16 lg:py-14">
+          <div className="mx-auto w-full max-w-md">
+            {/* Compact logo — small screens only */}
+            <Link to="/" className="inline-block rounded-md lg:hidden">
+              <Logo variant="mark" alt={content.brand.logoAlt} className="h-12" />
+            </Link>
+
+            <h1 className="mt-8 text-[2rem] leading-tight font-semibold tracking-tight lg:mt-0 lg:text-4xl">
+              {content.title}
+            </h1>
             <p className="mt-2 text-text-gray">{content.subtitle}</p>
 
             <form noValidate onSubmit={handleSubmit} className="mt-8">
@@ -193,21 +210,21 @@ export function SignInPage() {
                 )}
                 {submitting ? content.submit.loadingLabel : content.submit.label}
               </Button>
+
+              {/* TODO: /terms and /privacy don't exist yet — the documents still need to be written. */}
+              <p className="mt-6 text-center text-xs leading-relaxed text-text-gray">
+                {content.legal.prefix}
+                <Link to={content.legal.terms.href} className={legalLinkClasses}>
+                  {content.legal.terms.label}
+                </Link>
+                {content.legal.conjunction}
+                <Link to={content.legal.privacy.href} className={legalLinkClasses}>
+                  {content.legal.privacy.label}
+                </Link>
+                {content.legal.suffix}
+              </p>
             </form>
           </div>
-
-          {/* TODO: /terms and /privacy don't exist yet — the documents still need to be written. */}
-          <p className="pb-8 text-xs leading-relaxed text-text-gray">
-            {content.legal.prefix}
-            <Link to={content.legal.terms.href} className={linkClasses}>
-              {content.legal.terms.label}
-            </Link>
-            {content.legal.conjunction}
-            <Link to={content.legal.privacy.href} className={linkClasses}>
-              {content.legal.privacy.label}
-            </Link>
-            {content.legal.suffix}
-          </p>
         </div>
       </div>
     </main>
