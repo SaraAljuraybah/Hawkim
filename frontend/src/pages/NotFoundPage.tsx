@@ -5,13 +5,27 @@ import { Logo } from '../components/ui/Logo'
 import { notFoundEn } from '../content/notFound.en'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 
+interface NotFoundPageProps {
+  /**
+   * Render inside the app layout (e.g. an unknown SOP id) instead of as a
+   * full-screen page: no <main> of its own and no full-height background.
+   */
+  embedded?: boolean
+}
+
 /** Minimal page for unknown URLs (catch-all route in App.tsx). */
-export function NotFoundPage() {
+export function NotFoundPage({ embedded = false }: NotFoundPageProps) {
   const content = notFoundEn
   useDocumentTitle(content.pageTitle)
 
+  const Wrapper = embedded ? 'div' : 'main'
+
   return (
-    <main className="relative flex min-h-dvh items-center justify-center overflow-hidden bg-offwhite px-4 py-16">
+    <Wrapper
+      className={`relative flex items-center justify-center overflow-hidden px-4 py-16 ${
+        embedded ? 'min-h-[60vh]' : 'min-h-dvh bg-offwhite'
+      }`}
+    >
       {/* Subtle hexagon outline behind the content */}
       <HexFragment
         className="pointer-events-none absolute top-1/2 left-1/2 size-[32rem] -translate-x-1/2 -translate-y-1/2 text-maroon/[0.05]"
@@ -29,6 +43,6 @@ export function NotFoundPage() {
           {content.homeLink.label}
         </Button>
       </div>
-    </main>
+    </Wrapper>
   )
 }
