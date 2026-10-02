@@ -212,3 +212,24 @@ export interface DashboardContent {
     secondary: AppNavItem[]
   }
 }
+
+/* ---------- Signed-in app: SOPs list ---------- */
+
+export type SopTabKey = 'all' | 'myDepartment' | 'recent'
+
+export interface SopsContent {
+  /** Browser tab title. */
+  pageTitle: string
+  title: string
+  subtitle: string
+  /** Accessible name of the tab list. */
+  tabsLabel: string
+  tabs: Record<SopTabKey, string>
+  viewToggle: { label: string; grid: string; list: string }
+  /** Column headings for the list view. */
+  columns: { code: string; title: string; department: string; version: string; lastUpdated: string }
+  /** `{version}` is replaced with the version number, e.g. "Version 2.1". */
+  versionTemplate: string
+  /** Shown when a tab has no SOPs. */
+  empty: string
+}
