@@ -174,6 +174,36 @@ New functionality is developed in dedicated feature branches and integrated thro
 
 ---
 
+## Frontend
+
+The web frontend lives in the [`frontend/`](frontend/) folder and is built with **React**, **Vite**, **TypeScript** and **Tailwind CSS**.
+
+### Requirements
+
+- Node.js 20.19+ or 22.12+ (includes npm)
+
+### Run locally
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Then open the local URL printed in the terminal (usually http://localhost:5173).
+
+### Other commands
+
+```bash
+npm run build     # type-check and create a production build in frontend/dist
+npm run preview   # serve the production build locally
+npm run lint      # lint the source code
+```
+
+Landing page text is kept in `frontend/src/content/landing.en.ts`, and the brand design tokens (colours and fonts) are defined in `frontend/src/index.css`.
+
+---
+
 ## Repository Structure
 
 The repository structure will be documented as the system architecture and implementation are finalized.
