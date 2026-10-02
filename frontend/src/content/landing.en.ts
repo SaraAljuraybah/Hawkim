@@ -60,9 +60,13 @@ export const landingEn: LandingContent = {
       recentActivity: {
         title: 'Recent Activity',
         items: [
-          { title: 'New SOP request', meta: 'Submitted today', status: 'Pending' },
-          { title: 'SOP review request', meta: 'Submitted yesterday', status: 'Pending' },
-          { title: 'SOP revision request', meta: 'Submitted 3 days ago', status: 'Pending' },
+          {
+            title: 'Your access request to Research & Development is under review',
+            meta: '2 hours ago',
+            status: 'Pending',
+          },
+          { title: 'You were added to the Quality Assurance department', meta: '1 day ago' },
+          { title: 'Your request to access SOP-045 is under review', meta: '2 days ago', status: 'Pending' },
         ],
       },
       quickActions: {

@@ -81,14 +81,16 @@ export function DashboardPreview({ content, className = '' }: DashboardPreviewPr
               <p className="mb-2 text-[11px] font-semibold text-maroon">{content.recentActivity.title}</p>
               <ul className="divide-y divide-beige">
                 {content.recentActivity.items.map((item) => (
-                  <li key={item.title} className="flex items-center justify-between gap-2 py-2">
+                  <li key={item.title} className="flex items-start justify-between gap-2 py-2">
                     <div className="min-w-0">
-                      <p className="truncate text-[11px] font-medium text-maroon">{item.title}</p>
-                      <p className="text-[10px] text-text-gray">{item.meta}</p>
+                      <p className="text-[11px] leading-snug font-medium text-maroon">{item.title}</p>
+                      <p className="mt-0.5 text-[10px] text-text-gray">{item.meta}</p>
                     </div>
-                    <span className="shrink-0 rounded-full border border-gold-light bg-gold-light/25 px-2 py-0.5 text-[10px] font-medium text-maroon-secondary">
-                      {item.status}
-                    </span>
+                    {item.status && (
+                      <span className="shrink-0 rounded-full border border-gold-light bg-gold-light/25 px-2 py-0.5 text-[10px] font-medium text-maroon-secondary">
+                        {item.status}
+                      </span>
+                    )}
                   </li>
                 ))}
               </ul>

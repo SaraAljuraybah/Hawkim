@@ -45,7 +45,9 @@ export function Navbar({ content, logoAlt }: NavbarProps) {
     <header className="sticky top-0 z-50 border-b border-beige bg-offwhite/90 backdrop-blur-md">
       <Container className="flex h-18 items-center justify-between gap-6">
         <a href="#home" className="shrink-0 rounded-md" onClick={closeMenu}>
-          <Logo variant="mark" alt={logoAlt} className="h-10" />
+          {/* Mark only on small screens, full lockup from lg up (only one is ever displayed) */}
+          <Logo variant="mark" alt={logoAlt} className="h-12 lg:hidden" />
+          <Logo variant="full" alt={logoAlt} className="hidden h-14 lg:block" />
         </a>
 
         {/* Desktop navigation */}

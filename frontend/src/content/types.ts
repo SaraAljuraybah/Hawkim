@@ -48,7 +48,8 @@ export interface DashboardPreviewContent {
   stats: { icon: IconName; value: string; label: string; caption: string }[]
   recentActivity: {
     title: string
-    items: { title: string; meta: string; status: string }[]
+    /** `status` is optional: items without one show no badge. */
+    items: { title: string; meta: string; status?: string }[]
   }
   quickActions: {
     title: string
