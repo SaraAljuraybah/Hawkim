@@ -32,12 +32,14 @@ export type ButtonProps = RouteButtonProps | AnchorButtonProps | NativeButtonPro
 
 const base =
   'group inline-flex items-center justify-center gap-2 rounded-lg font-medium whitespace-nowrap ' +
-  'transition-colors duration-200 disabled:cursor-not-allowed disabled:opacity-85'
+  'transition-colors duration-200 ' +
+  // `aria-disabled` is styled like `disabled`; it keeps keyboard focus on the button (e.g. while loading)
+  'disabled:cursor-not-allowed disabled:opacity-85 aria-disabled:cursor-not-allowed aria-disabled:opacity-85'
 
 const variants: Record<ButtonVariant, string> = {
   primary:
     'border border-maroon bg-maroon text-offwhite hover:border-maroon-secondary hover:bg-maroon-secondary ' +
-    'disabled:hover:border-maroon disabled:hover:bg-maroon',
+    'disabled:hover:border-maroon disabled:hover:bg-maroon aria-disabled:hover:border-maroon aria-disabled:hover:bg-maroon',
   secondary: 'border border-maroon/40 bg-transparent text-maroon hover:border-maroon hover:bg-maroon/5',
   // On maroon backgrounds the default maroon focus ring would be invisible, so use light gold.
   accent:

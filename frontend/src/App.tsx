@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { Route, Routes, useLocation } from 'react-router-dom'
 import { LandingPage } from './pages/LandingPage'
+import { SignInPage } from './pages/SignInPage'
 
 /**
  * Client-side routes.
@@ -18,6 +19,7 @@ function App() {
   return (
     <Routes>
       <Route path="/" element={<LandingPage />} />
+      <Route path="/login" element={<SignInPage />} />
     </Routes>
   )
 }
