@@ -1,6 +1,7 @@
+import { getSopAccess } from '../../lib/sopAccess'
 import { departments } from './departments'
 import { sops } from './sops'
-import type { ActivityItem, DashboardStat } from './types'
+import type { ActivityItem, DashboardStat, User, UserRequest } from './types'
 
 /*
  * Sample dashboard data (from the approved design).
@@ -9,12 +10,15 @@ import type { ActivityItem, DashboardStat } from './types'
 
 /**
  * Dashboard statistics, derived from the other data so every screen agrees.
- * @param pendingRequests number of the user's pending requests (from the requests store)
+ * @param user the signed-in user
+ * @param requests the user's requests (from the requests store)
  */
-export function getDashboardStats(pendingRequests: number): DashboardStat[] {
+export function getDashboardStats(user: User, requests: UserRequest[]): DashboardStat[] {
   return [
-    { key: 'myRequests', value: pendingRequests },
-    { key: 'sops', value: sops.length },
+    // "In Progress": pending requests
+    { key: 'myRequests', value: requests.filter((request) => request.status === 'pending').length },
+    // "Accessible": SOPs the user can open
+    { key: 'sops', value: sops.filter((sop) => getSopAccess(sop, user, requests) === 'granted').length },
     // Sum of department members (assumes each person belongs to one department).
     { key: 'employees', value: departments.reduce((total, department) => total + department.memberCount, 0) },
   ]

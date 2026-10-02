@@ -37,9 +37,9 @@ export function DashboardPage() {
   const firstName = user.name.split(' ')[0]
   const greeting = getGreeting(content.greetings).replace('{name}', firstName)
 
-  // "My Requests — In Progress" counts the user's pending requests.
+  // Stats depend on the user's requests (pending count, SOP access).
   const { requests } = useRequests()
-  const dashboardStats = getDashboardStats(requests.filter((request) => request.status === 'pending').length)
+  const dashboardStats = getDashboardStats(user, requests)
 
   return (
     <>
