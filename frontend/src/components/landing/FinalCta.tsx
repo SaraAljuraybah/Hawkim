@@ -29,7 +29,7 @@ export function FinalCta({ content }: FinalCtaProps) {
             title={content.title}
             subtitle={content.text}
           />
-          <Button href={content.cta.href} variant="accent" size="lg" withArrow className="mt-10">
+          <Button to={content.cta.href} variant="accent" size="lg" withArrow className="mt-10">
             {content.cta.label}
           </Button>
         </div>

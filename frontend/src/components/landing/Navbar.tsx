@@ -68,7 +68,7 @@ export function Navbar({ content, logoAlt }: NavbarProps) {
 
         <div className="flex items-center gap-3">
           <div className="hidden md:block">
-            <Button href={content.signIn.href}>{content.signIn.label}</Button>
+            <Button to={content.signIn.href}>{content.signIn.label}</Button>
           </div>
 
           {/* Mobile menu toggle */}
@@ -108,7 +108,7 @@ export function Navbar({ content, logoAlt }: NavbarProps) {
               ))}
             </ul>
           </nav>
-          <Button href={content.signIn.href} className="mt-3 w-full" onClick={closeMenu}>
+          <Button to={content.signIn.href} className="mt-3 w-full" onClick={closeMenu}>
             {content.signIn.label}
           </Button>
         </Container>

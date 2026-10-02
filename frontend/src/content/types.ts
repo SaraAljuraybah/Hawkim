@@ -58,6 +58,8 @@ export interface DashboardPreviewContent {
 }
 
 export interface LandingContent {
+  /** Browser tab title for the landing page. */
+  pageTitle: string
   /** Visually hidden link that lets keyboard users jump past the navbar. */
   skipLink: string
   brand: {

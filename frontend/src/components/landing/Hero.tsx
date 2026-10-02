@@ -53,7 +53,7 @@ export function Hero({ content }: HeroProps) {
           <p className="mt-6 max-w-xl text-lg leading-relaxed text-text-gray">{content.subtitle}</p>
 
           <div className="mt-9 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-            <Button href={content.primaryCta.href} size="lg" withArrow>
+            <Button to={content.primaryCta.href} size="lg" withArrow>
               {content.primaryCta.label}
             </Button>
             <Button href={content.secondaryCta.href} size="lg" variant="secondary">

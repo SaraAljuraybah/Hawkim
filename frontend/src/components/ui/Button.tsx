@@ -1,5 +1,6 @@
 import type { AnchorHTMLAttributes, ButtonHTMLAttributes, ReactNode } from 'react'
 import { ArrowRight } from 'lucide-react'
+import { Link, type LinkProps } from 'react-router-dom'
 
 /**
  * - primary:   maroon filled (main call to action on light backgrounds)
@@ -18,12 +19,16 @@ interface CommonProps {
   children: ReactNode
 }
 
-type LinkButtonProps = CommonProps &
-  Omit<AnchorHTMLAttributes<HTMLAnchorElement>, keyof CommonProps> & { href: string }
+/** `to` → client-side route link (no page reload), e.g. `/login`. */
+type RouteButtonProps = CommonProps & Omit<LinkProps, keyof CommonProps> & { href?: undefined }
+/** `href` → plain link, e.g. an in-page anchor like `#about`. */
+type AnchorButtonProps = CommonProps &
+  Omit<AnchorHTMLAttributes<HTMLAnchorElement>, keyof CommonProps> & { href: string; to?: undefined }
+/** Neither → a native `<button>`. */
 type NativeButtonProps = CommonProps &
-  Omit<ButtonHTMLAttributes<HTMLButtonElement>, keyof CommonProps> & { href?: undefined }
+  Omit<ButtonHTMLAttributes<HTMLButtonElement>, keyof CommonProps> & { href?: undefined; to?: undefined }
 
-export type ButtonProps = LinkButtonProps | NativeButtonProps
+export type ButtonProps = RouteButtonProps | AnchorButtonProps | NativeButtonProps
 
 const base =
   'group inline-flex items-center justify-center gap-2 rounded-lg font-medium whitespace-nowrap ' +
@@ -44,7 +49,7 @@ const sizes: Record<ButtonSize, string> = {
   lg: 'h-12 px-6 text-base',
 }
 
-/** Renders an `<a>` when `href` is given, otherwise a `<button>`. */
+/** Renders a router `<Link>` for `to`, an `<a>` for `href`, otherwise a `<button>`. */
 export function Button({
   variant = 'primary',
   size = 'md',
@@ -66,6 +71,14 @@ export function Button({
       )}
     </>
   )
+
+  if (rest.to !== undefined) {
+    return (
+      <Link {...(rest as LinkProps)} className={classes}>
+        {content}
+      </Link>
+    )
+  }
 
   if (rest.href !== undefined) {
     return (

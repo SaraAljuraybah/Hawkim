@@ -6,7 +6,7 @@ import type { LandingContent, NavLink } from './types'
  * can be added later without touching the components.
  */
 
-/** Login page route (the page itself will be added in a later feature branch). */
+/** Sign In page route (client-side route, see App.tsx). */
 const LOGIN_PATH = '/login'
 
 /** Section anchors shared by the navbar and the footer. */
@@ -17,6 +17,8 @@ const sectionLinks: NavLink[] = [
 ]
 
 export const landingEn: LandingContent = {
+  pageTitle: 'Hawkim',
+
   skipLink: 'Skip to main content',
 
   brand: {
