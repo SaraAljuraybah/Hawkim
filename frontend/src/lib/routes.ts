@@ -30,3 +30,11 @@ export function requestDepartmentAccessPath(departmentId: DepartmentId): string 
   })
   return `/requests/new?${params.toString()}`
 }
+
+/** The admin portal's home (its users list); admins opening an employee screen go here. */
+export const ADMIN_USERS_PATH = '/admin/users'
+
+/** A user's page in the admin portal, e.g. /admin/users/user-sara */
+export function adminUserPath(userId: string): string {
+  return `${ADMIN_USERS_PATH}/${encodeURIComponent(userId)}`
+}

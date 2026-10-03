@@ -193,19 +193,25 @@ export interface AppNavItem {
   permission?: Permission
 }
 
-export interface AppShellContent {
-  /** Visually hidden link that lets keyboard users jump past the navigation. */
-  skipLink: string
+/** The sidebar's content (employee app and admin portal). */
+export interface SidebarContent {
   /** Product name shown as text next to the logo mark in the sidebar. */
   brandName: string
+  /** Small label after the product name, e.g. "Admin" (admin portal only). */
+  portalLabel?: string
   /** Accessible name of the sidebar logo link. */
   homeLinkLabel: string
   navAriaLabel: string
   nav: AppNavItem[]
   signOut: AppNavItem
+  closeMenu: string
+}
+
+export interface AppShellContent extends SidebarContent {
+  /** Visually hidden link that lets keyboard users jump past the navigation. */
+  skipLink: string
   notificationsLabel: string
   openMenu: string
-  closeMenu: string
   /** Accessible name of the mobile navigation drawer. */
   drawerLabel: string
   departmentSwitcher: {
@@ -782,4 +788,21 @@ export interface DemoAccountsContent {
   /** Accessible name of each "use" button; `{name}` is replaced. */
   useLabel: string
   use: string
+}
+
+/* ---------- Admin portal ---------- */
+
+export interface AdminShellContent extends SidebarContent {
+  portalLabel: string
+  skipLink: string
+  openMenu: string
+  drawerLabel: string
+  /** Shown under the admin's name in the top bar. */
+  roleLabel: string
+}
+
+export interface AdminContent {
+  shell: AdminShellContent
+  /** Browser tab title of every admin page; `{page}` is replaced. */
+  pageTitle: string
 }

@@ -1,19 +1,22 @@
 import { Link, NavLink } from 'react-router-dom'
 import { X } from 'lucide-react'
-import type { AppShellContent } from '../../content/types'
+import type { AppShellContent, SidebarContent } from '../../content/types'
 import { useSession } from '../../state/sessionContext'
 import { icons } from '../icons'
 import { Logo } from '../ui/Logo'
 import { DepartmentSwitcher } from './DepartmentSwitcher'
 
 interface SidebarProps {
-  content: AppShellContent
+  content: SidebarContent
   /** Called after any link is followed (used by the mobile drawer to close itself). */
   onNavigate?: () => void
   /** When given, a close button is shown next to the logo (mobile drawer). */
   onClose?: () => void
-  /** Show the department switcher under the logo (mobile drawer; the top bar has it on larger screens). */
-  showDepartmentSwitcher?: boolean
+  /**
+   * Show the department switcher under the logo (employee mobile drawer; the top bar
+   * has it on larger screens).
+   */
+  departmentSwitcher?: AppShellContent['departmentSwitcher']
 }
 
 const itemBase =
@@ -21,9 +24,10 @@ const itemBase =
 
 /**
  * Sidebar contents: logo, main navigation and Sign Out.
- * Used as the fixed desktop sidebar and inside the mobile drawer.
+ * Used as the fixed desktop sidebar and inside the mobile drawer, in the employee
+ * app and in the admin portal (with an "Admin" label after the product name).
  */
-export function Sidebar({ content, onNavigate, onClose, showDepartmentSwitcher = false }: SidebarProps) {
+export function Sidebar({ content, onNavigate, onClose, departmentSwitcher }: SidebarProps) {
   const SignOutIcon = icons[content.signOut.icon]
   const { signOut } = useSession()
   const homeHref = content.nav[0].href
@@ -40,6 +44,11 @@ export function Sidebar({ content, onNavigate, onClose, showDepartmentSwitcher =
         >
           <Logo variant="mark" alt="" className="h-8" />
           <span className="text-[1.1875rem] font-semibold tracking-tight text-maroon">{content.brandName}</span>
+          {content.portalLabel && (
+            <span className="rounded-md bg-maroon px-1.5 py-0.5 text-xs font-semibold text-offwhite">
+              {content.portalLabel}
+            </span>
+          )}
         </Link>
         {onClose && (
           <button
@@ -53,9 +62,9 @@ export function Sidebar({ content, onNavigate, onClose, showDepartmentSwitcher =
         )}
       </div>
 
-      {showDepartmentSwitcher && (
+      {departmentSwitcher && (
         <div className="px-3 pb-4">
-          <DepartmentSwitcher content={content.departmentSwitcher} variant="drawer" onSwitched={onNavigate} />
+          <DepartmentSwitcher content={departmentSwitcher} variant="drawer" onSwitched={onNavigate} />
         </div>
       )}
 

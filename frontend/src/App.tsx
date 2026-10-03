@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { Route, Routes, useLocation } from 'react-router-dom'
+import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { ComplianceReportPage } from './pages/ComplianceReportPage'
 import { DashboardPage } from './pages/DashboardPage'
 import { DepartmentsPage } from './pages/DepartmentsPage'
@@ -13,7 +13,8 @@ import { SubmitRequestPage } from './pages/SubmitRequestPage'
 import { LandingPage } from './pages/LandingPage'
 import { NotFoundPage } from './pages/NotFoundPage'
 import { SignInPage } from './pages/SignInPage'
-import { EmployeeArea } from './routes/guards'
+import { ADMIN_USERS_PATH } from './lib/routes'
+import { AdminArea, EmployeeArea } from './routes/guards'
 import { RequestsProvider } from './state/RequestsProvider'
 import { SessionProvider } from './state/SessionProvider'
 import { SopsProvider } from './state/SopsProvider'
@@ -67,6 +68,12 @@ function AppRoutes() {
         <Route path="/my-sops/:id/compliance" element={<ComplianceReportPage />} />
         <Route path="/requests" element={<MyRequestsPage />} />
         <Route path="/requests/new" element={<SubmitRequestPage />} />
+      </Route>
+
+      {/* Admin portal: its own layout; only for admins (others see Not Found). */}
+      <Route path="/admin" element={<AdminArea />}>
+        <Route index element={<Navigate to={ADMIN_USERS_PATH} replace />} />
+        <Route path="*" element={<NotFoundPage embedded />} />
       </Route>
 
       <Route path="*" element={<NotFoundPage />} />
