@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Outlet } from 'react-router-dom'
 import { appShellEn } from '../../content/app.en'
 import { currentUser } from '../../data/mock/currentUser'
@@ -19,6 +19,17 @@ export function AppLayout() {
     ...appShellEn,
     nav: appShellEn.nav.filter((item) => !item.permission || hasPermission(user, item.permission)),
   }
+
+  // Keep focused or scrolled-to elements clear of the sticky top bar (64px), e.g. when a
+  // form moves focus to its first invalid field. Only for the signed-in app.
+  useEffect(() => {
+    const root = document.documentElement
+    const previous = root.style.scrollPaddingTop
+    root.style.scrollPaddingTop = '5rem'
+    return () => {
+      root.style.scrollPaddingTop = previous
+    }
+  }, [])
 
   const [drawerOpen, setDrawerOpen] = useState(false)
   const menuButtonRef = useRef<HTMLButtonElement>(null)
