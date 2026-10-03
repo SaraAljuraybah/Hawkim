@@ -9,6 +9,7 @@ import { SopsPage } from './pages/SopsPage'
 import { SubmitRequestPage } from './pages/SubmitRequestPage'
 import { LandingPage } from './pages/LandingPage'
 import { NotFoundPage } from './pages/NotFoundPage'
+import { ActiveDepartmentProvider } from './state/ActiveDepartmentProvider'
 import { RequestsProvider } from './state/RequestsProvider'
 import { SignInPage } from './pages/SignInPage'
 
@@ -36,9 +37,12 @@ function App() {
           once real authentication exists. */}
       <Route
         element={
-          // Shared in-memory requests store for all signed-in screens
+          // Shared state for all signed-in screens: requests, then the active
+          // department (which depends on approved department-access requests)
           <RequestsProvider>
-            <AppLayout />
+            <ActiveDepartmentProvider>
+              <AppLayout />
+            </ActiveDepartmentProvider>
           </RequestsProvider>
         }
       >

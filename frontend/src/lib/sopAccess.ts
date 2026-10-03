@@ -8,9 +8,9 @@ import type { Sop, User, UserRequest } from '../data/mock/types'
 export type SopAccess = 'granted' | 'requested' | 'locked'
 
 /**
- * Whether the user can open an SOP. Access is by department:
- * the user's own department, plus departments with an APPROVED
- * department-access request.
+ * Whether the user can open an SOP. Access is by department: any department
+ * the user belongs to (home department, plus departments with an APPROVED
+ * department-access request), not only the active one.
  *
  * Pass the requests from the shared requests store, so the result
  * updates as soon as a request is submitted, approved or cancelled.

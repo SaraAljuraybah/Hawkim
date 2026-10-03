@@ -35,7 +35,7 @@ export const recentActivity: ActivityItem[] = [
   {
     id: 'activity-2',
     kind: 'departmentMembership',
-    message: 'You were added to the Quality Assurance department',
+    message: 'Your access request to Pharmacovigilance was approved',
     timeAgo: '1 day ago',
   },
   {
