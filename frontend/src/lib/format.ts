@@ -27,3 +27,19 @@ export function formatFileSize(bytes: number, locale = 'en-US'): string {
   if (bytes < 1024 * 1024) return `${number(bytes / 1024, 0)} KB`
   return `${number(bytes / (1024 * 1024), 1)} MB`
 }
+
+/** Month and day in the user's time zone, e.g. "Oct 5". */
+export function formatMonthDay(isoDateTime: string, locale = 'en-US'): string {
+  return new Intl.DateTimeFormat(locale, { month: 'short', day: 'numeric' }).format(new Date(isoDateTime))
+}
+
+/** Date and time in the user's time zone, e.g. "Oct 3, 2026, 2:15 PM". */
+export function formatDateTime(isoDateTime: string, locale = 'en-US'): string {
+  return new Intl.DateTimeFormat(locale, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  }).format(new Date(isoDateTime))
+}

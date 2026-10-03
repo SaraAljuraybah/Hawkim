@@ -1,7 +1,8 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Outlet } from 'react-router-dom'
 import { appShellEn } from '../../content/app.en'
 import { currentUser } from '../../data/mock/currentUser'
+import { hasPermission } from '../../lib/permissions'
 import { MobileDrawer } from './MobileDrawer'
 import { Sidebar } from './Sidebar'
 import { TopBar } from './TopBar'
@@ -11,9 +12,24 @@ import { TopBar } from './TopBar'
  * Used as a layout route in App.tsx; each child route renders in <Outlet />.
  */
 export function AppLayout() {
-  const content = appShellEn
   // TODO: Use the authenticated user once real authentication exists.
   const user = currentUser
+  // Items tied to a permission (e.g. My SOPs for authors) are only shown to users who have it.
+  const content = {
+    ...appShellEn,
+    nav: appShellEn.nav.filter((item) => !item.permission || hasPermission(user, item.permission)),
+  }
+
+  // Keep focused or scrolled-to elements clear of the sticky top bar (64px), e.g. when a
+  // form moves focus to its first invalid field. Only for the signed-in app.
+  useEffect(() => {
+    const root = document.documentElement
+    const previous = root.style.scrollPaddingTop
+    root.style.scrollPaddingTop = '5rem'
+    return () => {
+      root.style.scrollPaddingTop = previous
+    }
+  }, [])
 
   const [drawerOpen, setDrawerOpen] = useState(false)
   const menuButtonRef = useRef<HTMLButtonElement>(null)

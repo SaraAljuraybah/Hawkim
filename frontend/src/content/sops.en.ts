@@ -45,6 +45,7 @@ export const sopsEn: SopsContent = {
       text: "Preview isn't available for Word documents yet.",
       download: 'Download document',
     },
+    noFile: "The file for this SOP isn't available yet.",
     noAccess: {
       title: "You don't have access to this SOP",
       text: 'This SOP belongs to {department}. Request access to that department to view it.',

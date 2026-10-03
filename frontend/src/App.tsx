@@ -4,13 +4,17 @@ import { AppLayout } from './components/layout/AppLayout'
 import { DashboardPage } from './pages/DashboardPage'
 import { DepartmentsPage } from './pages/DepartmentsPage'
 import { MyRequestsPage } from './pages/MyRequestsPage'
+import { MySopsPage } from './pages/MySopsPage'
+import { UploadSopPage } from './pages/UploadSopPage'
 import { SopDetailPage } from './pages/SopDetailPage'
+import { SopWorkflowPage } from './pages/SopWorkflowPage'
 import { SopsPage } from './pages/SopsPage'
 import { SubmitRequestPage } from './pages/SubmitRequestPage'
 import { LandingPage } from './pages/LandingPage'
 import { NotFoundPage } from './pages/NotFoundPage'
 import { ActiveDepartmentProvider } from './state/ActiveDepartmentProvider'
 import { RequestsProvider } from './state/RequestsProvider'
+import { SopsProvider } from './state/SopsProvider'
 import { SignInPage } from './pages/SignInPage'
 
 /**
@@ -37,11 +41,13 @@ function App() {
           once real authentication exists. */}
       <Route
         element={
-          // Shared state for all signed-in screens: requests, then the active
-          // department (which depends on approved department-access requests)
+          // Shared state for all signed-in screens: requests, the active department
+          // (which depends on approved department-access requests) and all SOPs
           <RequestsProvider>
             <ActiveDepartmentProvider>
-              <AppLayout />
+              <SopsProvider>
+                <AppLayout />
+              </SopsProvider>
             </ActiveDepartmentProvider>
           </RequestsProvider>
         }
@@ -50,6 +56,9 @@ function App() {
         <Route path="/sops" element={<SopsPage />} />
         <Route path="/sops/:id" element={<SopDetailPage />} />
         <Route path="/departments" element={<DepartmentsPage />} />
+        <Route path="/my-sops" element={<MySopsPage />} />
+        <Route path="/my-sops/upload" element={<UploadSopPage />} />
+        <Route path="/my-sops/:id" element={<SopWorkflowPage />} />
         <Route path="/requests" element={<MyRequestsPage />} />
         <Route path="/requests/new" element={<SubmitRequestPage />} />
       </Route>

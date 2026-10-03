@@ -40,7 +40,10 @@ const variants: Record<ButtonVariant, string> = {
   primary:
     'border border-maroon bg-maroon text-offwhite hover:border-maroon-secondary hover:bg-maroon-secondary ' +
     'disabled:hover:border-maroon disabled:hover:bg-maroon aria-disabled:hover:border-maroon aria-disabled:hover:bg-maroon',
-  secondary: 'border border-maroon/40 bg-transparent text-maroon hover:border-maroon hover:bg-maroon/5',
+  secondary:
+    'border border-maroon/40 bg-transparent text-maroon hover:border-maroon hover:bg-maroon/5 ' +
+    // Disabled: clearly inactive (gray border and text), with no hover change
+    'disabled:border-text-gray/40 disabled:text-text-gray disabled:hover:border-text-gray/40 disabled:hover:bg-transparent',
   // On maroon backgrounds the default maroon focus ring would be invisible, so use light gold.
   accent:
     'border border-gold bg-gold text-maroon hover:border-gold-light hover:bg-gold-light ' +

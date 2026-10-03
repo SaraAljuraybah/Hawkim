@@ -27,40 +27,58 @@ interface FileDropzoneProps {
   text: FileDropzoneText
   /** Ref to the browse button (e.g. to move focus to it). */
   browseRef?: Ref<HTMLButtonElement>
+  /** Allow several files (default). When false, a new file replaces the current one. */
+  multiple?: boolean
+  /** Validation error from the form (e.g. "Upload an SOP file."), shown under the zone. */
+  error?: string
   className?: string
 }
 
 /**
- * Optional file picker: a drag-and-drop zone plus a "browse" button (the keyboard path).
+ * File picker: a drag-and-drop zone plus a "browse" button (the keyboard path).
  * Checks type and size, lists accepted files with a remove button, and announces
  * rejected files. Files are only kept in memory; nothing is uploaded.
+ * With `multiple={false}` it holds exactly one file (a new one replaces it).
  */
-export function FileDropzone({ files, onChange, extensions, maxSizeBytes, text, browseRef, className = '' }: FileDropzoneProps) {
+export function FileDropzone({
+  files,
+  onChange,
+  extensions,
+  maxSizeBytes,
+  text,
+  browseRef,
+  multiple = true,
+  error,
+  className = '',
+}: FileDropzoneProps) {
   const inputRef = useRef<HTMLInputElement>(null)
   const listRef = useRef<HTMLUListElement>(null)
   const [dragging, setDragging] = useState(false)
   const [errors, setErrors] = useState<string[]>([])
   const labelId = useId()
   const hintId = useId()
+  const errorId = useId()
 
   function addFiles(selected: FileList | null) {
     if (!selected) return
     const accepted: File[] = []
     const problems: string[] = []
 
-    for (const file of Array.from(selected)) {
+    // In single-file mode only the first file of a selection or drop is used.
+    const candidates = multiple ? Array.from(selected) : Array.from(selected).slice(0, 1)
+    for (const file of candidates) {
       const extension = file.name.slice(file.name.lastIndexOf('.')).toLowerCase()
       if (!extensions.includes(extension)) {
         problems.push(text.typeError.replace('{name}', file.name))
       } else if (file.size > maxSizeBytes) {
         problems.push(text.sizeError.replace('{name}', file.name).replace('{max}', formatFileSize(maxSizeBytes)))
-      } else if (!files.some((existing) => existing.name === file.name && existing.size === file.size)) {
+      } else if (!multiple || !files.some((existing) => existing.name === file.name && existing.size === file.size)) {
         accepted.push(file) // skip exact duplicates silently
       }
     }
 
     setErrors(problems)
-    if (accepted.length > 0) onChange([...files, ...accepted])
+    if (accepted.length > 0) onChange(multiple ? [...files, ...accepted] : accepted)
   }
 
   function removeFile(index: number) {
@@ -95,7 +113,7 @@ export function FileDropzone({ files, onChange, extensions, maxSizeBytes, text, 
         onDragLeave={() => setDragging(false)}
         onDrop={handleDrop}
         className={`flex flex-col items-center rounded-lg border-2 border-dashed px-4 py-7 text-center transition-colors ${
-          dragging ? 'border-maroon bg-maroon/[0.04]' : 'border-text-gray/40 bg-white'
+          dragging ? 'border-maroon bg-maroon/[0.04]' : error ? 'border-maroon-secondary bg-white' : 'border-text-gray/40 bg-white'
         }`}
       >
         <UploadCloud aria-hidden="true" className="size-7 text-maroon" strokeWidth={1.5} />
@@ -105,7 +123,7 @@ export function FileDropzone({ files, onChange, extensions, maxSizeBytes, text, 
             ref={browseRef}
             type="button"
             onClick={() => inputRef.current?.click()}
-            aria-describedby={hintId}
+            aria-describedby={error ? `${hintId} ${errorId}` : hintId}
             className="rounded-sm font-semibold text-maroon underline decoration-maroon/40 underline-offset-2 hover:decoration-maroon"
           >
             {text.browse}
@@ -118,7 +136,7 @@ export function FileDropzone({ files, onChange, extensions, maxSizeBytes, text, 
         <input
           ref={inputRef}
           type="file"
-          multiple
+          multiple={multiple}
           accept={extensions.join(',')}
           tabIndex={-1}
           aria-hidden="true"
@@ -129,6 +147,14 @@ export function FileDropzone({ files, onChange, extensions, maxSizeBytes, text, 
           }}
         />
       </div>
+
+      {/* Form validation error (e.g. no file chosen) */}
+      {error && (
+        <p id={errorId} className="mt-2 flex items-start gap-1.5 text-sm text-maroon-secondary">
+          <CircleAlert aria-hidden="true" className="mt-0.5 size-4 shrink-0" strokeWidth={1.75} />
+          {error}
+        </p>
+      )}
 
       {/* Rejected files (announced politely) */}
       <div aria-live="polite">

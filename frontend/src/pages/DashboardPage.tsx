@@ -10,8 +10,10 @@ import { currentUser } from '../data/mock/currentUser'
 import { getDashboardStats, recentActivity } from '../data/mock/dashboard'
 import type { ActivityKind } from '../data/mock/types'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
+import { hasPermission } from '../lib/permissions'
 import { useActiveDepartment } from '../state/activeDepartmentContext'
 import { useRequests } from '../state/requestsContext'
+import { useSops } from '../state/sopsContext'
 
 /** Icon for each kind of activity item. */
 const activityIcons: Record<ActivityKind, LucideIcon> = {
@@ -41,7 +43,8 @@ export function DashboardPage() {
   // My Requests is personal; SOPs and Employees follow the active department.
   const { requests } = useRequests()
   const { activeDepartment } = useActiveDepartment()
-  const dashboardStats = getDashboardStats(requests, activeDepartment)
+  const { sops } = useSops()
+  const dashboardStats = getDashboardStats(requests, activeDepartment, sops)
 
   return (
     <>
@@ -106,13 +109,16 @@ export function DashboardPage() {
                 {content.quickActions.primary.label}
               </Button>
             </li>
-            {content.quickActions.secondary.map((action) => (
-              <li key={action.href}>
-                <Button to={action.href} variant="secondary" withArrow className="w-full">
-                  {action.label}
-                </Button>
-              </li>
-            ))}
+            {/* Actions tied to a permission (e.g. Upload SOP for authors) only show for users who have it */}
+            {content.quickActions.secondary
+              .filter((action) => !action.permission || hasPermission(user, action.permission))
+              .map((action) => (
+                <li key={action.href}>
+                  <Button to={action.href} variant="secondary" withArrow className="w-full">
+                    {action.label}
+                  </Button>
+                </li>
+              ))}
           </ul>
         </Card>
       </div>

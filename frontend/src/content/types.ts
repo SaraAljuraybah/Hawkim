@@ -1,4 +1,4 @@
-import type { DashboardStatKey, RequestType } from '../data/mock/types'
+import type { DashboardStatKey, Permission, RequestType, SopFileType, TimelineEventType } from '../data/mock/types'
 
 /*
  * Shape of the landing page content.
@@ -22,6 +22,8 @@ export type IconName =
   | 'employees'
   | 'signOut'
   | 'submitRequest'
+  | 'mySops'
+  | 'upload'
 
 export interface NavLink {
   label: string
@@ -178,6 +180,8 @@ export interface AppNavItem {
   icon: IconName
   /** Also show the item as active on pages below it (e.g. /requests/new under /requests). */
   matchSubpaths?: boolean
+  /** Only shown to users with this permission (e.g. 'author'); everyone sees items without one. */
+  permission?: Permission
 }
 
 export interface AppShellContent {
@@ -257,6 +261,8 @@ export interface SopDetailContent {
   /** Shown when the browser can't display PDFs inline (common on phones). */
   fallback: { text: string; openPdf: string; newTabHint: string }
   docx: { text: string; download: string }
+  /** Shown when a published SOP has no file available yet. */
+  noFile: string
   /** `{department}` is replaced with the department name. */
   noAccess: { title: string; text: string; requestAccess: string }
   pendingAccess: { title: string; text: string }
@@ -344,4 +350,256 @@ export interface RequestsContent {
   types: Record<RequestType, string>
   submit: SubmitRequestContent
   myRequests: MyRequestsContent
+}
+
+/* ---------- Searchable people picker ---------- */
+
+/** The picker's own text (each form gives its label, hint and errors). */
+export interface PeoplePickerContent {
+  placeholder: string
+  /** Shown when nothing matches the search. */
+  noMatches: string
+  /** Accessible name of the chip list; `{label}` is the field label. */
+  selected: string
+  /** Accessible name of a chip's remove button; `{name}` is replaced. */
+  remove: string
+  /** Announced to screen readers; `{name}` is replaced. */
+  added: string
+  removed: string
+}
+
+/* ---------- Author: My SOPs and Upload SOP ---------- */
+
+export type MySopsTabKey = 'all' | 'drafts' | 'inProgress' | 'returned' | 'published'
+
+export interface MySopsContent {
+  /** Browser tab title. */
+  pageTitle: string
+  title: string
+  /** `{department}` is replaced with the active department's name. */
+  subtitle: string
+  upload: LinkContent
+  /** Accessible name of the tab list. */
+  tabsLabel: string
+  tabs: Record<MySopsTabKey, string>
+  /** `{version}` is replaced, e.g. "Version 1.0". */
+  versionTemplate: string
+  /** Shown when a tab has no SOPs. */
+  empty: string
+  /** Announced after a successful upload. */
+  uploadedMessage: string
+  /** Label on SOPs the user co-authors. */
+  coAuthorLabel: string
+}
+
+export interface UploadSopContent {
+  /** Browser tab title. */
+  pageTitle: string
+  title: string
+  /** `{department}` is replaced with the active department's name. */
+  subtitle: string
+  fields: {
+    title: { label: string; placeholder: string }
+    department: { label: string }
+    file: {
+      label: string
+      hint: string
+      dropPrompt: string
+      browse: string
+      remove: string
+      typeError: string
+      sizeError: string
+    }
+    description: { label: string; placeholder: string; /** `{count}` and `{max}` are replaced. */ counter: string }
+    /** Optional co-authors: other users with the Author permission. */
+    coAuthors: { label: string; hint: string }
+  }
+  errors: { titleRequired: string; fileRequired: string }
+  cancel: LinkContent
+  submit: { label: string; loadingLabel: string }
+}
+
+/* ---------- Author: SOP workflow page ---------- */
+
+/** Text for a single-file picker (FileDropzone) used in workflow dialogs. */
+export interface SopFileFieldContent {
+  label: string
+  hint: string
+  dropPrompt: string
+  browse: string
+  remove: string
+  typeError: string
+  sizeError: string
+}
+
+export interface SopWorkflowContent {
+  /** `{code}` is replaced, e.g. "SOP-083 | Hawkim". */
+  pageTitle: string
+  back: LinkContent
+  versionTemplate: string
+  /** `{date}` is replaced. */
+  lastUpdatedTemplate: string
+  departmentLabel: string
+  roles: { reviewer: string; approver: string; author: string; coAuthor: string; system: string }
+  tracker: {
+    label: string
+    steps: { draft: string; 'in-review': string; 'in-approval': string; approved: string; published: string }
+    returned: string
+    /** Screen-reader state of each step. */
+    srCompleted: string
+    srCurrent: string
+    srReturned: string
+    /** Under In Review / In Approval while open; `{date}` is replaced. */
+    due: string
+    overdue: string
+  }
+  people: {
+    title: string
+    author: string
+    coAuthors: string
+    reviewers: string
+    approvers: string
+    /** After the current user's name. */
+    you: string
+    noCoAuthors: string
+    /** Reviewers and approvers before the first submission. */
+    notAssigned: string
+    addCoAuthor: string
+    remove: string
+    /** Accessible name of a Remove button; `{name}` is replaced. */
+    removeLabel: string
+    decisions: { pending: string; completed: string; approved: string; returned: string }
+  }
+  file: {
+    title: string
+    types: Record<SopFileType, string>
+    download: string
+    viewInDirectory: string
+  }
+  actions: {
+    title: string
+    submit: string
+    replace: string
+    uploadNewVersion: string
+    resubmit: string
+    resubmitHint: string
+    /** `{people}` is replaced, e.g. "Faisal Alharbi (Reviewer)". */
+    waiting: string
+    /** Follows the waiting text; `{date}` is replaced. */
+    waitingDue: string
+    approvedWaiting: string
+    published: string
+    /** Shown to co-authors; `{name}` is the main author. */
+    authorOnly: string
+  }
+  feedback: {
+    title: string
+    /** `{name}`, `{role}`, `{date}` and `{version}` are replaced. */
+    description: string
+  }
+  comments: {
+    title: string
+    empty: string
+    /** `{version}` is replaced. */
+    versionHeading: string
+  }
+  timeline: {
+    title: string
+    events: Record<TimelineEventType, string>
+    /** `{name}` is replaced. */
+    by: string
+    /** `{name}` is replaced. */
+    to: string
+    noteLabel: string
+    /** Label for stage-due-date-set events, by stage. */
+    stageDue: { review: string; approval: string }
+    /** `{date}` is replaced. */
+    due: string
+    /** For co-author events; `{name}` is replaced. */
+    subject: string
+  }
+  dialogs: {
+    cancel: string
+    fileField: SopFileFieldContent
+    fileRequired: string
+    submit: {
+      title: string
+      description: string
+      reviewers: { label: string; hint: string }
+      /** `unchecked`: `{names}` is replaced with the approvers unchecked because they became reviewers. */
+      approvers: { label: string; hint: string; unchecked: string }
+      /** `dueHint`: `{date}` is replaced with the due date if submitted now. */
+      /** `dueHint`: `{date}` is replaced with the due date if submitted now. */
+      reviewDays: { label: string; hint: string; dueHint: string }
+      approvalDays: { label: string; hint: string }
+      note: { label: string; placeholder: string; counter: string }
+      errors: { reviewersRequired: string; approversRequired: string; daysInvalid: string }
+      confirm: string
+    }
+    replace: { title: string; description: string; confirm: string }
+    newVersion: { title: string; description: string; confirm: string }
+    addCoAuthors: {
+      title: string
+      description: string
+      label: string
+      hint: string
+      required: string
+      confirm: string
+    }
+    /** `{name}` is replaced in the description. */
+    removeCoAuthor: { title: string; description: string; keep: string; confirm: string }
+    resubmit: {
+      title: string
+      description: string
+      reviewersLabel: string
+      approversLabel: string
+      reviewDaysLabel: string
+      approvalDaysLabel: string
+      /** `{count}` is replaced. */
+      days: string
+      oneDay: string
+      noDueDate: string
+      confirm: string
+    }
+  }
+  /** Announced after each action. */
+  messages: {
+    submitted: string
+    replaced: string
+    newVersion: string
+    resubmitted: string
+    coAuthorsAdded: string
+    /** `{name}` is replaced. */
+    coAuthorRemoved: string
+  }
+}
+
+/* ---------- Development only: workflow demo controls ---------- */
+
+/** Text for the demo panel (never part of the production build). */
+export interface WorkflowDemoContent {
+  title: string
+  note: string
+  noActions: string
+  /** Per-person buttons; `{name}` is replaced. */
+  buttons: {
+    completeReview: string
+    returnWithComment: string
+    approve: string
+    publish: string
+    /** Shifts the stored due dates back, as if time had passed. */
+    clockForward: string
+  }
+  commentDialog: {
+    title: string
+    /** `{name}` and `{role}` are replaced. */
+    description: string
+    label: string
+    placeholder: string
+    required: string
+    confirm: string
+    cancel: string
+  }
+  /** `{name}` is replaced where it appears. */
+  messages: { reviewCompleted: string; returned: string; approved: string; published: string; clockForward: string }
 }

@@ -1,5 +1,4 @@
-import { sops } from './sops'
-import type { ActivityItem, DashboardStat, Department, UserRequest } from './types'
+import type { ActivityItem, DashboardStat, Department, Sop, UserRequest } from './types'
 
 /*
  * Sample dashboard data (from the approved design).
@@ -11,13 +10,17 @@ import type { ActivityItem, DashboardStat, Department, UserRequest } from './typ
  * "My Requests" is personal; "SOPs" and "Employees" are for the active department.
  * @param requests the user's requests (from the requests store)
  * @param activeDepartment the department the user is working in
+ * @param sops all SOPs (from the SOPs store)
  */
-export function getDashboardStats(requests: UserRequest[], activeDepartment: Department): DashboardStat[] {
+export function getDashboardStats(requests: UserRequest[], activeDepartment: Department, sops: Sop[]): DashboardStat[] {
   return [
     // "In Progress": the user's pending requests
     { key: 'myRequests', value: requests.filter((request) => request.status === 'pending').length },
-    // "In this department": SOPs of the active department
-    { key: 'sops', value: sops.filter((sop) => sop.departmentId === activeDepartment.id).length },
+    // "In this department": published SOPs of the active department (as listed in the directory)
+    {
+      key: 'sops',
+      value: sops.filter((sop) => sop.status === 'published' && sop.departmentId === activeDepartment.id).length,
+    },
     // "In this department": members of the active department
     { key: 'employees', value: activeDepartment.memberCount },
   ]
