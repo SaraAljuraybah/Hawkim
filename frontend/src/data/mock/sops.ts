@@ -3,7 +3,9 @@ import type { Sop } from './types'
 /*
  * All sample SOPs, in one list: the published SOPs in the directory (each with a
  * placeholder PDF in public/sample-sops/, see scripts/generate-sample-sops.mjs) and
- * the SOPs authored by Sara at other lifecycle stages. Seeds the SOPs store (src/state/).
+ * the SOPs authored by Sara at other lifecycle stages, with their workflow history
+ * (reviewer Noura, approver Huda). Directory SOPs by other authors have no history here.
+ * Seeds the SOPs store (src/state/). Comment texts are neutral sample text.
  * TODO: Replace with data from the backend API.
  */
 export const sops: Sop[] = [
@@ -18,6 +20,11 @@ export const sops: Sop[] = [
     fileName: 'SOP-017.pdf',
     fileType: 'pdf',
     fileUrl: '/sample-sops/SOP-017.pdf',
+    versions: [
+      { version: '2.1', fileName: 'SOP-017.pdf', fileType: 'pdf', uploadedAt: '2024-01-12T09:00:00+03:00', fileUrl: '/sample-sops/SOP-017.pdf' },
+    ],
+    comments: [],
+    timeline: [],
   },
   {
     id: 'sop-032',
@@ -30,6 +37,11 @@ export const sops: Sop[] = [
     fileName: 'SOP-032.pdf',
     fileType: 'pdf',
     fileUrl: '/sample-sops/SOP-032.pdf',
+    versions: [
+      { version: '1.4', fileName: 'SOP-032.pdf', fileType: 'pdf', uploadedAt: '2024-01-05T09:00:00+03:00', fileUrl: '/sample-sops/SOP-032.pdf' },
+    ],
+    comments: [],
+    timeline: [],
   },
   {
     id: 'sop-045',
@@ -42,6 +54,11 @@ export const sops: Sop[] = [
     fileName: 'SOP-045.pdf',
     fileType: 'pdf',
     fileUrl: '/sample-sops/SOP-045.pdf',
+    versions: [
+      { version: '1.0', fileName: 'SOP-045.pdf', fileType: 'pdf', uploadedAt: '2023-12-20T09:00:00+03:00', fileUrl: '/sample-sops/SOP-045.pdf' },
+    ],
+    comments: [],
+    timeline: [],
   },
   {
     id: 'sop-061',
@@ -54,6 +71,11 @@ export const sops: Sop[] = [
     fileName: 'SOP-061.pdf',
     fileType: 'pdf',
     fileUrl: '/sample-sops/SOP-061.pdf',
+    versions: [
+      { version: '1.3', fileName: 'SOP-061.pdf', fileType: 'pdf', uploadedAt: '2023-12-01T09:00:00+03:00', fileUrl: '/sample-sops/SOP-061.pdf' },
+    ],
+    comments: [],
+    timeline: [],
   },
   {
     id: 'sop-078',
@@ -67,6 +89,45 @@ export const sops: Sop[] = [
     fileName: 'SOP-078.pdf',
     fileType: 'pdf',
     fileUrl: '/sample-sops/SOP-078.pdf',
+    reviewerId: 'user-noura',
+    approverId: 'user-huda',
+    versions: [
+      { version: '1.0', fileName: 'SOP-078_v1.0.docx', fileType: 'docx', uploadedAt: '2023-09-04T10:00:00+03:00' },
+      { version: '1.1', fileName: 'SOP-078_v1.1.docx', fileType: 'docx', uploadedAt: '2023-09-20T11:30:00+03:00' },
+      { version: '1.2', fileName: 'SOP-078.pdf', fileType: 'pdf', uploadedAt: '2023-10-25T09:45:00+03:00', fileUrl: '/sample-sops/SOP-078.pdf' },
+    ],
+    comments: [
+      {
+        id: 'com-078-1',
+        authorUserId: 'user-noura',
+        role: 'reviewer',
+        text: 'Please add a definitions section for the key terms used in this SOP.',
+        createdAt: '2023-09-12T13:00:00+03:00',
+        version: '1.0',
+      },
+      {
+        id: 'com-078-2',
+        authorUserId: 'user-huda',
+        role: 'approver',
+        text: 'Please make the record-keeping steps easier to follow and number them.',
+        createdAt: '2023-10-10T10:20:00+03:00',
+        version: '1.1',
+      },
+    ],
+    timeline: [
+      { id: 'evt-078-01', type: 'uploaded', actorId: 'user-sara', version: '1.0', createdAt: '2023-09-04T10:00:00+03:00' },
+      { id: 'evt-078-02', type: 'submitted', actorId: 'user-sara', recipientId: 'user-noura', version: '1.0', createdAt: '2023-09-05T09:15:00+03:00' },
+      { id: 'evt-078-03', type: 'returned', actorId: 'user-noura', recipientId: 'user-sara', version: '1.0', createdAt: '2023-09-12T13:00:00+03:00' },
+      { id: 'evt-078-04', type: 'new-version-uploaded', actorId: 'user-sara', version: '1.1', createdAt: '2023-09-20T11:30:00+03:00' },
+      { id: 'evt-078-05', type: 'resubmitted', actorId: 'user-sara', recipientId: 'user-noura', version: '1.1', createdAt: '2023-09-21T08:50:00+03:00' },
+      { id: 'evt-078-06', type: 'forwarded-to-approver', actorId: 'user-noura', recipientId: 'user-huda', version: '1.1', createdAt: '2023-09-28T14:05:00+03:00' },
+      { id: 'evt-078-07', type: 'returned', actorId: 'user-huda', recipientId: 'user-sara', version: '1.1', createdAt: '2023-10-10T10:20:00+03:00' },
+      { id: 'evt-078-08', type: 'new-version-uploaded', actorId: 'user-sara', version: '1.2', createdAt: '2023-10-25T09:45:00+03:00' },
+      { id: 'evt-078-09', type: 'resubmitted', actorId: 'user-sara', recipientId: 'user-noura', version: '1.2', createdAt: '2023-10-26T10:10:00+03:00' },
+      { id: 'evt-078-10', type: 'forwarded-to-approver', actorId: 'user-noura', recipientId: 'user-huda', version: '1.2', createdAt: '2023-11-02T11:40:00+03:00' },
+      { id: 'evt-078-11', type: 'approved', actorId: 'user-huda', version: '1.2', createdAt: '2023-11-15T15:25:00+03:00' },
+      { id: 'evt-078-12', type: 'published', actorId: 'user-huda', version: '1.2', createdAt: '2023-11-18T09:00:00+03:00' },
+    ],
   },
   {
     id: 'sop-093',
@@ -79,6 +140,11 @@ export const sops: Sop[] = [
     fileName: 'SOP-093.pdf',
     fileType: 'pdf',
     fileUrl: '/sample-sops/SOP-093.pdf',
+    versions: [
+      { version: '1.0', fileName: 'SOP-093.pdf', fileType: 'pdf', uploadedAt: '2024-01-20T09:00:00+03:00', fileUrl: '/sample-sops/SOP-093.pdf' },
+    ],
+    comments: [],
+    timeline: [],
   },
   {
     id: 'sop-079',
@@ -91,6 +157,13 @@ export const sops: Sop[] = [
     authorId: 'user-sara',
     fileName: 'SOP-079.docx',
     fileType: 'docx',
+    versions: [
+      { version: '1.0', fileName: 'SOP-079.docx', fileType: 'docx', uploadedAt: '2026-09-29T10:15:00+03:00' },
+    ],
+    comments: [],
+    timeline: [
+      { id: 'evt-079-1', type: 'uploaded', actorId: 'user-sara', version: '1.0', createdAt: '2026-09-29T10:15:00+03:00' },
+    ],
   },
   {
     id: 'sop-080',
@@ -103,6 +176,16 @@ export const sops: Sop[] = [
     authorId: 'user-sara',
     fileName: 'SOP-080.docx',
     fileType: 'docx',
+    reviewerId: 'user-noura',
+    approverId: 'user-huda',
+    versions: [
+      { version: '1.0', fileName: 'SOP-080.docx', fileType: 'docx', uploadedAt: '2026-09-22T11:00:00+03:00' },
+    ],
+    comments: [],
+    timeline: [
+      { id: 'evt-080-1', type: 'uploaded', actorId: 'user-sara', version: '1.0', createdAt: '2026-09-22T11:00:00+03:00' },
+      { id: 'evt-080-2', type: 'submitted', actorId: 'user-sara', recipientId: 'user-noura', version: '1.0', createdAt: '2026-09-24T09:30:00+03:00', note: 'Ready for review.' },
+    ],
   },
   {
     id: 'sop-081',
@@ -115,6 +198,26 @@ export const sops: Sop[] = [
     authorId: 'user-sara',
     fileName: 'SOP-081.pdf',
     fileType: 'pdf',
+    reviewerId: 'user-noura',
+    approverId: 'user-huda',
+    versions: [
+      { version: '1.0', fileName: 'SOP-081.pdf', fileType: 'pdf', uploadedAt: '2026-09-15T13:20:00+03:00' },
+    ],
+    comments: [
+      {
+        id: 'com-081-1',
+        authorUserId: 'user-noura',
+        role: 'reviewer',
+        text: 'Please clarify the responsibilities section and add the missing review step.',
+        createdAt: '2026-09-20T14:40:00+03:00',
+        version: '1.0',
+      },
+    ],
+    timeline: [
+      { id: 'evt-081-1', type: 'uploaded', actorId: 'user-sara', version: '1.0', createdAt: '2026-09-15T13:20:00+03:00' },
+      { id: 'evt-081-2', type: 'submitted', actorId: 'user-sara', recipientId: 'user-noura', version: '1.0', createdAt: '2026-09-16T10:05:00+03:00' },
+      { id: 'evt-081-3', type: 'returned', actorId: 'user-noura', recipientId: 'user-sara', version: '1.0', createdAt: '2026-09-20T14:40:00+03:00' },
+    ],
   },
   {
     id: 'sop-082',
@@ -127,5 +230,16 @@ export const sops: Sop[] = [
     authorId: 'user-sara',
     fileName: 'SOP-082.docx',
     fileType: 'docx',
+    reviewerId: 'user-noura',
+    approverId: 'user-huda',
+    versions: [
+      { version: '1.0', fileName: 'SOP-082.docx', fileType: 'docx', uploadedAt: '2026-09-08T09:00:00+03:00' },
+    ],
+    comments: [],
+    timeline: [
+      { id: 'evt-082-1', type: 'uploaded', actorId: 'user-sara', version: '1.0', createdAt: '2026-09-08T09:00:00+03:00' },
+      { id: 'evt-082-2', type: 'submitted', actorId: 'user-sara', recipientId: 'user-noura', version: '1.0', createdAt: '2026-09-09T10:30:00+03:00' },
+      { id: 'evt-082-3', type: 'forwarded-to-approver', actorId: 'user-noura', recipientId: 'user-huda', version: '1.0', createdAt: '2026-09-15T15:10:00+03:00' },
+    ],
   },
 ]

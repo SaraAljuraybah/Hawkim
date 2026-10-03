@@ -62,11 +62,72 @@ export interface Sop {
   /** Id of the author (User.id), when known. */
   authorId?: string
   description?: string
-  /** Current file, e.g. "SOP-079.docx". */
+  /** Current file, e.g. "SOP-079.docx" (kept in sync with the last entry of `versions`). */
   fileName: string
   fileType: SopFileType
   /** URL of the current file, when one is available (e.g. "/sample-sops/SOP-078.pdf"). */
   fileUrl?: string
+  /** Chosen by the author on the first submission; resubmissions go to the same people. */
+  reviewerId?: string
+  approverId?: string
+  /** Every uploaded version, oldest first (the last one is the current file). */
+  versions: SopVersion[]
+  /** Reviewer and approver feedback, oldest first. */
+  comments: SopComment[]
+  /** Workflow history, oldest first. */
+  timeline: TimelineEvent[]
+}
+
+/** One uploaded file of an SOP. */
+export interface SopVersion {
+  /** e.g. "1.1" */
+  version: string
+  fileName: string
+  fileType: SopFileType
+  /** ISO date and time, e.g. "2026-09-24T09:30:00+03:00" */
+  uploadedAt: string
+  /** Only when the file is available (sample PDFs, or files uploaded in this session). */
+  fileUrl?: string
+}
+
+/** Who gives feedback in the workflow. */
+export type ReviewRole = 'reviewer' | 'approver'
+
+/** Feedback left when an SOP is returned to its author. */
+export interface SopComment {
+  id: string
+  authorUserId: string
+  role: ReviewRole
+  text: string
+  /** ISO date and time */
+  createdAt: string
+  /** The version the comment is about. */
+  version: string
+}
+
+export type TimelineEventType =
+  | 'uploaded'
+  | 'file-replaced'
+  | 'submitted'
+  | 'resubmitted'
+  | 'forwarded-to-approver'
+  | 'returned'
+  | 'approved'
+  | 'published'
+  | 'new-version-uploaded'
+
+/** One action in an SOP's workflow history (PBI 24). */
+export interface TimelineEvent {
+  id: string
+  type: TimelineEventType
+  /** Who did it (User.id). */
+  actorId: string
+  /** Who it was sent to, if anyone (User.id). */
+  recipientId?: string
+  version: string
+  /** ISO date and time */
+  createdAt: string
+  note?: string
 }
 
 /** File formats an SOP can be uploaded in. */
