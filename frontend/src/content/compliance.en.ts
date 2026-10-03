@@ -56,9 +56,41 @@ export const complianceEn: ComplianceContent = {
       title: 'Executive summary',
       score: '{score}%',
       scoreNote: 'Compliance score: compliant requirements out of all checked requirements. Partially compliant, not addressed and conflict findings don’t count toward the score.',
-      barLabel: 'Share of results: {parts}.',
-      barPart: '{label} {count}',
-      legendLabel: 'Results',
+      ringLabel: 'Compliance score {score} percent, {count} of {total} requirements compliant',
+      ringCaption: 'compliant',
+      verdicts: {
+        'fully-compliant': 'Fully compliant',
+        'needs-improvement': 'Needs improvement',
+        'action-required': 'Action required',
+      },
+      explanation: {
+        actionRequired: {
+          one: 'Action required: the SOP conflicts with {count} requirement.',
+          other: 'Action required: the SOP conflicts with {count} requirements.',
+        },
+        needsImprovement: {
+          one: 'Needs improvement: {count} requirement is partially compliant or not addressed.',
+          other: 'Needs improvement: {count} requirements are partially compliant or not addressed.',
+        },
+      },
+      tilesLabel: 'Results by label',
+      priorities: {
+        title: 'Top priorities',
+        item: '{number} · {result} · {requirement} · {title}',
+      },
+      change: {
+        title: 'Change since the previous version',
+        score: 'Score: {before} → {after} ({delta})',
+        verdict: 'Verdict: {before} → {after} ({kind})',
+        percent: '{score}%',
+        delta: {
+          up: '+{points} points since v{version}',
+          down: '−{points} points since v{version}',
+          same: 'no change since v{version}',
+        },
+        kinds: { improved: 'improved', worsened: 'worsened', unchanged: 'unchanged' },
+        changedTo: 'changed to',
+      },
       attention: {
         conflict: { one: '{count} conflict', other: '{count} conflicts' },
         'not-addressed': { one: '{count} requirement not addressed', other: '{count} requirements not addressed' },

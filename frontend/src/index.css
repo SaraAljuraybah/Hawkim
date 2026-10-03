@@ -74,6 +74,13 @@
   }
 }
 
+/* Compliance score ring: the arc fills in from empty (only when motion is allowed) */
+@keyframes ring-fill {
+  from {
+    stroke-dashoffset: var(--ring-length);
+  }
+}
+
 @keyframes drawer-in {
   from {
     transform: translateX(-100%);

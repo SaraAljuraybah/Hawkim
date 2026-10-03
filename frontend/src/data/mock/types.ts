@@ -192,6 +192,8 @@ export interface Requirement {
   /** e.g. "I.B.10" */
   section: string
   sectionTitle: string
+  /** A short descriptive name, e.g. "Training of personnel" (used in the report's top priorities). */
+  shortTitle: string
   /** Page in the guideline document. */
   page: number
   /** Paraphrased summary of the requirement. */

@@ -171,3 +171,26 @@ export function compareReports(previous: ComplianceCheck, current: ComplianceChe
     return { requirementId, before, after, kind }
   })
 }
+
+// ---------- Executive summary ----------
+
+/**
+ * The report's verdict, from the findings (not from score thresholds): any conflict
+ * means action is required; otherwise anything partial or not addressed needs improvement.
+ */
+export type Verdict = 'fully-compliant' | 'needs-improvement' | 'action-required'
+
+export function verdictOf(check: ComplianceCheck): Verdict {
+  const counts = countResults(check)
+  if (counts.conflict > 0) return 'action-required'
+  if (counts.partial > 0 || counts['not-addressed'] > 0) return 'needs-improvement'
+  return 'fully-compliant'
+}
+
+/** Better verdicts rank higher (to describe a change as improved or worsened). */
+export const VERDICT_RANK: Record<Verdict, number> = { 'action-required': 0, 'needs-improvement': 1, 'fully-compliant': 2 }
+
+/** Up to `limit` findings that need attention, in report order (Conflict, Not addressed, Partially compliant). */
+export function topPriorities(findings: NumberedFinding[], limit = 3): NumberedFinding[] {
+  return findings.filter((finding) => finding.result !== 'compliant').slice(0, limit)
+}

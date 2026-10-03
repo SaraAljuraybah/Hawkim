@@ -639,11 +639,37 @@ export interface ComplianceContent {
       /** `{score}` is replaced, e.g. "40%". */
       score: string
       scoreNote: string
-      /** Text alternative of the bar; `{parts}` is the list of results and counts. */
-      barLabel: string
-      /** `{label}` and `{count}` are replaced. */
-      barPart: string
-      legendLabel: string
+      /** Text alternative of the score ring; `{score}`, `{count}` and `{total}` are replaced. */
+      ringLabel: string
+      /** Under the percentage in the ring. */
+      ringCaption: string
+      verdicts: Record<'fully-compliant' | 'needs-improvement' | 'action-required', string>
+      /** One line under the verdict; `{count}` is replaced (one / several). */
+      explanation: {
+        actionRequired: { one: string; other: string }
+        needsImprovement: { one: string; other: string }
+      }
+      /** Accessible name of the metric tiles. */
+      tilesLabel: string
+      priorities: {
+        title: string
+        /** `{number}`, `{result}`, `{requirement}` and `{title}` are replaced. */
+        item: string
+      }
+      change: {
+        title: string
+        /** `{before}`, `{after}` and `{delta}` are replaced. */
+        score: string
+        /** `{before}`, `{after}` and `{kind}` are replaced. */
+        verdict: string
+        /** `{score}` is replaced. */
+        percent: string
+        /** `{points}` and `{version}` are replaced. */
+        delta: { up: string; down: string; same: string }
+        kinds: { improved: string; worsened: string; unchanged: string }
+        /** Visually hidden text for the arrow. */
+        changedTo: string
+      }
       /** Parts of the summary sentence (one / several); `{count}` is replaced. */
       attention: Record<'conflict' | 'not-addressed' | 'partial', { one: string; other: string }>
       /** Joins the last two parts, e.g. "and". */

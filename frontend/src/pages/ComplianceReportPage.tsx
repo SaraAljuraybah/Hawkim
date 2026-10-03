@@ -233,7 +233,14 @@ function Report({ sop }: { sop: Sop }) {
         <>
           {/* b) Executive summary */}
           <ReportSection id="summary-title" title={text.summary.title}>
-            <ExecutiveSummary check={report} status={sop.status} content={content} />
+            <ExecutiveSummary
+              check={report}
+              previous={previous}
+              status={sop.status}
+              findings={numbered}
+              content={content}
+              onJump={jumpTo}
+            />
           </ReportSection>
 
           {/* c) Requirements overview */}
