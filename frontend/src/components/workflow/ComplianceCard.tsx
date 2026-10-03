@@ -27,12 +27,13 @@ export function ComplianceCard({ sop, content, canRun, onRun }: ComplianceCardPr
   const check = currentCheck(sop)
   const running = check?.status === 'running'
 
-  // Announce when a running check ends (the new results themselves aren't read out).
+  // Announce when a running check completes (the results themselves aren't read out).
+  // A failure is announced by its own visible message (role="alert").
   const [wasRunning, setWasRunning] = useState(running)
   const [ended, setEnded] = useState('')
   if (running !== wasRunning) {
     setWasRunning(running)
-    setEnded(running ? '' : check?.status === 'failed' ? text.failed : text.completed)
+    setEnded(!running && check?.status === 'completed' ? text.completed : '')
   }
 
   const runButton = (label: string) =>
@@ -92,7 +93,9 @@ export function ComplianceCard({ sop, content, canRun, onRun }: ComplianceCardPr
 
       {check?.status === 'failed' && (
         <div className="rounded-lg border border-status-rejected-fg/25 bg-status-rejected-bg/50 p-4">
-          <p className="text-sm font-medium text-status-rejected-fg">{text.failed}</p>
+          <p role="alert" className="text-sm font-medium text-status-rejected-fg">
+            {text.failed}
+          </p>
           {canRun && <div className="mt-3">{runButton(text.runAgain)}</div>}
         </div>
       )}
