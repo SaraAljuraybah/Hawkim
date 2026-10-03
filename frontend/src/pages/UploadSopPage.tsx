@@ -92,6 +92,7 @@ export function UploadSopPage() {
       title: title.trim(),
       description: description.trim() || undefined,
       departmentId: activeDepartment.id,
+      coAuthorIds: [],
       fileName: file.name,
       fileType: fileTypeOf(file),
       fileUrl: URL.createObjectURL(file),

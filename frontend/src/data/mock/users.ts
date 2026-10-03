@@ -14,6 +14,20 @@ export const users: User[] = [
     permissions: ['author'],
   },
   {
+    id: 'user-reem',
+    name: 'Reem Alsubaie',
+    initials: 'RA',
+    departmentId: 'information-technology',
+    permissions: ['author'],
+  },
+  {
+    id: 'user-omar',
+    name: 'Omar Alghamdi',
+    initials: 'OA',
+    departmentId: 'pharmacovigilance',
+    permissions: ['author'],
+  },
+  {
     id: 'user-noura',
     name: 'Noura Alqahtani',
     initials: 'NA',

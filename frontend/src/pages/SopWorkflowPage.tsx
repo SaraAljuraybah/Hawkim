@@ -18,7 +18,7 @@ import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { formatDate, formatDateTime } from '../lib/format'
 import { hasPermission } from '../lib/permissions'
 import { sopPath } from '../lib/routes'
-import { canResubmit, latestReturn, latestReturnComments, nextVersion, type UploadedFile } from '../lib/workflow'
+import { canResubmit, isApprover, latestReturn, latestReturnComments, nextVersion, pendingPeople, type UploadedFile } from '../lib/workflow'
 import { useSops } from '../state/sopsContext'
 import { NotFoundPage } from './NotFoundPage'
 
@@ -112,8 +112,10 @@ export function SopWorkflowPage() {
     })
   }
 
-  const reviewer = getUser(sop.reviewerId)
-  const approver = getUser(sop.approverId)
+  // Everyone still to decide in the current stage, e.g. "Faisal Alharbi (Reviewer)".
+  const waitingFor = pendingPeople(sop)
+    .map((person) => `${getUser(person.userId)?.name ?? ''} (${person.role === 'reviewer' ? content.roles.reviewer : content.roles.approver})`)
+    .join(', ')
   const returned = sop.status === 'returned' ? latestReturn(sop) : undefined
   const feedback = sop.status === 'returned' ? latestReturnComments(sop) : []
   const resubmitReady = canResubmit(sop)
@@ -172,7 +174,7 @@ export function SopWorkflowPage() {
           <p className="mt-1 mb-4 text-sm text-maroon">
             {content.feedback.description
               .replace('{name}', getUser(returned.actorId)?.name ?? '')
-              .replace('{role}', returned.actorId === sop.approverId ? content.roles.approver : content.roles.reviewer)
+              .replace('{role}', isApprover(sop, returned.actorId) ? content.roles.approver : content.roles.reviewer)
               .replace('{date}', formatDateTime(returned.createdAt))
               .replace('{version}', returned.version)}
           </p>
@@ -247,15 +249,8 @@ export function SopWorkflowPage() {
             </div>
           )}
 
-          {sop.status === 'in-review' && (
-            <p className="text-sm text-text-gray">
-              {actions.waiting.replace('{name}', reviewer?.name ?? '').replace('{role}', content.roles.reviewer)}
-            </p>
-          )}
-          {sop.status === 'in-approval' && (
-            <p className="text-sm text-text-gray">
-              {actions.waiting.replace('{name}', approver?.name ?? '').replace('{role}', content.roles.approver)}
-            </p>
+          {(sop.status === 'in-review' || sop.status === 'in-approval') && (
+            <p className="text-sm text-text-gray">{actions.waiting.replace('{name} ({role})', waitingFor)}</p>
           )}
           {sop.status === 'approved' && <p className="text-sm text-text-gray">{actions.approvedWaiting}</p>}
           {sop.status === 'published' && <p className="text-sm text-text-gray">{actions.published}</p>}
@@ -283,7 +278,14 @@ export function SopWorkflowPage() {
           authorId={user.id}
           onClose={closeDialog}
           onSubmit={(reviewerId, approverId, note) => {
-            store.submitForReview(sop.id, reviewerId, approverId, note)
+            // Temporary until the dialog supports several people and due days (next commit).
+            store.submitForReview(sop.id, {
+              reviewerIds: [reviewerId],
+              approverIds: [approverId],
+              reviewDueDays: 5,
+              approvalDueDays: 5,
+              note,
+            })
             announce(content.messages.submitted)
           }}
         />

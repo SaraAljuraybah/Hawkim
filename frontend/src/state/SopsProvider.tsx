@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState, type ReactNode } from 'react'
 import { currentUser } from '../data/mock/currentUser'
 import { sops as seedSops } from '../data/mock/sops'
-import type { Sop } from '../data/mock/types'
+import type { Sop, TimelineEvent } from '../data/mock/types'
 import { todayIsoDate } from '../lib/format'
 import { nextSopCode } from '../lib/sopCodes'
 import * as workflow from '../lib/workflow'
@@ -24,20 +24,38 @@ export function SopsProvider({ children }: { children: ReactNode }) {
         sops.filter((sop) => sop.authorId === user.id).map((sop) => sop.code),
         sops.map((sop) => sop.code),
       )
+      const id = code.toLowerCase()
       const now = new Date().toISOString()
+      const coAuthorIds = draft.coAuthorIds.filter((coAuthorId) => coAuthorId !== user.id)
+      const timeline: TimelineEvent[] = [
+        { id: `evt-${id}-1`, type: 'uploaded', actorId: user.id, version: '1.0', createdAt: now },
+        ...coAuthorIds.map(
+          (subjectId, index): TimelineEvent => ({
+            id: `evt-${id}-ca-${index + 1}`,
+            type: 'co-author-added',
+            actorId: user.id,
+            subjectId,
+            version: '1.0',
+            createdAt: now,
+          }),
+        ),
+      ]
       const created: Sop = {
         ...draft,
-        id: code.toLowerCase(),
+        id,
         code,
         version: '1.0',
         status: 'draft',
         authorId: user.id,
+        coAuthorIds,
         lastUpdated: todayIsoDate(),
+        reviewers: [],
+        approvers: [],
         versions: [
           { version: '1.0', fileName: draft.fileName, fileType: draft.fileType, uploadedAt: now, fileUrl: draft.fileUrl },
         ],
         comments: [],
-        timeline: [{ id: `evt-${code.toLowerCase()}-1`, type: 'uploaded', actorId: user.id, version: '1.0', createdAt: now }],
+        timeline,
       }
       setSops((current) => [created, ...current])
       return created
@@ -63,15 +81,21 @@ export function SopsProvider({ children }: { children: ReactNode }) {
     () => ({
       sops,
       addDraft,
-      submitForReview: (id, reviewerId, approverId, note) =>
-        update(id, (sop) => workflow.submitForReview(sop, user.id, reviewerId, approverId, note)),
+      submitForReview: (id, o) =>
+        update(id, (sop) =>
+          workflow.submitForReview(sop, user.id, o.reviewerIds, o.approverIds, o.reviewDueDays, o.approvalDueDays, o.note),
+        ),
+      resubmit: (id, note) => update(id, (sop) => workflow.resubmit(sop, user.id, note)),
       replaceFile: (id, file) => update(id, (sop) => workflow.replaceFile(sop, user.id, file)),
       uploadNewVersion: (id, file) => update(id, (sop) => workflow.uploadNewVersion(sop, user.id, file)),
-      resubmit: (id, note) => update(id, (sop) => workflow.resubmit(sop, user.id, note)),
-      returnWithComment: (id, role, text) => update(id, (sop) => workflow.returnWithComment(sop, role, text)),
-      forwardToApprover: (id) => update(id, workflow.forwardToApprover),
-      approve: (id) => update(id, workflow.approve),
-      publish: (id) => update(id, workflow.publish),
+      addCoAuthor: (id, userId) => update(id, (sop) => workflow.addCoAuthor(sop, user.id, userId)),
+      removeCoAuthor: (id, userId) => update(id, (sop) => workflow.removeCoAuthor(sop, user.id, userId)),
+      completeReview: (id, reviewerId) => update(id, (sop) => workflow.completeReview(sop, reviewerId)),
+      returnAsReviewer: (id, reviewerId, text) => update(id, (sop) => workflow.returnAsReviewer(sop, reviewerId, text)),
+      approveAs: (id, approverId) => update(id, (sop) => workflow.approveAs(sop, approverId)),
+      returnAsApprover: (id, approverId, text) => update(id, (sop) => workflow.returnAsApprover(sop, approverId, text)),
+      publishAs: (id, approverId) => update(id, (sop) => workflow.publishAs(sop, approverId)),
+      shiftDueDates: (id, days) => update(id, (sop) => workflow.shiftDueDates(sop, days)),
     }),
     [sops, addDraft, update, user.id],
   )

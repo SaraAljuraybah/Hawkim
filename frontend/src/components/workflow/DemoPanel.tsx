@@ -48,7 +48,10 @@ export default function DemoPanel({ sop, announce }: DemoPanelProps) {
     })
   }
 
-  const actor = getUser(commentRole === 'approver' ? sop.approverId : sop.reviewerId)
+  // Temporary: acts as the first pending reviewer/approver (per-person controls come later).
+  const firstPending = (role: ReviewRole) =>
+    (role === 'reviewer' ? sop.reviewers : sop.approvers).find((p) => p.decision === 'pending')?.userId ?? ''
+  const actor = getUser(commentRole ? firstPending(commentRole) : undefined)
   const buttons =
     sop.status === 'in-review' ? (
       <>
@@ -59,7 +62,7 @@ export default function DemoPanel({ sop, announce }: DemoPanelProps) {
           size="sm"
           variant="secondary"
           onClick={() => {
-            store.forwardToApprover(sop.id)
+            store.completeReview(sop.id, firstPending('reviewer'))
             announce(content.messages.forwarded)
           }}
         >
@@ -75,7 +78,7 @@ export default function DemoPanel({ sop, announce }: DemoPanelProps) {
           size="sm"
           variant="secondary"
           onClick={() => {
-            store.approve(sop.id)
+            store.approveAs(sop.id, firstPending('approver'))
             announce(content.messages.approved)
           }}
         >
@@ -87,7 +90,7 @@ export default function DemoPanel({ sop, announce }: DemoPanelProps) {
         size="sm"
         variant="secondary"
         onClick={() => {
-          store.publish(sop.id)
+          store.publishAs(sop.id, sop.approvers[0]?.userId ?? '')
           announce(content.messages.published)
         }}
       >
@@ -122,7 +125,8 @@ export default function DemoPanel({ sop, announce }: DemoPanelProps) {
               commentRef.current?.focus()
               return false
             }
-            store.returnWithComment(sop.id, commentRole, comment.trim())
+            if (commentRole === 'reviewer') store.returnAsReviewer(sop.id, firstPending('reviewer'), comment.trim())
+            else store.returnAsApprover(sop.id, firstPending('approver'), comment.trim())
             announce(content.messages.returned)
           }}
         >

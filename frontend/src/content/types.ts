@@ -420,7 +420,7 @@ export interface SopWorkflowContent {
   /** `{date}` is replaced. */
   lastUpdatedTemplate: string
   departmentLabel: string
-  roles: { reviewer: string; approver: string; author: string }
+  roles: { reviewer: string; approver: string; author: string; coAuthor: string; system: string }
   tracker: {
     label: string
     steps: { draft: string; 'in-review': string; 'in-approval': string; approved: string; published: string }
@@ -467,6 +467,12 @@ export interface SopWorkflowContent {
     /** `{name}` is replaced. */
     to: string
     noteLabel: string
+    /** Label for stage-due-date-set events, by stage. */
+    stageDue: { review: string; approval: string }
+    /** `{date}` is replaced. */
+    due: string
+    /** For co-author events; `{name}` is replaced. */
+    subject: string
   }
   dialogs: {
     cancel: string

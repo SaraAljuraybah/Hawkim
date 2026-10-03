@@ -59,17 +59,29 @@ export interface Sop {
   status: SopStatus
   /** ISO date, e.g. "2024-01-12" */
   lastUpdated: string
-  /** Id of the author (User.id), when known. */
+  /** Id of the main author (User.id), when known. */
   authorId?: string
+  /** Co-authors can replace a draft's file and upload new versions, but not submit. */
+  coAuthorIds: string[]
   description?: string
   /** Current file, e.g. "SOP-079.docx" (kept in sync with the last entry of `versions`). */
   fileName: string
   fileType: SopFileType
   /** URL of the current file, when one is available (e.g. "/sample-sops/SOP-078.pdf"). */
   fileUrl?: string
-  /** Chosen by the author on the first submission; resubmissions go to the same people. */
-  reviewerId?: string
-  approverId?: string
+  /**
+   * Chosen by the author on the first submission; resubmissions go to the same people.
+   * Reviewers (then approvers) work in parallel: the stage completes when ALL have
+   * decided, and ANY return sends the SOP back to the author.
+   */
+  reviewers: ReviewerAssignment[]
+  approvers: ApproverAssignment[]
+  /** Calendar days for each stage (1–30), set on the first submission. */
+  reviewDueDays?: number
+  approvalDueDays?: number
+  /** Due dates (ISO date and time) of the current round, when the stage has started. */
+  reviewDueAt?: string
+  approvalDueAt?: string
   /** Every uploaded version, oldest first (the last one is the current file). */
   versions: SopVersion[]
   /** Reviewer and approver feedback, oldest first. */
@@ -93,6 +105,25 @@ export interface SopVersion {
 /** Who gives feedback in the workflow. */
 export type ReviewRole = 'reviewer' | 'approver'
 
+export type ReviewerDecision = 'pending' | 'completed' | 'returned'
+export type ApproverDecision = 'pending' | 'approved' | 'returned'
+
+export interface ReviewerAssignment {
+  userId: string
+  decision: ReviewerDecision
+  /** ISO date and time of the decision. */
+  decidedAt?: string
+}
+
+export interface ApproverAssignment {
+  userId: string
+  decision: ApproverDecision
+  decidedAt?: string
+}
+
+/** Actor id used for automatic workflow steps (shown as "System"). */
+export const SYSTEM_ACTOR = 'system'
+
 /** Feedback left when an SOP is returned to its author. */
 export interface SopComment {
   id: string
@@ -115,15 +146,25 @@ export type TimelineEventType =
   | 'approved'
   | 'published'
   | 'new-version-uploaded'
+  | 'co-author-added'
+  | 'co-author-removed'
+  | 'review-completed'
+  | 'approved-by'
+  | 'stage-due-date-set'
 
 /** One action in an SOP's workflow history (PBI 24). */
 export interface TimelineEvent {
   id: string
   type: TimelineEventType
-  /** Who did it (User.id). */
+  /** Who did it (User.id, or SYSTEM_ACTOR for automatic steps). */
   actorId: string
-  /** Who it was sent to, if anyone (User.id). */
-  recipientId?: string
+  /** Who it was sent to, if anyone (User ids). */
+  recipientIds?: string[]
+  /** For co-author-added / co-author-removed: the co-author (User.id). */
+  subjectId?: string
+  /** For stage-due-date-set: which stage and its due date (ISO date and time). */
+  stage?: 'review' | 'approval'
+  dueAt?: string
   version: string
   /** ISO date and time */
   createdAt: string
