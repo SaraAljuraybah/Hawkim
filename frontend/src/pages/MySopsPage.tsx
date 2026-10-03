@@ -11,6 +11,7 @@ import { currentUser } from '../data/mock/currentUser'
 import type { Sop } from '../data/mock/types'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { hasPermission } from '../lib/permissions'
+import { isAuthorOrCoAuthor } from '../lib/workflow'
 import { useActiveDepartment } from '../state/activeDepartmentContext'
 import { useSops } from '../state/sopsContext'
 import type { SopStatus } from '../types/status'
@@ -31,7 +32,7 @@ export interface MySopsLocationState {
   uploaded?: boolean
 }
 
-/** My SOPs ("/my-sops", Author permission): the author's SOPs in the active department. */
+/** My SOPs ("/my-sops", Author permission): SOPs the user authored or co-authors in the active department. */
 export function MySopsPage() {
   const content = mySopsEn
   // TODO: Use the authenticated user once real authentication exists.
@@ -60,7 +61,7 @@ export function MySopsPage() {
 
   const visibleSops = useMemo(() => {
     const inDepartment = sops.filter(
-      (sop: Sop) => sop.authorId === user.id && sop.departmentId === activeDepartment.id,
+      (sop: Sop) => isAuthorOrCoAuthor(sop, user.id) && sop.departmentId === activeDepartment.id,
     )
     const inTab = tab === 'all' ? inDepartment : inDepartment.filter((sop) => tabStatuses[tab].includes(sop.status))
     // ISO dates sort correctly as strings; newest first (stable for the same day).
@@ -117,7 +118,7 @@ export function MySopsPage() {
             <p className="mt-4 text-text-gray">{content.empty}</p>
           </div>
         ) : (
-          <AuthoredSopList sops={visibleSops} content={content} />
+          <AuthoredSopList sops={visibleSops} content={content} userId={user.id} />
         )}
       </div>
     </>

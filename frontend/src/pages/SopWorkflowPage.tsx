@@ -2,9 +2,12 @@ import { lazy, Suspense, useRef, useState, type ReactNode } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { ArrowLeft, ArrowUpRight, CircleCheck, Download, FileText, MessageSquareWarning } from 'lucide-react'
 import { Button } from '../components/ui/Button'
+import { ConfirmDialog } from '../components/ui/ConfirmDialog'
 import { StatusBadge } from '../components/ui/StatusBadge'
+import { AddCoAuthorsDialog } from '../components/workflow/AddCoAuthorsDialog'
 import { CommentItems, CommentList } from '../components/workflow/CommentList'
 import { FileDialog } from '../components/workflow/FileDialog'
+import { PeopleList } from '../components/workflow/PeopleList'
 import { ResubmitDialog } from '../components/workflow/ResubmitDialog'
 import { StatusTracker } from '../components/workflow/StatusTracker'
 import { SubmitDialog } from '../components/workflow/SubmitDialog'
@@ -15,14 +18,24 @@ import { getDepartmentName } from '../data/mock/departments'
 import { getUser } from '../data/mock/users'
 import type { Sop } from '../data/mock/types'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
-import { formatDate, formatDateTime } from '../lib/format'
+import { formatDate, formatDateTime, formatMonthDay } from '../lib/format'
 import { hasPermission } from '../lib/permissions'
 import { sopPath } from '../lib/routes'
-import { canResubmit, isApprover, latestReturn, latestReturnComments, nextVersion, pendingPeople, type UploadedFile } from '../lib/workflow'
+import {
+  canResubmit,
+  currentDueAt,
+  isApprover,
+  isAuthorOrCoAuthor,
+  latestReturn,
+  latestReturnComments,
+  nextVersion,
+  pendingPeople,
+  type UploadedFile,
+} from '../lib/workflow'
 import { useSops } from '../state/sopsContext'
 import { NotFoundPage } from './NotFoundPage'
 
-type DialogName = 'submit' | 'replace' | 'newVersion' | 'resubmit'
+type DialogName = 'submit' | 'replace' | 'newVersion' | 'resubmit' | 'addCoAuthors'
 
 /*
  * Development-only demo controls (simulated reviewer and approver actions).
@@ -61,7 +74,8 @@ function Section({ id, title, children, className = '' }: { id: string; title: s
 /**
  * SOP workflow page ("/my-sops/:id"): the author's view of one SOP — status
  * tracker, current file, the actions allowed in this status, comments and the
- * review timeline (PBI 6, 8, 12, 22, 24). Only the SOP's author can open it.
+ * review timeline (PBI 6, 8, 12, 22, 24). Only the SOP's author and co-authors can
+ * open it; co-authors can work on the file but only the author submits.
  */
 export function SopWorkflowPage() {
   const content = sopWorkflowEn
@@ -70,10 +84,12 @@ export function SopWorkflowPage() {
   // TODO: Use the authenticated user once real authentication exists.
   const user = currentUser
   const sop = store.sops.find((item) => item.id === id)
-  const allowed = !!sop && hasPermission(user, 'author') && sop.authorId === user.id
+  const allowed = !!sop && hasPermission(user, 'author') && isAuthorOrCoAuthor(sop, user.id)
   useDocumentTitle(allowed ? content.pageTitle.replace('{code}', sop.code) : undefined)
 
   const [dialog, setDialog] = useState<DialogName | null>(null)
+  // Co-author waiting for the remove confirmation.
+  const [removingId, setRemovingId] = useState<string | null>(null)
   const [message, setMessage] = useState('')
   const triggerRef = useRef<HTMLElement | null>(null)
   const statusRef = useRef<HTMLDivElement>(null)
@@ -82,6 +98,8 @@ export function SopWorkflowPage() {
 
   const departmentName = getDepartmentName(sop.departmentId)
   const { dialogs, actions } = content
+  const isMainAuthor = sop.authorId === user.id
+  const authorName = getUser(sop.authorId)?.name ?? ''
 
   function open(name: DialogName, trigger: HTMLElement) {
     triggerRef.current = trigger
@@ -112,10 +130,20 @@ export function SopWorkflowPage() {
     })
   }
 
-  // Everyone still to decide in the current stage, e.g. "Faisal Alharbi (Reviewer)".
+  function closeRemove() {
+    setRemovingId(null)
+    requestAnimationFrame(() => {
+      const trigger = triggerRef.current
+      if (trigger?.isConnected) trigger.focus()
+      else statusRef.current?.focus()
+    })
+  }
+
+  // Everyone still to decide in the current stage, e.g. "Faisal Alharbi (Reviewer)", and the stage's due date.
   const waitingFor = pendingPeople(sop)
     .map((person) => `${getUser(person.userId)?.name ?? ''} (${person.role === 'reviewer' ? content.roles.reviewer : content.roles.approver})`)
     .join(', ')
+  const dueAt = currentDueAt(sop)
   const returned = sop.status === 'returned' ? latestReturn(sop) : undefined
   const feedback = sop.status === 'returned' ? latestReturnComments(sop) : []
   const resubmitReady = canResubmit(sop)
@@ -220,11 +248,14 @@ export function SopWorkflowPage() {
         {/* Actions allowed in this status */}
         <Section id="actions-title" title={actions.title}>
           {sop.status === 'draft' && (
-            <div className="flex flex-col gap-3 sm:flex-row">
-              <Button onClick={(event) => open('submit', event.currentTarget)}>{actions.submit}</Button>
-              <Button variant="secondary" onClick={(event) => open('replace', event.currentTarget)}>
-                {actions.replace}
-              </Button>
+            <div className="space-y-3">
+              <div className="flex flex-col gap-3 sm:flex-row">
+                {isMainAuthor && <Button onClick={(event) => open('submit', event.currentTarget)}>{actions.submit}</Button>}
+                <Button variant="secondary" onClick={(event) => open('replace', event.currentTarget)}>
+                  {actions.replace}
+                </Button>
+              </div>
+              {!isMainAuthor && <p className="text-sm text-text-gray">{actions.authorOnly.replace('{name}', authorName)}</p>}
             </div>
           )}
 
@@ -232,30 +263,59 @@ export function SopWorkflowPage() {
             <div className="space-y-3">
               <div className="flex flex-col gap-3 sm:flex-row">
                 <Button onClick={(event) => open('newVersion', event.currentTarget)}>{actions.uploadNewVersion}</Button>
-                <Button
-                  variant="secondary"
-                  disabled={!resubmitReady}
-                  aria-describedby={resubmitReady ? undefined : 'resubmit-hint'}
-                  onClick={(event) => open('resubmit', event.currentTarget)}
-                >
-                  {actions.resubmit}
-                </Button>
+                {isMainAuthor && (
+                  <Button
+                    variant="secondary"
+                    disabled={!resubmitReady}
+                    aria-describedby={resubmitReady ? undefined : 'resubmit-hint'}
+                    onClick={(event) => open('resubmit', event.currentTarget)}
+                  >
+                    {actions.resubmit}
+                  </Button>
+                )}
               </div>
-              {!resubmitReady && (
+              {isMainAuthor && !resubmitReady && (
                 <p id="resubmit-hint" className="text-sm text-text-gray">
                   {actions.resubmitHint}
                 </p>
               )}
+              {!isMainAuthor && <p className="text-sm text-text-gray">{actions.authorOnly.replace('{name}', authorName)}</p>}
             </div>
           )}
 
           {(sop.status === 'in-review' || sop.status === 'in-approval') && (
-            <p className="text-sm text-text-gray">{actions.waiting.replace('{name} ({role})', waitingFor)}</p>
+            <p className="text-sm text-text-gray">
+              {actions.waiting.replace('{people}', waitingFor)}
+              {dueAt && (
+                <>
+                  <span aria-hidden="true"> · </span>
+                  <span className="sr-only">, </span>
+                  {actions.waitingDue.split('{date}')[0]}
+                  <time dateTime={dueAt}>{formatMonthDay(dueAt)}</time>
+                  {actions.waitingDue.split('{date}')[1]}
+                </>
+              )}
+            </p>
           )}
           {sop.status === 'approved' && <p className="text-sm text-text-gray">{actions.approvedWaiting}</p>}
           {sop.status === 'published' && <p className="text-sm text-text-gray">{actions.published}</p>}
         </Section>
       </div>
+
+      <Section id="people-title" title={content.people.title} className="mt-6">
+        <PeopleList
+          sop={sop}
+          content={content.people}
+          userId={user.id}
+          canManageCoAuthors={isMainAuthor && sop.status !== 'published'}
+          onAddCoAuthor={(trigger) => open('addCoAuthors', trigger)}
+          onRemoveCoAuthor={(coAuthorId, trigger) => {
+            triggerRef.current = trigger
+            setMessage('')
+            setRemovingId(coAuthorId)
+          }}
+        />
+      </Section>
 
       <Section id="comments-title" title={content.comments.title} className="mt-6">
         <CommentList sop={sop} content={content} />
@@ -309,6 +369,32 @@ export function SopWorkflowPage() {
           }}
         />
       )}
+      {dialog === 'addCoAuthors' && (
+        <AddCoAuthorsDialog
+          sop={sop}
+          content={dialogs}
+          onClose={closeDialog}
+          onSubmit={(userIds) => {
+            store.addCoAuthors(sop.id, userIds)
+            announce(content.messages.coAuthorsAdded)
+          }}
+        />
+      )}
+      <ConfirmDialog
+        open={removingId !== null}
+        title={dialogs.removeCoAuthor.title}
+        description={dialogs.removeCoAuthor.description.replace('{name}', getUser(removingId ?? undefined)?.name ?? '')}
+        cancelLabel={dialogs.removeCoAuthor.keep}
+        confirmLabel={dialogs.removeCoAuthor.confirm}
+        onCancel={closeRemove}
+        onConfirm={() => {
+          if (!removingId) return
+          const name = getUser(removingId)?.name ?? ''
+          store.removeCoAuthor(sop.id, removingId)
+          closeRemove()
+          announce(content.messages.coAuthorRemoved.replace('{name}', name))
+        }}
+      />
       {dialog === 'resubmit' && (
         <ResubmitDialog
           sop={sop}

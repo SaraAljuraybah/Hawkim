@@ -9,7 +9,7 @@ import type { MySopsContent, UploadSopContent } from './types'
 export const mySopsEn: MySopsContent = {
   pageTitle: 'My SOPs | Hawkim',
   title: 'My SOPs',
-  subtitle: "SOPs you've authored in {department}.",
+  subtitle: "SOPs you've authored or co-authored in {department}.",
   upload: { label: 'Upload SOP', href: '/my-sops/upload' },
   tabsLabel: 'Filter my SOPs',
   tabs: {
@@ -22,6 +22,7 @@ export const mySopsEn: MySopsContent = {
   versionTemplate: 'Version {version}',
   empty: 'No SOPs here yet.',
   uploadedMessage: 'SOP uploaded as a draft.',
+  coAuthorLabel: 'Co-author',
 }
 
 export const uploadSopEn: UploadSopContent = {

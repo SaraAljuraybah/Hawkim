@@ -88,7 +88,8 @@ export function SopsProvider({ children }: { children: ReactNode }) {
       resubmit: (id, note) => update(id, (sop) => workflow.resubmit(sop, user.id, note)),
       replaceFile: (id, file) => update(id, (sop) => workflow.replaceFile(sop, user.id, file)),
       uploadNewVersion: (id, file) => update(id, (sop) => workflow.uploadNewVersion(sop, user.id, file)),
-      addCoAuthor: (id, userId) => update(id, (sop) => workflow.addCoAuthor(sop, user.id, userId)),
+      addCoAuthors: (id, userIds) =>
+        update(id, (sop) => userIds.reduce((next, userId) => workflow.addCoAuthor(next, user.id, userId), sop)),
       removeCoAuthor: (id, userId) => update(id, (sop) => workflow.removeCoAuthor(sop, user.id, userId)),
       completeReview: (id, reviewerId) => update(id, (sop) => workflow.completeReview(sop, reviewerId)),
       returnAsReviewer: (id, reviewerId, text) => update(id, (sop) => workflow.returnAsReviewer(sop, reviewerId, text)),

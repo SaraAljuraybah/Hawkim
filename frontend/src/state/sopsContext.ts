@@ -24,7 +24,8 @@ export interface SopsStore {
   resubmit: (sopId: string, note?: string) => void
   replaceFile: (sopId: string, file: UploadedFile) => void
   uploadNewVersion: (sopId: string, file: UploadedFile) => void
-  addCoAuthor: (sopId: string, userId: string) => void
+  /** Adds one or more co-authors in a single update. */
+  addCoAuthors: (sopId: string, userIds: string[]) => void
   removeCoAuthor: (sopId: string, userId: string) => void
 
   // Per-person reviewer and approver decisions. Used by the development-only demo

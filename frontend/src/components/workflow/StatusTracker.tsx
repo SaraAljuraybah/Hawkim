@@ -1,7 +1,8 @@
 import { Check, RotateCcw } from 'lucide-react'
 import type { SopWorkflowContent } from '../../content/types'
 import type { Sop } from '../../data/mock/types'
-import { returnedFrom } from '../../lib/workflow'
+import { formatDateTime } from '../../lib/format'
+import { isOverdue, returnedFrom } from '../../lib/workflow'
 
 interface StatusTrackerProps {
   sop: Sop
@@ -16,7 +17,8 @@ type StepState = 'done' | 'current' | 'returned' | 'upcoming'
  * Draft → In Review → In Approval → Approved → Published (PBI 22).
  * An ordered list: completed steps are checked, the current step has
  * aria-current="step", and a returned SOP shows "Returned" on the step it was
- * returned from. Every state is also given as text (never colour alone).
+ * returned from. While In Review or In Approval, that step shows its due date and,
+ * once it has passed, an "Overdue" label. Every state is also given as text (never colour alone).
  * Horizontal from sm, vertical on phones.
  */
 export function StatusTracker({ sop, content }: StatusTrackerProps) {
@@ -35,6 +37,10 @@ export function StatusTracker({ sop, content }: StatusTrackerProps) {
       {STEPS.map((step, index) => {
         const state = stateOf(index)
         const isCurrent = index === currentIndex
+        // Due date of the open stage (review or approval).
+        const stage = step === 'in-review' ? 'review' : step === 'in-approval' ? 'approval' : undefined
+        const dueAt = stage && state === 'current' ? (stage === 'review' ? sop.reviewDueAt : sop.approvalDueAt) : undefined
+        const overdue = !!stage && isOverdue(sop, stage)
         return (
           <li
             key={step}
@@ -78,6 +84,18 @@ export function StatusTracker({ sop, content }: StatusTrackerProps) {
               >
                 {content.steps[step]}
               </span>
+              {dueAt && (
+                <span className="mt-0.5 text-xs text-text-gray">
+                  {content.due.split('{date}')[0]}
+                  <time dateTime={dueAt}>{formatDateTime(dueAt)}</time>
+                  {content.due.split('{date}')[1]}
+                </span>
+              )}
+              {overdue && (
+                <span className="mt-1 inline-flex w-fit rounded-full bg-status-rejected-bg px-2 py-0.5 text-xs font-medium text-status-rejected-fg">
+                  {content.overdue}
+                </span>
+              )}
               {state === 'returned' && (
                 <span className="mt-1 inline-flex w-fit rounded-full bg-status-rejected-bg px-2 py-0.5 text-xs font-medium text-status-rejected-fg">
                   {content.returned}

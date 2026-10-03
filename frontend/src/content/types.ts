@@ -372,6 +372,8 @@ export interface MySopsContent {
   empty: string
   /** Announced after a successful upload. */
   uploadedMessage: string
+  /** Label on SOPs the user co-authors. */
+  coAuthorLabel: string
 }
 
 export interface UploadSopContent {
@@ -431,6 +433,26 @@ export interface SopWorkflowContent {
     srCompleted: string
     srCurrent: string
     srReturned: string
+    /** Under In Review / In Approval while open; `{date}` is replaced. */
+    due: string
+    overdue: string
+  }
+  people: {
+    title: string
+    author: string
+    coAuthors: string
+    reviewers: string
+    approvers: string
+    /** After the current user's name. */
+    you: string
+    noCoAuthors: string
+    /** Reviewers and approvers before the first submission. */
+    notAssigned: string
+    addCoAuthor: string
+    remove: string
+    /** Accessible name of a Remove button; `{name}` is replaced. */
+    removeLabel: string
+    decisions: { pending: string; completed: string; approved: string; returned: string }
   }
   file: {
     title: string
@@ -445,10 +467,14 @@ export interface SopWorkflowContent {
     uploadNewVersion: string
     resubmit: string
     resubmitHint: string
-    /** `{name}` and `{role}` are replaced. */
+    /** `{people}` is replaced, e.g. "Faisal Alharbi (Reviewer)". */
     waiting: string
+    /** Follows the waiting text; `{date}` is replaced. */
+    waitingDue: string
     approvedWaiting: string
     published: string
+    /** Shown to co-authors; `{name}` is the main author. */
+    authorOnly: string
   }
   feedback: {
     title: string
@@ -495,6 +521,17 @@ export interface SopWorkflowContent {
     }
     replace: { title: string; description: string; confirm: string }
     newVersion: { title: string; description: string; confirm: string }
+    addCoAuthors: {
+      title: string
+      description: string
+      label: string
+      hint: string
+      empty: string
+      required: string
+      confirm: string
+    }
+    /** `{name}` is replaced in the description. */
+    removeCoAuthor: { title: string; description: string; keep: string; confirm: string }
     resubmit: {
       title: string
       description: string
@@ -509,7 +546,15 @@ export interface SopWorkflowContent {
     }
   }
   /** Announced after each action. */
-  messages: { submitted: string; replaced: string; newVersion: string; resubmitted: string }
+  messages: {
+    submitted: string
+    replaced: string
+    newVersion: string
+    resubmitted: string
+    coAuthorsAdded: string
+    /** `{name}` is replaced. */
+    coAuthorRemoved: string
+  }
 }
 
 /* ---------- Development only: workflow demo controls ---------- */

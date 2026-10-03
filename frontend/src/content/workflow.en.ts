@@ -26,6 +26,23 @@ export const sopWorkflowEn: SopWorkflowContent = {
     srCompleted: 'completed',
     srCurrent: 'current step',
     srReturned: 'returned to the author at this step',
+    due: 'Due {date}',
+    overdue: 'Overdue',
+  },
+
+  people: {
+    title: 'People',
+    author: 'Author',
+    coAuthors: 'Co-authors',
+    reviewers: 'Reviewers',
+    approvers: 'Approvers',
+    you: '(you)',
+    noCoAuthors: 'No co-authors.',
+    notAssigned: 'Chosen when the SOP is submitted.',
+    addCoAuthor: 'Add co-author',
+    remove: 'Remove',
+    removeLabel: 'Remove {name} as co-author',
+    decisions: { pending: 'Pending', completed: 'Completed', approved: 'Approved', returned: 'Returned' },
   },
 
   file: {
@@ -42,9 +59,11 @@ export const sopWorkflowEn: SopWorkflowContent = {
     uploadNewVersion: 'Upload new version',
     resubmit: 'Resubmit for review',
     resubmitHint: 'Upload a new version with your changes before resubmitting.',
-    waiting: 'Waiting for {name} ({role})',
+    waiting: 'Waiting for {people}',
+    waitingDue: 'due {date}',
     approvedWaiting: 'Approved — waiting to be published',
     published: 'This SOP is published.',
+    authorOnly: 'Only the author, {name}, can submit this SOP.',
   },
 
   feedback: {
@@ -127,6 +146,21 @@ export const sopWorkflowEn: SopWorkflowContent = {
       description: 'Upload the file with your changes. It becomes version {version}.',
       confirm: 'Upload new version',
     },
+    addCoAuthors: {
+      title: 'Add co-authors',
+      description: 'Co-authors can replace the file and upload new versions. Only you can submit the SOP.',
+      label: 'Co-authors',
+      hint: 'Reviewers and approvers of this SOP can’t be co-authors.',
+      empty: 'No other authors can be added.',
+      required: 'Select at least one co-author.',
+      confirm: 'Add co-authors',
+    },
+    removeCoAuthor: {
+      title: 'Remove co-author?',
+      description: '{name} will no longer be able to open this SOP, replace its file or upload new versions.',
+      keep: 'Cancel',
+      confirm: 'Remove co-author',
+    },
     resubmit: {
       title: 'Resubmit for review',
       description:
@@ -146,5 +180,7 @@ export const sopWorkflowEn: SopWorkflowContent = {
     replaced: 'File replaced.',
     newVersion: 'Version {version} uploaded.',
     resubmitted: 'Resubmitted for review.',
+    coAuthorsAdded: 'Co-authors added.',
+    coAuthorRemoved: '{name} removed as co-author.',
   },
 }
