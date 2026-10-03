@@ -608,26 +608,86 @@ export interface ComplianceContent {
     runAgain: string
     run: string
   }
-  /** The compliance report page ("/my-sops/:id/compliance"). */
+  /** The compliance report page ("/my-sops/:id/compliance"), laid out as a formal report. */
   report: {
     /** `{code}` is replaced. */
     pageTitle: string
+    /** Document title while printing (the default PDF file name); `{code}` and `{version}` are replaced. */
+    printTitle: string
     /** `{code}` is replaced. */
     back: string
     title: string
+    download: string
     /** Selector shown when reports exist for several versions; `{version}` is replaced. */
     versionSelect: { label: string; option: string; current: string }
-    summaryTitle: string
-    findingsTitle: string
-    tabsLabel: string
-    tabs: Record<'all' | ComplianceResult, string>
-    /** `{module}`, `{section}`, `{title}` and `{page}` are replaced. */
-    requirementReference: string
-    justification: string
-    /** `{reference}` is replaced. */
-    sopReference: string
-    /** No findings in the selected tab. */
-    empty: string
+    header: {
+      /** Visually hidden heading of the report details. */
+      title: string
+      reportId: string
+      sop: string
+      version: string
+      author: string
+      coAuthors: string
+      department: string
+      checked: string
+      guideline: string
+      checkedBy: string
+      checker: string
+    }
+    summary: {
+      title: string
+      /** `{score}` is replaced, e.g. "40%". */
+      score: string
+      scoreNote: string
+      /** Text alternative of the bar; `{parts}` is the list of results and counts. */
+      barLabel: string
+      /** `{label}` and `{count}` are replaced. */
+      barPart: string
+      legendLabel: string
+      /** Parts of the summary sentence (one / several); `{count}` is replaced. */
+      attention: Record<'conflict' | 'not-addressed' | 'partial', { one: string; other: string }>
+      /** Joins the last two parts, e.g. "and". */
+      and: string
+      /** `{items}` is replaced; "one" when a single requirement needs attention. */
+      beforeSubmit: { one: string; other: string }
+      needsAttention: { one: string; other: string }
+      allCompliant: string
+    }
+    overview: {
+      title: string
+      findingId: string
+      requirement: string
+      result: string
+      /** `{id}`, `{section}` and `{title}` are replaced. */
+      requirementLabel: string
+    }
+    findings: {
+      title: string
+      tabsLabel: string
+      tabs: Record<'all' | ComplianceResult, string>
+      needsAttention: string
+      compliant: string
+      /** Heading of each finding; `{number}` and `{requirement}` are replaced. */
+      heading: string
+      /** `{module}`, `{section}`, `{title}` and `{page}` are replaced. */
+      requirementReference: string
+      sopReference: string
+      noSopReference: string
+      justification: string
+      recommendedAction: string
+      /** No findings in the selected tab. */
+      empty: string
+    }
+    changes: {
+      title: string
+      /** `{version}` and `{reportId}` are replaced. */
+      comparedWith: string
+      none: string
+      /** Visually hidden text for the arrow. */
+      changedTo: string
+      kinds: Record<'resolved' | 'improved' | 'unchanged' | 'worsened' | 'new' | 'removed', string>
+    }
+    method: { title: string; items: string[] }
     /** A new check is running for the shown (current) version; `{version}` is replaced. */
     outOfDate: string
     /** The selected version has no completed report; `{version}` is replaced. */

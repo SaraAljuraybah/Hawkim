@@ -1,17 +1,34 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState, type MouseEvent } from 'react'
+import { flushSync } from 'react-dom'
 import { Link, useParams } from 'react-router-dom'
-import { ArrowLeft } from 'lucide-react'
-import { ComplianceBadge } from '../components/compliance/ComplianceBadge'
-import { ComplianceSummary, SampleBanner } from '../components/compliance/ComplianceSummary'
+import { ArrowLeft, Download } from 'lucide-react'
+import { SampleBanner } from '../components/compliance/ComplianceSummary'
+import {
+  ChangesList,
+  ExecutiveSummary,
+  FindingGroup,
+  ReportSection,
+  RequirementsOverview,
+} from '../components/compliance/ReportSections'
+import { Button } from '../components/ui/Button'
 import { SelectField } from '../components/ui/SelectField'
 import { Tabs, type TabItem } from '../components/ui/Tabs'
 import { tabIds } from '../components/ui/tabIds'
 import { complianceEn } from '../content/compliance.en'
-import { getRequirement } from '../data/mock/compliance'
 import { currentUser } from '../data/mock/currentUser'
-import type { ComplianceResult } from '../data/mock/types'
+import { getDepartmentName } from '../data/mock/departments'
+import { getUser } from '../data/mock/users'
+import type { ComplianceResult, Sop } from '../data/mock/types'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
-import { currentCheck, latestCompletedChecksByVersion, RESULT_ORDER, sortFindings } from '../lib/compliance'
+import {
+  compareReports,
+  currentCheck,
+  latestCompletedChecksByVersion,
+  numberedFindings,
+  previousReport,
+  reportId,
+  RESULT_ORDER,
+} from '../lib/compliance'
 import { formatDateTime } from '../lib/format'
 import { hasPermission } from '../lib/permissions'
 import { mySopPath } from '../lib/routes'
@@ -24,20 +41,21 @@ const TAB_ID_PREFIX = 'findings'
 type TabKey = 'all' | ComplianceResult
 
 /**
- * Compliance report ("/my-sops/:id/compliance", PBI 4, 5): the saved report of a
- * version — summary counts, and every finding with its requirement, justification
- * and SOP reference, filterable by result. Reports of earlier versions stay
- * viewable. Only the SOP's author and co-authors can open it. Sample results for now.
+ * Compliance report ("/my-sops/:id/compliance", PBI 4, 5), laid out as a formal
+ * report: report details, executive summary, requirements overview, findings
+ * (with recommended actions), changes since the previous version, and the method
+ * and its limitations. Reports of earlier versions stay viewable, and "Download
+ * PDF" prints it with a print stylesheet. Only the SOP's author and co-authors can
+ * open it. Sample results for now.
  */
 export function ComplianceReportPage() {
   const { id } = useParams()
-  // A new SOP starts fresh (its current version and the All tab).
+  // A new SOP starts fresh (its current version and the All filter).
   return <ComplianceReport key={id} id={id} />
 }
 
 function ComplianceReport({ id }: { id: string | undefined }) {
-  const content = complianceEn
-  const text = content.report
+  const text = complianceEn.report
   const { sops } = useSops()
   // TODO: Use the authenticated user once real authentication exists.
   const user = currentUser
@@ -45,16 +63,22 @@ function ComplianceReport({ id }: { id: string | undefined }) {
   const allowed = !!sop && hasPermission(user, 'author') && isAuthorOrCoAuthor(sop, user.id)
   useDocumentTitle(allowed ? text.pageTitle.replace('{code}', sop.code) : undefined)
 
-  // Defaults to the current version; earlier versions' reports can be chosen.
-  const [selectedVersion, setSelectedVersion] = useState(sop?.version)
-  const [tab, setTab] = useState<TabKey>('all')
-
   if (!allowed) return <NotFoundPage embedded />
+  return <Report sop={sop} />
+}
+
+function Report({ sop }: { sop: Sop }) {
+  const content = complianceEn
+  const text = content.report
+
+  // Defaults to the current version; earlier versions' reports can be chosen.
+  const [selectedVersion, setSelectedVersion] = useState(sop.version)
+  const [tab, setTab] = useState<TabKey>('all')
 
   const reports = latestCompletedChecksByVersion(sop)
   // The current version is always offered, even before its report is ready.
   const versions = [sop.version, ...reports.map((check) => check.version).filter((version) => version !== sop.version)]
-  const version = selectedVersion && versions.includes(selectedVersion) ? selectedVersion : sop.version
+  const version = versions.includes(selectedVersion) ? selectedVersion : sop.version
   const report = reports.find((check) => check.version === version)
   const latest = version === sop.version ? currentCheck(sop) : undefined
   const unavailable = !report
@@ -64,34 +88,104 @@ function ComplianceReport({ id }: { id: string | undefined }) {
       )
     : undefined
 
-  const findings = report ? sortFindings(report.findings).filter((finding) => tab === 'all' || finding.result === tab) : []
-  const tabItems: TabItem<TabKey>[] = (['all', ...RESULT_ORDER] as const).map((key) => ({ key, label: text.tabs[key] }))
+  /*
+   * Printing (Download PDF or Ctrl+P): every finding is shown (the filter is set to
+   * All) and the document title becomes the PDF's default name; both are restored after.
+   */
+  const printTitle = text.printTitle.replace('{code}', sop.code).replace('{version}', version)
+  const tabRef = useRef<TabKey>(tab)
+  useEffect(() => {
+    tabRef.current = tab
+  }, [tab])
+  useEffect(() => {
+    let savedTitle = ''
+    let savedTab: TabKey = 'all'
+    const before = () => {
+      savedTitle = document.title
+      savedTab = tabRef.current
+      document.title = printTitle
+      flushSync(() => setTab('all'))
+    }
+    const after = () => {
+      document.title = savedTitle
+      setTab(savedTab)
+    }
+    window.addEventListener('beforeprint', before)
+    window.addEventListener('afterprint', after)
+    return () => {
+      window.removeEventListener('beforeprint', before)
+      window.removeEventListener('afterprint', after)
+    }
+  }, [printTitle])
+
+  const numbered = report ? numberedFindings(report) : []
+  const needsAttention = numbered.filter((finding) => finding.result !== 'compliant')
+  const compliant = numbered.filter((finding) => finding.result === 'compliant')
+  const previous = report ? previousReport(sop, report) : undefined
+
+  /** Overview links: show the finding (switching to All if the filter hides it) and move focus to it. */
+  function jumpTo(event: MouseEvent<HTMLAnchorElement>, number: string) {
+    event.preventDefault()
+    const finding = numbered.find((item) => item.number === number)
+    if (finding && tab !== 'all' && finding.result !== tab) flushSync(() => setTab('all'))
+    const target = document.getElementById(`finding-${number}`)
+    if (!target) return
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    target.scrollIntoView({ block: 'start', behavior: reduceMotion ? 'auto' : 'smooth' })
+    target.focus({ preventScroll: true })
+  }
+
+  const tabItems: TabItem<TabKey>[] = (['all', ...RESULT_ORDER] as const).map((key) => ({ key, label: text.findings.tabs[key] }))
   const ids = tabIds(TAB_ID_PREFIX, tab)
+  const author = getUser(sop.authorId)?.name ?? ''
+  const coAuthors = sop.coAuthorIds.map((coAuthorId) => getUser(coAuthorId)?.name ?? '').join(', ')
+
+  const details = report
+    ? [
+        { label: text.header.reportId, value: reportId(sop, report) },
+        { label: text.header.sop, value: `${sop.code} · ${sop.title}` },
+        { label: text.header.version, value: report.version },
+        { label: text.header.author, value: author },
+        ...(coAuthors ? [{ label: text.header.coAuthors, value: coAuthors }] : []),
+        { label: text.header.department, value: getDepartmentName(sop.departmentId) },
+        {
+          label: text.header.checked,
+          value: report.completedAt && <time dateTime={report.completedAt}>{formatDateTime(report.completedAt)}</time>,
+        },
+        {
+          label: text.header.guideline,
+          value: content.guideline.replace('{name}', report.guideline.name).replace('{version}', report.guideline.version),
+        },
+        { label: text.header.checkedBy, value: text.header.checker },
+      ]
+    : []
 
   return (
-    <>
+    <div className="print-report">
       <Link
         to={mySopPath(sop.id)}
-        className="inline-flex items-center gap-1.5 rounded-sm text-sm font-medium text-text-gray transition-colors hover:text-maroon"
+        className="inline-flex items-center gap-1.5 rounded-sm text-sm font-medium text-text-gray transition-colors hover:text-maroon print:hidden"
       >
         <ArrowLeft aria-hidden="true" className="size-4" strokeWidth={1.75} />
         {text.back.replace('{code}', sop.code)}
       </Link>
 
-      {/* Header */}
-      <div className="mt-5">
-        <p className="text-sm font-semibold text-maroon">
-          {sop.code} <span aria-hidden="true">·</span>
-          <span className="sr-only">,</span> {sop.title}
-        </p>
-        <h1 className="mt-1 text-2xl leading-tight tracking-tight sm:text-3xl">{text.title}</h1>
+      {/* Title and export */}
+      <div className="mt-5 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between print:mt-0">
+        <h1 className="text-2xl leading-tight tracking-tight sm:text-3xl">{text.title}</h1>
+        {report && (
+          <Button variant="secondary" className="shrink-0 self-start sm:self-auto print:hidden" onClick={() => window.print()}>
+            <Download aria-hidden="true" className="size-4" strokeWidth={2} />
+            {text.download}
+          </Button>
+        )}
       </div>
 
       {versions.length > 1 && (
         <SelectField
           name="reportVersion"
           label={text.versionSelect.label}
-          className="mt-6 max-w-xs"
+          className="mt-6 max-w-xs print:hidden"
           options={versions.map((option) => ({
             value: option,
             label: (option === sop.version ? text.versionSelect.current : text.versionSelect.option).replace('{version}', option),
@@ -101,31 +195,30 @@ function ComplianceReport({ id }: { id: string | undefined }) {
         />
       )}
 
+      {/* a) Report header */}
       {report && (
-        <dl className="mt-6 grid gap-x-8 gap-y-3 text-sm sm:grid-cols-[auto_auto_1fr]">
-          <div>
-            <dt className="text-text-gray">{content.details.version}</dt>
-            <dd className="mt-0.5 font-medium text-maroon">{report.version}</dd>
-          </div>
-          <div>
-            <dt className="text-text-gray">{content.details.checked}</dt>
-            <dd className="mt-0.5 font-medium text-maroon">
-              <time dateTime={report.completedAt}>{report.completedAt && formatDateTime(report.completedAt)}</time>
-            </dd>
-          </div>
-          <div className="min-w-0">
-            <dt className="text-text-gray">{content.details.guideline}</dt>
-            <dd className="mt-0.5 font-medium text-maroon">
-              {content.guideline.replace('{name}', report.guideline.name).replace('{version}', report.guideline.version)}
-            </dd>
-          </div>
-        </dl>
+        <section aria-labelledby="report-details-title" className="mt-6 rounded-xl border border-beige bg-white p-5 sm:p-6 print:mt-4 print:p-4">
+          <h2 id="report-details-title" className="sr-only">
+            {text.header.title}
+          </h2>
+          <dl className="grid gap-x-8 gap-y-4 text-sm sm:grid-cols-2 lg:grid-cols-3 print:grid-cols-3">
+            {details.map((detail) => (
+              <div key={detail.label} className="min-w-0">
+                <dt className="text-text-gray">{detail.label}</dt>
+                <dd className="mt-0.5 font-medium break-words text-maroon">{detail.value}</dd>
+              </div>
+            ))}
+          </dl>
+        </section>
       )}
 
-      <SampleBanner text={content.sampleBanner} className="mt-6" />
+      <SampleBanner text={content.sampleBanner} className="mt-4" />
 
       {report && latest?.status === 'running' && (
-        <p role="status" className="mt-6 rounded-lg border border-status-pending-fg/25 bg-status-pending-bg px-3.5 py-2.5 text-sm text-status-pending-fg">
+        <p
+          role="status"
+          className="mt-4 rounded-lg border border-status-pending-fg/25 bg-status-pending-bg px-3.5 py-2.5 text-sm text-status-pending-fg print:hidden"
+        >
           {text.outOfDate.replace('{version}', version)}
         </p>
       )}
@@ -138,70 +231,73 @@ function ComplianceReport({ id }: { id: string | undefined }) {
 
       {report && (
         <>
-          <section aria-labelledby="summary-title" className="mt-6 rounded-xl border border-beige bg-white p-5 sm:p-6">
-            <h2 id="summary-title" className="mb-4 text-lg">
-              {text.summaryTitle}
-            </h2>
-            <ComplianceSummary check={report} content={content} />
-          </section>
+          {/* b) Executive summary */}
+          <ReportSection id="summary-title" title={text.summary.title}>
+            <ExecutiveSummary check={report} status={sop.status} content={content} />
+          </ReportSection>
 
-          <section aria-labelledby="findings-title" className="mt-8">
+          {/* c) Requirements overview */}
+          <ReportSection id="overview-title" title={text.overview.title}>
+            <RequirementsOverview findings={numbered} content={content} onJump={jumpTo} />
+          </ReportSection>
+
+          {/* d) Findings */}
+          <section aria-labelledby="findings-title" className="mt-8 print:mt-6">
             <h2 id="findings-title" className="text-lg">
-              {text.findingsTitle}
+              {text.findings.title}
             </h2>
-            <div className="mt-3 border-b border-beige">
+            <div className="mt-3 border-b border-beige print:hidden">
               <Tabs
                 items={tabItems}
                 selected={tab}
                 onSelect={setTab}
-                label={text.tabsLabel}
+                label={text.findings.tabsLabel}
                 idPrefix={TAB_ID_PREFIX}
                 className="flex-wrap gap-y-1"
               />
             </div>
-
-            <div role="tabpanel" id={ids.panel} aria-labelledby={ids.tab} tabIndex={0} className="mt-6 rounded-xl">
-              {findings.length === 0 ? (
-                <p className="rounded-xl border border-dashed border-beige bg-white px-6 py-10 text-center text-text-gray">
-                  {text.empty}
-                </p>
+            <div role="tabpanel" id={ids.panel} aria-labelledby={ids.tab} tabIndex={0} className="mt-6 rounded-xl print:mt-4">
+              {tab === 'all' ? (
+                <>
+                  <FindingGroup id="needs-attention-title" title={text.findings.needsAttention} findings={needsAttention} content={content} />
+                  <FindingGroup id="compliant-title" title={text.findings.compliant} findings={compliant} content={content} />
+                </>
               ) : (
-                <ul className="space-y-4">
-                  {findings.map((finding) => {
-                    const requirement = getRequirement(finding.requirementId)
-                    return (
-                      <li key={finding.id} className="rounded-xl border border-beige bg-white p-5 sm:p-6">
-                        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-                          <ComplianceBadge result={finding.result} labels={content.results} />
-                          {requirement && (
-                            <h3 className="text-sm font-semibold text-maroon">
-                              {text.requirementReference
-                                .replace('{module}', requirement.module)
-                                .replace('{section}', requirement.section)
-                                .replace('{title}', requirement.sectionTitle)
-                                .replace('{page}', String(requirement.page))}
-                            </h3>
-                          )}
-                        </div>
-                        {requirement && <p className="mt-3 text-[0.9375rem] text-maroon">{requirement.summary}</p>}
-                        <div className="mt-3 rounded-lg bg-beige/60 px-4 py-3">
-                          <p className="text-sm font-medium text-maroon">{text.justification}</p>
-                          <p className="mt-1 text-sm text-maroon">{finding.justification}</p>
-                        </div>
-                        {finding.sopReference && (
-                          <p className="mt-3 text-sm text-text-gray">
-                            {text.sopReference.replace('{reference}', finding.sopReference)}
-                          </p>
-                        )}
-                      </li>
-                    )
-                  })}
-                </ul>
+                <FindingGroup
+                  id={`${tab}-title`}
+                  title={text.findings.tabs[tab]}
+                  findings={numbered.filter((finding) => finding.result === tab)}
+                  content={content}
+                />
               )}
             </div>
           </section>
+
+          {/* e) Changes since the previous version */}
+          <ReportSection id="changes-title" title={text.changes.title}>
+            {previous ? (
+              <ChangesList
+                changes={compareReports(previous, report)}
+                previousLabel={text.changes.comparedWith
+                  .replace('{version}', previous.version)
+                  .replace('{reportId}', reportId(sop, previous))}
+                content={content}
+              />
+            ) : (
+              <p className="text-sm text-text-gray">{text.changes.none}</p>
+            )}
+          </ReportSection>
+
+          {/* f) Method and limitations */}
+          <ReportSection id="method-title" title={text.method.title}>
+            <ul className="list-disc space-y-1.5 pl-5 text-sm text-maroon">
+              {text.method.items.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+          </ReportSection>
         </>
       )}
-    </>
+    </div>
   )
 }

@@ -206,6 +206,8 @@ export interface Finding {
   justification: string
   /** Where the SOP addresses it, e.g. "Section 4.2" (none when it isn't addressed). */
   sopReference?: string
+  /** What to change; only for results that aren't compliant. */
+  recommendedAction?: string
 }
 
 /** The regulatory document a check is run against. */

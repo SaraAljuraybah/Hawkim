@@ -64,7 +64,8 @@ export function getRequirement(id: string): Requirement | undefined {
 
 /**
  * The sample result set every check returns (same for every SOP).
- * The sample SOP data (sops.ts) repeats these findings for its saved reports.
+ * The sample SOP data (sops.ts) repeats these findings for its saved reports
+ * (SOP-078's earlier versions have different sample results).
  */
 export const SAMPLE_FINDINGS: Omit<Finding, 'id'>[] = [
   {
@@ -79,6 +80,8 @@ export const SAMPLE_FINDINGS: Omit<Finding, 'id'>[] = [
     justification:
       'Sample finding: the SOP describes regular back-ups of records but does not say how long pharmacovigilance records are kept.',
     sopReference: 'Section 5.1',
+    recommendedAction:
+      'Sample recommendation: state how long pharmacovigilance records are kept and how they are protected during that period.',
   },
   {
     requirementId: 'R3',
@@ -91,10 +94,14 @@ export const SAMPLE_FINDINGS: Omit<Finding, 'id'>[] = [
     result: 'conflict',
     justification: 'Sample finding: the SOP stores archived records on a system with no scheduled back-up, which conflicts with the back-up requirement.',
     sopReference: 'Section 6.2',
+    recommendedAction:
+      'Sample recommendation: define a scheduled, tested back-up for the archive system.',
   },
   {
     requirementId: 'R5',
     result: 'not-addressed',
     justification: 'Sample finding: the SOP does not mention training for staff who perform this procedure.',
+    recommendedAction:
+      'Sample recommendation: describe the initial and continued training for staff who perform this procedure, and where training records are kept.',
   },
 ]

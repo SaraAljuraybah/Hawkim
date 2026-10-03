@@ -54,6 +54,26 @@
 }
 
 /* Mobile navigation drawer slide-in (used with motion-safe: only) */
+/*
+ * Printed compliance report (Download PDF): black text on white, no shadows or
+ * tinted backgrounds, neutral borders. Elements marked data-print-color (the
+ * result bar and legend swatches) keep their colours; every result also has a text label.
+ */
+@media print {
+  @page {
+    margin: 16mm;
+  }
+  .print-report,
+  .print-report *:not([data-print-color]) {
+    color: black !important;
+    background-color: transparent !important;
+    box-shadow: none !important;
+  }
+  .print-report [class*='border'] {
+    border-color: var(--color-text-gray) !important;
+  }
+}
+
 @keyframes drawer-in {
   from {
     transform: translateX(-100%);
