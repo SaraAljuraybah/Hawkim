@@ -4,6 +4,7 @@ import { AppLayout } from './components/layout/AppLayout'
 import { DashboardPage } from './pages/DashboardPage'
 import { DepartmentsPage } from './pages/DepartmentsPage'
 import { MyRequestsPage } from './pages/MyRequestsPage'
+import { MySopsPage } from './pages/MySopsPage'
 import { SopDetailPage } from './pages/SopDetailPage'
 import { SopsPage } from './pages/SopsPage'
 import { SubmitRequestPage } from './pages/SubmitRequestPage'
@@ -53,6 +54,7 @@ function App() {
         <Route path="/sops" element={<SopsPage />} />
         <Route path="/sops/:id" element={<SopDetailPage />} />
         <Route path="/departments" element={<DepartmentsPage />} />
+        <Route path="/my-sops" element={<MySopsPage />} />
         <Route path="/requests" element={<MyRequestsPage />} />
         <Route path="/requests/new" element={<SubmitRequestPage />} />
       </Route>

@@ -1,0 +1,78 @@
+import { Link } from 'react-router-dom'
+import { FileText } from 'lucide-react'
+import type { MySopsContent } from '../../content/types'
+import type { AuthoredSop } from '../../data/mock/types'
+import { formatDate } from '../../lib/format'
+import { sopPath } from '../../lib/routes'
+import { StatusBadge } from '../ui/StatusBadge'
+
+interface AuthoredSopListProps {
+  sops: AuthoredSop[]
+  content: MySopsContent
+}
+
+/* Visible focus for the row that contains a focused link. */
+const focusRing =
+  'has-[a:focus-visible]:outline-2 has-[a:focus-visible]:-outline-offset-2 has-[a:focus-visible]:outline-maroon-secondary has-[a:focus-visible]:outline-solid'
+
+/**
+ * The author's SOPs: icon, code, title, status, version and last updated.
+ * Published rows link to the SOP viewer (one link stretched over the row).
+ * Rows stack on phones; from sm the details line up in columns.
+ */
+export function AuthoredSopList({ sops, content }: AuthoredSopListProps) {
+  return (
+    <ul className="divide-y divide-beige rounded-xl border border-beige bg-white">
+      {sops.map((sop) => {
+        const published = sop.status === 'published'
+        return (
+          <li
+            key={sop.id}
+            className={`relative flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:gap-4 sm:px-5 ${
+              published ? `transition-colors first:rounded-t-xl last:rounded-b-xl hover:bg-beige/40 ${focusRing}` : ''
+            }`}
+          >
+            <div className="flex min-w-0 flex-1 items-start gap-3 sm:items-center sm:gap-4">
+              <span
+                aria-hidden="true"
+                className="inline-flex size-10 shrink-0 items-center justify-center rounded-lg bg-maroon/[0.07] text-maroon"
+              >
+                <FileText className="size-5" strokeWidth={1.75} />
+              </span>
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-maroon">{sop.code}</p>
+                <p className="mt-0.5 text-[0.9375rem] leading-snug font-medium text-maroon">
+                  {published ? (
+                    <Link
+                      to={sopPath(sop.id)}
+                      aria-label={`${sop.code} ${sop.title}`}
+                      className="after:absolute after:inset-0 focus-visible:outline-none"
+                    >
+                      {sop.title}
+                    </Link>
+                  ) : (
+                    // TODO (step 2): Link drafts and in-progress SOPs to the SOP workflow page.
+                    sop.title
+                  )}
+                </p>
+              </div>
+            </div>
+
+            {/* Status, version and date: wrap under the title on phones, aligned columns from sm */}
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 pl-[3.25rem] sm:grid sm:grid-cols-[7rem_5.5rem_6.5rem] sm:gap-4 sm:pl-0">
+              <div>
+                <StatusBadge status={sop.status} />
+              </div>
+              <span className="text-sm whitespace-nowrap text-text-gray">
+                {content.versionTemplate.replace('{version}', sop.version)}
+              </span>
+              <time dateTime={sop.lastUpdated} className="text-sm whitespace-nowrap text-text-gray">
+                {formatDate(sop.lastUpdated)}
+              </time>
+            </div>
+          </li>
+        )
+      })}
+    </ul>
+  )
+}

@@ -1,4 +1,4 @@
-import type { DashboardStatKey, RequestType } from '../data/mock/types'
+import type { DashboardStatKey, Permission, RequestType } from '../data/mock/types'
 
 /*
  * Shape of the landing page content.
@@ -22,6 +22,8 @@ export type IconName =
   | 'employees'
   | 'signOut'
   | 'submitRequest'
+  | 'mySops'
+  | 'upload'
 
 export interface NavLink {
   label: string
@@ -178,6 +180,8 @@ export interface AppNavItem {
   icon: IconName
   /** Also show the item as active on pages below it (e.g. /requests/new under /requests). */
   matchSubpaths?: boolean
+  /** Only shown to users with this permission (e.g. 'author'); everyone sees items without one. */
+  permission?: Permission
 }
 
 export interface AppShellContent {
@@ -344,4 +348,26 @@ export interface RequestsContent {
   types: Record<RequestType, string>
   submit: SubmitRequestContent
   myRequests: MyRequestsContent
+}
+
+/* ---------- Author: My SOPs and Upload SOP ---------- */
+
+export type MySopsTabKey = 'all' | 'drafts' | 'inProgress' | 'returned' | 'published'
+
+export interface MySopsContent {
+  /** Browser tab title. */
+  pageTitle: string
+  title: string
+  /** `{department}` is replaced with the active department's name. */
+  subtitle: string
+  upload: LinkContent
+  /** Accessible name of the tab list. */
+  tabsLabel: string
+  tabs: Record<MySopsTabKey, string>
+  /** `{version}` is replaced, e.g. "Version 1.0". */
+  versionTemplate: string
+  /** Shown when a tab has no SOPs. */
+  empty: string
+  /** Announced after a successful upload. */
+  uploadedMessage: string
 }
