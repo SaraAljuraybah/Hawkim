@@ -51,6 +51,7 @@ export const complianceEn: ComplianceContent = {
     justification: 'Justification',
     sopReference: 'SOP reference: {reference}',
     empty: 'No findings with this result.',
+    outOfDate: 'A new compliance check is running for version {version}. This report may be out of date.',
     running: 'The compliance check for version {version} is still running.',
     failed: 'The compliance check for version {version} couldn’t be completed.',
     none: 'There’s no compliance report for version {version} yet.',

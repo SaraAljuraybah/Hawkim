@@ -633,6 +633,8 @@ export interface ComplianceContent {
     sopReference: string
     /** No findings in the selected tab. */
     empty: string
+    /** A new check is running for the shown (current) version; `{version}` is replaced. */
+    outOfDate: string
     /** The selected version has no completed report; `{version}` is replaced. */
     running: string
     failed: string
@@ -655,9 +657,9 @@ export interface WorkflowDemoContent {
     publish: string
     /** Shifts the stored due dates back, as if time had passed. */
     clockForward: string
-    /** Ends the running compliance check as failed. */
-    failCheck: string
   }
+  /** Checkbox: the next compliance check started fails instead of completing. */
+  failNextCheck: string
   commentDialog: {
     title: string
     /** `{name}` and `{role}` are replaced. */
@@ -675,6 +677,5 @@ export interface WorkflowDemoContent {
     approved: string
     published: string
     clockForward: string
-    checkFailed: string
   }
 }

@@ -44,8 +44,9 @@ export interface SopsStore {
 
   /** DEVELOPMENT ONLY: move this SOP's due dates `days` earlier (to test Overdue). */
   shiftDueDates: (sopId: string, days: number) => void
-  /** DEVELOPMENT ONLY: end the running compliance check as failed. */
-  failRunningCheck: (sopId: string) => void
+  /** DEVELOPMENT ONLY: when on, the next compliance check started fails instead of completing (then it turns off). */
+  failNextCheck: boolean
+  setFailNextCheck: (on: boolean) => void
 }
 
 export const SopsContext = createContext<SopsStore | null>(null)

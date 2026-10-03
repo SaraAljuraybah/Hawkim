@@ -124,6 +124,12 @@ function ComplianceReport({ id }: { id: string | undefined }) {
 
       <SampleBanner text={content.sampleBanner} className="mt-6" />
 
+      {report && latest?.status === 'running' && (
+        <p role="status" className="mt-6 rounded-lg border border-status-pending-fg/25 bg-status-pending-bg px-3.5 py-2.5 text-sm text-status-pending-fg">
+          {text.outOfDate.replace('{version}', version)}
+        </p>
+      )}
+
       {unavailable && (
         <p role="status" className="mt-6 rounded-xl border border-beige bg-white p-5 text-sm text-text-gray sm:p-6">
           {unavailable}

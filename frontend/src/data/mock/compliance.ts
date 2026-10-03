@@ -89,8 +89,7 @@ export const SAMPLE_FINDINGS: Omit<Finding, 'id'>[] = [
   {
     requirementId: 'R4',
     result: 'conflict',
-    justification:
-      'Sample finding: the SOP states that records of deactivated accounts are deleted after 30 days, which conflicts with keeping records securely for the retention period.',
+    justification: 'Sample finding: the SOP stores archived records on a system with no scheduled back-up, which conflicts with the back-up requirement.',
     sopReference: 'Section 6.2',
   },
   {

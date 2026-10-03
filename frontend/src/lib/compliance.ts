@@ -107,7 +107,7 @@ export function completeCheck(sop: Sop, checkId: string): Sop {
   return finishCheck(sop, checkId, 'completed')
 }
 
-/** DEVELOPMENT ONLY (demo panel): simulates a check that couldn't be completed. */
+/** DEVELOPMENT ONLY (demo panel's "Make the next compliance check fail"): a check that couldn't be completed. */
 export function failCheck(sop: Sop, checkId: string): Sop {
   return finishCheck(sop, checkId, 'failed')
 }

@@ -5,7 +5,6 @@ import { sopWorkflowEn } from '../../content/workflow.en'
 import { workflowDemoEn } from '../../content/workflowDemo.en'
 import { getUser } from '../../data/mock/users'
 import type { ReviewRole, Sop } from '../../data/mock/types'
-import { isCheckRunning } from '../../lib/compliance'
 import { currentDueAt } from '../../lib/workflow'
 import { useSops } from '../../state/sopsContext'
 import { Button } from '../ui/Button'
@@ -135,20 +134,17 @@ export default function DemoPanel({ sop, announce }: DemoPanelProps) {
       <div className="mt-4 flex flex-wrap gap-3">
         {buttons.length > 0 ? buttons : <p className="text-sm text-text-gray">{content.noActions}</p>}
       </div>
-      {isCheckRunning(sop) && (
-        <div className="mt-4 border-t border-beige pt-4">
-          <Button
-            size="sm"
-            variant="secondary"
-            onClick={() => {
-              store.failRunningCheck(sop.id)
-              announce(content.messages.checkFailed)
-            }}
-          >
-            {content.buttons.failCheck}
-          </Button>
-        </div>
-      )}
+      <div className="mt-4 border-t border-beige pt-4">
+        <label className="inline-flex cursor-pointer items-center gap-2.5 text-sm text-maroon">
+          <input
+            type="checkbox"
+            checked={store.failNextCheck}
+            onChange={(event) => store.setFailNextCheck(event.target.checked)}
+            className="size-4 cursor-pointer accent-maroon"
+          />
+          {content.failNextCheck}
+        </label>
+      </div>
       {dueDatesOpen && (
         <div className="mt-4 border-t border-beige pt-4">
           <Button

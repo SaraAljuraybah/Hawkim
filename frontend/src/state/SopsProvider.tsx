@@ -45,19 +45,30 @@ export function SopsProvider({ children }: { children: ReactNode }) {
     [commit],
   )
 
+  // DEVELOPMENT ONLY (demo panel): the next check started fails instead of completing.
+  const [failNextCheck, setFailNextCheckState] = useState(false)
+  const failNextRef = useRef(false)
+  const setFailNextCheck = useCallback((on: boolean) => {
+    failNextRef.current = on
+    setFailNextCheckState(on)
+  }, [])
+
   /**
-   * Completes a compliance check after the sample delay. The check is matched by
-   * id, so nothing happens if it was replaced or already ended in the meantime.
+   * Completes a compliance check after the sample delay (or fails it, if the demo
+   * panel asked for the next check to fail; that switch then turns off). The check
+   * is matched by id, so nothing happens if it was replaced in the meantime.
    * TODO: Replace the sample timer with a call to the compliance service API.
    */
   const scheduleCompletion = useCallback(
     (sopId: string, checkId: string) => {
+      const fail = failNextRef.current
+      if (fail) setFailNextCheck(false)
       window.setTimeout(
-        () => update(sopId, (sop) => compliance.completeCheck(sop, checkId)),
+        () => update(sopId, (sop) => (fail ? compliance.failCheck(sop, checkId) : compliance.completeCheck(sop, checkId))),
         compliance.SAMPLE_CHECK_DURATION_MS,
       )
     },
-    [update],
+    [update, setFailNextCheck],
   )
 
   /**
@@ -148,13 +159,10 @@ export function SopsProvider({ children }: { children: ReactNode }) {
       returnAsApprover: (id, approverId, text) => update(id, (sop) => workflow.returnAsApprover(sop, approverId, text)),
       publishAs: (id, approverId) => update(id, (sop) => workflow.publishAs(sop, approverId)),
       shiftDueDates: (id, days) => update(id, (sop) => workflow.shiftDueDates(sop, days)),
-      failRunningCheck: (id) =>
-        update(id, (sop) => {
-          const running = sop.complianceChecks.find((check) => check.status === 'running')
-          return running ? compliance.failCheck(sop, running.id) : sop
-        }),
+      failNextCheck,
+      setFailNextCheck,
     }),
-    [sops, addDraft, update, updateAndCheck, user.id],
+    [sops, addDraft, update, updateAndCheck, failNextCheck, setFailNextCheck, user.id],
   )
 
   return <SopsContext.Provider value={store}>{children}</SopsContext.Provider>

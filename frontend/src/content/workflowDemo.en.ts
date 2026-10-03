@@ -16,8 +16,8 @@ export const workflowDemoEn: WorkflowDemoContent = {
     approve: '{name}: approve',
     publish: '{name}: publish',
     clockForward: 'Move the clock forward 3 days',
-    failCheck: 'Fail the running compliance check',
   },
+  failNextCheck: 'Make the next compliance check fail',
   commentDialog: {
     title: 'Return with comment',
     description: 'Acting as {name} ({role}).',
@@ -33,6 +33,5 @@ export const workflowDemoEn: WorkflowDemoContent = {
     approved: '{name} approved.',
     published: 'Published. It now appears in the SOPs directory.',
     clockForward: 'Due dates moved 3 days earlier, as if 3 days had passed.',
-    checkFailed: 'The compliance check was set to fail.',
   },
 }
