@@ -252,7 +252,7 @@ export interface SopsContent {
   departmentLabel: string
   /** `{version}` is replaced with the version number, e.g. "Version 2.1". */
   versionTemplate: string
-  /** Shown when a tab has no SOPs. */
+  /** Shown when the list is empty. */
   empty: string
   /** SOP detail page ("/sops/:id"). */
   detail: SopDetailContent
@@ -377,8 +377,6 @@ export interface PeoplePickerContent {
 
 /* ---------- Author: My SOPs and Upload SOP ---------- */
 
-export type MySopsTabKey = 'all' | 'drafts' | 'inProgress' | 'returned' | 'published'
-
 export interface MySopsContent {
   /** Browser tab title. */
   pageTitle: string
@@ -386,9 +384,6 @@ export interface MySopsContent {
   /** `{department}` is replaced with the active department's name. */
   subtitle: string
   upload: LinkContent
-  /** Accessible name of the tab list. */
-  tabsLabel: string
-  tabs: Record<MySopsTabKey, string>
   /** `{version}` is replaced, e.g. "Version 1.0". */
   versionTemplate: string
   /** Shown when a tab has no SOPs. */
