@@ -2,6 +2,7 @@ import { useCallback, useMemo, useRef, useState, type ReactNode } from 'react'
 import { currentUser } from '../data/mock/currentUser'
 import { sops as seedSops } from '../data/mock/sops'
 import type { Sop, TimelineEvent } from '../data/mock/types'
+import * as compliance from '../lib/compliance'
 import { todayIsoDate } from '../lib/format'
 import { nextSopCode } from '../lib/sopCodes'
 import * as workflow from '../lib/workflow'
@@ -27,6 +28,65 @@ export function SopsProvider({ children }: { children: ReactNode }) {
     latestRef.current = next
     setSops(next)
   }, [])
+
+  /**
+   * Applies a workflow transition to one SOP as a single update (status, people
+   * and timeline events together). The rule is checked against the latest SOP
+   * first, so an invalid action throws before anything changes.
+   */
+  const update = useCallback(
+    (sopId: string, transition: (sop: Sop) => Sop) => {
+      const current = latestRef.current
+      const sop = current.find((item) => item.id === sopId)
+      if (!sop) throw new Error(`Unknown SOP ${sopId}`)
+      const updated = transition(sop)
+      commit(current.map((item) => (item.id === sopId ? updated : item)))
+    },
+    [commit],
+  )
+
+  // DEVELOPMENT ONLY (demo panel): the next check started fails instead of completing.
+  const [failNextCheck, setFailNextCheckState] = useState(false)
+  const failNextRef = useRef(false)
+  const setFailNextCheck = useCallback((on: boolean) => {
+    failNextRef.current = on
+    setFailNextCheckState(on)
+  }, [])
+
+  /**
+   * Completes a compliance check after the sample delay (or fails it, if the demo
+   * panel asked for the next check to fail; that switch then turns off). The check
+   * is matched by id, so nothing happens if it was replaced in the meantime.
+   * TODO: Replace the sample timer with a call to the compliance service API.
+   */
+  const scheduleCompletion = useCallback(
+    (sopId: string, checkId: string) => {
+      const fail = failNextRef.current
+      if (fail) setFailNextCheck(false)
+      window.setTimeout(
+        () => update(sopId, (sop) => (fail ? compliance.failCheck(sop, checkId) : compliance.completeCheck(sop, checkId))),
+        compliance.SAMPLE_CHECK_DURATION_MS,
+      )
+    },
+    [update, setFailNextCheck],
+  )
+
+  /**
+   * Applies a transition and starts a compliance check of the result in the same
+   * update: after every upload (automatically) or when the author runs one (PBI 4, 29).
+   */
+  const updateAndCheck = useCallback(
+    (sopId: string, transition: (sop: Sop) => Sop, afterUpload: boolean) => {
+      let checkId = ''
+      update(sopId, (sop) => {
+        const started = compliance.startCheck(transition(sop), { afterUpload })
+        checkId = started.checkId
+        return started.sop
+      })
+      scheduleCompletion(sopId, checkId)
+    },
+    [update, scheduleCompletion],
+  )
 
   const addDraft = useCallback(
     (draft: NewDraft) => {
@@ -67,27 +127,15 @@ export function SopsProvider({ children }: { children: ReactNode }) {
         ],
         comments: [],
         timeline,
+        complianceChecks: [],
       }
-      commit([created, ...current])
-      return created
+      // Every upload starts a compliance check automatically.
+      const started = compliance.startCheck(created, { afterUpload: true })
+      commit([started.sop, ...current])
+      scheduleCompletion(started.sop.id, started.checkId)
+      return started.sop
     },
-    [commit, user.id],
-  )
-
-  /**
-   * Applies a workflow transition to one SOP as a single update (status, people
-   * and timeline events together). The rule is checked against the latest SOP
-   * first, so an invalid action throws before anything changes.
-   */
-  const update = useCallback(
-    (sopId: string, transition: (sop: Sop) => Sop) => {
-      const current = latestRef.current
-      const sop = current.find((item) => item.id === sopId)
-      if (!sop) throw new Error(`Unknown SOP ${sopId}`)
-      const updated = transition(sop)
-      commit(current.map((item) => (item.id === sopId ? updated : item)))
-    },
-    [commit],
+    [commit, scheduleCompletion, user.id],
   )
 
   const store = useMemo<SopsStore>(
@@ -99,19 +147,22 @@ export function SopsProvider({ children }: { children: ReactNode }) {
           workflow.submitForReview(sop, user.id, o.reviewerIds, o.approverIds, o.reviewDueDays, o.approvalDueDays, o.note),
         ),
       resubmit: (id, note) => update(id, (sop) => workflow.resubmit(sop, user.id, note)),
-      replaceFile: (id, file) => update(id, (sop) => workflow.replaceFile(sop, user.id, file)),
-      uploadNewVersion: (id, file) => update(id, (sop) => workflow.uploadNewVersion(sop, user.id, file)),
+      replaceFile: (id, file) => updateAndCheck(id, (sop) => workflow.replaceFile(sop, user.id, file), true),
+      uploadNewVersion: (id, file) => updateAndCheck(id, (sop) => workflow.uploadNewVersion(sop, user.id, file), true),
       addCoAuthors: (id, userIds) =>
         update(id, (sop) => userIds.reduce((next, userId) => workflow.addCoAuthor(next, user.id, userId), sop)),
       removeCoAuthor: (id, userId) => update(id, (sop) => workflow.removeCoAuthor(sop, user.id, userId)),
+      runCheck: (id) => updateAndCheck(id, (sop) => sop, false),
       completeReview: (id, reviewerId) => update(id, (sop) => workflow.completeReview(sop, reviewerId)),
       returnAsReviewer: (id, reviewerId, text) => update(id, (sop) => workflow.returnAsReviewer(sop, reviewerId, text)),
       approveAs: (id, approverId) => update(id, (sop) => workflow.approveAs(sop, approverId)),
       returnAsApprover: (id, approverId, text) => update(id, (sop) => workflow.returnAsApprover(sop, approverId, text)),
       publishAs: (id, approverId) => update(id, (sop) => workflow.publishAs(sop, approverId)),
       shiftDueDates: (id, days) => update(id, (sop) => workflow.shiftDueDates(sop, days)),
+      failNextCheck,
+      setFailNextCheck,
     }),
-    [sops, addDraft, update, user.id],
+    [sops, addDraft, update, updateAndCheck, failNextCheck, setFailNextCheck, user.id],
   )
 
   return <SopsContext.Provider value={store}>{children}</SopsContext.Provider>

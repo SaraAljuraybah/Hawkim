@@ -1,4 +1,11 @@
-import type { DashboardStatKey, Permission, RequestType, SopFileType, TimelineEventType } from '../data/mock/types'
+import type {
+  ComplianceResult,
+  DashboardStatKey,
+  Permission,
+  RequestType,
+  SopFileType,
+  TimelineEventType,
+} from '../data/mock/types'
 
 /*
  * Shape of the landing page content.
@@ -491,6 +498,11 @@ export interface SopWorkflowContent {
     published: string
     /** Shown to co-authors; `{name}` is the main author. */
     authorOnly: string
+    /** Why Submit / Resubmit is disabled: the check is running, or there's no completed check. */
+    checkWaiting: string
+    checkNeeded: string
+    /** Published SOPs: run a new check after the requirements change (PBI 29). */
+    recheck: string
   }
   feedback: {
     title: string
@@ -571,6 +583,62 @@ export interface SopWorkflowContent {
     coAuthorsAdded: string
     /** `{name}` is replaced. */
     coAuthorRemoved: string
+    checkStarted: string
+  }
+}
+
+/* ---------- Author: compliance checks ---------- */
+
+export interface ComplianceContent {
+  /** Label of each result (always shown as text on the badges). */
+  results: Record<ComplianceResult, string>
+  sampleBanner: string
+  /** `{count}` and `{total}` are replaced. */
+  summary: string
+  /** Accessible name of the list of counts. */
+  countsLabel: string
+  /** `{name}` and `{version}` are replaced. */
+  guideline: string
+  details: { checked: string; version: string; guideline: string }
+  card: {
+    title: string
+    /** `{version}` is the guideline version. */
+    running: string
+    /** Announced when a running check ends. */
+    completed: string
+    failed: string
+    /** `{version}` is the SOP version. */
+    none: string
+    viewReport: string
+    runAgain: string
+    run: string
+  }
+  /** The compliance report page ("/my-sops/:id/compliance"). */
+  report: {
+    /** `{code}` is replaced. */
+    pageTitle: string
+    /** `{code}` is replaced. */
+    back: string
+    title: string
+    /** Selector shown when reports exist for several versions; `{version}` is replaced. */
+    versionSelect: { label: string; option: string; current: string }
+    summaryTitle: string
+    findingsTitle: string
+    tabsLabel: string
+    tabs: Record<'all' | ComplianceResult, string>
+    /** `{module}`, `{section}`, `{title}` and `{page}` are replaced. */
+    requirementReference: string
+    justification: string
+    /** `{reference}` is replaced. */
+    sopReference: string
+    /** No findings in the selected tab. */
+    empty: string
+    /** A new check is running for the shown (current) version; `{version}` is replaced. */
+    outOfDate: string
+    /** The selected version has no completed report; `{version}` is replaced. */
+    running: string
+    failed: string
+    none: string
   }
 }
 
@@ -590,6 +658,8 @@ export interface WorkflowDemoContent {
     /** Shifts the stored due dates back, as if time had passed. */
     clockForward: string
   }
+  /** Checkbox: the next compliance check started fails instead of completing. */
+  failNextCheck: string
   commentDialog: {
     title: string
     /** `{name}` and `{role}` are replaced. */
@@ -601,5 +671,11 @@ export interface WorkflowDemoContent {
     cancel: string
   }
   /** `{name}` is replaced where it appears. */
-  messages: { reviewCompleted: string; returned: string; approved: string; published: string; clockForward: string }
+  messages: {
+    reviewCompleted: string
+    returned: string
+    approved: string
+    published: string
+    clockForward: string
+  }
 }

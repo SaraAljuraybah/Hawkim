@@ -10,6 +10,11 @@ export function mySopPath(sopId: string): string {
   return `/my-sops/${encodeURIComponent(sopId)}`
 }
 
+/** Path of an SOP's compliance report (the author's and co-authors' view). */
+export function complianceReportPath(sopId: string): string {
+  return `${mySopPath(sopId)}/compliance`
+}
+
 /** Query parameter names that Submit a Request reads to prefill the form. */
 export const REQUEST_PREFILL_PARAMS = { type: 'type', department: 'department' } as const
 

@@ -28,6 +28,11 @@ export interface SopsStore {
   /** Adds one or more co-authors in a single update. */
   addCoAuthors: (sopId: string, userIds: string[]) => void
   removeCoAuthor: (sopId: string, userId: string) => void
+  /**
+   * Runs a compliance check of the current version (PBI 4, 29). It is "running"
+   * for a moment, then saves its report. Throws if a check is already running.
+   */
+  runCheck: (sopId: string) => void
 
   // Per-person reviewer and approver decisions. Used by the development-only demo
   // panel until the reviewer and approver screens exist.
@@ -39,6 +44,9 @@ export interface SopsStore {
 
   /** DEVELOPMENT ONLY: move this SOP's due dates `days` earlier (to test Overdue). */
   shiftDueDates: (sopId: string, days: number) => void
+  /** DEVELOPMENT ONLY: when on, the next compliance check started fails instead of completing (then it turns off). */
+  failNextCheck: boolean
+  setFailNextCheck: (on: boolean) => void
 }
 
 export const SopsContext = createContext<SopsStore | null>(null)

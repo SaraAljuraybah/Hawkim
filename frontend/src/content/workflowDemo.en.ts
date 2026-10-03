@@ -17,6 +17,7 @@ export const workflowDemoEn: WorkflowDemoContent = {
     publish: '{name}: publish',
     clockForward: 'Move the clock forward 3 days',
   },
+  failNextCheck: 'Make the next compliance check fail',
   commentDialog: {
     title: 'Return with comment',
     description: 'Acting as {name} ({role}).',

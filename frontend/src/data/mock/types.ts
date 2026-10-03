@@ -88,6 +88,11 @@ export interface Sop {
   comments: SopComment[]
   /** Workflow history, oldest first. */
   timeline: TimelineEvent[]
+  /**
+   * Every compliance check report, oldest first (PBI 4): running, completed or
+   * failed, for every version. The newest one for the current version is "current".
+   */
+  complianceChecks: ComplianceCheck[]
 }
 
 /** One uploaded file of an SOP. */
@@ -151,6 +156,8 @@ export type TimelineEventType =
   | 'review-completed'
   | 'approved-by'
   | 'stage-due-date-set'
+  | 'compliance-check-completed'
+  | 'compliance-check-failed'
 
 /** One action in an SOP's workflow history (PBI 24). */
 export interface TimelineEvent {
@@ -169,6 +176,57 @@ export interface TimelineEvent {
   /** ISO date and time */
   createdAt: string
   note?: string
+}
+
+/* ---------- Compliance checks (PBI 4, 5, 29) ---------- */
+
+/** How an SOP meets one requirement. */
+export type ComplianceResult = 'compliant' | 'partial' | 'conflict' | 'not-addressed'
+
+/** A regulatory requirement the SOP is checked against. */
+export interface Requirement {
+  /** e.g. "R1" */
+  id: string
+  /** e.g. "Module I" */
+  module: string
+  /** e.g. "I.B.10" */
+  section: string
+  sectionTitle: string
+  /** Page in the guideline document. */
+  page: number
+  /** Paraphrased summary of the requirement. */
+  summary: string
+}
+
+/** The result for one requirement, with its justification (PBI 5). */
+export interface Finding {
+  id: string
+  requirementId: string
+  result: ComplianceResult
+  justification: string
+  /** Where the SOP addresses it, e.g. "Section 4.2" (none when it isn't addressed). */
+  sopReference?: string
+}
+
+/** The regulatory document a check is run against. */
+export interface Guideline {
+  name: string
+  version: string
+}
+
+/** One compliance check of one SOP version; its report is kept (PBI 4). */
+export interface ComplianceCheck {
+  id: string
+  sopId: string
+  /** The SOP version that was checked. */
+  version: string
+  status: 'running' | 'completed' | 'failed'
+  /** ISO date and time */
+  startedAt: string
+  completedAt?: string
+  guideline: Guideline
+  /** Empty until the check completes. */
+  findings: Finding[]
 }
 
 /** File formats an SOP can be uploaded in. */

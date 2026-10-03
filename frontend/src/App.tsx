@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { Route, Routes, useLocation } from 'react-router-dom'
 import { AppLayout } from './components/layout/AppLayout'
+import { ComplianceReportPage } from './pages/ComplianceReportPage'
 import { DashboardPage } from './pages/DashboardPage'
 import { DepartmentsPage } from './pages/DepartmentsPage'
 import { MyRequestsPage } from './pages/MyRequestsPage'
@@ -59,6 +60,7 @@ function App() {
         <Route path="/my-sops" element={<MySopsPage />} />
         <Route path="/my-sops/upload" element={<UploadSopPage />} />
         <Route path="/my-sops/:id" element={<SopWorkflowPage />} />
+        <Route path="/my-sops/:id/compliance" element={<ComplianceReportPage />} />
         <Route path="/requests" element={<MyRequestsPage />} />
         <Route path="/requests/new" element={<SubmitRequestPage />} />
       </Route>

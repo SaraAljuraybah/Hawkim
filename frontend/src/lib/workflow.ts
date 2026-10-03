@@ -9,6 +9,7 @@ import {
   type TimelineEventType,
 } from '../data/mock/types'
 import type { SopStatus } from '../types/status'
+import { hasCompletedCheck } from './compliance'
 import { todayIsoDate } from './format'
 
 /*
@@ -200,6 +201,8 @@ export function submitForReview(
 ): Sop {
   assertStatus(sop, ['draft'], 'submit')
   assert(isAuthor(sop, actorId), 'Only the author can submit this SOP')
+  // The check must have run for this version; it doesn't have to pass (PBI 4).
+  assert(hasCompletedCheck(sop), 'Run a compliance check for this version first')
   assertSeparation(sop, reviewerIds, approverIds)
   assert(
     [reviewDueDays, approvalDueDays].every((days) => days === undefined || isValidDueDays(days)),
@@ -232,6 +235,7 @@ export function submitForReview(
 export function resubmit(sop: Sop, actorId: string, note?: string): Sop {
   assert(isAuthor(sop, actorId), 'Only the author can resubmit this SOP')
   assert(canResubmit(sop), 'Upload a new version before resubmitting')
+  assert(hasCompletedCheck(sop), 'Run a compliance check for this version first')
   const createdAt = new Date().toISOString()
   const reviewDueAt = dueDateFrom(createdAt, sop.reviewDueDays)
   const reviewerIds = sop.reviewers.map((p) => p.userId)
