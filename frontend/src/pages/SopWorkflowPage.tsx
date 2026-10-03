@@ -1,4 +1,4 @@
-import { useRef, useState, type ReactNode } from 'react'
+import { lazy, Suspense, useRef, useState, type ReactNode } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { ArrowLeft, ArrowUpRight, CircleCheck, Download, FileText, MessageSquareWarning } from 'lucide-react'
 import { Button } from '../components/ui/Button'
@@ -23,6 +23,13 @@ import { useSops } from '../state/sopsContext'
 import { NotFoundPage } from './NotFoundPage'
 
 type DialogName = 'submit' | 'replace' | 'newVersion' | 'resubmit'
+
+/*
+ * Development-only demo controls (simulated reviewer and approver actions).
+ * In a production build import.meta.env.DEV is false, so this becomes `null` and
+ * the panel (with its text) is left out of the bundle entirely.
+ */
+const DemoPanel = import.meta.env.DEV ? lazy(() => import('../components/workflow/DemoPanel')) : null
 
 /** Download name for the current file, e.g. "SOP-083_v1.1.pdf". */
 function downloadName(sop: Sop) {
@@ -99,6 +106,10 @@ export function SopWorkflowPage() {
     setMessage('')
     // Set a moment later so screen readers announce it even if the text repeats.
     window.setTimeout(() => setMessage(text), 50)
+    // If the button that was used disappeared (the status changed), keep focus on the page.
+    requestAnimationFrame(() => {
+      if (!document.activeElement || document.activeElement === document.body) statusRef.current?.focus()
+    })
   }
 
   const reviewer = getUser(sop.reviewerId)
@@ -258,6 +269,12 @@ export function SopWorkflowPage() {
       <Section id="timeline-title" title={content.timeline.title} className="mt-6">
         <WorkflowTimeline sop={sop} content={content} />
       </Section>
+
+      {DemoPanel && (
+        <Suspense fallback={null}>
+          <DemoPanel sop={sop} announce={announce} />
+        </Suspense>
+      )}
 
       {/* Dialogs */}
       {dialog === 'submit' && (

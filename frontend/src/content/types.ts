@@ -488,3 +488,30 @@ export interface SopWorkflowContent {
   /** Announced after each action. */
   messages: { submitted: string; replaced: string; newVersion: string; resubmitted: string }
 }
+
+/* ---------- Development only: workflow demo controls ---------- */
+
+/** Text for the demo panel (never part of the production build). */
+export interface WorkflowDemoContent {
+  title: string
+  note: string
+  noActions: string
+  buttons: {
+    reviewerReturn: string
+    reviewerForward: string
+    approverReturn: string
+    approverApprove: string
+    approverPublish: string
+  }
+  commentDialog: {
+    title: string
+    /** `{name}` and `{role}` are replaced. */
+    description: string
+    label: string
+    placeholder: string
+    required: string
+    confirm: string
+    cancel: string
+  }
+  messages: { returned: string; forwarded: string; approved: string; published: string }
+}
