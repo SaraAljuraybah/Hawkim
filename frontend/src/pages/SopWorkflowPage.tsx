@@ -5,6 +5,7 @@ import { Button } from '../components/ui/Button'
 import { ConfirmDialog } from '../components/ui/ConfirmDialog'
 import { StatusBadge } from '../components/ui/StatusBadge'
 import { AddCoAuthorsDialog } from '../components/workflow/AddCoAuthorsDialog'
+import { ComplianceCard } from '../components/workflow/ComplianceCard'
 import { CommentItems, CommentList } from '../components/workflow/CommentList'
 import { FileDialog } from '../components/workflow/FileDialog'
 import { PeopleList } from '../components/workflow/PeopleList'
@@ -12,13 +13,14 @@ import { ResubmitDialog } from '../components/workflow/ResubmitDialog'
 import { StatusTracker } from '../components/workflow/StatusTracker'
 import { SubmitDialog } from '../components/workflow/SubmitDialog'
 import { WorkflowTimeline } from '../components/workflow/WorkflowTimeline'
+import { complianceEn } from '../content/compliance.en'
 import { sopWorkflowEn } from '../content/workflow.en'
 import { currentUser } from '../data/mock/currentUser'
 import { getDepartmentName } from '../data/mock/departments'
 import { getUser } from '../data/mock/users'
 import type { Sop } from '../data/mock/types'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
-import { currentCheck, hasCompletedCheck, isCheckRunning } from '../lib/compliance'
+import { hasCompletedCheck, isCheckRunning } from '../lib/compliance'
 import { formatDate, formatDateTime, formatMonthDay } from '../lib/format'
 import { hasPermission } from '../lib/permissions'
 import { sopPath } from '../lib/routes'
@@ -151,7 +153,6 @@ export function SopWorkflowPage() {
   // A completed compliance check of the current version is needed before submitting (it needn't pass).
   const checkRunning = isCheckRunning(sop)
   const checkDone = hasCompletedCheck(sop)
-  const checkFailed = !checkRunning && currentCheck(sop)?.status === 'failed'
   const submitReason = checkDone ? undefined : checkRunning ? actions.checkWaiting : actions.checkNeeded
   const resubmitReason = !resubmitReady ? actions.resubmitHint : submitReason
 
@@ -225,6 +226,10 @@ export function SopWorkflowPage() {
 
       <Section id="tracker-title" title={content.tracker.label} className="mt-6">
         <StatusTracker sop={sop} content={content.tracker} />
+      </Section>
+
+      <Section id="compliance-title" title={complianceEn.card.title} className="mt-6">
+        <ComplianceCard sop={sop} content={complianceEn} canRun={sop.status !== 'published'} onRun={runCheck} />
       </Section>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
@@ -343,14 +348,7 @@ export function SopWorkflowPage() {
             </div>
           )}
 
-          {checkFailed && (
-            <div className="mt-4 rounded-lg border border-status-rejected-fg/25 bg-status-rejected-bg/50 p-4">
-              <p className="text-sm font-medium text-status-rejected-fg">{actions.checkFailed}</p>
-              <Button size="sm" variant="secondary" className="mt-3" onClick={runCheck}>
-                {actions.runCheckAgain}
-              </Button>
-            </div>
-          )}
+
         </Section>
       </div>
 

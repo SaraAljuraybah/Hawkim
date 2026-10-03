@@ -1,4 +1,11 @@
-import type { DashboardStatKey, Permission, RequestType, SopFileType, TimelineEventType } from '../data/mock/types'
+import type {
+  ComplianceResult,
+  DashboardStatKey,
+  Permission,
+  RequestType,
+  SopFileType,
+  TimelineEventType,
+} from '../data/mock/types'
 
 /*
  * Shape of the landing page content.
@@ -494,8 +501,6 @@ export interface SopWorkflowContent {
     /** Why Submit / Resubmit is disabled: the check is running, or there's no completed check. */
     checkWaiting: string
     checkNeeded: string
-    checkFailed: string
-    runCheckAgain: string
     /** Published SOPs: run a new check after the requirements change (PBI 29). */
     recheck: string
   }
@@ -579,6 +584,34 @@ export interface SopWorkflowContent {
     /** `{name}` is replaced. */
     coAuthorRemoved: string
     checkStarted: string
+  }
+}
+
+/* ---------- Author: compliance checks ---------- */
+
+export interface ComplianceContent {
+  /** Label of each result (always shown as text on the badges). */
+  results: Record<ComplianceResult, string>
+  sampleBanner: string
+  /** `{count}` and `{total}` are replaced. */
+  summary: string
+  /** Accessible name of the list of counts. */
+  countsLabel: string
+  /** `{name}` and `{version}` are replaced. */
+  guideline: string
+  details: { checked: string; version: string; guideline: string }
+  card: {
+    title: string
+    /** `{version}` is the guideline version. */
+    running: string
+    /** Announced when a running check ends. */
+    completed: string
+    failed: string
+    /** `{version}` is the SOP version. */
+    none: string
+    viewReport: string
+    runAgain: string
+    run: string
   }
 }
 

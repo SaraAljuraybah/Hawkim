@@ -66,8 +66,6 @@ export const sopWorkflowEn: SopWorkflowContent = {
     authorOnly: 'Only the author, {name}, can submit this SOP.',
     checkWaiting: 'Waiting for the compliance check to finish.',
     checkNeeded: 'Run a compliance check for this version first.',
-    checkFailed: "The compliance check couldn't be completed.",
-    runCheckAgain: 'Run check again',
     recheck: 'Recheck compliance',
   },
 
