@@ -5,6 +5,7 @@ import { DashboardPage } from './pages/DashboardPage'
 import { DepartmentsPage } from './pages/DepartmentsPage'
 import { MyRequestsPage } from './pages/MyRequestsPage'
 import { MySopsPage } from './pages/MySopsPage'
+import { UploadSopPage } from './pages/UploadSopPage'
 import { SopDetailPage } from './pages/SopDetailPage'
 import { SopsPage } from './pages/SopsPage'
 import { SubmitRequestPage } from './pages/SubmitRequestPage'
@@ -55,6 +56,7 @@ function App() {
         <Route path="/sops/:id" element={<SopDetailPage />} />
         <Route path="/departments" element={<DepartmentsPage />} />
         <Route path="/my-sops" element={<MySopsPage />} />
+        <Route path="/my-sops/upload" element={<UploadSopPage />} />
         <Route path="/requests" element={<MyRequestsPage />} />
         <Route path="/requests/new" element={<SubmitRequestPage />} />
       </Route>

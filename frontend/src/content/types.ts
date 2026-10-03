@@ -371,3 +371,28 @@ export interface MySopsContent {
   /** Announced after a successful upload. */
   uploadedMessage: string
 }
+
+export interface UploadSopContent {
+  /** Browser tab title. */
+  pageTitle: string
+  title: string
+  /** `{department}` is replaced with the active department's name. */
+  subtitle: string
+  fields: {
+    title: { label: string; placeholder: string }
+    department: { label: string }
+    file: {
+      label: string
+      hint: string
+      dropPrompt: string
+      browse: string
+      remove: string
+      typeError: string
+      sizeError: string
+    }
+    description: { label: string; placeholder: string; /** `{count}` and `{max}` are replaced. */ counter: string }
+  }
+  errors: { titleRequired: string; fileRequired: string }
+  cancel: LinkContent
+  submit: { label: string; loadingLabel: string }
+}
