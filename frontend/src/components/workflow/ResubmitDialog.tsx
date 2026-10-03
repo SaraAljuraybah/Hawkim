@@ -10,9 +10,18 @@ interface ResubmitDialogProps {
   onClose: () => void
 }
 
-/** "Resubmit for review": confirms the same reviewer and approver (shown read-only). */
+/** "Resubmit for review": confirms the same reviewers, approvers and due days (shown read-only). */
 export function ResubmitDialog({ sop, content, onSubmit, onClose }: ResubmitDialogProps) {
   const text = content.resubmit
+  const names = (people: { userId: string }[]) => people.map((p) => getUser(p.userId)?.name ?? '').join(', ')
+  const days = (count = 0) => (count === 1 ? text.oneDay : text.days.replace('{count}', String(count)))
+  const rows = [
+    { label: text.reviewersLabel, value: names(sop.reviewers) },
+    { label: text.approversLabel, value: names(sop.approvers) },
+    { label: text.reviewDaysLabel, value: days(sop.reviewDueDays) },
+    { label: text.approvalDaysLabel, value: days(sop.approvalDueDays) },
+  ]
+
   return (
     <FormDialog
       open
@@ -24,14 +33,12 @@ export function ResubmitDialog({ sop, content, onSubmit, onClose }: ResubmitDial
       onClose={onClose}
     >
       <dl className="grid gap-3 rounded-lg border border-beige bg-beige/40 p-4 text-sm sm:grid-cols-2">
-        <div>
-          <dt className="font-medium text-maroon">{text.reviewerLabel}</dt>
-          <dd className="mt-0.5 text-text-gray">{sop.reviewers.map((p) => getUser(p.userId)?.name).join(', ')}</dd>
-        </div>
-        <div>
-          <dt className="font-medium text-maroon">{text.approverLabel}</dt>
-          <dd className="mt-0.5 text-text-gray">{sop.approvers.map((p) => getUser(p.userId)?.name).join(', ')}</dd>
-        </div>
+        {rows.map((row) => (
+          <div key={row.label}>
+            <dt className="font-medium text-maroon">{row.label}</dt>
+            <dd className="mt-0.5 text-text-gray">{row.value}</dd>
+          </div>
+        ))}
       </dl>
     </FormDialog>
   )

@@ -274,18 +274,11 @@ export function SopWorkflowPage() {
       {/* Dialogs */}
       {dialog === 'submit' && (
         <SubmitDialog
+          sop={sop}
           content={dialogs}
-          authorId={user.id}
           onClose={closeDialog}
-          onSubmit={(reviewerId, approverId, note) => {
-            // Temporary until the dialog supports several people and due days (next commit).
-            store.submitForReview(sop.id, {
-              reviewerIds: [reviewerId],
-              approverIds: [approverId],
-              reviewDueDays: 5,
-              approvalDueDays: 5,
-              note,
-            })
+          onSubmit={(options) => {
+            store.submitForReview(sop.id, options)
             announce(content.messages.submitted)
           }}
         />

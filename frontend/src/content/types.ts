@@ -483,15 +483,30 @@ export interface SopWorkflowContent {
     submit: {
       title: string
       description: string
-      reviewer: { label: string; placeholder: string }
-      approver: { label: string; placeholder: string }
+      reviewers: { label: string; hint: string }
+      /** `unchecked`: `{names}` is replaced with the approvers unchecked because they became reviewers. */
+      approvers: { label: string; hint: string; empty: string; unchecked: string }
+      /** `dueHint`: `{date}` is replaced with the due date if submitted now. */
+      reviewDays: { label: string; hint: string; dueHint: string }
+      approvalDays: { label: string; hint: string }
       note: { label: string; placeholder: string; counter: string }
-      errors: { reviewerRequired: string; approverRequired: string }
+      errors: { reviewersRequired: string; approversRequired: string; daysInvalid: string }
       confirm: string
     }
     replace: { title: string; description: string; confirm: string }
     newVersion: { title: string; description: string; confirm: string }
-    resubmit: { title: string; description: string; reviewerLabel: string; approverLabel: string; confirm: string }
+    resubmit: {
+      title: string
+      description: string
+      reviewersLabel: string
+      approversLabel: string
+      reviewDaysLabel: string
+      approvalDaysLabel: string
+      /** `{count}` is replaced. */
+      days: string
+      oneDay: string
+      confirm: string
+    }
   }
   /** Announced after each action. */
   messages: { submitted: string; replaced: string; newVersion: string; resubmitted: string }
