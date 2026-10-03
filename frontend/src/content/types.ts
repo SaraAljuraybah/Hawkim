@@ -271,6 +271,14 @@ export interface DepartmentsContent {
   subtitle: string
   /** Member count wording by plural form; `{count}` is replaced with the number. */
   memberCount: { one: string; other: string }
+  /** The user's relationship with each department, and its actions. */
+  states: {
+    current: string
+    member: string
+    open: string
+    accessRequested: string
+    requestAccess: string
+  }
 }
 
 /* ---------- Signed-in app: requests ---------- */

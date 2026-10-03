@@ -1,5 +1,5 @@
 import { departments } from '../data/mock/departments'
-import type { Department, User, UserRequest } from '../data/mock/types'
+import type { Department, DepartmentId, User, UserRequest } from '../data/mock/types'
 
 /**
  * The departments a user belongs to: their home department plus every department
@@ -14,4 +14,28 @@ export function getUserDepartments(user: Pick<User, 'departmentId'>, requests: U
       .map((request) => request.departmentId),
   )
   return departments.filter((department) => department.id === user.departmentId || joined.has(department.id))
+}
+
+/**
+ * The user's relationship with a department (Departments page):
+ * - current:   the active department
+ * - member:    another department the user belongs to
+ * - requested: a department-access request for it is pending
+ * - none:      none of the above (the user can request access)
+ */
+export type DepartmentState = 'current' | 'member' | 'requested' | 'none'
+
+export function getDepartmentState(
+  departmentId: DepartmentId,
+  activeDepartmentId: DepartmentId,
+  userDepartments: Department[],
+  requests: UserRequest[],
+): DepartmentState {
+  if (departmentId === activeDepartmentId) return 'current'
+  if (userDepartments.some((department) => department.id === departmentId)) return 'member'
+  const pending = requests.some(
+    (request) =>
+      request.type === 'department-access' && request.departmentId === departmentId && request.status === 'pending',
+  )
+  return pending ? 'requested' : 'none'
 }

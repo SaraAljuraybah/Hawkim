@@ -14,4 +14,11 @@ export const departmentsEn: DepartmentsContent = {
     one: '{count} member',
     other: '{count} members',
   },
+  states: {
+    current: 'Current department',
+    member: 'Member',
+    open: 'Open',
+    accessRequested: 'Access requested',
+    requestAccess: 'Request access',
+  },
 }
