@@ -393,6 +393,8 @@ export interface UploadSopContent {
       sizeError: string
     }
     description: { label: string; placeholder: string; /** `{count}` and `{max}` are replaced. */ counter: string }
+    /** Optional co-authors: other users with the Author permission. */
+    coAuthors: { label: string; hint: string; empty: string }
   }
   errors: { titleRequired: string; fileRequired: string }
   cancel: LinkContent

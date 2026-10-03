@@ -3,11 +3,14 @@ import { flushSync } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import { LoaderCircle, Upload } from 'lucide-react'
 import { Button } from '../components/ui/Button'
+import { CheckboxGroup } from '../components/ui/CheckboxGroup'
 import { FileDropzone } from '../components/ui/FileDropzone'
 import { TextAreaField } from '../components/ui/TextAreaField'
 import { TextField } from '../components/ui/TextField'
 import { uploadSopEn } from '../content/mySops.en'
 import { currentUser } from '../data/mock/currentUser'
+import { getDepartmentName } from '../data/mock/departments'
+import { users } from '../data/mock/users'
 import type { SopFileType } from '../data/mock/types'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { hasPermission } from '../lib/permissions'
@@ -46,6 +49,7 @@ export function UploadSopPage() {
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [files, setFiles] = useState<File[]>([])
+  const [coAuthorIds, setCoAuthorIds] = useState<string[]>([])
   const [errors, setErrors] = useState<FieldErrors>({})
   const [submitAttempted, setSubmitAttempted] = useState(false)
   const [submitting, setSubmitting] = useState(false)
@@ -54,6 +58,11 @@ export function UploadSopPage() {
   const browseRef = useRef<HTMLButtonElement>(null)
 
   if (!isAuthor) return <NotFoundPage embedded />
+
+  // Co-authors: other users with the Author permission.
+  const coAuthorOptions = users
+    .filter((u) => u.id !== user.id && hasPermission(u, 'author'))
+    .map((u) => ({ value: u.id, label: u.name, description: getDepartmentName(u.departmentId) }))
 
   function validate(field: Field, values = { title, files }): string | undefined {
     if (field === 'title') return values.title.trim() ? undefined : content.errors.titleRequired
@@ -92,7 +101,7 @@ export function UploadSopPage() {
       title: title.trim(),
       description: description.trim() || undefined,
       departmentId: activeDepartment.id,
-      coAuthorIds: [],
+      coAuthorIds,
       fileName: file.name,
       fileType: fileTypeOf(file),
       fileUrl: URL.createObjectURL(file),
@@ -150,6 +159,16 @@ export function UploadSopPage() {
               .replace('{max}', String(DESCRIPTION_MAX))}
             value={description}
             onChange={(e) => setDescription(e.target.value)}
+          />
+
+          <CheckboxGroup
+            name="coAuthors"
+            legend={content.fields.coAuthors.label}
+            hint={content.fields.coAuthors.hint}
+            emptyText={content.fields.coAuthors.empty}
+            options={coAuthorOptions}
+            value={coAuthorIds}
+            onChange={setCoAuthorIds}
           />
 
           <div className="flex flex-col-reverse gap-3 border-t border-beige pt-6 sm:flex-row sm:justify-end">
