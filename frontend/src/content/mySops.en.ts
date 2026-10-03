@@ -50,7 +50,6 @@ export const uploadSopEn: UploadSopContent = {
     coAuthors: {
       label: 'Co-authors (optional)',
       hint: 'Co-authors can replace the file and upload new versions. Only you can submit the SOP.',
-      empty: 'No other authors are available.',
     },
   },
   errors: {

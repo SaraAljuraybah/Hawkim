@@ -1,13 +1,13 @@
 import { useRef, useState } from 'react'
 import { flushSync } from 'react-dom'
 import type { SopWorkflowContent } from '../../content/types'
-import { getDepartmentName } from '../../data/mock/departments'
 import { users } from '../../data/mock/users'
 import type { Sop } from '../../data/mock/types'
+import { personOption } from '../../lib/people'
 import { hasPermission } from '../../lib/permissions'
 import { isApprover, isAuthorOrCoAuthor, isReviewer } from '../../lib/workflow'
-import { CheckboxGroup } from '../ui/CheckboxGroup'
 import { FormDialog } from '../ui/FormDialog'
+import { PeoplePicker } from '../ui/PeoplePicker'
 
 interface AddCoAuthorsDialogProps {
   sop: Sop
@@ -24,7 +24,7 @@ export function AddCoAuthorsDialog({ sop, content, onSubmit, onClose }: AddCoAut
   const text = content.addCoAuthors
   const [selected, setSelected] = useState<string[]>([])
   const [error, setError] = useState<string>()
-  const firstRef = useRef<HTMLInputElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
 
   const options = users
     .filter(
@@ -34,13 +34,13 @@ export function AddCoAuthorsDialog({ sop, content, onSubmit, onClose }: AddCoAut
         !isReviewer(sop, user.id) &&
         !isApprover(sop, user.id),
     )
-    .map((user) => ({ value: user.id, label: user.name, description: getDepartmentName(user.departmentId) }))
+    .map(personOption)
 
   function confirm() {
     if (options.length === 0) return
     if (selected.length === 0) {
       flushSync(() => setError(text.required))
-      firstRef.current?.focus()
+      inputRef.current?.focus()
       return false
     }
     onSubmit(selected)
@@ -56,15 +56,13 @@ export function AddCoAuthorsDialog({ sop, content, onSubmit, onClose }: AddCoAut
       onConfirm={confirm}
       onClose={onClose}
     >
-      <CheckboxGroup
-        name="coAuthors"
-        legend={text.label}
+      <PeoplePicker
+        label={text.label}
         hint={text.hint}
-        emptyText={text.empty}
         options={options}
         value={selected}
         error={error}
-        firstRef={firstRef}
+        inputRef={inputRef}
         onChange={(next) => {
           setSelected(next)
           if (error) setError(undefined)

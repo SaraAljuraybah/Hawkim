@@ -352,6 +352,22 @@ export interface RequestsContent {
   myRequests: MyRequestsContent
 }
 
+/* ---------- Searchable people picker ---------- */
+
+/** The picker's own text (each form gives its label, hint and errors). */
+export interface PeoplePickerContent {
+  placeholder: string
+  /** Shown when nothing matches the search. */
+  noMatches: string
+  /** Accessible name of the chip list; `{label}` is the field label. */
+  selected: string
+  /** Accessible name of a chip's remove button; `{name}` is replaced. */
+  remove: string
+  /** Announced to screen readers; `{name}` is replaced. */
+  added: string
+  removed: string
+}
+
 /* ---------- Author: My SOPs and Upload SOP ---------- */
 
 export type MySopsTabKey = 'all' | 'drafts' | 'inProgress' | 'returned' | 'published'
@@ -396,7 +412,7 @@ export interface UploadSopContent {
     }
     description: { label: string; placeholder: string; /** `{count}` and `{max}` are replaced. */ counter: string }
     /** Optional co-authors: other users with the Author permission. */
-    coAuthors: { label: string; hint: string; empty: string }
+    coAuthors: { label: string; hint: string }
   }
   errors: { titleRequired: string; fileRequired: string }
   cancel: LinkContent
@@ -511,7 +527,7 @@ export interface SopWorkflowContent {
       description: string
       reviewers: { label: string; hint: string }
       /** `unchecked`: `{names}` is replaced with the approvers unchecked because they became reviewers. */
-      approvers: { label: string; hint: string; empty: string; unchecked: string }
+      approvers: { label: string; hint: string; unchecked: string }
       /** `dueHint`: `{date}` is replaced with the due date if submitted now. */
       /** `dueHint`: `{date}` is replaced with the due date if submitted now. */
       reviewDays: { label: string; hint: string; dueHint: string }
@@ -527,7 +543,6 @@ export interface SopWorkflowContent {
       description: string
       label: string
       hint: string
-      empty: string
       required: string
       confirm: string
     }

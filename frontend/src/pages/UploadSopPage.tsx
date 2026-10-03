@@ -3,16 +3,16 @@ import { flushSync } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import { LoaderCircle, Upload } from 'lucide-react'
 import { Button } from '../components/ui/Button'
-import { CheckboxGroup } from '../components/ui/CheckboxGroup'
 import { FileDropzone } from '../components/ui/FileDropzone'
+import { PeoplePicker } from '../components/ui/PeoplePicker'
 import { TextAreaField } from '../components/ui/TextAreaField'
 import { TextField } from '../components/ui/TextField'
 import { uploadSopEn } from '../content/mySops.en'
 import { currentUser } from '../data/mock/currentUser'
-import { getDepartmentName } from '../data/mock/departments'
 import { users } from '../data/mock/users'
 import type { SopFileType } from '../data/mock/types'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
+import { personOption } from '../lib/people'
 import { hasPermission } from '../lib/permissions'
 import { useActiveDepartment } from '../state/activeDepartmentContext'
 import { useSops } from '../state/sopsContext'
@@ -62,7 +62,7 @@ export function UploadSopPage() {
   // Co-authors: other users with the Author permission.
   const coAuthorOptions = users
     .filter((u) => u.id !== user.id && hasPermission(u, 'author'))
-    .map((u) => ({ value: u.id, label: u.name, description: getDepartmentName(u.departmentId) }))
+    .map(personOption)
 
   function validate(field: Field, values = { title, files }): string | undefined {
     if (field === 'title') return values.title.trim() ? undefined : content.errors.titleRequired
@@ -161,11 +161,9 @@ export function UploadSopPage() {
             onChange={(e) => setDescription(e.target.value)}
           />
 
-          <CheckboxGroup
-            name="coAuthors"
-            legend={content.fields.coAuthors.label}
+          <PeoplePicker
+            label={content.fields.coAuthors.label}
             hint={content.fields.coAuthors.hint}
-            emptyText={content.fields.coAuthors.empty}
             options={coAuthorOptions}
             value={coAuthorIds}
             onChange={setCoAuthorIds}

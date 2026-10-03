@@ -123,8 +123,7 @@ export const sopWorkflowEn: SopWorkflowContent = {
       approvers: {
         label: 'Approvers',
         hint: 'Select at least one. Reviewers can’t also be approvers.',
-        empty: 'No approvers are available.',
-        unchecked: '{names} is now a reviewer, so they were unchecked as an approver.',
+        unchecked: '{names} is now a reviewer, so they were removed from approvers.',
       },
       reviewDays: {
         label: 'Review due in (days) (optional)',
@@ -158,7 +157,6 @@ export const sopWorkflowEn: SopWorkflowContent = {
       description: 'Co-authors can replace the file and upload new versions. Only you can submit the SOP.',
       label: 'Co-authors',
       hint: 'Reviewers and approvers of this SOP can’t be co-authors.',
-      empty: 'No other authors can be added.',
       required: 'Select at least one co-author.',
       confirm: 'Add co-authors',
     },

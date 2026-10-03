@@ -1,15 +1,15 @@
 import { useRef, useState } from 'react'
 import { flushSync } from 'react-dom'
 import type { SopWorkflowContent } from '../../content/types'
-import { getDepartmentName } from '../../data/mock/departments'
 import { getUser, users } from '../../data/mock/users'
 import type { Sop } from '../../data/mock/types'
 import { formatDateTime } from '../../lib/format'
+import { personOption } from '../../lib/people'
 import { hasPermission } from '../../lib/permissions'
 import { addDays, DUE_DAYS_MAX, DUE_DAYS_MIN, isAuthorOrCoAuthor, isValidDueDays } from '../../lib/workflow'
 import type { SubmitOptions } from '../../state/sopsContext'
-import { CheckboxGroup } from '../ui/CheckboxGroup'
 import { FormDialog } from '../ui/FormDialog'
+import { PeoplePicker } from '../ui/PeoplePicker'
 import { TextAreaField } from '../ui/TextAreaField'
 import { TextField } from '../ui/TextField'
 
@@ -51,23 +51,18 @@ export function SubmitDialog({ sop, content, onSubmit, onClose }: SubmitDialogPr
   // "Due Oct 5, 2026, 3:19 PM": the review due date if the SOP were submitted now.
   const [reviewDueHint, setReviewDueHint] = useState<string>()
   const [errors, setErrors] = useState<Errors>({})
-  // Approvers unchecked because they were then checked as reviewers (only while they still are).
+  // Approvers removed because they were then picked as reviewers (only while they still are).
   const [uncheckedIds, setUncheckedIds] = useState<string[]>([])
   const reviewersRef = useRef<HTMLInputElement>(null)
   const approversRef = useRef<HTMLInputElement>(null)
   const reviewDaysRef = useRef<HTMLInputElement>(null)
   const approvalDaysRef = useRef<HTMLInputElement>(null)
 
-  const option = (user: (typeof users)[number]) => ({
-    value: user.id,
-    label: user.name,
-    description: getDepartmentName(user.departmentId),
-  })
   const eligible = users.filter((user) => !isAuthorOrCoAuthor(sop, user.id))
-  const reviewerOptions = eligible.filter((user) => hasPermission(user, 'reviewer')).map(option)
+  const reviewerOptions = eligible.filter((user) => hasPermission(user, 'reviewer')).map(personOption)
   const approverOptions = eligible
     .filter((user) => hasPermission(user, 'approver') && !reviewerIds.includes(user.id))
-    .map(option)
+    .map(personOption)
 
   function clearError(field: Field) {
     if (errors[field]) setErrors((prev) => ({ ...prev, [field]: undefined }))
@@ -76,7 +71,7 @@ export function SubmitDialog({ sop, content, onSubmit, onClose }: SubmitDialogPr
   function chooseReviewers(next: string[]) {
     setReviewerIds(next)
     clearError('reviewers')
-    // Someone checked as a reviewer can't also approve: uncheck them and say so.
+    // Someone picked as a reviewer can't also approve: remove them from approvers and say so.
     const removed = approverIds.filter((id) => next.includes(id))
     if (removed.length > 0) setApproverIds(approverIds.filter((id) => !next.includes(id)))
     setUncheckedIds([...uncheckedIds.filter((id) => next.includes(id)), ...removed])
@@ -114,7 +109,6 @@ export function SubmitDialog({ sop, content, onSubmit, onClose }: SubmitDialogPr
     })
   }
 
-
   return (
     <FormDialog
       open
@@ -125,30 +119,28 @@ export function SubmitDialog({ sop, content, onSubmit, onClose }: SubmitDialogPr
       onConfirm={confirm}
       onClose={onClose}
     >
-      <CheckboxGroup
-        name="reviewers"
-        legend={text.reviewers.label}
+      <PeoplePicker
+        label={text.reviewers.label}
         hint={text.reviewers.hint}
         options={reviewerOptions}
         value={reviewerIds}
         error={errors.reviewers}
-        firstRef={reviewersRef}
+        inputRef={reviewersRef}
         onChange={chooseReviewers}
       />
-      <CheckboxGroup
-        name="approvers"
-        legend={text.approvers.label}
-        hint={text.approvers.hint}
-        options={approverOptions}
-        value={approverIds}
-        error={errors.approvers}
-        firstRef={approversRef}
-        emptyText={text.approvers.empty}
-        onChange={(next) => {
-          setApproverIds(next)
-          clearError('approvers')
-        }}
-      >
+      <div>
+        <PeoplePicker
+          label={text.approvers.label}
+          hint={text.approvers.hint}
+          options={approverOptions}
+          value={approverIds}
+          error={errors.approvers}
+          inputRef={approversRef}
+          onChange={(next) => {
+            setApproverIds(next)
+            clearError('approvers')
+          }}
+        />
         <p role="status" className="text-sm text-maroon">
           {uncheckedIds.length > 0 && (
             <span className="mt-1.5 block">
@@ -156,7 +148,7 @@ export function SubmitDialog({ sop, content, onSubmit, onClose }: SubmitDialogPr
             </span>
           )}
         </p>
-      </CheckboxGroup>
+      </div>
       <div className="grid gap-5 sm:grid-cols-2">
         <TextField
           ref={reviewDaysRef}

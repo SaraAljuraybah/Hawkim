@@ -42,6 +42,20 @@ export const users: User[] = [
     permissions: ['reviewer'],
   },
   {
+    id: 'user-lama',
+    name: 'Lama Alshehri',
+    initials: 'LA',
+    departmentId: 'pharmacovigilance',
+    permissions: ['reviewer'],
+  },
+  {
+    id: 'user-abdullah',
+    name: 'Abdullah Alqahtani',
+    initials: 'AA',
+    departmentId: 'regulatory-affairs',
+    permissions: ['reviewer'],
+  },
+  {
     id: 'user-huda',
     name: 'Huda Alotaibi',
     initials: 'HA',
@@ -53,6 +67,20 @@ export const users: User[] = [
     name: 'Khalid Alzahrani',
     initials: 'KA',
     departmentId: 'quality-assurance',
+    permissions: ['approver'],
+  },
+  {
+    id: 'user-maha',
+    name: 'Maha Alenazi',
+    initials: 'MA',
+    departmentId: 'pharmacovigilance',
+    permissions: ['approver'],
+  },
+  {
+    id: 'user-sultan',
+    name: 'Sultan Aldosari',
+    initials: 'SA',
+    departmentId: 'regulatory-affairs',
     permissions: ['approver'],
   },
 ]
