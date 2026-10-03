@@ -805,4 +805,25 @@ export interface AdminContent {
   shell: AdminShellContent
   /** Browser tab title of every admin page; `{page}` is replaced. */
   pageTitle: string
+  usersList: AdminUsersListContent
+}
+
+/** One or several, e.g. "1 user" / "9 users"; `{count}` is replaced. */
+export interface CountText {
+  one: string
+  other: string
+}
+
+export interface AdminUsersListContent {
+  title: string
+  subtitle: string
+  addUser: LinkContent
+  search: { label: string; placeholder: string }
+  departmentFilter: { label: string; all: string }
+  permissionFilter: { label: string; all: string }
+  count: CountText
+  /** Accessible name of the table. */
+  tableLabel: string
+  columns: { name: string; email: string; department: string; permissions: string }
+  empty: string
 }

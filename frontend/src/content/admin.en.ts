@@ -20,4 +20,17 @@ export const adminEn: AdminContent = {
     roleLabel: 'Administrator',
   },
   pageTitle: '{page} · Admin | Hawkim',
+
+  usersList: {
+    title: 'Users',
+    subtitle: 'Manage who can use Hawkim and what they can do.',
+    addUser: { label: 'Add user', href: '/admin/users/new' },
+    search: { label: 'Search', placeholder: 'Search by name or email' },
+    departmentFilter: { label: 'Department', all: 'All departments' },
+    permissionFilter: { label: 'Permission', all: 'All permissions' },
+    count: { one: '{count} user', other: '{count} users' },
+    tableLabel: 'Users',
+    columns: { name: 'Name', email: 'Email', department: 'Department', permissions: 'Permissions' },
+    empty: 'No users match your search.',
+  },
 }

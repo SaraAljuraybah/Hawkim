@@ -12,6 +12,7 @@ import { SopsPage } from './pages/SopsPage'
 import { SubmitRequestPage } from './pages/SubmitRequestPage'
 import { LandingPage } from './pages/LandingPage'
 import { NotFoundPage } from './pages/NotFoundPage'
+import { AdminUsersPage } from './pages/admin/AdminUsersPage'
 import { SignInPage } from './pages/SignInPage'
 import { ADMIN_USERS_PATH } from './lib/routes'
 import { AdminArea, EmployeeArea } from './routes/guards'
@@ -73,6 +74,7 @@ function AppRoutes() {
       {/* Admin portal: its own layout; only for admins (others see Not Found). */}
       <Route path="/admin" element={<AdminArea />}>
         <Route index element={<Navigate to={ADMIN_USERS_PATH} replace />} />
+        <Route path="users" element={<AdminUsersPage />} />
         <Route path="*" element={<NotFoundPage embedded />} />
       </Route>
 
