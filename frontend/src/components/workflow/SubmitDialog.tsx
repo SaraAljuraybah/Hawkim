@@ -48,8 +48,8 @@ export function SubmitDialog({ sop, content, onSubmit, onClose }: SubmitDialogPr
   // "Due Oct 5, 2026, 3:19 PM": the review due date if the SOP were submitted now.
   const [reviewDueHint, setReviewDueHint] = useState<string>()
   const [errors, setErrors] = useState<Errors>({})
-  // Approvers unchecked because they were then checked as reviewers.
-  const [uncheckedNames, setUncheckedNames] = useState<string[]>([])
+  // Approvers unchecked because they were then checked as reviewers (only while they still are).
+  const [uncheckedIds, setUncheckedIds] = useState<string[]>([])
   const reviewersRef = useRef<HTMLInputElement>(null)
   const approversRef = useRef<HTMLInputElement>(null)
   const reviewDaysRef = useRef<HTMLInputElement>(null)
@@ -75,10 +75,8 @@ export function SubmitDialog({ sop, content, onSubmit, onClose }: SubmitDialogPr
     clearError('reviewers')
     // Someone checked as a reviewer can't also approve: uncheck them and say so.
     const removed = approverIds.filter((id) => next.includes(id))
-    if (removed.length > 0) {
-      setApproverIds(approverIds.filter((id) => !next.includes(id)))
-      setUncheckedNames(removed.map((id) => getUser(id)?.name ?? ''))
-    }
+    if (removed.length > 0) setApproverIds(approverIds.filter((id) => !next.includes(id)))
+    setUncheckedIds([...uncheckedIds.filter((id) => next.includes(id)), ...removed])
   }
 
   function confirm() {
@@ -143,8 +141,10 @@ export function SubmitDialog({ sop, content, onSubmit, onClose }: SubmitDialogPr
         }}
       >
         <p role="status" className="text-sm text-maroon">
-          {uncheckedNames.length > 0 && (
-            <span className="mt-1.5 block">{text.approvers.unchecked.replace('{names}', uncheckedNames.join(', '))}</span>
+          {uncheckedIds.length > 0 && (
+            <span className="mt-1.5 block">
+              {text.approvers.unchecked.replace('{names}', uncheckedIds.map((id) => getUser(id)?.name ?? '').join(', '))}
+            </span>
           )}
         </p>
       </CheckboxGroup>
