@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState, type ReactNode } from 'react'
+import { useCallback, useMemo, useRef, useState, type ReactNode } from 'react'
 import { currentUser } from '../data/mock/currentUser'
 import { sops as seedSops } from '../data/mock/sops'
 import type { Sop, TimelineEvent } from '../data/mock/types'
@@ -17,12 +17,23 @@ export function SopsProvider({ children }: { children: ReactNode }) {
   // TODO: Use the authenticated user once real authentication exists.
   const user = currentUser
   const [sops, setSops] = useState<Sop[]>(seedSops)
+  /*
+   * The latest list, updated as soon as a change is applied. Actions read and
+   * check against it (not the last render), so two actions before a re-render
+   * build on each other instead of the second overwriting the first.
+   */
+  const latestRef = useRef<Sop[]>(seedSops)
+  const commit = useCallback((next: Sop[]) => {
+    latestRef.current = next
+    setSops(next)
+  }, [])
 
   const addDraft = useCallback(
     (draft: NewDraft) => {
+      const current = latestRef.current
       const code = nextSopCode(
-        sops.filter((sop) => sop.authorId === user.id).map((sop) => sop.code),
-        sops.map((sop) => sop.code),
+        current.filter((sop) => sop.authorId === user.id).map((sop) => sop.code),
+        current.map((sop) => sop.code),
       )
       const id = code.toLowerCase()
       const now = new Date().toISOString()
@@ -57,24 +68,26 @@ export function SopsProvider({ children }: { children: ReactNode }) {
         comments: [],
         timeline,
       }
-      setSops((current) => [created, ...current])
+      commit([created, ...current])
       return created
     },
-    [sops, user.id],
+    [commit, user.id],
   )
 
   /**
-   * Applies a workflow transition to one SOP. The rule is checked against the
-   * current SOP first, so an invalid action throws before anything changes.
+   * Applies a workflow transition to one SOP as a single update (status, people
+   * and timeline events together). The rule is checked against the latest SOP
+   * first, so an invalid action throws before anything changes.
    */
   const update = useCallback(
     (sopId: string, transition: (sop: Sop) => Sop) => {
-      const sop = sops.find((item) => item.id === sopId)
+      const current = latestRef.current
+      const sop = current.find((item) => item.id === sopId)
       if (!sop) throw new Error(`Unknown SOP ${sopId}`)
       const updated = transition(sop)
-      setSops((current) => current.map((item) => (item.id === sopId ? updated : item)))
+      commit(current.map((item) => (item.id === sopId ? updated : item)))
     },
-    [sops],
+    [commit],
   )
 
   const store = useMemo<SopsStore>(
