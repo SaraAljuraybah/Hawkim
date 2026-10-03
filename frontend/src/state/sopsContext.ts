@@ -8,8 +8,9 @@ export type NewDraft = Pick<Sop, 'title' | 'departmentId' | 'description' | 'coA
 export interface SubmitOptions {
   reviewerIds: string[]
   approverIds: string[]
-  reviewDueDays: number
-  approvalDueDays: number
+  /** Optional: a stage without due days has no due date. */
+  reviewDueDays?: number
+  approvalDueDays?: number
   note?: string
 }
 

@@ -14,7 +14,8 @@ interface ResubmitDialogProps {
 export function ResubmitDialog({ sop, content, onSubmit, onClose }: ResubmitDialogProps) {
   const text = content.resubmit
   const names = (people: { userId: string }[]) => people.map((p) => getUser(p.userId)?.name ?? '').join(', ')
-  const days = (count = 0) => (count === 1 ? text.oneDay : text.days.replace('{count}', String(count)))
+  const days = (count?: number) =>
+    count === undefined ? text.noDueDate : count === 1 ? text.oneDay : text.days.replace('{count}', String(count))
   const rows = [
     { label: text.reviewersLabel, value: names(sop.reviewers) },
     { label: text.approversLabel, value: names(sop.approvers) },

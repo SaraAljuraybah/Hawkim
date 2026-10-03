@@ -25,12 +25,15 @@ interface SubmitDialogProps {
   onClose: () => void
 }
 
-/** Whole number of days from 1 to 30, or undefined if the text isn't one. */
-function parseDays(text: string): number | undefined {
+/**
+ * Optional due days: empty is valid (no due date); otherwise a whole number
+ * from 1 to 30.
+ */
+function parseDays(text: string): { valid: boolean; days?: number } {
   const trimmed = text.trim()
-  if (!/^\d+$/.test(trimmed)) return undefined
+  if (!trimmed) return { valid: true }
   const days = Number(trimmed)
-  return isValidDueDays(days) ? days : undefined
+  return /^\d+$/.test(trimmed) && isValidDueDays(days) ? { valid: true, days } : { valid: false }
 }
 
 /**
@@ -80,13 +83,13 @@ export function SubmitDialog({ sop, content, onSubmit, onClose }: SubmitDialogPr
   }
 
   function confirm() {
-    const reviewDueDays = parseDays(reviewDays)
-    const approvalDueDays = parseDays(approvalDays)
+    const review = parseDays(reviewDays)
+    const approval = parseDays(approvalDays)
     const next: Errors = {
       reviewers: reviewerIds.length > 0 ? undefined : text.errors.reviewersRequired,
       approvers: approverIds.length > 0 ? undefined : text.errors.approversRequired,
-      reviewDays: reviewDueDays ? undefined : text.errors.daysInvalid,
-      approvalDays: approvalDueDays ? undefined : text.errors.daysInvalid,
+      reviewDays: review.valid ? undefined : text.errors.daysInvalid,
+      approvalDays: approval.valid ? undefined : text.errors.daysInvalid,
     }
     // Render the messages before moving focus, so screen readers read them with the field.
     flushSync(() => setErrors(next))
@@ -98,11 +101,17 @@ export function SubmitDialog({ sop, content, onSubmit, onClose }: SubmitDialogPr
         ['approvalDays', approvalDaysRef],
       ] as const
     ).find(([field]) => next[field])
-    if (firstInvalid || !reviewDueDays || !approvalDueDays) {
-      firstInvalid?.[1].current?.focus()
+    if (firstInvalid) {
+      firstInvalid[1].current?.focus()
       return false
     }
-    onSubmit({ reviewerIds, approverIds, reviewDueDays, approvalDueDays, note: note.trim() || undefined })
+    onSubmit({
+      reviewerIds,
+      approverIds,
+      reviewDueDays: review.days,
+      approvalDueDays: approval.days,
+      note: note.trim() || undefined,
+    })
   }
 
 
@@ -164,7 +173,7 @@ export function SubmitDialog({ sop, content, onSubmit, onClose }: SubmitDialogPr
           onChange={(event) => {
             setReviewDays(event.target.value)
             clearError('reviewDays')
-            const days = parseDays(event.target.value)
+            const { days } = parseDays(event.target.value)
             setReviewDueHint(
               days ? text.reviewDays.dueHint.replace('{date}', formatDateTime(addDays(new Date().toISOString(), days))) : undefined,
             )

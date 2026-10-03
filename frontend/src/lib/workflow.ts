@@ -179,25 +179,34 @@ function assertSeparation(sop: Sop, reviewerIds: string[], approverIds: string[]
 
 // ---------- Author actions ----------
 
+/** A stage's due date `days` after `from`, or undefined when the stage has no due days. */
+function dueDateFrom(from: string, days: number | undefined): string | undefined {
+  return days === undefined ? undefined : addDays(from, days)
+}
+
 /**
  * Author: first submission (PBI 6). The author picks one or more reviewers and
- * approvers and the due days per stage (PBI 3).
+ * approvers, and optionally the due days per stage (PBI 3). A stage without due
+ * days has no due date and is never overdue.
  */
 export function submitForReview(
   sop: Sop,
   actorId: string,
   reviewerIds: string[],
   approverIds: string[],
-  reviewDueDays: number,
-  approvalDueDays: number,
+  reviewDueDays: number | undefined,
+  approvalDueDays: number | undefined,
   note?: string,
 ): Sop {
   assertStatus(sop, ['draft'], 'submit')
   assert(isAuthor(sop, actorId), 'Only the author can submit this SOP')
   assertSeparation(sop, reviewerIds, approverIds)
-  assert(isValidDueDays(reviewDueDays) && isValidDueDays(approvalDueDays), 'Due days must be from 1 to 30')
+  assert(
+    [reviewDueDays, approvalDueDays].every((days) => days === undefined || isValidDueDays(days)),
+    'Due days must be from 1 to 30',
+  )
   const createdAt = new Date().toISOString()
-  const reviewDueAt = addDays(createdAt, reviewDueDays)
+  const reviewDueAt = dueDateFrom(createdAt, reviewDueDays)
   return {
     ...sop,
     status: 'in-review',
@@ -211,7 +220,7 @@ export function submitForReview(
     timeline: [
       ...sop.timeline,
       { ...event(sop, 'submitted', actorId, { recipientIds: reviewerIds, ...(note ? { note } : {}) }), createdAt },
-      { ...event(sop, 'stage-due-date-set', actorId, { stage: 'review', dueAt: reviewDueAt }), createdAt },
+      ...(reviewDueAt ? [{ ...event(sop, 'stage-due-date-set', actorId, { stage: 'review', dueAt: reviewDueAt }), createdAt }] : []),
     ],
   }
 }
@@ -224,7 +233,7 @@ export function resubmit(sop: Sop, actorId: string, note?: string): Sop {
   assert(isAuthor(sop, actorId), 'Only the author can resubmit this SOP')
   assert(canResubmit(sop), 'Upload a new version before resubmitting')
   const createdAt = new Date().toISOString()
-  const reviewDueAt = addDays(createdAt, sop.reviewDueDays ?? DUE_DAYS_MIN)
+  const reviewDueAt = dueDateFrom(createdAt, sop.reviewDueDays)
   const reviewerIds = sop.reviewers.map((p) => p.userId)
   return {
     ...sop,
@@ -237,7 +246,7 @@ export function resubmit(sop: Sop, actorId: string, note?: string): Sop {
     timeline: [
       ...sop.timeline,
       { ...event(sop, 'resubmitted', actorId, { recipientIds: reviewerIds, ...(note ? { note } : {}) }), createdAt },
-      { ...event(sop, 'stage-due-date-set', actorId, { stage: 'review', dueAt: reviewDueAt }), createdAt },
+      ...(reviewDueAt ? [{ ...event(sop, 'stage-due-date-set', actorId, { stage: 'review', dueAt: reviewDueAt }), createdAt }] : []),
     ],
   }
 }
@@ -322,8 +331,8 @@ export function completeReview(sop: Sop, reviewerId: string): Sop {
     timeline: [...sop.timeline, { ...event(sop, 'review-completed', reviewerId), createdAt }],
   }
   if (reviewers.every((p) => p.decision === 'completed')) {
-    // Last reviewer done: forward to the approvers automatically, and start the approval clock.
-    const approvalDueAt = addDays(createdAt, sop.approvalDueDays ?? DUE_DAYS_MIN)
+    // Last reviewer done: forward to the approvers automatically, and start the approval clock (if any).
+    const approvalDueAt = dueDateFrom(createdAt, sop.approvalDueDays)
     updated = {
       ...updated,
       status: 'in-approval',
@@ -331,7 +340,9 @@ export function completeReview(sop: Sop, reviewerId: string): Sop {
       timeline: [
         ...updated.timeline,
         { ...event(sop, 'forwarded-to-approver', SYSTEM_ACTOR, { recipientIds: sop.approvers.map((p) => p.userId) }), createdAt },
-        { ...event(sop, 'stage-due-date-set', SYSTEM_ACTOR, { stage: 'approval', dueAt: approvalDueAt }), createdAt },
+        ...(approvalDueAt
+          ? [{ ...event(sop, 'stage-due-date-set', SYSTEM_ACTOR, { stage: 'approval', dueAt: approvalDueAt }), createdAt }]
+          : []),
       ],
     }
   }

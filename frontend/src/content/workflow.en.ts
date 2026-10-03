@@ -126,8 +126,15 @@ export const sopWorkflowEn: SopWorkflowContent = {
         empty: 'No approvers are available.',
         unchecked: '{names} is now a reviewer, so they were unchecked as an approver.',
       },
-      reviewDays: { label: 'Review due in (days)', hint: 'From 1 to 30 days after submitting.', dueHint: 'Due {date}' },
-      approvalDays: { label: 'Approval due in (days)', hint: 'Counted from when the last reviewer completes.' },
+      reviewDays: {
+        label: 'Review due in (days) (optional)',
+        hint: 'From 1 to 30 days after submitting. Leave empty for no due date.',
+        dueHint: 'Due {date}',
+      },
+      approvalDays: {
+        label: 'Approval due in (days) (optional)',
+        hint: 'Counted from when the last reviewer completes. Leave empty for no due date.',
+      },
       note: { label: 'Note (optional)', placeholder: 'Add a note for the reviewers…', counter: '{count} / {max}' },
       errors: {
         reviewersRequired: 'Select at least one reviewer.',
@@ -171,6 +178,7 @@ export const sopWorkflowEn: SopWorkflowContent = {
       approvalDaysLabel: 'Approval due in',
       days: '{count} days',
       oneDay: '1 day',
+      noDueDate: 'No due date',
       confirm: 'Resubmit for review',
     },
   },

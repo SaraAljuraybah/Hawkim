@@ -513,6 +513,7 @@ export interface SopWorkflowContent {
       /** `unchecked`: `{names}` is replaced with the approvers unchecked because they became reviewers. */
       approvers: { label: string; hint: string; empty: string; unchecked: string }
       /** `dueHint`: `{date}` is replaced with the due date if submitted now. */
+      /** `dueHint`: `{date}` is replaced with the due date if submitted now. */
       reviewDays: { label: string; hint: string; dueHint: string }
       approvalDays: { label: string; hint: string }
       note: { label: string; placeholder: string; counter: string }
@@ -542,6 +543,7 @@ export interface SopWorkflowContent {
       /** `{count}` is replaced. */
       days: string
       oneDay: string
+      noDueDate: string
       confirm: string
     }
   }

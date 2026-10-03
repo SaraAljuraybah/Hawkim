@@ -220,9 +220,7 @@ export const sops: Sop[] = [
     approvers: [
       { userId: 'user-huda', decision: 'pending' },
     ],
-    reviewDueDays: 30,
     approvalDueDays: 5,
-    reviewDueAt: '2026-10-24T09:30:00+03:00',
     versions: [
       { version: '1.0', fileName: 'SOP-080.docx', fileType: 'docx', uploadedAt: '2026-09-22T11:00:00+03:00' },
     ],
@@ -230,7 +228,6 @@ export const sops: Sop[] = [
     timeline: [
       { id: 'evt-080-1', type: 'uploaded', actorId: 'user-sara', version: '1.0', createdAt: '2026-09-22T11:00:00+03:00' },
       { id: 'evt-080-2', type: 'submitted', actorId: 'user-sara', recipientIds: ['user-noura', 'user-faisal'], version: '1.0', createdAt: '2026-09-24T09:30:00+03:00', note: 'Ready for review.' },
-      { id: 'evt-080-3', type: 'stage-due-date-set', actorId: 'user-sara', stage: 'review', dueAt: '2026-10-24T09:30:00+03:00', version: '1.0', createdAt: '2026-09-24T09:30:00+03:00' },
       { id: 'evt-080-4', type: 'review-completed', actorId: 'user-noura', version: '1.0', createdAt: '2026-09-26T16:20:00+03:00' },
     ],
   },

@@ -5,6 +5,7 @@ import { sopWorkflowEn } from '../../content/workflow.en'
 import { workflowDemoEn } from '../../content/workflowDemo.en'
 import { getUser } from '../../data/mock/users'
 import type { ReviewRole, Sop } from '../../data/mock/types'
+import { currentDueAt } from '../../lib/workflow'
 import { useSops } from '../../state/sopsContext'
 import { Button } from '../ui/Button'
 import { FormDialog } from '../ui/FormDialog'
@@ -62,7 +63,8 @@ export default function DemoPanel({ sop, announce }: DemoPanelProps) {
   const pendingReviewers = sop.status === 'in-review' ? sop.reviewers.filter((p) => p.decision === 'pending') : []
   const pendingApprovers = sop.status === 'in-approval' ? sop.approvers.filter((p) => p.decision === 'pending') : []
   const publishers = sop.status === 'approved' ? sop.approvers : []
-  const dueDatesOpen = sop.status === 'in-review' || sop.status === 'in-approval'
+  // The clock only matters when the open stage has a due date.
+  const dueDatesOpen = !!currentDueAt(sop)
 
   const buttons = [
     ...pendingReviewers.flatMap(({ userId }) => [
