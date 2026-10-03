@@ -195,6 +195,12 @@ export interface AppShellContent {
   closeMenu: string
   /** Accessible name of the mobile navigation drawer. */
   drawerLabel: string
+  departmentSwitcher: {
+    /** Label before the department name (visible in the drawer, screen-reader only in the top bar). */
+    label: string
+    /** Accessible name of the department menu. */
+    menuLabel: string
+  }
 }
 
 /* ---------- Signed-in app: dashboard ---------- */

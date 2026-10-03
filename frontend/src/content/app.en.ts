@@ -22,6 +22,10 @@ export const appShellEn: AppShellContent = {
   openMenu: 'Open menu',
   closeMenu: 'Close menu',
   drawerLabel: 'Navigation',
+  departmentSwitcher: {
+    label: 'Department',
+    menuLabel: 'Your departments',
+  },
 }
 
 export const dashboardEn: DashboardContent = {

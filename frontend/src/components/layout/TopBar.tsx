@@ -2,6 +2,7 @@ import type { Ref } from 'react'
 import { Bell, Menu } from 'lucide-react'
 import type { AppShellContent } from '../../content/types'
 import type { User } from '../../data/mock/types'
+import { DepartmentSwitcher } from './DepartmentSwitcher'
 
 interface TopBarProps {
   content: AppShellContent
@@ -48,10 +49,13 @@ export function TopBar({ content, user, menuOpen, onOpenMenu, menuButtonRef }: T
             >
               {user.initials}
             </span>
-            {/* On very small screens only the initials are visible; the text stays available to screen readers */}
-            <div className="sr-only leading-tight sm:not-sr-only">
-              <p className="text-sm font-medium text-maroon">{user.name}</p>
-              <p className="text-xs text-text-gray">{user.department}</p>
+            <div className="leading-tight">
+              {/* On phones the name stays available to screen readers only; the
+                  department switcher moves into the mobile drawer. */}
+              <p className="sr-only text-sm font-medium text-maroon sm:not-sr-only">{user.name}</p>
+              <div className="hidden sm:block">
+                <DepartmentSwitcher content={content.departmentSwitcher} variant="topbar" />
+              </div>
             </div>
           </div>
         </div>
