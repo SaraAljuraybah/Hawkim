@@ -1,8 +1,13 @@
 import type { DepartmentId, RequestType } from '../data/mock/types'
 
-/** Path of an SOP's detail page. */
+/** Path of an SOP's detail page in the SOPs directory. */
 export function sopPath(sopId: string): string {
   return `/sops/${encodeURIComponent(sopId)}`
+}
+
+/** Path of an SOP's workflow page (the author's view). */
+export function mySopPath(sopId: string): string {
+  return `/my-sops/${encodeURIComponent(sopId)}`
 }
 
 /** Query parameter names that Submit a Request reads to prefill the form. */

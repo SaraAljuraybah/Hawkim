@@ -84,7 +84,8 @@ export function UploadSopPage() {
     }
 
     setSubmitting(true)
-    // TODO: Upload the file to the backend (only its name and type are kept for now).
+    // TODO: Upload the file to the backend. For now only its name and type are saved,
+    // plus an in-memory URL so it can be downloaded during this session.
     await new Promise((resolve) => setTimeout(resolve, UPLOAD_DELAY_MS))
     const file = files[0]
     addDraft({
@@ -93,6 +94,7 @@ export function UploadSopPage() {
       departmentId: activeDepartment.id,
       fileName: file.name,
       fileType: fileTypeOf(file),
+      fileUrl: URL.createObjectURL(file),
     })
     // Back to My SOPs, which announces the success message.
     const state: MySopsLocationState = { uploaded: true }

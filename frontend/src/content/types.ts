@@ -1,4 +1,4 @@
-import type { DashboardStatKey, Permission, RequestType } from '../data/mock/types'
+import type { DashboardStatKey, Permission, RequestType, SopFileType, TimelineEventType } from '../data/mock/types'
 
 /*
  * Shape of the landing page content.
@@ -397,4 +397,94 @@ export interface UploadSopContent {
   errors: { titleRequired: string; fileRequired: string }
   cancel: LinkContent
   submit: { label: string; loadingLabel: string }
+}
+
+/* ---------- Author: SOP workflow page ---------- */
+
+/** Text for a single-file picker (FileDropzone) used in workflow dialogs. */
+export interface SopFileFieldContent {
+  label: string
+  hint: string
+  dropPrompt: string
+  browse: string
+  remove: string
+  typeError: string
+  sizeError: string
+}
+
+export interface SopWorkflowContent {
+  /** `{code}` is replaced, e.g. "SOP-083 | Hawkim". */
+  pageTitle: string
+  back: LinkContent
+  versionTemplate: string
+  /** `{date}` is replaced. */
+  lastUpdatedTemplate: string
+  departmentLabel: string
+  roles: { reviewer: string; approver: string; author: string }
+  tracker: {
+    label: string
+    steps: { draft: string; 'in-review': string; 'in-approval': string; approved: string; published: string }
+    returned: string
+    /** Screen-reader state of each step. */
+    srCompleted: string
+    srCurrent: string
+    srReturned: string
+  }
+  file: {
+    title: string
+    types: Record<SopFileType, string>
+    download: string
+    viewInDirectory: string
+  }
+  actions: {
+    title: string
+    submit: string
+    replace: string
+    uploadNewVersion: string
+    resubmit: string
+    resubmitHint: string
+    /** `{name}` and `{role}` are replaced. */
+    waiting: string
+    approvedWaiting: string
+    published: string
+  }
+  feedback: {
+    title: string
+    /** `{name}`, `{role}`, `{date}` and `{version}` are replaced. */
+    description: string
+  }
+  comments: {
+    title: string
+    empty: string
+    /** `{version}` is replaced. */
+    versionHeading: string
+  }
+  timeline: {
+    title: string
+    events: Record<TimelineEventType, string>
+    /** `{name}` is replaced. */
+    by: string
+    /** `{name}` is replaced. */
+    to: string
+    noteLabel: string
+  }
+  dialogs: {
+    cancel: string
+    fileField: SopFileFieldContent
+    fileRequired: string
+    submit: {
+      title: string
+      description: string
+      reviewer: { label: string; placeholder: string }
+      approver: { label: string; placeholder: string }
+      note: { label: string; placeholder: string; counter: string }
+      errors: { reviewerRequired: string; approverRequired: string }
+      confirm: string
+    }
+    replace: { title: string; description: string; confirm: string }
+    newVersion: { title: string; description: string; confirm: string }
+    resubmit: { title: string; description: string; reviewerLabel: string; approverLabel: string; confirm: string }
+  }
+  /** Announced after each action. */
+  messages: { submitted: string; replaced: string; newVersion: string; resubmitted: string }
 }
