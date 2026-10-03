@@ -10,9 +10,7 @@ import type { Status } from '../../types/status'
 export interface User {
   name: string
   initials: string
-  /** Display label for the user's department (e.g. "IT Department"). */
-  department: string
-  /** The user's department; used for filtering (e.g. "My Department"). */
+  /** The user's home department. */
   departmentId: DepartmentId
 }
 

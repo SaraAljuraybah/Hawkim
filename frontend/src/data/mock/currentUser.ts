@@ -7,6 +7,5 @@ import type { User } from './types'
 export const currentUser: User = {
   name: 'Sara Aljuraybah',
   initials: 'SA',
-  department: 'IT Department',
   departmentId: 'information-technology',
 }

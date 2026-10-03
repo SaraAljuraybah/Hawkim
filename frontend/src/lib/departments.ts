@@ -4,8 +4,9 @@ import type { Department, DepartmentId, User, UserRequest } from '../data/mock/t
 /**
  * The departments a user belongs to: their home department plus every department
  * where their department-access request was APPROVED ("joined" departments).
- * Listed in the order of the department list. Pass the requests from the shared
- * requests store, so the result updates as soon as requests change.
+ * The home department comes first, then the joined ones in department-list order.
+ * Pass the requests from the shared requests store, so the result updates as soon
+ * as requests change.
  */
 export function getUserDepartments(user: Pick<User, 'departmentId'>, requests: UserRequest[]): Department[] {
   const joined = new Set(
@@ -13,7 +14,9 @@ export function getUserDepartments(user: Pick<User, 'departmentId'>, requests: U
       .filter((request) => request.type === 'department-access' && request.status === 'approved')
       .map((request) => request.departmentId),
   )
-  return departments.filter((department) => department.id === user.departmentId || joined.has(department.id))
+  const home = departments.filter((department) => department.id === user.departmentId)
+  const others = departments.filter((department) => department.id !== user.departmentId && joined.has(department.id))
+  return [...home, ...others]
 }
 
 /**
