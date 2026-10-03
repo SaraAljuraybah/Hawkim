@@ -870,7 +870,10 @@ export interface AdminUserDetailsContent {
     /** Shown on the users list afterwards; `{name}` is replaced. */
     done: string
   }
-  /** Why a change is refused. `{name}` (the user) and `{sops}` (SOP codes) are replaced. */
+  /**
+   * Why a change is refused. `{name}` (the user) and `{sops}` (SOP codes; with their
+   * status for reviewers and approvers) are replaced.
+   */
   blockers: {
     selfDelete: string
     selfAdmin: string
@@ -878,6 +881,8 @@ export interface AdminUserDetailsContent {
     inUse: Record<'author' | 'reviewer' | 'approver', string>
     /** A permission that can't be removed; `{permission}` and `{reason}` are replaced. */
     cantRemove: string
+    /** An SOP with its status, e.g. "SOP-081 (Returned)"; `{code}` and `{status}` are replaced. */
+    sopWithStatus: string
   }
 }
 

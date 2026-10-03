@@ -106,10 +106,11 @@ export const adminEn: AdminContent = {
       lastAdmin: 'Hawkim must always have at least one admin, and {name} is the only one.',
       inUse: {
         author: '{name} authors or co-authors {sops} (not published yet).',
-        reviewer: '{name} has a pending review on {sops}.',
-        approver: '{name} has a pending approval or publishing on {sops}.',
+        reviewer: '{name} is assigned as a reviewer on {sops}.',
+        approver: '{name} is assigned as an approver on {sops}.',
       },
       cantRemove: "{permission} can't be removed: {reason}",
+      sopWithStatus: '{code} ({status})',
     },
   },
 }

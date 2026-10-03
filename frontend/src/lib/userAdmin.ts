@@ -67,33 +67,33 @@ export function involvement(userId: string, sops: Sop[]): { sop: Sop; roles: Sop
     .sort((a, b) => a.sop.code.localeCompare(b.sop.code, 'en', { numeric: true }))
 }
 
-/** A reviewer or approver whose decision is "pending" here still has to decide. */
-const DECIDING: SopStatus[] = ['in-review', 'in-approval', 'returned']
+/**
+ * Statuses where the assigned reviewers and approvers are still part of the workflow:
+ * resubmitting a returned SOP sends it back to all of them, and an approved SOP
+ * still has to be published by one of its approvers.
+ */
+const ASSIGNED_STATUSES: SopStatus[] = ['in-review', 'in-approval', 'returned', 'approved']
 
 export type InUsePermission = Exclude<Permission, 'admin'>
 
 /**
  * The SOPs that keep a permission in use (so it can't be removed and the user can't be deleted):
  * - author:   the user authors or co-authors an SOP that isn't published yet;
- * - reviewer: a pending review decision on an SOP in review, in approval or returned;
- * - approver: a pending approval decision on such an SOP, or any approver of an
- *             approved SOP (one of them still has to publish it).
+ * - reviewer: assigned as a reviewer on an SOP in review, in approval, returned or
+ *             approved, whatever their own decision;
+ * - approver: assigned as an approver on such an SOP, whatever their own decision.
  */
 export function sopsUsing(permission: InUsePermission, userId: string, sops: Sop[]): Sop[] {
-  const pending = (people: { userId: string; decision: string }[]) =>
-    people.some((person) => person.userId === userId && person.decision === 'pending')
+  const assigned = (people: { userId: string }[]) => people.some((person) => person.userId === userId)
   return sops
     .filter((sop) => {
       switch (permission) {
         case 'author':
           return (sop.authorId === userId || sop.coAuthorIds.includes(userId)) && sop.status !== 'published'
         case 'reviewer':
-          return DECIDING.includes(sop.status) && pending(sop.reviewers)
+          return ASSIGNED_STATUSES.includes(sop.status) && assigned(sop.reviewers)
         case 'approver':
-          return (
-            (DECIDING.includes(sop.status) && pending(sop.approvers)) ||
-            (sop.status === 'approved' && sop.approvers.some((person) => person.userId === userId))
-          )
+          return ASSIGNED_STATUSES.includes(sop.status) && assigned(sop.approvers)
       }
     })
     .sort((a, b) => a.code.localeCompare(b.code, 'en', { numeric: true }))

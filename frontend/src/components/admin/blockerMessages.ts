@@ -1,4 +1,5 @@
 import type { AdminUserDetailsContent } from '../../content/types'
+import { statusLabelsEn } from '../../content/status.en'
 import { usersEn } from '../../content/users.en'
 import type { User } from '../../data/mock/types'
 import type { Blocker } from '../../lib/userAdmin'
@@ -27,7 +28,17 @@ export function blockerMessage(
         usersEn.permissions[blocker.permission],
         text.inUse[blocker.permission]
           .replace('{name}', user.name)
-          .replace('{sops}', blocker.sops.map((sop) => sop.code).join(', ')),
+          .replace(
+            '{sops}',
+            blocker.sops
+              .map((sop) =>
+                // Reviewers and approvers: with the status, e.g. "SOP-081 (Returned)".
+                blocker.permission === 'author'
+                  ? sop.code
+                  : text.sopWithStatus.replace('{code}', sop.code).replace('{status}', statusLabelsEn[sop.status]),
+              )
+              .join(', '),
+          ),
       )
   }
 }
