@@ -29,6 +29,54 @@ export function SopsProvider({ children }: { children: ReactNode }) {
     setSops(next)
   }, [])
 
+  /**
+   * Applies a workflow transition to one SOP as a single update (status, people
+   * and timeline events together). The rule is checked against the latest SOP
+   * first, so an invalid action throws before anything changes.
+   */
+  const update = useCallback(
+    (sopId: string, transition: (sop: Sop) => Sop) => {
+      const current = latestRef.current
+      const sop = current.find((item) => item.id === sopId)
+      if (!sop) throw new Error(`Unknown SOP ${sopId}`)
+      const updated = transition(sop)
+      commit(current.map((item) => (item.id === sopId ? updated : item)))
+    },
+    [commit],
+  )
+
+  /**
+   * Completes a compliance check after the sample delay. The check is matched by
+   * id, so nothing happens if it was replaced or already ended in the meantime.
+   * TODO: Replace the sample timer with a call to the compliance service API.
+   */
+  const scheduleCompletion = useCallback(
+    (sopId: string, checkId: string) => {
+      window.setTimeout(
+        () => update(sopId, (sop) => compliance.completeCheck(sop, checkId)),
+        compliance.SAMPLE_CHECK_DURATION_MS,
+      )
+    },
+    [update],
+  )
+
+  /**
+   * Applies a transition and starts a compliance check of the result in the same
+   * update: after every upload (automatically) or when the author runs one (PBI 4, 29).
+   */
+  const updateAndCheck = useCallback(
+    (sopId: string, transition: (sop: Sop) => Sop, afterUpload: boolean) => {
+      let checkId = ''
+      update(sopId, (sop) => {
+        const started = compliance.startCheck(transition(sop), { afterUpload })
+        checkId = started.checkId
+        return started.sop
+      })
+      scheduleCompletion(sopId, checkId)
+    },
+    [update, scheduleCompletion],
+  )
+
   const addDraft = useCallback(
     (draft: NewDraft) => {
       const current = latestRef.current
@@ -70,47 +118,13 @@ export function SopsProvider({ children }: { children: ReactNode }) {
         timeline,
         complianceChecks: [],
       }
-      commit([created, ...current])
-      return created
+      // Every upload starts a compliance check automatically.
+      const started = compliance.startCheck(created, { afterUpload: true })
+      commit([started.sop, ...current])
+      scheduleCompletion(started.sop.id, started.checkId)
+      return started.sop
     },
-    [commit, user.id],
-  )
-
-  /**
-   * Applies a workflow transition to one SOP as a single update (status, people
-   * and timeline events together). The rule is checked against the latest SOP
-   * first, so an invalid action throws before anything changes.
-   */
-  const update = useCallback(
-    (sopId: string, transition: (sop: Sop) => Sop) => {
-      const current = latestRef.current
-      const sop = current.find((item) => item.id === sopId)
-      if (!sop) throw new Error(`Unknown SOP ${sopId}`)
-      const updated = transition(sop)
-      commit(current.map((item) => (item.id === sopId ? updated : item)))
-    },
-    [commit],
-  )
-
-  /**
-   * Starts a compliance check of the current version, then completes it after
-   * the sample delay (the check is matched by id, so later changes don't matter).
-   * TODO: Replace the sample timer with a call to the compliance service API.
-   */
-  const runCheck = useCallback(
-    (sopId: string) => {
-      let checkId = ''
-      update(sopId, (sop) => {
-        const started = compliance.startCheck(sop)
-        checkId = started.checkId
-        return started.sop
-      })
-      window.setTimeout(
-        () => update(sopId, (sop) => compliance.completeCheck(sop, checkId)),
-        compliance.SAMPLE_CHECK_DURATION_MS,
-      )
-    },
-    [update],
+    [commit, scheduleCompletion, user.id],
   )
 
   const store = useMemo<SopsStore>(
@@ -122,12 +136,12 @@ export function SopsProvider({ children }: { children: ReactNode }) {
           workflow.submitForReview(sop, user.id, o.reviewerIds, o.approverIds, o.reviewDueDays, o.approvalDueDays, o.note),
         ),
       resubmit: (id, note) => update(id, (sop) => workflow.resubmit(sop, user.id, note)),
-      replaceFile: (id, file) => update(id, (sop) => workflow.replaceFile(sop, user.id, file)),
-      uploadNewVersion: (id, file) => update(id, (sop) => workflow.uploadNewVersion(sop, user.id, file)),
+      replaceFile: (id, file) => updateAndCheck(id, (sop) => workflow.replaceFile(sop, user.id, file), true),
+      uploadNewVersion: (id, file) => updateAndCheck(id, (sop) => workflow.uploadNewVersion(sop, user.id, file), true),
       addCoAuthors: (id, userIds) =>
         update(id, (sop) => userIds.reduce((next, userId) => workflow.addCoAuthor(next, user.id, userId), sop)),
       removeCoAuthor: (id, userId) => update(id, (sop) => workflow.removeCoAuthor(sop, user.id, userId)),
-      runCheck,
+      runCheck: (id) => updateAndCheck(id, (sop) => sop, false),
       completeReview: (id, reviewerId) => update(id, (sop) => workflow.completeReview(sop, reviewerId)),
       returnAsReviewer: (id, reviewerId, text) => update(id, (sop) => workflow.returnAsReviewer(sop, reviewerId, text)),
       approveAs: (id, approverId) => update(id, (sop) => workflow.approveAs(sop, approverId)),
@@ -140,7 +154,7 @@ export function SopsProvider({ children }: { children: ReactNode }) {
           return running ? compliance.failCheck(sop, running.id) : sop
         }),
     }),
-    [sops, addDraft, update, runCheck, user.id],
+    [sops, addDraft, update, updateAndCheck, user.id],
   )
 
   return <SopsContext.Provider value={store}>{children}</SopsContext.Provider>

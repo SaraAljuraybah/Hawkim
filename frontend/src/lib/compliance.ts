@@ -57,9 +57,14 @@ export function sortFindings(findings: Finding[]): Finding[] {
 
 // ---------- Running checks (sample engine) ----------
 
-/** Starts a check of the current version. Only one check runs at a time. */
-export function startCheck(sop: Sop): { sop: Sop; checkId: string } {
-  if (isCheckRunning(sop)) throw new Error('A compliance check is already running')
+/**
+ * Starts a check of the current version. Only one check runs at a time: a manual
+ * run is refused while one is running, but an upload replaces the running check
+ * (it was checking a file that has just been replaced), which leaves no report.
+ */
+export function startCheck(sop: Sop, { afterUpload = false } = {}): { sop: Sop; checkId: string } {
+  if (isCheckRunning(sop) && !afterUpload) throw new Error('A compliance check is already running')
+  const kept = sop.complianceChecks.filter((check) => check.status !== 'running')
   const check: ComplianceCheck = {
     id: newId('chk'),
     sopId: sop.id,
@@ -69,7 +74,7 @@ export function startCheck(sop: Sop): { sop: Sop; checkId: string } {
     guideline: GVP_GUIDELINE,
     findings: [],
   }
-  return { sop: { ...sop, complianceChecks: [...sop.complianceChecks, check] }, checkId: check.id }
+  return { sop: { ...sop, complianceChecks: [...kept, check] }, checkId: check.id }
 }
 
 /** Ends a running check as completed (with the sample findings) or failed; adds a timeline event by System. */

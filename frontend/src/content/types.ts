@@ -491,6 +491,13 @@ export interface SopWorkflowContent {
     published: string
     /** Shown to co-authors; `{name}` is the main author. */
     authorOnly: string
+    /** Why Submit / Resubmit is disabled: the check is running, or there's no completed check. */
+    checkWaiting: string
+    checkNeeded: string
+    checkFailed: string
+    runCheckAgain: string
+    /** Published SOPs: run a new check after the requirements change (PBI 29). */
+    recheck: string
   }
   feedback: {
     title: string
@@ -571,6 +578,7 @@ export interface SopWorkflowContent {
     coAuthorsAdded: string
     /** `{name}` is replaced. */
     coAuthorRemoved: string
+    checkStarted: string
   }
 }
 
@@ -589,6 +597,8 @@ export interface WorkflowDemoContent {
     publish: string
     /** Shifts the stored due dates back, as if time had passed. */
     clockForward: string
+    /** Ends the running compliance check as failed. */
+    failCheck: string
   }
   commentDialog: {
     title: string
@@ -601,5 +611,12 @@ export interface WorkflowDemoContent {
     cancel: string
   }
   /** `{name}` is replaced where it appears. */
-  messages: { reviewCompleted: string; returned: string; approved: string; published: string; clockForward: string }
+  messages: {
+    reviewCompleted: string
+    returned: string
+    approved: string
+    published: string
+    clockForward: string
+    checkFailed: string
+  }
 }

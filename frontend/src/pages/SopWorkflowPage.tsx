@@ -18,6 +18,7 @@ import { getDepartmentName } from '../data/mock/departments'
 import { getUser } from '../data/mock/users'
 import type { Sop } from '../data/mock/types'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
+import { currentCheck, hasCompletedCheck, isCheckRunning } from '../lib/compliance'
 import { formatDate, formatDateTime, formatMonthDay } from '../lib/format'
 import { hasPermission } from '../lib/permissions'
 import { sopPath } from '../lib/routes'
@@ -147,6 +148,18 @@ export function SopWorkflowPage() {
   const returned = sop.status === 'returned' ? latestReturn(sop) : undefined
   const feedback = sop.status === 'returned' ? latestReturnComments(sop) : []
   const resubmitReady = canResubmit(sop)
+  // A completed compliance check of the current version is needed before submitting (it needn't pass).
+  const checkRunning = isCheckRunning(sop)
+  const checkDone = hasCompletedCheck(sop)
+  const checkFailed = !checkRunning && currentCheck(sop)?.status === 'failed'
+  const submitReason = checkDone ? undefined : checkRunning ? actions.checkWaiting : actions.checkNeeded
+  const resubmitReason = !resubmitReady ? actions.resubmitHint : submitReason
+
+  const sopId = sop.id
+  function runCheck() {
+    store.runCheck(sopId)
+    announce(content.messages.checkStarted)
+  }
 
   return (
     <>
@@ -250,11 +263,24 @@ export function SopWorkflowPage() {
           {sop.status === 'draft' && (
             <div className="space-y-3">
               <div className="flex flex-col gap-3 sm:flex-row">
-                {isMainAuthor && <Button onClick={(event) => open('submit', event.currentTarget)}>{actions.submit}</Button>}
+                {isMainAuthor && (
+                  <Button
+                    disabled={!!submitReason}
+                    aria-describedby={submitReason ? 'submit-hint' : undefined}
+                    onClick={(event) => open('submit', event.currentTarget)}
+                  >
+                    {actions.submit}
+                  </Button>
+                )}
                 <Button variant="secondary" onClick={(event) => open('replace', event.currentTarget)}>
                   {actions.replace}
                 </Button>
               </div>
+              {isMainAuthor && submitReason && (
+                <p id="submit-hint" className="text-sm text-text-gray">
+                  {submitReason}
+                </p>
+              )}
               {!isMainAuthor && <p className="text-sm text-text-gray">{actions.authorOnly.replace('{name}', authorName)}</p>}
             </div>
           )}
@@ -266,17 +292,17 @@ export function SopWorkflowPage() {
                 {isMainAuthor && (
                   <Button
                     variant="secondary"
-                    disabled={!resubmitReady}
-                    aria-describedby={resubmitReady ? undefined : 'resubmit-hint'}
+                    disabled={!!resubmitReason}
+                    aria-describedby={resubmitReason ? 'resubmit-hint' : undefined}
                     onClick={(event) => open('resubmit', event.currentTarget)}
                   >
                     {actions.resubmit}
                   </Button>
                 )}
               </div>
-              {isMainAuthor && !resubmitReady && (
+              {isMainAuthor && resubmitReason && (
                 <p id="resubmit-hint" className="text-sm text-text-gray">
-                  {actions.resubmitHint}
+                  {resubmitReason}
                 </p>
               )}
               {!isMainAuthor && <p className="text-sm text-text-gray">{actions.authorOnly.replace('{name}', authorName)}</p>}
@@ -298,7 +324,33 @@ export function SopWorkflowPage() {
             </p>
           )}
           {sop.status === 'approved' && <p className="text-sm text-text-gray">{actions.approvedWaiting}</p>}
-          {sop.status === 'published' && <p className="text-sm text-text-gray">{actions.published}</p>}
+          {sop.status === 'published' && (
+            <div className="space-y-3">
+              <p className="text-sm text-text-gray">{actions.published}</p>
+              <Button
+                variant="secondary"
+                disabled={checkRunning}
+                aria-describedby={checkRunning ? 'recheck-hint' : undefined}
+                onClick={runCheck}
+              >
+                {actions.recheck}
+              </Button>
+              {checkRunning && (
+                <p id="recheck-hint" className="text-sm text-text-gray">
+                  {actions.checkWaiting}
+                </p>
+              )}
+            </div>
+          )}
+
+          {checkFailed && (
+            <div className="mt-4 rounded-lg border border-status-rejected-fg/25 bg-status-rejected-bg/50 p-4">
+              <p className="text-sm font-medium text-status-rejected-fg">{actions.checkFailed}</p>
+              <Button size="sm" variant="secondary" className="mt-3" onClick={runCheck}>
+                {actions.runCheckAgain}
+              </Button>
+            </div>
+          )}
         </Section>
       </div>
 

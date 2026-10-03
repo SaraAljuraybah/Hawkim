@@ -64,6 +64,11 @@ export const sopWorkflowEn: SopWorkflowContent = {
     approvedWaiting: 'Approved — waiting to be published',
     published: 'This SOP is published.',
     authorOnly: 'Only the author, {name}, can submit this SOP.',
+    checkWaiting: 'Waiting for the compliance check to finish.',
+    checkNeeded: 'Run a compliance check for this version first.',
+    checkFailed: "The compliance check couldn't be completed.",
+    runCheckAgain: 'Run check again',
+    recheck: 'Recheck compliance',
   },
 
   feedback: {
@@ -190,5 +195,6 @@ export const sopWorkflowEn: SopWorkflowContent = {
     resubmitted: 'Resubmitted for review.',
     coAuthorsAdded: 'Co-authors added.',
     coAuthorRemoved: '{name} removed as co-author.',
+    checkStarted: 'Compliance check started.',
   },
 }
