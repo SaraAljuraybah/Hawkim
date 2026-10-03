@@ -613,6 +613,31 @@ export interface ComplianceContent {
     runAgain: string
     run: string
   }
+  /** The compliance report page ("/my-sops/:id/compliance"). */
+  report: {
+    /** `{code}` is replaced. */
+    pageTitle: string
+    /** `{code}` is replaced. */
+    back: string
+    title: string
+    /** Selector shown when reports exist for several versions; `{version}` is replaced. */
+    versionSelect: { label: string; option: string; current: string }
+    summaryTitle: string
+    findingsTitle: string
+    tabsLabel: string
+    tabs: Record<'all' | ComplianceResult, string>
+    /** `{module}`, `{section}`, `{title}` and `{page}` are replaced. */
+    requirementReference: string
+    justification: string
+    /** `{reference}` is replaced. */
+    sopReference: string
+    /** No findings in the selected tab. */
+    empty: string
+    /** The selected version has no completed report; `{version}` is replaced. */
+    running: string
+    failed: string
+    none: string
+  }
 }
 
 /* ---------- Development only: workflow demo controls ---------- */

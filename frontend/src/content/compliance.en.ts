@@ -1,5 +1,6 @@
 /*
- * English content for compliance checks: the card on the SOP workflow page.
+ * English content for compliance checks: the card on the SOP workflow page
+ * and the compliance report page.
  * Same pattern as the other content files — no hard-coded text in components.
  */
 
@@ -30,5 +31,28 @@ export const complianceEn: ComplianceContent = {
     viewReport: 'View full report',
     runAgain: 'Run check again',
     run: 'Run check',
+  },
+  report: {
+    pageTitle: 'Compliance report · {code} | Hawkim',
+    back: 'Back to {code}',
+    title: 'Compliance report',
+    versionSelect: { label: 'Report for', option: 'Version {version}', current: 'Version {version} (current)' },
+    summaryTitle: 'Summary',
+    findingsTitle: 'Findings',
+    tabsLabel: 'Filter findings by result',
+    tabs: {
+      all: 'All',
+      conflict: 'Conflict',
+      'not-addressed': 'Not addressed',
+      partial: 'Partially compliant',
+      compliant: 'Compliant',
+    },
+    requirementReference: 'GVP {module} · {section} {title} · p. {page}',
+    justification: 'Justification',
+    sopReference: 'SOP reference: {reference}',
+    empty: 'No findings with this result.',
+    running: 'The compliance check for version {version} is still running.',
+    failed: 'The compliance check for version {version} couldn’t be completed.',
+    none: 'There’s no compliance report for version {version} yet.',
   },
 }
