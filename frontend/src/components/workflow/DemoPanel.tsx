@@ -11,6 +11,8 @@ import { FormDialog } from '../ui/FormDialog'
 import { TextAreaField } from '../ui/TextAreaField'
 
 const COMMENT_MAX = 1000
+/** "Move the clock forward": due dates move this many days earlier. */
+const CLOCK_STEP_DAYS = 3
 
 interface DemoPanelProps {
   sop: Sop
@@ -18,85 +20,107 @@ interface DemoPanelProps {
   announce: (message: string) => void
 }
 
+/** The person returning the SOP with a comment. */
+interface Returner {
+  userId: string
+  role: ReviewRole
+}
+
 /**
- * DEVELOPMENT ONLY: simulates the reviewer's and approver's actions until their
+ * DEVELOPMENT ONLY: simulates each reviewer's and approver's actions until their
  * screens exist. Loaded only when import.meta.env.DEV is true (see SopWorkflowPage),
  * so it is not part of the production build. Each button uses the same store
- * actions the real screens will use; the actor is the assigned reviewer or approver.
+ * actions the real screens will use, acting as that person.
  */
 export default function DemoPanel({ sop, announce }: DemoPanelProps) {
   const content = workflowDemoEn
   const roles = sopWorkflowEn.roles
   const store = useSops()
-  const [commentRole, setCommentRole] = useState<ReviewRole | null>(null)
+  const [returner, setReturner] = useState<Returner | null>(null)
   const [comment, setComment] = useState('')
   const [error, setError] = useState<string>()
   const commentRef = useRef<HTMLTextAreaElement>(null)
   const triggerRef = useRef<HTMLElement | null>(null)
 
-  function openComment(role: ReviewRole, trigger: HTMLElement) {
+  const nameOf = (userId: string) => getUser(userId)?.name ?? ''
+  const label = (template: string, userId: string) => template.replace('{name}', nameOf(userId))
+
+  function openComment(next: Returner, trigger: HTMLElement) {
     triggerRef.current = trigger
     setComment('')
     setError(undefined)
-    setCommentRole(role)
+    setReturner(next)
   }
 
   function closeComment() {
-    setCommentRole(null)
+    setReturner(null)
     requestAnimationFrame(() => {
       if (triggerRef.current?.isConnected) triggerRef.current.focus()
     })
   }
 
-  // Temporary: acts as the first pending reviewer/approver (per-person controls come later).
-  const firstPending = (role: ReviewRole) =>
-    (role === 'reviewer' ? sop.reviewers : sop.approvers).find((p) => p.decision === 'pending')?.userId ?? ''
-  const actor = getUser(commentRole ? firstPending(commentRole) : undefined)
-  const buttons =
-    sop.status === 'in-review' ? (
-      <>
-        <Button size="sm" variant="secondary" onClick={(event) => openComment('reviewer', event.currentTarget)}>
-          {content.buttons.reviewerReturn}
-        </Button>
-        <Button
-          size="sm"
-          variant="secondary"
-          onClick={() => {
-            store.completeReview(sop.id, firstPending('reviewer'))
-            announce(content.messages.forwarded)
-          }}
-        >
-          {content.buttons.reviewerForward}
-        </Button>
-      </>
-    ) : sop.status === 'in-approval' ? (
-      <>
-        <Button size="sm" variant="secondary" onClick={(event) => openComment('approver', event.currentTarget)}>
-          {content.buttons.approverReturn}
-        </Button>
-        <Button
-          size="sm"
-          variant="secondary"
-          onClick={() => {
-            store.approveAs(sop.id, firstPending('approver'))
-            announce(content.messages.approved)
-          }}
-        >
-          {content.buttons.approverApprove}
-        </Button>
-      </>
-    ) : sop.status === 'approved' ? (
+  const pendingReviewers = sop.status === 'in-review' ? sop.reviewers.filter((p) => p.decision === 'pending') : []
+  const pendingApprovers = sop.status === 'in-approval' ? sop.approvers.filter((p) => p.decision === 'pending') : []
+  const publishers = sop.status === 'approved' ? sop.approvers : []
+  const dueDatesOpen = sop.status === 'in-review' || sop.status === 'in-approval'
+
+  const buttons = [
+    ...pendingReviewers.flatMap(({ userId }) => [
       <Button
+        key={`complete-${userId}`}
         size="sm"
         variant="secondary"
         onClick={() => {
-          store.publishAs(sop.id, sop.approvers[0]?.userId ?? '')
+          store.completeReview(sop.id, userId)
+          announce(label(content.messages.reviewCompleted, userId))
+        }}
+      >
+        {label(content.buttons.completeReview, userId)}
+      </Button>,
+      <Button
+        key={`return-${userId}`}
+        size="sm"
+        variant="secondary"
+        onClick={(event) => openComment({ userId, role: 'reviewer' }, event.currentTarget)}
+      >
+        {label(content.buttons.returnWithComment, userId)}
+      </Button>,
+    ]),
+    ...pendingApprovers.flatMap(({ userId }) => [
+      <Button
+        key={`approve-${userId}`}
+        size="sm"
+        variant="secondary"
+        onClick={() => {
+          store.approveAs(sop.id, userId)
+          announce(label(content.messages.approved, userId))
+        }}
+      >
+        {label(content.buttons.approve, userId)}
+      </Button>,
+      <Button
+        key={`return-${userId}`}
+        size="sm"
+        variant="secondary"
+        onClick={(event) => openComment({ userId, role: 'approver' }, event.currentTarget)}
+      >
+        {label(content.buttons.returnWithComment, userId)}
+      </Button>,
+    ]),
+    ...publishers.map(({ userId }) => (
+      <Button
+        key={`publish-${userId}`}
+        size="sm"
+        variant="secondary"
+        onClick={() => {
+          store.publishAs(sop.id, userId)
           announce(content.messages.published)
         }}
       >
-        {content.buttons.approverPublish}
+        {label(content.buttons.publish, userId)}
       </Button>
-    ) : null
+    )),
+  ]
 
   return (
     <details className="mt-6 rounded-xl border-2 border-dashed border-text-gray/40 bg-white p-5 sm:p-6">
@@ -106,16 +130,30 @@ export default function DemoPanel({ sop, announce }: DemoPanelProps) {
       </summary>
       <p className="mt-3 text-sm text-text-gray">{content.note}</p>
       <div className="mt-4 flex flex-wrap gap-3">
-        {buttons ?? <p className="text-sm text-text-gray">{content.noActions}</p>}
+        {buttons.length > 0 ? buttons : <p className="text-sm text-text-gray">{content.noActions}</p>}
       </div>
+      {dueDatesOpen && (
+        <div className="mt-4 border-t border-beige pt-4">
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={() => {
+              store.shiftDueDates(sop.id, CLOCK_STEP_DAYS)
+              announce(content.messages.clockForward)
+            }}
+          >
+            {content.buttons.clockForward}
+          </Button>
+        </div>
+      )}
 
-      {commentRole && (
+      {returner && (
         <FormDialog
           open
           title={content.commentDialog.title}
           description={content.commentDialog.description
-            .replace('{name}', actor?.name ?? '')
-            .replace('{role}', commentRole === 'approver' ? roles.approver : roles.reviewer)}
+            .replace('{name}', nameOf(returner.userId))
+            .replace('{role}', returner.role === 'approver' ? roles.approver : roles.reviewer)}
           confirmLabel={content.commentDialog.confirm}
           cancelLabel={content.commentDialog.cancel}
           onClose={closeComment}
@@ -125,8 +163,8 @@ export default function DemoPanel({ sop, announce }: DemoPanelProps) {
               commentRef.current?.focus()
               return false
             }
-            if (commentRole === 'reviewer') store.returnAsReviewer(sop.id, firstPending('reviewer'), comment.trim())
-            else store.returnAsApprover(sop.id, firstPending('approver'), comment.trim())
+            if (returner.role === 'reviewer') store.returnAsReviewer(sop.id, returner.userId, comment.trim())
+            else store.returnAsApprover(sop.id, returner.userId, comment.trim())
             announce(content.messages.returned)
           }}
         >

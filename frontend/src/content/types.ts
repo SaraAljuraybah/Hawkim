@@ -564,12 +564,14 @@ export interface WorkflowDemoContent {
   title: string
   note: string
   noActions: string
+  /** Per-person buttons; `{name}` is replaced. */
   buttons: {
-    reviewerReturn: string
-    reviewerForward: string
-    approverReturn: string
-    approverApprove: string
-    approverPublish: string
+    completeReview: string
+    returnWithComment: string
+    approve: string
+    publish: string
+    /** Shifts the stored due dates back, as if time had passed. */
+    clockForward: string
   }
   commentDialog: {
     title: string
@@ -581,5 +583,6 @@ export interface WorkflowDemoContent {
     confirm: string
     cancel: string
   }
-  messages: { returned: string; forwarded: string; approved: string; published: string }
+  /** `{name}` is replaced where it appears. */
+  messages: { reviewCompleted: string; returned: string; approved: string; published: string; clockForward: string }
 }

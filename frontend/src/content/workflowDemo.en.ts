@@ -11,11 +11,11 @@ export const workflowDemoEn: WorkflowDemoContent = {
   note: 'Simulates reviewer and approver actions until those screens exist.',
   noActions: 'No reviewer or approver actions for this status.',
   buttons: {
-    reviewerReturn: 'Reviewer: return with comment',
-    reviewerForward: 'Reviewer: forward to approver',
-    approverReturn: 'Approver: return with comment',
-    approverApprove: 'Approver: approve',
-    approverPublish: 'Approver: publish',
+    completeReview: '{name}: complete review',
+    returnWithComment: '{name}: return with comment',
+    approve: '{name}: approve',
+    publish: '{name}: publish',
+    clockForward: 'Move the clock forward 3 days',
   },
   commentDialog: {
     title: 'Return with comment',
@@ -27,9 +27,10 @@ export const workflowDemoEn: WorkflowDemoContent = {
     cancel: 'Cancel',
   },
   messages: {
+    reviewCompleted: '{name} completed their review.',
     returned: 'Returned to the author with a comment.',
-    forwarded: 'Forwarded to the approver.',
-    approved: 'Approved.',
+    approved: '{name} approved.',
     published: 'Published. It now appears in the SOPs directory.',
+    clockForward: 'Due dates moved 3 days earlier, as if 3 days had passed.',
   },
 }
