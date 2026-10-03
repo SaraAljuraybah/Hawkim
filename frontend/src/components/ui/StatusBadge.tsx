@@ -1,19 +1,26 @@
 import { statusLabelsEn } from '../../content/status.en'
-import type { Status } from '../../types/status'
+import type { BadgeStatus } from '../../types/status'
 
 interface StatusBadgeProps {
-  status: Status
+  status: BadgeStatus
   /** Status labels; defaults to English. */
-  labels?: Record<Status, string>
+  labels?: Record<BadgeStatus, string>
   className?: string
 }
 
 /* Colours come from the status tokens in index.css (all pairs meet WCAG AA). */
-const styles: Record<Status, string> = {
+const styles: Record<BadgeStatus, string> = {
+  // Requests
   pending: 'bg-status-pending-bg text-status-pending-fg',
   approved: 'bg-status-approved-bg text-status-approved-fg',
   rejected: 'bg-status-rejected-bg text-status-rejected-fg',
   cancelled: 'bg-status-cancelled-bg text-status-cancelled-fg',
+  // SOP lifecycle (reusing the same colour pairs, plus a maroon tint for Published)
+  draft: 'bg-status-cancelled-bg text-status-cancelled-fg',
+  'in-review': 'bg-status-pending-bg text-status-pending-fg',
+  returned: 'bg-status-rejected-bg text-status-rejected-fg',
+  'in-approval': 'bg-status-pending-bg text-status-pending-fg',
+  published: 'bg-status-published-bg text-status-published-fg',
 }
 
 /**

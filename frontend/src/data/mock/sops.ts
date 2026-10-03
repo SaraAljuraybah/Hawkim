@@ -1,7 +1,8 @@
 import type { Sop } from './types'
 
 /*
- * Sample SOPs (from the approved design). All are approved for now.
+ * Sample SOPs in the directory (from the approved design). All are published.
+ * TODO (step 2): Merge with authoredSops.ts into one SOP list, so each SOP (e.g. SOP-078) exists once.
  * Each points to a placeholder PDF in public/sample-sops/ (see scripts/generate-sample-sops.mjs).
  * TODO: Replace with data from the backend API.
  */
@@ -13,7 +14,7 @@ export const sops: Sop[] = [
     departmentId: 'quality-assurance',
     version: '2.1',
     lastUpdated: '2024-01-12',
-    status: 'approved',
+    status: 'published',
     fileUrl: '/sample-sops/SOP-017.pdf',
     fileType: 'pdf',
   },
@@ -24,7 +25,7 @@ export const sops: Sop[] = [
     departmentId: 'pharmacovigilance',
     version: '1.4',
     lastUpdated: '2024-01-05',
-    status: 'approved',
+    status: 'published',
     fileUrl: '/sample-sops/SOP-032.pdf',
     fileType: 'pdf',
   },
@@ -35,7 +36,7 @@ export const sops: Sop[] = [
     departmentId: 'quality-assurance',
     version: '1.0',
     lastUpdated: '2023-12-20',
-    status: 'approved',
+    status: 'published',
     fileUrl: '/sample-sops/SOP-045.pdf',
     fileType: 'pdf',
   },
@@ -46,7 +47,7 @@ export const sops: Sop[] = [
     departmentId: 'regulatory-affairs',
     version: '1.3',
     lastUpdated: '2023-12-01',
-    status: 'approved',
+    status: 'published',
     fileUrl: '/sample-sops/SOP-061.pdf',
     fileType: 'pdf',
   },
@@ -57,7 +58,7 @@ export const sops: Sop[] = [
     departmentId: 'information-technology',
     version: '1.2',
     lastUpdated: '2023-11-18',
-    status: 'approved',
+    status: 'published',
     fileUrl: '/sample-sops/SOP-078.pdf',
     fileType: 'pdf',
   },
@@ -68,7 +69,7 @@ export const sops: Sop[] = [
     departmentId: 'quality-assurance',
     version: '1.0',
     lastUpdated: '2024-01-20',
-    status: 'approved',
+    status: 'published',
     fileUrl: '/sample-sops/SOP-093.pdf',
     fileType: 'pdf',
   },

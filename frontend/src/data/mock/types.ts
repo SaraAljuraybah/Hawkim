@@ -1,4 +1,4 @@
-import type { Status } from '../../types/status'
+import type { SopStatus, Status } from '../../types/status'
 
 /*
  * Types for the sample data in src/data/mock/.
@@ -6,12 +6,20 @@ import type { Status } from '../../types/status'
  * mock files can be swapped for API calls without changing components.
  */
 
+/**
+ * Extra features on top of the employee experience. Every user is an employee;
+ * a user can have none, one or several permissions.
+ */
+export type Permission = 'author' | 'reviewer' | 'approver' | 'admin'
+
 /** The signed-in user. */
 export interface User {
+  id: string
   name: string
   initials: string
   /** The user's home department. */
   departmentId: DepartmentId
+  permissions: Permission[]
 }
 
 /** Department identifiers (see departments.ts). */
@@ -47,7 +55,8 @@ export interface Sop {
   version: string
   /** ISO date, e.g. "2024-01-12" */
   lastUpdated: string
-  status: Status
+  /** SOPs in the directory are all published. */
+  status: SopStatus
   /** URL of the uploaded SOP file, e.g. "/sample-sops/SOP-078.pdf". */
   fileUrl: string
   fileType: SopFileType
@@ -91,4 +100,24 @@ export interface UserRequest {
   /** ISO date, e.g. "2024-01-12" */
   createdAt: string
   status: Status
+}
+
+/** An SOP written by an author, at any stage of the lifecycle. */
+export interface AuthoredSop {
+  id: string
+  /** e.g. "SOP-079" */
+  code: string
+  title: string
+  departmentId: DepartmentId
+  /** Version number without the "v", e.g. "1.0" */
+  version: string
+  status: SopStatus
+  /** Id of the author (User.id). */
+  authorId: string
+  /** ISO date, e.g. "2026-09-29" */
+  lastUpdated: string
+  description?: string
+  /** Name of the uploaded file, e.g. "SOP-079.docx". */
+  fileName: string
+  fileType: SopFileType
 }

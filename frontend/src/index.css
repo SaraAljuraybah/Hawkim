@@ -32,6 +32,9 @@
    *   approved #166534 on #DCFCE7 → 6.49:1
    *   rejected #991B1B on #FEE2E2 → 6.80:1
    *   cancelled #45464B on #F1F1F2 → 8.34:1 (neutral gray)
+   *   published #6B0026 on #F6E9ED → 10.77:1 (maroon tint)
+   * SOP lifecycle reuses them: draft = cancelled, in-review/in-approval = pending,
+   * returned = rejected, approved = approved, published = published.
    * Never rely on colour alone: always show the status label as text.
    */
   --color-status-pending-bg: #fef3c7;
@@ -42,6 +45,8 @@
   --color-status-rejected-fg: #991b1b;
   --color-status-cancelled-bg: #f1f1f2;
   --color-status-cancelled-fg: #45464b;
+  --color-status-published-bg: #f6e9ed;
+  --color-status-published-fg: #6b0026;
 
   /* Typography */
   --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
