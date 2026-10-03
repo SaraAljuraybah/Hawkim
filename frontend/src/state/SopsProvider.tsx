@@ -1,22 +1,23 @@
 import { useCallback, useMemo, useRef, useState, type ReactNode } from 'react'
-import { currentUser } from '../data/mock/currentUser'
 import { sops as seedSops } from '../data/mock/sops'
 import type { Sop, TimelineEvent } from '../data/mock/types'
 import * as compliance from '../lib/compliance'
 import { todayIsoDate } from '../lib/format'
 import { nextSopCode } from '../lib/sopCodes'
 import * as workflow from '../lib/workflow'
+import { useSession } from './sessionContext'
 import { SopsContext, type NewDraft, type SopsStore } from './sopsContext'
 
 /**
  * In-memory store of every SOP (one list for the directory, My SOPs and the workflow).
  * Starts with the sample data; changes are lost on reload.
- * Workflow rules live in lib/workflow.ts.
+ * Workflow rules live in lib/workflow.ts. Actions are by the signed-in user.
+ * Must be inside <SessionProvider>.
  * TODO: Replace with API calls once the backend exists.
  */
 export function SopsProvider({ children }: { children: ReactNode }) {
-  // TODO: Use the authenticated user once real authentication exists.
-  const user = currentUser
+  // The signed-in user's id ('' when nobody is: their actions are then refused by the workflow rules).
+  const userId = useSession().user?.id ?? ''
   const [sops, setSops] = useState<Sop[]>(seedSops)
   /*
    * The latest list, updated as soon as a change is applied. Actions read and
@@ -92,19 +93,19 @@ export function SopsProvider({ children }: { children: ReactNode }) {
     (draft: NewDraft) => {
       const current = latestRef.current
       const code = nextSopCode(
-        current.filter((sop) => sop.authorId === user.id).map((sop) => sop.code),
+        current.filter((sop) => sop.authorId === userId).map((sop) => sop.code),
         current.map((sop) => sop.code),
       )
       const id = code.toLowerCase()
       const now = new Date().toISOString()
-      const coAuthorIds = draft.coAuthorIds.filter((coAuthorId) => coAuthorId !== user.id)
+      const coAuthorIds = draft.coAuthorIds.filter((coAuthorId) => coAuthorId !== userId)
       const timeline: TimelineEvent[] = [
-        { id: `evt-${id}-1`, type: 'uploaded', actorId: user.id, version: '1.0', createdAt: now },
+        { id: `evt-${id}-1`, type: 'uploaded', actorId: userId, version: '1.0', createdAt: now },
         ...coAuthorIds.map(
           (subjectId, index): TimelineEvent => ({
             id: `evt-${id}-ca-${index + 1}`,
             type: 'co-author-added',
-            actorId: user.id,
+            actorId: userId,
             subjectId,
             version: '1.0',
             createdAt: now,
@@ -117,7 +118,7 @@ export function SopsProvider({ children }: { children: ReactNode }) {
         code,
         version: '1.0',
         status: 'draft',
-        authorId: user.id,
+        authorId: userId,
         coAuthorIds,
         lastUpdated: todayIsoDate(),
         reviewers: [],
@@ -135,7 +136,7 @@ export function SopsProvider({ children }: { children: ReactNode }) {
       scheduleCompletion(started.sop.id, started.checkId)
       return started.sop
     },
-    [commit, scheduleCompletion, user.id],
+    [commit, scheduleCompletion, userId],
   )
 
   const store = useMemo<SopsStore>(
@@ -144,14 +145,14 @@ export function SopsProvider({ children }: { children: ReactNode }) {
       addDraft,
       submitForReview: (id, o) =>
         update(id, (sop) =>
-          workflow.submitForReview(sop, user.id, o.reviewerIds, o.approverIds, o.reviewDueDays, o.approvalDueDays, o.note),
+          workflow.submitForReview(sop, userId, o.reviewerIds, o.approverIds, o.reviewDueDays, o.approvalDueDays, o.note),
         ),
-      resubmit: (id, note) => update(id, (sop) => workflow.resubmit(sop, user.id, note)),
-      replaceFile: (id, file) => updateAndCheck(id, (sop) => workflow.replaceFile(sop, user.id, file), true),
-      uploadNewVersion: (id, file) => updateAndCheck(id, (sop) => workflow.uploadNewVersion(sop, user.id, file), true),
+      resubmit: (id, note) => update(id, (sop) => workflow.resubmit(sop, userId, note)),
+      replaceFile: (id, file) => updateAndCheck(id, (sop) => workflow.replaceFile(sop, userId, file), true),
+      uploadNewVersion: (id, file) => updateAndCheck(id, (sop) => workflow.uploadNewVersion(sop, userId, file), true),
       addCoAuthors: (id, userIds) =>
-        update(id, (sop) => userIds.reduce((next, userId) => workflow.addCoAuthor(next, user.id, userId), sop)),
-      removeCoAuthor: (id, userId) => update(id, (sop) => workflow.removeCoAuthor(sop, user.id, userId)),
+        update(id, (sop) => userIds.reduce((next, userId) => workflow.addCoAuthor(next, userId, userId), sop)),
+      removeCoAuthor: (id, userId) => update(id, (sop) => workflow.removeCoAuthor(sop, userId, userId)),
       runCheck: (id) => updateAndCheck(id, (sop) => sop, false),
       completeReview: (id, reviewerId) => update(id, (sop) => workflow.completeReview(sop, reviewerId)),
       returnAsReviewer: (id, reviewerId, text) => update(id, (sop) => workflow.returnAsReviewer(sop, reviewerId, text)),
@@ -162,7 +163,7 @@ export function SopsProvider({ children }: { children: ReactNode }) {
       failNextCheck,
       setFailNextCheck,
     }),
-    [sops, addDraft, update, updateAndCheck, failNextCheck, setFailNextCheck, user.id],
+    [sops, addDraft, update, updateAndCheck, failNextCheck, setFailNextCheck, userId],
   )
 
   return <SopsContext.Provider value={store}>{children}</SopsContext.Provider>

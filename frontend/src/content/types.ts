@@ -156,6 +156,8 @@ export interface SignInContent {
   /** Messages for the result returned by the auth service. */
   results: {
     notConnected: string
+    /** The account was deleted by an admin. */
+    noAccess: string
   }
   /** "By signing in, you agree to our {terms} and {privacy}." */
   legal: {
@@ -191,19 +193,25 @@ export interface AppNavItem {
   permission?: Permission
 }
 
-export interface AppShellContent {
-  /** Visually hidden link that lets keyboard users jump past the navigation. */
-  skipLink: string
+/** The sidebar's content (employee app and admin portal). */
+export interface SidebarContent {
   /** Product name shown as text next to the logo mark in the sidebar. */
   brandName: string
+  /** Small label after the product name, e.g. "Admin" (admin portal only). */
+  portalLabel?: string
   /** Accessible name of the sidebar logo link. */
   homeLinkLabel: string
   navAriaLabel: string
   nav: AppNavItem[]
   signOut: AppNavItem
+  closeMenu: string
+}
+
+export interface AppShellContent extends SidebarContent {
+  /** Visually hidden link that lets keyboard users jump past the navigation. */
+  skipLink: string
   notificationsLabel: string
   openMenu: string
-  closeMenu: string
   /** Accessible name of the mobile navigation drawer. */
   drawerLabel: string
   departmentSwitcher: {
@@ -252,7 +260,7 @@ export interface SopsContent {
   departmentLabel: string
   /** `{version}` is replaced with the version number, e.g. "Version 2.1". */
   versionTemplate: string
-  /** Shown when a tab has no SOPs. */
+  /** Shown when the list is empty. */
   empty: string
   /** SOP detail page ("/sops/:id"). */
   detail: SopDetailContent
@@ -377,8 +385,6 @@ export interface PeoplePickerContent {
 
 /* ---------- Author: My SOPs and Upload SOP ---------- */
 
-export type MySopsTabKey = 'all' | 'drafts' | 'inProgress' | 'returned' | 'published'
-
 export interface MySopsContent {
   /** Browser tab title. */
   pageTitle: string
@@ -386,9 +392,6 @@ export interface MySopsContent {
   /** `{department}` is replaced with the active department's name. */
   subtitle: string
   upload: LinkContent
-  /** Accessible name of the tab list. */
-  tabsLabel: string
-  tabs: Record<MySopsTabKey, string>
   /** `{version}` is replaced, e.g. "Version 1.0". */
   versionTemplate: string
   /** Shown when a tab has no SOPs. */
@@ -613,26 +616,112 @@ export interface ComplianceContent {
     runAgain: string
     run: string
   }
-  /** The compliance report page ("/my-sops/:id/compliance"). */
+  /** The compliance report page ("/my-sops/:id/compliance"), laid out as a formal report. */
   report: {
     /** `{code}` is replaced. */
     pageTitle: string
+    /** Document title while printing (the default PDF file name); `{code}` and `{version}` are replaced. */
+    printTitle: string
     /** `{code}` is replaced. */
     back: string
     title: string
+    download: string
     /** Selector shown when reports exist for several versions; `{version}` is replaced. */
     versionSelect: { label: string; option: string; current: string }
-    summaryTitle: string
-    findingsTitle: string
-    tabsLabel: string
-    tabs: Record<'all' | ComplianceResult, string>
-    /** `{module}`, `{section}`, `{title}` and `{page}` are replaced. */
-    requirementReference: string
-    justification: string
-    /** `{reference}` is replaced. */
-    sopReference: string
-    /** No findings in the selected tab. */
-    empty: string
+    header: {
+      /** Visually hidden heading of the report details. */
+      title: string
+      reportId: string
+      sop: string
+      version: string
+      author: string
+      coAuthors: string
+      department: string
+      checked: string
+      guideline: string
+      checkedBy: string
+      checker: string
+    }
+    summary: {
+      title: string
+      /** `{score}` is replaced, e.g. "40%". */
+      score: string
+      scoreNote: string
+      /** Text alternative of the score ring; `{score}`, `{count}` and `{total}` are replaced. */
+      ringLabel: string
+      /** Under the percentage in the ring. */
+      ringCaption: string
+      verdicts: Record<'fully-compliant' | 'needs-improvement' | 'action-required', string>
+      /** One line under the verdict; `{count}` is replaced (one / several). */
+      explanation: {
+        actionRequired: { one: string; other: string }
+        needsImprovement: { one: string; other: string }
+      }
+      /** Accessible name of the metric tiles. */
+      tilesLabel: string
+      priorities: {
+        title: string
+        /** `{number}`, `{result}`, `{requirement}` and `{title}` are replaced. */
+        item: string
+      }
+      change: {
+        title: string
+        /** `{before}`, `{after}` and `{delta}` are replaced. */
+        score: string
+        /** `{before}`, `{after}` and `{kind}` are replaced. */
+        verdict: string
+        /** `{score}` is replaced. */
+        percent: string
+        /** `{points}` and `{version}` are replaced. */
+        delta: { up: string; down: string; same: string }
+        kinds: { improved: string; worsened: string; unchanged: string }
+        /** Visually hidden text for the arrow. */
+        changedTo: string
+      }
+      /** Parts of the summary sentence (one / several); `{count}` is replaced. */
+      attention: Record<'conflict' | 'not-addressed' | 'partial', { one: string; other: string }>
+      /** Joins the last two parts, e.g. "and". */
+      and: string
+      /** `{items}` is replaced; "one" when a single requirement needs attention. */
+      beforeSubmit: { one: string; other: string }
+      needsAttention: { one: string; other: string }
+      allCompliant: string
+    }
+    overview: {
+      title: string
+      findingId: string
+      requirement: string
+      result: string
+      /** `{id}`, `{section}` and `{title}` are replaced. */
+      requirementLabel: string
+    }
+    findings: {
+      title: string
+      tabsLabel: string
+      tabs: Record<'all' | ComplianceResult, string>
+      needsAttention: string
+      compliant: string
+      /** Heading of each finding; `{number}` and `{requirement}` are replaced. */
+      heading: string
+      /** `{module}`, `{section}`, `{title}` and `{page}` are replaced. */
+      requirementReference: string
+      sopReference: string
+      noSopReference: string
+      justification: string
+      recommendedAction: string
+      /** No findings in the selected tab. */
+      empty: string
+    }
+    changes: {
+      title: string
+      /** `{version}` and `{reportId}` are replaced. */
+      comparedWith: string
+      none: string
+      /** Visually hidden text for the arrow. */
+      changedTo: string
+      kinds: Record<'resolved' | 'improved' | 'unchanged' | 'worsened' | 'new' | 'removed', string>
+    }
+    method: { title: string; items: string[] }
     /** A new check is running for the shown (current) version; `{version}` is replaced. */
     outOfDate: string
     /** The selected version has no completed report; `{version}` is replaced. */
@@ -678,4 +767,141 @@ export interface WorkflowDemoContent {
     published: string
     clockForward: string
   }
+}
+
+/* ---------- Users (shared by the employee screens and the admin portal) ---------- */
+
+export interface UsersContent {
+  /** Name of each permission (badges, filters, checkboxes). */
+  permissions: Record<Permission, string>
+  /** Shown for a user without any permission (every user is an employee). */
+  employee: string
+  /** A deleted user's name on SOP history; `{name}` is replaced. */
+  deletedName: string
+}
+
+/* ---------- Sign In: demo accounts (development only) ---------- */
+
+export interface DemoAccountsContent {
+  title: string
+  note: string
+  /** Accessible name of each "use" button; `{name}` is replaced. */
+  useLabel: string
+  use: string
+}
+
+/* ---------- Admin portal ---------- */
+
+export interface AdminShellContent extends SidebarContent {
+  portalLabel: string
+  skipLink: string
+  openMenu: string
+  drawerLabel: string
+  /** Shown under the admin's name in the top bar. */
+  roleLabel: string
+}
+
+export interface AdminContent {
+  shell: AdminShellContent
+  /** Browser tab title of every admin page; `{page}` is replaced. */
+  pageTitle: string
+  usersList: AdminUsersListContent
+  /** One line about each permission (Add user, user page). */
+  permissionDescriptions: Record<Permission, string>
+  addUser: AdminAddUserContent
+  userDetails: AdminUserDetailsContent
+}
+
+export interface AdminAddUserContent {
+  title: string
+  subtitle: string
+  back: LinkContent
+  name: { label: string }
+  email: { label: string; hint: string }
+  department: { label: string; placeholder: string }
+  permissions: { legend: string; hint: string }
+  submit: string
+  cancel: string
+  errors: {
+    nameRequired: string
+    emailInvalid: string
+    emailTaken: string
+    departmentRequired: string
+  }
+}
+
+export interface AdminUserDetailsContent {
+  back: LinkContent
+  /** Shown after adding a user. */
+  added: string
+  details: {
+    title: string
+    email: string
+    homeDepartment: string
+    joinedDepartments: string
+    joinedHint: string
+    none: string
+  }
+  permissions: {
+    title: string
+    /** Visually hidden legend of the checkboxes; `{name}` is replaced. */
+    legend: string
+    save: string
+    saved: string
+    /** Above the reasons when saving is refused. */
+    refused: string
+  }
+  involvement: {
+    title: string
+    empty: string
+    /** Accessible name of the list. */
+    label: string
+    roles: Record<'author' | 'co-author' | 'reviewer' | 'approver', string>
+    /** Visually hidden before the roles. */
+    rolesLabel: string
+  }
+  delete: {
+    title: string
+    text: string
+    button: string
+    /** `{name}` is replaced. */
+    refused: string
+    dialog: { title: string; description: string; confirm: string; cancel: string }
+    /** Shown on the users list afterwards; `{name}` is replaced. */
+    done: string
+  }
+  /**
+   * Why a change is refused. `{name}` (the user) and `{sops}` (SOP codes; with their
+   * status for reviewers and approvers) are replaced.
+   */
+  blockers: {
+    selfDelete: string
+    selfAdmin: string
+    lastAdmin: string
+    inUse: Record<'author' | 'reviewer' | 'approver', string>
+    /** A permission that can't be removed; `{permission}` and `{reason}` are replaced. */
+    cantRemove: string
+    /** An SOP with its status, e.g. "SOP-081 (Returned)"; `{code}` and `{status}` are replaced. */
+    sopWithStatus: string
+  }
+}
+
+/** One or several, e.g. "1 user" / "9 users"; `{count}` is replaced. */
+export interface CountText {
+  one: string
+  other: string
+}
+
+export interface AdminUsersListContent {
+  title: string
+  subtitle: string
+  addUser: LinkContent
+  search: { label: string; placeholder: string }
+  departmentFilter: { label: string; all: string }
+  permissionFilter: { label: string; all: string }
+  count: CountText
+  /** Accessible name of the table. */
+  tableLabel: string
+  columns: { name: string; email: string; department: string; permissions: string }
+  empty: string
 }

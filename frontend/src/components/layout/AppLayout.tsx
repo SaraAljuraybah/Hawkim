@@ -1,41 +1,34 @@
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState, type ReactNode } from 'react'
 import { Outlet } from 'react-router-dom'
 import { appShellEn } from '../../content/app.en'
-import { currentUser } from '../../data/mock/currentUser'
+import { useTopBarScrollPadding } from '../../hooks/useTopBarScrollPadding'
 import { hasPermission } from '../../lib/permissions'
+import { useCurrentUser } from '../../state/sessionContext'
 import { MobileDrawer } from './MobileDrawer'
 import { Sidebar } from './Sidebar'
 import { TopBar } from './TopBar'
 
 /**
- * Shell for every signed-in screen: sidebar + top bar + main content.
- * Used as a layout route in App.tsx; each child route renders in <Outlet />.
+ * Shell for every employee screen: sidebar + top bar + main content.
+ * Used as a layout route in App.tsx; each child route renders in <Outlet />,
+ * unless `children` are given (e.g. the Not Found page for /admin).
  */
-export function AppLayout() {
-  // TODO: Use the authenticated user once real authentication exists.
-  const user = currentUser
+export function AppLayout({ children }: { children?: ReactNode }) {
+  const user = useCurrentUser()
   // Items tied to a permission (e.g. My SOPs for authors) are only shown to users who have it.
   const content = {
     ...appShellEn,
     nav: appShellEn.nav.filter((item) => !item.permission || hasPermission(user, item.permission)),
   }
 
-  // Keep focused or scrolled-to elements clear of the sticky top bar (64px), e.g. when a
-  // form moves focus to its first invalid field. Only for the signed-in app.
-  useEffect(() => {
-    const root = document.documentElement
-    const previous = root.style.scrollPaddingTop
-    root.style.scrollPaddingTop = '5rem'
-    return () => {
-      root.style.scrollPaddingTop = previous
-    }
-  }, [])
+  useTopBarScrollPadding()
 
   const [drawerOpen, setDrawerOpen] = useState(false)
   const menuButtonRef = useRef<HTMLButtonElement>(null)
+  const closeDrawer = () => setDrawerOpen(false)
 
   return (
-    <div className="min-h-dvh bg-offwhite">
+    <div className="min-h-dvh bg-offwhite print:bg-white">
       {/* Lets keyboard users jump straight past the navigation */}
       <a
         href="#main"
@@ -45,19 +38,26 @@ export function AppLayout() {
       </a>
 
       {/* Fixed sidebar — lg and up */}
-      <div className="fixed inset-y-0 left-0 z-40 hidden w-60 border-r border-beige bg-white lg:block">
+      <div className="fixed inset-y-0 left-0 z-40 hidden w-60 border-r border-beige bg-white lg:block print:hidden">
         <Sidebar content={content} />
       </div>
 
       {/* Slide-in drawer — below lg */}
       <MobileDrawer
-        content={content}
+        label={content.drawerLabel}
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         returnFocusRef={menuButtonRef}
-      />
+      >
+        <Sidebar
+          content={content}
+          onNavigate={closeDrawer}
+          onClose={closeDrawer}
+          departmentSwitcher={content.departmentSwitcher}
+        />
+      </MobileDrawer>
 
-      <div className="flex min-h-dvh flex-col lg:pl-60">
+      <div className="flex min-h-dvh flex-col lg:pl-60 print:pl-0">
         <TopBar
           content={content}
           user={user}
@@ -65,10 +65,10 @@ export function AppLayout() {
           onOpenMenu={() => setDrawerOpen(true)}
           menuButtonRef={menuButtonRef}
         />
-        <main id="main" tabIndex={-1} className="flex-1 px-4 py-8 focus:outline-none sm:px-6 lg:px-10 lg:py-10">
+        <main id="main" tabIndex={-1} className="flex-1 px-4 py-8 focus:outline-none sm:px-6 lg:px-10 lg:py-10 print:p-0">
           {/* Left-aligned next to the sidebar, capped at 1280px so lines stay readable on wide screens */}
           <div className="w-full max-w-7xl">
-            <Outlet />
+            {children ?? <Outlet />}
           </div>
         </main>
       </div>

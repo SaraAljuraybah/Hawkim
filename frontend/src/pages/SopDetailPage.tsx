@@ -4,14 +4,14 @@ import { ArrowLeft, Clock, Download, ExternalLink, FileText, Lock } from 'lucide
 import { Button } from '../components/ui/Button'
 import { StatusBadge } from '../components/ui/StatusBadge'
 import { sopsEn } from '../content/sops.en'
-import { currentUser } from '../data/mock/currentUser'
 import { getDepartmentName } from '../data/mock/departments'
 import type { Sop } from '../data/mock/types'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { formatDate } from '../lib/format'
 import { requestDepartmentAccessPath } from '../lib/routes'
 import { getSopAccess } from '../lib/sopAccess'
-import { useRequests } from '../state/requestsContext'
+import { useMyRequests } from '../state/requestsContext'
+import { useCurrentUser } from '../state/sessionContext'
 import { useSops } from '../state/sopsContext'
 import { NotFoundPage } from './NotFoundPage'
 
@@ -35,9 +35,9 @@ export function SopDetailPage() {
   // An unknown id leaves the title to the embedded Not Found page.
   useDocumentTitle(sop ? content.pageTitle.replace('{code}', sop.code) : undefined)
 
-  // TODO: Use the authenticated user and load the SOP from the backend API.
-  const user = currentUser
-  const { requests } = useRequests()
+  // TODO: Load the SOP from the backend API.
+  const user = useCurrentUser()
+  const requests = useMyRequests()
 
   if (!sop) return <NotFoundPage embedded />
 

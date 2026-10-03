@@ -1,6 +1,5 @@
 import { useEffect } from 'react'
-import { Route, Routes, useLocation } from 'react-router-dom'
-import { AppLayout } from './components/layout/AppLayout'
+import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { ComplianceReportPage } from './pages/ComplianceReportPage'
 import { DashboardPage } from './pages/DashboardPage'
 import { DepartmentsPage } from './pages/DepartmentsPage'
@@ -13,10 +12,16 @@ import { SopsPage } from './pages/SopsPage'
 import { SubmitRequestPage } from './pages/SubmitRequestPage'
 import { LandingPage } from './pages/LandingPage'
 import { NotFoundPage } from './pages/NotFoundPage'
-import { ActiveDepartmentProvider } from './state/ActiveDepartmentProvider'
-import { RequestsProvider } from './state/RequestsProvider'
-import { SopsProvider } from './state/SopsProvider'
+import { AddUserPage } from './pages/admin/AddUserPage'
+import { AdminUsersPage } from './pages/admin/AdminUsersPage'
+import { UserDetailsPage } from './pages/admin/UserDetailsPage'
 import { SignInPage } from './pages/SignInPage'
+import { ADMIN_USERS_PATH } from './lib/routes'
+import { AdminArea, EmployeeArea } from './routes/guards'
+import { RequestsProvider } from './state/RequestsProvider'
+import { SessionProvider } from './state/SessionProvider'
+import { SopsProvider } from './state/SopsProvider'
+import { UsersProvider } from './state/UsersProvider'
 
 /**
  * Client-side routes.
@@ -33,26 +38,29 @@ function App() {
   }, [pathname, hash])
 
   return (
+    // Shared in-memory state: users, who is signed in, requests and all SOPs.
+    // It lives above every route, so it survives signing out and in again.
+    <UsersProvider>
+      <SessionProvider>
+        <RequestsProvider>
+          <SopsProvider>
+            <AppRoutes />
+          </SopsProvider>
+        </RequestsProvider>
+      </SessionProvider>
+    </UsersProvider>
+  )
+}
+
+function AppRoutes() {
+  return (
     <Routes>
       <Route path="/" element={<LandingPage />} />
       <Route path="/login" element={<SignInPage />} />
 
       {/* Signed-in app: every screen inside shares the sidebar + top bar.
-          TODO: Protect these routes (redirect to /login when not signed in)
-          once real authentication exists. */}
-      <Route
-        element={
-          // Shared state for all signed-in screens: requests, the active department
-          // (which depends on approved department-access requests) and all SOPs
-          <RequestsProvider>
-            <ActiveDepartmentProvider>
-              <SopsProvider>
-                <AppLayout />
-              </SopsProvider>
-            </ActiveDepartmentProvider>
-          </RequestsProvider>
-        }
-      >
+          Anyone not signed in is sent to /login. */}
+      <Route element={<EmployeeArea />}>
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/sops" element={<SopsPage />} />
         <Route path="/sops/:id" element={<SopDetailPage />} />
@@ -63,6 +71,15 @@ function App() {
         <Route path="/my-sops/:id/compliance" element={<ComplianceReportPage />} />
         <Route path="/requests" element={<MyRequestsPage />} />
         <Route path="/requests/new" element={<SubmitRequestPage />} />
+      </Route>
+
+      {/* Admin portal: its own layout; only for admins (others see Not Found). */}
+      <Route path="/admin" element={<AdminArea />}>
+        <Route index element={<Navigate to={ADMIN_USERS_PATH} replace />} />
+        <Route path="users" element={<AdminUsersPage />} />
+        <Route path="users/new" element={<AddUserPage />} />
+        <Route path="users/:id" element={<UserDetailsPage />} />
+        <Route path="*" element={<NotFoundPage embedded />} />
       </Route>
 
       <Route path="*" element={<NotFoundPage />} />

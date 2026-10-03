@@ -192,6 +192,15 @@ npm run preview   # serve the production build locally
 npm run lint      # lint the source code
 ```
 
+### Testing
+
+The rules in `frontend/src/lib/` (SOP workflow, compliance reports, SOP access and user administration) are covered by unit tests written with [Vitest](https://vitest.dev/). Each test file sits next to the module it tests, e.g. `src/lib/workflow.test.ts`.
+
+```bash
+npm test             # run all tests once
+npm run test:watch   # re-run the tests when files change
+```
+
 Regenerating the sample SOP PDFs (`npm run generate:sample-sops`) requires Node 22.18+; the generated files are already committed.
 
 Landing page text is kept in `frontend/src/content/landing.en.ts`, and the brand design tokens (colours and fonts) are defined in `frontend/src/index.css`.

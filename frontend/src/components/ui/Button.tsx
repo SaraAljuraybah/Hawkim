@@ -6,8 +6,9 @@ import { Link, type LinkProps } from 'react-router-dom'
  * - primary:   maroon filled (main call to action on light backgrounds)
  * - secondary: maroon outline (supporting action on light backgrounds)
  * - accent:    gold filled with maroon text (call to action on maroon backgrounds)
+ * - danger:    red outline (a destructive action, e.g. Delete user; always confirmed)
  */
-type ButtonVariant = 'primary' | 'secondary' | 'accent'
+type ButtonVariant = 'primary' | 'secondary' | 'accent' | 'danger'
 type ButtonSize = 'sm' | 'md' | 'lg'
 
 interface CommonProps {
@@ -48,6 +49,8 @@ const variants: Record<ButtonVariant, string> = {
   accent:
     'border border-gold bg-gold text-maroon hover:border-gold-light hover:bg-gold-light ' +
     'focus-visible:outline-gold-light',
+  danger:
+    'border border-status-rejected-fg/60 bg-transparent text-status-rejected-fg hover:border-status-rejected-fg hover:bg-status-rejected-bg',
 }
 
 const sizes: Record<ButtonSize, string> = {

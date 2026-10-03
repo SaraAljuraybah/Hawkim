@@ -19,7 +19,7 @@ const iconButton =
 /** Top bar of the signed-in app: menu button (small screens), notifications and user. */
 export function TopBar({ content, user, menuOpen, onOpenMenu, menuButtonRef }: TopBarProps) {
   return (
-    <header className="sticky top-0 z-30 border-b border-beige bg-white/90 backdrop-blur-md">
+    <header className="sticky top-0 z-30 border-b border-beige bg-white/90 backdrop-blur-md print:hidden">
       <div className="flex h-16 items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
         <button
           ref={menuButtonRef}

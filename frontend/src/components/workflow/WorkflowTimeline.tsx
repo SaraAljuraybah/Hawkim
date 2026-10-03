@@ -1,7 +1,7 @@
 import type { SopWorkflowContent } from '../../content/types'
-import { getUser } from '../../data/mock/users'
 import type { Sop } from '../../data/mock/types'
 import { formatDateTime } from '../../lib/format'
+import { useUsers } from '../../state/usersContext'
 import { personWithRole } from './people'
 
 interface WorkflowTimelineProps {
@@ -15,6 +15,7 @@ interface WorkflowTimelineProps {
  */
 export function WorkflowTimeline({ sop, content }: WorkflowTimelineProps) {
   const { timeline, versionTemplate, roles } = content
+  const { nameOf } = useUsers()
   const events = [...sop.timeline].reverse()
 
   return (
@@ -22,7 +23,7 @@ export function WorkflowTimeline({ sop, content }: WorkflowTimelineProps) {
       {events.map((event) => {
         const label =
           event.type === 'stage-due-date-set' && event.stage ? timeline.stageDue[event.stage] : timeline.events[event.type]
-        const recipients = (event.recipientIds ?? []).map((id) => personWithRole(sop, id, roles)).join(', ')
+        const recipients = (event.recipientIds ?? []).map((id) => personWithRole(sop, id, roles, nameOf)).join(', ')
         return (
           <li key={event.id} className="relative">
             <span aria-hidden="true" className="absolute top-1.5 -left-[1.95rem] size-3 rounded-full border-2 border-white bg-maroon" />
@@ -31,7 +32,7 @@ export function WorkflowTimeline({ sop, content }: WorkflowTimelineProps) {
               <span className="text-text-gray">{versionTemplate.replace('{version}', event.version)}</span>
             </p>
             <p className="mt-0.5 text-sm text-text-gray">
-              {timeline.by.replace('{name}', personWithRole(sop, event.actorId, roles))}
+              {timeline.by.replace('{name}', personWithRole(sop, event.actorId, roles, nameOf))}
               {recipients && (
                 <>
                   <span aria-hidden="true"> · </span>
@@ -42,7 +43,7 @@ export function WorkflowTimeline({ sop, content }: WorkflowTimelineProps) {
             </p>
             {event.subjectId && (
               <p className="mt-0.5 text-sm text-text-gray">
-                {timeline.subject.replace('{name}', getUser(event.subjectId)?.name ?? '')}
+                {timeline.subject.replace('{name}', nameOf(event.subjectId))}
               </p>
             )}
             {event.dueAt && (

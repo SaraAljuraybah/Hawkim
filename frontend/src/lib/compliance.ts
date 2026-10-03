@@ -111,3 +111,86 @@ export function completeCheck(sop: Sop, checkId: string): Sop {
 export function failCheck(sop: Sop, checkId: string): Sop {
   return finishCheck(sop, checkId, 'failed')
 }
+
+// ---------- Report details (the compliance report page) ----------
+
+/** A finding with its number in the report ("F-01"), in report order (problems first). */
+export interface NumberedFinding extends Finding {
+  number: string
+}
+
+const pad2 = (n: number) => String(n).padStart(2, '0')
+
+/** Findings in report order, numbered F-01, F-02… (the numbers don't change with the filter). */
+export function numberedFindings(check: ComplianceCheck): NumberedFinding[] {
+  return sortFindings(check.findings).map((finding, index) => ({ ...finding, number: `F-${pad2(index + 1)}` }))
+}
+
+/** e.g. "CR-SOP-083-1.0-01": SOP code, version, and the run number for that version (failed runs included). */
+export function reportId(sop: Sop, check: ComplianceCheck): string {
+  const run = sop.complianceChecks.filter((item) => item.version === check.version).findIndex((item) => item.id === check.id) + 1
+  return `CR-${sop.code}-${check.version}-${pad2(run)}`
+}
+
+/** Compliance score: compliant findings ÷ all findings, as a whole percentage. */
+export function complianceScore(check: ComplianceCheck): number {
+  if (check.findings.length === 0) return 0
+  return Math.round((countResults(check).compliant / check.findings.length) * 100)
+}
+
+/** The newest completed report of the nearest earlier version that has one, if any. */
+export function previousReport(sop: Sop, check: ComplianceCheck): ComplianceCheck | undefined {
+  return latestCompletedChecksByVersion(sop).find((item) => Number(item.version) < Number(check.version))
+}
+
+/** How a requirement's result changed between two reports. */
+export type ChangeKind = 'resolved' | 'improved' | 'unchanged' | 'worsened' | 'new' | 'removed'
+
+export interface RequirementChange {
+  requirementId: string
+  before?: ComplianceResult
+  after?: ComplianceResult
+  kind: ChangeKind
+}
+
+/** Better results rank higher: Conflict < Not addressed < Partially compliant < Compliant. */
+const RANK: Record<ComplianceResult, number> = { conflict: 0, 'not-addressed': 1, partial: 2, compliant: 3 }
+
+/** Every requirement in either report, by requirement id, with how its result changed. */
+export function compareReports(previous: ComplianceCheck, current: ComplianceCheck): RequirementChange[] {
+  const ids = [...new Set([...previous.findings, ...current.findings].map((finding) => finding.requirementId))].sort()
+  return ids.map((requirementId) => {
+    const before = previous.findings.find((finding) => finding.requirementId === requirementId)?.result
+    const after = current.findings.find((finding) => finding.requirementId === requirementId)?.result
+    let kind: ChangeKind
+    if (!before) kind = 'new'
+    else if (!after) kind = 'removed'
+    else if (before === after) kind = 'unchanged'
+    else if (after === 'compliant') kind = 'resolved'
+    else kind = RANK[after] > RANK[before] ? 'improved' : 'worsened'
+    return { requirementId, before, after, kind }
+  })
+}
+
+// ---------- Executive summary ----------
+
+/**
+ * The report's verdict, from the findings (not from score thresholds): any conflict
+ * means action is required; otherwise anything partial or not addressed needs improvement.
+ */
+export type Verdict = 'fully-compliant' | 'needs-improvement' | 'action-required'
+
+export function verdictOf(check: ComplianceCheck): Verdict {
+  const counts = countResults(check)
+  if (counts.conflict > 0) return 'action-required'
+  if (counts.partial > 0 || counts['not-addressed'] > 0) return 'needs-improvement'
+  return 'fully-compliant'
+}
+
+/** Better verdicts rank higher (to describe a change as improved or worsened). */
+export const VERDICT_RANK: Record<Verdict, number> = { 'action-required': 0, 'needs-improvement': 1, 'fully-compliant': 2 }
+
+/** Up to `limit` findings that need attention, in report order (Conflict, Not addressed, Partially compliant). */
+export function topPriorities(findings: NumberedFinding[], limit = 3): NumberedFinding[] {
+  return findings.filter((finding) => finding.result !== 'compliant').slice(0, limit)
+}

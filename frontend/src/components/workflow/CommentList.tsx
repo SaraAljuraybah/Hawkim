@@ -1,6 +1,7 @@
 import type { SopWorkflowContent } from '../../content/types'
 import type { Sop, SopComment } from '../../data/mock/types'
 import { formatDateTime } from '../../lib/format'
+import { useUsers } from '../../state/usersContext'
 import { personWithRole } from './people'
 
 interface CommentItemsProps {
@@ -11,13 +12,14 @@ interface CommentItemsProps {
 
 /** One or more comments: who (with role), when, and the text. Newest first. */
 export function CommentItems({ sop, comments, content }: CommentItemsProps) {
+  const { nameOf } = useUsers()
   const sorted = [...comments].sort((a, b) => b.createdAt.localeCompare(a.createdAt))
   return (
     <ul className="space-y-3">
       {sorted.map((comment) => (
         <li key={comment.id} className="rounded-lg border border-beige bg-white p-4">
           <p className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 text-sm">
-            <span className="font-semibold text-maroon">{personWithRole(sop, comment.authorUserId, content.roles)}</span>
+            <span className="font-semibold text-maroon">{personWithRole(sop, comment.authorUserId, content.roles, nameOf)}</span>
             <time dateTime={comment.createdAt} className="text-xs text-text-gray">
               {formatDateTime(comment.createdAt)}
             </time>

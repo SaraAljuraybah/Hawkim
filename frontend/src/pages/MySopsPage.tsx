@@ -3,29 +3,15 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { CircleCheck, FileText, Upload } from 'lucide-react'
 import { AuthoredSopList } from '../components/mySops/AuthoredSopList'
 import { Button } from '../components/ui/Button'
-import { Tabs, type TabItem } from '../components/ui/Tabs'
-import { tabIds } from '../components/ui/tabIds'
 import { mySopsEn } from '../content/mySops.en'
-import type { MySopsTabKey } from '../content/types'
-import { currentUser } from '../data/mock/currentUser'
 import type { Sop } from '../data/mock/types'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { hasPermission } from '../lib/permissions'
 import { isAuthorOrCoAuthor } from '../lib/workflow'
 import { useActiveDepartment } from '../state/activeDepartmentContext'
+import { useCurrentUser } from '../state/sessionContext'
 import { useSops } from '../state/sopsContext'
-import type { SopStatus } from '../types/status'
 import { NotFoundPage } from './NotFoundPage'
-
-const TAB_ID_PREFIX = 'my-sops'
-
-/** Statuses shown in each tab ("All" shows every status). */
-const tabStatuses: Record<Exclude<MySopsTabKey, 'all'>, SopStatus[]> = {
-  drafts: ['draft'],
-  inProgress: ['in-review', 'in-approval', 'approved'],
-  returned: ['returned'],
-  published: ['published'],
-}
 
 /** Navigation state set by Upload SOP after a successful upload. */
 export interface MySopsLocationState {
@@ -35,15 +21,13 @@ export interface MySopsLocationState {
 /** My SOPs ("/my-sops", Author permission): SOPs the user authored or co-authors in the active department. */
 export function MySopsPage() {
   const content = mySopsEn
-  // TODO: Use the authenticated user once real authentication exists.
-  const user = currentUser
+  const user = useCurrentUser()
   const isAuthor = hasPermission(user, 'author')
   // Non-authors get the Not Found page, which sets its own title.
   useDocumentTitle(isAuthor ? content.pageTitle : undefined)
 
   const { sops } = useSops()
   const { activeDepartment } = useActiveDepartment()
-  const [tab, setTab] = useState<MySopsTabKey>('all')
   const [statusMessage, setStatusMessage] = useState('')
   const location = useLocation()
   const navigate = useNavigate()
@@ -63,17 +47,12 @@ export function MySopsPage() {
     const inDepartment = sops.filter(
       (sop: Sop) => isAuthorOrCoAuthor(sop, user.id) && sop.departmentId === activeDepartment.id,
     )
-    const inTab = tab === 'all' ? inDepartment : inDepartment.filter((sop) => tabStatuses[tab].includes(sop.status))
     // ISO dates sort correctly as strings; newest first (stable for the same day).
-    return [...inTab].sort((a, b) => b.lastUpdated.localeCompare(a.lastUpdated))
-  }, [sops, user.id, activeDepartment.id, tab])
+    return [...inDepartment].sort((a, b) => b.lastUpdated.localeCompare(a.lastUpdated))
+  }, [sops, user.id, activeDepartment.id])
 
   if (!isAuthor) return <NotFoundPage embedded />
 
-  const tabItems: TabItem<MySopsTabKey>[] = (['all', 'drafts', 'inProgress', 'returned', 'published'] as const).map(
-    (key) => ({ key, label: content.tabs[key] }),
-  )
-  const ids = tabIds(TAB_ID_PREFIX, tab)
 
   return (
     <>
@@ -98,18 +77,7 @@ export function MySopsPage() {
         )}
       </div>
 
-      <div className="mt-8 border-b border-beige">
-        <Tabs
-          items={tabItems}
-          selected={tab}
-          onSelect={setTab}
-          label={content.tabsLabel}
-          idPrefix={TAB_ID_PREFIX}
-          className="flex-wrap gap-y-1"
-        />
-      </div>
-
-      <div role="tabpanel" id={ids.panel} aria-labelledby={ids.tab} tabIndex={0} className="mt-6 rounded-xl">
+      <div className="mt-8">
         {visibleSops.length === 0 ? (
           <div className="flex flex-col items-center rounded-xl border border-dashed border-beige bg-white px-6 py-14 text-center">
             <span aria-hidden="true" className="inline-flex size-12 items-center justify-center rounded-lg bg-beige text-maroon">

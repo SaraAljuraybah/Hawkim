@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
-import { currentUser } from '../data/mock/currentUser'
 import type { DepartmentId } from '../data/mock/types'
 import { getUserDepartments } from '../lib/departments'
 import { ActiveDepartmentContext, type ActiveDepartmentStore } from './activeDepartmentContext'
 import { useRequests } from './requestsContext'
+import { useCurrentUser } from './sessionContext'
 
 const STORAGE_KEY = 'hawkim.activeDepartment'
 
@@ -19,11 +19,11 @@ function readStored(): string | null {
  * The department the user is working in (one at a time). Defaults to the home
  * department and is remembered in localStorage. If the remembered department is
  * no longer one of the user's departments, the home department is used instead.
- * Must be inside <RequestsProvider> (membership comes from approved requests).
+ * Must be inside <RequestsProvider> (membership comes from approved requests) and
+ * only used for a signed-in user.
  */
 export function ActiveDepartmentProvider({ children }: { children: ReactNode }) {
-  // TODO: Use the authenticated user once real authentication exists.
-  const user = currentUser
+  const user = useCurrentUser()
   const { requests } = useRequests()
   const userDepartments = useMemo(() => getUserDepartments(user, requests), [user, requests])
 

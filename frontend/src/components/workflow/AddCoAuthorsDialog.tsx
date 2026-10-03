@@ -1,11 +1,11 @@
 import { useRef, useState } from 'react'
 import { flushSync } from 'react-dom'
 import type { SopWorkflowContent } from '../../content/types'
-import { users } from '../../data/mock/users'
 import type { Sop } from '../../data/mock/types'
 import { personOption } from '../../lib/people'
 import { hasPermission } from '../../lib/permissions'
 import { isApprover, isAuthorOrCoAuthor, isReviewer } from '../../lib/workflow'
+import { useUsers } from '../../state/usersContext'
 import { FormDialog } from '../ui/FormDialog'
 import { PeoplePicker } from '../ui/PeoplePicker'
 
@@ -26,7 +26,8 @@ export function AddCoAuthorsDialog({ sop, content, onSubmit, onClose }: AddCoAut
   const [error, setError] = useState<string>()
   const inputRef = useRef<HTMLInputElement>(null)
 
-  const options = users
+  const { activeUsers } = useUsers()
+  const options = activeUsers
     .filter(
       (user) =>
         hasPermission(user, 'author') &&
