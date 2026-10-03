@@ -1,6 +1,7 @@
 import { Link, NavLink } from 'react-router-dom'
 import { X } from 'lucide-react'
 import type { AppShellContent } from '../../content/types'
+import { useSession } from '../../state/sessionContext'
 import { icons } from '../icons'
 import { Logo } from '../ui/Logo'
 import { DepartmentSwitcher } from './DepartmentSwitcher'
@@ -24,6 +25,7 @@ const itemBase =
  */
 export function Sidebar({ content, onNavigate, onClose, showDepartmentSwitcher = false }: SidebarProps) {
   const SignOutIcon = icons[content.signOut.icon]
+  const { signOut } = useSession()
   const homeHref = content.nav[0].href
 
   return (
@@ -91,10 +93,13 @@ export function Sidebar({ content, onNavigate, onClose, showDepartmentSwitcher =
 
         {/* Sign Out pinned to the bottom */}
         <div className="mt-auto border-t border-beige pt-4">
-          {/* DEMO: there is no session yet, so signing out just returns to the Sign In page. */}
+          {/* Ends the session, then goes to the Sign In page. */}
           <Link
             to={content.signOut.href}
-            onClick={onNavigate}
+            onClick={() => {
+              signOut()
+              onNavigate?.()
+            }}
             className={`${itemBase} text-text-gray hover:bg-beige hover:text-maroon`}
           >
             <SignOutIcon aria-hidden="true" className="size-5 shrink-0" strokeWidth={1.75} />

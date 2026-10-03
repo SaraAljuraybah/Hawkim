@@ -12,14 +12,21 @@ import type { SopStatus, Status } from '../../types/status'
  */
 export type Permission = 'author' | 'reviewer' | 'approver' | 'admin'
 
-/** The signed-in user. */
+/** A user of Hawkim (an employee, with any extra permissions). */
 export interface User {
   id: string
   name: string
+  /** Sign-in email; unique among active users (compared ignoring case). */
+  email: string
   initials: string
   /** The user's home department. */
   departmentId: DepartmentId
   permissions: Permission[]
+  /**
+   * Set when an admin deletes the user (ISO date and time). Deleted users can't
+   * sign in and are hidden from lists and pickers, but their name stays on SOP history.
+   */
+  deletedAt?: string
 }
 
 /** Department identifiers (see departments.ts). */
@@ -271,4 +278,6 @@ export interface UserRequest {
   /** ISO date, e.g. "2024-01-12" */
   createdAt: string
   status: Status
+  /** Who sent it (User.id). */
+  requesterId: string
 }

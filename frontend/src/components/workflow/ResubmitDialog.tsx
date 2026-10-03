@@ -1,6 +1,6 @@
 import type { SopWorkflowContent } from '../../content/types'
-import { getUser } from '../../data/mock/users'
 import type { Sop } from '../../data/mock/types'
+import { useUsers } from '../../state/usersContext'
 import { FormDialog } from '../ui/FormDialog'
 
 interface ResubmitDialogProps {
@@ -13,7 +13,8 @@ interface ResubmitDialogProps {
 /** "Resubmit for review": confirms the same reviewers, approvers and due days (shown read-only). */
 export function ResubmitDialog({ sop, content, onSubmit, onClose }: ResubmitDialogProps) {
   const text = content.resubmit
-  const names = (people: { userId: string }[]) => people.map((p) => getUser(p.userId)?.name ?? '').join(', ')
+  const { nameOf } = useUsers()
+  const names = (people: { userId: string }[]) => people.map((p) => nameOf(p.userId)).join(', ')
   const days = (count?: number) =>
     count === undefined ? text.noDueDate : count === 1 ? text.oneDay : text.days.replace('{count}', String(count))
   const rows = [

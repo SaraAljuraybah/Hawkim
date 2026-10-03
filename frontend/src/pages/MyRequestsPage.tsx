@@ -10,7 +10,7 @@ import type { RequestTabKey } from '../content/types'
 import type { RequestType, UserRequest } from '../data/mock/types'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { formatDate } from '../lib/format'
-import { useRequests } from '../state/requestsContext'
+import { useMyRequests, useRequests } from '../state/requestsContext'
 
 const TAB_ID_PREFIX = 'requests'
 
@@ -34,7 +34,8 @@ export function MyRequestsPage() {
   const typeLabels = requestsEn.types
   useDocumentTitle(content.pageTitle)
 
-  const { requests, cancelRequest } = useRequests()
+  const { cancelRequest } = useRequests()
+  const requests = useMyRequests()
   const [tab, setTab] = useState<RequestTabKey>('all')
   /** The request waiting for cancel confirmation (dialog open while set). */
   const [pendingCancel, setPendingCancel] = useState<UserRequest | null>(null)

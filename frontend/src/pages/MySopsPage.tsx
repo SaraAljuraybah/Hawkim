@@ -4,12 +4,12 @@ import { CircleCheck, FileText, Upload } from 'lucide-react'
 import { AuthoredSopList } from '../components/mySops/AuthoredSopList'
 import { Button } from '../components/ui/Button'
 import { mySopsEn } from '../content/mySops.en'
-import { currentUser } from '../data/mock/currentUser'
 import type { Sop } from '../data/mock/types'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { hasPermission } from '../lib/permissions'
 import { isAuthorOrCoAuthor } from '../lib/workflow'
 import { useActiveDepartment } from '../state/activeDepartmentContext'
+import { useCurrentUser } from '../state/sessionContext'
 import { useSops } from '../state/sopsContext'
 import { NotFoundPage } from './NotFoundPage'
 
@@ -21,8 +21,7 @@ export interface MySopsLocationState {
 /** My SOPs ("/my-sops", Author permission): SOPs the user authored or co-authors in the active department. */
 export function MySopsPage() {
   const content = mySopsEn
-  // TODO: Use the authenticated user once real authentication exists.
-  const user = currentUser
+  const user = useCurrentUser()
   const isAuthor = hasPermission(user, 'author')
   // Non-authors get the Not Found page, which sets its own title.
   useDocumentTitle(isAuthor ? content.pageTitle : undefined)

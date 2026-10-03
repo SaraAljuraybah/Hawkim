@@ -8,11 +8,11 @@ import { SelectField } from '../components/ui/SelectField'
 import { TextAreaField } from '../components/ui/TextAreaField'
 import { TextField } from '../components/ui/TextField'
 import { requestsEn } from '../content/requests.en'
-import { currentUser } from '../data/mock/currentUser'
 import { departments } from '../data/mock/departments'
 import type { DepartmentId, RequestType } from '../data/mock/types'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { REQUEST_PREFILL_PARAMS } from '../lib/routes'
+import { useCurrentUser } from '../state/sessionContext'
 import { useRequests } from '../state/requestsContext'
 
 const TITLE_MAX = 100
@@ -53,8 +53,7 @@ export function SubmitRequestPage() {
   useDocumentTitle(content.pageTitle)
 
   const { addRequest } = useRequests()
-  // TODO: Use the authenticated user once real authentication exists.
-  const user = currentUser
+  const user = useCurrentUser()
 
   const [searchParams] = useSearchParams()
   const [files, setFiles] = useState<File[]>([])

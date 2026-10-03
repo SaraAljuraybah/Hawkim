@@ -12,7 +12,7 @@ export type SopAccess = 'granted' | 'requested' | 'locked'
  * the user belongs to (home department, plus departments with an APPROVED
  * department-access request), not only the active one.
  *
- * Pass the requests from the shared requests store, so the result
+ * Pass the user's own requests from the shared requests store, so the result
  * updates as soon as a request is submitted, approved or cancelled.
  *
  * TODO: The backend must enforce this same rule before serving any SOP file.

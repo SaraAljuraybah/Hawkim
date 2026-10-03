@@ -15,9 +15,7 @@ import { SelectField } from '../components/ui/SelectField'
 import { Tabs, type TabItem } from '../components/ui/Tabs'
 import { tabIds } from '../components/ui/tabIds'
 import { complianceEn } from '../content/compliance.en'
-import { currentUser } from '../data/mock/currentUser'
 import { getDepartmentName } from '../data/mock/departments'
-import { getUser } from '../data/mock/users'
 import type { ComplianceResult, Sop } from '../data/mock/types'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import {
@@ -33,7 +31,9 @@ import { formatDateTime } from '../lib/format'
 import { hasPermission } from '../lib/permissions'
 import { mySopPath } from '../lib/routes'
 import { isAuthorOrCoAuthor } from '../lib/workflow'
+import { useCurrentUser } from '../state/sessionContext'
 import { useSops } from '../state/sopsContext'
+import { useUsers } from '../state/usersContext'
 import { NotFoundPage } from './NotFoundPage'
 
 const TAB_ID_PREFIX = 'findings'
@@ -57,8 +57,7 @@ export function ComplianceReportPage() {
 function ComplianceReport({ id }: { id: string | undefined }) {
   const text = complianceEn.report
   const { sops } = useSops()
-  // TODO: Use the authenticated user once real authentication exists.
-  const user = currentUser
+  const user = useCurrentUser()
   const sop = sops.find((item) => item.id === id)
   const allowed = !!sop && hasPermission(user, 'author') && isAuthorOrCoAuthor(sop, user.id)
   useDocumentTitle(allowed ? text.pageTitle.replace('{code}', sop.code) : undefined)
@@ -70,6 +69,7 @@ function ComplianceReport({ id }: { id: string | undefined }) {
 function Report({ sop }: { sop: Sop }) {
   const content = complianceEn
   const text = content.report
+  const { nameOf } = useUsers()
 
   // Defaults to the current version; earlier versions' reports can be chosen.
   const [selectedVersion, setSelectedVersion] = useState(sop.version)
@@ -137,8 +137,8 @@ function Report({ sop }: { sop: Sop }) {
 
   const tabItems: TabItem<TabKey>[] = (['all', ...RESULT_ORDER] as const).map((key) => ({ key, label: text.findings.tabs[key] }))
   const ids = tabIds(TAB_ID_PREFIX, tab)
-  const author = getUser(sop.authorId)?.name ?? ''
-  const coAuthors = sop.coAuthorIds.map((coAuthorId) => getUser(coAuthorId)?.name ?? '').join(', ')
+  const author = nameOf(sop.authorId)
+  const coAuthors = sop.coAuthorIds.map((coAuthorId) => nameOf(coAuthorId)).join(', ')
 
   const details = report
     ? [

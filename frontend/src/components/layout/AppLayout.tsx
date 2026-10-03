@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { Outlet } from 'react-router-dom'
 import { appShellEn } from '../../content/app.en'
-import { currentUser } from '../../data/mock/currentUser'
 import { hasPermission } from '../../lib/permissions'
+import { useCurrentUser } from '../../state/sessionContext'
 import { MobileDrawer } from './MobileDrawer'
 import { Sidebar } from './Sidebar'
 import { TopBar } from './TopBar'
@@ -12,8 +12,7 @@ import { TopBar } from './TopBar'
  * Used as a layout route in App.tsx; each child route renders in <Outlet />.
  */
 export function AppLayout() {
-  // TODO: Use the authenticated user once real authentication exists.
-  const user = currentUser
+  const user = useCurrentUser()
   // Items tied to a permission (e.g. My SOPs for authors) are only shown to users who have it.
   const content = {
     ...appShellEn,

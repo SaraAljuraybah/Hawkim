@@ -6,7 +6,7 @@ import type { Department, DepartmentId } from '../data/mock/types'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { getDepartmentState } from '../lib/departments'
 import { useActiveDepartment } from '../state/activeDepartmentContext'
-import { useRequests } from '../state/requestsContext'
+import { useMyRequests } from '../state/requestsContext'
 
 /** Where opening a department takes the user. */
 const AFTER_OPEN_PATH = '/dashboard'
@@ -18,7 +18,7 @@ export function DepartmentsPage() {
   const navigate = useNavigate()
 
   // States come from the shared stores, so they update as soon as requests change.
-  const { requests } = useRequests()
+  const requests = useMyRequests()
   const { activeDepartment, userDepartments, setActiveDepartment } = useActiveDepartment()
   const getState = (department: Department) =>
     getDepartmentState(department.id, activeDepartment.id, userDepartments, requests)

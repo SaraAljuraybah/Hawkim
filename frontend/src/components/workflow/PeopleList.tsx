@@ -1,8 +1,8 @@
 import type { ReactNode } from 'react'
 import { UserPlus } from 'lucide-react'
 import type { SopWorkflowContent } from '../../content/types'
-import { getUser } from '../../data/mock/users'
 import type { Sop } from '../../data/mock/types'
+import { useUsers } from '../../state/usersContext'
 import { Button } from '../ui/Button'
 import { DecisionBadge } from './DecisionBadge'
 
@@ -34,8 +34,9 @@ const rowClasses = 'flex flex-wrap items-center gap-x-3 gap-y-1.5'
  * with each person's decision in the current round.
  */
 export function PeopleList({ sop, content, userId, canManageCoAuthors, onAddCoAuthor, onRemoveCoAuthor }: PeopleListProps) {
+  const { nameOf } = useUsers()
   const name = (id: string) => {
-    const userName = getUser(id)?.name ?? ''
+    const userName = nameOf(id)
     return id === userId ? `${userName} ${content.you}` : userName
   }
   const empty = (text: string) => <p className="text-sm text-text-gray">{text}</p>
@@ -68,7 +69,7 @@ export function PeopleList({ sop, content, userId, canManageCoAuthors, onAddCoAu
                   <Button
                     size="sm"
                     variant="secondary"
-                    aria-label={content.removeLabel.replace('{name}', getUser(id)?.name ?? '')}
+                    aria-label={content.removeLabel.replace('{name}', nameOf(id))}
                     onClick={(event) => onRemoveCoAuthor(id, event.currentTarget)}
                   >
                     {content.remove}

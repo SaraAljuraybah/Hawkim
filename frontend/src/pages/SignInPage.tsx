@@ -1,4 +1,4 @@
-import { useRef, useState, type FormEvent } from 'react'
+import { lazy, Suspense, useRef, useState, type FormEvent } from 'react'
 import { flushSync } from 'react-dom'
 import { Link, useNavigate } from 'react-router-dom'
 import { Info, LoaderCircle } from 'lucide-react'
@@ -9,7 +9,13 @@ import { PasswordField } from '../components/ui/PasswordField'
 import { TextField } from '../components/ui/TextField'
 import { signInEn } from '../content/auth.en'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
+import { hasPermission } from '../lib/permissions'
 import { signIn, type SignInFailureReason } from '../services/auth'
+import { useSession } from '../state/sessionContext'
+import { useUsers } from '../state/usersContext'
+
+// DEVELOPMENT ONLY: the demo accounts box is not part of the production build.
+const DemoAccounts = import.meta.env.DEV ? lazy(() => import('../components/auth/DemoAccounts')) : null
 
 type Field = 'email' | 'password'
 type FieldErrors = Partial<Record<Field, string>>
@@ -17,8 +23,9 @@ type FieldErrors = Partial<Record<Field, string>>
 /** Simple format check: something@something.something, with no spaces. */
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
-/** Where a successful sign-in leads. */
+/** Where a successful sign-in leads: admins use only the admin portal. */
 const AFTER_SIGN_IN_PATH = '/dashboard'
+const ADMIN_AFTER_SIGN_IN_PATH = '/admin'
 
 const linkClasses =
   'rounded-sm font-medium text-maroon-secondary underline-offset-4 hover:underline'
@@ -39,6 +46,8 @@ export function SignInPage() {
   const content = signInEn
   useDocumentTitle(content.pageTitle)
   const navigate = useNavigate()
+  const { users } = useUsers()
+  const session = useSession()
 
   const [values, setValues] = useState<Record<Field, string>>({ email: '', password: '' })
   const [errors, setErrors] = useState<FieldErrors>({})
@@ -51,6 +60,7 @@ export function SignInPage() {
 
   const resultMessages: Record<SignInFailureReason, string> = {
     'not-connected': content.results.notConnected,
+    'no-access': content.results.noAccess,
   }
 
   /** Returns the error message for a field, or undefined when it is valid. */
@@ -98,12 +108,13 @@ export function SignInPage() {
 
     setStatusMessage('')
     setSubmitting(true)
-    const result = await signIn(values.email.trim(), values.password)
+    const result = await signIn(values.email.trim(), values.password, users)
     setSubmitting(false)
 
-    // DEMO ONLY: the stub always succeeds (see services/auth.ts).
+    // DEMO ONLY: the stub signs in as a sample user (see services/auth.ts).
     if (result.ok) {
-      navigate(AFTER_SIGN_IN_PATH)
+      session.signIn(result.user.id)
+      navigate(hasPermission(result.user, 'admin') ? ADMIN_AFTER_SIGN_IN_PATH : AFTER_SIGN_IN_PATH)
     } else {
       setStatusMessage(resultMessages[result.reason])
     }
@@ -232,6 +243,18 @@ export function SignInPage() {
                 {content.legal.suffix}
               </p>
             </form>
+
+            {DemoAccounts && (
+              <Suspense fallback={null}>
+                <DemoAccounts
+                  onPick={(email) => {
+                    handleChange('email', email)
+                    setErrors((prev) => ({ ...prev, email: undefined }))
+                    passwordRef.current?.focus()
+                  }}
+                />
+              </Suspense>
+            )}
           </div>
         </div>
       </div>

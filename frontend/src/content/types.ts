@@ -156,6 +156,8 @@ export interface SignInContent {
   /** Messages for the result returned by the auth service. */
   results: {
     notConnected: string
+    /** The account was deleted by an admin. */
+    noAccess: string
   }
   /** "By signing in, you agree to our {terms} and {privacy}." */
   legal: {
@@ -759,4 +761,25 @@ export interface WorkflowDemoContent {
     published: string
     clockForward: string
   }
+}
+
+/* ---------- Users (shared by the employee screens and the admin portal) ---------- */
+
+export interface UsersContent {
+  /** Name of each permission (badges, filters, checkboxes). */
+  permissions: Record<Permission, string>
+  /** Shown for a user without any permission (every user is an employee). */
+  employee: string
+  /** A deleted user's name on SOP history; `{name}` is replaced. */
+  deletedName: string
+}
+
+/* ---------- Sign In: demo accounts (development only) ---------- */
+
+export interface DemoAccountsContent {
+  title: string
+  note: string
+  /** Accessible name of each "use" button; `{name}` is replaced. */
+  useLabel: string
+  use: string
 }

@@ -3,10 +3,10 @@ import { flushSync } from 'react-dom'
 import { FlaskConical } from 'lucide-react'
 import { sopWorkflowEn } from '../../content/workflow.en'
 import { workflowDemoEn } from '../../content/workflowDemo.en'
-import { getUser } from '../../data/mock/users'
 import type { ReviewRole, Sop } from '../../data/mock/types'
 import { currentDueAt } from '../../lib/workflow'
 import { useSops } from '../../state/sopsContext'
+import { useUsers } from '../../state/usersContext'
 import { Button } from '../ui/Button'
 import { FormDialog } from '../ui/FormDialog'
 import { TextAreaField } from '../ui/TextAreaField'
@@ -43,7 +43,7 @@ export default function DemoPanel({ sop, announce }: DemoPanelProps) {
   const commentRef = useRef<HTMLTextAreaElement>(null)
   const triggerRef = useRef<HTMLElement | null>(null)
 
-  const nameOf = (userId: string) => getUser(userId)?.name ?? ''
+  const { nameOf } = useUsers()
   const label = (template: string, userId: string) => template.replace('{name}', nameOf(userId))
 
   function openComment(next: Returner, trigger: HTMLElement) {
