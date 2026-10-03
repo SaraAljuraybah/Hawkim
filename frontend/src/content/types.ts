@@ -210,6 +210,7 @@ export interface DashboardContent {
   pageTitle: string
   /** Greeting by local time of day; `{name}` is replaced with the user's first name. */
   greetings: { morning: string; afternoon: string; evening: string }
+  /** `{department}` is replaced with the active department's name. */
   subtitle: string
   /** Label, sublabel and icon for each statistic (values come from the data). */
   stats: Record<DashboardStatKey, { label: string; sublabel: string; icon: IconName }>
@@ -223,7 +224,7 @@ export interface DashboardContent {
 
 /* ---------- Signed-in app: SOPs list ---------- */
 
-export type SopTabKey = 'all' | 'myDepartment' | 'recent'
+export type SopTabKey = 'all' | 'recent'
 
 export interface SopsContent {
   /** Browser tab title. */
@@ -235,9 +236,9 @@ export interface SopsContent {
   tabs: Record<SopTabKey, string>
   viewToggle: { label: string; grid: string; list: string }
   /** Column headings for the list view. */
-  columns: { code: string; title: string; department: string; version: string; lastUpdated: string; access: string }
-  /** Labels for SOPs the user can't open yet. */
-  access: { restricted: string; requestAccess: string; accessRequested: string }
+  columns: { code: string; title: string; department: string; version: string; lastUpdated: string }
+  /** Screen-reader label before the active department's name, e.g. "Department: ". */
+  departmentLabel: string
   /** `{version}` is replaced with the version number, e.g. "Version 2.1". */
   versionTemplate: string
   /** Shown when a tab has no SOPs. */
@@ -257,7 +258,7 @@ export interface SopDetailContent {
   fallback: { text: string; openPdf: string; newTabHint: string }
   docx: { text: string; download: string }
   /** `{department}` is replaced with the department name. */
-  noAccess: { title: string; text: string }
+  noAccess: { title: string; text: string; requestAccess: string }
   pendingAccess: { title: string; text: string }
 }
 

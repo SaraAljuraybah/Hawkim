@@ -1,7 +1,5 @@
-import { getSopAccess } from '../../lib/sopAccess'
-import { departments } from './departments'
 import { sops } from './sops'
-import type { ActivityItem, DashboardStat, User, UserRequest } from './types'
+import type { ActivityItem, DashboardStat, Department, UserRequest } from './types'
 
 /*
  * Sample dashboard data (from the approved design).
@@ -10,17 +8,18 @@ import type { ActivityItem, DashboardStat, User, UserRequest } from './types'
 
 /**
  * Dashboard statistics, derived from the other data so every screen agrees.
- * @param user the signed-in user
+ * "My Requests" is personal; "SOPs" and "Employees" are for the active department.
  * @param requests the user's requests (from the requests store)
+ * @param activeDepartment the department the user is working in
  */
-export function getDashboardStats(user: User, requests: UserRequest[]): DashboardStat[] {
+export function getDashboardStats(requests: UserRequest[], activeDepartment: Department): DashboardStat[] {
   return [
-    // "In Progress": pending requests
+    // "In Progress": the user's pending requests
     { key: 'myRequests', value: requests.filter((request) => request.status === 'pending').length },
-    // "Accessible": SOPs the user can open
-    { key: 'sops', value: sops.filter((sop) => getSopAccess(sop, user, requests) === 'granted').length },
-    // Sum of department members (assumes each person belongs to one department).
-    { key: 'employees', value: departments.reduce((total, department) => total + department.memberCount, 0) },
+    // "In this department": SOPs of the active department
+    { key: 'sops', value: sops.filter((sop) => sop.departmentId === activeDepartment.id).length },
+    // "In this department": members of the active department
+    { key: 'employees', value: activeDepartment.memberCount },
   ]
 }
 

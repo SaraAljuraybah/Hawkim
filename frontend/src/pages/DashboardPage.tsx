@@ -10,6 +10,7 @@ import { currentUser } from '../data/mock/currentUser'
 import { getDashboardStats, recentActivity } from '../data/mock/dashboard'
 import type { ActivityKind } from '../data/mock/types'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
+import { useActiveDepartment } from '../state/activeDepartmentContext'
 import { useRequests } from '../state/requestsContext'
 
 /** Icon for each kind of activity item. */
@@ -37,9 +38,10 @@ export function DashboardPage() {
   const firstName = user.name.split(' ')[0]
   const greeting = getGreeting(content.greetings).replace('{name}', firstName)
 
-  // Stats depend on the user's requests (pending count, SOP access).
+  // My Requests is personal; SOPs and Employees follow the active department.
   const { requests } = useRequests()
-  const dashboardStats = getDashboardStats(user, requests)
+  const { activeDepartment } = useActiveDepartment()
+  const dashboardStats = getDashboardStats(requests, activeDepartment)
 
   return (
     <>
@@ -50,7 +52,7 @@ export function DashboardPage() {
           👋
         </span>
       </h1>
-      <p className="mt-2 text-text-gray">{content.subtitle}</p>
+      <p className="mt-2 text-text-gray">{content.subtitle.replace('{department}', activeDepartment.name)}</p>
 
       {/* Statistics */}
       <ul className="mt-8 grid gap-4 sm:grid-cols-3 sm:gap-5">

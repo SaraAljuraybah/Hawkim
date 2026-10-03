@@ -13,7 +13,6 @@ export const sopsEn: SopsContent = {
   tabsLabel: 'Filter SOPs',
   tabs: {
     all: 'All',
-    myDepartment: 'My Department',
     recent: 'Recently Added',
   },
   viewToggle: {
@@ -27,15 +26,10 @@ export const sopsEn: SopsContent = {
     department: 'Department',
     version: 'Version',
     lastUpdated: 'Last updated',
-    access: 'Access',
   },
-  access: {
-    restricted: 'Restricted',
-    requestAccess: 'Request access',
-    accessRequested: 'Access requested',
-  },
+  departmentLabel: 'Department',
   versionTemplate: 'Version {version}',
-  empty: 'No SOPs to show here yet.',
+  empty: 'No SOPs in this department yet.',
 
   detail: {
     pageTitle: '{code} | Hawkim',
@@ -54,6 +48,7 @@ export const sopsEn: SopsContent = {
     noAccess: {
       title: "You don't have access to this SOP",
       text: 'This SOP belongs to {department}. Request access to that department to view it.',
+      requestAccess: 'Request access',
     },
     pendingAccess: {
       title: 'Your access request is pending review',

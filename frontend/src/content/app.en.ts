@@ -35,11 +35,11 @@ export const dashboardEn: DashboardContent = {
     afternoon: 'Good afternoon, {name}',
     evening: 'Good evening, {name}',
   },
-  subtitle: "Here's what's happening today.",
+  subtitle: "Here's what's happening in {department} today.",
   stats: {
     myRequests: { label: 'My Requests', sublabel: 'In Progress', icon: 'requests' },
-    sops: { label: 'SOPs', sublabel: 'Accessible', icon: 'sops' },
-    employees: { label: 'Employees', sublabel: 'Across the organization', icon: 'employees' },
+    sops: { label: 'SOPs', sublabel: 'In this department', icon: 'sops' },
+    employees: { label: 'Employees', sublabel: 'In this department', icon: 'employees' },
   },
   recentActivity: { title: 'Recent Activity' },
   quickActions: {

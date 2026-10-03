@@ -83,7 +83,7 @@ export function SopDetailPage() {
             title={content.noAccess.title}
             text={content.noAccess.text.replace('{department}', departmentName)}
           >
-            <Button to={requestDepartmentAccessPath(sop.departmentId)}>{sopsEn.access.requestAccess}</Button>
+            <Button to={requestDepartmentAccessPath(sop.departmentId)}>{content.noAccess.requestAccess}</Button>
           </AccessPanel>
         )}
 
