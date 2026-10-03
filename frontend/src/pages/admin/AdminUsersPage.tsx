@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
-import { Plus, Users } from 'lucide-react'
+import { Link, useLocation } from 'react-router-dom'
+import { CircleCheck, Plus, Users } from 'lucide-react'
 import { PermissionBadges, UserAvatar } from '../../components/admin/UserBits'
 import { Button } from '../../components/ui/Button'
 import { SelectField } from '../../components/ui/SelectField'
@@ -13,6 +13,11 @@ import { useDocumentTitle } from '../../hooks/useDocumentTitle'
 import { adminUserPath } from '../../lib/routes'
 import { PERMISSIONS } from '../../lib/userAdmin'
 import { useUsers } from '../../state/usersContext'
+
+/** Set after deleting a user, to say so on the list. */
+export interface AdminUsersLocationState {
+  deleted?: string
+}
 
 /** "All" in the filters. */
 const ALL = 'all'
@@ -40,6 +45,7 @@ export function AdminUsersPage() {
   const content = adminEn.usersList
   useDocumentTitle(adminEn.pageTitle.replace('{page}', content.title))
   const { activeUsers } = useUsers()
+  const notice = (useLocation().state as AdminUsersLocationState | null)?.deleted
 
   const [query, setQuery] = useState('')
   const [departmentId, setDepartmentId] = useState(ALL)
@@ -61,6 +67,15 @@ export function AdminUsersPage() {
           <Plus aria-hidden="true" className="size-4" strokeWidth={2} />
           {content.addUser.label}
         </Button>
+      </div>
+
+      <div role="status">
+        {notice && (
+          <p className="mt-6 flex items-center gap-2 rounded-lg border border-status-approved-fg/25 bg-status-approved-bg px-4 py-3 text-sm font-medium text-status-approved-fg">
+            <CircleCheck aria-hidden="true" className="size-4 shrink-0" strokeWidth={2} />
+            {notice}
+          </p>
+        )}
       </div>
 
       {/* Search and filters */}

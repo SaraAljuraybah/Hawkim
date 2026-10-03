@@ -806,6 +806,79 @@ export interface AdminContent {
   /** Browser tab title of every admin page; `{page}` is replaced. */
   pageTitle: string
   usersList: AdminUsersListContent
+  /** One line about each permission (Add user, user page). */
+  permissionDescriptions: Record<Permission, string>
+  addUser: AdminAddUserContent
+  userDetails: AdminUserDetailsContent
+}
+
+export interface AdminAddUserContent {
+  title: string
+  subtitle: string
+  back: LinkContent
+  name: { label: string }
+  email: { label: string; hint: string }
+  department: { label: string; placeholder: string }
+  permissions: { legend: string; hint: string }
+  submit: string
+  cancel: string
+  errors: {
+    nameRequired: string
+    emailInvalid: string
+    emailTaken: string
+    departmentRequired: string
+  }
+}
+
+export interface AdminUserDetailsContent {
+  back: LinkContent
+  /** Shown after adding a user. */
+  added: string
+  details: {
+    title: string
+    email: string
+    homeDepartment: string
+    joinedDepartments: string
+    joinedHint: string
+    none: string
+  }
+  permissions: {
+    title: string
+    /** Visually hidden legend of the checkboxes; `{name}` is replaced. */
+    legend: string
+    save: string
+    saved: string
+    /** Above the reasons when saving is refused. */
+    refused: string
+  }
+  involvement: {
+    title: string
+    empty: string
+    /** Accessible name of the list. */
+    label: string
+    roles: Record<'author' | 'co-author' | 'reviewer' | 'approver', string>
+    /** Visually hidden before the roles. */
+    rolesLabel: string
+  }
+  delete: {
+    title: string
+    text: string
+    button: string
+    /** `{name}` is replaced. */
+    refused: string
+    dialog: { title: string; description: string; confirm: string; cancel: string }
+    /** Shown on the users list afterwards; `{name}` is replaced. */
+    done: string
+  }
+  /** Why a change is refused. `{name}` (the user) and `{sops}` (SOP codes) are replaced. */
+  blockers: {
+    selfDelete: string
+    selfAdmin: string
+    lastAdmin: string
+    inUse: Record<'author' | 'reviewer' | 'approver', string>
+    /** A permission that can't be removed; `{permission}` and `{reason}` are replaced. */
+    cantRemove: string
+  }
 }
 
 /** One or several, e.g. "1 user" / "9 users"; `{count}` is replaced. */
