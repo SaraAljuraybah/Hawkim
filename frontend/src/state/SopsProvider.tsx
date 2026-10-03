@@ -2,6 +2,7 @@ import { useCallback, useMemo, useRef, useState, type ReactNode } from 'react'
 import { currentUser } from '../data/mock/currentUser'
 import { sops as seedSops } from '../data/mock/sops'
 import type { Sop, TimelineEvent } from '../data/mock/types'
+import * as compliance from '../lib/compliance'
 import { todayIsoDate } from '../lib/format'
 import { nextSopCode } from '../lib/sopCodes'
 import * as workflow from '../lib/workflow'
@@ -67,6 +68,7 @@ export function SopsProvider({ children }: { children: ReactNode }) {
         ],
         comments: [],
         timeline,
+        complianceChecks: [],
       }
       commit([created, ...current])
       return created
@@ -90,6 +92,27 @@ export function SopsProvider({ children }: { children: ReactNode }) {
     [commit],
   )
 
+  /**
+   * Starts a compliance check of the current version, then completes it after
+   * the sample delay (the check is matched by id, so later changes don't matter).
+   * TODO: Replace the sample timer with a call to the compliance service API.
+   */
+  const runCheck = useCallback(
+    (sopId: string) => {
+      let checkId = ''
+      update(sopId, (sop) => {
+        const started = compliance.startCheck(sop)
+        checkId = started.checkId
+        return started.sop
+      })
+      window.setTimeout(
+        () => update(sopId, (sop) => compliance.completeCheck(sop, checkId)),
+        compliance.SAMPLE_CHECK_DURATION_MS,
+      )
+    },
+    [update],
+  )
+
   const store = useMemo<SopsStore>(
     () => ({
       sops,
@@ -104,14 +127,20 @@ export function SopsProvider({ children }: { children: ReactNode }) {
       addCoAuthors: (id, userIds) =>
         update(id, (sop) => userIds.reduce((next, userId) => workflow.addCoAuthor(next, user.id, userId), sop)),
       removeCoAuthor: (id, userId) => update(id, (sop) => workflow.removeCoAuthor(sop, user.id, userId)),
+      runCheck,
       completeReview: (id, reviewerId) => update(id, (sop) => workflow.completeReview(sop, reviewerId)),
       returnAsReviewer: (id, reviewerId, text) => update(id, (sop) => workflow.returnAsReviewer(sop, reviewerId, text)),
       approveAs: (id, approverId) => update(id, (sop) => workflow.approveAs(sop, approverId)),
       returnAsApprover: (id, approverId, text) => update(id, (sop) => workflow.returnAsApprover(sop, approverId, text)),
       publishAs: (id, approverId) => update(id, (sop) => workflow.publishAs(sop, approverId)),
       shiftDueDates: (id, days) => update(id, (sop) => workflow.shiftDueDates(sop, days)),
+      failRunningCheck: (id) =>
+        update(id, (sop) => {
+          const running = sop.complianceChecks.find((check) => check.status === 'running')
+          return running ? compliance.failCheck(sop, running.id) : sop
+        }),
     }),
-    [sops, addDraft, update, user.id],
+    [sops, addDraft, update, runCheck, user.id],
   )
 
   return <SopsContext.Provider value={store}>{children}</SopsContext.Provider>

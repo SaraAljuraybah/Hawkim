@@ -29,6 +29,7 @@ export const sops: Sop[] = [
     ],
     comments: [],
     timeline: [],
+    complianceChecks: [],
   },
   {
     id: 'sop-032',
@@ -49,6 +50,7 @@ export const sops: Sop[] = [
     ],
     comments: [],
     timeline: [],
+    complianceChecks: [],
   },
   {
     id: 'sop-045',
@@ -69,6 +71,7 @@ export const sops: Sop[] = [
     ],
     comments: [],
     timeline: [],
+    complianceChecks: [],
   },
   {
     id: 'sop-061',
@@ -89,6 +92,7 @@ export const sops: Sop[] = [
     ],
     comments: [],
     timeline: [],
+    complianceChecks: [],
   },
   {
     id: 'sop-078',
@@ -138,10 +142,12 @@ export const sops: Sop[] = [
     ],
     timeline: [
       { id: 'evt-078-01', type: 'uploaded', actorId: 'user-sara', version: '1.0', createdAt: '2023-09-04T10:00:00+03:00' },
+      { id: 'evt-078-01c', type: 'compliance-check-completed', actorId: 'system', version: '1.0', createdAt: '2023-09-04T10:00:03+03:00' },
       { id: 'evt-078-02', type: 'submitted', actorId: 'user-sara', recipientIds: ['user-noura'], version: '1.0', createdAt: '2023-09-05T09:15:00+03:00' },
       { id: 'evt-078-03', type: 'stage-due-date-set', actorId: 'user-sara', stage: 'review', dueAt: '2023-09-10T09:15:00+03:00', version: '1.0', createdAt: '2023-09-05T09:15:00+03:00' },
       { id: 'evt-078-04', type: 'returned', actorId: 'user-noura', recipientIds: ['user-sara'], version: '1.0', createdAt: '2023-09-12T13:00:00+03:00' },
       { id: 'evt-078-05', type: 'new-version-uploaded', actorId: 'user-sara', version: '1.1', createdAt: '2023-09-20T11:30:00+03:00' },
+      { id: 'evt-078-05c', type: 'compliance-check-completed', actorId: 'system', version: '1.1', createdAt: '2023-09-20T11:30:03+03:00' },
       { id: 'evt-078-06', type: 'resubmitted', actorId: 'user-sara', recipientIds: ['user-noura'], version: '1.1', createdAt: '2023-09-21T08:50:00+03:00' },
       { id: 'evt-078-07', type: 'stage-due-date-set', actorId: 'user-sara', stage: 'review', dueAt: '2023-09-26T08:50:00+03:00', version: '1.1', createdAt: '2023-09-21T08:50:00+03:00' },
       { id: 'evt-078-08', type: 'review-completed', actorId: 'user-noura', version: '1.1', createdAt: '2023-09-25T14:05:00+03:00' },
@@ -149,6 +155,7 @@ export const sops: Sop[] = [
       { id: 'evt-078-10', type: 'stage-due-date-set', actorId: 'system', stage: 'approval', dueAt: '2023-09-30T14:05:00+03:00', version: '1.1', createdAt: '2023-09-25T14:05:00+03:00' },
       { id: 'evt-078-11', type: 'returned', actorId: 'user-huda', recipientIds: ['user-sara'], version: '1.1', createdAt: '2023-10-10T10:20:00+03:00' },
       { id: 'evt-078-12', type: 'new-version-uploaded', actorId: 'user-sara', version: '1.2', createdAt: '2023-10-25T09:45:00+03:00' },
+      { id: 'evt-078-12c', type: 'compliance-check-completed', actorId: 'system', version: '1.2', createdAt: '2023-10-25T09:45:03+03:00' },
       { id: 'evt-078-13', type: 'resubmitted', actorId: 'user-sara', recipientIds: ['user-noura'], version: '1.2', createdAt: '2023-10-26T10:10:00+03:00' },
       { id: 'evt-078-14', type: 'stage-due-date-set', actorId: 'user-sara', stage: 'review', dueAt: '2023-10-31T10:10:00+03:00', version: '1.2', createdAt: '2023-10-26T10:10:00+03:00' },
       { id: 'evt-078-15', type: 'review-completed', actorId: 'user-noura', version: '1.2', createdAt: '2023-11-02T11:40:00+03:00' },
@@ -157,6 +164,56 @@ export const sops: Sop[] = [
       { id: 'evt-078-18', type: 'approved-by', actorId: 'user-huda', version: '1.2', createdAt: '2023-11-15T15:25:00+03:00' },
       { id: 'evt-078-19', type: 'approved', actorId: 'system', version: '1.2', createdAt: '2023-11-15T15:25:00+03:00' },
       { id: 'evt-078-20', type: 'published', actorId: 'user-huda', version: '1.2', createdAt: '2023-11-18T09:00:00+03:00' },
+    ],
+    complianceChecks: [
+      {
+        id: 'chk-078-v1.0',
+        sopId: 'sop-078',
+        version: '1.0',
+        status: 'completed',
+        startedAt: '2023-09-04T10:00:00+03:00',
+        completedAt: '2023-09-04T10:00:03+03:00',
+        guideline: { name: 'SFDA Guideline on Good Pharmacovigilance Practices (GVP)', version: '4.0' },
+        findings: [
+          { id: 'chk-078-v1.0-f1', requirementId: 'R1', result: 'compliant', justification: 'Sample finding: the SOP describes role-based access approval for the system.', sopReference: 'Section 4.2' },
+          { id: 'chk-078-v1.0-f2', requirementId: 'R2', result: 'partial', justification: 'Sample finding: the SOP describes regular back-ups of records but does not say how long pharmacovigilance records are kept.', sopReference: 'Section 5.1' },
+          { id: 'chk-078-v1.0-f3', requirementId: 'R3', result: 'compliant', justification: 'Sample finding: the SOP explains how records are indexed so they can be found and retrieved on request.', sopReference: 'Section 5.3' },
+          { id: 'chk-078-v1.0-f4', requirementId: 'R4', result: 'conflict', justification: 'Sample finding: the SOP states that records of deactivated accounts are deleted after 30 days, which conflicts with keeping records securely for the retention period.', sopReference: 'Section 6.2' },
+          { id: 'chk-078-v1.0-f5', requirementId: 'R5', result: 'not-addressed', justification: 'Sample finding: the SOP does not mention training for staff who perform this procedure.' },
+        ],
+      },
+      {
+        id: 'chk-078-v1.1',
+        sopId: 'sop-078',
+        version: '1.1',
+        status: 'completed',
+        startedAt: '2023-09-20T11:30:00+03:00',
+        completedAt: '2023-09-20T11:30:03+03:00',
+        guideline: { name: 'SFDA Guideline on Good Pharmacovigilance Practices (GVP)', version: '4.0' },
+        findings: [
+          { id: 'chk-078-v1.1-f1', requirementId: 'R1', result: 'compliant', justification: 'Sample finding: the SOP describes role-based access approval for the system.', sopReference: 'Section 4.2' },
+          { id: 'chk-078-v1.1-f2', requirementId: 'R2', result: 'partial', justification: 'Sample finding: the SOP describes regular back-ups of records but does not say how long pharmacovigilance records are kept.', sopReference: 'Section 5.1' },
+          { id: 'chk-078-v1.1-f3', requirementId: 'R3', result: 'compliant', justification: 'Sample finding: the SOP explains how records are indexed so they can be found and retrieved on request.', sopReference: 'Section 5.3' },
+          { id: 'chk-078-v1.1-f4', requirementId: 'R4', result: 'conflict', justification: 'Sample finding: the SOP states that records of deactivated accounts are deleted after 30 days, which conflicts with keeping records securely for the retention period.', sopReference: 'Section 6.2' },
+          { id: 'chk-078-v1.1-f5', requirementId: 'R5', result: 'not-addressed', justification: 'Sample finding: the SOP does not mention training for staff who perform this procedure.' },
+        ],
+      },
+      {
+        id: 'chk-078-v1.2',
+        sopId: 'sop-078',
+        version: '1.2',
+        status: 'completed',
+        startedAt: '2023-10-25T09:45:00+03:00',
+        completedAt: '2023-10-25T09:45:03+03:00',
+        guideline: { name: 'SFDA Guideline on Good Pharmacovigilance Practices (GVP)', version: '4.0' },
+        findings: [
+          { id: 'chk-078-v1.2-f1', requirementId: 'R1', result: 'compliant', justification: 'Sample finding: the SOP describes role-based access approval for the system.', sopReference: 'Section 4.2' },
+          { id: 'chk-078-v1.2-f2', requirementId: 'R2', result: 'partial', justification: 'Sample finding: the SOP describes regular back-ups of records but does not say how long pharmacovigilance records are kept.', sopReference: 'Section 5.1' },
+          { id: 'chk-078-v1.2-f3', requirementId: 'R3', result: 'compliant', justification: 'Sample finding: the SOP explains how records are indexed so they can be found and retrieved on request.', sopReference: 'Section 5.3' },
+          { id: 'chk-078-v1.2-f4', requirementId: 'R4', result: 'conflict', justification: 'Sample finding: the SOP states that records of deactivated accounts are deleted after 30 days, which conflicts with keeping records securely for the retention period.', sopReference: 'Section 6.2' },
+          { id: 'chk-078-v1.2-f5', requirementId: 'R5', result: 'not-addressed', justification: 'Sample finding: the SOP does not mention training for staff who perform this procedure.' },
+        ],
+      },
     ],
   },
   {
@@ -178,6 +235,7 @@ export const sops: Sop[] = [
     ],
     comments: [],
     timeline: [],
+    complianceChecks: [],
   },
   {
     id: 'sop-079',
@@ -199,6 +257,25 @@ export const sops: Sop[] = [
     comments: [],
     timeline: [
       { id: 'evt-079-1', type: 'uploaded', actorId: 'user-sara', version: '1.0', createdAt: '2026-09-29T10:15:00+03:00' },
+      { id: 'evt-079-1c', type: 'compliance-check-completed', actorId: 'system', version: '1.0', createdAt: '2026-09-29T10:15:03+03:00' },
+    ],
+    complianceChecks: [
+      {
+        id: 'chk-079-v1.0',
+        sopId: 'sop-079',
+        version: '1.0',
+        status: 'completed',
+        startedAt: '2026-09-29T10:15:00+03:00',
+        completedAt: '2026-09-29T10:15:03+03:00',
+        guideline: { name: 'SFDA Guideline on Good Pharmacovigilance Practices (GVP)', version: '4.0' },
+        findings: [
+          { id: 'chk-079-v1.0-f1', requirementId: 'R1', result: 'compliant', justification: 'Sample finding: the SOP describes role-based access approval for the system.', sopReference: 'Section 4.2' },
+          { id: 'chk-079-v1.0-f2', requirementId: 'R2', result: 'partial', justification: 'Sample finding: the SOP describes regular back-ups of records but does not say how long pharmacovigilance records are kept.', sopReference: 'Section 5.1' },
+          { id: 'chk-079-v1.0-f3', requirementId: 'R3', result: 'compliant', justification: 'Sample finding: the SOP explains how records are indexed so they can be found and retrieved on request.', sopReference: 'Section 5.3' },
+          { id: 'chk-079-v1.0-f4', requirementId: 'R4', result: 'conflict', justification: 'Sample finding: the SOP states that records of deactivated accounts are deleted after 30 days, which conflicts with keeping records securely for the retention period.', sopReference: 'Section 6.2' },
+          { id: 'chk-079-v1.0-f5', requirementId: 'R5', result: 'not-addressed', justification: 'Sample finding: the SOP does not mention training for staff who perform this procedure.' },
+        ],
+      },
     ],
   },
   {
@@ -227,8 +304,27 @@ export const sops: Sop[] = [
     comments: [],
     timeline: [
       { id: 'evt-080-1', type: 'uploaded', actorId: 'user-sara', version: '1.0', createdAt: '2026-09-22T11:00:00+03:00' },
+      { id: 'evt-080-1c', type: 'compliance-check-completed', actorId: 'system', version: '1.0', createdAt: '2026-09-22T11:00:03+03:00' },
       { id: 'evt-080-2', type: 'submitted', actorId: 'user-sara', recipientIds: ['user-noura', 'user-faisal'], version: '1.0', createdAt: '2026-09-24T09:30:00+03:00', note: 'Ready for review.' },
       { id: 'evt-080-4', type: 'review-completed', actorId: 'user-noura', version: '1.0', createdAt: '2026-09-26T16:20:00+03:00' },
+    ],
+    complianceChecks: [
+      {
+        id: 'chk-080-v1.0',
+        sopId: 'sop-080',
+        version: '1.0',
+        status: 'completed',
+        startedAt: '2026-09-22T11:00:00+03:00',
+        completedAt: '2026-09-22T11:00:03+03:00',
+        guideline: { name: 'SFDA Guideline on Good Pharmacovigilance Practices (GVP)', version: '4.0' },
+        findings: [
+          { id: 'chk-080-v1.0-f1', requirementId: 'R1', result: 'compliant', justification: 'Sample finding: the SOP describes role-based access approval for the system.', sopReference: 'Section 4.2' },
+          { id: 'chk-080-v1.0-f2', requirementId: 'R2', result: 'partial', justification: 'Sample finding: the SOP describes regular back-ups of records but does not say how long pharmacovigilance records are kept.', sopReference: 'Section 5.1' },
+          { id: 'chk-080-v1.0-f3', requirementId: 'R3', result: 'compliant', justification: 'Sample finding: the SOP explains how records are indexed so they can be found and retrieved on request.', sopReference: 'Section 5.3' },
+          { id: 'chk-080-v1.0-f4', requirementId: 'R4', result: 'conflict', justification: 'Sample finding: the SOP states that records of deactivated accounts are deleted after 30 days, which conflicts with keeping records securely for the retention period.', sopReference: 'Section 6.2' },
+          { id: 'chk-080-v1.0-f5', requirementId: 'R5', result: 'not-addressed', justification: 'Sample finding: the SOP does not mention training for staff who perform this procedure.' },
+        ],
+      },
     ],
   },
   {
@@ -267,9 +363,28 @@ export const sops: Sop[] = [
     ],
     timeline: [
       { id: 'evt-081-1', type: 'uploaded', actorId: 'user-sara', version: '1.0', createdAt: '2026-09-15T13:20:00+03:00' },
+      { id: 'evt-081-1c', type: 'compliance-check-completed', actorId: 'system', version: '1.0', createdAt: '2026-09-15T13:20:03+03:00' },
       { id: 'evt-081-2', type: 'submitted', actorId: 'user-sara', recipientIds: ['user-noura'], version: '1.0', createdAt: '2026-09-16T10:05:00+03:00' },
       { id: 'evt-081-3', type: 'stage-due-date-set', actorId: 'user-sara', stage: 'review', dueAt: '2026-09-21T10:05:00+03:00', version: '1.0', createdAt: '2026-09-16T10:05:00+03:00' },
       { id: 'evt-081-4', type: 'returned', actorId: 'user-noura', recipientIds: ['user-sara'], version: '1.0', createdAt: '2026-09-20T14:40:00+03:00' },
+    ],
+    complianceChecks: [
+      {
+        id: 'chk-081-v1.0',
+        sopId: 'sop-081',
+        version: '1.0',
+        status: 'completed',
+        startedAt: '2026-09-15T13:20:00+03:00',
+        completedAt: '2026-09-15T13:20:03+03:00',
+        guideline: { name: 'SFDA Guideline on Good Pharmacovigilance Practices (GVP)', version: '4.0' },
+        findings: [
+          { id: 'chk-081-v1.0-f1', requirementId: 'R1', result: 'compliant', justification: 'Sample finding: the SOP describes role-based access approval for the system.', sopReference: 'Section 4.2' },
+          { id: 'chk-081-v1.0-f2', requirementId: 'R2', result: 'partial', justification: 'Sample finding: the SOP describes regular back-ups of records but does not say how long pharmacovigilance records are kept.', sopReference: 'Section 5.1' },
+          { id: 'chk-081-v1.0-f3', requirementId: 'R3', result: 'compliant', justification: 'Sample finding: the SOP explains how records are indexed so they can be found and retrieved on request.', sopReference: 'Section 5.3' },
+          { id: 'chk-081-v1.0-f4', requirementId: 'R4', result: 'conflict', justification: 'Sample finding: the SOP states that records of deactivated accounts are deleted after 30 days, which conflicts with keeping records securely for the retention period.', sopReference: 'Section 6.2' },
+          { id: 'chk-081-v1.0-f5', requirementId: 'R5', result: 'not-addressed', justification: 'Sample finding: the SOP does not mention training for staff who perform this procedure.' },
+        ],
+      },
     ],
   },
   {
@@ -300,11 +415,30 @@ export const sops: Sop[] = [
     comments: [],
     timeline: [
       { id: 'evt-082-1', type: 'uploaded', actorId: 'user-sara', version: '1.0', createdAt: '2026-09-08T09:00:00+03:00' },
+      { id: 'evt-082-1c', type: 'compliance-check-completed', actorId: 'system', version: '1.0', createdAt: '2026-09-08T09:00:03+03:00' },
       { id: 'evt-082-2', type: 'submitted', actorId: 'user-sara', recipientIds: ['user-noura'], version: '1.0', createdAt: '2026-09-09T10:30:00+03:00' },
       { id: 'evt-082-3', type: 'stage-due-date-set', actorId: 'user-sara', stage: 'review', dueAt: '2026-09-16T10:30:00+03:00', version: '1.0', createdAt: '2026-09-09T10:30:00+03:00' },
       { id: 'evt-082-4', type: 'review-completed', actorId: 'user-noura', version: '1.0', createdAt: '2026-09-15T15:10:00+03:00' },
       { id: 'evt-082-5', type: 'forwarded-to-approver', actorId: 'system', recipientIds: ['user-huda'], version: '1.0', createdAt: '2026-09-15T15:10:00+03:00' },
       { id: 'evt-082-6', type: 'stage-due-date-set', actorId: 'system', stage: 'approval', dueAt: '2026-09-20T15:10:00+03:00', version: '1.0', createdAt: '2026-09-15T15:10:00+03:00' },
+    ],
+    complianceChecks: [
+      {
+        id: 'chk-082-v1.0',
+        sopId: 'sop-082',
+        version: '1.0',
+        status: 'completed',
+        startedAt: '2026-09-08T09:00:00+03:00',
+        completedAt: '2026-09-08T09:00:03+03:00',
+        guideline: { name: 'SFDA Guideline on Good Pharmacovigilance Practices (GVP)', version: '4.0' },
+        findings: [
+          { id: 'chk-082-v1.0-f1', requirementId: 'R1', result: 'compliant', justification: 'Sample finding: the SOP describes role-based access approval for the system.', sopReference: 'Section 4.2' },
+          { id: 'chk-082-v1.0-f2', requirementId: 'R2', result: 'partial', justification: 'Sample finding: the SOP describes regular back-ups of records but does not say how long pharmacovigilance records are kept.', sopReference: 'Section 5.1' },
+          { id: 'chk-082-v1.0-f3', requirementId: 'R3', result: 'compliant', justification: 'Sample finding: the SOP explains how records are indexed so they can be found and retrieved on request.', sopReference: 'Section 5.3' },
+          { id: 'chk-082-v1.0-f4', requirementId: 'R4', result: 'conflict', justification: 'Sample finding: the SOP states that records of deactivated accounts are deleted after 30 days, which conflicts with keeping records securely for the retention period.', sopReference: 'Section 6.2' },
+          { id: 'chk-082-v1.0-f5', requirementId: 'R5', result: 'not-addressed', justification: 'Sample finding: the SOP does not mention training for staff who perform this procedure.' },
+        ],
+      },
     ],
   },
   {
@@ -344,9 +478,28 @@ export const sops: Sop[] = [
     timeline: [
       { id: 'evt-084-1', type: 'uploaded', actorId: 'user-reem', version: '1.0', createdAt: '2026-09-25T14:00:00+03:00' },
       { id: 'evt-084-2', type: 'co-author-added', actorId: 'user-reem', subjectId: 'user-sara', version: '1.0', createdAt: '2026-09-25T14:00:00+03:00' },
+      { id: 'evt-084-2c', type: 'compliance-check-completed', actorId: 'system', version: '1.0', createdAt: '2026-09-25T14:00:03+03:00' },
       { id: 'evt-084-3', type: 'submitted', actorId: 'user-reem', recipientIds: ['user-noura'], version: '1.0', createdAt: '2026-09-27T09:00:00+03:00' },
       { id: 'evt-084-4', type: 'stage-due-date-set', actorId: 'user-reem', stage: 'review', dueAt: '2026-10-04T09:00:00+03:00', version: '1.0', createdAt: '2026-09-27T09:00:00+03:00' },
       { id: 'evt-084-5', type: 'returned', actorId: 'user-noura', recipientIds: ['user-reem', 'user-sara'], version: '1.0', createdAt: '2026-09-30T11:45:00+03:00' },
+    ],
+    complianceChecks: [
+      {
+        id: 'chk-084-v1.0',
+        sopId: 'sop-084',
+        version: '1.0',
+        status: 'completed',
+        startedAt: '2026-09-25T14:00:00+03:00',
+        completedAt: '2026-09-25T14:00:03+03:00',
+        guideline: { name: 'SFDA Guideline on Good Pharmacovigilance Practices (GVP)', version: '4.0' },
+        findings: [
+          { id: 'chk-084-v1.0-f1', requirementId: 'R1', result: 'compliant', justification: 'Sample finding: the SOP describes role-based access approval for the system.', sopReference: 'Section 4.2' },
+          { id: 'chk-084-v1.0-f2', requirementId: 'R2', result: 'partial', justification: 'Sample finding: the SOP describes regular back-ups of records but does not say how long pharmacovigilance records are kept.', sopReference: 'Section 5.1' },
+          { id: 'chk-084-v1.0-f3', requirementId: 'R3', result: 'compliant', justification: 'Sample finding: the SOP explains how records are indexed so they can be found and retrieved on request.', sopReference: 'Section 5.3' },
+          { id: 'chk-084-v1.0-f4', requirementId: 'R4', result: 'conflict', justification: 'Sample finding: the SOP states that records of deactivated accounts are deleted after 30 days, which conflicts with keeping records securely for the retention period.', sopReference: 'Section 6.2' },
+          { id: 'chk-084-v1.0-f5', requirementId: 'R5', result: 'not-addressed', justification: 'Sample finding: the SOP does not mention training for staff who perform this procedure.' },
+        ],
+      },
     ],
   },
 ]

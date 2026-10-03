@@ -94,6 +94,8 @@ export const sopWorkflowEn: SopWorkflowContent = {
       'review-completed': 'Review completed',
       'approved-by': 'Approved',
       'stage-due-date-set': 'Due date set',
+      'compliance-check-completed': 'Compliance check completed',
+      'compliance-check-failed': 'Compliance check failed',
     },
     by: 'by {name}',
     to: 'to {name}',
