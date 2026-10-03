@@ -192,6 +192,8 @@ npm run preview   # serve the production build locally
 npm run lint      # lint the source code
 ```
 
+Regenerating the sample SOP PDFs (`npm run generate:sample-sops`) requires Node 22.18+; the generated files are already committed.
+
 Landing page text is kept in `frontend/src/content/landing.en.ts`, and the brand design tokens (colours and fonts) are defined in `frontend/src/index.css`.
 
 ---

@@ -13,7 +13,7 @@ export const appShellEn: AppShellContent = {
   navAriaLabel: 'Main',
   nav: [
     { label: 'Dashboard', href: '/dashboard', icon: 'dashboard' },
-    { label: 'SOPs', href: '/sops', icon: 'sops' },
+    { label: 'SOPs', href: '/sops', icon: 'sops', matchSubpaths: true },
     { label: 'My Requests', href: '/requests', icon: 'requests', matchSubpaths: true },
     { label: 'Departments', href: '/departments', icon: 'departments' },
   ],
@@ -22,6 +22,10 @@ export const appShellEn: AppShellContent = {
   openMenu: 'Open menu',
   closeMenu: 'Close menu',
   drawerLabel: 'Navigation',
+  departmentSwitcher: {
+    label: 'Department',
+    menuLabel: 'Your departments',
+  },
 }
 
 export const dashboardEn: DashboardContent = {
@@ -31,11 +35,11 @@ export const dashboardEn: DashboardContent = {
     afternoon: 'Good afternoon, {name}',
     evening: 'Good evening, {name}',
   },
-  subtitle: "Here's what's happening today.",
+  subtitle: "Here's what's happening in {department} today.",
   stats: {
     myRequests: { label: 'My Requests', sublabel: 'In Progress', icon: 'requests' },
-    sops: { label: 'SOPs', sublabel: 'Accessible', icon: 'sops' },
-    employees: { label: 'Employees', sublabel: 'Across the organization', icon: 'employees' },
+    sops: { label: 'SOPs', sublabel: 'In this department', icon: 'sops' },
+    employees: { label: 'Employees', sublabel: 'In this department', icon: 'employees' },
   },
   recentActivity: { title: 'Recent Activity' },
   quickActions: {

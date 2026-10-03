@@ -1,6 +1,5 @@
-import { departments } from './departments'
 import { sops } from './sops'
-import type { ActivityItem, DashboardStat } from './types'
+import type { ActivityItem, DashboardStat, Department, UserRequest } from './types'
 
 /*
  * Sample dashboard data (from the approved design).
@@ -9,14 +8,18 @@ import type { ActivityItem, DashboardStat } from './types'
 
 /**
  * Dashboard statistics, derived from the other data so every screen agrees.
- * @param pendingRequests number of the user's pending requests (from the requests store)
+ * "My Requests" is personal; "SOPs" and "Employees" are for the active department.
+ * @param requests the user's requests (from the requests store)
+ * @param activeDepartment the department the user is working in
  */
-export function getDashboardStats(pendingRequests: number): DashboardStat[] {
+export function getDashboardStats(requests: UserRequest[], activeDepartment: Department): DashboardStat[] {
   return [
-    { key: 'myRequests', value: pendingRequests },
-    { key: 'sops', value: sops.length },
-    // Sum of department members (assumes each person belongs to one department).
-    { key: 'employees', value: departments.reduce((total, department) => total + department.memberCount, 0) },
+    // "In Progress": the user's pending requests
+    { key: 'myRequests', value: requests.filter((request) => request.status === 'pending').length },
+    // "In this department": SOPs of the active department
+    { key: 'sops', value: sops.filter((sop) => sop.departmentId === activeDepartment.id).length },
+    // "In this department": members of the active department
+    { key: 'employees', value: activeDepartment.memberCount },
   ]
 }
 
@@ -31,7 +34,7 @@ export const recentActivity: ActivityItem[] = [
   {
     id: 'activity-2',
     kind: 'departmentMembership',
-    message: 'You were added to the Quality Assurance department',
+    message: 'Your access request to Pharmacovigilance was approved',
     timeAgo: '1 day ago',
   },
   {

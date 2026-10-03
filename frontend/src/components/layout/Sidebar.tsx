@@ -3,6 +3,7 @@ import { X } from 'lucide-react'
 import type { AppShellContent } from '../../content/types'
 import { icons } from '../icons'
 import { Logo } from '../ui/Logo'
+import { DepartmentSwitcher } from './DepartmentSwitcher'
 
 interface SidebarProps {
   content: AppShellContent
@@ -10,6 +11,8 @@ interface SidebarProps {
   onNavigate?: () => void
   /** When given, a close button is shown next to the logo (mobile drawer). */
   onClose?: () => void
+  /** Show the department switcher under the logo (mobile drawer; the top bar has it on larger screens). */
+  showDepartmentSwitcher?: boolean
 }
 
 const itemBase =
@@ -19,7 +22,7 @@ const itemBase =
  * Sidebar contents: logo, main navigation and Sign Out.
  * Used as the fixed desktop sidebar and inside the mobile drawer.
  */
-export function Sidebar({ content, onNavigate, onClose }: SidebarProps) {
+export function Sidebar({ content, onNavigate, onClose, showDepartmentSwitcher = false }: SidebarProps) {
   const SignOutIcon = icons[content.signOut.icon]
   const homeHref = content.nav[0].href
 
@@ -47,6 +50,12 @@ export function Sidebar({ content, onNavigate, onClose }: SidebarProps) {
           </button>
         )}
       </div>
+
+      {showDepartmentSwitcher && (
+        <div className="px-3 pb-4">
+          <DepartmentSwitcher content={content.departmentSwitcher} variant="drawer" onSwitched={onNavigate} />
+        </div>
+      )}
 
       <nav aria-label={content.navAriaLabel} className="flex flex-1 flex-col px-3 pb-5">
         <ul className="space-y-1">

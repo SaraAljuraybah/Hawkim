@@ -80,6 +80,7 @@ export function MobileDrawer({ content, open, onClose, returnFocusRef }: MobileD
         content={content}
         onNavigate={() => dialogRef.current?.close()}
         onClose={() => dialogRef.current?.close()}
+        showDepartmentSwitcher
       />
     </dialog>
   )

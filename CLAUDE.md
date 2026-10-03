@@ -8,8 +8,8 @@ Project rules for working on Hawkim (حَوكِم). Read README.md for project c
 - `develop` is the default branch. Commit and push all work directly to `develop`.
 - `main` is the stable version only. It is updated by the project owner through a pull request from `develop`.
 - Never push to `main`. Never merge any branch.
-- Make small, logical commits with a prefix: `feat`, `fix`, `style`, `docs` or `chore`
-  (e.g. `feat: add status badge`).
+- Make small, logical commits with a prefix: `feat`, `fix`, `style`, `refactor`, `docs` or `chore`
+  (e.g. `feat: add status badge`). Use `refactor` for code changes that don't change behavior.
 
 ## Scope
 

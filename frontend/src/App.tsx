@@ -4,10 +4,12 @@ import { AppLayout } from './components/layout/AppLayout'
 import { DashboardPage } from './pages/DashboardPage'
 import { DepartmentsPage } from './pages/DepartmentsPage'
 import { MyRequestsPage } from './pages/MyRequestsPage'
+import { SopDetailPage } from './pages/SopDetailPage'
 import { SopsPage } from './pages/SopsPage'
 import { SubmitRequestPage } from './pages/SubmitRequestPage'
 import { LandingPage } from './pages/LandingPage'
 import { NotFoundPage } from './pages/NotFoundPage'
+import { ActiveDepartmentProvider } from './state/ActiveDepartmentProvider'
 import { RequestsProvider } from './state/RequestsProvider'
 import { SignInPage } from './pages/SignInPage'
 
@@ -35,14 +37,18 @@ function App() {
           once real authentication exists. */}
       <Route
         element={
-          // Shared in-memory requests store for all signed-in screens
+          // Shared state for all signed-in screens: requests, then the active
+          // department (which depends on approved department-access requests)
           <RequestsProvider>
-            <AppLayout />
+            <ActiveDepartmentProvider>
+              <AppLayout />
+            </ActiveDepartmentProvider>
           </RequestsProvider>
         }
       >
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/sops" element={<SopsPage />} />
+        <Route path="/sops/:id" element={<SopDetailPage />} />
         <Route path="/departments" element={<DepartmentsPage />} />
         <Route path="/requests" element={<MyRequestsPage />} />
         <Route path="/requests/new" element={<SubmitRequestPage />} />

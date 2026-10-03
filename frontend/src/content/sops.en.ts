@@ -13,7 +13,6 @@ export const sopsEn: SopsContent = {
   tabsLabel: 'Filter SOPs',
   tabs: {
     all: 'All',
-    myDepartment: 'My Department',
     recent: 'Recently Added',
   },
   viewToggle: {
@@ -28,6 +27,32 @@ export const sopsEn: SopsContent = {
     version: 'Version',
     lastUpdated: 'Last updated',
   },
+  departmentLabel: 'Department',
   versionTemplate: 'Version {version}',
-  empty: 'No SOPs to show here yet.',
+  empty: 'No SOPs in this department yet.',
+
+  detail: {
+    pageTitle: '{code} | Hawkim',
+    back: { label: 'Back to SOPs', href: '/sops' },
+    exportPdf: 'Export PDF',
+    viewerTitle: '{code} {title} (PDF)',
+    fallback: {
+      text: "Your browser can't display the PDF here. Open it in a new tab or export it instead.",
+      openPdf: 'Open PDF',
+      newTabHint: '(opens in a new tab)',
+    },
+    docx: {
+      text: "Preview isn't available for Word documents yet.",
+      download: 'Download document',
+    },
+    noAccess: {
+      title: "You don't have access to this SOP",
+      text: 'This SOP belongs to {department}. Request access to that department to view it.',
+      requestAccess: 'Request access',
+    },
+    pendingAccess: {
+      title: 'Your access request is pending review',
+      text: "You'll be able to open this SOP once the admin team approves your access to {department}.",
+    },
+  },
 }

@@ -195,6 +195,12 @@ export interface AppShellContent {
   closeMenu: string
   /** Accessible name of the mobile navigation drawer. */
   drawerLabel: string
+  departmentSwitcher: {
+    /** Label before the department name (visible in the drawer, screen-reader only in the top bar). */
+    label: string
+    /** Accessible name of the department menu. */
+    menuLabel: string
+  }
 }
 
 /* ---------- Signed-in app: dashboard ---------- */
@@ -204,6 +210,7 @@ export interface DashboardContent {
   pageTitle: string
   /** Greeting by local time of day; `{name}` is replaced with the user's first name. */
   greetings: { morning: string; afternoon: string; evening: string }
+  /** `{department}` is replaced with the active department's name. */
   subtitle: string
   /** Label, sublabel and icon for each statistic (values come from the data). */
   stats: Record<DashboardStatKey, { label: string; sublabel: string; icon: IconName }>
@@ -217,7 +224,7 @@ export interface DashboardContent {
 
 /* ---------- Signed-in app: SOPs list ---------- */
 
-export type SopTabKey = 'all' | 'myDepartment' | 'recent'
+export type SopTabKey = 'all' | 'recent'
 
 export interface SopsContent {
   /** Browser tab title. */
@@ -230,10 +237,29 @@ export interface SopsContent {
   viewToggle: { label: string; grid: string; list: string }
   /** Column headings for the list view. */
   columns: { code: string; title: string; department: string; version: string; lastUpdated: string }
+  /** Screen-reader label before the active department's name, e.g. "Department: ". */
+  departmentLabel: string
   /** `{version}` is replaced with the version number, e.g. "Version 2.1". */
   versionTemplate: string
   /** Shown when a tab has no SOPs. */
   empty: string
+  /** SOP detail page ("/sops/:id"). */
+  detail: SopDetailContent
+}
+
+export interface SopDetailContent {
+  /** `{code}` is replaced, e.g. "SOP-078 | Hawkim". */
+  pageTitle: string
+  back: LinkContent
+  exportPdf: string
+  /** Accessible title of the embedded viewer; `{code}` and `{title}` are replaced. */
+  viewerTitle: string
+  /** Shown when the browser can't display PDFs inline (common on phones). */
+  fallback: { text: string; openPdf: string; newTabHint: string }
+  docx: { text: string; download: string }
+  /** `{department}` is replaced with the department name. */
+  noAccess: { title: string; text: string; requestAccess: string }
+  pendingAccess: { title: string; text: string }
 }
 
 /* ---------- Signed-in app: Departments ---------- */
@@ -245,6 +271,14 @@ export interface DepartmentsContent {
   subtitle: string
   /** Member count wording by plural form; `{count}` is replaced with the number. */
   memberCount: { one: string; other: string }
+  /** The user's relationship with each department, and its actions. */
+  states: {
+    current: string
+    member: string
+    open: string
+    accessRequested: string
+    requestAccess: string
+  }
 }
 
 /* ---------- Signed-in app: requests ---------- */

@@ -10,9 +10,7 @@ import type { Status } from '../../types/status'
 export interface User {
   name: string
   initials: string
-  /** Display label for the user's department (e.g. "IT Department"). */
-  department: string
-  /** The user's department; used for filtering (e.g. "My Department"). */
+  /** The user's home department. */
   departmentId: DepartmentId
 }
 
@@ -50,7 +48,13 @@ export interface Sop {
   /** ISO date, e.g. "2024-01-12" */
   lastUpdated: string
   status: Status
+  /** URL of the uploaded SOP file, e.g. "/sample-sops/SOP-078.pdf". */
+  fileUrl: string
+  fileType: SopFileType
 }
+
+/** File formats an SOP can be uploaded in. */
+export type SopFileType = 'pdf' | 'docx'
 
 /** Identifies each dashboard statistic (its label and icon come from the content file). */
 export type DashboardStatKey = 'myRequests' | 'sops' | 'employees'
