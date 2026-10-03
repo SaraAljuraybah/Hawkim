@@ -1,9 +1,9 @@
 import type { Sop } from './types'
 
 /*
- * Sample SOPs in the directory (from the approved design). All are published.
- * TODO (step 2): Merge with authoredSops.ts into one SOP list, so each SOP (e.g. SOP-078) exists once.
- * Each points to a placeholder PDF in public/sample-sops/ (see scripts/generate-sample-sops.mjs).
+ * All sample SOPs, in one list: the published SOPs in the directory (each with a
+ * placeholder PDF in public/sample-sops/, see scripts/generate-sample-sops.mjs) and
+ * the SOPs authored by Sara at other lifecycle stages. Seeds the SOPs store (src/state/).
  * TODO: Replace with data from the backend API.
  */
 export const sops: Sop[] = [
@@ -13,10 +13,11 @@ export const sops: Sop[] = [
     title: 'Pharmaceutical Quality Control Process',
     departmentId: 'quality-assurance',
     version: '2.1',
-    lastUpdated: '2024-01-12',
     status: 'published',
-    fileUrl: '/sample-sops/SOP-017.pdf',
+    lastUpdated: '2024-01-12',
+    fileName: 'SOP-017.pdf',
     fileType: 'pdf',
+    fileUrl: '/sample-sops/SOP-017.pdf',
   },
   {
     id: 'sop-032',
@@ -24,10 +25,11 @@ export const sops: Sop[] = [
     title: 'Adverse Drug Reaction Reporting',
     departmentId: 'pharmacovigilance',
     version: '1.4',
-    lastUpdated: '2024-01-05',
     status: 'published',
-    fileUrl: '/sample-sops/SOP-032.pdf',
+    lastUpdated: '2024-01-05',
+    fileName: 'SOP-032.pdf',
     fileType: 'pdf',
+    fileUrl: '/sample-sops/SOP-032.pdf',
   },
   {
     id: 'sop-045',
@@ -35,10 +37,11 @@ export const sops: Sop[] = [
     title: 'Supplier Qualification Procedure',
     departmentId: 'quality-assurance',
     version: '1.0',
-    lastUpdated: '2023-12-20',
     status: 'published',
-    fileUrl: '/sample-sops/SOP-045.pdf',
+    lastUpdated: '2023-12-20',
+    fileName: 'SOP-045.pdf',
     fileType: 'pdf',
+    fileUrl: '/sample-sops/SOP-045.pdf',
   },
   {
     id: 'sop-061',
@@ -46,10 +49,11 @@ export const sops: Sop[] = [
     title: 'Change Control Management',
     departmentId: 'regulatory-affairs',
     version: '1.3',
-    lastUpdated: '2023-12-01',
     status: 'published',
-    fileUrl: '/sample-sops/SOP-061.pdf',
+    lastUpdated: '2023-12-01',
+    fileName: 'SOP-061.pdf',
     fileType: 'pdf',
+    fileUrl: '/sample-sops/SOP-061.pdf',
   },
   {
     id: 'sop-078',
@@ -57,10 +61,12 @@ export const sops: Sop[] = [
     title: 'Data Integrity Guidelines',
     departmentId: 'information-technology',
     version: '1.2',
-    lastUpdated: '2023-11-18',
     status: 'published',
-    fileUrl: '/sample-sops/SOP-078.pdf',
+    lastUpdated: '2023-11-18',
+    authorId: 'user-sara',
+    fileName: 'SOP-078.pdf',
     fileType: 'pdf',
+    fileUrl: '/sample-sops/SOP-078.pdf',
   },
   {
     id: 'sop-093',
@@ -68,9 +74,58 @@ export const sops: Sop[] = [
     title: 'Risk Management Procedure',
     departmentId: 'quality-assurance',
     version: '1.0',
-    lastUpdated: '2024-01-20',
     status: 'published',
-    fileUrl: '/sample-sops/SOP-093.pdf',
+    lastUpdated: '2024-01-20',
+    fileName: 'SOP-093.pdf',
     fileType: 'pdf',
+    fileUrl: '/sample-sops/SOP-093.pdf',
+  },
+  {
+    id: 'sop-079',
+    code: 'SOP-079',
+    title: 'User Access Management',
+    departmentId: 'information-technology',
+    version: '1.0',
+    status: 'draft',
+    lastUpdated: '2026-09-29',
+    authorId: 'user-sara',
+    fileName: 'SOP-079.docx',
+    fileType: 'docx',
+  },
+  {
+    id: 'sop-080',
+    code: 'SOP-080',
+    title: 'Backup and Restore Procedure',
+    departmentId: 'information-technology',
+    version: '1.0',
+    status: 'in-review',
+    lastUpdated: '2026-09-24',
+    authorId: 'user-sara',
+    fileName: 'SOP-080.docx',
+    fileType: 'docx',
+  },
+  {
+    id: 'sop-081',
+    code: 'SOP-081',
+    title: 'IT Change Request Handling',
+    departmentId: 'information-technology',
+    version: '1.0',
+    status: 'returned',
+    lastUpdated: '2026-09-20',
+    authorId: 'user-sara',
+    fileName: 'SOP-081.pdf',
+    fileType: 'pdf',
+  },
+  {
+    id: 'sop-082',
+    code: 'SOP-082',
+    title: 'System Validation Procedure',
+    departmentId: 'information-technology',
+    version: '1.0',
+    status: 'in-approval',
+    lastUpdated: '2026-09-15',
+    authorId: 'user-sara',
+    fileName: 'SOP-082.docx',
+    fileType: 'docx',
   },
 ]

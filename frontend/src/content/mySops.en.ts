@@ -1,7 +1,7 @@
 /*
  * English content for the author's screens (My SOPs, Upload SOP).
  * Same pattern as the other content files — no hard-coded text in components.
- * Sample authored SOPs live separately in src/data/mock/authoredSops.ts.
+ * Sample SOPs live separately in src/data/mock/sops.ts.
  */
 
 import type { MySopsContent, UploadSopContent } from './types'

@@ -12,7 +12,7 @@ import type { SopFileType } from '../data/mock/types'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { hasPermission } from '../lib/permissions'
 import { useActiveDepartment } from '../state/activeDepartmentContext'
-import { useAuthoredSops } from '../state/authoredSopsContext'
+import { useSops } from '../state/sopsContext'
 import { NotFoundPage } from './NotFoundPage'
 import type { MySopsLocationState } from './MySopsPage'
 
@@ -40,7 +40,7 @@ export function UploadSopPage() {
   useDocumentTitle(isAuthor ? content.pageTitle : undefined)
 
   const { activeDepartment } = useActiveDepartment()
-  const { addDraft } = useAuthoredSops()
+  const { addDraft } = useSops()
   const navigate = useNavigate()
 
   const [title, setTitle] = useState('')

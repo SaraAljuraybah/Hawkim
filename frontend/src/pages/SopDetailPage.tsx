@@ -6,13 +6,13 @@ import { StatusBadge } from '../components/ui/StatusBadge'
 import { sopsEn } from '../content/sops.en'
 import { currentUser } from '../data/mock/currentUser'
 import { getDepartmentName } from '../data/mock/departments'
-import { sops } from '../data/mock/sops'
 import type { Sop } from '../data/mock/types'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { formatDate } from '../lib/format'
 import { requestDepartmentAccessPath } from '../lib/routes'
 import { getSopAccess } from '../lib/sopAccess'
 import { useRequests } from '../state/requestsContext'
+import { useSops } from '../state/sopsContext'
 import { NotFoundPage } from './NotFoundPage'
 
 /** Download name for the SOP file, e.g. "SOP-078_v1.2.pdf". */
@@ -23,11 +23,15 @@ function downloadName(sop: Sop) {
 /** Whether the browser can show PDFs inline (false on most phones). */
 const canShowPdfInline = typeof navigator === 'undefined' || navigator.pdfViewerEnabled !== false
 
-/** SOP detail ("/sops/:id"): header, Export PDF and the document viewer (if the user has access). */
+/**
+ * SOP detail ("/sops/:id"): header, Export PDF and the document viewer (if the user has access).
+ * Only published SOPs are in the directory; other ids show Not Found.
+ */
 export function SopDetailPage() {
   const content = sopsEn.detail
   const { id } = useParams()
-  const sop = sops.find((item) => item.id === id)
+  const { sops } = useSops()
+  const sop = sops.find((item) => item.id === id && item.status === 'published')
   // An unknown id leaves the title to the embedded Not Found page.
   useDocumentTitle(sop ? content.pageTitle.replace('{code}', sop.code) : undefined)
 
@@ -41,8 +45,10 @@ export function SopDetailPage() {
   const departmentName = getDepartmentName(sop.departmentId)
   const granted = access === 'granted'
 
-  const exportButton = granted && sop.fileType === 'pdf' && (
-    <Button href={sop.fileUrl} download={downloadName(sop)}>
+  // TODO: Every published SOP will have a file URL from the backend; until then a few may not.
+  const fileUrl = sop.fileUrl
+  const exportButton = granted && sop.fileType === 'pdf' && fileUrl && (
+    <Button href={fileUrl} download={downloadName(sop)}>
       <Download aria-hidden="true" className="size-4" strokeWidth={2} />
       {content.exportPdf}
     </Button>
@@ -97,27 +103,31 @@ export function SopDetailPage() {
           </AccessPanel>
         )}
 
-        {granted && sop.fileType === 'docx' && (
+        {granted && !fileUrl && (
+          <AccessPanel icon={<FileText className="size-6" strokeWidth={1.75} />} title={content.noFile} />
+        )}
+
+        {granted && fileUrl && sop.fileType === 'docx' && (
           // TODO: Convert Word documents to PDF on the server so they can be previewed here.
           <AccessPanel icon={<FileText className="size-6" strokeWidth={1.75} />} title={content.docx.text}>
-            <Button href={sop.fileUrl} download={downloadName(sop)}>
+            <Button href={fileUrl} download={downloadName(sop)}>
               <Download aria-hidden="true" className="size-4" strokeWidth={2} />
               {content.docx.download}
             </Button>
           </AccessPanel>
         )}
 
-        {granted && sop.fileType === 'pdf' &&
+        {granted && fileUrl && sop.fileType === 'pdf' &&
           (canShowPdfInline ? (
             <iframe
-              src={sop.fileUrl}
+              src={fileUrl}
               title={content.viewerTitle.replace('{code}', sop.code).replace('{title}', sop.title)}
               className="block h-[70vh] min-h-[28rem] w-full rounded-lg border-0 bg-beige"
             />
           ) : (
             // No inline viewer: offer to open the PDF in a new tab (Export PDF stays in the header).
             <AccessPanel icon={<FileText className="size-6" strokeWidth={1.75} />} title={content.fallback.text}>
-              <Button href={sop.fileUrl} target="_blank" rel="noopener noreferrer" variant="secondary">
+              <Button href={fileUrl} target="_blank" rel="noopener noreferrer" variant="secondary">
                 <ExternalLink aria-hidden="true" className="size-4" strokeWidth={2} />
                 {content.fallback.openPdf}
                 <span className="sr-only"> {content.fallback.newTabHint}</span>

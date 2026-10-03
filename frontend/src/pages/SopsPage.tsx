@@ -7,10 +7,10 @@ import { tabIds } from '../components/ui/tabIds'
 import { ViewToggle, type ViewMode } from '../components/ui/ViewToggle'
 import { sopsEn } from '../content/sops.en'
 import type { SopTabKey } from '../content/types'
-import { sops } from '../data/mock/sops'
 import type { DepartmentId, Sop } from '../data/mock/types'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { useActiveDepartment } from '../state/activeDepartmentContext'
+import { useSops } from '../state/sopsContext'
 
 const TAB_ID_PREFIX = 'sops'
 const VIEW_STORAGE_KEY = 'hawkim.sops.view'
@@ -25,9 +25,12 @@ function readStoredView(): ViewMode {
   }
 }
 
-/** The active department's SOPs, ordered for each tab. SOPs from other departments are never listed. */
+/**
+ * The active department's published SOPs, ordered for each tab.
+ * SOPs from other departments, and unpublished SOPs, are never listed.
+ */
 function filterSops(tab: SopTabKey, all: Sop[], departmentId: DepartmentId): Sop[] {
-  const inDepartment = all.filter((sop) => sop.departmentId === departmentId)
+  const inDepartment = all.filter((sop) => sop.status === 'published' && sop.departmentId === departmentId)
   switch (tab) {
     case 'recent':
       // ISO dates sort correctly as strings; newest first.
@@ -45,6 +48,7 @@ export function SopsPage() {
 
   // TODO: Load the active department's SOPs from the backend API.
   const { activeDepartment } = useActiveDepartment()
+  const { sops } = useSops()
 
   const [tab, setTab] = useState<SopTabKey>('all')
   const [view, setView] = useState<ViewMode>(readStoredView)
@@ -61,7 +65,7 @@ export function SopsPage() {
     key,
     label: content.tabs[key],
   }))
-  const visibleSops = useMemo(() => filterSops(tab, sops, activeDepartment.id), [tab, activeDepartment.id])
+  const visibleSops = useMemo(() => filterSops(tab, sops, activeDepartment.id), [tab, sops, activeDepartment.id])
   const ids = tabIds(TAB_ID_PREFIX, tab)
 
   return (

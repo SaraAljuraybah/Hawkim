@@ -12,8 +12,8 @@ import { SubmitRequestPage } from './pages/SubmitRequestPage'
 import { LandingPage } from './pages/LandingPage'
 import { NotFoundPage } from './pages/NotFoundPage'
 import { ActiveDepartmentProvider } from './state/ActiveDepartmentProvider'
-import { AuthoredSopsProvider } from './state/AuthoredSopsProvider'
 import { RequestsProvider } from './state/RequestsProvider'
+import { SopsProvider } from './state/SopsProvider'
 import { SignInPage } from './pages/SignInPage'
 
 /**
@@ -41,12 +41,12 @@ function App() {
       <Route
         element={
           // Shared state for all signed-in screens: requests, the active department
-          // (which depends on approved department-access requests) and the author's SOPs
+          // (which depends on approved department-access requests) and all SOPs
           <RequestsProvider>
             <ActiveDepartmentProvider>
-              <AuthoredSopsProvider>
+              <SopsProvider>
                 <AppLayout />
-              </AuthoredSopsProvider>
+              </SopsProvider>
             </ActiveDepartmentProvider>
           </RequestsProvider>
         }

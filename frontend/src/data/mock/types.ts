@@ -44,22 +44,29 @@ export interface Department {
   memberCount: number
 }
 
-/** A Standard Operating Procedure (list information only). */
+/**
+ * A Standard Operating Procedure at any stage of its lifecycle. One list holds every SOP:
+ * the SOPs directory shows the published ones, My SOPs shows the author's own.
+ */
 export interface Sop {
   id: string
   /** e.g. "SOP-017" */
   code: string
   title: string
   departmentId: DepartmentId
-  /** Version number without the "v", e.g. "2.1" */
+  /** Current version number without the "v", e.g. "2.1" */
   version: string
+  status: SopStatus
   /** ISO date, e.g. "2024-01-12" */
   lastUpdated: string
-  /** SOPs in the directory are all published. */
-  status: SopStatus
-  /** URL of the uploaded SOP file, e.g. "/sample-sops/SOP-078.pdf". */
-  fileUrl: string
+  /** Id of the author (User.id), when known. */
+  authorId?: string
+  description?: string
+  /** Current file, e.g. "SOP-079.docx". */
+  fileName: string
   fileType: SopFileType
+  /** URL of the current file, when one is available (e.g. "/sample-sops/SOP-078.pdf"). */
+  fileUrl?: string
 }
 
 /** File formats an SOP can be uploaded in. */
@@ -100,24 +107,4 @@ export interface UserRequest {
   /** ISO date, e.g. "2024-01-12" */
   createdAt: string
   status: Status
-}
-
-/** An SOP written by an author, at any stage of the lifecycle. */
-export interface AuthoredSop {
-  id: string
-  /** e.g. "SOP-079" */
-  code: string
-  title: string
-  departmentId: DepartmentId
-  /** Version number without the "v", e.g. "1.0" */
-  version: string
-  status: SopStatus
-  /** Id of the author (User.id). */
-  authorId: string
-  /** ISO date, e.g. "2026-09-29" */
-  lastUpdated: string
-  description?: string
-  /** Name of the uploaded file, e.g. "SOP-079.docx". */
-  fileName: string
-  fileType: SopFileType
 }

@@ -1,5 +1,5 @@
 /*
- * Generates one placeholder PDF per mock SOP into public/sample-sops/.
+ * Generates one placeholder PDF per mock SOP with a sample file into public/sample-sops/.
  *
  * Run from frontend/:  npm run generate:sample-sops
  *
@@ -128,7 +128,8 @@ async function createSamplePdf(sop) {
 }
 
 await mkdir(OUTPUT_DIR, { recursive: true })
-for (const sop of sops) {
+// Only SOPs that point to a sample file get one (drafts and other unpublished SOPs don't).
+for (const sop of sops.filter((item) => item.fileUrl?.startsWith('/sample-sops/'))) {
   const bytes = await createSamplePdf(sop)
   const file = join(OUTPUT_DIR, `${sop.code}.pdf`)
   await writeFile(file, bytes)

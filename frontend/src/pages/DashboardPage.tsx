@@ -13,6 +13,7 @@ import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { hasPermission } from '../lib/permissions'
 import { useActiveDepartment } from '../state/activeDepartmentContext'
 import { useRequests } from '../state/requestsContext'
+import { useSops } from '../state/sopsContext'
 
 /** Icon for each kind of activity item. */
 const activityIcons: Record<ActivityKind, LucideIcon> = {
@@ -42,7 +43,8 @@ export function DashboardPage() {
   // My Requests is personal; SOPs and Employees follow the active department.
   const { requests } = useRequests()
   const { activeDepartment } = useActiveDepartment()
-  const dashboardStats = getDashboardStats(requests, activeDepartment)
+  const { sops } = useSops()
+  const dashboardStats = getDashboardStats(requests, activeDepartment, sops)
 
   return (
     <>

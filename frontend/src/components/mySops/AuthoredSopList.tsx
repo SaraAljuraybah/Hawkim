@@ -1,13 +1,13 @@
 import { Link } from 'react-router-dom'
 import { FileText } from 'lucide-react'
 import type { MySopsContent } from '../../content/types'
-import type { AuthoredSop } from '../../data/mock/types'
+import type { Sop } from '../../data/mock/types'
 import { formatDate } from '../../lib/format'
 import { sopPath } from '../../lib/routes'
 import { StatusBadge } from '../ui/StatusBadge'
 
 interface AuthoredSopListProps {
-  sops: AuthoredSop[]
+  sops: Sop[]
   content: MySopsContent
 }
 

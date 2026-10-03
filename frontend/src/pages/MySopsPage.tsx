@@ -8,11 +8,11 @@ import { tabIds } from '../components/ui/tabIds'
 import { mySopsEn } from '../content/mySops.en'
 import type { MySopsTabKey } from '../content/types'
 import { currentUser } from '../data/mock/currentUser'
-import type { AuthoredSop } from '../data/mock/types'
+import type { Sop } from '../data/mock/types'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { hasPermission } from '../lib/permissions'
 import { useActiveDepartment } from '../state/activeDepartmentContext'
-import { useAuthoredSops } from '../state/authoredSopsContext'
+import { useSops } from '../state/sopsContext'
 import type { SopStatus } from '../types/status'
 import { NotFoundPage } from './NotFoundPage'
 
@@ -40,7 +40,7 @@ export function MySopsPage() {
   // Non-authors get the Not Found page, which sets its own title.
   useDocumentTitle(isAuthor ? content.pageTitle : undefined)
 
-  const { authoredSops } = useAuthoredSops()
+  const { sops } = useSops()
   const { activeDepartment } = useActiveDepartment()
   const [tab, setTab] = useState<MySopsTabKey>('all')
   const [statusMessage, setStatusMessage] = useState('')
@@ -59,13 +59,13 @@ export function MySopsPage() {
   }, [uploaded, content.uploadedMessage, location.pathname, navigate])
 
   const visibleSops = useMemo(() => {
-    const inDepartment = authoredSops.filter(
-      (sop: AuthoredSop) => sop.authorId === user.id && sop.departmentId === activeDepartment.id,
+    const inDepartment = sops.filter(
+      (sop: Sop) => sop.authorId === user.id && sop.departmentId === activeDepartment.id,
     )
     const inTab = tab === 'all' ? inDepartment : inDepartment.filter((sop) => tabStatuses[tab].includes(sop.status))
     // ISO dates sort correctly as strings; newest first (stable for the same day).
     return [...inTab].sort((a, b) => b.lastUpdated.localeCompare(a.lastUpdated))
-  }, [authoredSops, user.id, activeDepartment.id, tab])
+  }, [sops, user.id, activeDepartment.id, tab])
 
   if (!isAuthor) return <NotFoundPage embedded />
 

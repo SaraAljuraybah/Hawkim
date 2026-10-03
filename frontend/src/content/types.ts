@@ -261,6 +261,8 @@ export interface SopDetailContent {
   /** Shown when the browser can't display PDFs inline (common on phones). */
   fallback: { text: string; openPdf: string; newTabHint: string }
   docx: { text: string; download: string }
+  /** Shown when a published SOP has no file available yet. */
+  noFile: string
   /** `{department}` is replaced with the department name. */
   noAccess: { title: string; text: string; requestAccess: string }
   pendingAccess: { title: string; text: string }
