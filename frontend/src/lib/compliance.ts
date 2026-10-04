@@ -1,5 +1,12 @@
-import { GVP_GUIDELINE, SAMPLE_FINDINGS } from '../data/mock/compliance'
-import { SYSTEM_ACTOR, type ComplianceCheck, type ComplianceResult, type Finding, type Sop } from '../data/mock/types'
+import { SAMPLE_FINDINGS } from '../data/mock/compliance'
+import {
+  SYSTEM_ACTOR,
+  type ComplianceCheck,
+  type ComplianceResult,
+  type Finding,
+  type Guideline,
+  type Sop,
+} from '../data/mock/types'
 
 /*
  * Compliance checks (PBI 4, 5, 29) as pure functions, like lib/workflow.ts.
@@ -27,9 +34,13 @@ export function currentCheck(sop: Sop): ComplianceCheck | undefined {
   return [...sop.complianceChecks].reverse().find((check) => check.version === sop.version)
 }
 
-/** Submit and Resubmit need a completed check for the current version (it doesn't have to pass). */
-export function hasCompletedCheck(sop: Sop): boolean {
-  return currentCheck(sop)?.status === 'completed'
+/**
+ * Submit and Resubmit need a completed check of the SOP's current version against the
+ * CURRENT guideline version (PBI 20, 29). The check doesn't have to pass.
+ */
+export function hasCurrentCheck(sop: Sop, guidelineVersion: string): boolean {
+  const check = currentCheck(sop)
+  return check?.status === 'completed' && check.guideline.version === guidelineVersion
 }
 
 export function isCheckRunning(sop: Sop): boolean {
@@ -58,11 +69,16 @@ export function sortFindings(findings: Finding[]): Finding[] {
 // ---------- Running checks (sample engine) ----------
 
 /**
- * Starts a check of the current version. Only one check runs at a time: a manual
- * run is refused while one is running, but an upload replaces the running check
- * (it was checking a file that has just been replaced), which leaves no report.
+ * Starts a check of the SOP's current version against `guideline` (the current GVP
+ * version, which the report keeps). Only one check runs at a time: a manual run is
+ * refused while one is running, but an upload replaces the running check (it was
+ * checking a file that has just been replaced), which leaves no report.
  */
-export function startCheck(sop: Sop, { afterUpload = false } = {}): { sop: Sop; checkId: string } {
+export function startCheck(
+  sop: Sop,
+  guideline: Guideline,
+  { afterUpload = false } = {},
+): { sop: Sop; checkId: string } {
   if (isCheckRunning(sop) && !afterUpload) throw new Error('A compliance check is already running')
   const kept = sop.complianceChecks.filter((check) => check.status !== 'running')
   const check: ComplianceCheck = {
@@ -71,7 +87,7 @@ export function startCheck(sop: Sop, { afterUpload = false } = {}): { sop: Sop; 
     version: sop.version,
     status: 'running',
     startedAt: new Date().toISOString(),
-    guideline: GVP_GUIDELINE,
+    guideline,
     findings: [],
   }
   return { sop: { ...sop, complianceChecks: [...kept, check] }, checkId: check.id }

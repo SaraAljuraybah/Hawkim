@@ -24,6 +24,7 @@ import { SignInPage } from './pages/SignInPage'
 import { ADMIN_USERS_PATH } from './lib/routes'
 import { AdminArea, EmployeeArea } from './routes/guards'
 import { DepartmentsProvider } from './state/DepartmentsProvider'
+import { GuidelinesProvider } from './state/GuidelinesProvider'
 import { RequestsProvider } from './state/RequestsProvider'
 import { SessionProvider } from './state/SessionProvider'
 import { SopsProvider } from './state/SopsProvider'
@@ -44,19 +45,21 @@ function App() {
   }, [pathname, hash])
 
   return (
-    // Shared in-memory state: departments, users, who is signed in, requests and all
-    // SOPs. It lives above every route, so it survives signing out and in again.
-    <DepartmentsProvider>
-      <UsersProvider>
-        <SessionProvider>
-          <RequestsProvider>
-            <SopsProvider>
-              <AppRoutes />
-            </SopsProvider>
-          </RequestsProvider>
-        </SessionProvider>
-      </UsersProvider>
-    </DepartmentsProvider>
+    // Shared in-memory state: GVP versions, departments, users, who is signed in,
+    // requests and all SOPs. It lives above every route, so it survives signing out and in.
+    <GuidelinesProvider>
+      <DepartmentsProvider>
+        <UsersProvider>
+          <SessionProvider>
+            <RequestsProvider>
+              <SopsProvider>
+                <AppRoutes />
+              </SopsProvider>
+            </RequestsProvider>
+          </SessionProvider>
+        </UsersProvider>
+      </DepartmentsProvider>
+    </GuidelinesProvider>
   )
 }
 

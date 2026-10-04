@@ -3,6 +3,7 @@ import { flushSync } from 'react-dom'
 import { Link, useParams } from 'react-router-dom'
 import { ArrowLeft, Download } from 'lucide-react'
 import { SampleBanner } from '../components/compliance/ComplianceSummary'
+import { ReportRequirementsContext } from '../components/compliance/reportRequirements'
 import {
   ChangesList,
   ExecutiveSummary,
@@ -31,6 +32,7 @@ import { hasPermission } from '../lib/permissions'
 import { mySopPath } from '../lib/routes'
 import { isAuthorOrCoAuthor } from '../lib/workflow'
 import { useDepartments } from '../state/departmentsContext'
+import { useGuidelines } from '../state/guidelinesContext'
 import { useCurrentUser } from '../state/sessionContext'
 import { useSops } from '../state/sopsContext'
 import { useUsers } from '../state/usersContext'
@@ -70,6 +72,7 @@ function Report({ sop }: { sop: Sop }) {
   const content = complianceEn
   const text = content.report
   const { nameOf } = useUsers()
+  const { getRequirement } = useGuidelines()
   const { nameOf: departmentName } = useDepartments()
 
   // Defaults to the current version; earlier versions' reports can be chosen.
@@ -231,7 +234,8 @@ function Report({ sop }: { sop: Sop }) {
       )}
 
       {report && (
-        <>
+        // Requirements as in the GVP version this report was checked against.
+        <ReportRequirementsContext value={(requirementId) => getRequirement(report.guideline.version, requirementId)}>
           {/* b) Executive summary */}
           <ReportSection id="summary-title" title={text.summary.title}>
             <ExecutiveSummary
@@ -304,7 +308,7 @@ function Report({ sop }: { sop: Sop }) {
               ))}
             </ul>
           </ReportSection>
-        </>
+        </ReportRequirementsContext>
       )}
     </div>
   )

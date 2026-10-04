@@ -147,9 +147,10 @@ describe('compareReports', () => {
 
 describe('startCheck', () => {
   it('refuses a manual run while a check is running, but an upload replaces the running check', () => {
-    const running = startCheck(sopWith([])).sop
-    expect(() => startCheck(running)).toThrow()
-    const replaced = startCheck(running, { afterUpload: true }).sop
+    const guideline = { name: 'GVP', version: '4.0' }
+    const running = startCheck(sopWith([]), guideline).sop
+    expect(() => startCheck(running, guideline)).toThrow()
+    const replaced = startCheck(running, guideline, { afterUpload: true }).sop
     expect(replaced.complianceChecks.filter((item) => item.status === 'running')).toHaveLength(1)
   })
 })

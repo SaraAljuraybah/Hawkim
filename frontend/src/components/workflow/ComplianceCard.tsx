@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { ArrowRight, LoaderCircle } from 'lucide-react'
 import { ComplianceSummary, SampleBanner } from '../compliance/ComplianceSummary'
 import type { ComplianceContent } from '../../content/types'
-import { GVP_GUIDELINE } from '../../data/mock/compliance'
 import type { Sop } from '../../data/mock/types'
 import { currentCheck } from '../../lib/compliance'
 import { formatDateTime } from '../../lib/format'
@@ -51,7 +50,7 @@ export function ComplianceCard({ sop, content, canRun, onRun }: ComplianceCardPr
         {running ? (
           <p className="flex items-center gap-2.5 text-sm font-medium text-maroon">
             <LoaderCircle aria-hidden="true" className="size-5 shrink-0 motion-safe:animate-spin" strokeWidth={2} />
-            {text.running.replace('{version}', GVP_GUIDELINE.version)}
+            {text.running.replace('{version}', check.guideline.version)}
           </p>
         ) : (
           <span className="sr-only">{ended}</span>

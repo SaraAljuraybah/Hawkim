@@ -224,6 +224,28 @@ export interface Guideline {
   version: string
 }
 
+/**
+ * One version of the SFDA GVP guideline (PBI 20). The latest one added is current;
+ * older versions are read-only history and can't be edited or deleted.
+ */
+export interface GuidelineVersion {
+  id: string
+  /** e.g. "4.0" */
+  version: string
+  /** ISO dates. */
+  issuedDate?: string
+  effectiveDate: string
+  /** The guideline document, e.g. "Drug-GVP4_0.pdf". */
+  fileName: string
+  /** What changed from the previous version. */
+  summary?: string
+  /** The admin who added it (User.id) and when (ISO date and time); unknown for the first version. */
+  addedById?: string
+  addedAt?: string
+  /** The requirements SOPs are checked against. */
+  requirements: Requirement[]
+}
+
 /** One compliance check of one SOP version; its report is kept (PBI 4). */
 export interface ComplianceCheck {
   id: string

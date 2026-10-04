@@ -17,7 +17,7 @@ import { complianceEn } from '../content/compliance.en'
 import { sopWorkflowEn } from '../content/workflow.en'
 import type { Sop } from '../data/mock/types'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
-import { hasCompletedCheck, isCheckRunning } from '../lib/compliance'
+import { hasCurrentCheck, isCheckRunning } from '../lib/compliance'
 import { formatDate, formatDateTime, formatMonthDay } from '../lib/format'
 import { hasPermission } from '../lib/permissions'
 import { sopPath } from '../lib/routes'
@@ -33,6 +33,7 @@ import {
   type UploadedFile,
 } from '../lib/workflow'
 import { useDepartments } from '../state/departmentsContext'
+import { useGuidelines } from '../state/guidelinesContext'
 import { useCurrentUser } from '../state/sessionContext'
 import { useSops } from '../state/sopsContext'
 import { useUsers } from '../state/usersContext'
@@ -87,6 +88,7 @@ export function SopWorkflowPage() {
   const user = useCurrentUser()
   const { nameOf } = useUsers()
   const departments = useDepartments()
+  const guidelines = useGuidelines()
   const sop = store.sops.find((item) => item.id === id)
   const allowed = !!sop && hasPermission(user, 'author') && isAuthorOrCoAuthor(sop, user.id)
   useDocumentTitle(allowed ? content.pageTitle.replace('{code}', sop.code) : undefined)
@@ -151,9 +153,10 @@ export function SopWorkflowPage() {
   const returned = sop.status === 'returned' ? latestReturn(sop) : undefined
   const feedback = sop.status === 'returned' ? latestReturnComments(sop) : []
   const resubmitReady = canResubmit(sop)
-  // A completed compliance check of the current version is needed before submitting (it needn't pass).
+  // A completed compliance check of the current version, against the current GVP version,
+  // is needed before submitting (it needn't pass).
   const checkRunning = isCheckRunning(sop)
-  const checkDone = hasCompletedCheck(sop)
+  const checkDone = hasCurrentCheck(sop, guidelines.current.version)
   const submitReason = checkDone ? undefined : checkRunning ? actions.checkWaiting : actions.checkNeeded
   const resubmitReason = !resubmitReady ? actions.resubmitHint : submitReason
 
