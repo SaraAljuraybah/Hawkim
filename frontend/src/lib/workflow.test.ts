@@ -287,6 +287,13 @@ describe('routing to another department (PBI 23)', () => {
     expect(decisions(again.reviewers)).toEqual({ [NOURA]: 'pending', [FAISAL]: 'pending', lama: 'pending' })
   })
 
+  it('is allowed for a reviewer who already completed their review, while the SOP is still In Review', () => {
+    const faisalDone = completeReview(inReview(), FAISAL)
+    const routed = routeToReviewer(faisalDone, FAISAL, lama)
+    expect(decisions(routed.reviewers)).toEqual({ [NOURA]: 'pending', [FAISAL]: 'completed', lama: 'pending' })
+    expect(routed.status).toBe('in-review')
+  })
+
   it('is only for an assigned reviewer, while the SOP is In Review', () => {
     expect(() => routeToReviewer(inReview(), HUDA, lama)).toThrow(/assigned reviewer/)
     expect(() => routeToReviewer(inReview(), SARA, lama)).toThrow(/assigned reviewer/)

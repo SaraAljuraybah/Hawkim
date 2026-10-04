@@ -84,6 +84,8 @@ function Review({ sop }: { sop: Sop }) {
   const canReview = sop.status === 'in-review' && reviewer?.decision === 'pending'
   const canApprove = sop.status === 'in-approval' && approver?.decision === 'pending'
   const canPublish = sop.status === 'approved' && !!approver
+  // Any assigned reviewer can route while the SOP is In Review, even after completing their own review.
+  const canRoute = sop.status === 'in-review' && !!reviewer
 
   const dueAt = currentDueAt(sop)
   const overdue = !!dueAt && isOverdue(sop, sop.status === 'in-approval' ? 'approval' : 'review')
@@ -135,7 +137,8 @@ function Review({ sop }: { sop: Sop }) {
     return lines
   }
 
-  const actionButtons = canReview || canApprove || canPublish
+  // Something needed from the user now (otherwise status lines say where things stand).
+  const decisionNeeded = canReview || canApprove || canPublish
 
   return (
     <>
@@ -198,18 +201,27 @@ function Review({ sop }: { sop: Sop }) {
 
       {/* Actions the rules allow now, or where things stand */}
       <Section id="actions-title" title={text.actions.title} className="mt-6">
-        {actionButtons ? (
-          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+        {!decisionNeeded && (
+          <ul className="space-y-1 text-sm text-maroon">
+            {statusLines().map((line) => (
+              <li key={line}>{line}</li>
+            ))}
+          </ul>
+        )}
+        {(decisionNeeded || canRoute) && (
+          <div className={`flex flex-col gap-3 sm:flex-row sm:flex-wrap ${decisionNeeded ? '' : 'mt-4'}`}>
             {canReview && (
               <>
                 <Button onClick={(event) => open('complete', event.currentTarget)}>{text.actions.completeReview}</Button>
                 <Button variant="secondary" onClick={(event) => open('returnReviewer', event.currentTarget)}>
                   {text.actions.returnToAuthor}
                 </Button>
-                <Button variant="secondary" onClick={(event) => open('route', event.currentTarget)}>
-                  {text.actions.route}
-                </Button>
               </>
+            )}
+            {canRoute && (
+              <Button variant="secondary" className="sm:self-start" onClick={(event) => open('route', event.currentTarget)}>
+                {text.actions.route}
+              </Button>
             )}
             {canApprove && (
               <>
@@ -221,12 +233,6 @@ function Review({ sop }: { sop: Sop }) {
             )}
             {canPublish && <Button onClick={(event) => open('publish', event.currentTarget)}>{text.actions.publish}</Button>}
           </div>
-        ) : (
-          <ul className="space-y-1 text-sm text-maroon">
-            {statusLines().map((line) => (
-              <li key={line}>{line}</li>
-            ))}
-          </ul>
         )}
       </Section>
 
