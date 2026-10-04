@@ -190,6 +190,55 @@ export const adminEn: AdminContent = {
     noMatches: 'No requests match your search.',
   },
 
+  requestDetails: {
+    pageTitle: '{title} · Requests · Admin | Hawkim',
+    back: { label: 'Back to requests', href: '/admin/requests' },
+    requester: {
+      title: 'Requester',
+      name: 'Name',
+      email: 'Email',
+      homeDepartment: 'Home department',
+      userPage: "Open {name}'s user page",
+    },
+    request: {
+      title: 'Request',
+      type: 'Type',
+      requestTitle: 'Title',
+      description: 'Description',
+      department: 'Department requested',
+      submitted: 'Submitted',
+      status: 'Status',
+    },
+    decided: {
+      approved: 'Approved by {admin} on {date}',
+      rejected: 'Rejected by {admin} on {date}',
+    },
+    respond: { title: 'Respond', approve: 'Approve', reject: 'Reject' },
+    reasons: {
+      approved: 'This request was already approved.',
+      rejected: 'This request was already rejected.',
+      cancelled: '{name} cancelled this request.',
+      departmentRemoved: '{department} was removed, so this request can only be rejected.',
+      requesterDeleted: "{name}'s account was deleted, so this request can only be rejected.",
+    },
+    approveDialog: {
+      title: 'Approve this request?',
+      access: '{name} will get access to {department}.',
+      change: "This marks the request as approved. Make any permission changes on {name}'s user page.",
+      confirm: 'Approve',
+      cancel: 'Cancel',
+    },
+    rejectDialog: {
+      title: 'Reject this request?',
+      description: '{name} will see it as rejected.',
+      confirm: 'Reject',
+      cancel: 'Cancel',
+    },
+    approvedNotice: 'Request approved.',
+    rejectedNotice: 'Request rejected.',
+    goToUser: "Go to {name}'s user page",
+  },
+
   departmentDetails: {
     back: { label: 'Back to departments', href: '/admin/departments' },
     added: 'Department added.',

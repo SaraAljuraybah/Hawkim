@@ -2,7 +2,7 @@ import { useCallback, useMemo, useRef, useState, type ReactNode } from 'react'
 import { mockRequests } from '../data/mock/requests'
 import type { UserRequest } from '../data/mock/types'
 import { todayIsoDate } from '../lib/format'
-import { approveBlocker, decideRequest, rejectBlocker } from '../lib/requestAdmin'
+import { approveBlockers, decideRequest, rejectBlocker } from '../lib/requestAdmin'
 import { useDepartments } from './departmentsContext'
 import { RequestsContext, type NewRequest, type RequestsStore } from './requestsContext'
 import { useSession } from './sessionContext'
@@ -65,8 +65,9 @@ export function RequestsProvider({ children }: { children: ReactNode }) {
       if (!user?.permissions.includes('admin')) throw new Error('Only an admin can respond to requests')
       const request = latestRef.current.find((item) => item.id === id)
       if (!request) throw new Error(`Unknown request ${id}`)
-      const blocker = decision === 'approved' ? approveBlocker(request, { users, departments }) : rejectBlocker(request)
-      if (blocker) throw new Error(`This request can't be ${decision} (${blocker})`)
+      const blockers =
+        decision === 'approved' ? approveBlockers(request, { users, departments }) : [rejectBlocker(request)].filter(Boolean)
+      if (blockers.length > 0) throw new Error(`This request can't be ${decision} (${blockers.join(', ')})`)
       commit(latestRef.current.map((item) => (item.id === id ? decideRequest(item, decision, user.id) : item)))
     },
     [commit, user, users, departments],

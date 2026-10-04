@@ -26,16 +26,17 @@ export interface RequestRulesData {
   departments: Department[]
 }
 
-/** Why the request can't be approved (undefined: it can). */
-export function approveBlocker(request: UserRequest, data: RequestRulesData): RequestBlocker | undefined {
-  if (request.status !== 'pending') return 'not-pending'
+/** Every reason the request can't be approved (none: it can). */
+export function approveBlockers(request: UserRequest, data: RequestRulesData): RequestBlocker[] {
+  if (request.status !== 'pending') return ['not-pending']
+  const blockers: RequestBlocker[] = []
   const requester = data.users.find((user) => user.id === request.requesterId)
-  if (!requester || requester.deletedAt) return 'requester-deleted'
+  if (!requester || requester.deletedAt) blockers.push('requester-deleted')
   if (request.type === 'department-access') {
     const department = data.departments.find((item) => item.id === request.departmentId)
-    if (!department || department.removedAt) return 'department-removed'
+    if (!department || department.removedAt) blockers.push('department-removed')
   }
-  return undefined
+  return blockers
 }
 
 /** Why the request can't be rejected (undefined: it can). Any pending request can be rejected. */

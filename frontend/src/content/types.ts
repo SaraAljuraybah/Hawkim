@@ -816,6 +816,40 @@ export interface AdminContent {
   departmentForm: AdminDepartmentFormContent
   departmentDetails: AdminDepartmentDetailsContent
   requestsList: AdminRequestsListContent
+  requestDetails: AdminRequestDetailsContent
+}
+
+export interface AdminRequestDetailsContent {
+  /** Browser tab title; `{title}` is replaced with the request's title. */
+  pageTitle: string
+  back: LinkContent
+  requester: { title: string; name: string; email: string; homeDepartment: string; userPage: string }
+  request: {
+    title: string
+    type: string
+    requestTitle: string
+    description: string
+    department: string
+    submitted: string
+    status: string
+  }
+  /** `{admin}` and `{date}` are replaced. */
+  decided: { approved: string; rejected: string }
+  respond: { title: string; approve: string; reject: string }
+  /** Why Approve or Reject can't be used. `{name}` and `{department}` are replaced. */
+  reasons: {
+    approved: string
+    rejected: string
+    cancelled: string
+    departmentRemoved: string
+    requesterDeleted: string
+  }
+  approveDialog: { title: string; access: string; change: string; confirm: string; cancel: string }
+  rejectDialog: { title: string; description: string; confirm: string; cancel: string }
+  approvedNotice: string
+  rejectedNotice: string
+  /** For permission and role change requests; `{name}` is replaced. */
+  goToUser: string
 }
 
 export type AdminRequestTabKey = 'pending' | 'approved' | 'rejected' | 'cancelled' | 'all'

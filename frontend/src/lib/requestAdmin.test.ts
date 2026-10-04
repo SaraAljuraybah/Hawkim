@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { Department, User, UserRequest } from '../data/mock/types'
 import type { Status } from '../types/status'
 import { getUserDepartments } from './departments'
-import { approveBlocker, decideRequest, pendingRequests, rejectBlocker, type RequestRulesData } from './requestAdmin'
+import { approveBlockers, decideRequest, pendingRequests, rejectBlocker, type RequestRulesData } from './requestAdmin'
 
 /* Sara works in IT and asks for access to Quality Assurance. Nouf is the admin. */
 const sara: User = {
@@ -34,34 +34,42 @@ const data: RequestRulesData = { users: [sara], departments: [it_, quality] }
 
 describe('which requests can be decided', () => {
   it('allows approving and rejecting a pending request', () => {
-    expect(approveBlocker(request('pending'), data)).toBeUndefined()
+    expect(approveBlockers(request('pending'), data)).toEqual([])
     expect(rejectBlocker(request('pending'))).toBeUndefined()
   })
 
   it('keeps approved, rejected and cancelled requests read-only', () => {
     for (const status of ['approved', 'rejected', 'cancelled'] as const) {
-      expect(approveBlocker(request(status), data)).toBe('not-pending')
+      expect(approveBlockers(request(status), data)).toEqual(['not-pending'])
       expect(rejectBlocker(request(status))).toBe('not-pending')
     }
   })
 
   it('refuses approving access to a removed department, but allows rejecting it', () => {
     const removed = { ...data, departments: [it_, { ...quality, removedAt: '2026-10-02T09:00:00Z' }] }
-    expect(approveBlocker(request('pending'), removed)).toBe('department-removed')
+    expect(approveBlockers(request('pending'), removed)).toEqual(['department-removed'])
     expect(rejectBlocker(request('pending'))).toBeUndefined()
   })
 
   it('refuses approving a request from a deleted user, but allows rejecting it', () => {
     const deleted = { ...data, users: [{ ...sara, deletedAt: '2026-10-02T09:00:00Z' }] }
-    expect(approveBlocker(request('pending'), deleted)).toBe('requester-deleted')
-    expect(approveBlocker(request('pending', { type: 'role-change', departmentId: undefined }), deleted)).toBe(
+    expect(approveBlockers(request('pending'), deleted)).toEqual(['requester-deleted'])
+    expect(approveBlockers(request('pending', { type: 'role-change', departmentId: undefined }), deleted)).toEqual([
       'requester-deleted',
-    )
+    ])
+  })
+
+  it('gives every reason when both the requester and the department are gone', () => {
+    const both = {
+      users: [{ ...sara, deletedAt: '2026-10-02T09:00:00Z' }],
+      departments: [it_, { ...quality, removedAt: '2026-10-03T09:00:00Z' }],
+    }
+    expect(approveBlockers(request('pending'), both)).toEqual(['requester-deleted', 'department-removed'])
   })
 
   it('doesn’t check a department for permission and role change requests', () => {
     const change = request('pending', { type: 'permission-change', departmentId: undefined })
-    expect(approveBlocker(change, data)).toBeUndefined()
+    expect(approveBlockers(change, data)).toEqual([])
   })
 })
 
