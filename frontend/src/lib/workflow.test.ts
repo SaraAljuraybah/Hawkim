@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { ComplianceCheck, Sop } from '../data/mock/types'
+import type { ComplianceCheck, Sop, User } from '../data/mock/types'
 import {
   addCoAuthor,
   approveAs,
@@ -10,6 +10,7 @@ import {
   resubmit,
   returnAsApprover,
   returnAsReviewer,
+  routeToReviewer,
   submitForReview,
   uploadNewVersion,
 } from './workflow'
@@ -243,5 +244,77 @@ describe('invalid actions are refused', () => {
 
   it('a new version can only be uploaded after a return', () => {
     expect(() => uploadNewVersion(draft(), SARA, { fileName: 'x.pdf', fileType: 'pdf' })).toThrow()
+  })
+})
+
+describe('routing to another department (PBI 23)', () => {
+  /** A reviewer (by default from Pharmacovigilance; the SOP is in IT). */
+  function person(id: string, overrides: Partial<User> = {}): User {
+    return {
+      id,
+      name: id,
+      email: `${id}@hawkim.demo`,
+      initials: 'XX',
+      departmentId: 'pharmacovigilance',
+      permissions: ['reviewer'],
+      ...overrides,
+    }
+  }
+  const lama = person('lama')
+
+  it('adds a pending reviewer from another department; the SOP waits for them too', () => {
+    const submitted = inReview()
+    const routed = routeToReviewer(submitted, FAISAL, lama, '  Please check the PV parts.  ')
+    expect(decisions(routed.reviewers)).toEqual({ [NOURA]: 'pending', [FAISAL]: 'pending', lama: 'pending' })
+    expect(routed.reviewDueAt).toBe(submitted.reviewDueAt)
+    expect(routed.timeline.at(-1)).toMatchObject({
+      type: 'routed',
+      actorId: FAISAL,
+      recipientIds: ['lama'],
+      departmentId: 'pharmacovigilance',
+      note: 'Please check the PV parts.',
+    })
+    const bothDone = completeReview(completeReview(routed, NOURA), FAISAL)
+    expect(bothDone.status).toBe('in-review')
+    expect(completeReview(bothDone, 'lama').status).toBe('in-approval')
+  })
+
+  it('resets the routed reviewer on resubmit, like everyone else', () => {
+    const routed = completeReview(routeToReviewer(inReview(), FAISAL, lama), 'lama')
+    const returned = returnAsReviewer(routed, NOURA, 'Fix it.')
+    const updated = uploadNewVersion(returned, SARA, { fileName: 'v1.1.pdf', fileType: 'pdf' })
+    const again = resubmit({ ...updated, complianceChecks: [...updated.complianceChecks, completedCheck('1.1')] }, SARA, GVP)
+    expect(decisions(again.reviewers)).toEqual({ [NOURA]: 'pending', [FAISAL]: 'pending', lama: 'pending' })
+  })
+
+  it('is only for an assigned reviewer, while the SOP is In Review', () => {
+    expect(() => routeToReviewer(inReview(), HUDA, lama)).toThrow(/assigned reviewer/)
+    expect(() => routeToReviewer(inReview(), SARA, lama)).toThrow(/assigned reviewer/)
+    expect(() => routeToReviewer(inApproval(), NOURA, lama)).toThrow()
+    expect(() => routeToReviewer(draft(), NOURA, lama)).toThrow()
+  })
+
+  it('needs the Reviewer permission, another department and an active account', () => {
+    expect(() => routeToReviewer(inReview(), FAISAL, person('maha', { permissions: ['approver'] }))).toThrow()
+    expect(() => routeToReviewer(inReview(), FAISAL, person('reem2', { departmentId: 'information-technology' }))).toThrow()
+    expect(() => routeToReviewer(inReview(), FAISAL, person('gone', { deletedAt: '2026-01-01T00:00:00Z' }))).toThrow()
+  })
+
+  it('keeps separation of duties: never the author, a co-author, a reviewer or an approver', () => {
+    for (const id of [SARA, REEM, NOURA, HUDA]) {
+      expect(() => routeToReviewer(inReview(), FAISAL, person(id)), id).toThrow()
+    }
+  })
+})
+
+describe('optional comments with a decision', () => {
+  it('saves the comment with the reviewer or approver role, or nothing when empty', () => {
+    const reviewed = completeReview(inReview(), NOURA, '  Looks good.  ')
+    expect(reviewed.comments.map((comment) => [comment.authorUserId, comment.role, comment.text])).toEqual([
+      [NOURA, 'reviewer', 'Looks good.'],
+    ])
+    expect(completeReview(inReview(), NOURA, '   ').comments).toEqual([])
+    const approved = approveAs(inApproval(), HUDA, 'Approved for release.')
+    expect(approved.comments.at(-1)).toMatchObject({ authorUserId: HUDA, role: 'approver', text: 'Approved for release.' })
   })
 })

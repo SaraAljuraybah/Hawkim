@@ -164,6 +164,7 @@ export type TimelineEventType =
   | 'stage-due-date-set'
   | 'compliance-check-completed'
   | 'compliance-check-failed'
+  | 'routed'
 
 /** One action in an SOP's workflow history (PBI 24). */
 export interface TimelineEvent {
@@ -175,6 +176,8 @@ export interface TimelineEvent {
   recipientIds?: string[]
   /** For co-author-added / co-author-removed: the co-author (User.id). */
   subjectId?: string
+  /** For routed: the department of the reviewer it was routed to (as it was then). */
+  departmentId?: DepartmentId
   /** For stage-due-date-set: which stage and its due date (ISO date and time). */
   stage?: 'review' | 'approval'
   dueAt?: string

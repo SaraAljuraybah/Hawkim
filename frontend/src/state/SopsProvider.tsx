@@ -7,6 +7,7 @@ import { nextSopCode } from '../lib/sopCodes'
 import * as workflow from '../lib/workflow'
 import { useGuidelines } from './guidelinesContext'
 import { useSession } from './sessionContext'
+import { useUsers } from './usersContext'
 import { SopsContext, type NewDraft, type SopsStore } from './sopsContext'
 
 /**
@@ -21,6 +22,7 @@ export function SopsProvider({ children }: { children: ReactNode }) {
   const userId = useSession().user?.id ?? ''
   // New checks use the current GVP version; Submit and Resubmit need a check against it.
   const guideline = useGuidelines().currentGuideline
+  const { getUser } = useUsers()
   const [sops, setSops] = useState<Sop[]>(seedSops)
   /*
    * The latest list, updated as soon as a change is applied. Actions read and
@@ -157,16 +159,21 @@ export function SopsProvider({ children }: { children: ReactNode }) {
         update(id, (sop) => userIds.reduce((next, userId) => workflow.addCoAuthor(next, userId, userId), sop)),
       removeCoAuthor: (id, userId) => update(id, (sop) => workflow.removeCoAuthor(sop, userId, userId)),
       runCheck: (id) => updateAndCheck(id, (sop) => sop, false),
-      completeReview: (id, reviewerId) => update(id, (sop) => workflow.completeReview(sop, reviewerId)),
+      completeReview: (id, reviewerId, text) => update(id, (sop) => workflow.completeReview(sop, reviewerId, text)),
       returnAsReviewer: (id, reviewerId, text) => update(id, (sop) => workflow.returnAsReviewer(sop, reviewerId, text)),
-      approveAs: (id, approverId) => update(id, (sop) => workflow.approveAs(sop, approverId)),
+      routeToReviewer: (id, reviewerId, newReviewerId, note) => {
+        const person = getUser(newReviewerId)
+        if (!person) throw new Error(`Unknown user ${newReviewerId}`)
+        update(id, (sop) => workflow.routeToReviewer(sop, reviewerId, person, note))
+      },
+      approveAs: (id, approverId, text) => update(id, (sop) => workflow.approveAs(sop, approverId, text)),
       returnAsApprover: (id, approverId, text) => update(id, (sop) => workflow.returnAsApprover(sop, approverId, text)),
       publishAs: (id, approverId) => update(id, (sop) => workflow.publishAs(sop, approverId)),
       shiftDueDates: (id, days) => update(id, (sop) => workflow.shiftDueDates(sop, days)),
       failNextCheck,
       setFailNextCheck,
     }),
-    [sops, addDraft, update, updateAndCheck, failNextCheck, setFailNextCheck, userId, guideline.version],
+    [sops, addDraft, update, updateAndCheck, failNextCheck, setFailNextCheck, userId, guideline.version, getUser],
   )
 
   return <SopsContext.Provider value={store}>{children}</SopsContext.Provider>

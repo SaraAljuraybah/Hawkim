@@ -537,6 +537,8 @@ export interface SopWorkflowContent {
     due: string
     /** For co-author events; `{name}` is replaced. */
     subject: string
+    /** For routed events: the new reviewer's department; `{name}` is replaced. */
+    department: string
   }
   dialogs: {
     cancel: string

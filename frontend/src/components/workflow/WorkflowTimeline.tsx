@@ -1,6 +1,7 @@
 import type { SopWorkflowContent } from '../../content/types'
 import type { Sop } from '../../data/mock/types'
 import { formatDateTime } from '../../lib/format'
+import { useDepartments } from '../../state/departmentsContext'
 import { useUsers } from '../../state/usersContext'
 import { personWithRole } from './people'
 
@@ -16,6 +17,7 @@ interface WorkflowTimelineProps {
 export function WorkflowTimeline({ sop, content }: WorkflowTimelineProps) {
   const { timeline, versionTemplate, roles } = content
   const { nameOf } = useUsers()
+  const { nameOf: departmentName } = useDepartments()
   const events = [...sop.timeline].reverse()
 
   return (
@@ -44,6 +46,11 @@ export function WorkflowTimeline({ sop, content }: WorkflowTimelineProps) {
             {event.subjectId && (
               <p className="mt-0.5 text-sm text-text-gray">
                 {timeline.subject.replace('{name}', nameOf(event.subjectId))}
+              </p>
+            )}
+            {event.departmentId && (
+              <p className="mt-0.5 text-sm text-text-gray">
+                {timeline.department.replace('{name}', departmentName(event.departmentId))}
               </p>
             )}
             {event.dueAt && (

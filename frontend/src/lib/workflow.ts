@@ -1,6 +1,7 @@
 import {
   SYSTEM_ACTOR,
   type ApproverAssignment,
+  type User,
   type ReviewerAssignment,
   type Sop,
   type SopComment,
@@ -322,8 +323,19 @@ function returnToAuthors(sop: Sop, actorId: string, role: 'reviewer' | 'approver
   }
 }
 
-/** A pending reviewer completes their review. When ALL have, the SOP moves to In Approval. */
-export function completeReview(sop: Sop, reviewerId: string): Sop {
+/** An optional comment with a decision (Complete review, Approve): saved like any other comment. */
+function optionalComment(sop: Sop, actorId: string, role: 'reviewer' | 'approver', text: string | undefined, createdAt: string) {
+  const trimmed = text?.trim()
+  return trimmed
+    ? [...sop.comments, { id: newId('com'), authorUserId: actorId, role, text: trimmed, createdAt, version: sop.version }]
+    : sop.comments
+}
+
+/**
+ * A pending reviewer completes their review (PBI 7, 9), with an optional comment.
+ * When ALL reviewers have, the SOP moves to In Approval.
+ */
+export function completeReview(sop: Sop, reviewerId: string, text?: string): Sop {
   assertStatus(sop, ['in-review'], 'complete the review of')
   assert(sop.reviewers.some((p) => p.userId === reviewerId && p.decision === 'pending'), 'Not a pending reviewer')
   const createdAt = new Date().toISOString()
@@ -334,6 +346,7 @@ export function completeReview(sop: Sop, reviewerId: string): Sop {
     ...sop,
     reviewers,
     lastUpdated: todayIsoDate(),
+    comments: optionalComment(sop, reviewerId, 'reviewer', text, createdAt),
     timeline: [...sop.timeline, { ...event(sop, 'review-completed', reviewerId), createdAt }],
   }
   if (reviewers.every((p) => p.decision === 'completed')) {
@@ -370,8 +383,8 @@ export function returnAsReviewer(sop: Sop, reviewerId: string, text: string): So
   return returnToAuthors(withDecision, reviewerId, 'reviewer', text.trim(), createdAt)
 }
 
-/** A pending approver approves. When ALL have, the SOP is Approved. */
-export function approveAs(sop: Sop, approverId: string): Sop {
+/** A pending approver approves (PBI 10, 11), with an optional comment. When ALL have, the SOP is Approved. */
+export function approveAs(sop: Sop, approverId: string, text?: string): Sop {
   assertStatus(sop, ['in-approval'], 'approve')
   assert(sop.approvers.some((p) => p.userId === approverId && p.decision === 'pending'), 'Not a pending approver')
   const createdAt = new Date().toISOString()
@@ -382,6 +395,7 @@ export function approveAs(sop: Sop, approverId: string): Sop {
     ...sop,
     approvers,
     lastUpdated: todayIsoDate(),
+    comments: optionalComment(sop, approverId, 'approver', text, createdAt),
     timeline: [...sop.timeline, { ...event(sop, 'approved-by', approverId), createdAt }],
   }
   if (approvers.every((p) => p.decision === 'approved')) {
@@ -392,6 +406,52 @@ export function approveAs(sop: Sop, approverId: string): Sop {
     }
   }
   return updated
+}
+
+/**
+ * Whether `person` can be routed in as a reviewer (PBI 23): they have the Reviewer
+ * permission, work in another department than the SOP's, and aren't already on it
+ * (author, co-author, reviewer or approver: separation of duties).
+ */
+export function canBeRoutedTo(sop: Sop, person: Pick<User, 'id' | 'departmentId' | 'permissions' | 'deletedAt'>): boolean {
+  return (
+    !person.deletedAt &&
+    person.permissions.includes('reviewer') &&
+    person.departmentId !== sop.departmentId &&
+    !isAuthorOrCoAuthor(sop, person.id) &&
+    !isReviewer(sop, person.id) &&
+    !isApprover(sop, person.id)
+  )
+}
+
+/**
+ * An assigned reviewer routes the SOP to a reviewer from another department (PBI 23).
+ * Only while In Review. The new reviewer starts pending, so the SOP now also waits
+ * for them; the review due date doesn't change. The routing reviewer still decides.
+ */
+export function routeToReviewer(
+  sop: Sop,
+  actorId: string,
+  newReviewer: Pick<User, 'id' | 'departmentId' | 'permissions' | 'deletedAt'>,
+  note?: string,
+): Sop {
+  assertStatus(sop, ['in-review'], 'route')
+  assert(isReviewer(sop, actorId), 'Only an assigned reviewer can route this SOP')
+  assert(canBeRoutedTo(sop, newReviewer), 'This person can’t be added as a reviewer')
+  const trimmed = note?.trim()
+  return {
+    ...sop,
+    reviewers: [...sop.reviewers, { userId: newReviewer.id, decision: 'pending' }],
+    lastUpdated: todayIsoDate(),
+    timeline: [
+      ...sop.timeline,
+      event(sop, 'routed', actorId, {
+        recipientIds: [newReviewer.id],
+        departmentId: newReviewer.departmentId,
+        ...(trimmed ? { note: trimmed } : {}),
+      }),
+    ],
+  }
 }
 
 /** A pending approver returns the SOP with a comment; it goes back to the author at once. */
