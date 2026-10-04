@@ -10,6 +10,11 @@ export function mySopPath(sopId: string): string {
   return `/my-sops/${encodeURIComponent(sopId)}`
 }
 
+/** Path of an SOP's review page (its reviewers' and approvers' view). */
+export function reviewPath(sopId: string): string {
+  return `/reviews/${encodeURIComponent(sopId)}`
+}
+
 /** Path of an SOP's compliance report (the author's and co-authors' view). */
 export function complianceReportPath(sopId: string): string {
   return `${mySopPath(sopId)}/compliance`

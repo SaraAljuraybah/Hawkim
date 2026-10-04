@@ -32,6 +32,7 @@ export type IconName =
   | 'submitRequest'
   | 'mySops'
   | 'upload'
+  | 'reviews'
 
 export interface NavLink {
   label: string
@@ -190,8 +191,11 @@ export interface AppNavItem {
   icon: IconName
   /** Also show the item as active on pages below it (e.g. /requests/new under /requests). */
   matchSubpaths?: boolean
-  /** Only shown to users with this permission (e.g. 'author'); everyone sees items without one. */
-  permission?: Permission
+  /**
+   * Only shown to users with this permission (e.g. 'author'), or any of several
+   * (e.g. reviewer or approver); everyone sees items without one.
+   */
+  permission?: Permission | Permission[]
 }
 
 /** The sidebar's content (employee app and admin portal). */
@@ -215,6 +219,8 @@ export interface AppShellContent extends SidebarContent {
   openMenu: string
   /** Accessible name of the mobile navigation drawer. */
   drawerLabel: string
+  /** Accessible text of the My Reviews to-do count; `{count}` is replaced. */
+  reviewsToDoLabel: string
   departmentSwitcher: {
     /** Label before the department name (visible in the drawer, screen-reader only in the top bar). */
     label: string
@@ -799,6 +805,33 @@ export interface DemoAccountsContent {
   /** Accessible name of each "use" button; `{name}` is replaced. */
   useLabel: string
   use: string
+}
+
+/* ---------- Reviews (reviewer and approver) ---------- */
+
+export type ReviewTabKey = 'todo' | 'waiting' | 'done'
+
+export interface ReviewsContent {
+  list: {
+    pageTitle: string
+    title: string
+    subtitle: string
+    tabsLabel: string
+    tabs: Record<ReviewTabKey, string>
+    empty: Record<ReviewTabKey, string>
+    /** Accessible name of the list. */
+    listLabel: string
+    /** `{name}` is replaced. */
+    author: string
+    /** `{role}` is replaced. */
+    yourRole: string
+    roles: { reviewer: string; approver: string }
+    needs: { review: string; approval: string; publish: string }
+    /** `{date}` is replaced. */
+    due: string
+    noDueDate: string
+    overdue: string
+  }
 }
 
 /* ---------- Admin portal ---------- */
