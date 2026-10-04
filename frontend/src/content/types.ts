@@ -832,6 +832,88 @@ export interface ReviewsContent {
     noDueDate: string
     overdue: string
   }
+  page: ReviewPageContent
+}
+
+/** A dialog with an optional or required comment. */
+export interface ReviewCommentDialog {
+  title: string
+  description: string
+  label: string
+  confirm: string
+}
+
+export interface ReviewPageContent {
+  /** `{code}` is replaced. */
+  pageTitle: string
+  back: LinkContent
+  /** `{name}` / `{names}` are replaced. */
+  author: string
+  coAuthors: string
+  /** `{date}` is replaced. */
+  due: string
+  overdue: string
+  file: {
+    title: string
+    download: string
+    /** `{code}` and `{title}` are replaced. */
+    viewerTitle: string
+    fallback: { text: string; openPdf: string; newTabHint: string }
+  }
+  compliance: {
+    title: string
+    none: string
+    running: string
+    /** Accessible name of the score; `{score}` is replaced. */
+    score: string
+    viewReport: string
+  }
+  actions: {
+    title: string
+    completeReview: string
+    returnToAuthor: string
+    route: string
+    approve: string
+    publish: string
+  }
+  /** When there's nothing for the user to do now. `{date}`, `{names}` are replaced. */
+  status: {
+    reviewCompleted: string
+    approved: string
+    waitingFor: string
+    waitingForReviews: string
+    returned: string
+    published: string
+  }
+  dialogs: {
+    cancel: string
+    /** `{count}` and `{max}` are replaced. */
+    counter: string
+    complete: ReviewCommentDialog
+    approve: ReviewCommentDialog
+    return: ReviewCommentDialog & { required: string }
+    route: {
+      title: string
+      description: string
+      pickerLabel: string
+      /** `{department}` is replaced with the SOP's department. */
+      pickerHint: string
+      required: string
+      noneEligible: string
+      noteLabel: string
+      confirm: string
+    }
+    /** `{code}` and `{department}` are replaced. */
+    publish: { title: string; description: string; confirm: string }
+  }
+  /** Shown after each action. `{name}` and `{department}` are replaced. */
+  messages: {
+    completed: string
+    returned: string
+    routed: string
+    approved: string
+    published: string
+  }
 }
 
 /* ---------- Admin portal ---------- */

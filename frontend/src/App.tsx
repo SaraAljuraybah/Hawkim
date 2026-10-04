@@ -5,6 +5,7 @@ import { DashboardPage } from './pages/DashboardPage'
 import { DepartmentsPage } from './pages/DepartmentsPage'
 import { MyRequestsPage } from './pages/MyRequestsPage'
 import { MySopsPage } from './pages/MySopsPage'
+import { ReviewPage } from './pages/ReviewPage'
 import { ReviewsPage } from './pages/ReviewsPage'
 import { UploadSopPage } from './pages/UploadSopPage'
 import { SopDetailPage } from './pages/SopDetailPage'
@@ -85,6 +86,8 @@ function AppRoutes() {
         <Route path="/my-sops/:id" element={<SopWorkflowPage />} />
         <Route path="/my-sops/:id/compliance" element={<ComplianceReportPage />} />
         <Route path="/reviews" element={<ReviewsPage />} />
+        <Route path="/reviews/:id" element={<ReviewPage />} />
+        <Route path="/reviews/:id/compliance" element={<ComplianceReportPage audience="reviewer" />} />
         <Route path="/requests" element={<MyRequestsPage />} />
         <Route path="/requests/new" element={<SubmitRequestPage />} />
       </Route>
