@@ -1,3 +1,4 @@
+import type { FileDropzoneText } from '../components/ui/FileDropzone'
 import type {
   ComplianceResult,
   DashboardStatKey,
@@ -817,6 +818,75 @@ export interface AdminContent {
   departmentDetails: AdminDepartmentDetailsContent
   requestsList: AdminRequestsListContent
   requestDetails: AdminRequestDetailsContent
+  regulations: AdminRegulationsContent
+  regulationForm: AdminRegulationFormContent
+  regulationDetails: AdminRegulationDetailsContent
+}
+
+/** Labels shared by the regulations pages for a GVP version's details. */
+export interface GuidelineVersionFields {
+  issued: string
+  effective: string
+  file: string
+  added: string
+  requirements: string
+  summary: string
+}
+
+export interface AdminRegulationsContent {
+  title: string
+  subtitle: string
+  addVersion: LinkContent
+  /** "GVP version {version}" */
+  versionName: string
+  /** Shown after adding a version; `{version}` is replaced. */
+  added: string
+  current: { title: string; badge: string }
+  fields: GuidelineVersionFields
+  /** `{name}` and `{date}` are replaced. */
+  addedBy: string
+  requirementsCount: CountText
+  viewRequirements: string
+  /** Accessible name of each "View requirements" link; `{version}` is replaced. */
+  viewRequirementsLabel: string
+  history: { title: string; empty: string }
+}
+
+export interface AdminRegulationFormContent {
+  title: string
+  subtitle: string
+  back: LinkContent
+  version: { label: string; hint: string }
+  issuedDate: { label: string }
+  effectiveDate: { label: string; hint: string }
+  file: FileDropzoneText
+  summary: { label: string; counter: string }
+  submit: string
+  cancel: string
+  errors: {
+    versionInvalid: string
+    /** `{current}` is replaced with the current version. */
+    versionNotHigher: string
+    effectiveRequired: string
+    issuedAfterEffective: string
+    fileRequired: string
+    fileNotPdf: string
+    summaryTooLong: string
+  }
+  /** `{version}` is replaced. */
+  dialog: { title: string; description: string; confirm: string; cancel: string }
+}
+
+export interface AdminRegulationDetailsContent {
+  back: LinkContent
+  details: { title: string }
+  requirements: {
+    title: string
+    tableLabel: string
+    columns: { id: string; module: string; section: string; title: string; page: string; summary: string }
+    /** `{page}` is replaced. */
+    page: string
+  }
 }
 
 export interface AdminRequestDetailsContent {

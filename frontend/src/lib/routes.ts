@@ -55,6 +55,14 @@ export function adminRequestPath(requestId: string): string {
   return `${ADMIN_REQUESTS_PATH}/${encodeURIComponent(requestId)}`
 }
 
+/** The admin portal's regulations page. */
+export const ADMIN_REGULATIONS_PATH = '/admin/regulations'
+
+/** A GVP version's page in the admin portal, e.g. /admin/regulations/gvp-4-0 */
+export function adminRegulationPath(versionId: string): string {
+  return `${ADMIN_REGULATIONS_PATH}/${encodeURIComponent(versionId)}`
+}
+
 /** A user's page in the admin portal, e.g. /admin/users/user-sara */
 export function adminUserPath(userId: string): string {
   return `${ADMIN_USERS_PATH}/${encodeURIComponent(userId)}`

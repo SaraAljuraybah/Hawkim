@@ -14,7 +14,10 @@ import { LandingPage } from './pages/LandingPage'
 import { NotFoundPage } from './pages/NotFoundPage'
 import { AddUserPage } from './pages/admin/AddUserPage'
 import { AdminDepartmentsPage } from './pages/admin/AdminDepartmentsPage'
+import { AdminRegulationsPage } from './pages/admin/AdminRegulationsPage'
 import { AdminRequestsPage } from './pages/admin/AdminRequestsPage'
+import { RegulationDetailsPage } from './pages/admin/RegulationDetailsPage'
+import { RegulationFormPage } from './pages/admin/RegulationFormPage'
 import { RequestDetailsPage } from './pages/admin/RequestDetailsPage'
 import { DepartmentDetailsPage } from './pages/admin/DepartmentDetailsPage'
 import { DepartmentFormPage } from './pages/admin/DepartmentFormPage'
@@ -96,6 +99,9 @@ function AppRoutes() {
         <Route path="departments/:id/edit" element={<DepartmentFormPage />} />
         <Route path="requests" element={<AdminRequestsPage />} />
         <Route path="requests/:id" element={<RequestDetailsPage />} />
+        <Route path="regulations" element={<AdminRegulationsPage />} />
+        <Route path="regulations/new" element={<RegulationFormPage />} />
+        <Route path="regulations/:id" element={<RegulationDetailsPage />} />
         <Route path="*" element={<NotFoundPage embedded />} />
       </Route>
 
