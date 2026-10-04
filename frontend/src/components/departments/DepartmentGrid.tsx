@@ -10,6 +10,8 @@ interface DepartmentGridProps {
   departments: Department[]
   content: DepartmentsContent
   getState: (department: Department) => DepartmentState
+  /** Members: active users whose home department it is. */
+  getMemberCount: (department: Department) => number
   /** Switch to a department the user belongs to. */
   onOpen: (id: DepartmentId) => void
 }
@@ -32,7 +34,7 @@ const stateLabel = 'inline-flex items-center gap-1.5 text-sm font-medium text-ma
  * Cards are not clickable; each shows the user's state (icon + text) and,
  * where relevant, one action button.
  */
-export function DepartmentGrid({ departments, content, getState, onOpen }: DepartmentGridProps) {
+export function DepartmentGrid({ departments, content, getState, getMemberCount, onOpen }: DepartmentGridProps) {
   const { states } = content
 
   return (
@@ -60,7 +62,7 @@ export function DepartmentGrid({ departments, content, getState, onOpen }: Depar
                 <p className="mt-1 mb-4 text-sm leading-relaxed text-text-gray">{department.description}</p>
                 <p className="mt-auto inline-flex items-center gap-1.5 text-sm text-text-gray">
                   <Users aria-hidden="true" className="size-4 shrink-0" strokeWidth={1.75} />
-                  {formatMemberCount(department.memberCount ?? 0, content.memberCount)}
+                  {formatMemberCount(getMemberCount(department), content.memberCount)}
                 </p>
 
                 {/* The user's state for this department, and its action */}

@@ -48,8 +48,6 @@ export interface Department {
    * are hidden everywhere, but their name stays on old requests.
    */
   removedAt?: string
-  /** Fixed sample count, still shown to employees (admin pages count the real members). */
-  memberCount?: number
 }
 
 /**

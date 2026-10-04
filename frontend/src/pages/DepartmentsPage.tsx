@@ -3,10 +3,12 @@ import { DepartmentGrid } from '../components/departments/DepartmentGrid'
 import { departmentsEn } from '../content/departments.en'
 import type { Department, DepartmentId } from '../data/mock/types'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
+import { members } from '../lib/departmentAdmin'
 import { getDepartmentState } from '../lib/departments'
 import { useActiveDepartment } from '../state/activeDepartmentContext'
 import { useDepartments } from '../state/departmentsContext'
 import { useMyRequests } from '../state/requestsContext'
+import { useUsers } from '../state/usersContext'
 
 /** Where opening a department takes the user. */
 const AFTER_OPEN_PATH = '/dashboard'
@@ -20,6 +22,7 @@ export function DepartmentsPage() {
   // States come from the shared stores, so they update as soon as requests change.
   const requests = useMyRequests()
   const { activeDepartments } = useDepartments()
+  const { users } = useUsers()
   const { activeDepartment, userDepartments, setActiveDepartment } = useActiveDepartment()
   const getState = (department: Department) =>
     getDepartmentState(department.id, activeDepartment.id, userDepartments, requests)
@@ -35,7 +38,13 @@ export function DepartmentsPage() {
       <p className="mt-2 text-text-gray">{content.subtitle}</p>
 
       <div className="mt-8">
-        <DepartmentGrid departments={activeDepartments} content={content} getState={getState} onOpen={openDepartment} />
+        <DepartmentGrid
+          departments={activeDepartments}
+          content={content}
+          getState={getState}
+          getMemberCount={(department) => members(department.id, users).length}
+          onOpen={openDepartment}
+        />
       </div>
     </>
   )
