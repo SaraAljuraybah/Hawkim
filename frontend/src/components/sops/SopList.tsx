@@ -1,9 +1,9 @@
 import { Link } from 'react-router-dom'
 import type { SopsContent } from '../../content/types'
-import { getDepartmentName } from '../../data/mock/departments'
 import type { Sop } from '../../data/mock/types'
 import { formatDate } from '../../lib/format'
 import { sopPath } from '../../lib/routes'
+import { useDepartments } from '../../state/departmentsContext'
 
 interface SopListProps {
   sops: Sop[]
@@ -23,6 +23,7 @@ const focusRing =
  */
 export function SopList({ sops, content }: SopListProps) {
   const { columns } = content
+  const { nameOf: departmentName } = useDepartments()
 
   return (
     <div className="overflow-hidden rounded-xl border border-beige bg-white">
@@ -50,7 +51,7 @@ export function SopList({ sops, content }: SopListProps) {
                     {sop.title}
                   </Link>
                 </td>
-                <td className="px-5 py-4 text-text-gray">{getDepartmentName(sop.departmentId)}</td>
+                <td className="px-5 py-4 text-text-gray">{departmentName(sop.departmentId)}</td>
                 <td className="px-5 py-4 text-text-gray">{sop.version}</td>
                 <td className="px-5 py-4 whitespace-nowrap text-text-gray">
                   <time dateTime={sop.lastUpdated}>{formatDate(sop.lastUpdated)}</time>
@@ -77,7 +78,7 @@ export function SopList({ sops, content }: SopListProps) {
               </Link>
             </p>
             <p className="mt-1 text-xs text-text-gray">
-              {getDepartmentName(sop.departmentId)}
+              {departmentName(sop.departmentId)}
               <span aria-hidden="true"> · </span>
               <span className="sr-only">, </span>
               {content.versionTemplate.replace('{version}', sop.version)}

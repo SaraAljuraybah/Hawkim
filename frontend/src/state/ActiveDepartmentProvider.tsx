@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react
 import type { DepartmentId } from '../data/mock/types'
 import { getUserDepartments } from '../lib/departments'
 import { ActiveDepartmentContext, type ActiveDepartmentStore } from './activeDepartmentContext'
+import { useDepartments } from './departmentsContext'
 import { useRequests } from './requestsContext'
 import { useCurrentUser } from './sessionContext'
 
@@ -25,7 +26,11 @@ function readStored(): string | null {
 export function ActiveDepartmentProvider({ children }: { children: ReactNode }) {
   const user = useCurrentUser()
   const { requests } = useRequests()
-  const userDepartments = useMemo(() => getUserDepartments(user, requests), [user, requests])
+  const { activeDepartments } = useDepartments()
+  const userDepartments = useMemo(
+    () => getUserDepartments(user, requests, activeDepartments),
+    [user, requests, activeDepartments],
+  )
 
   const [selectedId, setSelectedId] = useState<string | null>(readStored)
 

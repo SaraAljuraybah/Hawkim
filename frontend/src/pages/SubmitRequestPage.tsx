@@ -8,10 +8,10 @@ import { SelectField } from '../components/ui/SelectField'
 import { TextAreaField } from '../components/ui/TextAreaField'
 import { TextField } from '../components/ui/TextField'
 import { requestsEn } from '../content/requests.en'
-import { departments } from '../data/mock/departments'
 import type { DepartmentId, RequestType } from '../data/mock/types'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { REQUEST_PREFILL_PARAMS } from '../lib/routes'
+import { useDepartments } from '../state/departmentsContext'
 import { useCurrentUser } from '../state/sessionContext'
 import { useRequests } from '../state/requestsContext'
 
@@ -54,6 +54,7 @@ export function SubmitRequestPage() {
 
   const { addRequest } = useRequests()
   const user = useCurrentUser()
+  const { activeDepartments } = useDepartments()
 
   const [searchParams] = useSearchParams()
   const [files, setFiles] = useState<File[]>([])
@@ -70,7 +71,7 @@ export function SubmitRequestPage() {
   const focusTypeAfterReset = useRef(false)
 
   // Department access is to *another* department, so the user's own is left out.
-  const departmentOptions = departments
+  const departmentOptions = activeDepartments
     .filter((department) => department.id !== user.departmentId)
     .map((department) => ({ value: department.id, label: department.name }))
   const typeOptions = (Object.keys(typeLabels) as RequestType[]).map((type) => ({ value: type, label: typeLabels[type] }))

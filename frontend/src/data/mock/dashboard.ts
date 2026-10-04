@@ -22,7 +22,7 @@ export function getDashboardStats(requests: UserRequest[], activeDepartment: Dep
       value: sops.filter((sop) => sop.status === 'published' && sop.departmentId === activeDepartment.id).length,
     },
     // "In this department": members of the active department
-    { key: 'employees', value: activeDepartment.memberCount },
+    { key: 'employees', value: activeDepartment.memberCount ?? 0 },
   ]
 }
 

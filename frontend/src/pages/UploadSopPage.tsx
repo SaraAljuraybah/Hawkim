@@ -13,6 +13,7 @@ import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { personOption } from '../lib/people'
 import { hasPermission } from '../lib/permissions'
 import { useActiveDepartment } from '../state/activeDepartmentContext'
+import { useDepartments } from '../state/departmentsContext'
 import { useCurrentUser } from '../state/sessionContext'
 import { useSops } from '../state/sopsContext'
 import { useUsers } from '../state/usersContext'
@@ -39,6 +40,7 @@ export function UploadSopPage() {
   const content = uploadSopEn
   const user = useCurrentUser()
   const { activeUsers } = useUsers()
+  const { nameOf: departmentName } = useDepartments()
   const isAuthor = hasPermission(user, 'author')
   useDocumentTitle(isAuthor ? content.pageTitle : undefined)
 
@@ -62,7 +64,7 @@ export function UploadSopPage() {
   // Co-authors: other (active) users with the Author permission.
   const coAuthorOptions = activeUsers
     .filter((u) => u.id !== user.id && hasPermission(u, 'author'))
-    .map(personOption)
+    .map((user) => personOption(user, departmentName))
 
   function validate(field: Field, values = { title, files }): string | undefined {
     if (field === 'title') return values.title.trim() ? undefined : content.errors.titleRequired

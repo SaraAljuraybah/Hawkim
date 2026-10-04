@@ -7,11 +7,11 @@ import { SelectField } from '../../components/ui/SelectField'
 import { TextField } from '../../components/ui/TextField'
 import { adminEn } from '../../content/admin.en'
 import { usersEn } from '../../content/users.en'
-import { departments, getDepartmentName } from '../../data/mock/departments'
 import type { Permission, User } from '../../data/mock/types'
 import { useDocumentTitle } from '../../hooks/useDocumentTitle'
 import { adminUserPath } from '../../lib/routes'
 import { PERMISSIONS } from '../../lib/userAdmin'
+import { useDepartments } from '../../state/departmentsContext'
 import { useUsers } from '../../state/usersContext'
 
 /** Set after deleting a user, to say so on the list. */
@@ -45,6 +45,7 @@ export function AdminUsersPage() {
   const content = adminEn.usersList
   useDocumentTitle(adminEn.pageTitle.replace('{page}', content.title))
   const { activeUsers } = useUsers()
+  const { activeDepartments, nameOf: departmentName } = useDepartments()
   const notice = (useLocation().state as AdminUsersLocationState | null)?.deleted
 
   const [query, setQuery] = useState('')
@@ -95,7 +96,7 @@ export function AdminUsersPage() {
           label={content.departmentFilter.label}
           options={[
             { value: ALL, label: content.departmentFilter.all },
-            ...departments.map((department) => ({ value: department.id, label: department.name })),
+            ...activeDepartments.map((department) => ({ value: department.id, label: department.name })),
           ]}
           value={departmentId}
           onChange={(event) => setDepartmentId(event.target.value)}
@@ -149,7 +150,7 @@ export function AdminUsersPage() {
                       </span>
                     </th>
                     <td className="px-5 py-3.5 break-all text-text-gray">{user.email}</td>
-                    <td className="px-5 py-3.5 text-text-gray">{getDepartmentName(user.departmentId)}</td>
+                    <td className="px-5 py-3.5 text-text-gray">{departmentName(user.departmentId)}</td>
                     <td className="px-5 py-3.5">
                       <PermissionBadges user={user} />
                     </td>
@@ -171,7 +172,7 @@ export function AdminUsersPage() {
                     </Link>
                   </p>
                   <p className="mt-0.5 text-sm break-all text-text-gray">{user.email}</p>
-                  <p className="mt-0.5 text-sm text-text-gray">{getDepartmentName(user.departmentId)}</p>
+                  <p className="mt-0.5 text-sm text-text-gray">{departmentName(user.departmentId)}</p>
                   <PermissionBadges user={user} className="mt-2" />
                 </div>
               </li>

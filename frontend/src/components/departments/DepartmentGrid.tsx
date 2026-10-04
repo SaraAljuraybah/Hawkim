@@ -60,7 +60,7 @@ export function DepartmentGrid({ departments, content, getState, onOpen }: Depar
                 <p className="mt-1 mb-4 text-sm leading-relaxed text-text-gray">{department.description}</p>
                 <p className="mt-auto inline-flex items-center gap-1.5 text-sm text-text-gray">
                   <Users aria-hidden="true" className="size-4 shrink-0" strokeWidth={1.75} />
-                  {formatMemberCount(department.memberCount, content.memberCount)}
+                  {formatMemberCount(department.memberCount ?? 0, content.memberCount)}
                 </p>
 
                 {/* The user's state for this department, and its action */}

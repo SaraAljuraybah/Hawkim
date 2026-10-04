@@ -6,6 +6,7 @@ import { formatDateTime } from '../../lib/format'
 import { personOption } from '../../lib/people'
 import { hasPermission } from '../../lib/permissions'
 import { addDays, DUE_DAYS_MAX, DUE_DAYS_MIN, isAuthorOrCoAuthor, isValidDueDays } from '../../lib/workflow'
+import { useDepartments } from '../../state/departmentsContext'
 import type { SubmitOptions } from '../../state/sopsContext'
 import { useUsers } from '../../state/usersContext'
 import { FormDialog } from '../ui/FormDialog'
@@ -59,11 +60,12 @@ export function SubmitDialog({ sop, content, onSubmit, onClose }: SubmitDialogPr
   const approvalDaysRef = useRef<HTMLInputElement>(null)
 
   const { activeUsers, nameOf } = useUsers()
+  const { nameOf: departmentName } = useDepartments()
   const eligible = activeUsers.filter((user) => !isAuthorOrCoAuthor(sop, user.id))
-  const reviewerOptions = eligible.filter((user) => hasPermission(user, 'reviewer')).map(personOption)
+  const reviewerOptions = eligible.filter((user) => hasPermission(user, 'reviewer')).map((user) => personOption(user, departmentName))
   const approverOptions = eligible
     .filter((user) => hasPermission(user, 'approver') && !reviewerIds.includes(user.id))
-    .map(personOption)
+    .map((user) => personOption(user, departmentName))
 
   function clearError(field: Field) {
     if (errors[field]) setErrors((prev) => ({ ...prev, [field]: undefined }))

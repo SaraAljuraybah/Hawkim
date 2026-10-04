@@ -10,12 +10,12 @@ import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
 import { StatusBadge } from '../../components/ui/StatusBadge'
 import { adminEn } from '../../content/admin.en'
 import { usersEn } from '../../content/users.en'
-import { getDepartmentName } from '../../data/mock/departments'
 import type { Permission, User } from '../../data/mock/types'
 import { useDocumentTitle } from '../../hooks/useDocumentTitle'
 import { getUserDepartments } from '../../lib/departments'
 import { ADMIN_USERS_PATH } from '../../lib/routes'
 import { deleteBlockers, involvement, PERMISSIONS, permissionChangeBlockers } from '../../lib/userAdmin'
+import { useDepartments } from '../../state/departmentsContext'
 import { useRequests } from '../../state/requestsContext'
 import { useCurrentUser } from '../../state/sessionContext'
 import { useSops } from '../../state/sopsContext'
@@ -102,6 +102,7 @@ function UserPanels({ user }: { user: User }) {
   const admin = useCurrentUser()
   const { sops } = useSops()
   const { requests } = useRequests()
+  const { activeDepartments, nameOf: departmentName } = useDepartments()
   const navigate = useNavigate()
   const location = useLocation()
   const rules = { actorId: admin.id, users: activeUsers, sops }
@@ -116,7 +117,7 @@ function UserPanels({ user }: { user: User }) {
   const deleteErrorRef = useRef<HTMLDivElement>(null)
   const deleteButtonRef = useRef<HTMLButtonElement | null>(null)
 
-  const joined = getUserDepartments(user, requests).filter((department) => department.id !== user.departmentId)
+  const joined = getUserDepartments(user, requests, activeDepartments).filter((department) => department.id !== user.departmentId)
   const involved = involvement(user.id, sops)
 
   function savePermissions() {
@@ -154,7 +155,7 @@ function UserPanels({ user }: { user: User }) {
 
   const details = [
     { label: text.details.email, value: <span className="break-all">{user.email}</span> },
-    { label: text.details.homeDepartment, value: getDepartmentName(user.departmentId) },
+    { label: text.details.homeDepartment, value: departmentName(user.departmentId) },
     {
       label: text.details.joinedDepartments,
       value: joined.length > 0 ? joined.map((department) => department.name).join(', ') : text.details.none,

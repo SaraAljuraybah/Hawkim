@@ -15,7 +15,6 @@ import { SubmitDialog } from '../components/workflow/SubmitDialog'
 import { WorkflowTimeline } from '../components/workflow/WorkflowTimeline'
 import { complianceEn } from '../content/compliance.en'
 import { sopWorkflowEn } from '../content/workflow.en'
-import { getDepartmentName } from '../data/mock/departments'
 import type { Sop } from '../data/mock/types'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { hasCompletedCheck, isCheckRunning } from '../lib/compliance'
@@ -33,6 +32,7 @@ import {
   pendingPeople,
   type UploadedFile,
 } from '../lib/workflow'
+import { useDepartments } from '../state/departmentsContext'
 import { useCurrentUser } from '../state/sessionContext'
 import { useSops } from '../state/sopsContext'
 import { useUsers } from '../state/usersContext'
@@ -86,6 +86,7 @@ export function SopWorkflowPage() {
   const store = useSops()
   const user = useCurrentUser()
   const { nameOf } = useUsers()
+  const departments = useDepartments()
   const sop = store.sops.find((item) => item.id === id)
   const allowed = !!sop && hasPermission(user, 'author') && isAuthorOrCoAuthor(sop, user.id)
   useDocumentTitle(allowed ? content.pageTitle.replace('{code}', sop.code) : undefined)
@@ -99,7 +100,7 @@ export function SopWorkflowPage() {
 
   if (!allowed) return <NotFoundPage embedded />
 
-  const departmentName = getDepartmentName(sop.departmentId)
+  const departmentName = departments.nameOf(sop.departmentId)
   const { dialogs, actions } = content
   const isMainAuthor = sop.authorId === user.id
   const authorName = nameOf(sop.authorId)

@@ -29,26 +29,27 @@ export interface User {
   deletedAt?: string
 }
 
-/** Department identifiers (see departments.ts). */
-export type DepartmentId =
-  | 'quality-assurance'
-  | 'regulatory-affairs'
-  | 'pharmacovigilance'
-  | 'research-development'
-  | 'information-technology'
-  | 'human-resources'
-  | 'finance-administration'
-  | 'clinical-operations'
-  | 'legal-governance'
+/**
+ * Department identifier, e.g. "quality-assurance" (see departments.ts). Admins can add
+ * departments, so any string; an id never changes once created (users, SOPs and
+ * requests link to departments by id).
+ */
+export type DepartmentId = string
 
 export interface Department {
   id: DepartmentId
   name: string
   /** Short abbreviation shown in the initials circle, e.g. "QA". */
   initials: string
-  /** One-line description of the department's function. */
+  /** One-line description of the department's function (may be empty). */
   description: string
-  memberCount: number
+  /**
+   * Set when an admin removes the department (ISO date and time). Removed departments
+   * are hidden everywhere, but their name stays on old requests.
+   */
+  removedAt?: string
+  /** Fixed sample count, still shown to employees (admin pages count the real members). */
+  memberCount?: number
 }
 
 /**

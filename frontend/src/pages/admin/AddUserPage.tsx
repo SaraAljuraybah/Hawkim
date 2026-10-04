@@ -8,11 +8,11 @@ import { SelectField } from '../../components/ui/SelectField'
 import { TextField } from '../../components/ui/TextField'
 import { adminEn } from '../../content/admin.en'
 import { usersEn } from '../../content/users.en'
-import { departments } from '../../data/mock/departments'
 import type { DepartmentId, Permission } from '../../data/mock/types'
 import { useDocumentTitle } from '../../hooks/useDocumentTitle'
 import { adminUserPath } from '../../lib/routes'
 import { PERMISSIONS, validateNewUser, type NewUser, type NewUserField, type NewUserProblem } from '../../lib/userAdmin'
+import { useDepartments } from '../../state/departmentsContext'
 import { useUsers } from '../../state/usersContext'
 import type { UserDetailsLocationState } from './UserDetailsPage'
 
@@ -31,6 +31,7 @@ export function AddUserPage() {
   const content = adminEn.addUser
   useDocumentTitle(adminEn.pageTitle.replace('{page}', content.title))
   const { activeUsers, addUser } = useUsers()
+  const { activeDepartments } = useDepartments()
   const navigate = useNavigate()
 
   const [values, setValues] = useState<NewUser>({ name: '', email: '', departmentId: '', permissions: [] })
@@ -120,7 +121,7 @@ export function AddUserPage() {
           name="department"
           label={content.department.label}
           placeholder={content.department.placeholder}
-          options={departments.map((department) => ({ value: department.id, label: department.name }))}
+          options={activeDepartments.map((department) => ({ value: department.id, label: department.name }))}
           value={values.departmentId}
           error={errors.departmentId}
           onChange={(event) => setValues({ ...values, departmentId: event.target.value as DepartmentId })}

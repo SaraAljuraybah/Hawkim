@@ -4,12 +4,12 @@ import { ArrowLeft, Clock, Download, ExternalLink, FileText, Lock } from 'lucide
 import { Button } from '../components/ui/Button'
 import { StatusBadge } from '../components/ui/StatusBadge'
 import { sopsEn } from '../content/sops.en'
-import { getDepartmentName } from '../data/mock/departments'
 import type { Sop } from '../data/mock/types'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { formatDate } from '../lib/format'
 import { requestDepartmentAccessPath } from '../lib/routes'
 import { getSopAccess } from '../lib/sopAccess'
+import { useDepartments } from '../state/departmentsContext'
 import { useMyRequests } from '../state/requestsContext'
 import { useCurrentUser } from '../state/sessionContext'
 import { useSops } from '../state/sopsContext'
@@ -38,11 +38,12 @@ export function SopDetailPage() {
   // TODO: Load the SOP from the backend API.
   const user = useCurrentUser()
   const requests = useMyRequests()
+  const departments = useDepartments()
 
   if (!sop) return <NotFoundPage embedded />
 
   const access = getSopAccess(sop, user, requests)
-  const departmentName = getDepartmentName(sop.departmentId)
+  const departmentName = departments.nameOf(sop.departmentId)
   const granted = access === 'granted'
 
   // TODO: Every published SOP will have a file URL from the backend; until then a few may not.

@@ -15,7 +15,6 @@ import { SelectField } from '../components/ui/SelectField'
 import { Tabs, type TabItem } from '../components/ui/Tabs'
 import { tabIds } from '../components/ui/tabIds'
 import { complianceEn } from '../content/compliance.en'
-import { getDepartmentName } from '../data/mock/departments'
 import type { ComplianceResult, Sop } from '../data/mock/types'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import {
@@ -31,6 +30,7 @@ import { formatDateTime } from '../lib/format'
 import { hasPermission } from '../lib/permissions'
 import { mySopPath } from '../lib/routes'
 import { isAuthorOrCoAuthor } from '../lib/workflow'
+import { useDepartments } from '../state/departmentsContext'
 import { useCurrentUser } from '../state/sessionContext'
 import { useSops } from '../state/sopsContext'
 import { useUsers } from '../state/usersContext'
@@ -70,6 +70,7 @@ function Report({ sop }: { sop: Sop }) {
   const content = complianceEn
   const text = content.report
   const { nameOf } = useUsers()
+  const { nameOf: departmentName } = useDepartments()
 
   // Defaults to the current version; earlier versions' reports can be chosen.
   const [selectedVersion, setSelectedVersion] = useState(sop.version)
@@ -147,7 +148,7 @@ function Report({ sop }: { sop: Sop }) {
         { label: text.header.version, value: report.version },
         { label: text.header.author, value: author },
         ...(coAuthors ? [{ label: text.header.coAuthors, value: coAuthors }] : []),
-        { label: text.header.department, value: getDepartmentName(sop.departmentId) },
+        { label: text.header.department, value: departmentName(sop.departmentId) },
         {
           label: text.header.checked,
           value: report.completedAt && <time dateTime={report.completedAt}>{formatDateTime(report.completedAt)}</time>,
