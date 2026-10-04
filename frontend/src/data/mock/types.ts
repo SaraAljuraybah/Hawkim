@@ -274,9 +274,14 @@ export interface UserRequest {
   /** Only for department-access requests: the department asked for. */
   departmentId?: DepartmentId
   description: string
-  /** ISO date, e.g. "2024-01-12" */
+  /** ISO date, e.g. "2024-01-12" (shown in My Requests). */
   createdAt: string
+  /** ISO date and time it was sent; only for requests sent in the app (the samples have just a date). */
+  submittedAt?: string
   status: Status
   /** Who sent it (User.id). */
   requesterId: string
+  /** The admin who approved or rejected it (User.id), and when (ISO date and time). */
+  decidedById?: string
+  decidedAt?: string
 }
