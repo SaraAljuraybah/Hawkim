@@ -14,6 +14,8 @@ import { LandingPage } from './pages/LandingPage'
 import { NotFoundPage } from './pages/NotFoundPage'
 import { AddUserPage } from './pages/admin/AddUserPage'
 import { AdminDepartmentsPage } from './pages/admin/AdminDepartmentsPage'
+import { DepartmentDetailsPage } from './pages/admin/DepartmentDetailsPage'
+import { DepartmentFormPage } from './pages/admin/DepartmentFormPage'
 import { AdminUsersPage } from './pages/admin/AdminUsersPage'
 import { UserDetailsPage } from './pages/admin/UserDetailsPage'
 import { SignInPage } from './pages/SignInPage'
@@ -84,6 +86,9 @@ function AppRoutes() {
         <Route path="users/new" element={<AddUserPage />} />
         <Route path="users/:id" element={<UserDetailsPage />} />
         <Route path="departments" element={<AdminDepartmentsPage />} />
+        <Route path="departments/new" element={<DepartmentFormPage />} />
+        <Route path="departments/:id" element={<DepartmentDetailsPage />} />
+        <Route path="departments/:id/edit" element={<DepartmentFormPage />} />
         <Route path="*" element={<NotFoundPage embedded />} />
       </Route>
 

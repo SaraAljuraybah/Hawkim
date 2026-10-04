@@ -42,6 +42,11 @@ export function adminDepartmentPath(departmentId: string): string {
   return `${ADMIN_DEPARTMENTS_PATH}/${encodeURIComponent(departmentId)}`
 }
 
+/** The form to edit a department in the admin portal. */
+export function adminDepartmentEditPath(departmentId: string): string {
+  return `${adminDepartmentPath(departmentId)}/edit`
+}
+
 /** A user's page in the admin portal, e.g. /admin/users/user-sara */
 export function adminUserPath(userId: string): string {
   return `${ADMIN_USERS_PATH}/${encodeURIComponent(userId)}`

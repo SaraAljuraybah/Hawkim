@@ -132,4 +132,66 @@ export const adminEn: AdminContent = {
     },
     empty: 'No departments match your search.',
   },
+
+  departmentForm: {
+    add: {
+      title: 'Add department',
+      subtitle: 'Add a department of your organization.',
+      submit: 'Add department',
+    },
+    edit: {
+      title: 'Edit department',
+      subtitle: 'Change the name, initials or description of {name}.',
+      submit: 'Save changes',
+    },
+    backToList: { label: 'Back to departments', href: '/admin/departments' },
+    backToDepartment: 'Back to {name}',
+    name: { label: 'Name' },
+    initials: { label: 'Initials', hint: '2–3 letters, e.g. QA. Shown in the department badge.' },
+    description: { label: 'Description (optional)', hint: 'One line about what the department does (up to 200 characters).' },
+    cancel: 'Cancel',
+    errors: {
+      nameRequired: 'Enter a department name.',
+      nameTooLong: 'Keep the name to 60 characters or fewer.',
+      nameTaken: 'A department with this name already exists.',
+      initialsInvalid: 'Enter 2–3 letters.',
+      initialsTaken: 'These initials are already used.',
+      descriptionTooLong: 'Keep the description to 200 characters or fewer.',
+    },
+  },
+
+  departmentDetails: {
+    back: { label: 'Back to departments', href: '/admin/departments' },
+    added: 'Department added.',
+    updated: 'Department updated.',
+    titleWithCount: '{title} ({count})',
+    details: { title: 'Details', initials: 'Initials', description: 'Description', noDescription: 'No description.' },
+    members: { title: 'Members', empty: 'No members.' },
+    withAccess: {
+      title: 'With access',
+      hint: 'Users from other departments who joined through approved access requests.',
+      empty: 'Nobody from other departments has access.',
+    },
+    sops: { title: 'SOPs', label: 'SOPs by status' },
+    edit: 'Edit',
+    remove: {
+      title: 'Remove department',
+      text: 'Only an empty department can be removed: no members, SOPs, users with access or pending access requests.',
+      button: 'Remove department',
+      refused: "{name} can't be removed yet:",
+      blockers: {
+        members: { one: '{count} member', other: '{count} members' },
+        sops: { one: '{count} SOP', other: '{count} SOPs' },
+        withAccess: { one: '{count} user with access', other: '{count} users with access' },
+        pendingRequests: { one: '{count} pending access request', other: '{count} pending access requests' },
+      },
+      dialog: {
+        title: 'Remove {name}?',
+        description: "This can't be undone.",
+        confirm: 'Remove',
+        cancel: 'Cancel',
+      },
+      done: '{name} removed.',
+    },
+  },
 }
