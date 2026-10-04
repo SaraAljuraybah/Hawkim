@@ -231,12 +231,13 @@ export const adminEn: AdminContent = {
     rejectDialog: {
       title: 'Reject this request?',
       description: '{name} will see it as rejected.',
+      deletedDescription: 'This request will be marked as rejected.',
       confirm: 'Reject',
       cancel: 'Cancel',
     },
     approvedNotice: 'Request approved.',
     rejectedNotice: 'Request rejected.',
-    goToUser: "Go to {name}'s user page",
+    changeHint: 'Make any permission changes on their user page.',
   },
 
   departmentDetails: {

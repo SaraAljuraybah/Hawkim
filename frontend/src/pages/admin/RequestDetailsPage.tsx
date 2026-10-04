@@ -224,7 +224,10 @@ function RequestPanels({ request }: { request: UserRequest }) {
               {rejectReason}
             </p>
           )}
-          {!isAccess && <div className="mt-4">{userLink(text.goToUser)}</div>}
+          {/* Permission and role changes are made on the user's page (linked under Requester). */}
+          {!isAccess && requester && !requester.deletedAt && (
+            <p className="mt-4 text-sm text-text-gray">{text.changeHint}</p>
+          )}
         </Panel>
       </div>
 
@@ -245,7 +248,11 @@ function RequestPanels({ request }: { request: UserRequest }) {
       <ConfirmDialog
         open={dialog === 'reject'}
         title={text.rejectDialog.title}
-        description={text.rejectDialog.description.replace('{name}', name)}
+        description={
+          requester && !requester.deletedAt
+            ? text.rejectDialog.description.replace('{name}', name)
+            : text.rejectDialog.deletedDescription
+        }
         cancelLabel={text.rejectDialog.cancel}
         confirmLabel={text.rejectDialog.confirm}
         onConfirm={() => confirm('reject')}

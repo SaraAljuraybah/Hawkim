@@ -845,11 +845,12 @@ export interface AdminRequestDetailsContent {
     requesterDeleted: string
   }
   approveDialog: { title: string; access: string; change: string; confirm: string; cancel: string }
-  rejectDialog: { title: string; description: string; confirm: string; cancel: string }
+  /** `description` names the requester; `deletedDescription` is used when their account was deleted. */
+  rejectDialog: { title: string; description: string; deletedDescription: string; confirm: string; cancel: string }
   approvedNotice: string
   rejectedNotice: string
-  /** For permission and role change requests; `{name}` is replaced. */
-  goToUser: string
+  /** For permission and role change requests: points to the user page link in the Requester section. */
+  changeHint: string
 }
 
 export type AdminRequestTabKey = 'pending' | 'approved' | 'rejected' | 'cancelled' | 'all'
