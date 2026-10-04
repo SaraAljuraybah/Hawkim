@@ -1,13 +1,14 @@
-import { useEffect, useRef, type KeyboardEvent, type RefObject } from 'react'
-import type { AppShellContent } from '../../content/types'
-import { Sidebar } from './Sidebar'
+import { useEffect, useRef, type KeyboardEvent, type ReactNode, type RefObject } from 'react'
 
 interface MobileDrawerProps {
-  content: AppShellContent
+  /** Accessible name of the drawer. */
+  label: string
   open: boolean
   onClose: () => void
   /** Button that opened the drawer; focus returns to it on close. */
   returnFocusRef: RefObject<HTMLButtonElement | null>
+  /** The drawer's contents (a sidebar). To close the drawer from inside, set `open` to false. */
+  children: ReactNode
 }
 
 /**
@@ -17,7 +18,7 @@ interface MobileDrawerProps {
  * - makes the rest of the page inert (Tab also wraps around inside the drawer),
  * - closes on Escape.
  */
-export function MobileDrawer({ content, open, onClose, returnFocusRef }: MobileDrawerProps) {
+export function MobileDrawer({ label, open, onClose, returnFocusRef, children }: MobileDrawerProps) {
   const dialogRef = useRef<HTMLDialogElement>(null)
 
   // Keep the native dialog in sync with the `open` state.
@@ -31,6 +32,15 @@ export function MobileDrawer({ content, open, onClose, returnFocusRef }: MobileD
       dialog.close()
     }
   }, [open])
+
+  // If the drawer is removed while open (e.g. Sign Out leaves the signed-in layout),
+  // its close event never runs: let the page scroll again.
+  useEffect(
+    () => () => {
+      document.documentElement.style.overflow = ''
+    },
+    [],
+  )
 
   // If the viewport grows to the desktop layout (lg) while open, close the drawer:
   // it is hidden there, but a modal dialog would still make the page inert.
@@ -69,19 +79,14 @@ export function MobileDrawer({ content, open, onClose, returnFocusRef }: MobileD
   return (
     <dialog
       ref={dialogRef}
-      aria-label={content.drawerLabel}
+      aria-label={label}
       onClose={handleClose}
       onKeyDown={handleKeyDown}
       // A click on the dimmed backdrop targets the <dialog> itself.
       onClick={(event) => event.target === dialogRef.current && dialogRef.current?.close()}
       className="m-0 h-dvh max-h-none w-72 max-w-[85vw] bg-white p-0 shadow-xl backdrop:bg-maroon/40 open:block motion-safe:open:animate-[drawer-in_200ms_ease-out] lg:hidden"
     >
-      <Sidebar
-        content={content}
-        onNavigate={() => dialogRef.current?.close()}
-        onClose={() => dialogRef.current?.close()}
-        showDepartmentSwitcher
-      />
+      {children}
     </dialog>
   )
 }

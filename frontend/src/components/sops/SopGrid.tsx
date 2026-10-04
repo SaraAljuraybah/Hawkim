@@ -1,10 +1,10 @@
 import { Link } from 'react-router-dom'
 import { FileText } from 'lucide-react'
 import type { SopsContent } from '../../content/types'
-import { getDepartmentName } from '../../data/mock/departments'
 import type { Sop } from '../../data/mock/types'
 import { formatDate } from '../../lib/format'
 import { sopPath } from '../../lib/routes'
+import { useDepartments } from '../../state/departmentsContext'
 
 interface SopGridProps {
   sops: Sop[]
@@ -16,6 +16,8 @@ interface SopGridProps {
  * Each card is a single link (stretched over the whole card) to the SOP detail page.
  */
 export function SopGrid({ sops, content }: SopGridProps) {
+  const { nameOf: departmentName } = useDepartments()
+
   return (
     <ul className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
       {sops.map((sop) => (
@@ -39,7 +41,7 @@ export function SopGrid({ sops, content }: SopGridProps) {
                 {sop.title}
               </Link>
             </h2>
-            <p className="mt-1 mb-5 text-sm text-text-gray">{getDepartmentName(sop.departmentId)}</p>
+            <p className="mt-1 mb-5 text-sm text-text-gray">{departmentName(sop.departmentId)}</p>
 
             <div className="mt-auto flex items-center justify-between gap-3 border-t border-beige pt-4 text-sm text-text-gray">
               <span>{content.versionTemplate.replace('{version}', sop.version)}</span>

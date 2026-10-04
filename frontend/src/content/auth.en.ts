@@ -46,6 +46,7 @@ export const signInEn: SignInContent = {
 
   results: {
     notConnected: "Sign-in isn't connected yet. This will work once the backend is ready.",
+    noAccess: 'This account no longer has access to Hawkim.',
   },
 
   // TODO: The Terms of Use and Privacy Policy documents don't exist yet.

@@ -15,9 +15,6 @@ import { SubmitDialog } from '../components/workflow/SubmitDialog'
 import { WorkflowTimeline } from '../components/workflow/WorkflowTimeline'
 import { complianceEn } from '../content/compliance.en'
 import { sopWorkflowEn } from '../content/workflow.en'
-import { currentUser } from '../data/mock/currentUser'
-import { getDepartmentName } from '../data/mock/departments'
-import { getUser } from '../data/mock/users'
 import type { Sop } from '../data/mock/types'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { hasCompletedCheck, isCheckRunning } from '../lib/compliance'
@@ -35,7 +32,10 @@ import {
   pendingPeople,
   type UploadedFile,
 } from '../lib/workflow'
+import { useDepartments } from '../state/departmentsContext'
+import { useCurrentUser } from '../state/sessionContext'
 import { useSops } from '../state/sopsContext'
+import { useUsers } from '../state/usersContext'
 import { NotFoundPage } from './NotFoundPage'
 
 type DialogName = 'submit' | 'replace' | 'newVersion' | 'resubmit' | 'addCoAuthors'
@@ -84,8 +84,9 @@ export function SopWorkflowPage() {
   const content = sopWorkflowEn
   const { id } = useParams()
   const store = useSops()
-  // TODO: Use the authenticated user once real authentication exists.
-  const user = currentUser
+  const user = useCurrentUser()
+  const { nameOf } = useUsers()
+  const departments = useDepartments()
   const sop = store.sops.find((item) => item.id === id)
   const allowed = !!sop && hasPermission(user, 'author') && isAuthorOrCoAuthor(sop, user.id)
   useDocumentTitle(allowed ? content.pageTitle.replace('{code}', sop.code) : undefined)
@@ -99,10 +100,10 @@ export function SopWorkflowPage() {
 
   if (!allowed) return <NotFoundPage embedded />
 
-  const departmentName = getDepartmentName(sop.departmentId)
+  const departmentName = departments.nameOf(sop.departmentId)
   const { dialogs, actions } = content
   const isMainAuthor = sop.authorId === user.id
-  const authorName = getUser(sop.authorId)?.name ?? ''
+  const authorName = nameOf(sop.authorId)
 
   function open(name: DialogName, trigger: HTMLElement) {
     triggerRef.current = trigger
@@ -144,7 +145,7 @@ export function SopWorkflowPage() {
 
   // Everyone still to decide in the current stage, e.g. "Faisal Alharbi (Reviewer)", and the stage's due date.
   const waitingFor = pendingPeople(sop)
-    .map((person) => `${getUser(person.userId)?.name ?? ''} (${person.role === 'reviewer' ? content.roles.reviewer : content.roles.approver})`)
+    .map((person) => `${nameOf(person.userId)} (${person.role === 'reviewer' ? content.roles.reviewer : content.roles.approver})`)
     .join(', ')
   const dueAt = currentDueAt(sop)
   const returned = sop.status === 'returned' ? latestReturn(sop) : undefined
@@ -215,7 +216,7 @@ export function SopWorkflowPage() {
           </h2>
           <p className="mt-1 mb-4 text-sm text-maroon">
             {content.feedback.description
-              .replace('{name}', getUser(returned.actorId)?.name ?? '')
+              .replace('{name}', nameOf(returned.actorId))
               .replace('{role}', isApprover(sop, returned.actorId) ? content.roles.approver : content.roles.reviewer)
               .replace('{date}', formatDateTime(returned.createdAt))
               .replace('{version}', returned.version)}
@@ -433,13 +434,13 @@ export function SopWorkflowPage() {
       <ConfirmDialog
         open={removingId !== null}
         title={dialogs.removeCoAuthor.title}
-        description={dialogs.removeCoAuthor.description.replace('{name}', getUser(removingId ?? undefined)?.name ?? '')}
+        description={dialogs.removeCoAuthor.description.replace('{name}', nameOf(removingId ?? undefined))}
         cancelLabel={dialogs.removeCoAuthor.keep}
         confirmLabel={dialogs.removeCoAuthor.confirm}
         onCancel={closeRemove}
         onConfirm={() => {
           if (!removingId) return
-          const name = getUser(removingId)?.name ?? ''
+          const name = nameOf(removingId)
           store.removeCoAuthor(sop.id, removingId)
           closeRemove()
           announce(content.messages.coAuthorRemoved.replace('{name}', name))

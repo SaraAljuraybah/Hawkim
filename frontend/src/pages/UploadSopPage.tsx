@@ -8,14 +8,15 @@ import { PeoplePicker } from '../components/ui/PeoplePicker'
 import { TextAreaField } from '../components/ui/TextAreaField'
 import { TextField } from '../components/ui/TextField'
 import { uploadSopEn } from '../content/mySops.en'
-import { currentUser } from '../data/mock/currentUser'
-import { users } from '../data/mock/users'
 import type { SopFileType } from '../data/mock/types'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { personOption } from '../lib/people'
 import { hasPermission } from '../lib/permissions'
 import { useActiveDepartment } from '../state/activeDepartmentContext'
+import { useDepartments } from '../state/departmentsContext'
+import { useCurrentUser } from '../state/sessionContext'
 import { useSops } from '../state/sopsContext'
+import { useUsers } from '../state/usersContext'
 import { NotFoundPage } from './NotFoundPage'
 import type { MySopsLocationState } from './MySopsPage'
 
@@ -37,8 +38,9 @@ function fileTypeOf(file: File): SopFileType {
 /** Upload SOP ("/my-sops/upload", Author permission): saves a new draft in the active department. */
 export function UploadSopPage() {
   const content = uploadSopEn
-  // TODO: Use the authenticated user once real authentication exists.
-  const user = currentUser
+  const user = useCurrentUser()
+  const { activeUsers } = useUsers()
+  const { nameOf: departmentName } = useDepartments()
   const isAuthor = hasPermission(user, 'author')
   useDocumentTitle(isAuthor ? content.pageTitle : undefined)
 
@@ -59,10 +61,10 @@ export function UploadSopPage() {
 
   if (!isAuthor) return <NotFoundPage embedded />
 
-  // Co-authors: other users with the Author permission.
-  const coAuthorOptions = users
+  // Co-authors: other (active) users with the Author permission.
+  const coAuthorOptions = activeUsers
     .filter((u) => u.id !== user.id && hasPermission(u, 'author'))
-    .map(personOption)
+    .map((user) => personOption(user, departmentName))
 
   function validate(field: Field, values = { title, files }): string | undefined {
     if (field === 'title') return values.title.trim() ? undefined : content.errors.titleRequired

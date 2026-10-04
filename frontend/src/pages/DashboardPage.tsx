@@ -6,14 +6,16 @@ import { StatCard } from '../components/ui/StatCard'
 import { StatusBadge } from '../components/ui/StatusBadge'
 import { dashboardEn } from '../content/app.en'
 import type { DashboardContent } from '../content/types'
-import { currentUser } from '../data/mock/currentUser'
 import { getDashboardStats, recentActivity } from '../data/mock/dashboard'
 import type { ActivityKind } from '../data/mock/types'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
+import { members } from '../lib/departmentAdmin'
 import { hasPermission } from '../lib/permissions'
 import { useActiveDepartment } from '../state/activeDepartmentContext'
-import { useRequests } from '../state/requestsContext'
+import { useMyRequests } from '../state/requestsContext'
+import { useCurrentUser } from '../state/sessionContext'
 import { useSops } from '../state/sopsContext'
+import { useUsers } from '../state/usersContext'
 
 /** Icon for each kind of activity item. */
 const activityIcons: Record<ActivityKind, LucideIcon> = {
@@ -35,16 +37,17 @@ export function DashboardPage() {
   const content = dashboardEn
   useDocumentTitle(content.pageTitle)
 
-  // TODO: Use the authenticated user and API data once the backend exists.
-  const user = currentUser
+  // TODO: Use API data once the backend exists.
+  const user = useCurrentUser()
   const firstName = user.name.split(' ')[0]
   const greeting = getGreeting(content.greetings).replace('{name}', firstName)
 
   // My Requests is personal; SOPs and Employees follow the active department.
-  const { requests } = useRequests()
+  const requests = useMyRequests()
   const { activeDepartment } = useActiveDepartment()
   const { sops } = useSops()
-  const dashboardStats = getDashboardStats(requests, activeDepartment, sops)
+  const { users } = useUsers()
+  const dashboardStats = getDashboardStats(requests, activeDepartment, sops, members(activeDepartment.id, users).length)
 
   return (
     <>

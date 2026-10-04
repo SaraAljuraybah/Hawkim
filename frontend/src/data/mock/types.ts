@@ -12,36 +12,42 @@ import type { SopStatus, Status } from '../../types/status'
  */
 export type Permission = 'author' | 'reviewer' | 'approver' | 'admin'
 
-/** The signed-in user. */
+/** A user of Hawkim (an employee, with any extra permissions). */
 export interface User {
   id: string
   name: string
+  /** Sign-in email; unique among active users (compared ignoring case). */
+  email: string
   initials: string
   /** The user's home department. */
   departmentId: DepartmentId
   permissions: Permission[]
+  /**
+   * Set when an admin deletes the user (ISO date and time). Deleted users can't
+   * sign in and are hidden from lists and pickers, but their name stays on SOP history.
+   */
+  deletedAt?: string
 }
 
-/** Department identifiers (see departments.ts). */
-export type DepartmentId =
-  | 'quality-assurance'
-  | 'regulatory-affairs'
-  | 'pharmacovigilance'
-  | 'research-development'
-  | 'information-technology'
-  | 'human-resources'
-  | 'finance-administration'
-  | 'clinical-operations'
-  | 'legal-governance'
+/**
+ * Department identifier, e.g. "quality-assurance" (see departments.ts). Admins can add
+ * departments, so any string; an id never changes once created (users, SOPs and
+ * requests link to departments by id).
+ */
+export type DepartmentId = string
 
 export interface Department {
   id: DepartmentId
   name: string
   /** Short abbreviation shown in the initials circle, e.g. "QA". */
   initials: string
-  /** One-line description of the department's function. */
+  /** One-line description of the department's function (may be empty). */
   description: string
-  memberCount: number
+  /**
+   * Set when an admin removes the department (ISO date and time). Removed departments
+   * are hidden everywhere, but their name stays on old requests.
+   */
+  removedAt?: string
 }
 
 /**
@@ -192,6 +198,8 @@ export interface Requirement {
   /** e.g. "I.B.10" */
   section: string
   sectionTitle: string
+  /** A short descriptive name, e.g. "Training of personnel" (used in the report's top priorities). */
+  shortTitle: string
   /** Page in the guideline document. */
   page: number
   /** Paraphrased summary of the requirement. */
@@ -206,6 +214,8 @@ export interface Finding {
   justification: string
   /** Where the SOP addresses it, e.g. "Section 4.2" (none when it isn't addressed). */
   sopReference?: string
+  /** What to change; only for results that aren't compliant. */
+  recommendedAction?: string
 }
 
 /** The regulatory document a check is run against. */
@@ -267,4 +277,6 @@ export interface UserRequest {
   /** ISO date, e.g. "2024-01-12" */
   createdAt: string
   status: Status
+  /** Who sent it (User.id). */
+  requesterId: string
 }

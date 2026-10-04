@@ -2,12 +2,15 @@ import type { User } from './types'
 
 /*
  * Sample users. Every user is an employee; permissions add features on top.
+ * They seed the in-memory users store (src/state/UsersProvider.tsx), which the
+ * admin portal changes. Sara comes first: she is the demo's default account.
  * TODO: Replace with data from the backend API.
  */
-export const users: User[] = [
+export const sampleUsers: User[] = [
   {
     id: 'user-sara',
     name: 'Sara Aljuraybah',
+    email: 'sara.aljuraybah@hawkim.demo',
     initials: 'SA',
     departmentId: 'information-technology',
     // Every user is an employee; Sara also has the Author permission.
@@ -16,6 +19,7 @@ export const users: User[] = [
   {
     id: 'user-reem',
     name: 'Reem Alsubaie',
+    email: 'reem.alsubaie@hawkim.demo',
     initials: 'RA',
     departmentId: 'information-technology',
     permissions: ['author'],
@@ -23,6 +27,7 @@ export const users: User[] = [
   {
     id: 'user-omar',
     name: 'Omar Alghamdi',
+    email: 'omar.alghamdi@hawkim.demo',
     initials: 'OA',
     departmentId: 'pharmacovigilance',
     permissions: ['author'],
@@ -30,6 +35,7 @@ export const users: User[] = [
   {
     id: 'user-noura',
     name: 'Noura Alqahtani',
+    email: 'noura.alqahtani@hawkim.demo',
     initials: 'NA',
     departmentId: 'information-technology',
     permissions: ['reviewer'],
@@ -37,6 +43,7 @@ export const users: User[] = [
   {
     id: 'user-faisal',
     name: 'Faisal Alharbi',
+    email: 'faisal.alharbi@hawkim.demo',
     initials: 'FA',
     departmentId: 'quality-assurance',
     permissions: ['reviewer'],
@@ -44,6 +51,7 @@ export const users: User[] = [
   {
     id: 'user-lama',
     name: 'Lama Alshehri',
+    email: 'lama.alshehri@hawkim.demo',
     initials: 'LA',
     departmentId: 'pharmacovigilance',
     permissions: ['reviewer'],
@@ -51,6 +59,7 @@ export const users: User[] = [
   {
     id: 'user-abdullah',
     name: 'Abdullah Alqahtani',
+    email: 'abdullah.alqahtani@hawkim.demo',
     initials: 'AA',
     departmentId: 'regulatory-affairs',
     permissions: ['reviewer'],
@@ -58,6 +67,7 @@ export const users: User[] = [
   {
     id: 'user-huda',
     name: 'Huda Alotaibi',
+    email: 'huda.alotaibi@hawkim.demo',
     initials: 'HA',
     departmentId: 'information-technology',
     permissions: ['approver'],
@@ -65,6 +75,7 @@ export const users: User[] = [
   {
     id: 'user-khalid',
     name: 'Khalid Alzahrani',
+    email: 'khalid.alzahrani@hawkim.demo',
     initials: 'KA',
     departmentId: 'quality-assurance',
     permissions: ['approver'],
@@ -72,6 +83,7 @@ export const users: User[] = [
   {
     id: 'user-maha',
     name: 'Maha Alenazi',
+    email: 'maha.alenazi@hawkim.demo',
     initials: 'MA',
     departmentId: 'pharmacovigilance',
     permissions: ['approver'],
@@ -79,13 +91,92 @@ export const users: User[] = [
   {
     id: 'user-sultan',
     name: 'Sultan Aldosari',
+    email: 'sultan.aldosari@hawkim.demo',
     initials: 'SA',
     departmentId: 'regulatory-affairs',
     permissions: ['approver'],
   },
-]
+  {
+    id: 'user-nouf',
+    name: 'Nouf Almutairi',
+    email: 'nouf.almutairi@hawkim.demo',
+    initials: 'NA',
+    departmentId: 'information-technology',
+    // Uses only the admin portal (/admin).
+    permissions: ['admin'],
+  },
 
-/** A user by id (undefined if unknown). */
-export function getUser(id: string | undefined): User | undefined {
-  return users.find((user) => user.id === id)
-}
+  // Employees without any permission, so every department has members.
+  {
+    id: 'user-rawan',
+    name: 'Rawan Alzahrani',
+    email: 'rawan.alzahrani@hawkim.demo',
+    initials: 'RA',
+    departmentId: 'research-development',
+    permissions: [],
+  },
+  {
+    id: 'user-turki',
+    name: 'Turki Alshammari',
+    email: 'turki.alshammari@hawkim.demo',
+    initials: 'TA',
+    departmentId: 'research-development',
+    permissions: [],
+  },
+  {
+    id: 'user-hessa',
+    name: 'Hessa Alqahtani',
+    email: 'hessa.alqahtani@hawkim.demo',
+    initials: 'HA',
+    departmentId: 'human-resources',
+    permissions: [],
+  },
+  {
+    id: 'user-nasser',
+    name: 'Nasser Alotaibi',
+    email: 'nasser.alotaibi@hawkim.demo',
+    initials: 'NA',
+    departmentId: 'human-resources',
+    permissions: [],
+  },
+  {
+    id: 'user-dalal',
+    name: 'Dalal Alharbi',
+    email: 'dalal.alharbi@hawkim.demo',
+    initials: 'DA',
+    departmentId: 'finance-administration',
+    permissions: [],
+  },
+  {
+    id: 'user-fahad',
+    name: 'Fahad Alanazi',
+    email: 'fahad.alanazi@hawkim.demo',
+    initials: 'FA',
+    departmentId: 'clinical-operations',
+    permissions: [],
+  },
+  {
+    id: 'user-joud',
+    name: 'Joud Almutairi',
+    email: 'joud.almutairi@hawkim.demo',
+    initials: 'JA',
+    departmentId: 'clinical-operations',
+    permissions: [],
+  },
+  {
+    id: 'user-bandar',
+    name: 'Bandar Aldossary',
+    email: 'bandar.aldossary@hawkim.demo',
+    initials: 'BA',
+    departmentId: 'legal-governance',
+    permissions: [],
+  },
+  {
+    id: 'user-shahad',
+    name: 'Shahad Alghamdi',
+    email: 'shahad.alghamdi@hawkim.demo',
+    initials: 'SA',
+    departmentId: 'quality-assurance',
+    permissions: [],
+  },
+]

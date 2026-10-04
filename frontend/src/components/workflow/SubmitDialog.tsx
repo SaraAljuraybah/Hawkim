@@ -1,13 +1,14 @@
 import { useRef, useState } from 'react'
 import { flushSync } from 'react-dom'
 import type { SopWorkflowContent } from '../../content/types'
-import { getUser, users } from '../../data/mock/users'
 import type { Sop } from '../../data/mock/types'
 import { formatDateTime } from '../../lib/format'
 import { personOption } from '../../lib/people'
 import { hasPermission } from '../../lib/permissions'
 import { addDays, DUE_DAYS_MAX, DUE_DAYS_MIN, isAuthorOrCoAuthor, isValidDueDays } from '../../lib/workflow'
+import { useDepartments } from '../../state/departmentsContext'
 import type { SubmitOptions } from '../../state/sopsContext'
+import { useUsers } from '../../state/usersContext'
 import { FormDialog } from '../ui/FormDialog'
 import { PeoplePicker } from '../ui/PeoplePicker'
 import { TextAreaField } from '../ui/TextAreaField'
@@ -58,11 +59,13 @@ export function SubmitDialog({ sop, content, onSubmit, onClose }: SubmitDialogPr
   const reviewDaysRef = useRef<HTMLInputElement>(null)
   const approvalDaysRef = useRef<HTMLInputElement>(null)
 
-  const eligible = users.filter((user) => !isAuthorOrCoAuthor(sop, user.id))
-  const reviewerOptions = eligible.filter((user) => hasPermission(user, 'reviewer')).map(personOption)
+  const { activeUsers, nameOf } = useUsers()
+  const { nameOf: departmentName } = useDepartments()
+  const eligible = activeUsers.filter((user) => !isAuthorOrCoAuthor(sop, user.id))
+  const reviewerOptions = eligible.filter((user) => hasPermission(user, 'reviewer')).map((user) => personOption(user, departmentName))
   const approverOptions = eligible
     .filter((user) => hasPermission(user, 'approver') && !reviewerIds.includes(user.id))
-    .map(personOption)
+    .map((user) => personOption(user, departmentName))
 
   function clearError(field: Field) {
     if (errors[field]) setErrors((prev) => ({ ...prev, [field]: undefined }))
@@ -144,7 +147,7 @@ export function SubmitDialog({ sop, content, onSubmit, onClose }: SubmitDialogPr
         <p role="status" className="text-sm text-maroon">
           {uncheckedIds.length > 0 && (
             <span className="mt-1.5 block">
-              {text.approvers.unchecked.replace('{names}', uncheckedIds.map((id) => getUser(id)?.name ?? '').join(', '))}
+              {text.approvers.unchecked.replace('{names}', uncheckedIds.map((id) => nameOf(id)).join(', '))}
             </span>
           )}
         </p>

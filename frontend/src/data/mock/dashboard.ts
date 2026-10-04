@@ -11,8 +11,14 @@ import type { ActivityItem, DashboardStat, Department, Sop, UserRequest } from '
  * @param requests the user's requests (from the requests store)
  * @param activeDepartment the department the user is working in
  * @param sops all SOPs (from the SOPs store)
+ * @param memberCount the active department's members (active users whose home department it is)
  */
-export function getDashboardStats(requests: UserRequest[], activeDepartment: Department, sops: Sop[]): DashboardStat[] {
+export function getDashboardStats(
+  requests: UserRequest[],
+  activeDepartment: Department,
+  sops: Sop[],
+  memberCount: number,
+): DashboardStat[] {
   return [
     // "In Progress": the user's pending requests
     { key: 'myRequests', value: requests.filter((request) => request.status === 'pending').length },
@@ -22,7 +28,7 @@ export function getDashboardStats(requests: UserRequest[], activeDepartment: Dep
       value: sops.filter((sop) => sop.status === 'published' && sop.departmentId === activeDepartment.id).length,
     },
     // "In this department": members of the active department
-    { key: 'employees', value: activeDepartment.memberCount },
+    { key: 'employees', value: memberCount },
   ]
 }
 

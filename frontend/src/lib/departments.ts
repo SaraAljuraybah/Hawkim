@@ -1,17 +1,23 @@
-import { departments } from '../data/mock/departments'
 import type { Department, DepartmentId, User, UserRequest } from '../data/mock/types'
 
 /**
  * The departments a user belongs to: their home department plus every department
- * where their department-access request was APPROVED ("joined" departments).
+ * where their own department-access request was APPROVED ("joined" departments).
  * The home department comes first, then the joined ones in department-list order.
- * Pass the requests from the shared requests store, so the result updates as soon
- * as requests change.
+ * Pass the requests and the (active) departments from the shared stores, so the
+ * result updates as soon as either changes.
  */
-export function getUserDepartments(user: Pick<User, 'departmentId'>, requests: UserRequest[]): Department[] {
+export function getUserDepartments(
+  user: Pick<User, 'id' | 'departmentId'>,
+  requests: UserRequest[],
+  departments: Department[],
+): Department[] {
   const joined = new Set(
     requests
-      .filter((request) => request.type === 'department-access' && request.status === 'approved')
+      .filter(
+        (request) =>
+          request.requesterId === user.id && request.type === 'department-access' && request.status === 'approved',
+      )
       .map((request) => request.departmentId),
   )
   const home = departments.filter((department) => department.id === user.departmentId)
@@ -28,6 +34,7 @@ export function getUserDepartments(user: Pick<User, 'departmentId'>, requests: U
  */
 export type DepartmentState = 'current' | 'member' | 'requested' | 'none'
 
+/** Pass the user's own requests. */
 export function getDepartmentState(
   departmentId: DepartmentId,
   activeDepartmentId: DepartmentId,

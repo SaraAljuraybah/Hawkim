@@ -1,5 +1,4 @@
 import type { SopWorkflowContent } from '../../content/types'
-import { getUser } from '../../data/mock/users'
 import { SYSTEM_ACTOR, type Sop } from '../../data/mock/types'
 import { isApprover, isCoAuthor, isReviewer } from '../../lib/workflow'
 
@@ -14,10 +13,18 @@ export function roleLabel(sop: Sop, userId: string | undefined, roles: SopWorkfl
   return ''
 }
 
-/** "Noura Alqahtani (Reviewer)": a user's name with their role on this SOP; "System" for automatic steps. */
-export function personWithRole(sop: Sop, userId: string | undefined, roles: SopWorkflowContent['roles']): string {
+/**
+ * "Noura Alqahtani (Reviewer)": a user's name with their role on this SOP; "System" for
+ * automatic steps. `nameOf` comes from the users store (it marks deleted users).
+ */
+export function personWithRole(
+  sop: Sop,
+  userId: string | undefined,
+  roles: SopWorkflowContent['roles'],
+  nameOf: (id: string | undefined) => string,
+): string {
   if (userId === SYSTEM_ACTOR) return roles.system
-  const name = getUser(userId)?.name ?? ''
+  const name = nameOf(userId)
   const role = roleLabel(sop, userId, roles)
   return role ? `${name} (${role})` : name
 }
