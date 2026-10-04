@@ -810,6 +810,21 @@ export interface AdminContent {
   permissionDescriptions: Record<Permission, string>
   addUser: AdminAddUserContent
   userDetails: AdminUserDetailsContent
+  departmentsList: AdminDepartmentsListContent
+}
+
+export interface AdminDepartmentsListContent {
+  title: string
+  subtitle: string
+  addDepartment: LinkContent
+  search: { label: string; placeholder: string }
+  count: CountText
+  /** Accessible name of the table. */
+  tableLabel: string
+  columns: { name: string; description: string; members: string; withAccess: string; sops: string }
+  /** Card labels on phones: `{count}` is replaced. */
+  cardCounts: { members: CountText; withAccess: CountText; sops: CountText }
+  empty: string
 }
 
 export interface AdminAddUserContent {

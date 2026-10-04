@@ -12,7 +12,10 @@ export const adminEn: AdminContent = {
     portalLabel: 'Admin',
     homeLinkLabel: 'Hawkim admin, go to users',
     navAriaLabel: 'Admin',
-    nav: [{ label: 'Users', href: '/admin/users', icon: 'employees', matchSubpaths: true }],
+    nav: [
+      { label: 'Users', href: '/admin/users', icon: 'employees', matchSubpaths: true },
+      { label: 'Departments', href: '/admin/departments', icon: 'departments', matchSubpaths: true },
+    ],
     signOut: { label: 'Sign Out', href: '/login', icon: 'signOut' },
     openMenu: 'Open menu',
     closeMenu: 'Close menu',
@@ -112,5 +115,21 @@ export const adminEn: AdminContent = {
       cantRemove: "{permission} can't be removed: {reason}",
       sopWithStatus: '{code} ({status})',
     },
+  },
+
+  departmentsList: {
+    title: 'Departments',
+    subtitle: "Manage your organization's departments.",
+    addDepartment: { label: 'Add department', href: '/admin/departments/new' },
+    search: { label: 'Search', placeholder: 'Search by name' },
+    count: { one: '{count} department', other: '{count} departments' },
+    tableLabel: 'Departments',
+    columns: { name: 'Name', description: 'Description', members: 'Members', withAccess: 'With access', sops: 'SOPs' },
+    cardCounts: {
+      members: { one: '{count} member', other: '{count} members' },
+      withAccess: { one: '{count} with access', other: '{count} with access' },
+      sops: { one: '{count} SOP', other: '{count} SOPs' },
+    },
+    empty: 'No departments match your search.',
   },
 }

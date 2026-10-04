@@ -13,6 +13,7 @@ import { SubmitRequestPage } from './pages/SubmitRequestPage'
 import { LandingPage } from './pages/LandingPage'
 import { NotFoundPage } from './pages/NotFoundPage'
 import { AddUserPage } from './pages/admin/AddUserPage'
+import { AdminDepartmentsPage } from './pages/admin/AdminDepartmentsPage'
 import { AdminUsersPage } from './pages/admin/AdminUsersPage'
 import { UserDetailsPage } from './pages/admin/UserDetailsPage'
 import { SignInPage } from './pages/SignInPage'
@@ -82,6 +83,7 @@ function AppRoutes() {
         <Route path="users" element={<AdminUsersPage />} />
         <Route path="users/new" element={<AddUserPage />} />
         <Route path="users/:id" element={<UserDetailsPage />} />
+        <Route path="departments" element={<AdminDepartmentsPage />} />
         <Route path="*" element={<NotFoundPage embedded />} />
       </Route>
 
