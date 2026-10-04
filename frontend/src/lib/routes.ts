@@ -47,6 +47,14 @@ export function adminDepartmentEditPath(departmentId: string): string {
   return `${adminDepartmentPath(departmentId)}/edit`
 }
 
+/** The admin portal's requests list. */
+export const ADMIN_REQUESTS_PATH = '/admin/requests'
+
+/** A request's page in the admin portal, e.g. /admin/requests/req-004 */
+export function adminRequestPath(requestId: string): string {
+  return `${ADMIN_REQUESTS_PATH}/${encodeURIComponent(requestId)}`
+}
+
 /** A user's page in the admin portal, e.g. /admin/users/user-sara */
 export function adminUserPath(userId: string): string {
   return `${ADMIN_USERS_PATH}/${encodeURIComponent(userId)}`

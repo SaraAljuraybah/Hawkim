@@ -2,6 +2,9 @@ import { useRef, useState } from 'react'
 import { Outlet } from 'react-router-dom'
 import { adminEn } from '../../content/admin.en'
 import { useTopBarScrollPadding } from '../../hooks/useTopBarScrollPadding'
+import { pendingRequests } from '../../lib/requestAdmin'
+import { ADMIN_REQUESTS_PATH } from '../../lib/routes'
+import { useRequests } from '../../state/requestsContext'
 import { useCurrentUser } from '../../state/sessionContext'
 import { AdminTopBar } from './AdminTopBar'
 import { MobileDrawer } from './MobileDrawer'
@@ -16,6 +19,12 @@ export function AdminLayout() {
   const content = adminEn.shell
   const user = useCurrentUser()
   useTopBarScrollPadding()
+  // Pending requests are counted next to "Requests" (nothing when none is pending).
+  const pending = pendingRequests(useRequests().requests).length
+  const badges =
+    pending > 0
+      ? { [ADMIN_REQUESTS_PATH]: { text: String(pending), label: content.pendingLabel.replace('{count}', String(pending)) } }
+      : undefined
 
   const [drawerOpen, setDrawerOpen] = useState(false)
   const menuButtonRef = useRef<HTMLButtonElement>(null)
@@ -33,7 +42,7 @@ export function AdminLayout() {
 
       {/* Fixed sidebar — lg and up */}
       <div className="fixed inset-y-0 left-0 z-40 hidden w-60 border-r border-beige bg-white lg:block">
-        <Sidebar content={content} />
+        <Sidebar content={content} badges={badges} />
       </div>
 
       {/* Slide-in drawer — below lg */}
@@ -43,7 +52,7 @@ export function AdminLayout() {
         onClose={() => setDrawerOpen(false)}
         returnFocusRef={menuButtonRef}
       >
-        <Sidebar content={content} onNavigate={closeDrawer} onClose={closeDrawer} />
+        <Sidebar content={content} onNavigate={closeDrawer} onClose={closeDrawer} badges={badges} />
       </MobileDrawer>
 
       <div className="flex min-h-dvh flex-col lg:pl-60">

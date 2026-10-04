@@ -15,12 +15,14 @@ export const adminEn: AdminContent = {
     nav: [
       { label: 'Users', href: '/admin/users', icon: 'employees', matchSubpaths: true },
       { label: 'Departments', href: '/admin/departments', icon: 'departments', matchSubpaths: true },
+      { label: 'Requests', href: '/admin/requests', icon: 'requests', matchSubpaths: true },
     ],
     signOut: { label: 'Sign Out', href: '/login', icon: 'signOut' },
     openMenu: 'Open menu',
     closeMenu: 'Close menu',
     drawerLabel: 'Navigation',
     roleLabel: 'Administrator',
+    pendingLabel: '{count} pending',
   },
   pageTitle: '{page} · Admin | Hawkim',
 
@@ -158,6 +160,34 @@ export const adminEn: AdminContent = {
       initialsTaken: 'These initials are already used.',
       descriptionTooLong: 'Keep the description to 200 characters or fewer.',
     },
+  },
+
+  requestsList: {
+    title: 'Requests',
+    subtitle: 'Review and respond to employee requests.',
+    tabsLabel: 'Filter requests by status',
+    tabs: { pending: 'Pending', approved: 'Approved', rejected: 'Rejected', cancelled: 'Cancelled', all: 'All' },
+    search: { label: 'Search', placeholder: 'Search by requester or title' },
+    count: { one: '{count} request', other: '{count} requests' },
+    tableLabel: 'Requests',
+    columns: {
+      requester: 'Requester',
+      title: 'Title',
+      type: 'Type',
+      department: 'Department requested',
+      submitted: 'Submitted',
+      status: 'Status',
+    },
+    noDepartment: '—',
+    departmentLabel: 'Department requested:',
+    empty: {
+      pending: 'No pending requests.',
+      approved: 'No approved requests.',
+      rejected: 'No rejected requests.',
+      cancelled: 'No cancelled requests.',
+      all: 'No requests yet.',
+    },
+    noMatches: 'No requests match your search.',
   },
 
   departmentDetails: {

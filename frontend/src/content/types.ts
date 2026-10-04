@@ -799,6 +799,8 @@ export interface AdminShellContent extends SidebarContent {
   drawerLabel: string
   /** Shown under the admin's name in the top bar. */
   roleLabel: string
+  /** Accessible text of the pending requests count in the sidebar; `{count}` is replaced. */
+  pendingLabel: string
 }
 
 export interface AdminContent {
@@ -813,6 +815,28 @@ export interface AdminContent {
   departmentsList: AdminDepartmentsListContent
   departmentForm: AdminDepartmentFormContent
   departmentDetails: AdminDepartmentDetailsContent
+  requestsList: AdminRequestsListContent
+}
+
+export type AdminRequestTabKey = 'pending' | 'approved' | 'rejected' | 'cancelled' | 'all'
+
+export interface AdminRequestsListContent {
+  title: string
+  subtitle: string
+  tabsLabel: string
+  tabs: Record<AdminRequestTabKey, string>
+  search: { label: string; placeholder: string }
+  count: CountText
+  /** Accessible name of the table. */
+  tableLabel: string
+  columns: { requester: string; title: string; type: string; department: string; submitted: string; status: string }
+  /** Shown instead of a department for requests that aren't about one. */
+  noDepartment: string
+  /** Visually hidden "Department requested:" before the department on phones. */
+  departmentLabel: string
+  empty: Record<AdminRequestTabKey, string>
+  /** When a search finds nothing in the tab. */
+  noMatches: string
 }
 
 export interface AdminDepartmentFormContent {
