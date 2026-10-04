@@ -4,6 +4,9 @@ import { ComplianceSummary, SampleBanner } from '../compliance/ComplianceSummary
 import type { ComplianceContent } from '../../content/types'
 import type { Sop } from '../../data/mock/types'
 import { currentCheck } from '../../lib/compliance'
+import { lastCheckedVersion, recheckRecommended } from '../../lib/guidelines'
+import { useGuidelines } from '../../state/guidelinesContext'
+import { RecheckBadge } from '../compliance/RecheckBadge'
 import { formatDateTime } from '../../lib/format'
 import { complianceReportPath } from '../../lib/routes'
 import { Button } from '../ui/Button'
@@ -25,6 +28,9 @@ export function ComplianceCard({ sop, content, canRun, onRun }: ComplianceCardPr
   const text = content.card
   const check = currentCheck(sop)
   const running = check?.status === 'running'
+  // Checked against an older GVP version than the current one (drafts, returned and published).
+  const currentGuideline = useGuidelines().current.version
+  const recheck = recheckRecommended(sop, currentGuideline)
 
   // Announce when a running check completes (the results themselves aren't read out).
   // A failure is announced by its own visible message (role="alert").
@@ -45,6 +51,17 @@ export function ComplianceCard({ sop, content, canRun, onRun }: ComplianceCardPr
   return (
     <div>
       <SampleBanner text={content.sampleBanner} />
+
+      {recheck && !running && (
+        <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2">
+          <RecheckBadge label={text.recheck.badge} />
+          <p className="text-sm text-maroon">
+            {text.recheck.note
+              .replace('{checked}', lastCheckedVersion(sop) ?? '')
+              .replace('{current}', currentGuideline)}
+          </p>
+        </div>
+      )}
 
       <div role="status" className="mt-4">
         {running ? (

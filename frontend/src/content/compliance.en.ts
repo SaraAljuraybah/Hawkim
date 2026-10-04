@@ -31,6 +31,10 @@ export const complianceEn: ComplianceContent = {
     viewReport: 'View full report',
     runAgain: 'Run check again',
     run: 'Run check',
+    recheck: {
+      badge: 'Recheck recommended',
+      note: 'Last checked against GVP v{checked}. The current version is v{current}.',
+    },
   },
   report: {
     pageTitle: 'Compliance report · {code} | Hawkim',
@@ -154,6 +158,7 @@ export const complianceEn: ComplianceContent = {
       ],
     },
     outOfDate: 'A new compliance check is running for version {version}. This report may be out of date.',
+    olderGuideline: 'This report used GVP v{checked}. The current version is v{current}.',
     running: 'The compliance check for version {version} is still running.',
     failed: 'The compliance check for version {version} couldn’t be completed.',
     none: 'There’s no compliance report for version {version} yet.',

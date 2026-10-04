@@ -3,7 +3,10 @@ import { FileText } from 'lucide-react'
 import type { MySopsContent } from '../../content/types'
 import type { Sop } from '../../data/mock/types'
 import { formatDate } from '../../lib/format'
+import { recheckRecommended } from '../../lib/guidelines'
 import { mySopPath } from '../../lib/routes'
+import { useGuidelines } from '../../state/guidelinesContext'
+import { RecheckBadge } from '../compliance/RecheckBadge'
 import { StatusBadge } from '../ui/StatusBadge'
 
 interface AuthoredSopListProps {
@@ -24,10 +27,13 @@ const focusRing =
  * Rows stack on phones; from sm the details line up in columns.
  */
 export function AuthoredSopList({ sops, content, userId }: AuthoredSopListProps) {
+  const currentGuideline = useGuidelines().current.version
   return (
     <ul className="divide-y divide-beige rounded-xl border border-beige bg-white">
       {sops.map((sop) => {
         const coAuthored = sop.authorId !== userId
+        // Last checked against an older GVP version (PBI 29).
+        const recheck = recheckRecommended(sop, currentGuideline)
         return (
           <li
             key={sop.id}
@@ -46,11 +52,14 @@ export function AuthoredSopList({ sops, content, userId }: AuthoredSopListProps)
                   {coAuthored && (
                     <span className="rounded-full bg-beige px-2 py-0.5 text-xs font-medium text-maroon">{content.coAuthorLabel}</span>
                   )}
+                  {recheck && <RecheckBadge label={content.recheckLabel} className="px-2" />}
                 </p>
                 <p className="mt-0.5 text-[0.9375rem] leading-snug font-medium text-maroon">
                   <Link
                     to={mySopPath(sop.id)}
-                    aria-label={`${sop.code} ${sop.title}${coAuthored ? ` (${content.coAuthorLabel})` : ''}`}
+                    aria-label={`${sop.code} ${sop.title}${coAuthored ? ` (${content.coAuthorLabel})` : ''}${
+                      recheck ? ` (${content.recheckLabel})` : ''
+                    }`}
                     className="after:absolute after:inset-0 focus-visible:outline-none"
                   >
                     {sop.title}

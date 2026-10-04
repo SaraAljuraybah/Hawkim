@@ -17,7 +17,7 @@ import { complianceEn } from '../content/compliance.en'
 import { sopWorkflowEn } from '../content/workflow.en'
 import type { Sop } from '../data/mock/types'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
-import { hasCurrentCheck, isCheckRunning } from '../lib/compliance'
+import { currentCheck, hasCurrentCheck, isCheckRunning } from '../lib/compliance'
 import { formatDate, formatDateTime, formatMonthDay } from '../lib/format'
 import { hasPermission } from '../lib/permissions'
 import { sopPath } from '../lib/routes'
@@ -157,7 +157,15 @@ export function SopWorkflowPage() {
   // is needed before submitting (it needn't pass).
   const checkRunning = isCheckRunning(sop)
   const checkDone = hasCurrentCheck(sop, guidelines.current.version)
-  const submitReason = checkDone ? undefined : checkRunning ? actions.checkWaiting : actions.checkNeeded
+  // A completed check of this version, but against an older GVP version: it must be rerun.
+  const checkedOlder = currentCheck(sop)?.status === 'completed'
+  const submitReason = checkDone
+    ? undefined
+    : checkRunning
+      ? actions.checkWaiting
+      : checkedOlder
+        ? actions.checkCurrentNeeded.replace('{version}', guidelines.current.version)
+        : actions.checkNeeded
   const resubmitReason = !resubmitReady ? actions.resubmitHint : submitReason
 
   const sopId = sop.id

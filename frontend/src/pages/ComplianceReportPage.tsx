@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type MouseEvent } from 'react'
 import { flushSync } from 'react-dom'
 import { Link, useParams } from 'react-router-dom'
-import { ArrowLeft, Download } from 'lucide-react'
+import { ArrowLeft, Download, RefreshCw } from 'lucide-react'
 import { SampleBanner } from '../components/compliance/ComplianceSummary'
 import { ReportRequirementsContext } from '../components/compliance/reportRequirements'
 import {
@@ -72,7 +72,7 @@ function Report({ sop }: { sop: Sop }) {
   const content = complianceEn
   const text = content.report
   const { nameOf } = useUsers()
-  const { getRequirement } = useGuidelines()
+  const { getRequirement, current: currentGuideline } = useGuidelines()
   const { nameOf: departmentName } = useDepartments()
 
   // Defaults to the current version; earlier versions' reports can be chosen.
@@ -197,6 +197,16 @@ function Report({ sop }: { sop: Sop }) {
           value={version}
           onChange={(event) => setSelectedVersion(event.target.value)}
         />
+      )}
+
+      {/* Checked against an older GVP version (also printed) */}
+      {report && report.guideline.version !== currentGuideline.version && (
+        <p className="mt-6 flex items-start gap-2 rounded-lg border border-status-pending-fg/25 bg-status-pending-bg px-3.5 py-2.5 text-sm font-medium text-status-pending-fg print:mt-2">
+          <RefreshCw aria-hidden="true" className="mt-0.5 size-4 shrink-0" strokeWidth={2} />
+          {text.olderGuideline
+            .replace('{checked}', report.guideline.version)
+            .replace('{current}', currentGuideline.version)}
+        </p>
       )}
 
       {/* a) Report header */}

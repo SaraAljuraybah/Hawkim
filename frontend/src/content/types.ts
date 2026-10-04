@@ -401,6 +401,8 @@ export interface MySopsContent {
   uploadedMessage: string
   /** Label on SOPs the user co-authors. */
   coAuthorLabel: string
+  /** On SOPs last checked against an older GVP version. */
+  recheckLabel: string
 }
 
 export interface UploadSopContent {
@@ -505,6 +507,8 @@ export interface SopWorkflowContent {
     /** Why Submit / Resubmit is disabled: the check is running, or there's no completed check. */
     checkWaiting: string
     checkNeeded: string
+    /** The completed check used an older GVP version; `{version}` is the current one. */
+    checkCurrentNeeded: string
     /** Published SOPs: run a new check after the requirements change (PBI 29). */
     recheck: string
   }
@@ -616,6 +620,8 @@ export interface ComplianceContent {
     viewReport: string
     runAgain: string
     run: string
+    /** The SOP's newest check used an older GVP version (PBI 29). `{checked}` and `{current}` are replaced. */
+    recheck: { badge: string; note: string }
   }
   /** The compliance report page ("/my-sops/:id/compliance"), laid out as a formal report. */
   report: {
@@ -725,6 +731,8 @@ export interface ComplianceContent {
     method: { title: string; items: string[] }
     /** A new check is running for the shown (current) version; `{version}` is replaced. */
     outOfDate: string
+    /** The report used an older GVP version; `{checked}` and `{current}` are replaced. */
+    olderGuideline: string
     /** The selected version has no completed report; `{version}` is replaced. */
     running: string
     failed: string
