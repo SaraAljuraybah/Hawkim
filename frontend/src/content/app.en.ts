@@ -28,7 +28,6 @@ export const appShellEn: AppShellContent = {
     { label: 'Departments', href: '/departments', icon: 'departments' },
   ],
   signOut: { label: 'Sign Out', href: '/login', icon: 'signOut' },
-  notificationsLabel: 'Notifications',
   openMenu: 'Open menu',
   closeMenu: 'Close menu',
   drawerLabel: 'Navigation',

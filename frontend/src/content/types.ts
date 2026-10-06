@@ -215,7 +215,6 @@ export interface SidebarContent {
 export interface AppShellContent extends SidebarContent {
   /** Visually hidden link that lets keyboard users jump past the navigation. */
   skipLink: string
-  notificationsLabel: string
   openMenu: string
   /** Accessible name of the mobile navigation drawer. */
   drawerLabel: string
@@ -805,6 +804,37 @@ export interface DemoAccountsContent {
   /** Accessible name of each "use" button; `{name}` is replaced. */
   useLabel: string
   use: string
+}
+
+/* ---------- Notifications (bell in the employee top bar) ---------- */
+
+export interface NotificationsContent {
+  bellLabel: string
+  /** `{count}` is replaced. */
+  bellLabelUnread: string
+  title: string
+  markAllRead: string
+  empty: string
+  /** Visually hidden next to the unread dot. */
+  unread: string
+  /** Relative time under a minute. */
+  justNow: string
+  /** `{name}`, `{code}`, `{version}`, `{day}`, `{department}` and `{title}` are replaced. */
+  texts: {
+    submitted: string
+    resubmitted: string
+    routed: string
+    assignedApproval: string
+    readyToPublish: string
+    returned: string
+    approved: string
+    published: string
+    dueSoon: { review: string; approval: string }
+    days: { today: string; tomorrow: string }
+    overdue: { review: string; approval: string }
+    accessRequest: { approved: string; rejected: string }
+    request: { approved: string; rejected: string }
+  }
 }
 
 /* ---------- Reviews (reviewer and approver) ---------- */

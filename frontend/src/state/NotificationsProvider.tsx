@@ -25,12 +25,18 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
   const [now, setNow] = useState(() => Date.now())
   const [readByUser, setReadByUser] = useState<Record<string, string[]>>({})
 
-  // Recalculate due-soon and overdue every minute. (The demo panel's clock control
-  // moves due dates, which changes the SOPs and recalculates at once.)
+  // Recalculate due-soon and overdue every minute, and right away whenever SOPs or
+  // requests change (e.g. a new due date, or the demo panel's clock control).
   useEffect(() => {
-    const timer = window.setInterval(() => setNow(Date.now()), TICK_MS)
-    return () => window.clearInterval(timer)
-  }, [])
+    const refresh = () => setNow(Date.now())
+    // After the change has rendered (a timer callback, so the clock isn't read during render).
+    const soon = window.setTimeout(refresh, 0)
+    const timer = window.setInterval(refresh, TICK_MS)
+    return () => {
+      window.clearTimeout(soon)
+      window.clearInterval(timer)
+    }
+  }, [sops, requests])
 
   const userId = user?.id
   const notifications = useMemo(() => {

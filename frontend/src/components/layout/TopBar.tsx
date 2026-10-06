@@ -1,8 +1,9 @@
 import type { Ref } from 'react'
-import { Bell, Menu } from 'lucide-react'
+import { Menu } from 'lucide-react'
 import type { AppShellContent } from '../../content/types'
 import type { User } from '../../data/mock/types'
 import { DepartmentSwitcher } from './DepartmentSwitcher'
+import { NotificationsBell } from './NotificationsBell'
 
 interface TopBarProps {
   content: AppShellContent
@@ -34,10 +35,8 @@ export function TopBar({ content, user, menuOpen, onOpenMenu, menuButtonRef }: T
         </button>
 
         <div className="ml-auto flex items-center gap-3 sm:gap-4">
-          {/* TODO: Notifications panel, unread indicator and count (not built yet). */}
-          <button type="button" aria-label={content.notificationsLabel} className={iconButton}>
-            <Bell aria-hidden="true" className="size-5" strokeWidth={1.75} />
-          </button>
+          {/* Notifications (PBI 31): unread count and a panel with the newest ones */}
+          <NotificationsBell />
 
           <span aria-hidden="true" className="h-8 w-px bg-beige" />
 
