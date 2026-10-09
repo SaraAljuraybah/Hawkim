@@ -104,7 +104,7 @@ export const landingEn: LandingContent = {
         icon: 'intelligence',
         title: 'Intelligence',
         description:
-          'AI-assisted tools that support review and compliance checks, while final decisions remain with people.',
+          'AI-assisted tools that support review and compliance checks, while final decisions remain with specialists.',
       },
     ],
   },
