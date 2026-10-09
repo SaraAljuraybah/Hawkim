@@ -5,20 +5,23 @@ import type { LandingContent } from '../../content/types'
 import { Button } from '../ui/Button'
 import { Container } from '../ui/Container'
 import { Logo } from '../ui/Logo'
+import type { RequestLink } from './requestLink'
 
 interface NavbarProps {
   content: LandingContent['nav']
+  /** Request Hawkim: the primary button (opens an email); Sign In is secondary. */
+  request: RequestLink
 }
 
 const MOBILE_MENU_ID = 'mobile-menu'
 
 /** Sticky top navigation with a collapsible menu on small screens. */
-export function Navbar({ content }: NavbarProps) {
+export function Navbar({ content, request }: NavbarProps) {
   const [menuOpen, setMenuOpen] = useState(false)
   const toggleRef = useRef<HTMLButtonElement>(null)
 
   // Close the mobile menu with Escape (and return focus to the toggle),
-  // or automatically when the viewport grows to the desktop layout.
+  // or automatically when the viewport grows to the desktop layout (lg: links and both buttons fit).
   useEffect(() => {
     if (!menuOpen) return
 
@@ -28,7 +31,7 @@ export function Navbar({ content }: NavbarProps) {
         toggleRef.current?.focus()
       }
     }
-    const desktop = window.matchMedia('(min-width: 768px)')
+    const desktop = window.matchMedia('(min-width: 1024px)')
     const onResize = () => desktop.matches && setMenuOpen(false)
 
     document.addEventListener('keydown', onKeyDown)
@@ -64,8 +67,8 @@ export function Navbar({ content }: NavbarProps) {
         </Link>
 
         {/* Desktop navigation */}
-        <nav aria-label={content.ariaLabel} className="hidden md:block">
-          <ul className="flex items-center gap-8 lg:gap-10">
+        <nav aria-label={content.ariaLabel} className="hidden lg:block">
+          <ul className="flex items-center gap-8 xl:gap-10">
             {content.links.map((link) => (
               <li key={link.href}>
                 <a
@@ -80,8 +83,11 @@ export function Navbar({ content }: NavbarProps) {
         </nav>
 
         <div className="flex items-center gap-3">
-          <div className="hidden md:block">
-            <Button to={content.signIn.href} size="lg">
+          <div className="hidden items-center gap-3 lg:flex">
+            <Button href={request.href} size="lg">
+              {request.label}
+            </Button>
+            <Button to={content.signIn.href} size="lg" variant="secondary">
               {content.signIn.label}
             </Button>
           </div>
@@ -90,7 +96,7 @@ export function Navbar({ content }: NavbarProps) {
           <button
             ref={toggleRef}
             type="button"
-            className="inline-flex size-10 items-center justify-center rounded-lg border border-beige text-maroon md:hidden"
+            className="inline-flex size-10 items-center justify-center rounded-lg border border-beige text-maroon lg:hidden"
             aria-expanded={menuOpen}
             aria-controls={MOBILE_MENU_ID}
             aria-label={menuOpen ? content.closeMenu : content.openMenu}
@@ -106,7 +112,7 @@ export function Navbar({ content }: NavbarProps) {
       </Container>
 
       {/* Mobile navigation panel */}
-      <div id={MOBILE_MENU_ID} hidden={!menuOpen} className="border-t border-beige bg-offwhite md:hidden">
+      <div id={MOBILE_MENU_ID} hidden={!menuOpen} className="border-t border-beige bg-offwhite lg:hidden">
         <Container className="py-4">
           <nav aria-label={content.ariaLabel}>
             <ul className="flex flex-col">
@@ -123,7 +129,10 @@ export function Navbar({ content }: NavbarProps) {
               ))}
             </ul>
           </nav>
-          <Button to={content.signIn.href} className="mt-3 w-full" onClick={closeMenu}>
+          <Button href={request.href} className="mt-3 w-full" onClick={closeMenu}>
+            {request.label}
+          </Button>
+          <Button to={content.signIn.href} variant="secondary" className="mt-3 w-full" onClick={closeMenu}>
             {content.signIn.label}
           </Button>
         </Container>

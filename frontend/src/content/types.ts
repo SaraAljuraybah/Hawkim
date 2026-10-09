@@ -79,6 +79,16 @@ export interface LandingContent {
     /** Alt text for the logo. */
     logoAlt: string
   }
+  /**
+   * "Request Hawkim" (an on-premise product: organizations request it, there's no
+   * public sign-up). Every Request Hawkim link opens this email (see lib/mailto.ts).
+   */
+  request: {
+    label: string
+    email: string
+    subject: string
+    body: string
+  }
   nav: {
     ariaLabel: string
     /** Product name shown beside the logo mark in the header. */
@@ -94,7 +104,7 @@ export interface LandingContent {
     /** Rendered one per line inside the page's single <h1>. */
     headlineLines: string[]
     subtitle: string
-    primaryCta: CallToAction
+    /** The primary call to action is Request Hawkim (see `request`). */
     secondaryCta: CallToAction
     regulatoryNote: string
     preview: DashboardPreviewContent
@@ -120,7 +130,8 @@ export interface LandingContent {
     eyebrow: string
     title: string
     text: string
-    cta: CallToAction
+    /** Under the Request Hawkim button; `{email}` is replaced with the team email (a link). */
+    emailLine: string
   }
   footer: {
     navAriaLabel: string

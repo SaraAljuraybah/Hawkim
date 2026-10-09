@@ -25,6 +25,28 @@ export const landingEn: LandingContent = {
     logoAlt: 'Hawkim',
   },
 
+  // Hawkim is installed in each organization's own environment, so organizations
+  // request it by email; there's no public sign-up.
+  request: {
+    label: 'Request Hawkim',
+    email: 'hawkimgp@gmail.com',
+    subject: 'Hawkim request',
+    body: [
+      'Hello Hawkim team,',
+      '',
+      'We would like to request Hawkim for our organization.',
+      '',
+      'Organization:',
+      'Contact person:',
+      'Job title:',
+      'Phone:',
+      'Approximate number of users:',
+      'Message:',
+      '',
+      'Thank you.',
+    ].join('\n'),
+  },
+
   nav: {
     ariaLabel: 'Main',
     brandName: 'Hawkim',
@@ -39,7 +61,6 @@ export const landingEn: LandingContent = {
     headlineLines: ['Governance.', 'Compliance.', 'Intelligence.'],
     subtitle:
       'Streamline SOP workflows and support regulatory compliance — all in one centralized platform.',
-    primaryCta: { label: 'Sign In to Hawkim', href: LOGIN_PATH },
     secondaryCta: { label: 'Explore Hawkim', href: '#about' },
     regulatoryNote:
       'Designed for pharmaceutical organizations regulated by the Saudi Food and Drug Authority (SFDA)',
@@ -144,9 +165,9 @@ export const landingEn: LandingContent = {
 
   finalCta: {
     eyebrow: 'Get Started',
-    title: 'Ready to streamline your SOP governance?',
-    text: 'Join Hawkim and take the next step towards a more compliant and efficient organization.',
-    cta: { label: 'Sign In to Hawkim', href: LOGIN_PATH },
+    title: 'Bring Hawkim to your organization',
+    text: "Hawkim is installed within your organization's own environment. Request Hawkim and our team will contact you to arrange a demo and setup.",
+    emailLine: 'Or email us at {email}',
   },
 
   footer: {

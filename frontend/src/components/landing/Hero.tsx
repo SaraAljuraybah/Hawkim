@@ -3,13 +3,16 @@ import { Button } from '../ui/Button'
 import { Container } from '../ui/Container'
 import { HexFragment } from '../ui/HexFragment'
 import { DashboardPreview } from './DashboardPreview'
+import type { RequestLink } from './requestLink'
 
 interface HeroProps {
   content: LandingContent['hero']
+  /** Request Hawkim: the primary call to action (opens an email). */
+  request: RequestLink
 }
 
 /** Opening section: headline, calls to action and the dashboard preview. */
-export function Hero({ content }: HeroProps) {
+export function Hero({ content, request }: HeroProps) {
   return (
     <section
       id="home"
@@ -51,8 +54,8 @@ export function Hero({ content }: HeroProps) {
           <p className="mt-6 max-w-xl text-lg leading-relaxed text-text-gray">{content.subtitle}</p>
 
           <div className="mt-9 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-            <Button to={content.primaryCta.href} size="lg" withArrow>
-              {content.primaryCta.label}
+            <Button href={request.href} size="lg" withArrow>
+              {request.label}
             </Button>
             <Button href={content.secondaryCta.href} size="lg" variant="secondary">
               {content.secondaryCta.label}
