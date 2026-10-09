@@ -130,8 +130,6 @@ export interface LandingContent {
     eyebrow: string
     title: string
     text: string
-    /** Under the Request Hawkim button; `{email}` is replaced with the team email (a link). */
-    emailLine: string
   }
   footer: {
     navAriaLabel: string

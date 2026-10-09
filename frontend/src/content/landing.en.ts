@@ -166,8 +166,7 @@ export const landingEn: LandingContent = {
   finalCta: {
     eyebrow: 'Get Started',
     title: 'Bring Hawkim to your organization',
-    text: "Hawkim is installed within your organization's own environment. Request Hawkim and our team will contact you to arrange a demo and setup.",
-    emailLine: 'Or email us at {email}',
+    text: 'Request Hawkim and our team will contact you to arrange a demo and setup.',
   },
 
   footer: {

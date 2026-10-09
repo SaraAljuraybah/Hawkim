@@ -35,17 +35,6 @@ export function FinalCta({ content, request }: FinalCtaProps) {
           <Button href={request.href} variant="accent" size="lg" withArrow className="mt-8">
             {request.label}
           </Button>
-          {/* For visitors without an email app: the address itself */}
-          <p className="mt-4 text-center text-sm text-beige">
-            {content.emailLine.split('{email}')[0]}
-            <a
-              href={request.href}
-              className="rounded-sm font-medium break-all text-offwhite underline underline-offset-2 hover:text-gold-light focus-visible:outline-gold-light"
-            >
-              {request.email}
-            </a>
-            {content.emailLine.split('{email}')[1]}
-          </p>
         </div>
       </div>
     </Section>

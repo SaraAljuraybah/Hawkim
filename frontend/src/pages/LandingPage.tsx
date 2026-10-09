@@ -19,7 +19,7 @@ export function LandingPage() {
   useDocumentTitle(content.pageTitle)
 
   // Every "Request Hawkim" link opens the same prepared email.
-  const request = { label: content.request.label, href: mailtoHref(content.request), email: content.request.email }
+  const request = { label: content.request.label, href: mailtoHref(content.request) }
 
   return (
     <>

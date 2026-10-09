@@ -1,6 +1,5 @@
-/** The Request Hawkim link: its label, the prepared mailto: href and the team email. */
+/** The Request Hawkim link: its label and the prepared mailto: href. */
 export interface RequestLink {
   label: string
   href: string
-  email: string
 }
