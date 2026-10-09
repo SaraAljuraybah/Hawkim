@@ -53,7 +53,7 @@ export function DepartmentSwitcher({ content, variant, onSwitched }: DepartmentS
 
   // Visible label in the drawer; the button itself always carries "Department:" for screen readers.
   const visibleLabel = (
-    <span aria-hidden="true" className="mb-1 block text-xs font-medium tracking-wide text-text-gray uppercase">
+    <span aria-hidden="true" className="mb-1 block text-xs font-medium tracking-wide text-gold-light uppercase">
       {content.label}
     </span>
   )
@@ -62,9 +62,9 @@ export function DepartmentSwitcher({ content, variant, onSwitched }: DepartmentS
   // One department: plain text, no menu.
   if (userDepartments.length < 2) {
     return (
-      <div className={isDrawer ? 'rounded-lg bg-beige/60 px-3 py-2.5' : ''}>
+      <div className={isDrawer ? 'rounded-lg bg-white/10 px-3 py-2.5' : ''}>
         {isDrawer && visibleLabel}
-        <p className={isDrawer ? 'text-sm font-medium text-maroon' : 'text-xs text-text-gray'}>
+        <p className={isDrawer ? 'text-sm font-medium text-offwhite' : 'text-xs text-text-gray'}>
           {srLabel}
           {activeDepartment.name}
         </p>
@@ -126,7 +126,7 @@ export function DepartmentSwitcher({ content, variant, onSwitched }: DepartmentS
         onKeyDown={handleButtonKeyDown}
         className={
           isDrawer
-            ? 'flex w-full items-center justify-between gap-2 rounded-lg border border-beige bg-white px-3 py-2.5 text-left text-sm font-medium text-maroon hover:bg-beige/60'
+            ? 'flex w-full items-center justify-between gap-2 rounded-lg border border-white/20 bg-white/10 px-3 py-2.5 text-left text-sm font-medium text-offwhite hover:bg-white/15'
             : '-mx-1 inline-flex items-center gap-1 rounded-md px-1 text-xs text-text-gray hover:text-maroon'
         }
       >

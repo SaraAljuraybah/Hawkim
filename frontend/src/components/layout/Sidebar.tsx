@@ -26,11 +26,17 @@ interface SidebarProps {
 
 const itemBase =
   'relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors'
+/* Not the active item: light text with a subtle light overlay on hover. */
+const itemIdle = 'text-beige hover:bg-white/[0.06] hover:text-offwhite'
+/* Icons in light gold (8.84:1 on maroon; 6.84:1 on the active tint). */
+const itemIcon = 'size-5 shrink-0 text-gold-light'
 
 /**
- * Sidebar contents: logo, main navigation and Sign Out.
- * Used as the fixed desktop sidebar and inside the mobile drawer, in the employee
- * app and in the admin portal (with an "Admin" label after the product name).
+ * Sidebar contents: logo, main navigation and Sign Out, on Primary Maroon (as in the
+ * landing page's dashboard preview). Used as the fixed desktop sidebar and inside the
+ * mobile drawer, in the employee app and in the admin portal (with an "Admin" label).
+ * Contrast on maroon #3A0B18: beige text 14.39:1, white active text 13.08:1 on the
+ * active tint, light gold icons/badges/focus ring 8.84:1.
  */
 export function Sidebar({ content, onNavigate, onClose, departmentSwitcher, badges }: SidebarProps) {
   const SignOutIcon = icons[content.signOut.icon]
@@ -38,7 +44,9 @@ export function Sidebar({ content, onNavigate, onClose, departmentSwitcher, badg
   const homeHref = content.nav[0].href
 
   return (
-    <div className="flex h-full flex-col">
+    // On maroon the default maroon focus ring would be invisible: use light gold (not
+    // inside the white department menu that opens from the drawer).
+    <div className="flex h-full flex-col bg-maroon [&_:focus-visible:not([role=menuitemradio])]:outline-gold-light">
       <div className="flex items-center justify-between gap-2 px-5 pt-5 pb-5">
         {/* Mark + product name; the link's accessible name comes from aria-label */}
         <Link
@@ -47,10 +55,15 @@ export function Sidebar({ content, onNavigate, onClose, departmentSwitcher, badg
           aria-label={content.homeLinkLabel}
           className="inline-flex items-center gap-2.5 rounded-md"
         >
-          <Logo variant="mark" alt="" className="h-8" />
-          <span className="text-[1.1875rem] font-semibold tracking-tight text-maroon">{content.brandName}</span>
+          {/* The mark's dark parts would disappear on maroon and it can't be recoloured,
+              so it sits on a small light tile.
+              TODO: Use the official white logo variant once the design team provides it. */}
+          <span className="inline-flex rounded-lg bg-offwhite p-1">
+            <Logo variant="mark" alt="" className="h-7" />
+          </span>
+          <span className="text-[1.1875rem] font-semibold tracking-tight text-offwhite">{content.brandName}</span>
           {content.portalLabel && (
-            <span className="rounded-md bg-maroon px-1.5 py-0.5 text-xs font-semibold text-offwhite">
+            <span className="rounded-md bg-gold-light px-1.5 py-0.5 text-xs font-semibold text-maroon">
               {content.portalLabel}
             </span>
           )}
@@ -60,7 +73,7 @@ export function Sidebar({ content, onNavigate, onClose, departmentSwitcher, badg
             type="button"
             onClick={onClose}
             aria-label={content.closeMenu}
-            className="inline-flex size-10 items-center justify-center rounded-lg border border-beige text-maroon hover:bg-beige"
+            className="inline-flex size-10 items-center justify-center rounded-lg border border-white/20 text-offwhite hover:bg-white/[0.06]"
           >
             <X aria-hidden="true" className="size-5" strokeWidth={1.75} />
           </button>
@@ -86,22 +99,22 @@ export function Sidebar({ content, onNavigate, onClose, departmentSwitcher, badg
                   onClick={onNavigate}
                   className={({ isActive }) =>
                     `${itemBase} ${
-                      isActive ? 'bg-maroon/[0.07] text-maroon' : 'text-text-gray hover:bg-beige hover:text-maroon'
+                      isActive ? 'bg-white/10 text-white' : itemIdle
                     }`
                   }
                 >
                   {({ isActive }) => (
                     <>
                       {isActive && (
-                        <span aria-hidden="true" className="absolute inset-y-2 left-0 w-0.5 rounded-full bg-gold" />
+                        <span aria-hidden="true" className="absolute inset-y-2 left-0 w-[3px] rounded-full bg-gold" />
                       )}
-                      <Icon aria-hidden="true" className="size-5 shrink-0" strokeWidth={1.75} />
+                      <Icon aria-hidden="true" className={itemIcon} strokeWidth={1.75} />
                       {item.label}
                       {badges?.[item.href] && (
                         <>
                           <span
                             aria-hidden="true"
-                            className="ml-auto inline-flex min-w-6 items-center justify-center rounded-full bg-maroon px-1.5 py-0.5 text-xs leading-none font-semibold text-offwhite"
+                            className="ml-auto inline-flex min-w-6 items-center justify-center rounded-full bg-gold-light px-1.5 py-0.5 text-xs leading-none font-semibold text-maroon"
                           >
                             {badges[item.href].text}
                           </span>
@@ -117,7 +130,7 @@ export function Sidebar({ content, onNavigate, onClose, departmentSwitcher, badg
         </ul>
 
         {/* Sign Out pinned to the bottom */}
-        <div className="mt-auto border-t border-beige pt-4">
+        <div className="mt-auto border-t border-white/10 pt-4">
           {/* Ends the session, then goes to the Sign In page. */}
           <Link
             to={content.signOut.href}
@@ -125,9 +138,9 @@ export function Sidebar({ content, onNavigate, onClose, departmentSwitcher, badg
               signOut()
               onNavigate?.()
             }}
-            className={`${itemBase} text-text-gray hover:bg-beige hover:text-maroon`}
+            className={`${itemBase} ${itemIdle}`}
           >
-            <SignOutIcon aria-hidden="true" className="size-5 shrink-0" strokeWidth={1.75} />
+            <SignOutIcon aria-hidden="true" className={itemIcon} strokeWidth={1.75} />
             {content.signOut.label}
           </Link>
         </div>

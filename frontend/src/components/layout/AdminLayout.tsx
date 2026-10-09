@@ -42,7 +42,7 @@ export function AdminLayout() {
       </a>
 
       {/* Fixed sidebar — lg and up */}
-      <div className="fixed inset-y-0 left-0 z-40 hidden w-60 border-r border-beige bg-white lg:block">
+      <div className="fixed inset-y-0 left-0 z-40 hidden w-60 bg-maroon lg:block">
         <Sidebar content={content} badges={badges} />
       </div>
 

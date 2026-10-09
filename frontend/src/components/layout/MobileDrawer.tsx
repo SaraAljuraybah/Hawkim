@@ -84,7 +84,7 @@ export function MobileDrawer({ label, open, onClose, returnFocusRef, children }:
       onKeyDown={handleKeyDown}
       // A click on the dimmed backdrop targets the <dialog> itself.
       onClick={(event) => event.target === dialogRef.current && dialogRef.current?.close()}
-      className="m-0 h-dvh max-h-none w-72 max-w-[85vw] bg-white p-0 shadow-xl backdrop:bg-maroon/40 open:block motion-safe:open:animate-[drawer-in_200ms_ease-out] lg:hidden"
+      className="m-0 h-dvh max-h-none w-72 max-w-[85vw] bg-maroon p-0 shadow-xl backdrop:bg-maroon/40 open:block motion-safe:open:animate-[drawer-in_200ms_ease-out] lg:hidden"
     >
       {children}
     </dialog>
