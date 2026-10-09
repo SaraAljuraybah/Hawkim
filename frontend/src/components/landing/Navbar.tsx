@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { Menu, X } from 'lucide-react'
 import type { LandingContent } from '../../content/types'
 import { Button } from '../ui/Button'
@@ -7,13 +8,12 @@ import { Logo } from '../ui/Logo'
 
 interface NavbarProps {
   content: LandingContent['nav']
-  logoAlt: string
 }
 
 const MOBILE_MENU_ID = 'mobile-menu'
 
 /** Sticky top navigation with a collapsible menu on small screens. */
-export function Navbar({ content, logoAlt }: NavbarProps) {
+export function Navbar({ content }: NavbarProps) {
   const [menuOpen, setMenuOpen] = useState(false)
   const toggleRef = useRef<HTMLButtonElement>(null)
 
@@ -41,23 +41,36 @@ export function Navbar({ content, logoAlt }: NavbarProps) {
 
   const closeMenu = () => setMenuOpen(false)
 
+  // The logo leads home ("/"); on the landing page itself that means back to the top.
+  function goHome() {
+    closeMenu()
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    window.scrollTo({ top: 0, behavior: reduceMotion ? 'auto' : 'smooth' })
+  }
+
   return (
     <header className="sticky top-0 z-50 border-b border-beige bg-offwhite/90 backdrop-blur-md">
-      <Container className="flex h-18 items-center justify-between gap-6">
-        <a href="#home" className="shrink-0 rounded-md" onClick={closeMenu}>
-          {/* Mark only on small screens, full lockup from lg up (only one is ever displayed) */}
-          <Logo variant="mark" alt={logoAlt} className="h-12 lg:hidden" />
-          <Logo variant="full" alt={logoAlt} className="hidden h-14 lg:block" />
-        </a>
+      <Container className="flex h-16 items-center justify-between gap-6 md:h-20">
+        {/* Horizontal logo: the mark with the product name beside it (as in the app sidebar, larger).
+            The link's accessible name comes from aria-label. */}
+        <Link
+          to="/"
+          aria-label={content.homeLinkLabel}
+          onClick={goHome}
+          className="inline-flex shrink-0 items-center gap-2.5 rounded-md md:gap-3"
+        >
+          <Logo variant="mark" alt="" className="h-9 md:h-11" />
+          <span className="text-xl font-semibold tracking-tight text-maroon md:text-2xl">{content.brandName}</span>
+        </Link>
 
         {/* Desktop navigation */}
         <nav aria-label={content.ariaLabel} className="hidden md:block">
-          <ul className="flex items-center gap-8">
+          <ul className="flex items-center gap-8 lg:gap-10">
             {content.links.map((link) => (
               <li key={link.href}>
                 <a
                   href={link.href}
-                  className="rounded-sm text-sm font-medium text-text-gray transition-colors hover:text-maroon"
+                  className="rounded-sm text-[1.0625rem] font-medium text-text-gray transition-colors hover:text-maroon"
                 >
                   {link.label}
                 </a>
@@ -68,7 +81,9 @@ export function Navbar({ content, logoAlt }: NavbarProps) {
 
         <div className="flex items-center gap-3">
           <div className="hidden md:block">
-            <Button to={content.signIn.href}>{content.signIn.label}</Button>
+            <Button to={content.signIn.href} size="lg">
+              {content.signIn.label}
+            </Button>
           </div>
 
           {/* Mobile menu toggle */}

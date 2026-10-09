@@ -27,7 +27,7 @@ export function LandingPage() {
         {content.skipLink}
       </a>
 
-      <Navbar content={content.nav} logoAlt={content.brand.logoAlt} />
+      <Navbar content={content.nav} />
 
       <main id="main" tabIndex={-1} className="overflow-x-clip focus:outline-none">
         <Hero content={content.hero} />

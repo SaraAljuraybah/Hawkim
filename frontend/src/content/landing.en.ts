@@ -27,6 +27,8 @@ export const landingEn: LandingContent = {
 
   nav: {
     ariaLabel: 'Main',
+    brandName: 'Hawkim',
+    homeLinkLabel: 'Hawkim, home',
     links: sectionLinks,
     signIn: { label: 'Sign In', href: LOGIN_PATH },
     openMenu: 'Open menu',
@@ -34,7 +36,6 @@ export const landingEn: LandingContent = {
   },
 
   hero: {
-    eyebrow: 'Compliance for a Safer Tomorrow',
     headlineLines: ['Governance.', 'Compliance.', 'Intelligence.'],
     subtitle:
       'Streamline SOP workflows and support regulatory compliance — all in one centralized platform.',

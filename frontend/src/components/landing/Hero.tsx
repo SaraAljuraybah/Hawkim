@@ -1,7 +1,6 @@
 import type { LandingContent } from '../../content/types'
 import { Button } from '../ui/Button'
 import { Container } from '../ui/Container'
-import { Eyebrow } from '../ui/Eyebrow'
 import { HexFragment } from '../ui/HexFragment'
 import { DashboardPreview } from './DashboardPreview'
 
@@ -35,9 +34,7 @@ export function Hero({ content }: HeroProps) {
       <Container className="relative grid items-center gap-14 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] lg:gap-12 xl:gap-16">
         {/* Text column */}
         <div>
-          <Eyebrow>{content.eyebrow}</Eyebrow>
-
-          <h1 id="hero-title" className="mt-6 text-5xl leading-[1.05] tracking-tight sm:text-6xl">
+          <h1 id="hero-title" className="text-5xl leading-[1.05] tracking-tight sm:text-6xl">
             {content.headlineLines.map((line, index) => (
               <span
                 key={line}

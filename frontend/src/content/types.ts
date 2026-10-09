@@ -81,13 +81,16 @@ export interface LandingContent {
   }
   nav: {
     ariaLabel: string
+    /** Product name shown beside the logo mark in the header. */
+    brandName: string
+    /** Accessible name of the header logo link, e.g. "Hawkim, home". */
+    homeLinkLabel: string
     links: NavLink[]
     signIn: CallToAction
     openMenu: string
     closeMenu: string
   }
   hero: {
-    eyebrow: string
     /** Rendered one per line inside the page's single <h1>. */
     headlineLines: string[]
     subtitle: string
