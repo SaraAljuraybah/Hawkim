@@ -14,7 +14,7 @@ export function Hero({ content }: HeroProps) {
     <section
       id="home"
       aria-labelledby="hero-title"
-      className="relative scroll-mt-20 overflow-hidden pt-14 pb-20 sm:pt-20 lg:pt-24 lg:pb-28"
+      className="relative scroll-mt-21 overflow-hidden pt-10 pb-14 sm:pt-14 lg:pt-16 lg:pb-16"
     >
       {/* Background decoration: soft maroon hexagons and thin gold lines */}
       <div aria-hidden="true" className="pointer-events-none absolute inset-0">
@@ -31,7 +31,8 @@ export function Hero({ content }: HeroProps) {
         </svg>
       </div>
 
-      <Container className="relative grid items-center gap-14 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] lg:gap-12 xl:gap-16">
+      {/* Text about 45%, the preview about 55% (it fills its column) */}
+      <Container className="relative grid items-center gap-12 lg:grid-cols-[minmax(0,45fr)_minmax(0,55fr)] lg:gap-12 xl:gap-16">
         {/* Text column */}
         <div>
           <h1 id="hero-title" className="text-5xl leading-[1.05] tracking-tight sm:text-6xl">

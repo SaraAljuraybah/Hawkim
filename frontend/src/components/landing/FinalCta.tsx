@@ -12,7 +12,7 @@ interface FinalCtaProps {
 export function FinalCta({ content }: FinalCtaProps) {
   return (
     <Section labelledBy="cta-title">
-      <div className="relative overflow-hidden rounded-2xl bg-maroon px-6 py-16 sm:px-12 lg:py-20">
+      <div className="relative overflow-hidden rounded-2xl bg-maroon px-6 py-12 sm:px-12 lg:py-16">
         {/* Decoration: faint hexagons and thin gold lines */}
         <div aria-hidden="true" className="pointer-events-none absolute inset-0">
           <HexFragment className="absolute -top-20 -right-16 size-80 text-maroon-secondary" strokeWidth={2} />
@@ -29,7 +29,7 @@ export function FinalCta({ content }: FinalCtaProps) {
             title={content.title}
             subtitle={content.text}
           />
-          <Button to={content.cta.href} variant="accent" size="lg" withArrow className="mt-10">
+          <Button to={content.cta.href} variant="accent" size="lg" withArrow className="mt-8">
             {content.cta.label}
           </Button>
         </div>

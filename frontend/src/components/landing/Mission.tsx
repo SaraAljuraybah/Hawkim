@@ -25,7 +25,7 @@ export function Mission({ content }: MissionProps) {
     >
       <div className="mx-auto max-w-4xl text-center">
         {/* Small geometric divider: gold line · gold hexagon · gold line */}
-        <div aria-hidden="true" className="mb-8 flex items-center justify-center gap-4">
+        <div aria-hidden="true" className="mb-6 flex items-center justify-center gap-4">
           <span className="h-px w-12 bg-gold" />
           <HexFragment open={false} className="size-6 text-gold" strokeWidth={1.75} />
           <span className="h-px w-12 bg-gold" />
