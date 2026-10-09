@@ -808,16 +808,6 @@ export interface UsersContent {
   deletedName: string
 }
 
-/* ---------- Sign In: demo accounts (development only) ---------- */
-
-export interface DemoAccountsContent {
-  title: string
-  note: string
-  /** Accessible name of each "use" button; `{name}` is replaced. */
-  useLabel: string
-  use: string
-}
-
 /* ---------- Loading state (while a page's code loads) ---------- */
 
 export interface LoadingContent {

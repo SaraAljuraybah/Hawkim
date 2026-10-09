@@ -184,6 +184,8 @@ npm run dev
 
 Then open the local URL printed in the terminal (usually http://localhost:5173).
 
+To sign in, use one of the sample accounts in [DEMO_ACCOUNTS.md](DEMO_ACCOUNTS.md) (any password works).
+
 ### Other commands
 
 ```bash
