@@ -225,7 +225,7 @@ export function SopWorkflowPage() {
             <MessageSquareWarning aria-hidden="true" className="size-5 text-status-rejected-fg" strokeWidth={1.75} />
             {content.feedback.title}
           </h2>
-          <p className="mt-1 mb-4 text-sm text-maroon">
+          <p className="mt-1 mb-4 max-w-[75ch] text-sm text-maroon">
             {content.feedback.description
               .replace('{name}', nameOf(returned.actorId))
               .replace('{role}', isApprover(sop, returned.actorId) ? content.roles.approver : content.roles.reviewer)

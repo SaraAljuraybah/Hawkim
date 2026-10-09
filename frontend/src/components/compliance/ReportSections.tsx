@@ -170,17 +170,17 @@ export function ExecutiveSummary({
             <Icon aria-hidden="true" className="size-4 shrink-0" strokeWidth={2.25} />
             {text.verdicts[verdict]}
           </p>
-          <p className="mt-2 text-[0.9375rem] font-medium text-maroon">{explanation}</p>
+          <p className="mt-2 max-w-[75ch] text-[0.9375rem] font-medium text-maroon">{explanation}</p>
           <p className="mt-1 text-sm text-text-gray">
             {content.summary.replace('{count}', String(counts.compliant)).replace('{total}', String(total))}
           </p>
-          <p className="mt-2 text-sm text-text-gray">{text.scoreNote}</p>
+          <p className="mt-2 max-w-[75ch] text-sm text-text-gray">{text.scoreNote}</p>
         </div>
       </div>
 
       {/* The summary sentence (not repeated when everything is compliant) */}
       {verdict !== 'fully-compliant' && (
-        <p className="mt-5 rounded-lg bg-beige/60 px-4 py-3 text-[0.9375rem] text-maroon">{summarySentence(check, status, text)}</p>
+        <p className="mt-5 max-w-[75ch] rounded-lg bg-beige/60 px-4 py-3 text-[0.9375rem] text-maroon">{summarySentence(check, status, text)}</p>
       )}
 
       {/* b) Metric tiles (problems first); 0 is shown but muted */}
@@ -393,7 +393,7 @@ export function FindingCard({ finding, content }: { finding: NumberedFinding; co
               .replace('{title}', requirement.sectionTitle)
               .replace('{page}', String(requirement.page))}
           </p>
-          <p className="mt-2 text-[0.9375rem] text-maroon">{requirement.summary}</p>
+          <p className="mt-2 max-w-[75ch] text-[0.9375rem] text-maroon">{requirement.summary}</p>
         </>
       )}
       <dl className="mt-4 space-y-3 text-sm">
@@ -403,12 +403,12 @@ export function FindingCard({ finding, content }: { finding: NumberedFinding; co
         </div>
         <div className="rounded-lg bg-beige/60 px-4 py-3 print:px-0 print:py-0">
           <dt className="font-medium text-maroon">{text.justification}</dt>
-          <dd className="mt-0.5 text-maroon">{finding.justification}</dd>
+          <dd className="mt-0.5 max-w-[75ch] text-maroon">{finding.justification}</dd>
         </div>
         {finding.recommendedAction && (
           <div>
             <dt className="font-medium text-maroon">{text.recommendedAction}</dt>
-            <dd className="mt-0.5 text-maroon">{finding.recommendedAction}</dd>
+            <dd className="mt-0.5 max-w-[75ch] text-maroon">{finding.recommendedAction}</dd>
           </div>
         )}
       </dl>

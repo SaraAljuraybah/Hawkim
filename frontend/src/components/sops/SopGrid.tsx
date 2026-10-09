@@ -19,7 +19,7 @@ export function SopGrid({ sops, content }: SopGridProps) {
   const { nameOf: departmentName } = useDepartments()
 
   return (
-    <ul className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+    <ul className="grid gap-5 md:grid-cols-2 xl:grid-cols-3 3xl:grid-cols-4">
       {sops.map((sop) => (
         <li key={sop.id}>
           <article className="relative flex h-full flex-col rounded-xl border border-beige bg-white p-5 transition-colors hover:border-maroon/30 has-[a:focus-visible]:outline-2 has-[a:focus-visible]:outline-offset-3 has-[a:focus-visible]:outline-maroon-secondary has-[a:focus-visible]:outline-solid sm:p-6">

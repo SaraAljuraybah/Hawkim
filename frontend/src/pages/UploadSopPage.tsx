@@ -118,7 +118,7 @@ export function UploadSopPage() {
       <h1 className="text-2xl tracking-tight sm:text-3xl">{content.title}</h1>
       <p className="mt-2 text-text-gray">{content.subtitle.replace('{department}', activeDepartment.name)}</p>
 
-      <div className="mt-8 max-w-3xl rounded-xl border border-beige bg-white p-5 sm:p-8">
+      <div className="mt-8 max-w-[45rem] rounded-xl border border-beige bg-white p-5 sm:p-8">
         <form noValidate onSubmit={handleSubmit} className="space-y-6">
           <TextField
             ref={titleRef}

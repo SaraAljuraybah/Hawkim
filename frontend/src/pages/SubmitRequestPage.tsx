@@ -171,7 +171,7 @@ export function SubmitRequestPage() {
       <h1 className="text-2xl tracking-tight sm:text-3xl">{content.title}</h1>
       <p className="mt-2 text-text-gray">{content.subtitle}</p>
 
-      <div className="mt-8 max-w-3xl rounded-xl border border-beige bg-white p-5 sm:p-8">
+      <div className="mt-8 max-w-[45rem] rounded-xl border border-beige bg-white p-5 sm:p-8">
         {submitted ? (
           /* Confirmation */
           <div role="status" className="flex flex-col items-center py-6 text-center">

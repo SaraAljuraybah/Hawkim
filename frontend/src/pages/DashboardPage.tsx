@@ -106,7 +106,8 @@ export function DashboardPage() {
 
         {/* Quick actions (about one-third) */}
         <Card title={content.quickActions.title} titleId="quick-actions-title">
-          <ul className="space-y-3">
+          {/* Buttons keep a sensible width on very wide screens */}
+          <ul className="max-w-md space-y-3">
             <li>
               <Button to={content.quickActions.primary.href} withArrow className="w-full">
                 {content.quickActions.primary.label}

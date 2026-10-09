@@ -64,7 +64,7 @@ export function WorkflowTimeline({ sop, content }: WorkflowTimelineProps) {
               <time dateTime={event.createdAt}>{formatDateTime(event.createdAt)}</time>
             </p>
             {event.note && (
-              <p className="mt-1.5 rounded-md bg-beige/60 px-3 py-2 text-sm text-maroon">
+              <p className="mt-1.5 max-w-[75ch] rounded-md bg-beige/60 px-3 py-2 text-sm text-maroon">
                 <span className="font-medium">{timeline.noteLabel}:</span> {event.note}
               </p>
             )}

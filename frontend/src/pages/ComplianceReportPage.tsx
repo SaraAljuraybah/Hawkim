@@ -317,7 +317,7 @@ function Report({ sop, backPath }: { sop: Sop; backPath: string }) {
 
           {/* f) Method and limitations */}
           <ReportSection id="method-title" title={text.method.title}>
-            <ul className="list-disc space-y-1.5 pl-5 text-sm text-maroon">
+            <ul className="max-w-[75ch] list-disc space-y-1.5 pl-5 text-sm text-maroon">
               {text.method.items.map((item) => (
                 <li key={item}>{item}</li>
               ))}
