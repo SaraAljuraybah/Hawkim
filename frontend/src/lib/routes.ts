@@ -10,6 +10,16 @@ export function mySopPath(sopId: string): string {
   return `/my-sops/${encodeURIComponent(sopId)}`
 }
 
+/** Path of an SOP's review page (its reviewers' and approvers' view). */
+export function reviewPath(sopId: string): string {
+  return `/reviews/${encodeURIComponent(sopId)}`
+}
+
+/** Path of an SOP's compliance report for its reviewers and approvers (read-only). */
+export function reviewCompliancePath(sopId: string): string {
+  return `${reviewPath(sopId)}/compliance`
+}
+
 /** Path of an SOP's compliance report (the author's and co-authors' view). */
 export function complianceReportPath(sopId: string): string {
   return `${mySopPath(sopId)}/compliance`
@@ -45,6 +55,22 @@ export function adminDepartmentPath(departmentId: string): string {
 /** The form to edit a department in the admin portal. */
 export function adminDepartmentEditPath(departmentId: string): string {
   return `${adminDepartmentPath(departmentId)}/edit`
+}
+
+/** The admin portal's requests list. */
+export const ADMIN_REQUESTS_PATH = '/admin/requests'
+
+/** A request's page in the admin portal, e.g. /admin/requests/req-004 */
+export function adminRequestPath(requestId: string): string {
+  return `${ADMIN_REQUESTS_PATH}/${encodeURIComponent(requestId)}`
+}
+
+/** The admin portal's regulations page. */
+export const ADMIN_REGULATIONS_PATH = '/admin/regulations'
+
+/** A GVP version's page in the admin portal, e.g. /admin/regulations/gvp-4-0 */
+export function adminRegulationPath(versionId: string): string {
+  return `${ADMIN_REGULATIONS_PATH}/${encodeURIComponent(versionId)}`
 }
 
 /** A user's page in the admin portal, e.g. /admin/users/user-sara */

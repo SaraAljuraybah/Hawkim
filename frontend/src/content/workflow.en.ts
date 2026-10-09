@@ -66,6 +66,7 @@ export const sopWorkflowEn: SopWorkflowContent = {
     authorOnly: 'Only the author, {name}, can submit this SOP.',
     checkWaiting: 'Waiting for the compliance check to finish.',
     checkNeeded: 'Run a compliance check for this version first.',
+    checkCurrentNeeded: 'Run a compliance check against GVP v{version} first.',
     recheck: 'Recheck compliance',
   },
 
@@ -99,6 +100,7 @@ export const sopWorkflowEn: SopWorkflowContent = {
       'stage-due-date-set': 'Due date set',
       'compliance-check-completed': 'Compliance check completed',
       'compliance-check-failed': 'Compliance check failed',
+      routed: 'Routed to another department',
     },
     by: 'by {name}',
     to: 'to {name}',
@@ -106,6 +108,7 @@ export const sopWorkflowEn: SopWorkflowContent = {
     stageDue: { review: 'Review due date set', approval: 'Approval due date set' },
     due: 'Due {date}',
     subject: 'Co-author: {name}',
+    department: 'Department: {name}',
   },
 
   dialogs: {

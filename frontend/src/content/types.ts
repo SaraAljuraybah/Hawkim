@@ -1,3 +1,4 @@
+import type { FileDropzoneText } from '../components/ui/FileDropzone'
 import type {
   ComplianceResult,
   DashboardStatKey,
@@ -31,6 +32,7 @@ export type IconName =
   | 'submitRequest'
   | 'mySops'
   | 'upload'
+  | 'reviews'
 
 export interface NavLink {
   label: string
@@ -189,8 +191,11 @@ export interface AppNavItem {
   icon: IconName
   /** Also show the item as active on pages below it (e.g. /requests/new under /requests). */
   matchSubpaths?: boolean
-  /** Only shown to users with this permission (e.g. 'author'); everyone sees items without one. */
-  permission?: Permission
+  /**
+   * Only shown to users with this permission (e.g. 'author'), or any of several
+   * (e.g. reviewer or approver); everyone sees items without one.
+   */
+  permission?: Permission | Permission[]
 }
 
 /** The sidebar's content (employee app and admin portal). */
@@ -210,10 +215,11 @@ export interface SidebarContent {
 export interface AppShellContent extends SidebarContent {
   /** Visually hidden link that lets keyboard users jump past the navigation. */
   skipLink: string
-  notificationsLabel: string
   openMenu: string
   /** Accessible name of the mobile navigation drawer. */
   drawerLabel: string
+  /** Accessible text of the My Reviews to-do count; `{count}` is replaced. */
+  reviewsToDoLabel: string
   departmentSwitcher: {
     /** Label before the department name (visible in the drawer, screen-reader only in the top bar). */
     label: string
@@ -400,6 +406,8 @@ export interface MySopsContent {
   uploadedMessage: string
   /** Label on SOPs the user co-authors. */
   coAuthorLabel: string
+  /** On SOPs last checked against an older GVP version. */
+  recheckLabel: string
 }
 
 export interface UploadSopContent {
@@ -504,6 +512,8 @@ export interface SopWorkflowContent {
     /** Why Submit / Resubmit is disabled: the check is running, or there's no completed check. */
     checkWaiting: string
     checkNeeded: string
+    /** The completed check used an older GVP version; `{version}` is the current one. */
+    checkCurrentNeeded: string
     /** Published SOPs: run a new check after the requirements change (PBI 29). */
     recheck: string
   }
@@ -532,6 +542,8 @@ export interface SopWorkflowContent {
     due: string
     /** For co-author events; `{name}` is replaced. */
     subject: string
+    /** For routed events: the new reviewer's department; `{name}` is replaced. */
+    department: string
   }
   dialogs: {
     cancel: string
@@ -615,6 +627,8 @@ export interface ComplianceContent {
     viewReport: string
     runAgain: string
     run: string
+    /** The SOP's newest check used an older GVP version (PBI 29). `{checked}` and `{current}` are replaced. */
+    recheck: { badge: string; note: string }
   }
   /** The compliance report page ("/my-sops/:id/compliance"), laid out as a formal report. */
   report: {
@@ -724,6 +738,8 @@ export interface ComplianceContent {
     method: { title: string; items: string[] }
     /** A new check is running for the shown (current) version; `{version}` is replaced. */
     outOfDate: string
+    /** The report used an older GVP version; `{checked}` and `{current}` are replaced. */
+    olderGuideline: string
     /** The selected version has no completed report; `{version}` is replaced. */
     running: string
     failed: string
@@ -790,6 +806,146 @@ export interface DemoAccountsContent {
   use: string
 }
 
+/* ---------- Notifications (bell in the employee top bar) ---------- */
+
+export interface NotificationsContent {
+  bellLabel: string
+  /** `{count}` is replaced. */
+  bellLabelUnread: string
+  title: string
+  markAllRead: string
+  empty: string
+  /** Visually hidden next to the unread dot. */
+  unread: string
+  /** Relative time under a minute. */
+  justNow: string
+  /** `{name}`, `{code}`, `{version}`, `{day}`, `{department}` and `{title}` are replaced. */
+  texts: {
+    submitted: string
+    resubmitted: string
+    routed: string
+    assignedApproval: string
+    readyToPublish: string
+    returned: string
+    approved: string
+    published: string
+    dueSoon: { review: string; approval: string }
+    days: { today: string; tomorrow: string }
+    overdue: { review: string; approval: string }
+    accessRequest: { approved: string; rejected: string }
+    request: { approved: string; rejected: string }
+  }
+}
+
+/* ---------- Reviews (reviewer and approver) ---------- */
+
+export type ReviewTabKey = 'todo' | 'waiting' | 'done'
+
+export interface ReviewsContent {
+  list: {
+    pageTitle: string
+    title: string
+    subtitle: string
+    tabsLabel: string
+    tabs: Record<ReviewTabKey, string>
+    empty: Record<ReviewTabKey, string>
+    /** Accessible name of the list. */
+    listLabel: string
+    /** `{name}` is replaced. */
+    author: string
+    /** `{role}` is replaced. */
+    yourRole: string
+    roles: { reviewer: string; approver: string }
+    needs: { review: string; approval: string; publish: string }
+    /** `{date}` is replaced. */
+    due: string
+    noDueDate: string
+    overdue: string
+  }
+  page: ReviewPageContent
+}
+
+/** A dialog with an optional or required comment. */
+export interface ReviewCommentDialog {
+  title: string
+  description: string
+  label: string
+  confirm: string
+}
+
+export interface ReviewPageContent {
+  /** `{code}` is replaced. */
+  pageTitle: string
+  back: LinkContent
+  /** `{name}` / `{names}` are replaced. */
+  author: string
+  coAuthors: string
+  /** `{date}` is replaced. */
+  due: string
+  overdue: string
+  file: {
+    title: string
+    download: string
+    /** `{code}` and `{title}` are replaced. */
+    viewerTitle: string
+    fallback: { text: string; openPdf: string; newTabHint: string }
+  }
+  compliance: {
+    title: string
+    none: string
+    running: string
+    /** Accessible name of the score; `{score}` is replaced. */
+    score: string
+    viewReport: string
+  }
+  actions: {
+    title: string
+    completeReview: string
+    returnToAuthor: string
+    route: string
+    approve: string
+    publish: string
+  }
+  /** When there's nothing for the user to do now. `{date}`, `{names}` are replaced. */
+  status: {
+    reviewCompleted: string
+    approved: string
+    waitingFor: string
+    waitingForReviews: string
+    returned: string
+    published: string
+  }
+  dialogs: {
+    cancel: string
+    /** `{count}` and `{max}` are replaced. */
+    counter: string
+    complete: ReviewCommentDialog
+    approve: ReviewCommentDialog
+    return: ReviewCommentDialog & { required: string }
+    route: {
+      title: string
+      description: string
+      pickerLabel: string
+      /** `{department}` is replaced with the SOP's department. */
+      pickerHint: string
+      required: string
+      noneEligible: string
+      noteLabel: string
+      confirm: string
+    }
+    /** `{code}` and `{department}` are replaced. */
+    publish: { title: string; description: string; confirm: string }
+  }
+  /** Shown after each action. `{name}` and `{department}` are replaced. */
+  messages: {
+    completed: string
+    returned: string
+    routed: string
+    approved: string
+    published: string
+  }
+}
+
 /* ---------- Admin portal ---------- */
 
 export interface AdminShellContent extends SidebarContent {
@@ -799,6 +955,8 @@ export interface AdminShellContent extends SidebarContent {
   drawerLabel: string
   /** Shown under the admin's name in the top bar. */
   roleLabel: string
+  /** Accessible text of the pending requests count in the sidebar; `{count}` is replaced. */
+  pendingLabel: string
 }
 
 export interface AdminContent {
@@ -813,6 +971,132 @@ export interface AdminContent {
   departmentsList: AdminDepartmentsListContent
   departmentForm: AdminDepartmentFormContent
   departmentDetails: AdminDepartmentDetailsContent
+  requestsList: AdminRequestsListContent
+  requestDetails: AdminRequestDetailsContent
+  regulations: AdminRegulationsContent
+  regulationForm: AdminRegulationFormContent
+  regulationDetails: AdminRegulationDetailsContent
+}
+
+/** Labels shared by the regulations pages for a GVP version's details. */
+export interface GuidelineVersionFields {
+  issued: string
+  effective: string
+  file: string
+  added: string
+  requirements: string
+  summary: string
+}
+
+export interface AdminRegulationsContent {
+  title: string
+  subtitle: string
+  addVersion: LinkContent
+  /** "GVP version {version}" */
+  versionName: string
+  /** Shown after adding a version; `{version}` is replaced. */
+  added: string
+  current: { title: string; badge: string }
+  fields: GuidelineVersionFields
+  /** `{name}` and `{date}` are replaced. */
+  addedBy: string
+  requirementsCount: CountText
+  viewRequirements: string
+  /** Accessible name of each "View requirements" link; `{version}` is replaced. */
+  viewRequirementsLabel: string
+  history: { title: string; empty: string }
+}
+
+export interface AdminRegulationFormContent {
+  title: string
+  subtitle: string
+  back: LinkContent
+  version: { label: string; hint: string }
+  issuedDate: { label: string }
+  effectiveDate: { label: string; hint: string }
+  file: FileDropzoneText
+  summary: { label: string; counter: string }
+  submit: string
+  cancel: string
+  errors: {
+    versionInvalid: string
+    /** `{current}` is replaced with the current version. */
+    versionNotHigher: string
+    effectiveRequired: string
+    issuedAfterEffective: string
+    fileRequired: string
+    fileNotPdf: string
+    summaryTooLong: string
+  }
+  /** `{version}` is replaced. */
+  dialog: { title: string; description: string; confirm: string; cancel: string }
+}
+
+export interface AdminRegulationDetailsContent {
+  back: LinkContent
+  details: { title: string }
+  requirements: {
+    title: string
+    tableLabel: string
+    columns: { id: string; module: string; section: string; title: string; page: string; summary: string }
+    /** `{page}` is replaced. */
+    page: string
+  }
+}
+
+export interface AdminRequestDetailsContent {
+  /** Browser tab title; `{title}` is replaced with the request's title. */
+  pageTitle: string
+  back: LinkContent
+  requester: { title: string; name: string; email: string; homeDepartment: string; userPage: string }
+  request: {
+    title: string
+    type: string
+    requestTitle: string
+    description: string
+    department: string
+    submitted: string
+    status: string
+  }
+  /** `{admin}` and `{date}` are replaced. */
+  decided: { approved: string; rejected: string }
+  respond: { title: string; approve: string; reject: string }
+  /** Why Approve or Reject can't be used. `{name}` and `{department}` are replaced. */
+  reasons: {
+    approved: string
+    rejected: string
+    cancelled: string
+    departmentRemoved: string
+    requesterDeleted: string
+  }
+  approveDialog: { title: string; access: string; change: string; confirm: string; cancel: string }
+  /** `description` names the requester; `deletedDescription` is used when their account was deleted. */
+  rejectDialog: { title: string; description: string; deletedDescription: string; confirm: string; cancel: string }
+  approvedNotice: string
+  rejectedNotice: string
+  /** For permission and role change requests: points to the user page link in the Requester section. */
+  changeHint: string
+}
+
+export type AdminRequestTabKey = 'pending' | 'approved' | 'rejected' | 'cancelled' | 'all'
+
+export interface AdminRequestsListContent {
+  title: string
+  subtitle: string
+  tabsLabel: string
+  tabs: Record<AdminRequestTabKey, string>
+  search: { label: string; placeholder: string }
+  count: CountText
+  /** Accessible name of the table. */
+  tableLabel: string
+  columns: { requester: string; title: string; type: string; department: string; submitted: string; status: string }
+  /** Shown instead of a department for requests that aren't about one. */
+  noDepartment: string
+  /** Visually hidden "Department requested:" before the department on phones. */
+  departmentLabel: string
+  empty: Record<AdminRequestTabKey, string>
+  /** When a search finds nothing in the tab. */
+  noMatches: string
 }
 
 export interface AdminDepartmentFormContent {

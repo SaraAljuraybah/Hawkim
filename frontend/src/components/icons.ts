@@ -8,6 +8,7 @@ import {
   FilePen,
   FilePlus,
   History,
+  ListChecks,
   LayoutDashboard,
   LogOut,
   ShieldCheck,
@@ -39,4 +40,5 @@ export const icons: Record<IconName, LucideIcon> = {
   submitRequest: FilePlus,
   mySops: FilePen,
   upload: Upload,
+  reviews: ListChecks,
 }

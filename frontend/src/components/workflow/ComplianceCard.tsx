@@ -2,9 +2,11 @@ import { useState } from 'react'
 import { ArrowRight, LoaderCircle } from 'lucide-react'
 import { ComplianceSummary, SampleBanner } from '../compliance/ComplianceSummary'
 import type { ComplianceContent } from '../../content/types'
-import { GVP_GUIDELINE } from '../../data/mock/compliance'
 import type { Sop } from '../../data/mock/types'
 import { currentCheck } from '../../lib/compliance'
+import { lastCheckedVersion, recheckRecommended } from '../../lib/guidelines'
+import { useGuidelines } from '../../state/guidelinesContext'
+import { RecheckBadge } from '../compliance/RecheckBadge'
 import { formatDateTime } from '../../lib/format'
 import { complianceReportPath } from '../../lib/routes'
 import { Button } from '../ui/Button'
@@ -26,6 +28,9 @@ export function ComplianceCard({ sop, content, canRun, onRun }: ComplianceCardPr
   const text = content.card
   const check = currentCheck(sop)
   const running = check?.status === 'running'
+  // Checked against an older GVP version than the current one (drafts, returned and published).
+  const currentGuideline = useGuidelines().current.version
+  const recheck = recheckRecommended(sop, currentGuideline)
 
   // Announce when a running check completes (the results themselves aren't read out).
   // A failure is announced by its own visible message (role="alert").
@@ -47,11 +52,22 @@ export function ComplianceCard({ sop, content, canRun, onRun }: ComplianceCardPr
     <div>
       <SampleBanner text={content.sampleBanner} />
 
+      {recheck && !running && (
+        <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2">
+          <RecheckBadge label={text.recheck.badge} />
+          <p className="text-sm text-maroon">
+            {text.recheck.note
+              .replace('{checked}', lastCheckedVersion(sop) ?? '')
+              .replace('{current}', currentGuideline)}
+          </p>
+        </div>
+      )}
+
       <div role="status" className="mt-4">
         {running ? (
           <p className="flex items-center gap-2.5 text-sm font-medium text-maroon">
             <LoaderCircle aria-hidden="true" className="size-5 shrink-0 motion-safe:animate-spin" strokeWidth={2} />
-            {text.running.replace('{version}', GVP_GUIDELINE.version)}
+            {text.running.replace('{version}', check.guideline.version)}
           </p>
         ) : (
           <span className="sr-only">{ended}</span>

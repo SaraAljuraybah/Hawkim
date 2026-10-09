@@ -1,4 +1,4 @@
-import type { Finding, Guideline, Requirement } from './types'
+import type { Finding, GuidelineVersion, Requirement } from './types'
 
 /*
  * Sample compliance data. The compliance service (BGE-M3 + Llama 3.1 8B against
@@ -6,14 +6,11 @@ import type { Finding, Guideline, Requirement } from './types'
  * TODO: Replace with requirements and results from the compliance service API.
  */
 
-/** The guideline SOPs are checked against. */
-export const GVP_GUIDELINE: Guideline = {
-  name: 'SFDA Guideline on Good Pharmacovigilance Practices (GVP)',
-  version: '4.0',
-}
+/** The one regulation Hawkim checks SOPs against (its versions are in the guidelines store). */
+export const GVP_NAME = 'SFDA Guideline on Good Pharmacovigilance Practices (GVP)'
 
 /** Requirements from GVP v4.0 (section numbers and pages as in the document; summaries paraphrased). */
-export const requirements: Requirement[] = [
+const gvp4Requirements: Requirement[] = [
   {
     id: 'R1',
     module: 'Module I',
@@ -62,10 +59,20 @@ export const requirements: Requirement[] = [
   },
 ]
 
-/** A requirement by id (undefined if unknown). */
-export function getRequirement(id: string): Requirement | undefined {
-  return requirements.find((requirement) => requirement.id === id)
-}
+/**
+ * The GVP versions the guidelines store starts with: only v4.0 (who added it, and
+ * when, isn't known, so it isn't recorded).
+ */
+export const sampleGuidelineVersions: GuidelineVersion[] = [
+  {
+    id: 'gvp-4-0',
+    version: '4.0',
+    issuedDate: '2015-05-27',
+    effectiveDate: '2015-09-01',
+    fileName: 'Drug-GVP4_0.pdf',
+    requirements: gvp4Requirements,
+  },
+]
 
 /**
  * The sample result set every check returns (same for every SOP).

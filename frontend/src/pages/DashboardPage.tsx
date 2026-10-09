@@ -10,7 +10,7 @@ import { getDashboardStats, recentActivity } from '../data/mock/dashboard'
 import type { ActivityKind } from '../data/mock/types'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { members } from '../lib/departmentAdmin'
-import { hasPermission } from '../lib/permissions'
+import { hasAnyPermission } from '../lib/permissions'
 import { useActiveDepartment } from '../state/activeDepartmentContext'
 import { useMyRequests } from '../state/requestsContext'
 import { useCurrentUser } from '../state/sessionContext'
@@ -114,7 +114,7 @@ export function DashboardPage() {
             </li>
             {/* Actions tied to a permission (e.g. Upload SOP for authors) only show for users who have it */}
             {content.quickActions.secondary
-              .filter((action) => !action.permission || hasPermission(user, action.permission))
+              .filter((action) => !action.permission || hasAnyPermission(user, action.permission))
               .map((action) => (
                 <li key={action.href}>
                   <Button to={action.href} variant="secondary" withArrow className="w-full">

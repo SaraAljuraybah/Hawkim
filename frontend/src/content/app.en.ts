@@ -16,14 +16,22 @@ export const appShellEn: AppShellContent = {
     { label: 'SOPs', href: '/sops', icon: 'sops', matchSubpaths: true },
     // Author permission only
     { label: 'My SOPs', href: '/my-sops', icon: 'mySops', matchSubpaths: true, permission: 'author' },
+    // Reviewer or Approver permission only
+    {
+      label: 'My Reviews',
+      href: '/reviews',
+      icon: 'reviews',
+      matchSubpaths: true,
+      permission: ['reviewer', 'approver'],
+    },
     { label: 'My Requests', href: '/requests', icon: 'requests', matchSubpaths: true },
     { label: 'Departments', href: '/departments', icon: 'departments' },
   ],
   signOut: { label: 'Sign Out', href: '/login', icon: 'signOut' },
-  notificationsLabel: 'Notifications',
   openMenu: 'Open menu',
   closeMenu: 'Close menu',
   drawerLabel: 'Navigation',
+  reviewsToDoLabel: '{count} to do',
   departmentSwitcher: {
     label: 'Department',
     menuLabel: 'Your departments',
@@ -51,6 +59,8 @@ export const dashboardEn: DashboardContent = {
     secondary: [
       // Author permission only (placed right after "Submit a Request")
       { label: 'Upload SOP', href: '/my-sops/upload', icon: 'upload', permission: 'author' },
+      // Reviewer or Approver permission only
+      { label: 'My Reviews', href: '/reviews', icon: 'reviews', permission: ['reviewer', 'approver'] },
       { label: 'View SOPs', href: '/sops', icon: 'sops' },
       { label: 'View Departments', href: '/departments', icon: 'departments' },
     ],

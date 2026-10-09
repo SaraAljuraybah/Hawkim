@@ -15,6 +15,7 @@ export const mySopsEn: MySopsContent = {
   empty: 'No SOPs here yet.',
   uploadedMessage: 'SOP uploaded as a draft.',
   coAuthorLabel: 'Co-author',
+  recheckLabel: 'Recheck recommended',
 }
 
 export const uploadSopEn: UploadSopContent = {

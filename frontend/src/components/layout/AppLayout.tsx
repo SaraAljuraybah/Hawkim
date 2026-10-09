@@ -2,8 +2,10 @@ import { useRef, useState, type ReactNode } from 'react'
 import { Outlet } from 'react-router-dom'
 import { appShellEn } from '../../content/app.en'
 import { useTopBarScrollPadding } from '../../hooks/useTopBarScrollPadding'
-import { hasPermission } from '../../lib/permissions'
+import { hasAnyPermission } from '../../lib/permissions'
+import { reviewTasks } from '../../lib/reviews'
 import { useCurrentUser } from '../../state/sessionContext'
+import { useSops } from '../../state/sopsContext'
 import { MobileDrawer } from './MobileDrawer'
 import { Sidebar } from './Sidebar'
 import { TopBar } from './TopBar'
@@ -18,10 +20,16 @@ export function AppLayout({ children }: { children?: ReactNode }) {
   // Items tied to a permission (e.g. My SOPs for authors) are only shown to users who have it.
   const content = {
     ...appShellEn,
-    nav: appShellEn.nav.filter((item) => !item.permission || hasPermission(user, item.permission)),
+    nav: appShellEn.nav.filter((item) => !item.permission || hasAnyPermission(user, item.permission)),
   }
 
   useTopBarScrollPadding()
+
+  // My Reviews shows how many reviews, approvals and publications wait for the user (none: no count).
+  const { sops } = useSops()
+  const toDo = reviewTasks(user.id, sops).filter((task) => task.group === 'todo').length
+  const badges =
+    toDo > 0 ? { '/reviews': { text: String(toDo), label: content.reviewsToDoLabel.replace('{count}', String(toDo)) } } : undefined
 
   const [drawerOpen, setDrawerOpen] = useState(false)
   const menuButtonRef = useRef<HTMLButtonElement>(null)
@@ -39,7 +47,7 @@ export function AppLayout({ children }: { children?: ReactNode }) {
 
       {/* Fixed sidebar — lg and up */}
       <div className="fixed inset-y-0 left-0 z-40 hidden w-60 border-r border-beige bg-white lg:block print:hidden">
-        <Sidebar content={content} />
+        <Sidebar content={content} badges={badges} />
       </div>
 
       {/* Slide-in drawer — below lg */}
@@ -54,6 +62,7 @@ export function AppLayout({ children }: { children?: ReactNode }) {
           onNavigate={closeDrawer}
           onClose={closeDrawer}
           departmentSwitcher={content.departmentSwitcher}
+          badges={badges}
         />
       </MobileDrawer>
 

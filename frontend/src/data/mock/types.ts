@@ -164,6 +164,7 @@ export type TimelineEventType =
   | 'stage-due-date-set'
   | 'compliance-check-completed'
   | 'compliance-check-failed'
+  | 'routed'
 
 /** One action in an SOP's workflow history (PBI 24). */
 export interface TimelineEvent {
@@ -175,6 +176,8 @@ export interface TimelineEvent {
   recipientIds?: string[]
   /** For co-author-added / co-author-removed: the co-author (User.id). */
   subjectId?: string
+  /** For routed: the department of the reviewer it was routed to (as it was then). */
+  departmentId?: DepartmentId
   /** For stage-due-date-set: which stage and its due date (ISO date and time). */
   stage?: 'review' | 'approval'
   dueAt?: string
@@ -222,6 +225,28 @@ export interface Finding {
 export interface Guideline {
   name: string
   version: string
+}
+
+/**
+ * One version of the SFDA GVP guideline (PBI 20). The latest one added is current;
+ * older versions are read-only history and can't be edited or deleted.
+ */
+export interface GuidelineVersion {
+  id: string
+  /** e.g. "4.0" */
+  version: string
+  /** ISO dates. */
+  issuedDate?: string
+  effectiveDate: string
+  /** The guideline document, e.g. "Drug-GVP4_0.pdf". */
+  fileName: string
+  /** What changed from the previous version. */
+  summary?: string
+  /** The admin who added it (User.id) and when (ISO date and time); unknown for the first version. */
+  addedById?: string
+  addedAt?: string
+  /** The requirements SOPs are checked against. */
+  requirements: Requirement[]
 }
 
 /** One compliance check of one SOP version; its report is kept (PBI 4). */
@@ -274,9 +299,14 @@ export interface UserRequest {
   /** Only for department-access requests: the department asked for. */
   departmentId?: DepartmentId
   description: string
-  /** ISO date, e.g. "2024-01-12" */
+  /** ISO date, e.g. "2024-01-12" (shown in My Requests). */
   createdAt: string
+  /** ISO date and time it was sent; only for requests sent in the app (the samples have just a date). */
+  submittedAt?: string
   status: Status
   /** Who sent it (User.id). */
   requesterId: string
+  /** The admin who approved or rejected it (User.id), and when (ISO date and time). */
+  decidedById?: string
+  decidedAt?: string
 }

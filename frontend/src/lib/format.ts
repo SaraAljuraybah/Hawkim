@@ -43,3 +43,25 @@ export function formatDateTime(isoDateTime: string, locale = 'en-US'): string {
     minute: '2-digit',
   }).format(new Date(isoDateTime))
 }
+
+const RELATIVE_UNITS: [Intl.RelativeTimeFormatUnit, number][] = [
+  ['year', 365 * 24 * 60 * 60],
+  ['month', 30 * 24 * 60 * 60],
+  ['week', 7 * 24 * 60 * 60],
+  ['day', 24 * 60 * 60],
+  ['hour', 60 * 60],
+  ['minute', 60],
+]
+
+/**
+ * How long ago `isoDateTime` was, e.g. "2 hours ago", "yesterday"; `justNow` under a minute.
+ * `now` is passed in (the notifications clock) so it stays pure.
+ */
+export function formatRelativeTime(isoDateTime: string, now: number, justNow: string, locale = 'en-US'): string {
+  const seconds = Math.round((new Date(isoDateTime).getTime() - now) / 1000)
+  const format = new Intl.RelativeTimeFormat(locale, { numeric: 'auto' })
+  for (const [unit, size] of RELATIVE_UNITS) {
+    if (Math.abs(seconds) >= size) return format.format(Math.trunc(seconds / size), unit)
+  }
+  return justNow
+}

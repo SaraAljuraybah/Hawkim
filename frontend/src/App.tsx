@@ -5,6 +5,8 @@ import { DashboardPage } from './pages/DashboardPage'
 import { DepartmentsPage } from './pages/DepartmentsPage'
 import { MyRequestsPage } from './pages/MyRequestsPage'
 import { MySopsPage } from './pages/MySopsPage'
+import { ReviewPage } from './pages/ReviewPage'
+import { ReviewsPage } from './pages/ReviewsPage'
 import { UploadSopPage } from './pages/UploadSopPage'
 import { SopDetailPage } from './pages/SopDetailPage'
 import { SopWorkflowPage } from './pages/SopWorkflowPage'
@@ -14,6 +16,11 @@ import { LandingPage } from './pages/LandingPage'
 import { NotFoundPage } from './pages/NotFoundPage'
 import { AddUserPage } from './pages/admin/AddUserPage'
 import { AdminDepartmentsPage } from './pages/admin/AdminDepartmentsPage'
+import { AdminRegulationsPage } from './pages/admin/AdminRegulationsPage'
+import { AdminRequestsPage } from './pages/admin/AdminRequestsPage'
+import { RegulationDetailsPage } from './pages/admin/RegulationDetailsPage'
+import { RegulationFormPage } from './pages/admin/RegulationFormPage'
+import { RequestDetailsPage } from './pages/admin/RequestDetailsPage'
 import { DepartmentDetailsPage } from './pages/admin/DepartmentDetailsPage'
 import { DepartmentFormPage } from './pages/admin/DepartmentFormPage'
 import { AdminUsersPage } from './pages/admin/AdminUsersPage'
@@ -22,6 +29,8 @@ import { SignInPage } from './pages/SignInPage'
 import { ADMIN_USERS_PATH } from './lib/routes'
 import { AdminArea, EmployeeArea } from './routes/guards'
 import { DepartmentsProvider } from './state/DepartmentsProvider'
+import { GuidelinesProvider } from './state/GuidelinesProvider'
+import { NotificationsProvider } from './state/NotificationsProvider'
 import { RequestsProvider } from './state/RequestsProvider'
 import { SessionProvider } from './state/SessionProvider'
 import { SopsProvider } from './state/SopsProvider'
@@ -42,19 +51,23 @@ function App() {
   }, [pathname, hash])
 
   return (
-    // Shared in-memory state: departments, users, who is signed in, requests and all
-    // SOPs. It lives above every route, so it survives signing out and in again.
-    <DepartmentsProvider>
-      <UsersProvider>
-        <SessionProvider>
-          <RequestsProvider>
-            <SopsProvider>
-              <AppRoutes />
-            </SopsProvider>
-          </RequestsProvider>
-        </SessionProvider>
-      </UsersProvider>
-    </DepartmentsProvider>
+    // Shared in-memory state: GVP versions, departments, users, who is signed in,
+    // requests, all SOPs and which notifications were read. It lives above every route, so it survives signing out and in.
+    <GuidelinesProvider>
+      <DepartmentsProvider>
+        <UsersProvider>
+          <SessionProvider>
+            <RequestsProvider>
+              <SopsProvider>
+                <NotificationsProvider>
+                  <AppRoutes />
+                </NotificationsProvider>
+              </SopsProvider>
+            </RequestsProvider>
+          </SessionProvider>
+        </UsersProvider>
+      </DepartmentsProvider>
+    </GuidelinesProvider>
   )
 }
 
@@ -75,6 +88,9 @@ function AppRoutes() {
         <Route path="/my-sops/upload" element={<UploadSopPage />} />
         <Route path="/my-sops/:id" element={<SopWorkflowPage />} />
         <Route path="/my-sops/:id/compliance" element={<ComplianceReportPage />} />
+        <Route path="/reviews" element={<ReviewsPage />} />
+        <Route path="/reviews/:id" element={<ReviewPage />} />
+        <Route path="/reviews/:id/compliance" element={<ComplianceReportPage audience="reviewer" />} />
         <Route path="/requests" element={<MyRequestsPage />} />
         <Route path="/requests/new" element={<SubmitRequestPage />} />
       </Route>
@@ -89,6 +105,11 @@ function AppRoutes() {
         <Route path="departments/new" element={<DepartmentFormPage />} />
         <Route path="departments/:id" element={<DepartmentDetailsPage />} />
         <Route path="departments/:id/edit" element={<DepartmentFormPage />} />
+        <Route path="requests" element={<AdminRequestsPage />} />
+        <Route path="requests/:id" element={<RequestDetailsPage />} />
+        <Route path="regulations" element={<AdminRegulationsPage />} />
+        <Route path="regulations/new" element={<RegulationFormPage />} />
+        <Route path="regulations/:id" element={<RegulationDetailsPage />} />
         <Route path="*" element={<NotFoundPage embedded />} />
       </Route>
 

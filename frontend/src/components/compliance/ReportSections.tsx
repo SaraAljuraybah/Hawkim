@@ -1,8 +1,7 @@
 import type { CSSProperties, MouseEvent, ReactNode } from 'react'
 import { CircleCheck, OctagonAlert, TriangleAlert, type LucideIcon } from 'lucide-react'
 import type { ComplianceContent } from '../../content/types'
-import { getRequirement } from '../../data/mock/compliance'
-import type { ComplianceCheck, ComplianceResult } from '../../data/mock/types'
+import type { ComplianceCheck, ComplianceResult, Requirement } from '../../data/mock/types'
 import type { SopStatus } from '../../types/status'
 import {
   complianceScore,
@@ -16,6 +15,7 @@ import {
   type Verdict,
 } from '../../lib/compliance'
 import { ComplianceBadge } from './ComplianceBadge'
+import { useReportRequirement } from './reportRequirements'
 
 type ReportText = ComplianceContent['report']
 
@@ -40,7 +40,11 @@ export function ReportSection({ id, title, children }: { id: string; title: stri
 }
 
 /** "R2 · I.B.10 Record management" */
-function requirementLabel(text: ReportText, requirementId: string): string {
+function requirementLabel(
+  text: ReportText,
+  requirementId: string,
+  getRequirement: (id: string) => Requirement | undefined,
+): string {
   const requirement = getRequirement(requirementId)
   if (!requirement) return requirementId
   return text.overview.requirementLabel
@@ -125,6 +129,7 @@ export function ExecutiveSummary({
   onJump: (event: MouseEvent<HTMLAnchorElement>, number: string) => void
 }) {
   const text = content.report.summary
+  const getRequirement = useReportRequirement()
   const counts = countResults(check)
   const total = check.findings.length
   const score = complianceScore(check)
@@ -302,6 +307,7 @@ export function RequirementsOverview({
   onJump: (event: MouseEvent<HTMLAnchorElement>, number: string) => void
 }) {
   const text = content.report.overview
+  const getRequirement = useReportRequirement()
   const link = (finding: NumberedFinding) => (
     <a
       href={`#finding-${finding.number}`}
@@ -333,7 +339,7 @@ export function RequirementsOverview({
           {findings.map((finding) => (
             <tr key={finding.id} className="border-b border-beige last:border-0 break-inside-avoid">
               <td className="py-2.5 pr-4 whitespace-nowrap">{link(finding)}</td>
-              <td className="py-2.5 pr-4 text-maroon">{requirementLabel(content.report, finding.requirementId)}</td>
+              <td className="py-2.5 pr-4 text-maroon">{requirementLabel(content.report, finding.requirementId, getRequirement)}</td>
               <td className="py-2.5">
                 <ComplianceBadge result={finding.result} labels={content.results} />
               </td>
@@ -350,7 +356,7 @@ export function RequirementsOverview({
               {link(finding)}
               <ComplianceBadge result={finding.result} labels={content.results} />
             </div>
-            <p className="mt-1 text-sm text-maroon">{requirementLabel(content.report, finding.requirementId)}</p>
+            <p className="mt-1 text-sm text-maroon">{requirementLabel(content.report, finding.requirementId, getRequirement)}</p>
           </li>
         ))}
       </ul>
@@ -362,7 +368,7 @@ export function RequirementsOverview({
 
 export function FindingCard({ finding, content }: { finding: NumberedFinding; content: ComplianceContent }) {
   const text = content.report.findings
-  const requirement = getRequirement(finding.requirementId)
+  const requirement = useReportRequirement()(finding.requirementId)
   const headingId = `finding-${finding.number}-title`
 
   return (
@@ -453,6 +459,7 @@ export function ChangesList({
   content: ComplianceContent
 }) {
   const text = content.report.changes
+  const getRequirement = useReportRequirement()
   const result = (value?: ComplianceResult) => (value ? content.results[value] : '—')
   return (
     <>
@@ -460,7 +467,7 @@ export function ChangesList({
       <ul className="mt-3 divide-y divide-beige text-sm">
         {changes.map((change) => (
           <li key={change.requirementId} className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 py-2.5 first:pt-0 last:pb-0">
-            <span className="font-medium text-maroon">{requirementLabel(content.report, change.requirementId)}</span>
+            <span className="font-medium text-maroon">{requirementLabel(content.report, change.requirementId, getRequirement)}</span>
             <span className="text-maroon">
               {change.kind === 'new' ? (
                 result(change.after)

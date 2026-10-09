@@ -17,6 +17,11 @@ interface SidebarProps {
    * has it on larger screens).
    */
   departmentSwitcher?: AppShellContent['departmentSwitcher']
+  /**
+   * A count after a nav item, by its href (e.g. pending requests in the admin portal):
+   * `text` is shown, `label` is what screen readers hear instead.
+   */
+  badges?: Record<string, { text: string; label: string }>
 }
 
 const itemBase =
@@ -27,7 +32,7 @@ const itemBase =
  * Used as the fixed desktop sidebar and inside the mobile drawer, in the employee
  * app and in the admin portal (with an "Admin" label after the product name).
  */
-export function Sidebar({ content, onNavigate, onClose, departmentSwitcher }: SidebarProps) {
+export function Sidebar({ content, onNavigate, onClose, departmentSwitcher, badges }: SidebarProps) {
   const SignOutIcon = icons[content.signOut.icon]
   const { signOut } = useSession()
   const homeHref = content.nav[0].href
@@ -92,6 +97,17 @@ export function Sidebar({ content, onNavigate, onClose, departmentSwitcher }: Si
                       )}
                       <Icon aria-hidden="true" className="size-5 shrink-0" strokeWidth={1.75} />
                       {item.label}
+                      {badges?.[item.href] && (
+                        <>
+                          <span
+                            aria-hidden="true"
+                            className="ml-auto inline-flex min-w-6 items-center justify-center rounded-full bg-maroon px-1.5 py-0.5 text-xs leading-none font-semibold text-offwhite"
+                          >
+                            {badges[item.href].text}
+                          </span>
+                          <span className="sr-only">, {badges[item.href].label}</span>
+                        </>
+                      )}
                     </>
                   )}
                 </NavLink>

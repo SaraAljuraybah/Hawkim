@@ -5,7 +5,9 @@ import * as compliance from '../lib/compliance'
 import { todayIsoDate } from '../lib/format'
 import { nextSopCode } from '../lib/sopCodes'
 import * as workflow from '../lib/workflow'
+import { useGuidelines } from './guidelinesContext'
 import { useSession } from './sessionContext'
+import { useUsers } from './usersContext'
 import { SopsContext, type NewDraft, type SopsStore } from './sopsContext'
 
 /**
@@ -18,6 +20,9 @@ import { SopsContext, type NewDraft, type SopsStore } from './sopsContext'
 export function SopsProvider({ children }: { children: ReactNode }) {
   // The signed-in user's id ('' when nobody is: their actions are then refused by the workflow rules).
   const userId = useSession().user?.id ?? ''
+  // New checks use the current GVP version; Submit and Resubmit need a check against it.
+  const guideline = useGuidelines().currentGuideline
+  const { getUser } = useUsers()
   const [sops, setSops] = useState<Sop[]>(seedSops)
   /*
    * The latest list, updated as soon as a change is applied. Actions read and
@@ -80,13 +85,13 @@ export function SopsProvider({ children }: { children: ReactNode }) {
     (sopId: string, transition: (sop: Sop) => Sop, afterUpload: boolean) => {
       let checkId = ''
       update(sopId, (sop) => {
-        const started = compliance.startCheck(transition(sop), { afterUpload })
+        const started = compliance.startCheck(transition(sop), guideline, { afterUpload })
         checkId = started.checkId
         return started.sop
       })
       scheduleCompletion(sopId, checkId)
     },
-    [update, scheduleCompletion],
+    [update, scheduleCompletion, guideline],
   )
 
   const addDraft = useCallback(
@@ -131,12 +136,12 @@ export function SopsProvider({ children }: { children: ReactNode }) {
         complianceChecks: [],
       }
       // Every upload starts a compliance check automatically.
-      const started = compliance.startCheck(created, { afterUpload: true })
+      const started = compliance.startCheck(created, guideline, { afterUpload: true })
       commit([started.sop, ...current])
       scheduleCompletion(started.sop.id, started.checkId)
       return started.sop
     },
-    [commit, scheduleCompletion, userId],
+    [commit, scheduleCompletion, userId, guideline],
   )
 
   const store = useMemo<SopsStore>(
@@ -145,25 +150,30 @@ export function SopsProvider({ children }: { children: ReactNode }) {
       addDraft,
       submitForReview: (id, o) =>
         update(id, (sop) =>
-          workflow.submitForReview(sop, userId, o.reviewerIds, o.approverIds, o.reviewDueDays, o.approvalDueDays, o.note),
+          workflow.submitForReview(sop, userId, guideline.version, o.reviewerIds, o.approverIds, o.reviewDueDays, o.approvalDueDays, o.note),
         ),
-      resubmit: (id, note) => update(id, (sop) => workflow.resubmit(sop, userId, note)),
+      resubmit: (id, note) => update(id, (sop) => workflow.resubmit(sop, userId, guideline.version, note)),
       replaceFile: (id, file) => updateAndCheck(id, (sop) => workflow.replaceFile(sop, userId, file), true),
       uploadNewVersion: (id, file) => updateAndCheck(id, (sop) => workflow.uploadNewVersion(sop, userId, file), true),
       addCoAuthors: (id, userIds) =>
         update(id, (sop) => userIds.reduce((next, userId) => workflow.addCoAuthor(next, userId, userId), sop)),
       removeCoAuthor: (id, userId) => update(id, (sop) => workflow.removeCoAuthor(sop, userId, userId)),
       runCheck: (id) => updateAndCheck(id, (sop) => sop, false),
-      completeReview: (id, reviewerId) => update(id, (sop) => workflow.completeReview(sop, reviewerId)),
+      completeReview: (id, reviewerId, text) => update(id, (sop) => workflow.completeReview(sop, reviewerId, text)),
       returnAsReviewer: (id, reviewerId, text) => update(id, (sop) => workflow.returnAsReviewer(sop, reviewerId, text)),
-      approveAs: (id, approverId) => update(id, (sop) => workflow.approveAs(sop, approverId)),
+      routeToReviewer: (id, reviewerId, newReviewerId, note) => {
+        const person = getUser(newReviewerId)
+        if (!person) throw new Error(`Unknown user ${newReviewerId}`)
+        update(id, (sop) => workflow.routeToReviewer(sop, reviewerId, person, note))
+      },
+      approveAs: (id, approverId, text) => update(id, (sop) => workflow.approveAs(sop, approverId, text)),
       returnAsApprover: (id, approverId, text) => update(id, (sop) => workflow.returnAsApprover(sop, approverId, text)),
       publishAs: (id, approverId) => update(id, (sop) => workflow.publishAs(sop, approverId)),
       shiftDueDates: (id, days) => update(id, (sop) => workflow.shiftDueDates(sop, days)),
       failNextCheck,
       setFailNextCheck,
     }),
-    [sops, addDraft, update, updateAndCheck, failNextCheck, setFailNextCheck, userId],
+    [sops, addDraft, update, updateAndCheck, failNextCheck, setFailNextCheck, userId, guideline.version, getUser],
   )
 
   return <SopsContext.Provider value={store}>{children}</SopsContext.Provider>

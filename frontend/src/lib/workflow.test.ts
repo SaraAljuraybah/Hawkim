@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { ComplianceCheck, Sop } from '../data/mock/types'
+import type { ComplianceCheck, Sop, User } from '../data/mock/types'
 import {
   addCoAuthor,
   approveAs,
@@ -10,6 +10,7 @@ import {
   resubmit,
   returnAsApprover,
   returnAsReviewer,
+  routeToReviewer,
   submitForReview,
   uploadNewVersion,
 } from './workflow'
@@ -27,6 +28,9 @@ const KHALID = 'khalid'
 
 const DAY_MS = 24 * 60 * 60 * 1000
 
+/** The current GVP version. */
+const GVP = '4.0'
+
 /** A completed compliance check of this version (it doesn't have to pass). */
 function completedCheck(version: string): ComplianceCheck {
   return {
@@ -36,7 +40,7 @@ function completedCheck(version: string): ComplianceCheck {
     status: 'completed',
     startedAt: '2026-01-01T09:00:00Z',
     completedAt: '2026-01-01T09:00:03Z',
-    guideline: { name: 'GVP', version: '1' },
+    guideline: { name: 'GVP', version: GVP },
     findings: [{ id: 'f1', requirementId: 'R1', result: 'conflict', justification: '' }],
   }
 }
@@ -67,7 +71,7 @@ function draft(overrides: Partial<Sop> = {}): Sop {
 
 /** Submitted to Noura and Faisal (reviewers) and Huda and Khalid (approvers), with 5 and 3 due days. */
 function inReview(): Sop {
-  return submitForReview(draft(), SARA, [NOURA, FAISAL], [HUDA, KHALID], 5, 3)
+  return submitForReview(draft(), SARA, GVP, [NOURA, FAISAL], [HUDA, KHALID], 5, 3)
 }
 
 /** Both reviewers completed: In Approval. */
@@ -80,16 +84,16 @@ const decisions = (people: { userId: string; decision: string }[]) =>
 
 describe('submitting for review', () => {
   it('needs a completed compliance check of the current version (a failing result is fine)', () => {
-    expect(() => submitForReview(draft({ complianceChecks: [] }), SARA, [NOURA], [HUDA], undefined, undefined)).toThrow(
+    expect(() => submitForReview(draft({ complianceChecks: [] }), SARA, GVP, [NOURA], [HUDA], undefined, undefined)).toThrow(
       /compliance check/,
     )
     const running: ComplianceCheck = { ...completedCheck('1.0'), status: 'running', findings: [] }
-    expect(() => submitForReview(draft({ complianceChecks: [running] }), SARA, [NOURA], [HUDA], undefined, undefined)).toThrow()
+    expect(() => submitForReview(draft({ complianceChecks: [running] }), SARA, GVP, [NOURA], [HUDA], undefined, undefined)).toThrow()
     const failed: ComplianceCheck = { ...completedCheck('1.0'), status: 'failed', findings: [] }
-    expect(() => submitForReview(draft({ complianceChecks: [failed] }), SARA, [NOURA], [HUDA], undefined, undefined)).toThrow()
+    expect(() => submitForReview(draft({ complianceChecks: [failed] }), SARA, GVP, [NOURA], [HUDA], undefined, undefined)).toThrow()
     // A check of an older version doesn't count.
     expect(() =>
-      submitForReview(draft({ version: '1.1', complianceChecks: [completedCheck('1.0')] }), SARA, [NOURA], [HUDA], undefined, undefined),
+      submitForReview(draft({ version: '1.1', complianceChecks: [completedCheck('1.0')] }), SARA, GVP, [NOURA], [HUDA], undefined, undefined),
     ).toThrow()
 
     const submitted = inReview()
@@ -99,8 +103,8 @@ describe('submitting for review', () => {
   })
 
   it('needs at least one reviewer and one approver', () => {
-    expect(() => submitForReview(draft(), SARA, [], [HUDA], undefined, undefined)).toThrow()
-    expect(() => submitForReview(draft(), SARA, [NOURA], [], undefined, undefined)).toThrow()
+    expect(() => submitForReview(draft(), SARA, GVP, [], [HUDA], undefined, undefined)).toThrow()
+    expect(() => submitForReview(draft(), SARA, GVP, [NOURA], [], undefined, undefined)).toThrow()
   })
 })
 
@@ -146,12 +150,12 @@ describe('resubmitting', () => {
 
   it('needs a new version uploaded since the return', () => {
     const returned = returnAsReviewer(inReview(), FAISAL, 'Fix section 4.')
-    expect(() => resubmit(returned, SARA)).toThrow(/new version/)
+    expect(() => resubmit(returned, SARA, GVP)).toThrow(/new version/)
   })
 
   it('resets every decision and keeps the same people and due days', () => {
     const before = readyToResubmit()
-    const again = resubmit(before, SARA)
+    const again = resubmit(before, SARA, GVP)
     expect(again.status).toBe('in-review')
     expect(again.version).toBe('1.1')
     expect(decisions(again.reviewers)).toEqual({ [NOURA]: 'pending', [FAISAL]: 'pending' })
@@ -163,18 +167,18 @@ describe('resubmitting', () => {
   it('needs a completed compliance check of the new version', () => {
     const returned = returnAsReviewer(inReview(), FAISAL, 'Fix section 4.')
     const updated = uploadNewVersion(returned, SARA, { fileName: 'SOP-001 v1.1.pdf', fileType: 'pdf' })
-    expect(() => resubmit(updated, SARA)).toThrow(/compliance check/)
+    expect(() => resubmit(updated, SARA, GVP)).toThrow(/compliance check/)
   })
 })
 
 describe('separation of duties', () => {
   it('never lets the author or a co-author review or approve', () => {
-    expect(() => submitForReview(draft(), SARA, [SARA], [HUDA], undefined, undefined)).toThrow()
-    expect(() => submitForReview(draft(), SARA, [NOURA], [REEM], undefined, undefined)).toThrow()
+    expect(() => submitForReview(draft(), SARA, GVP, [SARA], [HUDA], undefined, undefined)).toThrow()
+    expect(() => submitForReview(draft(), SARA, GVP, [NOURA], [REEM], undefined, undefined)).toThrow()
   })
 
   it('never lets the same person both review and approve', () => {
-    expect(() => submitForReview(draft(), SARA, [NOURA], [NOURA, HUDA], undefined, undefined)).toThrow()
+    expect(() => submitForReview(draft(), SARA, GVP, [NOURA], [NOURA, HUDA], undefined, undefined)).toThrow()
   })
 
   it('never adds a reviewer or approver as a co-author', () => {
@@ -185,7 +189,7 @@ describe('separation of duties', () => {
 
 describe('optional due dates', () => {
   it('has no due date, and is never overdue, when no due days were set', () => {
-    const submitted = submitForReview(draft(), SARA, [NOURA], [HUDA], undefined, undefined)
+    const submitted = submitForReview(draft(), SARA, GVP, [NOURA], [HUDA], undefined, undefined)
     expect(submitted.reviewDueAt).toBeUndefined()
     expect(isOverdue(submitted, 'review', Date.now() + 365 * DAY_MS)).toBe(false)
     const approval = completeReview(submitted, NOURA)
@@ -194,7 +198,7 @@ describe('optional due dates', () => {
   })
 
   it('is overdue after the due date, only while that stage is open', () => {
-    const submitted = submitForReview(draft(), SARA, [NOURA], [HUDA], 2, undefined)
+    const submitted = submitForReview(draft(), SARA, GVP, [NOURA], [HUDA], 2, undefined)
     expect(isOverdue(submitted, 'review', Date.now() + 1 * DAY_MS)).toBe(false)
     expect(isOverdue(submitted, 'review', Date.now() + 3 * DAY_MS)).toBe(true)
     expect(isOverdue(completeReview(submitted, NOURA), 'review', Date.now() + 3 * DAY_MS)).toBe(false)
@@ -202,9 +206,9 @@ describe('optional due dates', () => {
 
   it('accepts only whole numbers of days from 1 to 30', () => {
     for (const days of [0, 31, 1.5]) {
-      expect(() => submitForReview(draft(), SARA, [NOURA], [HUDA], days, undefined)).toThrow(/1 to 30/)
+      expect(() => submitForReview(draft(), SARA, GVP, [NOURA], [HUDA], days, undefined)).toThrow(/1 to 30/)
     }
-    expect(() => submitForReview(draft(), SARA, [NOURA], [HUDA], 1, 30)).not.toThrow()
+    expect(() => submitForReview(draft(), SARA, GVP, [NOURA], [HUDA], 1, 30)).not.toThrow()
   })
 })
 
@@ -218,7 +222,7 @@ describe('version numbering', () => {
 
 describe('invalid actions are refused', () => {
   it('only the main author submits (not a co-author)', () => {
-    expect(() => submitForReview(draft(), REEM, [NOURA], [HUDA], undefined, undefined)).toThrow()
+    expect(() => submitForReview(draft(), REEM, GVP, [NOURA], [HUDA], undefined, undefined)).toThrow()
   })
 
   it('only pending, assigned people decide, at their own stage', () => {
@@ -240,5 +244,84 @@ describe('invalid actions are refused', () => {
 
   it('a new version can only be uploaded after a return', () => {
     expect(() => uploadNewVersion(draft(), SARA, { fileName: 'x.pdf', fileType: 'pdf' })).toThrow()
+  })
+})
+
+describe('routing to another department (PBI 23)', () => {
+  /** A reviewer (by default from Pharmacovigilance; the SOP is in IT). */
+  function person(id: string, overrides: Partial<User> = {}): User {
+    return {
+      id,
+      name: id,
+      email: `${id}@hawkim.demo`,
+      initials: 'XX',
+      departmentId: 'pharmacovigilance',
+      permissions: ['reviewer'],
+      ...overrides,
+    }
+  }
+  const lama = person('lama')
+
+  it('adds a pending reviewer from another department; the SOP waits for them too', () => {
+    const submitted = inReview()
+    const routed = routeToReviewer(submitted, FAISAL, lama, '  Please check the PV parts.  ')
+    expect(decisions(routed.reviewers)).toEqual({ [NOURA]: 'pending', [FAISAL]: 'pending', lama: 'pending' })
+    expect(routed.reviewDueAt).toBe(submitted.reviewDueAt)
+    expect(routed.timeline.at(-1)).toMatchObject({
+      type: 'routed',
+      actorId: FAISAL,
+      recipientIds: ['lama'],
+      departmentId: 'pharmacovigilance',
+      note: 'Please check the PV parts.',
+    })
+    const bothDone = completeReview(completeReview(routed, NOURA), FAISAL)
+    expect(bothDone.status).toBe('in-review')
+    expect(completeReview(bothDone, 'lama').status).toBe('in-approval')
+  })
+
+  it('resets the routed reviewer on resubmit, like everyone else', () => {
+    const routed = completeReview(routeToReviewer(inReview(), FAISAL, lama), 'lama')
+    const returned = returnAsReviewer(routed, NOURA, 'Fix it.')
+    const updated = uploadNewVersion(returned, SARA, { fileName: 'v1.1.pdf', fileType: 'pdf' })
+    const again = resubmit({ ...updated, complianceChecks: [...updated.complianceChecks, completedCheck('1.1')] }, SARA, GVP)
+    expect(decisions(again.reviewers)).toEqual({ [NOURA]: 'pending', [FAISAL]: 'pending', lama: 'pending' })
+  })
+
+  it('is allowed for a reviewer who already completed their review, while the SOP is still In Review', () => {
+    const faisalDone = completeReview(inReview(), FAISAL)
+    const routed = routeToReviewer(faisalDone, FAISAL, lama)
+    expect(decisions(routed.reviewers)).toEqual({ [NOURA]: 'pending', [FAISAL]: 'completed', lama: 'pending' })
+    expect(routed.status).toBe('in-review')
+  })
+
+  it('is only for an assigned reviewer, while the SOP is In Review', () => {
+    expect(() => routeToReviewer(inReview(), HUDA, lama)).toThrow(/assigned reviewer/)
+    expect(() => routeToReviewer(inReview(), SARA, lama)).toThrow(/assigned reviewer/)
+    expect(() => routeToReviewer(inApproval(), NOURA, lama)).toThrow()
+    expect(() => routeToReviewer(draft(), NOURA, lama)).toThrow()
+  })
+
+  it('needs the Reviewer permission, another department and an active account', () => {
+    expect(() => routeToReviewer(inReview(), FAISAL, person('maha', { permissions: ['approver'] }))).toThrow()
+    expect(() => routeToReviewer(inReview(), FAISAL, person('reem2', { departmentId: 'information-technology' }))).toThrow()
+    expect(() => routeToReviewer(inReview(), FAISAL, person('gone', { deletedAt: '2026-01-01T00:00:00Z' }))).toThrow()
+  })
+
+  it('keeps separation of duties: never the author, a co-author, a reviewer or an approver', () => {
+    for (const id of [SARA, REEM, NOURA, HUDA]) {
+      expect(() => routeToReviewer(inReview(), FAISAL, person(id)), id).toThrow()
+    }
+  })
+})
+
+describe('optional comments with a decision', () => {
+  it('saves the comment with the reviewer or approver role, or nothing when empty', () => {
+    const reviewed = completeReview(inReview(), NOURA, '  Looks good.  ')
+    expect(reviewed.comments.map((comment) => [comment.authorUserId, comment.role, comment.text])).toEqual([
+      [NOURA, 'reviewer', 'Looks good.'],
+    ])
+    expect(completeReview(inReview(), NOURA, '   ').comments).toEqual([])
+    const approved = approveAs(inApproval(), HUDA, 'Approved for release.')
+    expect(approved.comments.at(-1)).toMatchObject({ authorUserId: HUDA, role: 'approver', text: 'Approved for release.' })
   })
 })

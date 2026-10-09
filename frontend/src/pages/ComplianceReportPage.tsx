@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState, type MouseEvent } from 'react'
 import { flushSync } from 'react-dom'
 import { Link, useParams } from 'react-router-dom'
-import { ArrowLeft, Download } from 'lucide-react'
+import { ArrowLeft, Download, RefreshCw } from 'lucide-react'
 import { SampleBanner } from '../components/compliance/ComplianceSummary'
+import { ReportRequirementsContext } from '../components/compliance/reportRequirements'
 import {
   ChangesList,
   ExecutiveSummary,
@@ -28,9 +29,10 @@ import {
 } from '../lib/compliance'
 import { formatDateTime } from '../lib/format'
 import { hasPermission } from '../lib/permissions'
-import { mySopPath } from '../lib/routes'
-import { isAuthorOrCoAuthor } from '../lib/workflow'
+import { mySopPath, reviewPath } from '../lib/routes'
+import { isApprover, isAuthorOrCoAuthor, isReviewer } from '../lib/workflow'
 import { useDepartments } from '../state/departmentsContext'
+import { useGuidelines } from '../state/guidelinesContext'
 import { useCurrentUser } from '../state/sessionContext'
 import { useSops } from '../state/sopsContext'
 import { useUsers } from '../state/usersContext'
@@ -45,31 +47,37 @@ type TabKey = 'all' | ComplianceResult
  * report: report details, executive summary, requirements overview, findings
  * (with recommended actions), changes since the previous version, and the method
  * and its limitations. Reports of earlier versions stay viewable, and "Download
- * PDF" prints it with a print stylesheet. Only the SOP's author and co-authors can
- * open it. Sample results for now.
+ * PDF" prints it with a print stylesheet. Sample results for now.
+ * - author:   "/my-sops/:id/compliance", for the SOP's author and co-authors;
+ * - reviewer: "/reviews/:id/compliance", read-only, for its reviewers and approvers.
  */
-export function ComplianceReportPage() {
+export function ComplianceReportPage({ audience = 'author' }: { audience?: 'author' | 'reviewer' }) {
   const { id } = useParams()
   // A new SOP starts fresh (its current version and the All filter).
-  return <ComplianceReport key={id} id={id} />
+  return <ComplianceReport key={id} id={id} audience={audience} />
 }
 
-function ComplianceReport({ id }: { id: string | undefined }) {
+function ComplianceReport({ id, audience }: { id: string | undefined; audience: 'author' | 'reviewer' }) {
   const text = complianceEn.report
   const { sops } = useSops()
   const user = useCurrentUser()
   const sop = sops.find((item) => item.id === id)
-  const allowed = !!sop && hasPermission(user, 'author') && isAuthorOrCoAuthor(sop, user.id)
+  const allowed =
+    !!sop &&
+    (audience === 'author'
+      ? hasPermission(user, 'author') && isAuthorOrCoAuthor(sop, user.id)
+      : isReviewer(sop, user.id) || isApprover(sop, user.id))
   useDocumentTitle(allowed ? text.pageTitle.replace('{code}', sop.code) : undefined)
 
   if (!allowed) return <NotFoundPage embedded />
-  return <Report sop={sop} />
+  return <Report sop={sop} backPath={audience === 'author' ? mySopPath(sop.id) : reviewPath(sop.id)} />
 }
 
-function Report({ sop }: { sop: Sop }) {
+function Report({ sop, backPath }: { sop: Sop; backPath: string }) {
   const content = complianceEn
   const text = content.report
   const { nameOf } = useUsers()
+  const { getRequirement, current: currentGuideline } = useGuidelines()
   const { nameOf: departmentName } = useDepartments()
 
   // Defaults to the current version; earlier versions' reports can be chosen.
@@ -164,7 +172,7 @@ function Report({ sop }: { sop: Sop }) {
   return (
     <div className="print-report">
       <Link
-        to={mySopPath(sop.id)}
+        to={backPath}
         className="inline-flex items-center gap-1.5 rounded-sm text-sm font-medium text-text-gray transition-colors hover:text-maroon print:hidden"
       >
         <ArrowLeft aria-hidden="true" className="size-4" strokeWidth={1.75} />
@@ -194,6 +202,16 @@ function Report({ sop }: { sop: Sop }) {
           value={version}
           onChange={(event) => setSelectedVersion(event.target.value)}
         />
+      )}
+
+      {/* Checked against an older GVP version (also printed) */}
+      {report && report.guideline.version !== currentGuideline.version && (
+        <p className="mt-6 flex items-start gap-2 rounded-lg border border-status-pending-fg/25 bg-status-pending-bg px-3.5 py-2.5 text-sm font-medium text-status-pending-fg print:mt-2">
+          <RefreshCw aria-hidden="true" className="mt-0.5 size-4 shrink-0" strokeWidth={2} />
+          {text.olderGuideline
+            .replace('{checked}', report.guideline.version)
+            .replace('{current}', currentGuideline.version)}
+        </p>
       )}
 
       {/* a) Report header */}
@@ -231,7 +249,8 @@ function Report({ sop }: { sop: Sop }) {
       )}
 
       {report && (
-        <>
+        // Requirements as in the GVP version this report was checked against.
+        <ReportRequirementsContext value={(requirementId) => getRequirement(report.guideline.version, requirementId)}>
           {/* b) Executive summary */}
           <ReportSection id="summary-title" title={text.summary.title}>
             <ExecutiveSummary
@@ -304,7 +323,7 @@ function Report({ sop }: { sop: Sop }) {
               ))}
             </ul>
           </ReportSection>
-        </>
+        </ReportRequirementsContext>
       )}
     </div>
   )
