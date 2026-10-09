@@ -1,30 +1,15 @@
-import { useEffect } from 'react'
+import { lazy, useEffect } from 'react'
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
-import { ComplianceReportPage } from './pages/ComplianceReportPage'
 import { DashboardPage } from './pages/DashboardPage'
 import { DepartmentsPage } from './pages/DepartmentsPage'
 import { MyRequestsPage } from './pages/MyRequestsPage'
 import { MySopsPage } from './pages/MySopsPage'
-import { ReviewPage } from './pages/ReviewPage'
 import { ReviewsPage } from './pages/ReviewsPage'
 import { UploadSopPage } from './pages/UploadSopPage'
-import { SopDetailPage } from './pages/SopDetailPage'
-import { SopWorkflowPage } from './pages/SopWorkflowPage'
 import { SopsPage } from './pages/SopsPage'
 import { SubmitRequestPage } from './pages/SubmitRequestPage'
 import { LandingPage } from './pages/LandingPage'
 import { NotFoundPage } from './pages/NotFoundPage'
-import { AddUserPage } from './pages/admin/AddUserPage'
-import { AdminDepartmentsPage } from './pages/admin/AdminDepartmentsPage'
-import { AdminRegulationsPage } from './pages/admin/AdminRegulationsPage'
-import { AdminRequestsPage } from './pages/admin/AdminRequestsPage'
-import { RegulationDetailsPage } from './pages/admin/RegulationDetailsPage'
-import { RegulationFormPage } from './pages/admin/RegulationFormPage'
-import { RequestDetailsPage } from './pages/admin/RequestDetailsPage'
-import { DepartmentDetailsPage } from './pages/admin/DepartmentDetailsPage'
-import { DepartmentFormPage } from './pages/admin/DepartmentFormPage'
-import { AdminUsersPage } from './pages/admin/AdminUsersPage'
-import { UserDetailsPage } from './pages/admin/UserDetailsPage'
 import { SignInPage } from './pages/SignInPage'
 import { ADMIN_USERS_PATH } from './lib/routes'
 import { AdminArea, EmployeeArea } from './routes/guards'
@@ -35,6 +20,29 @@ import { RequestsProvider } from './state/RequestsProvider'
 import { SessionProvider } from './state/SessionProvider'
 import { SopsProvider } from './state/SopsProvider'
 import { UsersProvider } from './state/UsersProvider'
+
+/*
+ * Route-based code splitting: the heavier pages and the whole admin portal load as
+ * separate chunks when first opened (the layouts show a loading state meanwhile).
+ * The landing page, sign-in and dashboard stay in the main bundle.
+ */
+const ComplianceReportPage = lazy(() => import('./pages/ComplianceReportPage').then((m) => ({ default: m.ComplianceReportPage })))
+const ReviewPage = lazy(() => import('./pages/ReviewPage').then((m) => ({ default: m.ReviewPage })))
+const SopDetailPage = lazy(() => import('./pages/SopDetailPage').then((m) => ({ default: m.SopDetailPage })))
+const SopWorkflowPage = lazy(() => import('./pages/SopWorkflowPage').then((m) => ({ default: m.SopWorkflowPage })))
+
+const adminPortal = () => import('./routes/adminPortal')
+const AddUserPage = lazy(() => adminPortal().then((m) => ({ default: m.AddUserPage })))
+const AdminDepartmentsPage = lazy(() => adminPortal().then((m) => ({ default: m.AdminDepartmentsPage })))
+const AdminRegulationsPage = lazy(() => adminPortal().then((m) => ({ default: m.AdminRegulationsPage })))
+const AdminRequestsPage = lazy(() => adminPortal().then((m) => ({ default: m.AdminRequestsPage })))
+const AdminUsersPage = lazy(() => adminPortal().then((m) => ({ default: m.AdminUsersPage })))
+const DepartmentDetailsPage = lazy(() => adminPortal().then((m) => ({ default: m.DepartmentDetailsPage })))
+const DepartmentFormPage = lazy(() => adminPortal().then((m) => ({ default: m.DepartmentFormPage })))
+const RegulationDetailsPage = lazy(() => adminPortal().then((m) => ({ default: m.RegulationDetailsPage })))
+const RegulationFormPage = lazy(() => adminPortal().then((m) => ({ default: m.RegulationFormPage })))
+const RequestDetailsPage = lazy(() => adminPortal().then((m) => ({ default: m.RequestDetailsPage })))
+const UserDetailsPage = lazy(() => adminPortal().then((m) => ({ default: m.UserDetailsPage })))
 
 /**
  * Client-side routes.

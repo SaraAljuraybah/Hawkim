@@ -1,4 +1,4 @@
-import { useRef, useState, type ReactNode } from 'react'
+import { Suspense, useRef, useState, type ReactNode } from 'react'
 import { Outlet } from 'react-router-dom'
 import { appShellEn } from '../../content/app.en'
 import { useTopBarScrollPadding } from '../../hooks/useTopBarScrollPadding'
@@ -6,6 +6,7 @@ import { hasAnyPermission } from '../../lib/permissions'
 import { reviewTasks } from '../../lib/reviews'
 import { useCurrentUser } from '../../state/sessionContext'
 import { useSops } from '../../state/sopsContext'
+import { PageLoading } from '../ui/PageLoading'
 import { MobileDrawer } from './MobileDrawer'
 import { Sidebar } from './Sidebar'
 import { TopBar } from './TopBar'
@@ -77,7 +78,8 @@ export function AppLayout({ children }: { children?: ReactNode }) {
         <main id="main" tabIndex={-1} className="flex-1 px-4 py-8 focus:outline-none sm:px-6 lg:px-10 lg:py-10 print:p-0">
           {/* Left-aligned next to the sidebar, capped at 1280px so lines stay readable on wide screens */}
           <div className="w-full max-w-7xl">
-            {children ?? <Outlet />}
+            {/* Pages loaded on demand show a loading state inside the shell */}
+            <Suspense fallback={<PageLoading />}>{children ?? <Outlet />}</Suspense>
           </div>
         </main>
       </div>

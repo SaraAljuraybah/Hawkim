@@ -1,11 +1,15 @@
+import { lazy, Suspense } from 'react'
 import { Navigate } from 'react-router-dom'
-import { AdminLayout } from '../components/layout/AdminLayout'
 import { AppLayout } from '../components/layout/AppLayout'
+import { PageLoading } from '../components/ui/PageLoading'
 import { hasPermission } from '../lib/permissions'
 import { ADMIN_USERS_PATH } from '../lib/routes'
 import { NotFoundPage } from '../pages/NotFoundPage'
 import { ActiveDepartmentProvider } from '../state/ActiveDepartmentProvider'
 import { useSession } from '../state/sessionContext'
+
+/** The admin portal's layout is in the admin chunk (see routes/adminPortal.ts). */
+const AdminLayout = lazy(() => import('./adminPortal').then((m) => ({ default: m.AdminLayout })))
 
 /** Where anyone who isn't signed in is sent. */
 const SIGN_IN_PATH = '/login'
@@ -46,5 +50,9 @@ export function AdminArea() {
       </ActiveDepartmentProvider>
     )
   }
-  return <AdminLayout />
+  return (
+    <Suspense fallback={<PageLoading fullScreen />}>
+      <AdminLayout />
+    </Suspense>
+  )
 }

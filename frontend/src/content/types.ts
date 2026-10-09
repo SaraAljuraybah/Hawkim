@@ -806,6 +806,12 @@ export interface DemoAccountsContent {
   use: string
 }
 
+/* ---------- Loading state (while a page's code loads) ---------- */
+
+export interface LoadingContent {
+  label: string
+}
+
 /* ---------- Notifications (bell in the employee top bar) ---------- */
 
 export interface NotificationsContent {
