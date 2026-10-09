@@ -14,8 +14,11 @@
  *   Gold text is only allowed on maroon (contrast ≈ 7:1).
  */
 @theme {
-  /* Very wide screens (card grids add a fourth column so cards don't get too wide) */
+  /* Wider screens: the app sidebar grows at 1440px (wide) and 1920px (ultra);
+     card grids add a fourth column from 1800px (3xl) so cards don't get too wide. */
+  --breakpoint-wide: 90rem;
   --breakpoint-3xl: 112.5rem;
+  --breakpoint-ultra: 120rem;
 
   /* Primary */
   --color-maroon: #3a0b18;

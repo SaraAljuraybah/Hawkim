@@ -47,7 +47,7 @@ export function AppLayout({ children }: { children?: ReactNode }) {
       </a>
 
       {/* Fixed sidebar — lg and up */}
-      <div className="fixed inset-y-0 left-0 z-40 hidden w-60 bg-maroon lg:block print:hidden">
+      <div className="fixed inset-y-0 left-0 z-40 hidden w-64 bg-maroon lg:block wide:w-72 ultra:w-80 print:hidden">
         <Sidebar content={content} badges={badges} />
       </div>
 
@@ -67,7 +67,7 @@ export function AppLayout({ children }: { children?: ReactNode }) {
         />
       </MobileDrawer>
 
-      <div className="flex min-h-dvh flex-col lg:pl-60 print:pl-0">
+      <div className="flex min-h-dvh flex-col lg:pl-64 wide:pl-72 ultra:pl-80 print:pl-0">
         <TopBar
           content={content}
           user={user}

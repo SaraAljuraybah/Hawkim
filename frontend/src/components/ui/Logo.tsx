@@ -1,10 +1,14 @@
 import fullLogo from '../../assets/brand/hawkim-logo-full.png'
 import markLogo from '../../assets/brand/hawkim-logo-mark.png'
+import markOnDarkLogo from '../../assets/brand/hawkim-mark-on-dark.png'
 
-type LogoVariant = 'full' | 'mark'
+type LogoVariant = 'full' | 'mark' | 'markOnDark'
 
 interface LogoProps {
-  /** `full` = mark + Arabic & English wordmark, `mark` = symbol only (for small spaces). */
+  /**
+   * `full` = mark + Arabic & English wordmark, `mark` = symbol only (for small spaces),
+   * `markOnDark` = the official on-dark symbol (off-white rings, gold centre) for maroon backgrounds.
+   */
   variant?: LogoVariant
   /** Accessible name. Pass an empty string when the logo is purely decorative. */
   alt: string
@@ -15,6 +19,7 @@ interface LogoProps {
 const sources: Record<LogoVariant, string> = {
   full: fullLogo,
   mark: markLogo,
+  markOnDark: markOnDarkLogo,
 }
 
 /**

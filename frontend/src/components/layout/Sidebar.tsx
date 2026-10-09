@@ -25,7 +25,7 @@ interface SidebarProps {
 }
 
 const itemBase =
-  'relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors'
+  'relative flex items-center gap-3 rounded-lg px-3 py-3 text-base font-medium transition-colors'
 /* Not the active item: light text with a subtle light overlay on hover. */
 const itemIdle = 'text-beige hover:bg-white/[0.06] hover:text-offwhite'
 /* Icons in light gold (8.84:1 on maroon; 6.84:1 on the active tint). */
@@ -47,7 +47,7 @@ export function Sidebar({ content, onNavigate, onClose, departmentSwitcher, badg
     // On maroon the default maroon focus ring would be invisible: use light gold (not
     // inside the white department menu that opens from the drawer).
     <div className="flex h-full flex-col bg-maroon [&_:focus-visible:not([role=menuitemradio])]:outline-gold-light">
-      <div className="flex items-center justify-between gap-2 px-5 pt-5 pb-5">
+      <div className="flex items-center justify-between gap-2 px-5 pt-6 pb-6">
         {/* Mark + product name; the link's accessible name comes from aria-label */}
         <Link
           to={homeHref}
@@ -55,13 +55,9 @@ export function Sidebar({ content, onNavigate, onClose, departmentSwitcher, badg
           aria-label={content.homeLinkLabel}
           className="inline-flex items-center gap-2.5 rounded-md"
         >
-          {/* The mark's dark parts would disappear on maroon and it can't be recoloured,
-              so it sits on a small light tile.
-              TODO: Use the official white logo variant once the design team provides it. */}
-          <span className="inline-flex rounded-lg bg-offwhite p-1">
-            <Logo variant="mark" alt="" className="h-7" />
-          </span>
-          <span className="text-[1.1875rem] font-semibold tracking-tight text-offwhite">{content.brandName}</span>
+          {/* The official on-dark mark (off-white rings, gold centre) for the maroon sidebar */}
+          <Logo variant="markOnDark" alt="" className="h-9" />
+          <span className="text-xl font-semibold tracking-tight text-offwhite">{content.brandName}</span>
           {content.portalLabel && (
             <span className="rounded-md bg-gold-light px-1.5 py-0.5 text-xs font-semibold text-maroon">
               {content.portalLabel}
@@ -87,7 +83,7 @@ export function Sidebar({ content, onNavigate, onClose, departmentSwitcher, badg
       )}
 
       <nav aria-label={content.navAriaLabel} className="flex flex-1 flex-col px-3 pb-5">
-        <ul className="space-y-1">
+        <ul className="space-y-1.5">
           {content.nav.map((item) => {
             const Icon = icons[item.icon]
             return (
