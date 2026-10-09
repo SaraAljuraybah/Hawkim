@@ -31,7 +31,7 @@ export function LandingPage() {
         {content.skipLink}
       </a>
 
-      <Navbar content={content.nav} request={request} />
+      <Navbar content={content.nav} />
 
       <main id="main" tabIndex={-1} className="overflow-x-clip focus:outline-none">
         <Hero content={content.hero} request={request} />

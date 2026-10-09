@@ -5,18 +5,15 @@ import type { LandingContent } from '../../content/types'
 import { Button } from '../ui/Button'
 import { Container } from '../ui/Container'
 import { Logo } from '../ui/Logo'
-import type { RequestLink } from './requestLink'
 
 interface NavbarProps {
   content: LandingContent['nav']
-  /** Request Hawkim: the primary button (opens an email); Sign In is secondary. */
-  request: RequestLink
 }
 
 const MOBILE_MENU_ID = 'mobile-menu'
 
 /** Sticky top navigation with a collapsible menu on small screens. */
-export function Navbar({ content, request }: NavbarProps) {
+export function Navbar({ content }: NavbarProps) {
   const [menuOpen, setMenuOpen] = useState(false)
   const toggleRef = useRef<HTMLButtonElement>(null)
 
@@ -84,9 +81,6 @@ export function Navbar({ content, request }: NavbarProps) {
 
         <div className="flex items-center gap-3">
           <div className="hidden items-center gap-3 lg:flex">
-            <Button href={request.href} size="lg">
-              {request.label}
-            </Button>
             <Button to={content.signIn.href} size="lg" variant="secondary">
               {content.signIn.label}
             </Button>
@@ -129,9 +123,6 @@ export function Navbar({ content, request }: NavbarProps) {
               ))}
             </ul>
           </nav>
-          <Button href={request.href} className="mt-3 w-full" onClick={closeMenu}>
-            {request.label}
-          </Button>
           <Button to={content.signIn.href} variant="secondary" className="mt-3 w-full" onClick={closeMenu}>
             {content.signIn.label}
           </Button>
