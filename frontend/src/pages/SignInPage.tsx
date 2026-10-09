@@ -141,13 +141,6 @@ export function SignInPage() {
               <Logo variant="full" alt={content.brand.logoAlt} className="h-60" />
             </Link>
             <span aria-hidden="true" className="mt-8 block h-0.5 w-10 bg-gold" />
-            <p className="mt-6 text-lg leading-relaxed text-text-gray">
-              {content.brand.taglineLines.map((line) => (
-                <span key={line} className="block">
-                  {line}
-                </span>
-              ))}
-            </p>
           </div>
 
           <p className="relative px-10 pt-6 pb-10 text-center text-[13px] leading-relaxed text-text-gray">
