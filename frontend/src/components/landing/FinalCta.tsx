@@ -3,16 +3,19 @@ import { Button } from '../ui/Button'
 import { HexFragment } from '../ui/HexFragment'
 import { Section } from '../ui/Section'
 import { SectionHeading } from '../ui/SectionHeading'
+import type { RequestLink } from './requestLink'
 
 interface FinalCtaProps {
   content: LandingContent['finalCta']
+  /** Request Hawkim (opens an email). */
+  request: RequestLink
 }
 
 /** Closing call to action on a maroon panel. */
-export function FinalCta({ content }: FinalCtaProps) {
+export function FinalCta({ content, request }: FinalCtaProps) {
   return (
     <Section labelledBy="cta-title">
-      <div className="relative overflow-hidden rounded-2xl bg-maroon px-6 py-16 sm:px-12 lg:py-20">
+      <div className="relative overflow-hidden rounded-2xl bg-maroon px-6 py-12 sm:px-12 lg:py-16">
         {/* Decoration: faint hexagons and thin gold lines */}
         <div aria-hidden="true" className="pointer-events-none absolute inset-0">
           <HexFragment className="absolute -top-20 -right-16 size-80 text-maroon-secondary" strokeWidth={2} />
@@ -29,8 +32,8 @@ export function FinalCta({ content }: FinalCtaProps) {
             title={content.title}
             subtitle={content.text}
           />
-          <Button to={content.cta.href} variant="accent" size="lg" withArrow className="mt-10">
-            {content.cta.label}
+          <Button href={request.href} variant="accent" size="lg" withArrow className="mt-8">
+            {request.label}
           </Button>
         </div>
       </div>

@@ -27,7 +27,7 @@ export function About({ content }: AboutProps) {
         subtitle={content.description}
       />
 
-      <ul className="mt-14 grid gap-6 md:grid-cols-3">
+      <ul className="mt-10 grid gap-6 md:grid-cols-3">
         {content.pillars.map((pillar) => (
           <li key={pillar.title}>
             <FeatureCard icon={icons[pillar.icon]} title={pillar.title} description={pillar.description} />

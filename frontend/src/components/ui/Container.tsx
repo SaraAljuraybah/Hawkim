@@ -5,7 +5,10 @@ interface ContainerProps {
   className?: string
 }
 
-/** Centres content with the site-wide max width and side gutters (16px on phones). */
+/**
+ * Centres landing page content with the site-wide max width (1440px) and side gutters:
+ * 24px on phones, 32px on tablets, 48px on desktop.
+ */
 export function Container({ children, className = '' }: ContainerProps) {
-  return <div className={`mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 ${className}`}>{children}</div>
+  return <div className={`mx-auto w-full max-w-[90rem] px-6 md:px-8 lg:px-12 ${className}`}>{children}</div>
 }

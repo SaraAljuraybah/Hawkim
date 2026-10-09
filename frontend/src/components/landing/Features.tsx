@@ -27,7 +27,7 @@ export function Features({ content }: FeaturesProps) {
         subtitle={content.subtitle}
       />
 
-      <ul className="mt-14 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+      <ul className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
         {content.items.map((feature) => (
           <li key={feature.title}>
             <FeatureCard icon={icons[feature.icon]} title={feature.title} description={feature.description} />

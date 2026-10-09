@@ -18,9 +18,9 @@ interface SectionProps {
 }
 
 /**
- * Page section with consistent vertical spacing.
- * `scroll-mt-20` stops the sticky navbar from covering the top of the section
- * when it is reached through an in-page link.
+ * Page section with consistent vertical spacing (56px on phones, 64px on tablets,
+ * 80px on desktop). `scroll-mt-21` stops the sticky navbar (80px plus its border)
+ * from covering the top of the section when it is reached through an in-page link.
  */
 export function Section({
   children,
@@ -36,7 +36,7 @@ export function Section({
       id={id}
       aria-labelledby={labelledBy}
       aria-label={ariaLabel}
-      className={`relative scroll-mt-20 py-20 lg:py-28 ${className}`}
+      className={`relative scroll-mt-21 py-14 md:py-16 lg:py-20 ${className}`}
     >
       {decoration && (
         <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">

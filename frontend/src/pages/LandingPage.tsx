@@ -7,6 +7,7 @@ import { Mission } from '../components/landing/Mission'
 import { Navbar } from '../components/landing/Navbar'
 import { landingEn } from '../content/landing.en'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
+import { mailtoHref } from '../lib/mailto'
 
 /**
  * Public landing page ("/").
@@ -16,6 +17,9 @@ import { useDocumentTitle } from '../hooks/useDocumentTitle'
 export function LandingPage() {
   const content = landingEn
   useDocumentTitle(content.pageTitle)
+
+  // Every "Request Hawkim" link opens the same prepared email.
+  const request = { label: content.request.label, href: mailtoHref(content.request) }
 
   return (
     <>
@@ -27,14 +31,14 @@ export function LandingPage() {
         {content.skipLink}
       </a>
 
-      <Navbar content={content.nav} logoAlt={content.brand.logoAlt} />
+      <Navbar content={content.nav} />
 
       <main id="main" tabIndex={-1} className="overflow-x-clip focus:outline-none">
-        <Hero content={content.hero} />
+        <Hero content={content.hero} request={request} />
         <About content={content.about} />
         <Features content={content.features} />
         <Mission content={content.mission} />
-        <FinalCta content={content.finalCta} />
+        <FinalCta content={content.finalCta} request={request} />
       </main>
 
       <Footer content={content.footer} logoAlt={content.brand.logoAlt} />

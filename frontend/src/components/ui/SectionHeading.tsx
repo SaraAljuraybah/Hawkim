@@ -32,7 +32,7 @@ export function SectionHeading({
   return (
     <div className={`${centered ? 'mx-auto max-w-3xl text-center' : 'max-w-2xl'} ${className}`}>
       {eyebrow && (
-        <Eyebrow centered={centered} tone={tone} className="mb-4">
+        <Eyebrow centered={centered} tone={tone} className="mb-3">
           {eyebrow}
         </Eyebrow>
       )}
@@ -43,7 +43,7 @@ export function SectionHeading({
         {title}
       </Heading>
       {subtitle && (
-        <p className={`mt-5 text-base leading-relaxed sm:text-lg ${dark ? 'text-beige' : 'text-text-gray'}`}>
+        <p className={`mt-4 text-base leading-relaxed sm:text-lg ${dark ? 'text-beige' : 'text-text-gray'}`}>
           {subtitle}
         </p>
       )}

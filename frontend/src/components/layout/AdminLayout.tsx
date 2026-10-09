@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { Suspense, useRef, useState } from 'react'
 import { Outlet } from 'react-router-dom'
 import { adminEn } from '../../content/admin.en'
 import { useTopBarScrollPadding } from '../../hooks/useTopBarScrollPadding'
@@ -7,6 +7,7 @@ import { ADMIN_REQUESTS_PATH } from '../../lib/routes'
 import { useRequests } from '../../state/requestsContext'
 import { useCurrentUser } from '../../state/sessionContext'
 import { AdminTopBar } from './AdminTopBar'
+import { PageLoading } from '../ui/PageLoading'
 import { MobileDrawer } from './MobileDrawer'
 import { Sidebar } from './Sidebar'
 
@@ -65,7 +66,10 @@ export function AdminLayout() {
         />
         <main id="main" tabIndex={-1} className="flex-1 px-4 py-8 focus:outline-none sm:px-6 lg:px-10 lg:py-10">
           <div className="w-full max-w-7xl">
-            <Outlet />
+            {/* Pages loaded on demand show a loading state inside the shell */}
+            <Suspense fallback={<PageLoading />}>
+              <Outlet />
+            </Suspense>
           </div>
         </main>
       </div>
