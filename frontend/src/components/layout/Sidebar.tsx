@@ -56,8 +56,8 @@ export function Sidebar({ content, onNavigate, onClose, departmentSwitcher, badg
           className="inline-flex items-center gap-2.5 rounded-md"
         >
           {/* The official on-dark mark (off-white rings, gold centre) for the maroon sidebar */}
-          <Logo variant="markOnDark" alt="" className="h-9" />
-          <span className="text-xl font-semibold tracking-tight text-offwhite">{content.brandName}</span>
+          <Logo variant="markOnDark" alt="" className="h-10" />
+          <span className="text-[1.375rem] font-semibold tracking-tight text-offwhite">{content.brandName}</span>
           {content.portalLabel && (
             <span className="rounded-md bg-gold-light px-1.5 py-0.5 text-xs font-semibold text-maroon">
               {content.portalLabel}
