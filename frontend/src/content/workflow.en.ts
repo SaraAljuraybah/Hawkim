@@ -49,9 +49,7 @@ export const sopWorkflowEn: SopWorkflowContent = {
   },
 
   file: {
-    title: 'Current file',
     types: { pdf: 'PDF', docx: 'Word document (.docx)' },
-    download: 'Download',
     viewInDirectory: 'View in SOPs directory',
   },
 
@@ -85,25 +83,16 @@ export const sopWorkflowEn: SopWorkflowContent = {
   },
 
   actions: {
-    title: 'Actions',
     submit: 'Submit for review',
-    resubmit: 'Resubmit for review',
+    response: 'Response',
     resubmitHint: 'Upload a new version with your changes before resubmitting.',
-    waiting: 'Waiting for {people}',
-    waitingDue: 'due {date}',
-    approvedWaiting: 'Approved — waiting to be published',
-    published: 'This SOP is published.',
     authorOnly: 'Only the author, {name}, can submit this SOP.',
     checkWaiting: 'Waiting for the compliance check to finish.',
     checkNeeded: 'Run a compliance check for this version first.',
     checkCurrentNeeded: 'Run a compliance check against GVP v{version} first.',
-    recheck: 'Recheck compliance',
   },
 
-  feedback: {
-    title: 'Feedback',
-    description: 'Returned by {name} ({role}) on {date} — v{version}.',
-  },
+  returnedNote: { text: 'Returned by {name} — see the comments in the {link}.', link: 'Review timeline' },
 
   comments: {
     title: 'Comments',
@@ -112,7 +101,11 @@ export const sopWorkflowEn: SopWorkflowContent = {
   },
 
   timeline: {
-    title: 'Timeline',
+    title: 'Review timeline',
+    columns: { action: 'Action', by: 'By', to: 'To', date: 'Date', version: 'Version', comment: 'Comment' },
+    none: 'None',
+    viewMore: 'View more',
+    viewLess: 'View less',
     events: {
       'version-uploaded': 'Version uploaded',
       'version-deleted': 'Version deleted',
@@ -132,9 +125,6 @@ export const sopWorkflowEn: SopWorkflowContent = {
       'compliance-check-failed': 'Compliance check failed',
       routed: 'Routed to another department',
     },
-    by: 'by {name}',
-    to: 'to {name}',
-    noteLabel: 'Note',
     stageDue: { review: 'Review due date set', approval: 'Approval due date set' },
     due: 'Due {date}',
     subject: 'Co-author: {name}',
@@ -206,6 +196,14 @@ export const sopWorkflowEn: SopWorkflowContent = {
       keep: 'Cancel',
       confirm: 'Remove co-author',
     },
+    response: {
+      title: 'Respond to comments',
+      description: 'Your response is added to the Review timeline and sent to {names}.',
+      label: 'Response',
+      required: 'Write a response.',
+      counter: '{count} / {max}',
+      confirm: 'Send response',
+    },
     resubmit: {
       title: 'Resubmit for review',
       description:
@@ -229,5 +227,6 @@ export const sopWorkflowEn: SopWorkflowContent = {
     coAuthorsAdded: 'Co-authors added.',
     coAuthorRemoved: '{name} removed as co-author.',
     checkStarted: 'Compliance check started.',
+    responseSent: 'Response sent.',
   },
 }

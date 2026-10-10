@@ -1,38 +1,37 @@
-import { lazy, Suspense, useRef, useState, type ReactNode } from 'react'
+import { lazy, Suspense, useRef, useState, type MouseEvent, type ReactNode } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { ArrowLeft, ArrowUpRight, CircleCheck, Download, FileText, MessageSquareWarning, ShieldCheck, Upload } from 'lucide-react'
+import { ArrowLeft, ArrowUpRight, CircleCheck, MessageSquareReply, ShieldCheck, Upload } from 'lucide-react'
 import { Button } from '../components/ui/Button'
 import { ConfirmDialog } from '../components/ui/ConfirmDialog'
 import { StatusBadge } from '../components/ui/StatusBadge'
 import { AddCoAuthorsDialog } from '../components/workflow/AddCoAuthorsDialog'
 import { ComplianceCard } from '../components/workflow/ComplianceCard'
-import { CommentItems, CommentList } from '../components/workflow/CommentList'
 import { FileDialog } from '../components/workflow/FileDialog'
 import { PeopleList } from '../components/workflow/PeopleList'
+import { personWithRole } from '../components/workflow/people'
 import { PreviewDialog } from '../components/workflow/PreviewDialog'
+import { ResponseDialog } from '../components/workflow/ResponseDialog'
 import { ResubmitDialog } from '../components/workflow/ResubmitDialog'
+import { ReviewTimelineTable } from '../components/workflow/ReviewTimelineTable'
 import { StatusTracker } from '../components/workflow/StatusTracker'
 import { SubmitDialog } from '../components/workflow/SubmitDialog'
 import { VersionHistory } from '../components/workflow/VersionHistory'
-import { WorkflowTimeline } from '../components/workflow/WorkflowTimeline'
 import { complianceEn } from '../content/compliance.en'
 import { sopWorkflowEn } from '../content/workflow.en'
-import type { Sop, SopVersion } from '../data/mock/types'
+import type { SopVersion } from '../data/mock/types'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { currentCheck, hasCurrentCheck, isCheckRunning } from '../lib/compliance'
-import { formatDate, formatDateTime, formatMonthDay } from '../lib/format'
+import { formatDate } from '../lib/format'
 import { hasPermission } from '../lib/permissions'
 import { sopPath } from '../lib/routes'
 import {
   activeVersions,
   canResubmit,
-  currentDueAt,
   deleteVersionBlocker,
-  isApprover,
   isAuthorOrCoAuthor,
   latestReturn,
   nextVersion,
-  pendingPeople,
+  responseRecipients,
   type UploadedFile,
 } from '../lib/workflow'
 import { useDepartments } from '../state/departmentsContext'
@@ -42,7 +41,7 @@ import { useSops } from '../state/sopsContext'
 import { useUsers } from '../state/usersContext'
 import { NotFoundPage } from './NotFoundPage'
 
-type DialogName = 'submit' | 'newVersion' | 'resubmit' | 'addCoAuthors'
+type DialogName = 'submit' | 'newVersion' | 'resubmit' | 'addCoAuthors' | 'response'
 
 /*
  * Development-only demo controls (simulated reviewer and approver actions).
@@ -50,11 +49,6 @@ type DialogName = 'submit' | 'newVersion' | 'resubmit' | 'addCoAuthors'
  * the panel (with its text) is left out of the bundle entirely.
  */
 const DemoPanel = import.meta.env.DEV ? lazy(() => import('../components/workflow/DemoPanel')) : null
-
-/** Download name for the current file, e.g. "SOP-083_v1.1.pdf". */
-function downloadName(sop: Sop) {
-  return `${sop.code}_v${sop.version}.${sop.fileType}`
-}
 
 /** Keeps the uploaded file in memory (object URL) so it can be downloaded in this session. */
 function toUploadedFile(file: File): UploadedFile {
@@ -75,12 +69,12 @@ interface SectionProps {
   actions?: ReactNode
 }
 
-/** A titled card section of the workflow page. */
+/** A titled card section of the workflow page. The heading can take focus (e.g. from the Returned note). */
 function Section({ id, title, children, className = '', actions }: SectionProps) {
   return (
     <section aria-labelledby={id} className={`rounded-xl border border-beige bg-white p-5 sm:p-6 ${className}`}>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <h2 id={id} tabIndex={-1} className="text-lg focus:outline-none focus-visible:outline-2">
+        <h2 id={id} tabIndex={-1} className="scroll-mt-24 rounded-sm text-lg">
           {title}
         </h2>
         {actions && <div className="flex flex-wrap gap-2">{actions}</div>}
@@ -91,10 +85,11 @@ function Section({ id, title, children, className = '', actions }: SectionProps)
 }
 
 /**
- * SOP workflow page ("/my-sops/:id"): the author's view of one SOP — status
- * tracker, current file, the actions allowed in this status, comments and the
- * review timeline (PBI 6, 8, 12, 22, 24). Only the SOP's author and co-authors can
- * open it; co-authors can work on the file but only the author submits.
+ * SOP workflow page ("/my-sops/:id"): the author's view of one SOP — workflow status,
+ * SOP history (versions), authors, compliance overview and the review timeline
+ * (PBI 6, 8, 12, 22, 24). Only the SOP's author and co-authors can open it;
+ * co-authors can upload versions and respond, but only the main author submits
+ * and deletes versions.
  */
 export function SopWorkflowPage() {
   const content = sopWorkflowEn
@@ -131,17 +126,26 @@ export function SopWorkflowPage() {
     setDialog(name)
   }
 
-  /**
-   * Focus goes back to the button that opened the dialog. If that button is gone
-   * (e.g. Submit for review after submitting), it goes to the status message area.
-   */
-  function closeDialog() {
-    setDialog(null)
+  /** Focus goes back to the button that opened the dialog, or to the status message area if it's gone. */
+  function returnFocus() {
     requestAnimationFrame(() => {
       const trigger = triggerRef.current
       if (trigger?.isConnected) trigger.focus()
       else statusRef.current?.focus()
     })
+  }
+
+  function closeDialog() {
+    setDialog(null)
+    returnFocus()
+  }
+
+  /** Closes the remove-co-author and delete-version confirmations and the preview. */
+  function closeOverlay() {
+    setRemovingId(null)
+    setDeleting(null)
+    setPreviewing(null)
+    returnFocus()
   }
 
   function announce(text: string) {
@@ -154,43 +158,41 @@ export function SopWorkflowPage() {
     })
   }
 
-  function closeRemove() {
-    setRemovingId(null)
-    setDeleting(null)
-    setPreviewing(null)
-    requestAnimationFrame(() => {
-      const trigger = triggerRef.current
-      if (trigger?.isConnected) trigger.focus()
-      else statusRef.current?.focus()
-    })
+  /** The Returned note's link: scroll to the Review timeline and move focus to its heading. */
+  function goToTimeline(event: MouseEvent<HTMLAnchorElement>) {
+    event.preventDefault()
+    const heading = document.getElementById('timeline-title')
+    if (!heading) return
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    heading.focus({ preventScroll: true })
+    heading.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' })
   }
 
-  // Everyone still to decide in the current stage, e.g. "Faisal Alharbi (Reviewer)", and the stage's due date.
-  const waitingFor = pendingPeople(sop)
-    .map((person) => `${nameOf(person.userId)} (${person.role === 'reviewer' ? content.roles.reviewer : content.roles.approver})`)
-    .join(', ')
-  const dueAt = currentDueAt(sop)
   const returned = sop.status === 'returned' ? latestReturn(sop) : undefined
-  const feedback = returned ? sop.comments.filter((comment) => comment.version === returned.version && comment.authorUserId === returned.actorId) : []
-  const resubmitReady = canResubmit(sop)
-  // A completed compliance check of the current version, against the current GVP version,
-  // is needed before submitting (it needn't pass).
+  const canUpload = sop.status === 'draft' || sop.status === 'returned'
+
+  // Submit for review: Submit when Draft, Resubmit when Returned (main author only).
+  // A completed compliance check of the current version, against the current GVP
+  // version, is needed (it needn't pass); a resubmit also needs a version uploaded after the return.
   const checkRunning = isCheckRunning(sop)
   const checkDone = hasCurrentCheck(sop, guidelines.current.version)
   // A completed check of this version, but against an older GVP version: it must be rerun.
   const checkedOlder = currentCheck(sop)?.status === 'completed'
-  const submitReason = checkDone
+  const checkReason = checkDone
     ? undefined
     : checkRunning
       ? actions.checkWaiting
       : checkedOlder
         ? actions.checkCurrentNeeded.replace('{version}', guidelines.current.version)
         : actions.checkNeeded
-  const resubmitReason = !resubmitReady ? actions.resubmitHint : submitReason
+  const submitReason = sop.status === 'returned' && !canResubmit(sop) ? actions.resubmitHint : checkReason
 
+  // Response: to everyone who commented in the latest round; not once published.
+  const recipients = sop.status === 'published' ? [] : responseRecipients(sop)
+
+  // Delete version: Draft or Returned, main author, at least one version left.
   const blocker = deleteVersionBlocker(sop, user.id)
   const deleteReason = blocker && content.history.deleteBlocked[blocker].replace('{name}', authorName)
-  const canUpload = sop.status === 'draft' || sop.status === 'returned'
   // When the current version is deleted, the newest remaining one becomes current.
   const previousVersion = deleting
     ? activeVersions(sop)
@@ -203,6 +205,8 @@ export function SopWorkflowPage() {
     store.runCheck(sopId)
     announce(content.messages.checkStarted)
   }
+
+  const [noteBefore, noteAfter] = content.returnedNote.text.split('{link}')
 
   return (
     <>
@@ -245,31 +249,25 @@ export function SopWorkflowPage() {
         )}
       </div>
 
-      {/* Feedback from the most recent return (PBI 8 / 12) */}
-      {returned && (
-        <section
-          aria-labelledby="feedback-title"
-          className="mt-6 rounded-xl border border-status-rejected-fg/25 bg-status-rejected-bg/50 p-5 sm:p-6"
-        >
-          <h2 id="feedback-title" className="flex items-center gap-2 text-lg">
-            <MessageSquareWarning aria-hidden="true" className="size-5 text-status-rejected-fg" strokeWidth={1.75} />
-            {content.feedback.title}
-          </h2>
-          <p className="mt-1 mb-4 max-w-[75ch] text-sm text-maroon">
-            {content.feedback.description
-              .replace('{name}', nameOf(returned.actorId))
-              .replace('{role}', isApprover(sop, returned.actorId) ? content.roles.approver : content.roles.reviewer)
-              .replace('{date}', formatDateTime(returned.createdAt))
-              .replace('{version}', returned.version)}
-          </p>
-          <CommentItems sop={sop} comments={feedback} content={content} />
-        </section>
-      )}
-
+      {/* 1. Workflow status */}
       <Section id="tracker-title" title={content.tracker.label} className="mt-6">
         <StatusTracker sop={sop} content={content.tracker} />
+        {returned && (
+          <p className="mt-5 border-t border-beige pt-4 text-sm text-maroon">
+            {noteBefore.replace('{name}', nameOf(returned.actorId))}
+            <a
+              href="#timeline-title"
+              onClick={goToTimeline}
+              className="rounded-sm font-medium underline underline-offset-2 hover:no-underline"
+            >
+              {content.returnedNote.link}
+            </a>
+            {noteAfter}
+          </p>
+        )}
       </Section>
 
+      {/* 2. SOP history */}
       <Section
         id="history-title"
         title={content.history.title}
@@ -292,6 +290,12 @@ export function SopWorkflowPage() {
               <ShieldCheck aria-hidden="true" className="size-4" strokeWidth={2} />
               {content.history.check}
             </Button>
+            {sop.status === 'published' && (
+              <Button size="sm" variant="secondary" to={sopPath(sop.id)}>
+                {content.file.viewInDirectory}
+                <ArrowUpRight aria-hidden="true" className="size-4" strokeWidth={2} />
+              </Button>
+            )}
           </>
         }
       >
@@ -317,6 +321,7 @@ export function SopWorkflowPage() {
         />
       </Section>
 
+      {/* 3. Authors */}
       <Section id="authors-title" title={content.people.authorsTitle} className="mt-6">
         <PeopleList
           authorsOnly
@@ -333,133 +338,50 @@ export function SopWorkflowPage() {
         />
       </Section>
 
-      {/* Compliance overview: only once the current version has a check */}
+      {/* 4. Compliance overview: only once the current version has a check */}
       {currentCheck(sop) && (
         <Section id="compliance-title" title={complianceEn.card.title} className="mt-6">
           <ComplianceCard sop={sop} content={complianceEn} />
         </Section>
       )}
 
-      <div className="mt-6 grid gap-6 lg:grid-cols-2">
-        {/* Current file */}
-        <Section id="file-title" title={content.file.title}>
-          <div className="flex items-start gap-3">
-            <span aria-hidden="true" className="inline-flex size-10 shrink-0 items-center justify-center rounded-lg bg-maroon/[0.07] text-maroon">
-              <FileText className="size-5" strokeWidth={1.75} />
-            </span>
-            <div className="min-w-0">
-              <p className="text-sm font-medium break-all text-maroon">{sop.fileName}</p>
-              <p className="mt-0.5 text-sm text-text-gray">
-                {content.file.types[sop.fileType]} · {content.versionTemplate.replace('{version}', sop.version)}
-              </p>
-            </div>
-          </div>
-          <div className="mt-4 flex flex-wrap gap-3">
-            {/* Sample SOPs without a real file show the name only (TODO: files from the backend). */}
-            {sop.fileUrl && (
-              <Button href={sop.fileUrl} download={downloadName(sop)} size="sm" variant="secondary">
-                <Download aria-hidden="true" className="size-4" strokeWidth={2} />
-                {content.file.download}
-              </Button>
-            )}
-            {sop.status === 'published' && (
-              <Button to={sopPath(sop.id)} size="sm" variant="secondary">
-                {content.file.viewInDirectory}
-                <ArrowUpRight aria-hidden="true" className="size-4" strokeWidth={2} />
-              </Button>
-            )}
-          </div>
-        </Section>
-
-        {/* Actions allowed in this status */}
-        <Section id="actions-title" title={actions.title}>
-          {sop.status === 'draft' && (
-            <div className="space-y-3">
-              <div className="flex flex-col gap-3 sm:flex-row">
-                {isMainAuthor && (
-                  <Button
-                    disabled={!!submitReason}
-                    aria-describedby={submitReason ? 'submit-hint' : undefined}
-                    onClick={(event) => open('submit', event.currentTarget)}
-                  >
-                    {actions.submit}
-                  </Button>
-                )}
-              </div>
-              {isMainAuthor && submitReason && (
-                <p id="submit-hint" className="text-sm text-text-gray">
-                  {submitReason}
-                </p>
+      {/* 5. Review timeline, with Response and Submit for review */}
+      <Section
+        id="timeline-title"
+        title={content.timeline.title}
+        className="mt-6"
+        actions={
+          (recipients.length > 0 || (isMainAuthor && canUpload)) && (
+            <>
+              {recipients.length > 0 && (
+                <Button size="sm" variant="secondary" onClick={(event) => open('response', event.currentTarget)}>
+                  <MessageSquareReply aria-hidden="true" className="size-4" strokeWidth={2} />
+                  {actions.response}
+                </Button>
               )}
-              {!isMainAuthor && <p className="text-sm text-text-gray">{actions.authorOnly.replace('{name}', authorName)}</p>}
-            </div>
-          )}
-
-          {sop.status === 'returned' && (
-            <div className="space-y-3">
-              <div className="flex flex-col gap-3 sm:flex-row">
-                {isMainAuthor && (
-                  <Button
-                    disabled={!!resubmitReason}
-                    aria-describedby={resubmitReason ? 'resubmit-hint' : undefined}
-                    onClick={(event) => open('resubmit', event.currentTarget)}
-                  >
-                    {actions.resubmit}
-                  </Button>
-                )}
-              </div>
-              {isMainAuthor && resubmitReason && (
-                <p id="resubmit-hint" className="text-sm text-text-gray">
-                  {resubmitReason}
-                </p>
+              {isMainAuthor && canUpload && (
+                <Button
+                  size="sm"
+                  disabled={!!submitReason}
+                  aria-describedby={submitReason ? 'submit-hint' : undefined}
+                  onClick={(event) => open(sop.status === 'returned' ? 'resubmit' : 'submit', event.currentTarget)}
+                >
+                  {actions.submit}
+                </Button>
               )}
-              {!isMainAuthor && <p className="text-sm text-text-gray">{actions.authorOnly.replace('{name}', authorName)}</p>}
-            </div>
-          )}
-
-          {(sop.status === 'in-review' || sop.status === 'in-approval') && (
-            <p className="text-sm text-text-gray">
-              {actions.waiting.replace('{people}', waitingFor)}
-              {dueAt && (
-                <>
-                  <span aria-hidden="true"> · </span>
-                  <span className="sr-only">, </span>
-                  {actions.waitingDue.split('{date}')[0]}
-                  <time dateTime={dueAt}>{formatMonthDay(dueAt)}</time>
-                  {actions.waitingDue.split('{date}')[1]}
-                </>
-              )}
-            </p>
-          )}
-          {sop.status === 'approved' && <p className="text-sm text-text-gray">{actions.approvedWaiting}</p>}
-          {sop.status === 'published' && (
-            <div className="space-y-3">
-              <p className="text-sm text-text-gray">{actions.published}</p>
-              <Button
-                variant="secondary"
-                disabled={checkRunning}
-                aria-describedby={checkRunning ? 'recheck-hint' : undefined}
-                onClick={runCheck}
-              >
-                {actions.recheck}
-              </Button>
-              {checkRunning && (
-                <p id="recheck-hint" className="text-sm text-text-gray">
-                  {actions.checkWaiting}
-                </p>
-              )}
-            </div>
-          )}
-
-        </Section>
-      </div>
-
-      <Section id="comments-title" title={content.comments.title} className="mt-6">
-        <CommentList sop={sop} content={content} />
-      </Section>
-
-      <Section id="timeline-title" title={content.timeline.title} className="mt-6">
-        <WorkflowTimeline sop={sop} content={content} />
+            </>
+          )
+        }
+      >
+        {canUpload && isMainAuthor && submitReason && (
+          <p id="submit-hint" className="mb-4 text-sm text-text-gray">
+            {submitReason}
+          </p>
+        )}
+        {canUpload && !isMainAuthor && (
+          <p className="mb-4 text-sm text-text-gray">{actions.authorOnly.replace('{name}', authorName)}</p>
+        )}
+        <ReviewTimelineTable sop={sop} content={content} />
       </Section>
 
       {DemoPanel && (
@@ -480,6 +402,17 @@ export function SopWorkflowPage() {
           }}
         />
       )}
+      {dialog === 'resubmit' && (
+        <ResubmitDialog
+          sop={sop}
+          content={dialogs}
+          onClose={closeDialog}
+          onSubmit={() => {
+            store.resubmit(sop.id)
+            announce(content.messages.resubmitted)
+          }}
+        />
+      )}
       {dialog === 'newVersion' && (
         <FileDialog
           content={dialogs}
@@ -494,37 +427,15 @@ export function SopWorkflowPage() {
           }}
         />
       )}
-      <ConfirmDialog
-        open={deleting !== null}
-        title={dialogs.deleteVersion.title.replace('{version}', deleting?.version ?? '')}
-        description={[
-          dialogs.deleteVersion.description.replaceAll('{version}', deleting?.version ?? ''),
-          ...(deleting?.version === sop.version && previousVersion
-            ? [dialogs.deleteVersion.currentNote.replace('{previous}', previousVersion.version)]
-            : []),
-        ].join(' ')}
-        cancelLabel={dialogs.deleteVersion.keep}
-        confirmLabel={dialogs.deleteVersion.confirm}
-        onCancel={closeRemove}
-        onConfirm={() => {
-          if (!deleting) return
-          const version = deleting.version
-          store.deleteVersion(sop.id, version)
-          closeRemove()
-          announce(content.messages.versionDeleted.replace('{version}', version))
-        }}
-      />
-      {previewing?.fileUrl && (
-        <PreviewDialog
-          title={content.history.previewTitle.replace('{code}', sop.code).replace('{version}', previewing.version)}
-          url={previewing.fileUrl}
-          viewerTitle={content.history.viewerTitle
-            .replace('{code}', sop.code)
-            .replace('{title}', sop.title)
-            .replace('{version}', previewing.version)}
-          closeLabel={content.history.close}
-          fallback={content.history.fallback}
-          onClose={closeRemove}
+      {dialog === 'response' && (
+        <ResponseDialog
+          content={dialogs}
+          recipients={recipients.map((recipient) => personWithRole(sop, recipient, content.roles, nameOf)).join(', ')}
+          onClose={closeDialog}
+          onSubmit={(text) => {
+            store.addResponse(sop.id, text)
+            announce(content.messages.responseSent)
+          }}
         />
       )}
       {dialog === 'addCoAuthors' && (
@@ -544,24 +455,46 @@ export function SopWorkflowPage() {
         description={dialogs.removeCoAuthor.description.replace('{name}', nameOf(removingId ?? undefined))}
         cancelLabel={dialogs.removeCoAuthor.keep}
         confirmLabel={dialogs.removeCoAuthor.confirm}
-        onCancel={closeRemove}
+        onCancel={closeOverlay}
         onConfirm={() => {
           if (!removingId) return
           const name = nameOf(removingId)
           store.removeCoAuthor(sop.id, removingId)
-          closeRemove()
+          closeOverlay()
           announce(content.messages.coAuthorRemoved.replace('{name}', name))
         }}
       />
-      {dialog === 'resubmit' && (
-        <ResubmitDialog
-          sop={sop}
-          content={dialogs}
-          onClose={closeDialog}
-          onSubmit={() => {
-            store.resubmit(sop.id)
-            announce(content.messages.resubmitted)
-          }}
+      <ConfirmDialog
+        open={deleting !== null}
+        title={dialogs.deleteVersion.title.replace('{version}', deleting?.version ?? '')}
+        description={[
+          dialogs.deleteVersion.description.replaceAll('{version}', deleting?.version ?? ''),
+          ...(deleting?.version === sop.version && previousVersion
+            ? [dialogs.deleteVersion.currentNote.replace('{previous}', previousVersion.version)]
+            : []),
+        ].join(' ')}
+        cancelLabel={dialogs.deleteVersion.keep}
+        confirmLabel={dialogs.deleteVersion.confirm}
+        onCancel={closeOverlay}
+        onConfirm={() => {
+          if (!deleting) return
+          const version = deleting.version
+          store.deleteVersion(sop.id, version)
+          closeOverlay()
+          announce(content.messages.versionDeleted.replace('{version}', version))
+        }}
+      />
+      {previewing?.fileUrl && (
+        <PreviewDialog
+          title={content.history.previewTitle.replace('{code}', sop.code).replace('{version}', previewing.version)}
+          url={previewing.fileUrl}
+          viewerTitle={content.history.viewerTitle
+            .replace('{code}', sop.code)
+            .replace('{title}', sop.title)
+            .replace('{version}', previewing.version)}
+          closeLabel={content.history.close}
+          fallback={content.history.fallback}
+          onClose={closeOverlay}
         />
       )}
     </>

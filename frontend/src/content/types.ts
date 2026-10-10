@@ -503,9 +503,8 @@ export interface SopWorkflowContent {
     decisions: { pending: string; completed: string; approved: string; returned: string }
   }
   file: {
-    title: string
     types: Record<SopFileType, string>
-    download: string
+    /** Published SOPs: a link to the SOP in the directory (in SOP history). */
     viewInDirectory: string
   }
   /** SOP history: every version, with Preview, Download and Delete. */
@@ -533,17 +532,12 @@ export interface SopWorkflowContent {
     close: string
     fallback: { text: string; openPdf: string; newTabHint: string }
   }
+  /** Buttons on the Review timeline. */
   actions: {
-    title: string
+    /** Submit or, once returned, resubmit. */
     submit: string
-    resubmit: string
+    response: string
     resubmitHint: string
-    /** `{people}` is replaced, e.g. "Faisal Alharbi (Reviewer)". */
-    waiting: string
-    /** Follows the waiting text; `{date}` is replaced. */
-    waitingDue: string
-    approvedWaiting: string
-    published: string
     /** Shown to co-authors; `{name}` is the main author. */
     authorOnly: string
     /** Why Submit / Resubmit is disabled: the check is running, or there's no completed check. */
@@ -551,14 +545,12 @@ export interface SopWorkflowContent {
     checkNeeded: string
     /** The completed check used an older GVP version; `{version}` is the current one. */
     checkCurrentNeeded: string
-    /** Published SOPs: run a new check after the requirements change (PBI 29). */
-    recheck: string
   }
-  feedback: {
-    title: string
-    /** `{name}`, `{role}`, `{date}` and `{version}` are replaced. */
-    description: string
-  }
+  /**
+   * Under the workflow status when the SOP is Returned: `{name}` is who returned it and
+   * `{link}` is replaced with a link (`link`) to the Review timeline.
+   */
+  returnedNote: { text: string; link: string }
   comments: {
     title: string
     empty: string
@@ -567,12 +559,12 @@ export interface SopWorkflowContent {
   }
   timeline: {
     title: string
+    columns: { action: string; by: string; to: string; date: string; version: string; comment: string }
+    /** Screen-reader text of an empty cell. */
+    none: string
+    viewMore: string
+    viewLess: string
     events: Record<TimelineEventType, string>
-    /** `{name}` is replaced. */
-    by: string
-    /** `{name}` is replaced. */
-    to: string
-    noteLabel: string
     /** Label for stage-due-date-set events, by stage. */
     stageDue: { review: string; approval: string }
     /** `{date}` is replaced. */
@@ -614,6 +606,8 @@ export interface SopWorkflowContent {
     }
     /** `{name}` is replaced in the description. */
     removeCoAuthor: { title: string; description: string; keep: string; confirm: string }
+    /** `{names}` (the recipients) is replaced in the description; `{count}` and `{max}` in the counter. */
+    response: { title: string; description: string; label: string; required: string; counter: string; confirm: string }
     resubmit: {
       title: string
       description: string
@@ -639,6 +633,7 @@ export interface SopWorkflowContent {
     /** `{name}` is replaced. */
     coAuthorRemoved: string
     checkStarted: string
+    responseSent: string
   }
 }
 

@@ -11,7 +11,7 @@ import { StatusBadge } from '../components/ui/StatusBadge'
 import { CommentList } from '../components/workflow/CommentList'
 import { PeopleList } from '../components/workflow/PeopleList'
 import { StatusTracker } from '../components/workflow/StatusTracker'
-import { WorkflowTimeline } from '../components/workflow/WorkflowTimeline'
+import { ReviewTimelineTable } from '../components/workflow/ReviewTimelineTable'
 import { complianceEn } from '../content/compliance.en'
 import { reviewsEn } from '../content/reviews.en'
 import { sopWorkflowEn } from '../content/workflow.en'
@@ -324,7 +324,7 @@ function Review({ sop }: { sop: Sop }) {
       </Section>
 
       <Section id="timeline-title" title={workflow.timeline.title} className="mt-6">
-        <WorkflowTimeline sop={sop} content={workflow} />
+        <ReviewTimelineTable sop={sop} content={workflow} />
       </Section>
 
       {/* Dialogs */}
