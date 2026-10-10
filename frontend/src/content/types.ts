@@ -504,11 +504,34 @@ export interface SopWorkflowContent {
     download: string
     viewInDirectory: string
   }
+  /** SOP history: every version, with Preview, Download and Delete. */
+  history: {
+    title: string
+    columns: { version: string; author: string; date: string; preview: string; download: string; delete: string }
+    /** Marks the current version. */
+    current: string
+    /** Author of the versions the signed-in user uploaded. */
+    you: string
+    /** Accessible names and tooltips; `{version}` is replaced. */
+    previewLabel: string
+    downloadLabel: string
+    deleteLabel: string
+    /** Why Preview / Download aren't available. */
+    unavailable: { word: string; demo: string }
+    /** Why Delete isn't available; `{name}` is the main author in `not-main-author`. */
+    deleteBlocked: { status: string; 'not-main-author': string; 'last-version': string }
+    upload: string
+    check: string
+    /** Preview dialog: `{code}` and `{version}` are replaced. */
+    previewTitle: string
+    /** Accessible name of the embedded viewer; `{code}`, `{title}` and `{version}` are replaced. */
+    viewerTitle: string
+    close: string
+    fallback: { text: string; openPdf: string; newTabHint: string }
+  }
   actions: {
     title: string
     submit: string
-    replace: string
-    uploadNewVersion: string
     resubmit: string
     resubmitHint: string
     /** `{people}` is replaced, e.g. "Faisal Alharbi (Reviewer)". */
@@ -573,8 +596,10 @@ export interface SopWorkflowContent {
       errors: { reviewersRequired: string; approversRequired: string; daysInvalid: string }
       confirm: string
     }
-    replace: { title: string; description: string; confirm: string }
+    /** `{version}` is the number the upload becomes. */
     newVersion: { title: string; description: string; confirm: string }
+    /** `{version}` is replaced; `currentNote` (deleting the current version) also has `{previous}`. */
+    deleteVersion: { title: string; description: string; currentNote: string; keep: string; confirm: string }
     addCoAuthors: {
       title: string
       description: string
@@ -602,8 +627,9 @@ export interface SopWorkflowContent {
   /** Announced after each action. */
   messages: {
     submitted: string
-    replaced: string
     newVersion: string
+    /** `{version}` is replaced. */
+    versionDeleted: string
     resubmitted: string
     coAuthorsAdded: string
     /** `{name}` is replaced. */

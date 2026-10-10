@@ -52,11 +52,38 @@ export const sopWorkflowEn: SopWorkflowContent = {
     viewInDirectory: 'View in SOPs directory',
   },
 
+  history: {
+    title: 'SOP history',
+    columns: { version: 'Version', author: 'Author', date: 'Date', preview: 'Preview', download: 'Download', delete: 'Delete' },
+    current: 'Current',
+    you: 'You',
+    previewLabel: 'Preview v{version}',
+    downloadLabel: 'Download v{version}',
+    deleteLabel: 'Delete v{version}',
+    unavailable: {
+      word: 'Preview isn’t available for Word files',
+      demo: 'File not available in the demo',
+    },
+    deleteBlocked: {
+      status: 'Versions can only be deleted while the SOP is a Draft or Returned',
+      'not-main-author': 'Only the main author, {name}, can delete versions',
+      'last-version': 'At least one version must remain',
+    },
+    upload: 'Upload',
+    check: 'Check',
+    previewTitle: '{code} · v{version}',
+    viewerTitle: '{code} {title}, v{version} (PDF)',
+    close: 'Close preview',
+    fallback: {
+      text: "Your browser can't display the PDF here. Open it in a new tab instead.",
+      openPdf: 'Open PDF',
+      newTabHint: '(opens in a new tab)',
+    },
+  },
+
   actions: {
     title: 'Actions',
     submit: 'Submit for review',
-    replace: 'Replace file',
-    uploadNewVersion: 'Upload new version',
     resubmit: 'Resubmit for review',
     resubmitHint: 'Upload a new version with your changes before resubmitting.',
     waiting: 'Waiting for {people}',
@@ -150,19 +177,21 @@ export const sopWorkflowEn: SopWorkflowContent = {
       },
       confirm: 'Submit for review',
     },
-    replace: {
-      title: 'Replace file',
-      description: 'The new file replaces the current one. The version stays {version}.',
-      confirm: 'Replace file',
-    },
     newVersion: {
-      title: 'Upload new version',
-      description: 'Upload the file with your changes. It becomes v{version}.',
-      confirm: 'Upload new version',
+      title: 'Upload a new version',
+      description: 'Upload the file with your changes. It becomes v{version}, and a compliance check runs automatically.',
+      confirm: 'Upload',
+    },
+    deleteVersion: {
+      title: 'Delete v{version}?',
+      description: 'v{version} will be removed from the SOP history, and its compliance reports will no longer be listed.',
+      currentNote: 'v{previous} becomes the current version.',
+      keep: 'Cancel',
+      confirm: 'Delete version',
     },
     addCoAuthors: {
       title: 'Add co-authors',
-      description: 'Co-authors can replace the file and upload new versions. Only you can submit the SOP.',
+      description: 'Co-authors can upload new versions. Only you can submit the SOP or delete versions.',
       label: 'Co-authors',
       hint: 'Reviewers and approvers of this SOP can’t be co-authors.',
       required: 'Select at least one co-author.',
@@ -170,7 +199,7 @@ export const sopWorkflowEn: SopWorkflowContent = {
     },
     removeCoAuthor: {
       title: 'Remove co-author?',
-      description: '{name} will no longer be able to open this SOP, replace its file or upload new versions.',
+      description: '{name} will no longer be able to open this SOP or upload new versions.',
       keep: 'Cancel',
       confirm: 'Remove co-author',
     },
@@ -191,8 +220,8 @@ export const sopWorkflowEn: SopWorkflowContent = {
 
   messages: {
     submitted: 'Submitted for review.',
-    replaced: 'File replaced.',
-    newVersion: 'v{version} uploaded.',
+    newVersion: 'v{version} uploaded. A compliance check is running.',
+    versionDeleted: 'v{version} deleted.',
     resubmitted: 'Resubmitted for review.',
     coAuthorsAdded: 'Co-authors added.',
     coAuthorRemoved: '{name} removed as co-author.',
