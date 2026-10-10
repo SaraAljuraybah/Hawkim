@@ -15,6 +15,8 @@ interface PeopleListProps {
   canManageCoAuthors: boolean
   onAddCoAuthor: (trigger: HTMLElement) => void
   onRemoveCoAuthor: (userId: string, trigger: HTMLElement) => void
+  /** Only the main author and co-authors (the author's Authors section). */
+  authorsOnly?: boolean
 }
 
 function Group({ title, children, action }: { title: string; children: ReactNode; action?: ReactNode }) {
@@ -31,9 +33,18 @@ const rowClasses = 'flex flex-wrap items-center gap-x-3 gap-y-1.5'
 
 /**
  * Who works on this SOP: the author, co-authors, and the reviewers and approvers
- * with each person's decision in the current round.
+ * with each person's decision in the current round. With `authorsOnly`, just the
+ * main author and co-authors.
  */
-export function PeopleList({ sop, content, userId, canManageCoAuthors, onAddCoAuthor, onRemoveCoAuthor }: PeopleListProps) {
+export function PeopleList({
+  sop,
+  content,
+  userId,
+  canManageCoAuthors,
+  onAddCoAuthor,
+  onRemoveCoAuthor,
+  authorsOnly = false,
+}: PeopleListProps) {
   const { nameOf } = useUsers()
   const name = (id: string) => {
     const userName = nameOf(id)
@@ -43,7 +54,7 @@ export function PeopleList({ sop, content, userId, canManageCoAuthors, onAddCoAu
 
   return (
     <div className="grid gap-6 sm:grid-cols-2">
-      <Group title={content.author}>
+      <Group title={authorsOnly ? content.mainAuthor : content.author}>
         <p className="text-[0.9375rem] text-maroon">{sop.authorId && name(sop.authorId)}</p>
       </Group>
 
@@ -53,7 +64,7 @@ export function PeopleList({ sop, content, userId, canManageCoAuthors, onAddCoAu
           canManageCoAuthors && (
             <Button size="sm" variant="secondary" onClick={(event) => onAddCoAuthor(event.currentTarget)}>
               <UserPlus aria-hidden="true" className="size-4" strokeWidth={2} />
-              {content.addCoAuthor}
+              {authorsOnly ? content.addAuthor : content.addCoAuthor}
             </Button>
           )
         }
@@ -81,27 +92,28 @@ export function PeopleList({ sop, content, userId, canManageCoAuthors, onAddCoAu
         )}
       </Group>
 
-      {(
-        [
-          [content.reviewers, sop.reviewers],
-          [content.approvers, sop.approvers],
-        ] as const
-      ).map(([title, people]) => (
-        <Group key={title} title={title}>
-          {people.length === 0 ? (
-            empty(content.notAssigned)
-          ) : (
-            <ul className="space-y-2">
-              {people.map((person) => (
-                <li key={person.userId} className={rowClasses}>
-                  <span className="text-[0.9375rem] text-maroon">{name(person.userId)}</span>
-                  <DecisionBadge decision={person.decision} labels={content.decisions} />
-                </li>
-              ))}
-            </ul>
-          )}
-        </Group>
-      ))}
+      {!authorsOnly &&
+        (
+          [
+            [content.reviewers, sop.reviewers],
+            [content.approvers, sop.approvers],
+          ] as const
+        ).map(([title, people]) => (
+          <Group key={title} title={title}>
+            {people.length === 0 ? (
+              empty(content.notAssigned)
+            ) : (
+              <ul className="space-y-2">
+                {people.map((person) => (
+                  <li key={person.userId} className={rowClasses}>
+                    <span className="text-[0.9375rem] text-maroon">{name(person.userId)}</span>
+                    <DecisionBadge decision={person.decision} labels={content.decisions} />
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Group>
+        ))}
     </div>
   )
 }

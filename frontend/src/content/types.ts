@@ -493,6 +493,10 @@ export interface SopWorkflowContent {
     /** Reviewers and approvers before the first submission. */
     notAssigned: string
     addCoAuthor: string
+    /** The author's workflow page: the Authors section. */
+    authorsTitle: string
+    mainAuthor: string
+    addAuthor: string
     remove: string
     /** Accessible name of a Remove button; `{name}` is replaced. */
     removeLabel: string

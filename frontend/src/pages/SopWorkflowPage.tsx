@@ -317,6 +317,22 @@ export function SopWorkflowPage() {
         />
       </Section>
 
+      <Section id="authors-title" title={content.people.authorsTitle} className="mt-6">
+        <PeopleList
+          authorsOnly
+          sop={sop}
+          content={content.people}
+          userId={user.id}
+          canManageCoAuthors={isMainAuthor && sop.status !== 'published'}
+          onAddCoAuthor={(trigger) => open('addCoAuthors', trigger)}
+          onRemoveCoAuthor={(coAuthorId, trigger) => {
+            triggerRef.current = trigger
+            setMessage('')
+            setRemovingId(coAuthorId)
+          }}
+        />
+      </Section>
+
       <Section id="compliance-title" title={complianceEn.card.title} className="mt-6">
         <ComplianceCard sop={sop} content={complianceEn} canRun={sop.status !== 'published'} onRun={runCheck} />
       </Section>
@@ -432,24 +448,8 @@ export function SopWorkflowPage() {
             </div>
           )}
 
-
         </Section>
       </div>
-
-      <Section id="people-title" title={content.people.title} className="mt-6">
-        <PeopleList
-          sop={sop}
-          content={content.people}
-          userId={user.id}
-          canManageCoAuthors={isMainAuthor && sop.status !== 'published'}
-          onAddCoAuthor={(trigger) => open('addCoAuthors', trigger)}
-          onRemoveCoAuthor={(coAuthorId, trigger) => {
-            triggerRef.current = trigger
-            setMessage('')
-            setRemovingId(coAuthorId)
-          }}
-        />
-      </Section>
 
       <Section id="comments-title" title={content.comments.title} className="mt-6">
         <CommentList sop={sop} content={content} />
