@@ -333,9 +333,12 @@ export function SopWorkflowPage() {
         />
       </Section>
 
-      <Section id="compliance-title" title={complianceEn.card.title} className="mt-6">
-        <ComplianceCard sop={sop} content={complianceEn} canRun={sop.status !== 'published'} onRun={runCheck} />
-      </Section>
+      {/* Compliance overview: only once the current version has a check */}
+      {currentCheck(sop) && (
+        <Section id="compliance-title" title={complianceEn.card.title} className="mt-6">
+          <ComplianceCard sop={sop} content={complianceEn} />
+        </Section>
+      )}
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
         {/* Current file */}

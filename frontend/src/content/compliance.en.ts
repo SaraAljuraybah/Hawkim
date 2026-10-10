@@ -24,14 +24,11 @@ export const complianceEn: ComplianceContent = {
     guideline: 'Guideline',
   },
   card: {
-    title: 'Compliance check',
+    title: 'Compliance overview',
     running: 'Checking against SFDA GVP v{version}…',
     completed: 'Compliance check completed.',
     failed: 'The compliance check couldn’t be completed.',
-    none: 'No compliance check for v{version} yet.',
     viewReport: 'View full report',
-    runAgain: 'Run check again',
-    run: 'Run check',
     recheck: {
       badge: 'Recheck recommended',
       note: 'Last checked against GVP v{checked}. The current version is v{current}.',

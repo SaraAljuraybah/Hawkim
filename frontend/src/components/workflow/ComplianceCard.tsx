@@ -14,17 +14,15 @@ import { Button } from '../ui/Button'
 interface ComplianceCardProps {
   sop: Sop
   content: ComplianceContent
-  /** False on published SOPs, where "Recheck compliance" in Actions is the only button. */
-  canRun: boolean
-  onRun: () => void
 }
 
 /**
  * The compliance check of the current version (PBI 4, 5): running, completed
  * (date, version, guideline and counts per result, with a link to the full
- * report), failed, or none yet. The results are sample results for now.
+ * report) or failed. Shown only once the version has a check; checks are run from
+ * SOP history. The results are sample results for now.
  */
-export function ComplianceCard({ sop, content, canRun, onRun }: ComplianceCardProps) {
+export function ComplianceCard({ sop, content }: ComplianceCardProps) {
   const text = content.card
   const check = currentCheck(sop)
   const running = check?.status === 'running'
@@ -40,13 +38,6 @@ export function ComplianceCard({ sop, content, canRun, onRun }: ComplianceCardPr
     setWasRunning(running)
     setEnded(!running && check?.status === 'completed' ? text.completed : '')
   }
-
-  const runButton = (label: string) =>
-    canRun && (
-      <Button size="sm" variant="secondary" onClick={onRun}>
-        {label}
-      </Button>
-    )
 
   return (
     <div>
@@ -97,12 +88,11 @@ export function ComplianceCard({ sop, content, canRun, onRun }: ComplianceCardPr
           <div className="mt-5">
             <ComplianceSummary check={check} content={content} />
           </div>
-          <div className="mt-5 flex flex-wrap gap-3">
+          <div className="mt-5">
             <Button size="sm" to={complianceReportPath(sop.id)}>
               {text.viewReport}
               <ArrowRight aria-hidden="true" className="size-4" strokeWidth={2} />
             </Button>
-            {runButton(text.runAgain)}
           </div>
         </>
       )}
@@ -112,14 +102,6 @@ export function ComplianceCard({ sop, content, canRun, onRun }: ComplianceCardPr
           <p role="alert" className="text-sm font-medium text-status-rejected-fg">
             {text.failed}
           </p>
-          {canRun && <div className="mt-3">{runButton(text.runAgain)}</div>}
-        </div>
-      )}
-
-      {!check && (
-        <div className="space-y-3">
-          <p className="text-sm text-text-gray">{text.none.replace('{version}', sop.version)}</p>
-          {runButton(text.run)}
         </div>
       )}
     </div>

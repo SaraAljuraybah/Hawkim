@@ -664,11 +664,7 @@ export interface ComplianceContent {
     /** Announced when a running check ends. */
     completed: string
     failed: string
-    /** `{version}` is the SOP version. */
-    none: string
     viewReport: string
-    runAgain: string
-    run: string
     /** The SOP's newest check used an older GVP version (PBI 29). `{checked}` and `{current}` are replaced. */
     recheck: { badge: string; note: string }
   }
