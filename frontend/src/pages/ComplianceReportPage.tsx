@@ -153,7 +153,7 @@ function Report({ sop, backPath }: { sop: Sop; backPath: string }) {
     ? [
         { label: text.header.reportId, value: reportId(sop, report) },
         { label: text.header.sop, value: `${sop.code} · ${sop.title}` },
-        { label: text.header.version, value: report.version },
+        { label: text.header.version, value: content.versionLabel.replace('{version}', report.version) },
         { label: text.header.author, value: author },
         ...(coAuthors ? [{ label: text.header.coAuthors, value: coAuthors }] : []),
         { label: text.header.department, value: departmentName(sop.departmentId) },

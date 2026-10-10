@@ -60,7 +60,7 @@ export interface Sop {
   code: string
   title: string
   departmentId: DepartmentId
-  /** Current version number without the "v", e.g. "2.1" */
+  /** Current version: a whole number without the "v", e.g. "3" (shown as "v3"). */
   version: string
   status: SopStatus
   /** ISO date, e.g. "2024-01-12" */
@@ -103,14 +103,22 @@ export interface Sop {
 
 /** One uploaded file of an SOP. */
 export interface SopVersion {
-  /** e.g. "1.1" */
+  /** A whole number, e.g. "2" (shown as "v2"); every upload adds the next one. */
   version: string
   fileName: string
   fileType: SopFileType
+  /** Who uploaded it (User.id), when known. */
+  uploadedById?: string
   /** ISO date and time, e.g. "2026-09-24T09:30:00+03:00" */
   uploadedAt: string
   /** Only when the file is available (sample PDFs, or files uploaded in this session). */
   fileUrl?: string
+  /**
+   * Set when the main author deleted this version. It is kept so version numbers are
+   * never reused, but hidden everywhere (and its compliance reports are no longer listed).
+   */
+  deletedAt?: string
+  deletedById?: string
 }
 
 /** Who gives feedback in the workflow. */
@@ -148,15 +156,15 @@ export interface SopComment {
 }
 
 export type TimelineEventType =
-  | 'uploaded'
-  | 'file-replaced'
+  | 'version-uploaded'
+  | 'version-deleted'
+  | 'response'
   | 'submitted'
   | 'resubmitted'
   | 'forwarded-to-approver'
   | 'returned'
   | 'approved'
   | 'published'
-  | 'new-version-uploaded'
   | 'co-author-added'
   | 'co-author-removed'
   | 'review-completed'
@@ -178,6 +186,8 @@ export interface TimelineEvent {
   subjectId?: string
   /** For routed: the department of the reviewer it was routed to (as it was then). */
   departmentId?: DepartmentId
+  /** The reviewer's or approver's comment made with this action (returned, review-completed, approved-by). */
+  commentId?: string
   /** For stage-due-date-set: which stage and its due date (ISO date and time). */
   stage?: 'review' | 'approval'
   dueAt?: string

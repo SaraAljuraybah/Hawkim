@@ -16,6 +16,7 @@ export const complianceEn: ComplianceContent = {
   sampleBanner: 'Sample results — the compliance service isn’t connected yet.',
   summary: '{count} of {total} requirements compliant',
   countsLabel: 'Results by label',
+  versionLabel: 'v{version}',
   guideline: '{name} v{version}',
   details: {
     checked: 'Checked',
@@ -27,7 +28,7 @@ export const complianceEn: ComplianceContent = {
     running: 'Checking against SFDA GVP v{version}…',
     completed: 'Compliance check completed.',
     failed: 'The compliance check couldn’t be completed.',
-    none: 'No compliance check for version {version} yet.',
+    none: 'No compliance check for v{version} yet.',
     viewReport: 'View full report',
     runAgain: 'Run check again',
     run: 'Run check',
@@ -42,7 +43,7 @@ export const complianceEn: ComplianceContent = {
     back: 'Back to {code}',
     title: 'Compliance report',
     download: 'Download PDF',
-    versionSelect: { label: 'Report for', option: 'Version {version}', current: 'Version {version} (current)' },
+    versionSelect: { label: 'Report for', option: 'v{version}', current: 'v{version} (current)' },
     header: {
       title: 'Report details',
       reportId: 'Report ID',
@@ -137,7 +138,7 @@ export const complianceEn: ComplianceContent = {
     },
     changes: {
       title: 'Changes since the previous version',
-      comparedWith: 'Compared with the report for version {version} ({reportId}).',
+      comparedWith: 'Compared with the report for v{version} ({reportId}).',
       none: 'No previous report.',
       changedTo: 'changed to',
       kinds: {
@@ -157,10 +158,10 @@ export const complianceEn: ComplianceContent = {
         'These are sample results; the compliance service isn’t connected yet.',
       ],
     },
-    outOfDate: 'A new compliance check is running for version {version}. This report may be out of date.',
+    outOfDate: 'A new compliance check is running for v{version}. This report may be out of date.',
     olderGuideline: 'This report used GVP v{checked}. The current version is v{current}.',
-    running: 'The compliance check for version {version} is still running.',
-    failed: 'The compliance check for version {version} couldn’t be completed.',
-    none: 'There’s no compliance report for version {version} yet.',
+    running: 'The compliance check for v{version} is still running.',
+    failed: 'The compliance check for v{version} couldn’t be completed.',
+    none: 'There’s no compliance report for v{version} yet.',
   },
 }

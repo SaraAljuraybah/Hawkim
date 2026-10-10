@@ -9,7 +9,7 @@ import {
   validateGuidelineVersion,
   type GuidelineVersionInput,
 } from './guidelines'
-import { completeReview, resubmit, returnAsReviewer, submitForReview, uploadNewVersion } from './workflow'
+import { completeReview, resubmit, returnAsReviewer, submitForReview, uploadVersion } from './workflow'
 
 /** GVP 4.0, with one requirement. */
 const v40: GuidelineVersion = {
@@ -43,7 +43,7 @@ function sop(status: SopStatus, complianceChecks: ComplianceCheck[]): Sop {
     code: 'SOP-001',
     title: 'Test SOP',
     departmentId: 'it',
-    version: '1.0',
+    version: '1',
     status,
     lastUpdated: '2026-01-01',
     authorId: 'sara',
@@ -52,7 +52,7 @@ function sop(status: SopStatus, complianceChecks: ComplianceCheck[]): Sop {
     fileType: 'pdf',
     reviewers: [],
     approvers: [],
-    versions: [{ version: '1.0', fileName: 'SOP-001.pdf', fileType: 'pdf', uploadedAt: '2026-01-01T08:00:00Z' }],
+    versions: [{ version: '1', fileName: 'SOP-001.pdf', fileType: 'pdf', uploadedAt: '2026-01-01T08:00:00Z' }],
     comments: [],
     timeline: [],
     complianceChecks,
@@ -122,44 +122,44 @@ describe('the other fields', () => {
 describe('recheckRecommended', () => {
   it('flags drafts, returned and published SOPs last checked against an older version', () => {
     for (const status of ['draft', 'returned', 'published'] as const) {
-      expect(recheckRecommended(sop(status, [check('1.0', '4.0')]), '4.1'), status).toBe(true)
+      expect(recheckRecommended(sop(status, [check('1', '4.0')]), '4.1'), status).toBe(true)
     }
   })
 
   it('doesn’t flag SOPs in the workflow, where the author can’t run a check', () => {
     for (const status of ['in-review', 'in-approval', 'approved'] as const) {
-      expect(recheckRecommended(sop(status, [check('1.0', '4.0')]), '4.1'), status).toBe(false)
+      expect(recheckRecommended(sop(status, [check('1', '4.0')]), '4.1'), status).toBe(false)
     }
   })
 
   it('uses the newest completed check: a recheck clears the flag; running or failed checks don’t count', () => {
-    expect(recheckRecommended(sop('published', [check('1.0', '4.0'), check('1.0', '4.1')]), '4.1')).toBe(false)
-    expect(recheckRecommended(sop('published', [check('1.0', '4.0'), check('1.0', '4.1', 'failed')]), '4.1')).toBe(true)
-    expect(recheckRecommended(sop('published', [check('1.0', '4.0'), check('1.0', '4.1', 'running')]), '4.1')).toBe(true)
+    expect(recheckRecommended(sop('published', [check('1', '4.0'), check('1', '4.1')]), '4.1')).toBe(false)
+    expect(recheckRecommended(sop('published', [check('1', '4.0'), check('1', '4.1', 'failed')]), '4.1')).toBe(true)
+    expect(recheckRecommended(sop('published', [check('1', '4.0'), check('1', '4.1', 'running')]), '4.1')).toBe(true)
   })
 
   it('doesn’t flag an SOP never checked, or when no newer version exists', () => {
     expect(recheckRecommended(sop('draft', []), '4.1')).toBe(false)
-    expect(recheckRecommended(sop('published', [check('1.0', '4.0')]), '4.0')).toBe(false)
+    expect(recheckRecommended(sop('published', [check('1', '4.0')]), '4.0')).toBe(false)
   })
 })
 
 describe('submitting needs a check against the current version', () => {
   it('refuses Submit with only a check against an older version, and allows it after a recheck', () => {
-    const draft = sop('draft', [check('1.0', '4.0')])
+    const draft = sop('draft', [check('1', '4.0')])
     expect(hasCurrentCheck(draft, '4.1')).toBe(false)
     expect(() => submitForReview(draft, 'sara', '4.1', ['noura'], ['huda'], undefined, undefined)).toThrow(/current guideline/)
-    const rechecked = sop('draft', [check('1.0', '4.0'), check('1.0', '4.1')])
+    const rechecked = sop('draft', [check('1', '4.0'), check('1', '4.1')])
     expect(submitForReview(rechecked, 'sara', '4.1', ['noura'], ['huda'], undefined, undefined).status).toBe('in-review')
   })
 
   it('refuses Resubmit with only a check against an older version', () => {
-    const submitted = submitForReview(sop('draft', [check('1.0', '4.0')]), 'sara', '4.0', ['noura'], ['huda'], undefined, undefined)
+    const submitted = submitForReview(sop('draft', [check('1', '4.0')]), 'sara', '4.0', ['noura'], ['huda'], undefined, undefined)
     const returned = returnAsReviewer(submitted, 'noura', 'Fix it.')
-    const updated = uploadNewVersion(returned, 'sara', { fileName: 'v1.1.pdf', fileType: 'pdf' })
-    const checkedOld = { ...updated, complianceChecks: [...updated.complianceChecks, check('1.1', '4.0')] }
+    const updated = uploadVersion(returned, 'sara', { fileName: 'v2.pdf', fileType: 'pdf' })
+    const checkedOld = { ...updated, complianceChecks: [...updated.complianceChecks, check('2', '4.0')] }
     expect(() => resubmit(checkedOld, 'sara', '4.1')).toThrow(/current guideline/)
-    const checkedNew = { ...updated, complianceChecks: [...updated.complianceChecks, check('1.1', '4.1')] }
+    const checkedNew = { ...updated, complianceChecks: [...updated.complianceChecks, check('2', '4.1')] }
     expect(resubmit(checkedNew, 'sara', '4.1').status).toBe('in-review')
     expect(completeReview(resubmit(checkedNew, 'sara', '4.1'), 'noura').status).toBe('in-approval')
   })
@@ -167,10 +167,10 @@ describe('submitting needs a check against the current version', () => {
 
 describe('reports keep their version', () => {
   it('records the current version on a new check and leaves earlier reports unchanged', () => {
-    const before = sop('published', [check('1.0', '4.0')])
+    const before = sop('published', [check('1', '4.0')])
     const started = startCheck(before, gvp('4.1'))
     const after = completeCheck(started.sop, started.checkId)
-    expect(latestCompletedChecksByVersion(after).length).toBe(1) // the newest report of SOP v1.0
+    expect(latestCompletedChecksByVersion(after).length).toBe(1) // the newest report of SOP v1
     expect(after.complianceChecks.map((item) => item.guideline.version)).toEqual(['4.0', '4.1'])
     expect(after.complianceChecks[0]).toEqual(before.complianceChecks[0])
   })

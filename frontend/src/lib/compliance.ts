@@ -47,11 +47,17 @@ export function isCheckRunning(sop: Sop): boolean {
   return sop.complianceChecks.some((check) => check.status === 'running')
 }
 
-/** The newest completed check of each version, newest version first (the saved reports). */
+/**
+ * The newest completed check of each version, newest version first (the saved reports).
+ * Reports of deleted versions are no longer listed.
+ */
 export function latestCompletedChecksByVersion(sop: Sop): ComplianceCheck[] {
+  const deleted = new Set(sop.versions.filter((version) => version.deletedAt).map((version) => version.version))
   const byVersion = new Map<string, ComplianceCheck>()
-  for (const check of sop.complianceChecks) if (check.status === 'completed') byVersion.set(check.version, check)
-  return [...byVersion.values()].reverse()
+  for (const check of sop.complianceChecks) {
+    if (check.status === 'completed' && !deleted.has(check.version)) byVersion.set(check.version, check)
+  }
+  return [...byVersion.values()].sort((a, b) => Number(b.version) - Number(a.version))
 }
 
 /** Number of findings per result. */
@@ -142,10 +148,10 @@ export function numberedFindings(check: ComplianceCheck): NumberedFinding[] {
   return sortFindings(check.findings).map((finding, index) => ({ ...finding, number: `F-${pad2(index + 1)}` }))
 }
 
-/** e.g. "CR-SOP-083-1.0-01": SOP code, version, and the run number for that version (failed runs included). */
+/** e.g. "CR-SOP-078-v3-01": SOP code, version, and the run number for that version (failed runs included). */
 export function reportId(sop: Sop, check: ComplianceCheck): string {
   const run = sop.complianceChecks.filter((item) => item.version === check.version).findIndex((item) => item.id === check.id) + 1
-  return `CR-${sop.code}-${check.version}-${pad2(run)}`
+  return `CR-${sop.code}-v${check.version}-${pad2(run)}`
 }
 
 /** Compliance score: compliant findings ÷ all findings, as a whole percentage. */

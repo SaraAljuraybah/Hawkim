@@ -3,14 +3,16 @@ import type { ComplianceCheck, Sop, User, UserRequest } from '../data/mock/types
 import { decideRequest } from './requestAdmin'
 import { deriveNotifications, isRead, type AppNotification } from './notifications'
 import {
+  addResponse,
   approveAs,
   completeReview,
   publishAs,
   resubmit,
   returnAsApprover,
+  returnAsReviewer,
   routeToReviewer,
   submitForReview,
-  uploadNewVersion,
+  uploadVersion,
 } from './workflow'
 
 /*
@@ -38,7 +40,7 @@ function draft(): Sop {
     code: 'SOP-001',
     title: 'Test SOP',
     departmentId: 'information-technology',
-    version: '1.0',
+    version: '1',
     status: 'draft',
     lastUpdated: '2026-01-01',
     authorId: 'sara',
@@ -47,10 +49,10 @@ function draft(): Sop {
     fileType: 'pdf',
     reviewers: [],
     approvers: [],
-    versions: [{ version: '1.0', fileName: 'SOP-001.pdf', fileType: 'pdf', uploadedAt: '2026-01-01T08:00:00Z' }],
+    versions: [{ version: '1', fileName: 'SOP-001.pdf', fileType: 'pdf', uploadedAt: '2026-01-01T08:00:00Z' }],
     comments: [],
     timeline: [],
-    complianceChecks: [check('1.0')],
+    complianceChecks: [check('1')],
   }
 }
 
@@ -88,7 +90,7 @@ describe('assigned to me', () => {
     const sop = routeToReviewer(submit(), 'faisal', lama)
     expect(kinds('lama', [sop])).toEqual(['assigned-review routed'])
     const notification = deriveNotifications('lama', { sops: [sop], requests: [], now: Date.now() })[0]
-    expect(notification).toMatchObject({ actorId: 'faisal', sopCode: 'SOP-001', version: '1.0', link: '/reviews/sop-1' })
+    expect(notification).toMatchObject({ actorId: 'faisal', sopCode: 'SOP-001', version: '1', link: '/reviews/sop-1' })
   })
 
   it('notifies the approvers when the SOP moves to In Approval, and again when it is approved', () => {
@@ -102,7 +104,7 @@ describe('my SOP (author and co-authors)', () => {
     const returned = returnAsApprover(approveAs(inApproval(), 'huda'), 'khalid', 'Fix section 5.')
     for (const writer of ['sara', 'reem']) {
       const [notification] = deriveNotifications(writer, { sops: [returned], requests: [], now: Date.now() })
-      expect(notification, writer).toMatchObject({ type: 'sop-returned', actorId: 'khalid', version: '1.0', link: '/my-sops/sop-1' })
+      expect(notification, writer).toMatchObject({ type: 'sop-returned', actorId: 'khalid', version: '1', link: '/my-sops/sop-1' })
     }
     expect(kinds('noura', [returned])).toEqual(['assigned-review submitted'])
   })
@@ -117,10 +119,24 @@ describe('my SOP (author and co-authors)', () => {
 
   it('says "resubmitted" to the reviewers on a resubmission', () => {
     const returned = returnAsApprover(inApproval(), 'huda', 'Fix it.')
-    const updated = uploadNewVersion(returned, 'sara', { fileName: 'v1.1.pdf', fileType: 'pdf' })
-    const again = resubmit({ ...updated, complianceChecks: [...updated.complianceChecks, check('1.1')] }, 'sara', GVP)
+    const updated = uploadVersion(returned, 'sara', { fileName: 'v2.pdf', fileType: 'pdf' })
+    const again = resubmit({ ...updated, complianceChecks: [...updated.complianceChecks, check('2')] }, 'sara', GVP)
     expect(kinds('noura', [again])).toEqual(['assigned-review submitted', 'assigned-review resubmitted'])
-    expect(deriveNotifications('noura', { sops: [again], requests: [], now: Date.now() })[0].version).toBe('1.1')
+    expect(deriveNotifications('noura', { sops: [again], requests: [], now: Date.now() })[0].version).toBe('2')
+  })
+})
+
+describe('responses to comments', () => {
+  it('tells everyone who commented in the latest round, not the author who responded', () => {
+    const returned = returnAsReviewer(completeReview(submit(), 'noura', 'Minor wording.'), 'faisal', 'Fix section 4.')
+    const responded = addResponse(returned, 'reem', 'Fixed in v2.')
+    for (const reviewer of ['noura', 'faisal']) {
+      const [latest] = deriveNotifications(reviewer, { sops: [responded], requests: [], now: Date.now() })
+      expect(latest, reviewer).toMatchObject({ type: 'response', actorId: 'reem', version: '1', link: '/reviews/sop-1' })
+    }
+    expect(kinds('reem', [responded])).not.toContain('response')
+    expect(kinds('sara', [responded])).not.toContain('response')
+    expect(kinds('huda', [responded])).not.toContain('response')
   })
 })
 
@@ -153,8 +169,8 @@ describe('due soon and overdue', () => {
     expect(id(sop, late + 48 * HOUR)).toBe(first)
 
     const returned = returnAsApprover(approveAs(completeReview(completeReview(sop, 'noura'), 'faisal'), 'huda'), 'khalid', 'x')
-    const updated = uploadNewVersion(returned, 'sara', { fileName: 'v1.1.pdf', fileType: 'pdf' })
-    const again = resubmit({ ...updated, complianceChecks: [...updated.complianceChecks, check('1.1')] }, 'sara', GVP)
+    const updated = uploadVersion(returned, 'sara', { fileName: 'v2.pdf', fileType: 'pdf' })
+    const again = resubmit({ ...updated, complianceChecks: [...updated.complianceChecks, check('2')] }, 'sara', GVP)
     const lateAgain = new Date(again.reviewDueAt!).getTime() + HOUR
     expect(id(again, lateAgain)).not.toBe(first)
   })

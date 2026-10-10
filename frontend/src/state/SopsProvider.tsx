@@ -105,14 +105,14 @@ export function SopsProvider({ children }: { children: ReactNode }) {
       const now = new Date().toISOString()
       const coAuthorIds = draft.coAuthorIds.filter((coAuthorId) => coAuthorId !== userId)
       const timeline: TimelineEvent[] = [
-        { id: `evt-${id}-1`, type: 'uploaded', actorId: userId, version: '1.0', createdAt: now },
+        { id: `evt-${id}-1`, type: 'version-uploaded', actorId: userId, version: '1', createdAt: now },
         ...coAuthorIds.map(
           (subjectId, index): TimelineEvent => ({
             id: `evt-${id}-ca-${index + 1}`,
             type: 'co-author-added',
             actorId: userId,
             subjectId,
-            version: '1.0',
+            version: '1',
             createdAt: now,
           }),
         ),
@@ -121,7 +121,7 @@ export function SopsProvider({ children }: { children: ReactNode }) {
         ...draft,
         id,
         code,
-        version: '1.0',
+        version: '1',
         status: 'draft',
         authorId: userId,
         coAuthorIds,
@@ -129,7 +129,7 @@ export function SopsProvider({ children }: { children: ReactNode }) {
         reviewers: [],
         approvers: [],
         versions: [
-          { version: '1.0', fileName: draft.fileName, fileType: draft.fileType, uploadedAt: now, fileUrl: draft.fileUrl },
+          { version: '1', fileName: draft.fileName, fileType: draft.fileType, uploadedById: userId, uploadedAt: now, fileUrl: draft.fileUrl },
         ],
         comments: [],
         timeline,
@@ -153,8 +153,9 @@ export function SopsProvider({ children }: { children: ReactNode }) {
           workflow.submitForReview(sop, userId, guideline.version, o.reviewerIds, o.approverIds, o.reviewDueDays, o.approvalDueDays, o.note),
         ),
       resubmit: (id, note) => update(id, (sop) => workflow.resubmit(sop, userId, guideline.version, note)),
-      replaceFile: (id, file) => updateAndCheck(id, (sop) => workflow.replaceFile(sop, userId, file), true),
-      uploadNewVersion: (id, file) => updateAndCheck(id, (sop) => workflow.uploadNewVersion(sop, userId, file), true),
+      uploadVersion: (id, file) => updateAndCheck(id, (sop) => workflow.uploadVersion(sop, userId, file), true),
+      deleteVersion: (id, version) => update(id, (sop) => workflow.deleteVersion(sop, userId, version)),
+      addResponse: (id, text) => update(id, (sop) => workflow.addResponse(sop, userId, text)),
       addCoAuthors: (id, userIds) =>
         update(id, (sop) => userIds.reduce((next, userId) => workflow.addCoAuthor(next, userId, userId), sop)),
       removeCoAuthor: (id, userId) => update(id, (sop) => workflow.removeCoAuthor(sop, userId, userId)),

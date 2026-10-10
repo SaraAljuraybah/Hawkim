@@ -28,7 +28,7 @@ export const sopsEn: SopsContent = {
     lastUpdated: 'Last updated',
   },
   departmentLabel: 'Department',
-  versionTemplate: 'Version {version}',
+  versionTemplate: 'v{version}',
   empty: 'No SOPs in this department yet.',
 
   detail: {

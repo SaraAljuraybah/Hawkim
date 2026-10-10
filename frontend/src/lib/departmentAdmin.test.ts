@@ -44,7 +44,7 @@ function sop(code: string, departmentId: string, status: Sop['status']): Sop {
     code,
     title: code,
     departmentId,
-    version: '1.0',
+    version: '1',
     status,
     lastUpdated: '2026-01-01',
     coAuthorIds: [],

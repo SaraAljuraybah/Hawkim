@@ -85,7 +85,7 @@ export function ComplianceCard({ sop, content, canRun, onRun }: ComplianceCardPr
             </div>
             <div>
               <dt className="text-text-gray">{content.details.version}</dt>
-              <dd className="mt-0.5 font-medium text-maroon">{check.version}</dd>
+              <dd className="mt-0.5 font-medium text-maroon">{content.versionLabel.replace('{version}', check.version)}</dd>
             </div>
             <div className="min-w-0">
               <dt className="text-text-gray">{content.details.guideline}</dt>

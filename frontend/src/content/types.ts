@@ -274,7 +274,7 @@ export interface SopsContent {
   columns: { code: string; title: string; department: string; version: string; lastUpdated: string }
   /** Screen-reader label before the active department's name, e.g. "Department: ". */
   departmentLabel: string
-  /** `{version}` is replaced with the version number, e.g. "Version 2.1". */
+  /** `{version}` is replaced with the version number, e.g. "v3". */
   versionTemplate: string
   /** Shown when the list is empty. */
   empty: string
@@ -408,7 +408,7 @@ export interface MySopsContent {
   /** `{department}` is replaced with the active department's name. */
   subtitle: string
   upload: LinkContent
-  /** `{version}` is replaced, e.g. "Version 1.0". */
+  /** `{version}` is replaced, e.g. "v1". */
   versionTemplate: string
   /** Shown when a tab has no SOPs. */
   empty: string
@@ -623,6 +623,8 @@ export interface ComplianceContent {
   /** Accessible name of the list of counts. */
   countsLabel: string
   /** `{name}` and `{version}` are replaced. */
+  /** An SOP version as shown, e.g. "v3"; `{version}` is replaced. */
+  versionLabel: string
   guideline: string
   details: { checked: string; version: string; guideline: string }
   card: {
@@ -835,6 +837,7 @@ export interface NotificationsContent {
     returned: string
     approved: string
     published: string
+    response: string
     dueSoon: { review: string; approval: string }
     days: { today: string; tomorrow: string }
     overdue: { review: string; approval: string }

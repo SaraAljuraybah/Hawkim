@@ -52,7 +52,7 @@ export function SopList({ sops, content }: SopListProps) {
                   </Link>
                 </td>
                 <td className="px-5 py-4 text-text-gray">{departmentName(sop.departmentId)}</td>
-                <td className="px-5 py-4 text-text-gray">{sop.version}</td>
+                <td className="px-5 py-4 text-text-gray">{content.versionTemplate.replace('{version}', sop.version)}</td>
                 <td className="px-5 py-4 whitespace-nowrap text-text-gray">
                   <time dateTime={sop.lastUpdated}>{formatDate(sop.lastUpdated)}</time>
                 </td>

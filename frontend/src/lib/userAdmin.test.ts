@@ -22,7 +22,7 @@ function sop(code: string, status: SopStatus, people: Partial<Pick<Sop, 'authorI
     code,
     title: code,
     departmentId: 'information-technology',
-    version: '1.0',
+    version: '1',
     status,
     lastUpdated: '2026-01-01',
     authorId: 'sara',

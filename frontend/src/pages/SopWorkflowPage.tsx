@@ -27,7 +27,6 @@ import {
   isApprover,
   isAuthorOrCoAuthor,
   latestReturn,
-  latestReturnComments,
   nextVersion,
   pendingPeople,
   type UploadedFile,
@@ -151,7 +150,7 @@ export function SopWorkflowPage() {
     .join(', ')
   const dueAt = currentDueAt(sop)
   const returned = sop.status === 'returned' ? latestReturn(sop) : undefined
-  const feedback = sop.status === 'returned' ? latestReturnComments(sop) : []
+  const feedback = returned ? sop.comments.filter((comment) => comment.version === returned.version && comment.authorUserId === returned.actorId) : []
   const resubmitReady = canResubmit(sop)
   // A completed compliance check of the current version, against the current GVP version,
   // is needed before submitting (it needn't pass).
@@ -413,7 +412,7 @@ export function SopWorkflowPage() {
           confirmLabel={dialogs.replace.confirm}
           onClose={closeDialog}
           onSubmit={(file) => {
-            store.replaceFile(sop.id, toUploadedFile(file))
+            store.uploadVersion(sop.id, toUploadedFile(file))
             announce(content.messages.replaced)
           }}
         />
@@ -422,12 +421,12 @@ export function SopWorkflowPage() {
         <FileDialog
           content={dialogs}
           title={dialogs.newVersion.title}
-          description={dialogs.newVersion.description.replace('{version}', nextVersion(sop.version))}
+          description={dialogs.newVersion.description.replace('{version}', nextVersion(sop))}
           confirmLabel={dialogs.newVersion.confirm}
           onClose={closeDialog}
           onSubmit={(file) => {
-            store.uploadNewVersion(sop.id, toUploadedFile(file))
-            announce(content.messages.newVersion.replace('{version}', nextVersion(sop.version)))
+            store.uploadVersion(sop.id, toUploadedFile(file))
+            announce(content.messages.newVersion.replace('{version}', nextVersion(sop)))
           }}
         />
       )}

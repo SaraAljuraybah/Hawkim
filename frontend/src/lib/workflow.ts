@@ -58,9 +58,20 @@ export function isValidDueDays(days: number): boolean {
   return Number.isInteger(days) && days >= DUE_DAYS_MIN && days <= DUE_DAYS_MAX
 }
 
-/** Version + 0.1 in decimal steps: 1.0 → 1.1, 1.9 → 2.0. */
-export function nextVersion(version: string): string {
-  return ((Math.round(Number(version) * 10) + 1) / 10).toFixed(1)
+/** Response texts are limited like comments. */
+export const RESPONSE_MAX = 1000
+
+/** The SOP's versions that weren't deleted, oldest first. */
+export function activeVersions(sop: Sop): SopVersion[] {
+  return sop.versions.filter((version) => !version.deletedAt)
+}
+
+/**
+ * The next version number: one more than the highest ever used (deleted versions
+ * included, so a number is never reused): v1, v2, v3…
+ */
+export function nextVersion(sop: Pick<Sop, 'versions'>): string {
+  return String(Math.max(0, ...sop.versions.map((version) => Number(version.version))) + 1)
 }
 
 // ---------- Who is who ----------
@@ -127,20 +138,48 @@ export function returnedFrom(sop: Sop): 'in-review' | 'in-approval' | undefined 
   return isApprover(sop, returned.actorId) ? 'in-approval' : 'in-review'
 }
 
-/** Comments left with the most recent return (shown in the feedback panel while Returned). */
-export function latestReturnComments(sop: Sop): SopComment[] {
-  const returned = latestReturn(sop)
-  if (!returned) return []
-  return sop.comments.filter(
-    (comment) => comment.version === returned.version && comment.authorUserId === returned.actorId,
-  )
-}
-
-/** A returned SOP can be resubmitted only after a new version was uploaded since the return (PBI 6). */
+/**
+ * A returned SOP can be resubmitted only once its current version was uploaded AFTER
+ * the latest return (PBI 6), so deleting back to an older version doesn't allow it.
+ */
 export function canResubmit(sop: Sop): boolean {
   if (sop.status !== 'returned') return false
   const returned = latestReturn(sop)
-  return !!returned && sop.version !== returned.version
+  const current = activeVersions(sop).find((version) => version.version === sop.version)
+  return !!returned && !!current && new Date(current.uploadedAt).getTime() >= new Date(returned.createdAt).getTime()
+}
+
+/** The comment saved with a timeline event, if any (new events link it; older ones match by person and time). */
+export function commentForEvent(sop: Sop, event: TimelineEvent): SopComment | undefined {
+  if (event.commentId) return sop.comments.find((comment) => comment.id === event.commentId)
+  if (event.type !== 'returned' && event.type !== 'review-completed' && event.type !== 'approved-by') return undefined
+  return sop.comments.find((comment) => comment.authorUserId === event.actorId && comment.createdAt === event.createdAt)
+}
+
+/**
+ * Who a Response goes to: everyone who commented in the latest round, i.e. since the
+ * most recent submission or resubmission before the latest comment (the person who
+ * returned it, plus anyone who left a comment when completing a review or approving).
+ */
+export function responseRecipients(sop: Sop): string[] {
+  const time = (iso: string) => new Date(iso).getTime()
+  const latest = [...sop.comments].sort((a, b) => time(a.createdAt) - time(b.createdAt)).at(-1)
+  if (!latest) return []
+  const roundStart = sop.timeline
+    .filter((event) => (event.type === 'submitted' || event.type === 'resubmitted') && time(event.createdAt) <= time(latest.createdAt))
+    .map((event) => time(event.createdAt))
+    .reduce((max, value) => Math.max(max, value), Number.NEGATIVE_INFINITY)
+  return [...new Set(sop.comments.filter((comment) => time(comment.createdAt) >= roundStart).map((comment) => comment.authorUserId))]
+}
+
+/** Why a version can't be deleted now (undefined: it can). */
+export type DeleteVersionBlocker = 'status' | 'not-main-author' | 'last-version'
+
+export function deleteVersionBlocker(sop: Sop, actorId: string): DeleteVersionBlocker | undefined {
+  if (sop.status !== 'draft' && sop.status !== 'returned') return 'status'
+  if (!isAuthor(sop, actorId)) return 'not-main-author'
+  if (activeVersions(sop).length <= 1) return 'last-version'
+  return undefined
 }
 
 // ---------- Helpers ----------
@@ -258,30 +297,71 @@ export function resubmit(sop: Sop, actorId: string, guidelineVersion: string, no
   }
 }
 
-/** Author or co-author: replace the draft's file; the version stays the same. */
-export function replaceFile(sop: Sop, actorId: string, file: UploadedFile): Sop {
-  assertStatus(sop, ['draft'], 'replace the file of')
-  assert(isAuthorOrCoAuthor(sop, actorId), 'Only the author or a co-author can replace the file')
-  const current: SopVersion = { ...sop.versions[sop.versions.length - 1], ...file, uploadedAt: new Date().toISOString() }
-  return {
-    ...sop,
-    ...file,
-    lastUpdated: todayIsoDate(),
-    versions: [...sop.versions.slice(0, -1), current],
-    timeline: [...sop.timeline, event(sop, 'file-replaced', actorId)],
-  }
-}
-
-/** Author or co-author: upload a new version after a return (PBI 8 / 12); +0.1. */
-export function uploadNewVersion(sop: Sop, actorId: string, file: UploadedFile): Sop {
-  assertStatus(sop, ['returned'], 'upload a new version of')
-  assert(isAuthorOrCoAuthor(sop, actorId), 'Only the author or a co-author can upload a new version')
-  const version = nextVersion(sop.version)
+/**
+ * Author or co-author: upload a file (PBI 8 / 12). Every upload adds the next version
+ * (v1, v2…), which becomes current. Only while the SOP is a Draft or Returned.
+ */
+export function uploadVersion(sop: Sop, actorId: string, file: UploadedFile): Sop {
+  assertStatus(sop, ['draft', 'returned'], 'upload a version of')
+  assert(isAuthorOrCoAuthor(sop, actorId), 'Only the author or a co-author can upload a version')
+  const version = nextVersion(sop)
+  const uploadedAt = new Date().toISOString()
   const updated: Sop = { ...sop, ...file, version, lastUpdated: todayIsoDate() }
   return {
     ...updated,
-    versions: [...sop.versions, { version, ...file, uploadedAt: new Date().toISOString() }],
-    timeline: [...sop.timeline, event(updated, 'new-version-uploaded', actorId)],
+    versions: [...sop.versions, { version, ...file, uploadedById: actorId, uploadedAt }],
+    timeline: [...sop.timeline, { ...event(updated, 'version-uploaded', actorId), createdAt: uploadedAt }],
+  }
+}
+
+/**
+ * Main author: delete a version (Draft or Returned only; at least one must remain).
+ * Deleting the current version makes the newest remaining one current. The deletion
+ * is recorded in the timeline ("Deleted v2").
+ */
+export function deleteVersion(sop: Sop, actorId: string, version: string): Sop {
+  const blocker = deleteVersionBlocker(sop, actorId)
+  assert(blocker !== 'status', `Can't delete a version of an SOP that is ${sop.status}`)
+  assert(blocker !== 'not-main-author', 'Only the main author can delete versions')
+  assert(blocker !== 'last-version', 'At least one version must remain')
+  const target = activeVersions(sop).find((item) => item.version === version)
+  assert(!!target, `Unknown version ${version}`)
+  const deletedAt = new Date().toISOString()
+  const versions = sop.versions.map((item) => (item === target ? { ...item, deletedAt, deletedById: actorId } : item))
+  let updated: Sop = { ...sop, versions, lastUpdated: todayIsoDate() }
+  if (sop.version === version) {
+    const remaining = versions.filter((item) => !item.deletedAt)
+    const newest = remaining.reduce((a, b) => (Number(b.version) > Number(a.version) ? b : a))
+    updated = {
+      ...updated,
+      version: newest.version,
+      fileName: newest.fileName,
+      fileType: newest.fileType,
+      fileUrl: newest.fileUrl,
+    }
+  }
+  return {
+    ...updated,
+    timeline: [...sop.timeline, { ...event(sop, 'version-deleted', actorId), version, createdAt: deletedAt }],
+  }
+}
+
+/**
+ * Author or co-author: reply to the reviewers' and approvers' comments. Recorded in the
+ * timeline, sent to everyone who commented in the latest round (see responseRecipients).
+ * Not once the SOP is published.
+ */
+export function addResponse(sop: Sop, actorId: string, text: string): Sop {
+  assert(sop.status !== 'published', "Can't respond once the SOP is published")
+  assert(isAuthorOrCoAuthor(sop, actorId), 'Only the author or a co-author can respond')
+  const trimmed = text.trim()
+  assert(!!trimmed && trimmed.length <= RESPONSE_MAX, 'A response of up to 1000 characters is required')
+  const recipientIds = responseRecipients(sop)
+  assert(recipientIds.length > 0, 'There are no comments to respond to')
+  return {
+    ...sop,
+    lastUpdated: todayIsoDate(),
+    timeline: [...sop.timeline, event(sop, 'response', actorId, { recipientIds, note: trimmed })],
   }
 }
 
@@ -319,16 +399,23 @@ function returnToAuthors(sop: Sop, actorId: string, role: 'reviewer' | 'approver
     status: 'returned',
     lastUpdated: todayIsoDate(),
     comments: [...sop.comments, comment],
-    timeline: [...sop.timeline, { ...event(sop, 'returned', actorId, { recipientIds: authors(sop) }), createdAt }],
+    timeline: [
+      ...sop.timeline,
+      { ...event(sop, 'returned', actorId, { recipientIds: authors(sop), commentId: comment.id }), createdAt },
+    ],
   }
 }
 
 /** An optional comment with a decision (Complete review, Approve): saved like any other comment. */
-function optionalComment(sop: Sop, actorId: string, role: 'reviewer' | 'approver', text: string | undefined, createdAt: string) {
+function optionalComment(
+  sop: Sop,
+  actorId: string,
+  role: 'reviewer' | 'approver',
+  text: string | undefined,
+  createdAt: string,
+): SopComment | undefined {
   const trimmed = text?.trim()
-  return trimmed
-    ? [...sop.comments, { id: newId('com'), authorUserId: actorId, role, text: trimmed, createdAt, version: sop.version }]
-    : sop.comments
+  return trimmed ? { id: newId('com'), authorUserId: actorId, role, text: trimmed, createdAt, version: sop.version } : undefined
 }
 
 /**
@@ -342,12 +429,13 @@ export function completeReview(sop: Sop, reviewerId: string, text?: string): Sop
   const reviewers = sop.reviewers.map((p) =>
     p.userId === reviewerId ? { ...p, decision: 'completed' as const, decidedAt: createdAt } : p,
   )
+  const comment = optionalComment(sop, reviewerId, 'reviewer', text, createdAt)
   let updated: Sop = {
     ...sop,
     reviewers,
     lastUpdated: todayIsoDate(),
-    comments: optionalComment(sop, reviewerId, 'reviewer', text, createdAt),
-    timeline: [...sop.timeline, { ...event(sop, 'review-completed', reviewerId), createdAt }],
+    comments: comment ? [...sop.comments, comment] : sop.comments,
+    timeline: [...sop.timeline, { ...event(sop, 'review-completed', reviewerId, comment ? { commentId: comment.id } : {}), createdAt }],
   }
   if (reviewers.every((p) => p.decision === 'completed')) {
     // Last reviewer done: forward to the approvers automatically, and start the approval clock (if any).
@@ -391,12 +479,13 @@ export function approveAs(sop: Sop, approverId: string, text?: string): Sop {
   const approvers = sop.approvers.map((p) =>
     p.userId === approverId ? { ...p, decision: 'approved' as const, decidedAt: createdAt } : p,
   )
+  const comment = optionalComment(sop, approverId, 'approver', text, createdAt)
   let updated: Sop = {
     ...sop,
     approvers,
     lastUpdated: todayIsoDate(),
-    comments: optionalComment(sop, approverId, 'approver', text, createdAt),
-    timeline: [...sop.timeline, { ...event(sop, 'approved-by', approverId), createdAt }],
+    comments: comment ? [...sop.comments, comment] : sop.comments,
+    timeline: [...sop.timeline, { ...event(sop, 'approved-by', approverId, comment ? { commentId: comment.id } : {}), createdAt }],
   }
   if (approvers.every((p) => p.decision === 'approved')) {
     updated = {

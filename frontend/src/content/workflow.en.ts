@@ -8,7 +8,7 @@ import type { SopWorkflowContent } from './types'
 export const sopWorkflowEn: SopWorkflowContent = {
   pageTitle: '{code} | Hawkim',
   back: { label: 'Back to My SOPs', href: '/my-sops' },
-  versionTemplate: 'Version {version}',
+  versionTemplate: 'v{version}',
   lastUpdatedTemplate: 'Last updated {date}',
   departmentLabel: 'Department',
   roles: { reviewer: 'Reviewer', approver: 'Approver', author: 'Author', coAuthor: 'Co-author', system: 'System' },
@@ -72,27 +72,27 @@ export const sopWorkflowEn: SopWorkflowContent = {
 
   feedback: {
     title: 'Feedback',
-    description: 'Returned by {name} ({role}) on {date} — version {version}.',
+    description: 'Returned by {name} ({role}) on {date} — v{version}.',
   },
 
   comments: {
     title: 'Comments',
     empty: 'No comments yet.',
-    versionHeading: 'Version {version}',
+    versionHeading: 'v{version}',
   },
 
   timeline: {
     title: 'Timeline',
     events: {
-      uploaded: 'Uploaded',
-      'file-replaced': 'File replaced',
+      'version-uploaded': 'Version uploaded',
+      'version-deleted': 'Version deleted',
+      response: 'Response',
       submitted: 'Submitted for review',
       resubmitted: 'Resubmitted for review',
       'forwarded-to-approver': 'Forwarded to approvers',
       returned: 'Returned with comments',
       approved: 'SOP approved',
       published: 'Published',
-      'new-version-uploaded': 'New version uploaded',
       'co-author-added': 'Co-author added',
       'co-author-removed': 'Co-author removed',
       'review-completed': 'Review completed',
@@ -157,7 +157,7 @@ export const sopWorkflowEn: SopWorkflowContent = {
     },
     newVersion: {
       title: 'Upload new version',
-      description: 'Upload the file with your changes. It becomes version {version}.',
+      description: 'Upload the file with your changes. It becomes v{version}.',
       confirm: 'Upload new version',
     },
     addCoAuthors: {
@@ -177,7 +177,7 @@ export const sopWorkflowEn: SopWorkflowContent = {
     resubmit: {
       title: 'Resubmit for review',
       description:
-        'Version {version} goes to the same reviewers and approvers, and through review and approval again. Their earlier decisions are cleared.',
+        'v{version} goes to the same reviewers and approvers, and through review and approval again. Their earlier decisions are cleared.',
       reviewersLabel: 'Reviewers',
       approversLabel: 'Approvers',
       reviewDaysLabel: 'Review due in',
@@ -192,7 +192,7 @@ export const sopWorkflowEn: SopWorkflowContent = {
   messages: {
     submitted: 'Submitted for review.',
     replaced: 'File replaced.',
-    newVersion: 'Version {version} uploaded.',
+    newVersion: 'v{version} uploaded.',
     resubmitted: 'Resubmitted for review.',
     coAuthorsAdded: 'Co-authors added.',
     coAuthorRemoved: '{name} removed as co-author.',

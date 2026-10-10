@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { ComplianceCheck, ComplianceResult, Sop } from '../data/mock/types'
 import {
   compareReports,
+  latestCompletedChecksByVersion,
   complianceScore,
   numberedFindings,
   previousReport,
@@ -11,7 +12,7 @@ import {
 } from './compliance'
 
 /** A completed check whose findings have these results, for requirements R1, R2… in order. */
-function check(results: ComplianceResult[], { id = 'chk', version = '1.0' } = {}): ComplianceCheck {
+function check(results: ComplianceResult[], { id = 'chk', version = '1' } = {}): ComplianceCheck {
   return {
     id,
     sopId: 'sop-1',
@@ -30,7 +31,7 @@ function check(results: ComplianceResult[], { id = 'chk', version = '1.0' } = {}
 }
 
 /** A minimal SOP with these compliance checks. */
-function sopWith(complianceChecks: ComplianceCheck[], version = '1.0'): Sop {
+function sopWith(complianceChecks: ComplianceCheck[], version = '1'): Sop {
   return {
     id: 'sop-1',
     code: 'SOP-001',
@@ -102,20 +103,43 @@ describe('numberedFindings', () => {
 
 describe('reportId', () => {
   it('is CR-{code}-{version}-{run}, counting every run of that version (failed ones too)', () => {
-    const failed: ComplianceCheck = { ...check([], { id: 'a', version: '1.1' }), status: 'failed' }
-    const second = check(['compliant'], { id: 'b', version: '1.1' })
-    const sop = sopWith([check(['compliant'], { id: 'old', version: '1.0' }), failed, second], '1.1')
-    expect(reportId(sop, second)).toBe('CR-SOP-001-1.1-02')
+    const failed: ComplianceCheck = { ...check([], { id: 'a', version: '2' }), status: 'failed' }
+    const second = check(['compliant'], { id: 'b', version: '2' })
+    const sop = sopWith([check(['compliant'], { id: 'old', version: '1' }), failed, second], '2')
+    expect(reportId(sop, second)).toBe('CR-SOP-001-v2-02')
+  })
+})
+
+describe('latestCompletedChecksByVersion', () => {
+  it('lists the newest report per version, newest version first, without deleted versions', () => {
+    const v1 = check(['conflict'], { id: 'v1', version: '1' })
+    const v2 = check(['partial'], { id: 'v2', version: '2' })
+    const v3 = check(['compliant'], { id: 'v3', version: '3' })
+    const sop = sopWith([v1, v2, v3], '3')
+    expect(latestCompletedChecksByVersion(sop).map((item) => item.id)).toEqual(['v3', 'v2', 'v1'])
+    const at = '2026-01-02T00:00:00Z'
+    const withDeleted: Sop = {
+      ...sop,
+      versions: ['1', '2', '3'].map((version) => ({
+        version,
+        fileName: 'f.pdf',
+        fileType: 'pdf',
+        uploadedAt: at,
+        ...(version === '2' ? { deletedAt: at, deletedById: 'sara' } : {}),
+      })),
+    }
+    expect(latestCompletedChecksByVersion(withDeleted).map((item) => item.id)).toEqual(['v3', 'v1'])
+    expect(previousReport(withDeleted, v3)?.id).toBe('v1')
   })
 })
 
 describe('previousReport', () => {
   it('is the newest completed report of the nearest earlier version', () => {
-    const v10 = check(['conflict'], { id: 'v10', version: '1.0' })
-    const v11first = check(['conflict'], { id: 'v11a', version: '1.1' })
-    const v11second = check(['partial'], { id: 'v11b', version: '1.1' })
-    const v12 = check(['compliant'], { id: 'v12', version: '1.2' })
-    const sop = sopWith([v10, v11first, v11second, v12], '1.2')
+    const v10 = check(['conflict'], { id: 'v10', version: '1' })
+    const v11first = check(['conflict'], { id: 'v11a', version: '2' })
+    const v11second = check(['partial'], { id: 'v11b', version: '2' })
+    const v12 = check(['compliant'], { id: 'v12', version: '3' })
+    const sop = sopWith([v10, v11first, v11second, v12], '3')
     expect(previousReport(sop, v12)?.id).toBe('v11b')
     expect(previousReport(sop, v10)).toBeUndefined()
   })
