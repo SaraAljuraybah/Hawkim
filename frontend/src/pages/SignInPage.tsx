@@ -1,4 +1,4 @@
-import { lazy, Suspense, useRef, useState, type FormEvent } from 'react'
+import { useRef, useState, type FormEvent } from 'react'
 import { flushSync } from 'react-dom'
 import { Link, useNavigate } from 'react-router-dom'
 import { Info, LoaderCircle } from 'lucide-react'
@@ -13,9 +13,6 @@ import { hasPermission } from '../lib/permissions'
 import { signIn, type SignInFailureReason } from '../services/auth'
 import { useSession } from '../state/sessionContext'
 import { useUsers } from '../state/usersContext'
-
-// DEVELOPMENT ONLY: the demo accounts box is not part of the production build.
-const DemoAccounts = import.meta.env.DEV ? lazy(() => import('../components/auth/DemoAccounts')) : null
 
 type Field = 'email' | 'password'
 type FieldErrors = Partial<Record<Field, string>>
@@ -144,13 +141,6 @@ export function SignInPage() {
               <Logo variant="full" alt={content.brand.logoAlt} className="h-60" />
             </Link>
             <span aria-hidden="true" className="mt-8 block h-0.5 w-10 bg-gold" />
-            <p className="mt-6 text-lg leading-relaxed text-text-gray">
-              {content.brand.taglineLines.map((line) => (
-                <span key={line} className="block">
-                  {line}
-                </span>
-              ))}
-            </p>
           </div>
 
           <p className="relative px-10 pt-6 pb-10 text-center text-[13px] leading-relaxed text-text-gray">
@@ -243,18 +233,6 @@ export function SignInPage() {
                 {content.legal.suffix}
               </p>
             </form>
-
-            {DemoAccounts && (
-              <Suspense fallback={null}>
-                <DemoAccounts
-                  onPick={(email) => {
-                    handleChange('email', email)
-                    setErrors((prev) => ({ ...prev, email: undefined }))
-                    passwordRef.current?.focus()
-                  }}
-                />
-              </Suspense>
-            )}
           </div>
         </div>
       </div>

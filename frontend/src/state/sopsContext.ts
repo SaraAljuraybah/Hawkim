@@ -23,8 +23,12 @@ export interface SopsStore {
   // Actions by the current user (author or co-author). Each throws if not allowed.
   submitForReview: (sopId: string, options: SubmitOptions) => void
   resubmit: (sopId: string, note?: string) => void
-  replaceFile: (sopId: string, file: UploadedFile) => void
-  uploadNewVersion: (sopId: string, file: UploadedFile) => void
+  /** Uploads the next version (Draft or Returned) and starts a compliance check of it. */
+  uploadVersion: (sopId: string, file: UploadedFile) => void
+  /** Main author: deletes a version (Draft or Returned; at least one remains). */
+  deleteVersion: (sopId: string, version: string) => void
+  /** Author or co-author: replies to the latest round's comments. */
+  addResponse: (sopId: string, text: string) => void
   /** Adds one or more co-authors in a single update. */
   addCoAuthors: (sopId: string, userIds: string[]) => void
   removeCoAuthor: (sopId: string, userId: string) => void

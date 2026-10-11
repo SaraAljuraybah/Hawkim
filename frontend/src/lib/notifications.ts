@@ -20,6 +20,8 @@ export type NotificationType =
   | 'sop-returned'
   | 'sop-approved'
   | 'sop-published'
+  /** The author or a co-author responded to my comments. */
+  | 'response'
   /** My pending decision in the open stage. */
   | 'due-soon'
   | 'overdue'
@@ -85,6 +87,8 @@ function fromEvent(sop: Sop, event: TimelineEvent, userId: string): AppNotificat
       return isWriter ? { ...base, type: 'sop-approved', link: mySopPath(sop.id) } : undefined
     case 'returned':
       return isRecipient ? { ...base, type: 'sop-returned', link: mySopPath(sop.id) } : undefined
+    case 'response':
+      return isRecipient ? { ...base, type: 'response', link: reviewPath(sop.id) } : undefined
     case 'published':
       return isWriter && event.actorId !== userId ? { ...base, type: 'sop-published', link: mySopPath(sop.id) } : undefined
     default:

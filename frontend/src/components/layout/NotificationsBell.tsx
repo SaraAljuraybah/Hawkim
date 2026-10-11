@@ -9,6 +9,7 @@ import {
   CircleX,
   Clock,
   ListChecks,
+  MessageSquareReply,
   Undo2,
   Upload,
   type LucideIcon,
@@ -28,6 +29,7 @@ const ICONS: Record<NotificationType, LucideIcon> = {
   'assigned-approval': ListChecks,
   'ready-to-publish': Upload,
   'sop-returned': Undo2,
+  response: MessageSquareReply,
   'sop-approved': BadgeCheck,
   'sop-published': BookOpen,
   'due-soon': Clock,
@@ -95,6 +97,8 @@ export function NotificationsBell() {
         return fill(t.readyToPublish)
       case 'sop-returned':
         return fill(t.returned)
+      case 'response':
+        return fill(t.response)
       case 'sop-approved':
         return fill(t.approved)
       case 'sop-published':

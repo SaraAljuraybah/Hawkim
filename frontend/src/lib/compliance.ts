@@ -47,11 +47,17 @@ export function isCheckRunning(sop: Sop): boolean {
   return sop.complianceChecks.some((check) => check.status === 'running')
 }
 
-/** The newest completed check of each version, newest version first (the saved reports). */
+/**
+ * The newest completed check of each version, newest version first (the saved reports).
+ * Reports of deleted versions are no longer listed.
+ */
 export function latestCompletedChecksByVersion(sop: Sop): ComplianceCheck[] {
+  const deleted = new Set(sop.versions.filter((version) => version.deletedAt).map((version) => version.version))
   const byVersion = new Map<string, ComplianceCheck>()
-  for (const check of sop.complianceChecks) if (check.status === 'completed') byVersion.set(check.version, check)
-  return [...byVersion.values()].reverse()
+  for (const check of sop.complianceChecks) {
+    if (check.status === 'completed' && !deleted.has(check.version)) byVersion.set(check.version, check)
+  }
+  return [...byVersion.values()].sort((a, b) => Number(b.version) - Number(a.version))
 }
 
 /** Number of findings per result. */
@@ -69,17 +75,24 @@ export function sortFindings(findings: Finding[]): Finding[] {
 // ---------- Running checks (sample engine) ----------
 
 /**
- * Starts a check of the SOP's current version against `guideline` (the current GVP
- * version, which the report keeps). Only one check runs at a time: a manual run is
- * refused while one is running, but an upload replaces the running check (it was
- * checking a file that has just been replaced), which leaves no report.
+ * What started a check: an upload (run automatically for the person who uploaded the
+ * current version) or someone pressing Check.
  */
-export function startCheck(
-  sop: Sop,
-  guideline: Guideline,
-  { afterUpload = false } = {},
-): { sop: Sop; checkId: string } {
+export type CheckTrigger = { afterUpload: true } | { manualBy: string }
+
+/**
+ * Starts a check of the SOP's current version against `guideline` (the current GVP
+ * version, which the report keeps), recording who ran it. Only one check runs at a
+ * time: a manual run is refused while one is running, but an upload replaces the
+ * running check (it was checking a file that has just been replaced), which leaves
+ * no report.
+ */
+export function startCheck(sop: Sop, guideline: Guideline, trigger: CheckTrigger): { sop: Sop; checkId: string } {
+  const afterUpload = 'afterUpload' in trigger
   if (isCheckRunning(sop) && !afterUpload) throw new Error('A compliance check is already running')
+  const triggeredById = afterUpload
+    ? sop.versions.find((version) => version.version === sop.version && !version.deletedAt)?.uploadedById
+    : trigger.manualBy
   const kept = sop.complianceChecks.filter((check) => check.status !== 'running')
   const check: ComplianceCheck = {
     id: newId('chk'),
@@ -87,13 +100,14 @@ export function startCheck(
     version: sop.version,
     status: 'running',
     startedAt: new Date().toISOString(),
+    ...(triggeredById ? { triggeredById } : {}),
     guideline,
     findings: [],
   }
   return { sop: { ...sop, complianceChecks: [...kept, check] }, checkId: check.id }
 }
 
-/** Ends a running check as completed (with the sample findings) or failed; adds a timeline event by System. */
+/** Ends a running check as completed (with the sample findings) or failed; adds a timeline event by whoever ran it. */
 function finishCheck(sop: Sop, checkId: string, outcome: 'completed' | 'failed'): Sop {
   const check = sop.complianceChecks.find((item) => item.id === checkId)
   // Already finished (e.g. failed from the demo panel before the timer ran): nothing to do.
@@ -111,7 +125,7 @@ function finishCheck(sop: Sop, checkId: string, outcome: 'completed' | 'failed')
       {
         id: newId('evt'),
         type: outcome === 'completed' ? 'compliance-check-completed' : 'compliance-check-failed',
-        actorId: SYSTEM_ACTOR,
+        actorId: check.triggeredById ?? SYSTEM_ACTOR,
         version: check.version,
         createdAt: completedAt,
       },
@@ -142,10 +156,10 @@ export function numberedFindings(check: ComplianceCheck): NumberedFinding[] {
   return sortFindings(check.findings).map((finding, index) => ({ ...finding, number: `F-${pad2(index + 1)}` }))
 }
 
-/** e.g. "CR-SOP-083-1.0-01": SOP code, version, and the run number for that version (failed runs included). */
+/** e.g. "CR-SOP-078-v3-01": SOP code, version, and the run number for that version (failed runs included). */
 export function reportId(sop: Sop, check: ComplianceCheck): string {
   const run = sop.complianceChecks.filter((item) => item.version === check.version).findIndex((item) => item.id === check.id) + 1
-  return `CR-${sop.code}-${check.version}-${pad2(run)}`
+  return `CR-${sop.code}-v${check.version}-${pad2(run)}`
 }
 
 /** Compliance score: compliant findings ÷ all findings, as a whole percentage. */

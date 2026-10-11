@@ -153,7 +153,7 @@ function Report({ sop, backPath }: { sop: Sop; backPath: string }) {
     ? [
         { label: text.header.reportId, value: reportId(sop, report) },
         { label: text.header.sop, value: `${sop.code} · ${sop.title}` },
-        { label: text.header.version, value: report.version },
+        { label: text.header.version, value: content.versionLabel.replace('{version}', report.version) },
         { label: text.header.author, value: author },
         ...(coAuthors ? [{ label: text.header.coAuthors, value: coAuthors }] : []),
         { label: text.header.department, value: departmentName(sop.departmentId) },
@@ -166,6 +166,7 @@ function Report({ sop, backPath }: { sop: Sop; backPath: string }) {
           value: content.guideline.replace('{name}', report.guideline.name).replace('{version}', report.guideline.version),
         },
         { label: text.header.checkedBy, value: text.header.checker },
+        ...(report.triggeredById ? [{ label: text.header.runBy, value: nameOf(report.triggeredById) }] : []),
       ]
     : []
 
@@ -317,7 +318,7 @@ function Report({ sop, backPath }: { sop: Sop; backPath: string }) {
 
           {/* f) Method and limitations */}
           <ReportSection id="method-title" title={text.method.title}>
-            <ul className="list-disc space-y-1.5 pl-5 text-sm text-maroon">
+            <ul className="max-w-[75ch] list-disc space-y-1.5 pl-5 text-sm text-maroon">
               {text.method.items.map((item) => (
                 <li key={item}>{item}</li>
               ))}

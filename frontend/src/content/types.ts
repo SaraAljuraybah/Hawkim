@@ -151,8 +151,6 @@ export interface SignInContent {
   pageTitle: string
   brand: {
     logoAlt: string
-    /** Rendered one per line under the logo. */
-    taglineLines: string[]
     /** Plain-text note at the bottom of the brand panel (no emblems or logos). */
     regulatoryNote: string
   }
@@ -276,7 +274,7 @@ export interface SopsContent {
   columns: { code: string; title: string; department: string; version: string; lastUpdated: string }
   /** Screen-reader label before the active department's name, e.g. "Department: ". */
   departmentLabel: string
-  /** `{version}` is replaced with the version number, e.g. "Version 2.1". */
+  /** `{version}` is replaced with the version number, e.g. "v3". */
   versionTemplate: string
   /** Shown when the list is empty. */
   empty: string
@@ -410,7 +408,7 @@ export interface MySopsContent {
   /** `{department}` is replaced with the active department's name. */
   subtitle: string
   upload: LinkContent
-  /** `{version}` is replaced, e.g. "Version 1.0". */
+  /** `{version}` is replaced, e.g. "v1". */
   versionTemplate: string
   /** Shown when a tab has no SOPs. */
   empty: string
@@ -495,30 +493,51 @@ export interface SopWorkflowContent {
     /** Reviewers and approvers before the first submission. */
     notAssigned: string
     addCoAuthor: string
+    /** The author's workflow page: the Authors section. */
+    authorsTitle: string
+    mainAuthor: string
+    addAuthor: string
     remove: string
     /** Accessible name of a Remove button; `{name}` is replaced. */
     removeLabel: string
     decisions: { pending: string; completed: string; approved: string; returned: string }
   }
   file: {
-    title: string
     types: Record<SopFileType, string>
-    download: string
+    /** Published SOPs: a link to the SOP in the directory (in SOP history). */
     viewInDirectory: string
   }
-  actions: {
+  /** SOP history: every version, with Preview, Download and Delete. */
+  history: {
     title: string
+    columns: { version: string; author: string; date: string; preview: string; download: string; delete: string }
+    /** Marks the current version. */
+    current: string
+    /** Author of the versions the signed-in user uploaded. */
+    you: string
+    /** Accessible names and tooltips; `{version}` is replaced. */
+    previewLabel: string
+    downloadLabel: string
+    deleteLabel: string
+    /** Why Preview / Download aren't available. */
+    unavailable: { word: string; demo: string }
+    /** Why Delete isn't available; `{name}` is the main author in `not-main-author`. */
+    deleteBlocked: { status: string; 'not-main-author': string; 'last-version': string }
+    upload: string
+    check: string
+    /** Preview dialog: `{code}` and `{version}` are replaced. */
+    previewTitle: string
+    /** Accessible name of the embedded viewer; `{code}`, `{title}` and `{version}` are replaced. */
+    viewerTitle: string
+    close: string
+    fallback: { text: string; openPdf: string; newTabHint: string }
+  }
+  /** Buttons on the Review timeline. */
+  actions: {
+    /** Submit or, once returned, resubmit. */
     submit: string
-    replace: string
-    uploadNewVersion: string
-    resubmit: string
+    response: string
     resubmitHint: string
-    /** `{people}` is replaced, e.g. "Faisal Alharbi (Reviewer)". */
-    waiting: string
-    /** Follows the waiting text; `{date}` is replaced. */
-    waitingDue: string
-    approvedWaiting: string
-    published: string
     /** Shown to co-authors; `{name}` is the main author. */
     authorOnly: string
     /** Why Submit / Resubmit is disabled: the check is running, or there's no completed check. */
@@ -526,14 +545,12 @@ export interface SopWorkflowContent {
     checkNeeded: string
     /** The completed check used an older GVP version; `{version}` is the current one. */
     checkCurrentNeeded: string
-    /** Published SOPs: run a new check after the requirements change (PBI 29). */
-    recheck: string
   }
-  feedback: {
-    title: string
-    /** `{name}`, `{role}`, `{date}` and `{version}` are replaced. */
-    description: string
-  }
+  /**
+   * Under the workflow status when the SOP is Returned: `{name}` is who returned it and
+   * `{link}` is replaced with a link (`link`) to the Review timeline.
+   */
+  returnedNote: { text: string; link: string }
   comments: {
     title: string
     empty: string
@@ -542,12 +559,12 @@ export interface SopWorkflowContent {
   }
   timeline: {
     title: string
+    columns: { action: string; by: string; to: string; date: string; version: string; comment: string }
+    /** Screen-reader text of an empty cell. */
+    none: string
+    viewMore: string
+    viewLess: string
     events: Record<TimelineEventType, string>
-    /** `{name}` is replaced. */
-    by: string
-    /** `{name}` is replaced. */
-    to: string
-    noteLabel: string
     /** Label for stage-due-date-set events, by stage. */
     stageDue: { review: string; approval: string }
     /** `{date}` is replaced. */
@@ -575,8 +592,10 @@ export interface SopWorkflowContent {
       errors: { reviewersRequired: string; approversRequired: string; daysInvalid: string }
       confirm: string
     }
-    replace: { title: string; description: string; confirm: string }
+    /** `{version}` is the number the upload becomes. */
     newVersion: { title: string; description: string; confirm: string }
+    /** `{version}` is replaced; `currentNote` (deleting the current version) also has `{previous}`. */
+    deleteVersion: { title: string; description: string; currentNote: string; keep: string; confirm: string }
     addCoAuthors: {
       title: string
       description: string
@@ -587,6 +606,8 @@ export interface SopWorkflowContent {
     }
     /** `{name}` is replaced in the description. */
     removeCoAuthor: { title: string; description: string; keep: string; confirm: string }
+    /** `{names}` (the recipients) is replaced in the description; `{count}` and `{max}` in the counter. */
+    response: { title: string; description: string; label: string; required: string; counter: string; confirm: string }
     resubmit: {
       title: string
       description: string
@@ -604,13 +625,15 @@ export interface SopWorkflowContent {
   /** Announced after each action. */
   messages: {
     submitted: string
-    replaced: string
     newVersion: string
+    /** `{version}` is replaced. */
+    versionDeleted: string
     resubmitted: string
     coAuthorsAdded: string
     /** `{name}` is replaced. */
     coAuthorRemoved: string
     checkStarted: string
+    responseSent: string
   }
 }
 
@@ -625,6 +648,8 @@ export interface ComplianceContent {
   /** Accessible name of the list of counts. */
   countsLabel: string
   /** `{name}` and `{version}` are replaced. */
+  /** An SOP version as shown, e.g. "v3"; `{version}` is replaced. */
+  versionLabel: string
   guideline: string
   details: { checked: string; version: string; guideline: string }
   card: {
@@ -634,11 +659,7 @@ export interface ComplianceContent {
     /** Announced when a running check ends. */
     completed: string
     failed: string
-    /** `{version}` is the SOP version. */
-    none: string
     viewReport: string
-    runAgain: string
-    run: string
     /** The SOP's newest check used an older GVP version (PBI 29). `{checked}` and `{current}` are replaced. */
     recheck: { badge: string; note: string }
   }
@@ -667,6 +688,8 @@ export interface ComplianceContent {
       guideline: string
       checkedBy: string
       checker: string
+      /** Who ran the check (the uploader, or who pressed Check). */
+      runBy: string
     }
     summary: {
       title: string
@@ -808,16 +831,6 @@ export interface UsersContent {
   deletedName: string
 }
 
-/* ---------- Sign In: demo accounts (development only) ---------- */
-
-export interface DemoAccountsContent {
-  title: string
-  note: string
-  /** Accessible name of each "use" button; `{name}` is replaced. */
-  useLabel: string
-  use: string
-}
-
 /* ---------- Loading state (while a page's code loads) ---------- */
 
 export interface LoadingContent {
@@ -847,6 +860,7 @@ export interface NotificationsContent {
     returned: string
     approved: string
     published: string
+    response: string
     dueSoon: { review: string; approval: string }
     days: { today: string; tomorrow: string }
     overdue: { review: string; approval: string }

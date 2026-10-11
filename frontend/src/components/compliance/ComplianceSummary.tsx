@@ -22,11 +22,10 @@ export function ComplianceSummary({ check, content }: { check: ComplianceCheck; 
       <p className="font-semibold text-maroon">
         {content.summary.replace('{count}', String(counts.compliant)).replace('{total}', String(check.findings.length))}
       </p>
-      <ul aria-label={content.countsLabel} className="mt-3 flex flex-wrap gap-x-5 gap-y-2">
+      <ul aria-label={content.countsLabel} className="mt-3 flex flex-wrap gap-2">
         {RESULT_ORDER.map((result) => (
-          <li key={result} className="flex items-center gap-2">
-            <ComplianceBadge result={result} labels={content.results} />
-            <span className="text-sm font-semibold text-maroon tabular-nums">{counts[result]}</span>
+          <li key={result} className="flex">
+            <ComplianceBadge result={result} labels={content.results} count={counts[result]} />
           </li>
         ))}
       </ul>

@@ -24,7 +24,7 @@ export function CommentItems({ sop, comments, content }: CommentItemsProps) {
               {formatDateTime(comment.createdAt)}
             </time>
           </p>
-          <p className="mt-2 text-sm leading-relaxed text-maroon">{comment.text}</p>
+          <p className="mt-2 max-w-[75ch] text-sm leading-relaxed text-maroon">{comment.text}</p>
         </li>
       ))}
     </ul>

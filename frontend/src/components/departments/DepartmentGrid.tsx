@@ -38,7 +38,7 @@ export function DepartmentGrid({ departments, content, getState, getMemberCount,
   const { states } = content
 
   return (
-    <ul className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+    <ul className="grid gap-5 md:grid-cols-2 xl:grid-cols-3 3xl:grid-cols-4">
       {departments.map((department, index) => {
         const state = getState(department)
         const nameId = `department-${department.id}-name`

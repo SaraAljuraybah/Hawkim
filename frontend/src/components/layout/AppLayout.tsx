@@ -47,7 +47,7 @@ export function AppLayout({ children }: { children?: ReactNode }) {
       </a>
 
       {/* Fixed sidebar — lg and up */}
-      <div className="fixed inset-y-0 left-0 z-40 hidden w-60 border-r border-beige bg-white lg:block print:hidden">
+      <div className="fixed inset-y-0 left-0 z-40 hidden w-64 bg-maroon lg:block wide:w-72 ultra:w-80 print:hidden">
         <Sidebar content={content} badges={badges} />
       </div>
 
@@ -67,7 +67,7 @@ export function AppLayout({ children }: { children?: ReactNode }) {
         />
       </MobileDrawer>
 
-      <div className="flex min-h-dvh flex-col lg:pl-60 print:pl-0">
+      <div className="flex min-h-dvh flex-col lg:pl-64 wide:pl-72 ultra:pl-80 print:pl-0">
         <TopBar
           content={content}
           user={user}
@@ -76,8 +76,8 @@ export function AppLayout({ children }: { children?: ReactNode }) {
           menuButtonRef={menuButtonRef}
         />
         <main id="main" tabIndex={-1} className="flex-1 px-4 py-8 focus:outline-none sm:px-6 lg:px-10 lg:py-10 print:p-0">
-          {/* Left-aligned next to the sidebar, capped at 1280px so lines stay readable on wide screens */}
-          <div className="w-full max-w-7xl">
+          {/* Left-aligned next to the sidebar, up to 1680px wide (long text and forms keep their own readable widths) */}
+          <div className="w-full max-w-[105rem]">
             {/* Pages loaded on demand show a loading state inside the shell */}
             <Suspense fallback={<PageLoading />}>{children ?? <Outlet />}</Suspense>
           </div>

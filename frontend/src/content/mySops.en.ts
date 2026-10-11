@@ -11,7 +11,7 @@ export const mySopsEn: MySopsContent = {
   title: 'My SOPs',
   subtitle: "SOPs you've authored or co-authored in {department}.",
   upload: { label: 'Upload SOP', href: '/my-sops/upload' },
-  versionTemplate: 'Version {version}',
+  versionTemplate: 'v{version}',
   empty: 'No SOPs here yet.',
   uploadedMessage: 'SOP uploaded as a draft.',
   coAuthorLabel: 'Co-author',

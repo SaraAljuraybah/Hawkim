@@ -42,7 +42,7 @@ export function AdminLayout() {
       </a>
 
       {/* Fixed sidebar — lg and up */}
-      <div className="fixed inset-y-0 left-0 z-40 hidden w-60 border-r border-beige bg-white lg:block">
+      <div className="fixed inset-y-0 left-0 z-40 hidden w-64 bg-maroon lg:block wide:w-72 ultra:w-80">
         <Sidebar content={content} badges={badges} />
       </div>
 
@@ -56,7 +56,7 @@ export function AdminLayout() {
         <Sidebar content={content} onNavigate={closeDrawer} onClose={closeDrawer} badges={badges} />
       </MobileDrawer>
 
-      <div className="flex min-h-dvh flex-col lg:pl-60">
+      <div className="flex min-h-dvh flex-col lg:pl-64 wide:pl-72 ultra:pl-80">
         <AdminTopBar
           content={content}
           user={user}
@@ -65,7 +65,8 @@ export function AdminLayout() {
           menuButtonRef={menuButtonRef}
         />
         <main id="main" tabIndex={-1} className="flex-1 px-4 py-8 focus:outline-none sm:px-6 lg:px-10 lg:py-10">
-          <div className="w-full max-w-7xl">
+          {/* Left-aligned next to the sidebar, up to 1680px wide (long text and forms keep their own readable widths) */}
+          <div className="w-full max-w-[105rem]">
             {/* Pages loaded on demand show a loading state inside the shell */}
             <Suspense fallback={<PageLoading />}>
               <Outlet />

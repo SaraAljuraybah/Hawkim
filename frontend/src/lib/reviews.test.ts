@@ -16,7 +16,7 @@ function sop(
     code,
     title: code,
     departmentId: 'information-technology',
-    version: '1.0',
+    version: '1',
     status,
     lastUpdated: '2026-10-01',
     authorId: 'sara',
@@ -90,7 +90,7 @@ describe('sorting To do', () => {
   const inReview = (code: string, reviewDueAt: string | undefined, sentAt: string) =>
     sop(code, 'in-review', reviewer('pending'), [], {
       reviewDueAt,
-      timeline: [{ id: `${code}-1`, type: 'submitted', actorId: 'sara', version: '1.0', createdAt: sentAt }],
+      timeline: [{ id: `${code}-1`, type: 'submitted', actorId: 'sara', version: '1', createdAt: sentAt }],
     })
 
   it('puts overdue first, then the nearest due date, then no due date by oldest sent', () => {
