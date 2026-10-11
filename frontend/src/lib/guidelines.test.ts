@@ -168,7 +168,7 @@ describe('submitting needs a check against the current version', () => {
 describe('reports keep their version', () => {
   it('records the current version on a new check and leaves earlier reports unchanged', () => {
     const before = sop('published', [check('1', '4.0')])
-    const started = startCheck(before, gvp('4.1'))
+    const started = startCheck(before, gvp('4.1'), { manualBy: 'sara' })
     const after = completeCheck(started.sop, started.checkId)
     expect(latestCompletedChecksByVersion(after).length).toBe(1) // the newest report of SOP v1
     expect(after.complianceChecks.map((item) => item.guideline.version)).toEqual(['4.0', '4.1'])

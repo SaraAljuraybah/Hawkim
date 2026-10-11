@@ -75,17 +75,24 @@ export function sortFindings(findings: Finding[]): Finding[] {
 // ---------- Running checks (sample engine) ----------
 
 /**
- * Starts a check of the SOP's current version against `guideline` (the current GVP
- * version, which the report keeps). Only one check runs at a time: a manual run is
- * refused while one is running, but an upload replaces the running check (it was
- * checking a file that has just been replaced), which leaves no report.
+ * What started a check: an upload (run automatically for the person who uploaded the
+ * current version) or someone pressing Check.
  */
-export function startCheck(
-  sop: Sop,
-  guideline: Guideline,
-  { afterUpload = false } = {},
-): { sop: Sop; checkId: string } {
+export type CheckTrigger = { afterUpload: true } | { manualBy: string }
+
+/**
+ * Starts a check of the SOP's current version against `guideline` (the current GVP
+ * version, which the report keeps), recording who ran it. Only one check runs at a
+ * time: a manual run is refused while one is running, but an upload replaces the
+ * running check (it was checking a file that has just been replaced), which leaves
+ * no report.
+ */
+export function startCheck(sop: Sop, guideline: Guideline, trigger: CheckTrigger): { sop: Sop; checkId: string } {
+  const afterUpload = 'afterUpload' in trigger
   if (isCheckRunning(sop) && !afterUpload) throw new Error('A compliance check is already running')
+  const triggeredById = afterUpload
+    ? sop.versions.find((version) => version.version === sop.version && !version.deletedAt)?.uploadedById
+    : trigger.manualBy
   const kept = sop.complianceChecks.filter((check) => check.status !== 'running')
   const check: ComplianceCheck = {
     id: newId('chk'),
@@ -93,13 +100,14 @@ export function startCheck(
     version: sop.version,
     status: 'running',
     startedAt: new Date().toISOString(),
+    ...(triggeredById ? { triggeredById } : {}),
     guideline,
     findings: [],
   }
   return { sop: { ...sop, complianceChecks: [...kept, check] }, checkId: check.id }
 }
 
-/** Ends a running check as completed (with the sample findings) or failed; adds a timeline event by System. */
+/** Ends a running check as completed (with the sample findings) or failed; adds a timeline event by whoever ran it. */
 function finishCheck(sop: Sop, checkId: string, outcome: 'completed' | 'failed'): Sop {
   const check = sop.complianceChecks.find((item) => item.id === checkId)
   // Already finished (e.g. failed from the demo panel before the timer ran): nothing to do.
@@ -117,7 +125,7 @@ function finishCheck(sop: Sop, checkId: string, outcome: 'completed' | 'failed')
       {
         id: newId('evt'),
         type: outcome === 'completed' ? 'compliance-check-completed' : 'compliance-check-failed',
-        actorId: SYSTEM_ACTOR,
+        actorId: check.triggeredById ?? SYSTEM_ACTOR,
         version: check.version,
         createdAt: completedAt,
       },

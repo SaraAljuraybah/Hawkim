@@ -688,6 +688,8 @@ export interface ComplianceContent {
       guideline: string
       checkedBy: string
       checker: string
+      /** Who ran the check (the uploader, or who pressed Check). */
+      runBy: string
     }
     summary: {
       title: string

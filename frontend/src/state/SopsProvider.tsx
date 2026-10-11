@@ -85,13 +85,13 @@ export function SopsProvider({ children }: { children: ReactNode }) {
     (sopId: string, transition: (sop: Sop) => Sop, afterUpload: boolean) => {
       let checkId = ''
       update(sopId, (sop) => {
-        const started = compliance.startCheck(transition(sop), guideline, { afterUpload })
+        const started = compliance.startCheck(transition(sop), guideline, afterUpload ? { afterUpload: true } : { manualBy: userId })
         checkId = started.checkId
         return started.sop
       })
       scheduleCompletion(sopId, checkId)
     },
-    [update, scheduleCompletion, guideline],
+    [update, scheduleCompletion, guideline, userId],
   )
 
   const addDraft = useCallback(

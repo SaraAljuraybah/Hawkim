@@ -53,6 +53,7 @@ export const complianceEn: ComplianceContent = {
       guideline: 'Guideline',
       checkedBy: 'Checked by',
       checker: 'Hawkim compliance checker',
+      runBy: 'Run by',
     },
     summary: {
       title: 'Executive summary',

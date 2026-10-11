@@ -2,14 +2,17 @@ import { describe, expect, it } from 'vitest'
 import type { ComplianceCheck, ComplianceResult, Sop } from '../data/mock/types'
 import {
   compareReports,
+  completeCheck,
   latestCompletedChecksByVersion,
   complianceScore,
+  failCheck,
   numberedFindings,
   previousReport,
   reportId,
   startCheck,
   verdictOf,
 } from './compliance'
+import { uploadVersion } from './workflow'
 
 /** A completed check whose findings have these results, for requirements R1, R2… in order. */
 function check(results: ComplianceResult[], { id = 'chk', version = '1' } = {}): ComplianceCheck {
@@ -172,9 +175,24 @@ describe('compareReports', () => {
 describe('startCheck', () => {
   it('refuses a manual run while a check is running, but an upload replaces the running check', () => {
     const guideline = { name: 'GVP', version: '4.0' }
-    const running = startCheck(sopWith([]), guideline).sop
-    expect(() => startCheck(running, guideline)).toThrow()
+    const running = startCheck(sopWith([]), guideline, { manualBy: 'sara' }).sop
+    expect(() => startCheck(running, guideline, { manualBy: 'sara' })).toThrow()
     const replaced = startCheck(running, guideline, { afterUpload: true }).sop
     expect(replaced.complianceChecks.filter((item) => item.status === 'running')).toHaveLength(1)
+  })
+
+  it('records who ran it: the uploader after an upload, the person who pressed Check otherwise', () => {
+    const guideline = { name: 'GVP', version: '4.0' }
+    const sop: Sop = { ...sopWith([]), coAuthorIds: ['reem'] }
+    // Co-author Reem uploads a version: the automatic check (and its timeline event) is hers.
+    const uploaded = uploadVersion(sop, 'reem', { fileName: 'v2.pdf', fileType: 'pdf' })
+    const auto = startCheck(uploaded, guideline, { afterUpload: true })
+    expect(auto.sop.complianceChecks.at(-1)?.triggeredById).toBe('reem')
+    expect(completeCheck(auto.sop, auto.checkId).timeline.at(-1)).toMatchObject({ type: 'compliance-check-completed', actorId: 'reem', version: uploaded.version })
+    // Sara presses Check on the same version: that run is hers, failed ones too.
+    const done = completeCheck(auto.sop, auto.checkId)
+    const manual = startCheck(done, guideline, { manualBy: 'sara' })
+    expect(manual.sop.complianceChecks.at(-1)?.triggeredById).toBe('sara')
+    expect(failCheck(manual.sop, manual.checkId).timeline.at(-1)).toMatchObject({ type: 'compliance-check-failed', actorId: 'sara' })
   })
 })
