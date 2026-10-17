@@ -407,7 +407,7 @@ export function SopWorkflowPage() {
         {canUpload && !isMainAuthor && (
           <p className="mb-4 text-sm text-text-gray">{actions.authorOnly.replace('{name}', authorName)}</p>
         )}
-        <ReviewTimelineTable sop={sop} content={content} />
+        <ReviewTimelineTable sop={sop} content={content} mainAuthorOnly />
       </Section>
 
       {DemoPanel && (

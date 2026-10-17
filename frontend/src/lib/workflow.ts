@@ -157,6 +157,17 @@ export function commentForEvent(sop: Sop, event: TimelineEvent): SopComment | un
 }
 
 /**
+ * Who a timeline event is shown as addressed to. With `mainAuthorOnly` (the author's
+ * page), a return lists only the main author, not the co-authors it was also sent to.
+ * Display only: the event's recipients (and so notifications) don't change.
+ */
+export function timelineRecipients(sop: Sop, event: TimelineEvent, mainAuthorOnly = false): string[] {
+  const recipients = event.recipientIds ?? []
+  if (!mainAuthorOnly || event.type !== 'returned') return recipients
+  return recipients.filter((id) => id === sop.authorId)
+}
+
+/**
  * Who a Response goes to: everyone who commented in the latest round, i.e. since the
  * most recent submission or resubmission before the latest comment (the person who
  * returned it, plus anyone who left a comment when completing a review or approving).

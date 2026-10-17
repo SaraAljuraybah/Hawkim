@@ -14,12 +14,14 @@ import {
   isOverdue,
   nextVersion,
   publishAs,
+  removeCoAuthor,
   resubmit,
   responseRecipients,
   returnAsApprover,
   returnAsReviewer,
   routeToReviewer,
   submitForReview,
+  timelineRecipients,
   uploadVersion,
 } from './workflow'
 
@@ -416,6 +418,37 @@ describe('uploading a version (unchanged)', () => {
       expect(uploadVersion(sop, SARA, file).version).toBe('2')
       expect(uploadVersion(sop, REEM, file).version).toBe('2')
     }
+  })
+})
+
+describe('timeline recipients (display)', () => {
+  const returnEvent = (sop: Sop) => sop.timeline.findLast((item) => item.type === 'returned')!
+
+  it('shows a return as sent to the main author only on the author’s page', () => {
+    const byReviewer = returnAsReviewer(inReview(), NOURA, 'Fix section 4.')
+    expect(returnEvent(byReviewer).recipientIds).toEqual([SARA, REEM]) // stored recipients (notifications) unchanged
+    expect(timelineRecipients(byReviewer, returnEvent(byReviewer), true)).toEqual([SARA])
+    const byApprover = returnAsApprover(inApproval(), HUDA, 'Wrong owner listed.')
+    expect(timelineRecipients(byApprover, returnEvent(byApprover), true)).toEqual([SARA])
+  })
+
+  it('keeps every recipient without mainAuthorOnly (the review page)', () => {
+    const returned = returnAsReviewer(inReview(), NOURA, 'Fix section 4.')
+    expect(timelineRecipients(returned, returnEvent(returned))).toEqual([SARA, REEM])
+  })
+
+  it('leaves rows addressed to others unchanged', () => {
+    const submitted = inReview()
+    const submit = submitted.timeline.find((item) => item.type === 'submitted')!
+    expect(timelineRecipients(submitted, submit, true)).toEqual([NOURA, FAISAL])
+    const responded = addResponse(returnAsReviewer(submitted, NOURA, 'Fix.'), REEM, 'Done.')
+    expect(timelineRecipients(responded, responded.timeline.at(-1)!, true)).toEqual([NOURA])
+  })
+
+  it('doesn’t list a co-author who was removed after the return', () => {
+    const returned = returnAsReviewer(inReview(), NOURA, 'Fix section 4.')
+    const removed = removeCoAuthor(returned, SARA, REEM)
+    expect(timelineRecipients(removed, returnEvent(removed), true)).toEqual([SARA])
   })
 })
 
