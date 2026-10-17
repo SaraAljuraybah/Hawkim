@@ -16,6 +16,11 @@ interface CommonProps {
   size?: ButtonSize
   /** Show a trailing arrow icon. */
   withArrow?: boolean
+  /**
+   * Opt-in: a gray (beige) look when disabled or aria-disabled, at full opacity so the
+   * text keeps AA contrast, instead of the variant's faded look.
+   */
+  grayWhenDisabled?: boolean
   className?: string
   children: ReactNode
 }
@@ -35,16 +40,31 @@ const base =
   'group inline-flex items-center justify-center gap-2 rounded-lg font-medium whitespace-nowrap ' +
   'transition-colors duration-200 ' +
   // `aria-disabled` is styled like `disabled`; it keeps keyboard focus on the button (e.g. while loading)
-  'disabled:cursor-not-allowed disabled:opacity-85 aria-disabled:cursor-not-allowed aria-disabled:opacity-85'
+  'disabled:cursor-not-allowed aria-disabled:cursor-not-allowed'
+
+/** The default disabled look: slightly faded, plus each variant's own disabled classes. */
+const faded = 'disabled:opacity-85 aria-disabled:opacity-85'
+
+const disabledLook: Record<ButtonVariant, string> = {
+  primary:
+    'disabled:hover:border-maroon disabled:hover:bg-maroon aria-disabled:hover:border-maroon aria-disabled:hover:bg-maroon',
+  // Disabled: clearly inactive (gray border and text), with no hover change
+  secondary:
+    'disabled:border-text-gray/40 disabled:text-text-gray disabled:hover:border-text-gray/40 disabled:hover:bg-transparent',
+  accent: '',
+  danger: '',
+}
+
+/** `grayWhenDisabled`: gray text on beige (≈ 6.2:1), full opacity, no hover change. */
+const gray =
+  'disabled:border-text-gray/40 disabled:bg-beige disabled:text-text-gray ' +
+  'disabled:hover:border-text-gray/40 disabled:hover:bg-beige ' +
+  'aria-disabled:border-text-gray/40 aria-disabled:bg-beige aria-disabled:text-text-gray ' +
+  'aria-disabled:hover:border-text-gray/40 aria-disabled:hover:bg-beige'
 
 const variants: Record<ButtonVariant, string> = {
-  primary:
-    'border border-maroon bg-maroon text-offwhite hover:border-maroon-secondary hover:bg-maroon-secondary ' +
-    'disabled:hover:border-maroon disabled:hover:bg-maroon aria-disabled:hover:border-maroon aria-disabled:hover:bg-maroon',
-  secondary:
-    'border border-maroon/40 bg-transparent text-maroon hover:border-maroon hover:bg-maroon/5 ' +
-    // Disabled: clearly inactive (gray border and text), with no hover change
-    'disabled:border-text-gray/40 disabled:text-text-gray disabled:hover:border-text-gray/40 disabled:hover:bg-transparent',
+  primary: 'border border-maroon bg-maroon text-offwhite hover:border-maroon-secondary hover:bg-maroon-secondary',
+  secondary: 'border border-maroon/40 bg-transparent text-maroon hover:border-maroon hover:bg-maroon/5',
   // On maroon backgrounds the default maroon focus ring would be invisible, so use light gold.
   accent:
     'border border-gold bg-gold text-maroon hover:border-gold-light hover:bg-gold-light ' +
@@ -64,11 +84,13 @@ export function Button({
   variant = 'primary',
   size = 'md',
   withArrow = false,
+  grayWhenDisabled = false,
   className = '',
   children,
   ...rest
 }: ButtonProps) {
-  const classes = `${base} ${variants[variant]} ${sizes[size]} ${className}`
+  const disabled = grayWhenDisabled ? gray : `${faded} ${disabledLook[variant]}`
+  const classes = `${base} ${variants[variant]} ${disabled} ${sizes[size]} ${className}`
 
   const content = (
     <>

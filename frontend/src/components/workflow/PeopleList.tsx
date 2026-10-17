@@ -62,7 +62,7 @@ export function PeopleList({
         title={content.coAuthors}
         action={
           canManageCoAuthors && (
-            <Button size="sm" variant="secondary" onClick={(event) => onAddCoAuthor(event.currentTarget)}>
+            <Button size="sm" onClick={(event) => onAddCoAuthor(event.currentTarget)}>
               <UserPlus aria-hidden="true" className="size-4" strokeWidth={2} />
               {authorsOnly ? content.addAuthor : content.addCoAuthor}
             </Button>

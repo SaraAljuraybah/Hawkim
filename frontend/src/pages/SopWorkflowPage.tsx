@@ -298,13 +298,7 @@ export function SopWorkflowPage() {
               // Not allowed for this user: stays focusable (aria-disabled) so the tooltip's reason can be read.
               <Tooltip text={checkBlockedReason}>
                 {(tooltipId) => (
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    aria-disabled
-                    aria-describedby={tooltipId}
-                    className="aria-disabled:border-text-gray/40 aria-disabled:text-text-gray aria-disabled:hover:border-text-gray/40 aria-disabled:hover:bg-transparent"
-                  >
+                  <Button size="sm" grayWhenDisabled aria-disabled aria-describedby={tooltipId}>
                     <ShieldCheck aria-hidden="true" className="size-4" strokeWidth={2} />
                     {content.history.check}
                   </Button>
@@ -313,7 +307,7 @@ export function SopWorkflowPage() {
             ) : (
               <Button
                 size="sm"
-                variant="secondary"
+                grayWhenDisabled
                 disabled={checkRunning}
                 aria-describedby={checkRunning ? 'check-hint' : undefined}
                 onClick={runCheck}
