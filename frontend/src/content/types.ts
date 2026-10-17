@@ -7,6 +7,7 @@ import type {
   SopFileType,
   TimelineEventType,
 } from '../data/mock/types'
+import type { SopStatus } from '../types/status'
 
 /*
  * Shape of the landing page content.
@@ -521,10 +522,19 @@ export interface SopWorkflowContent {
     deleteLabel: string
     /** Why Preview / Download aren't available. */
     unavailable: { word: string; demo: string }
-    /** Why Delete isn't available; `{name}` is the main author in `not-main-author`. */
-    deleteBlocked: { status: string; 'not-main-author': string; 'last-version': string }
+    /**
+     * Why Delete isn't available: by the SOP's status (only Draft and Returned allow it),
+     * not the user's version (`{name}` is the main author), or the last version left.
+     */
+    deleteBlocked: {
+      status: Record<Exclude<SopStatus, 'draft' | 'returned'>, string>
+      'not-uploader': string
+      'last-version': string
+    }
     upload: string
     check: string
+    /** Why the compliance check isn't available; `{name}` is the main author. */
+    checkBlocked: { 'not-uploader': string }
     /** Preview dialog: `{code}` and `{version}` are replaced. */
     previewTitle: string
     /** Accessible name of the embedded viewer; `{code}`, `{title}` and `{version}` are replaced. */

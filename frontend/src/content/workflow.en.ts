@@ -66,12 +66,20 @@ export const sopWorkflowEn: SopWorkflowContent = {
       demo: 'File not available in the demo',
     },
     deleteBlocked: {
-      status: 'Versions can only be deleted while the SOP is a Draft or Returned',
-      'not-main-author': 'Only the main author, {name}, can delete versions',
+      status: {
+        'in-review': "Versions can't be deleted while the SOP is in review",
+        'in-approval': "Versions can't be deleted while the SOP is in approval",
+        approved: "Versions can't be deleted once the SOP is approved",
+        published: "Versions can't be deleted once the SOP is published",
+      },
+      'not-uploader': 'Only the main author, {name}, or the person who uploaded this version can delete it',
       'last-version': 'At least one version must remain',
     },
     upload: 'Upload',
     check: 'Compliance Check for Current Version',
+    checkBlocked: {
+      'not-uploader': 'Only the main author, {name}, or the person who uploaded the current version can run this check',
+    },
     previewTitle: '{code} · v{version}',
     viewerTitle: '{code} {title}, v{version} (PDF)',
     close: 'Close preview',

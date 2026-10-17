@@ -159,7 +159,7 @@ export function SopsProvider({ children }: { children: ReactNode }) {
       addCoAuthors: (id, userIds) =>
         update(id, (sop) => userIds.reduce((next, userId) => workflow.addCoAuthor(next, userId, userId), sop)),
       removeCoAuthor: (id, userId) => update(id, (sop) => workflow.removeCoAuthor(sop, userId, userId)),
-      runCheck: (id) => updateAndCheck(id, (sop) => sop, false),
+      runCheck: (id) => updateAndCheck(id, (sop) => workflow.assertCanRunCheck(sop, userId), false),
       completeReview: (id, reviewerId, text) => update(id, (sop) => workflow.completeReview(sop, reviewerId, text)),
       returnAsReviewer: (id, reviewerId, text) => update(id, (sop) => workflow.returnAsReviewer(sop, reviewerId, text)),
       routeToReviewer: (id, reviewerId, newReviewerId, note) => {

@@ -3,7 +3,7 @@ import { Download, Eye, Trash2 } from 'lucide-react'
 import type { SopWorkflowContent } from '../../content/types'
 import type { Sop, SopVersion } from '../../data/mock/types'
 import { formatDateTime } from '../../lib/format'
-import { activeVersions } from '../../lib/workflow'
+import { activeVersions, uploaderOf } from '../../lib/workflow'
 import { useUsers } from '../../state/usersContext'
 import { IconButton } from '../ui/IconButton'
 
@@ -12,8 +12,8 @@ interface VersionHistoryProps {
   content: SopWorkflowContent
   /** The signed-in user (their uploads show as "You"). */
   userId: string
-  /** Why versions can't be deleted now (undefined: they can). */
-  deleteReason: string | undefined
+  /** Why this version can't be deleted now (undefined: it can). */
+  deleteReason: (version: SopVersion) => string | undefined
   onPreview: (version: SopVersion, trigger: HTMLElement) => void
   onDelete: (version: SopVersion, trigger: HTMLElement) => void
 }
@@ -35,7 +35,7 @@ export function VersionHistory({ sop, content, userId, deleteReason, onPreview, 
 
   const label = (version: SopVersion) => content.versionTemplate.replace('{version}', version.version)
   const author = (version: SopVersion) => {
-    const id = version.uploadedById ?? sop.authorId
+    const id = uploaderOf(sop, version)
     return id === userId ? text.you : nameOf(id)
   }
   const fill = (template: string, version: SopVersion) => template.replace('{version}', version.version)
@@ -66,7 +66,7 @@ export function VersionHistory({ sop, content, userId, deleteReason, onPreview, 
           label={fill(text.deleteLabel, version)}
           icon={Trash2}
           danger
-          disabledReason={deleteReason}
+          disabledReason={deleteReason(version)}
           onClick={(event: MouseEvent<HTMLButtonElement>) => onDelete(version, event.currentTarget)}
         />
       ),

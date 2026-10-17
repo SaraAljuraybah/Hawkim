@@ -4,6 +4,7 @@ import { ArrowLeft, ArrowUpRight, CircleCheck, MessageSquareReply, ShieldCheck, 
 import { Button } from '../components/ui/Button'
 import { ConfirmDialog } from '../components/ui/ConfirmDialog'
 import { StatusBadge } from '../components/ui/StatusBadge'
+import { Tooltip } from '../components/ui/Tooltip'
 import { AddCoAuthorsDialog } from '../components/workflow/AddCoAuthorsDialog'
 import { ComplianceCard } from '../components/workflow/ComplianceCard'
 import { FileDialog } from '../components/workflow/FileDialog'
@@ -27,6 +28,7 @@ import { sopPath } from '../lib/routes'
 import {
   activeVersions,
   canResubmit,
+  checkBlocker,
   deleteVersionBlocker,
   isAuthorOrCoAuthor,
   latestReturn,
@@ -88,8 +90,9 @@ function Section({ id, title, children, className = '', actions }: SectionProps)
  * SOP workflow page ("/my-sops/:id"): the author's view of one SOP — workflow status,
  * SOP history (versions), authors, compliance overview and the review timeline
  * (PBI 6, 8, 12, 22, 24). Only the SOP's author and co-authors can open it;
- * co-authors can upload versions and respond, but only the main author submits
- * and deletes versions.
+ * co-authors can upload versions and respond, delete the versions they uploaded and
+ * run the compliance check when they uploaded the current version; only the main
+ * author submits.
  */
 export function SopWorkflowPage() {
   const content = sopWorkflowEn
@@ -190,9 +193,20 @@ export function SopWorkflowPage() {
   // Response: to everyone who commented in the latest round; not once published.
   const recipients = sop.status === 'published' ? [] : responseRecipients(sop)
 
-  // Delete version: Draft or Returned, main author, at least one version left.
-  const blocker = deleteVersionBlocker(sop, user.id)
-  const deleteReason = blocker && content.history.deleteBlocked[blocker].replace('{name}', authorName)
+  // Compliance check: the main author, or a co-author who uploaded the current version.
+  const checkBlockedReason =
+    checkBlocker(sop, user.id) && content.history.checkBlocked['not-uploader'].replace('{name}', authorName)
+
+  // Delete version: Draft or Returned, main author (any version) or its uploader, at least one version left.
+  const { deleteBlocked } = content.history
+  const historySop = sop
+  function deleteReason(version: SopVersion): string | undefined {
+    const blocker = deleteVersionBlocker(historySop, user.id, version.version)
+    if (!blocker) return undefined
+    // 'status': the SOP is In Review, In Approval, Approved or Published.
+    if (blocker === 'status') return deleteBlocked.status[historySop.status as keyof typeof deleteBlocked.status]
+    return deleteBlocked[blocker].replace('{name}', authorName)
+  }
   // When the current version is deleted, the newest remaining one becomes current.
   const previousVersion = deleting
     ? activeVersions(sop)
@@ -280,16 +294,34 @@ export function SopWorkflowPage() {
                 {content.history.upload}
               </Button>
             )}
-            <Button
-              size="sm"
-              variant="secondary"
-              disabled={checkRunning}
-              aria-describedby={checkRunning ? 'check-hint' : undefined}
-              onClick={runCheck}
-            >
-              <ShieldCheck aria-hidden="true" className="size-4" strokeWidth={2} />
-              {content.history.check}
-            </Button>
+            {checkBlockedReason ? (
+              // Not allowed for this user: stays focusable (aria-disabled) so the tooltip's reason can be read.
+              <Tooltip text={checkBlockedReason}>
+                {(tooltipId) => (
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    aria-disabled
+                    aria-describedby={tooltipId}
+                    className="aria-disabled:border-text-gray/40 aria-disabled:text-text-gray aria-disabled:hover:border-text-gray/40 aria-disabled:hover:bg-transparent"
+                  >
+                    <ShieldCheck aria-hidden="true" className="size-4" strokeWidth={2} />
+                    {content.history.check}
+                  </Button>
+                )}
+              </Tooltip>
+            ) : (
+              <Button
+                size="sm"
+                variant="secondary"
+                disabled={checkRunning}
+                aria-describedby={checkRunning ? 'check-hint' : undefined}
+                onClick={runCheck}
+              >
+                <ShieldCheck aria-hidden="true" className="size-4" strokeWidth={2} />
+                {content.history.check}
+              </Button>
+            )}
             {sop.status === 'published' && (
               <Button size="sm" variant="secondary" to={sopPath(sop.id)}>
                 {content.file.viewInDirectory}

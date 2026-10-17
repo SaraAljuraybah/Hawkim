@@ -4,7 +4,9 @@ import {
   addCoAuthor,
   addResponse,
   approveAs,
+  assertCanRunCheck,
   canResubmit,
+  checkBlocker,
   commentForEvent,
   completeReview,
   deleteVersion,
@@ -280,9 +282,13 @@ describe('deleting a version', () => {
       file,
     )
 
-  it('is only while Draft or Returned', () => {
+  /** Draft with v1 (main author Sara's) and v2 uploaded by co-author Reem; v2 current. */
+  const withReemVersion = () => uploadVersion(draft(), REEM, file)
+
+  /** The same SOP (v2 by Reem, checked) in each status. */
+  function inEachStatus() {
     const submitted = submitForReview(
-      { ...twoVersions(), complianceChecks: [completedCheck('2')] },
+      { ...withReemVersion(), complianceChecks: [completedCheck('2')] },
       SARA,
       GVP,
       [NOURA],
@@ -290,26 +296,62 @@ describe('deleting a version', () => {
       undefined,
       undefined,
     )
-    expect(deleteVersionBlocker(submitted, SARA)).toBe('status')
-    expect(() => deleteVersion(submitted, SARA, '1')).toThrow()
-    const approved = approveAs(completeReview(submitted, NOURA), HUDA)
-    expect(deleteVersionBlocker(approved, SARA)).toBe('status')
-    expect(deleteVersionBlocker(publishAs(approved, HUDA), SARA)).toBe('status')
-    const returned = returnAsReviewer(submitted, NOURA, 'Fix.')
-    expect(deleteVersionBlocker(returned, SARA)).toBeUndefined()
+    const inApprovalStage = completeReview(submitted, NOURA)
+    const approved = approveAs(inApprovalStage, HUDA)
+    return {
+      draft: withReemVersion(),
+      returnedByReviewer: returnAsReviewer(submitted, NOURA, 'Fix.'),
+      returnedByApprover: returnAsApprover(inApprovalStage, HUDA, 'Fix.'),
+      inReview: submitted,
+      inApproval: inApprovalStage,
+      approved,
+      published: publishAs(approved, HUDA),
+    }
+  }
+
+  it('lets the main author delete any version', () => {
+    const sop = withReemVersion()
+    expect(deleteVersionBlocker(sop, SARA, '1')).toBeUndefined()
+    expect(deleteVersionBlocker(sop, SARA, '2')).toBeUndefined() // uploaded by co-author Reem
+    expect(deleteVersion(sop, SARA, '2').versions.find((item) => item.version === '2')?.deletedAt).toBeDefined()
+    expect(deleteVersion(sop, SARA, '1').versions.find((item) => item.version === '1')?.deletedAt).toBeDefined()
   })
 
-  it('is only for the main author (not a co-author)', () => {
-    expect(deleteVersionBlocker(twoVersions(), REEM)).toBe('not-main-author')
-    expect(() => deleteVersion(twoVersions(), REEM, '1')).toThrow()
-    expect(() => deleteVersion(twoVersions(), NOURA, '1')).toThrow()
+  it('lets a co-author delete only the versions they uploaded', () => {
+    const sop = withReemVersion()
+    expect(deleteVersionBlocker(sop, REEM, '2')).toBeUndefined()
+    expect(deleteVersion(sop, REEM, '2').versions.find((item) => item.version === '2')).toMatchObject({ deletedById: REEM })
+    expect(deleteVersionBlocker(sop, REEM, '1')).toBe('not-uploader')
+    expect(() => deleteVersion(sop, REEM, '1')).toThrow(/uploaded/)
+    // Someone who isn't an author can't delete anything.
+    expect(deleteVersionBlocker(sop, NOURA, '2')).toBe('not-uploader')
+    expect(() => deleteVersion(sop, NOURA, '2')).toThrow()
+  })
+
+  it('is allowed only while Draft or Returned, for the main author and a co-author alike', () => {
+    const sops = inEachStatus()
+    // Returned is its own status (shown on the step it came from), never treated as In Review or In Approval.
+    for (const sop of [sops.draft, sops.returnedByReviewer, sops.returnedByApprover]) {
+      expect(deleteVersionBlocker(sop, SARA, '1')).toBeUndefined()
+      expect(deleteVersionBlocker(sop, REEM, '2')).toBeUndefined()
+      expect(() => deleteVersion(sop, REEM, '2')).not.toThrow()
+    }
+    for (const sop of [sops.inReview, sops.inApproval, sops.approved, sops.published]) {
+      expect(deleteVersionBlocker(sop, SARA, '1')).toBe('status')
+      expect(deleteVersionBlocker(sop, REEM, '2')).toBe('status')
+      expect(() => deleteVersion(sop, SARA, '1')).toThrow(sop.status)
+      expect(() => deleteVersion(sop, REEM, '2')).toThrow(sop.status)
+    }
   })
 
   it('keeps at least one version', () => {
-    expect(deleteVersionBlocker(draft(), SARA)).toBe('last-version')
+    expect(deleteVersionBlocker(draft(), SARA, '1')).toBe('last-version')
     expect(() => deleteVersion(draft(), SARA, '1')).toThrow(/one version/)
     const one = deleteVersion(twoVersions(), SARA, '1')
-    expect(deleteVersionBlocker(one, SARA)).toBe('last-version')
+    expect(deleteVersionBlocker(one, SARA, '2')).toBe('last-version')
+    // Also for a co-author's own last version.
+    const reemOnly = deleteVersion(withReemVersion(), SARA, '1')
+    expect(deleteVersionBlocker(reemOnly, REEM, '2')).toBe('last-version')
   })
 
   it('makes the previous version current when the latest is deleted', () => {
@@ -325,6 +367,55 @@ describe('deleting a version', () => {
     expect([kept.version, kept.fileName]).toEqual(['2', 'SOP-001 v2.docx'])
     expect(kept.timeline.at(-1)).toMatchObject({ type: 'version-deleted', version: '1' })
     expect(() => deleteVersion(kept, SARA, '1')).toThrow() // already deleted
+  })
+
+  it('lets a co-author delete the current version they uploaded (the previous one becomes current)', () => {
+    const back = deleteVersion(withReemVersion(), REEM, '2')
+    expect(back.version).toBe('1')
+  })
+})
+
+describe('running a compliance check', () => {
+  const file = { fileName: 'SOP-001 v2.pdf', fileType: 'pdf' as const }
+
+  it('lets the main author run it whoever uploaded the current version', () => {
+    expect(checkBlocker(draft(), SARA)).toBeUndefined()
+    const reemCurrent = uploadVersion(draft(), REEM, file)
+    expect(checkBlocker(reemCurrent, SARA)).toBeUndefined()
+    expect(() => assertCanRunCheck(reemCurrent, SARA)).not.toThrow()
+  })
+
+  it('lets a co-author run it only when they uploaded the current version', () => {
+    // v1 is the main author's.
+    expect(checkBlocker(draft(), REEM)).toBe('not-uploader')
+    expect(() => assertCanRunCheck(draft(), REEM)).toThrow(/uploader/)
+    const reemCurrent = uploadVersion(draft(), REEM, file)
+    expect(checkBlocker(reemCurrent, REEM)).toBeUndefined()
+    // Sara uploads v3: no longer Reem's version.
+    expect(checkBlocker(uploadVersion(reemCurrent, SARA, file), REEM)).toBe('not-uploader')
+    // Reem's v2 deleted: Sara's v1 is current again.
+    expect(checkBlocker(deleteVersion(reemCurrent, SARA, '2'), REEM)).toBe('not-uploader')
+  })
+
+  it('never lets someone who isn’t an author run it', () => {
+    expect(checkBlocker(draft(), NOURA)).toBe('not-uploader')
+  })
+
+  it('keeps any status allowed (no status rule)', () => {
+    const reemCurrent = { ...uploadVersion(draft(), REEM, file), complianceChecks: [completedCheck('2')] }
+    const submitted = submitForReview(reemCurrent, SARA, GVP, [NOURA], [HUDA], undefined, undefined)
+    expect(checkBlocker(submitted, REEM)).toBeUndefined()
+    expect(checkBlocker(publishAs(approveAs(completeReview(submitted, NOURA), HUDA), HUDA), SARA)).toBeUndefined()
+  })
+})
+
+describe('uploading a version (unchanged)', () => {
+  it('lets the main author and a co-author upload while Draft or Returned', () => {
+    const file = { fileName: 'SOP-001 v2.pdf', fileType: 'pdf' as const }
+    for (const sop of [draft(), returnAsReviewer(inReview(), NOURA, 'Fix.')]) {
+      expect(uploadVersion(sop, SARA, file).version).toBe('2')
+      expect(uploadVersion(sop, REEM, file).version).toBe('2')
+    }
   })
 })
 

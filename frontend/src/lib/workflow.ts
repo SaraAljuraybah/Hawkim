@@ -172,14 +172,48 @@ export function responseRecipients(sop: Sop): string[] {
   return [...new Set(sop.comments.filter((comment) => time(comment.createdAt) >= roundStart).map((comment) => comment.authorUserId))]
 }
 
-/** Why a version can't be deleted now (undefined: it can). */
-export type DeleteVersionBlocker = 'status' | 'not-main-author' | 'last-version'
+/** Who uploaded a version (a version without a recorded uploader counts as the main author's). */
+export function uploaderOf(sop: Sop, version: SopVersion): string | undefined {
+  return version.uploadedById ?? sop.authorId
+}
 
-export function deleteVersionBlocker(sop: Sop, actorId: string): DeleteVersionBlocker | undefined {
+/** Whether the user is the main author or uploaded this version. */
+function isAuthorOrUploader(sop: Sop, userId: string, version: SopVersion | undefined): boolean {
+  return isAuthor(sop, userId) || (!!version && uploaderOf(sop, version) === userId)
+}
+
+/** Why a version can't be deleted now (undefined: it can). */
+export type DeleteVersionBlocker = 'status' | 'not-uploader' | 'last-version'
+
+/**
+ * Delete a version: only while Draft or Returned (for everyone); by the main author
+ * (any version) or the person who uploaded it; at least one version must remain.
+ */
+export function deleteVersionBlocker(sop: Sop, actorId: string, version: string): DeleteVersionBlocker | undefined {
   if (sop.status !== 'draft' && sop.status !== 'returned') return 'status'
-  if (!isAuthor(sop, actorId)) return 'not-main-author'
+  const target = activeVersions(sop).find((item) => item.version === version)
+  if (!isAuthorOrUploader(sop, actorId, target)) return 'not-uploader'
   if (activeVersions(sop).length <= 1) return 'last-version'
   return undefined
+}
+
+/** Why the user can't run a compliance check now (undefined: they can). */
+export type CheckBlocker = 'not-uploader'
+
+/**
+ * Run a compliance check (of the current version): the main author, or a co-author
+ * who uploaded the current version. The rules for a running check are in lib/compliance.ts.
+ */
+export function checkBlocker(sop: Sop, actorId: string): CheckBlocker | undefined {
+  const current = activeVersions(sop).find((item) => item.version === sop.version)
+  if (!isAuthorOrUploader(sop, actorId, current)) return 'not-uploader'
+  return undefined
+}
+
+/** Refuses a manual compliance check the user isn't allowed to run (see checkBlocker). */
+export function assertCanRunCheck(sop: Sop, actorId: string): Sop {
+  assert(checkBlocker(sop, actorId) === undefined, 'Only the main author or the uploader of the current version can run a check')
+  return sop
 }
 
 // ---------- Helpers ----------
@@ -315,17 +349,17 @@ export function uploadVersion(sop: Sop, actorId: string, file: UploadedFile): So
 }
 
 /**
- * Main author: delete a version (Draft or Returned only; at least one must remain).
- * Deleting the current version makes the newest remaining one current. The deletion
- * is recorded in the timeline ("Deleted v2").
+ * Main author (any version) or the person who uploaded it: delete a version (Draft or
+ * Returned only; at least one must remain). Deleting the current version makes the
+ * newest remaining one current. The deletion is recorded in the timeline ("Deleted v2").
  */
 export function deleteVersion(sop: Sop, actorId: string, version: string): Sop {
-  const blocker = deleteVersionBlocker(sop, actorId)
-  assert(blocker !== 'status', `Can't delete a version of an SOP that is ${sop.status}`)
-  assert(blocker !== 'not-main-author', 'Only the main author can delete versions')
-  assert(blocker !== 'last-version', 'At least one version must remain')
   const target = activeVersions(sop).find((item) => item.version === version)
   assert(!!target, `Unknown version ${version}`)
+  const blocker = deleteVersionBlocker(sop, actorId, version)
+  assert(blocker !== 'status', `Can't delete a version of an SOP that is ${sop.status}`)
+  assert(blocker !== 'not-uploader', 'Only the main author or the person who uploaded this version can delete it')
+  assert(blocker !== 'last-version', 'At least one version must remain')
   const deletedAt = new Date().toISOString()
   const versions = sop.versions.map((item) => (item === target ? { ...item, deletedAt, deletedById: actorId } : item))
   let updated: Sop = { ...sop, versions, lastUpdated: todayIsoDate() }
