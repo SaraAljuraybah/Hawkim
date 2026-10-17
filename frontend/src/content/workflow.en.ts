@@ -71,7 +71,7 @@ export const sopWorkflowEn: SopWorkflowContent = {
       'last-version': 'At least one version must remain',
     },
     upload: 'Upload',
-    check: 'Check',
+    check: 'Compliance Check for Current Version',
     previewTitle: '{code} · v{version}',
     viewerTitle: '{code} {title}, v{version} (PDF)',
     close: 'Close preview',
