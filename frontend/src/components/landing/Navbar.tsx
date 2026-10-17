@@ -60,9 +60,10 @@ export function Navbar({ content }: NavbarProps) {
           className="inline-flex shrink-0 items-center gap-2.5 rounded-md md:gap-3"
         >
           <Logo variant="mark" alt="" className="h-9 md:h-11" />
-          <span className="text-xl font-semibold tracking-normal text-maroon md:text-2xl"
-        </Link>
-
+          <span className="text-xl font-semibold tracking-normal text-maroon md:text-2xl">
+  Hawkim
+</span>
+</Link>
         {/* Desktop navigation */}
         <nav aria-label={content.ariaLabel} className="hidden lg:block">
           <ul className="flex items-center gap-8 xl:gap-10">
