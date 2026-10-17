@@ -194,7 +194,8 @@ export function SopWorkflowPage() {
   const recipients = sop.status === 'published' ? [] : responseRecipients(sop)
 
   // Compliance check: the main author, or a co-author who uploaded the current version.
-  const checkBlockedReason = checkBlocker(sop, user.id) && content.history.checkBlocked['not-uploader']
+  const checkBlockedReason =
+    checkBlocker(sop, user.id) && content.history.checkBlocked['not-uploader'].replace('{name}', authorName)
 
   // Delete version: Draft or Returned, main author (any version) or its uploader, at least one version left.
   const { deleteBlocked } = content.history
@@ -204,7 +205,7 @@ export function SopWorkflowPage() {
     if (!blocker) return undefined
     // 'status': the SOP is In Review, In Approval, Approved or Published.
     if (blocker === 'status') return deleteBlocked.status[historySop.status as keyof typeof deleteBlocked.status]
-    return deleteBlocked[blocker]
+    return deleteBlocked[blocker].replace('{name}', authorName)
   }
   // When the current version is deleted, the newest remaining one becomes current.
   const previousVersion = deleting

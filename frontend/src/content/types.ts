@@ -524,7 +524,7 @@ export interface SopWorkflowContent {
     unavailable: { word: string; demo: string }
     /**
      * Why Delete isn't available: by the SOP's status (only Draft and Returned allow it),
-     * not the user's version, or the last version left.
+     * not the user's version (`{name}` is the main author), or the last version left.
      */
     deleteBlocked: {
       status: Record<Exclude<SopStatus, 'draft' | 'returned'>, string>
@@ -533,7 +533,7 @@ export interface SopWorkflowContent {
     }
     upload: string
     check: string
-    /** Why the compliance check isn't available. */
+    /** Why the compliance check isn't available; `{name}` is the main author. */
     checkBlocked: { 'not-uploader': string }
     /** Preview dialog: `{code}` and `{version}` are replaced. */
     previewTitle: string
