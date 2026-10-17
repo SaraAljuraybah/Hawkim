@@ -68,12 +68,14 @@ export const landingEn: LandingContent = {
     // Illustrative sample data for the decorative dashboard preview.
     preview: {
       windowTitle: 'Hawkim',
-      sidebar: [
-        { icon: 'dashboard', label: 'Dashboard', active: true },
-        { icon: 'requests', label: 'My Requests' },
-        { icon: 'sops', label: 'SOPs' },
-        { icon: 'departments', label: 'Departments' },
-      ],
+      
+sidebar: [
+  { icon: 'dashboard', label: 'Dashboard', active: true },
+  { icon: 'requests', label: 'My Request' },
+  { icon: 'sops', label: 'SOP Directory' },
+  { icon: 'departments', label: 'Organization Structure' },
+],
+
       signOut: { icon: 'signOut', label: 'Sign Out' },
       greeting: 'Good morning, Sara',
       stats: [
@@ -93,14 +95,16 @@ export const landingEn: LandingContent = {
           { title: 'Your request to access SOP-045 is under review', meta: '2 days ago', status: 'Pending' },
         ],
       },
-      quickActions: {
-        title: 'Quick Actions',
-        items: [
-          { icon: 'submitRequest', label: 'Submit a Request' },
-          { icon: 'sops', label: 'View SOPs' },
-          { icon: 'departments', label: 'View Departments' },
-        ],
-      },
+      
+quickActions: {
+  title: 'Quick Actions',
+  items: [
+    { icon: 'submitRequest', label: 'Submit a Request' },
+    { icon: 'sops', label: 'View SOP Directory' },
+    { icon: 'departments', label: 'View Organization Structure' },
+  ],
+},
+
     },
   },
 

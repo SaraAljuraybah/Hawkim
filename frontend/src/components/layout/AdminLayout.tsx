@@ -66,7 +66,7 @@ export function AdminLayout() {
         />
         <main id="main" tabIndex={-1} className="flex-1 px-4 py-8 focus:outline-none sm:px-6 lg:px-10 lg:py-10">
           {/* Left-aligned next to the sidebar, up to 1680px wide (long text and forms keep their own readable widths) */}
-          <div className="w-full max-w-[105rem]">
+          <div className="mx-auto w-full max-w-[90rem]">
             {/* Pages loaded on demand show a loading state inside the shell */}
             <Suspense fallback={<PageLoading />}>
               <Outlet />

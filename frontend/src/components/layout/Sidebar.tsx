@@ -41,7 +41,7 @@ const itemIcon = 'size-5 shrink-0 text-gold-light'
 export function Sidebar({ content, onNavigate, onClose, departmentSwitcher, badges }: SidebarProps) {
   const SignOutIcon = icons[content.signOut.icon]
   const { signOut } = useSession()
-  const homeHref = content.nav[0].href
+  const homeHref = content.homeHref
 
   return (
     // On maroon the default maroon focus ring would be invisible: use light gold (not
@@ -57,7 +57,7 @@ export function Sidebar({ content, onNavigate, onClose, departmentSwitcher, badg
         >
           {/* The official on-dark mark (off-white rings, gold centre) for the maroon sidebar */}
           <Logo variant="markOnDark" alt="" className="h-10" />
-          <span className="text-[1.375rem] font-semibold tracking-tight text-offwhite">{content.brandName}</span>
+          <span className="text-[1.375rem] font-semibold tracking-normal text-offwhite">{content.brandName}</span>
           {content.portalLabel && (
             <span className="rounded-md bg-gold-light px-1.5 py-0.5 text-xs font-semibold text-maroon">
               {content.portalLabel}

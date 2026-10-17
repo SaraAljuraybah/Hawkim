@@ -9,6 +9,7 @@ export const adminEn: AdminContent = {
   shell: {
     skipLink: 'Skip to main content',
     brandName: 'Hawkim',
+    homeHref: '/admin/users',
     portalLabel: 'Admin',
     homeLinkLabel: 'Hawkim admin, go to users',
     navAriaLabel: 'Admin',

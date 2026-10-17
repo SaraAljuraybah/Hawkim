@@ -213,6 +213,7 @@ export interface AppNavItem {
 export interface SidebarContent {
   /** Product name shown as text next to the logo mark in the sidebar. */
   brandName: string
+  homeHref: string
   /** Small label after the product name, e.g. "Admin" (admin portal only). */
   portalLabel?: string
   /** Accessible name of the sidebar logo link. */

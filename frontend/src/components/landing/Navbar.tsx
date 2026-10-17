@@ -60,7 +60,7 @@ export function Navbar({ content }: NavbarProps) {
           className="inline-flex shrink-0 items-center gap-2.5 rounded-md md:gap-3"
         >
           <Logo variant="mark" alt="" className="h-9 md:h-11" />
-          <span className="text-xl font-semibold tracking-tight text-maroon md:text-2xl">{content.brandName}</span>
+          <span className="text-xl font-semibold tracking-normal text-maroon md:text-2xl"
         </Link>
 
         {/* Desktop navigation */}

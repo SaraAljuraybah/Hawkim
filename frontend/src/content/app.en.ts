@@ -9,6 +9,7 @@ import type { AppShellContent, DashboardContent } from './types'
 export const appShellEn: AppShellContent = {
   skipLink: 'Skip to main content',
   brandName: 'Hawkim',
+  homeHref: '/dashboard',
   homeLinkLabel: 'Hawkim, go to dashboard',
   navAriaLabel: 'Main',
   nav: [
@@ -62,8 +63,8 @@ export const dashboardEn: DashboardContent = {
       { label: 'Upload SOP', href: '/my-sops/upload', icon: 'upload', permission: 'author' },
       // Reviewer or Approver permission only
       { label: 'My Reviews', href: '/reviews', icon: 'reviews', permission: ['reviewer', 'approver'] },
-      { label: 'View SOPs', href: '/sops', icon: 'sops' },
-      { label: 'View Departments', href: '/departments', icon: 'departments' },
+      { label: 'View SOP Directory', href: '/sops', icon: 'sops' },
+{ label: 'View Organization Structure', href: '/departments', icon: 'departments' },
     ],
   },
 }

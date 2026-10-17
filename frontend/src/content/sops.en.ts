@@ -7,9 +7,11 @@
 import type { SopsContent } from './types'
 
 export const sopsEn: SopsContent = {
-  pageTitle: 'SOPs | Hawkim',
-  title: 'Standard Operating Procedures',
-  subtitle: 'Access and view approved SOPs.',
+  
+pageTitle: 'SOP Directory | Hawkim',
+title: 'SOP Directory',
+subtitle: 'Browse published SOPs available to you.',
+
   tabsLabel: 'Filter SOPs',
   tabs: {
     all: 'All',
@@ -33,7 +35,7 @@ export const sopsEn: SopsContent = {
 
   detail: {
     pageTitle: '{code} | Hawkim',
-    back: { label: 'Back to SOPs', href: '/sops' },
+   back: { label: 'Back to SOP Directory', href: '/sops' },
     exportPdf: 'Export PDF',
     viewerTitle: '{code} {title} (PDF)',
     fallback: {
