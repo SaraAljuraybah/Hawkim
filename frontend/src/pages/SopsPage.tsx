@@ -1,5 +1,9 @@
-import { useEffect, useMemo, useState } from 'react'
-import { Building2, FileText } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { Building2, FileText, Search } from 'lucide-react'
+import { Button } from '../components/ui/Button'
+import { TextField } from '../components/ui/TextField'
+import { SelectField } from '../components/ui/SelectField'
+import { filterDirectorySops, type SopDocumentFilter } from '../lib/sopDirectory'
 import { SopGrid } from '../components/sops/SopGrid'
 import { SopList } from '../components/sops/SopList'
 import { Tabs, type TabItem } from '../components/ui/Tabs'
@@ -7,7 +11,6 @@ import { tabIds } from '../components/ui/tabIds'
 import { ViewToggle, type ViewMode } from '../components/ui/ViewToggle'
 import { sopsEn } from '../content/sops.en'
 import type { SopTabKey } from '../content/types'
-import type { DepartmentId, Sop } from '../data/mock/types'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { useActiveDepartment } from '../state/activeDepartmentContext'
 import { useSops } from '../state/sopsContext'
@@ -25,22 +28,6 @@ function readStoredView(): ViewMode {
   }
 }
 
-/**
- * The active department's published SOPs, ordered for each tab.
- * SOPs from other departments, and unpublished SOPs, are never listed.
- */
-function filterSops(tab: SopTabKey, all: Sop[], departmentId: DepartmentId): Sop[] {
-  const inDepartment = all.filter((sop) => sop.status === 'published' && sop.departmentId === departmentId)
-  switch (tab) {
-    case 'recent':
-      // ISO dates sort correctly as strings; newest first.
-      return inDepartment.sort((a, b) => b.lastUpdated.localeCompare(a.lastUpdated))
-    case 'all':
-    default:
-      return inDepartment.sort((a, b) => a.code.localeCompare(b.code, 'en', { numeric: true }))
-  }
-}
-
 /** SOPs list ("/sops"): the active department's SOPs, with tabs, Grid/List views and an empty state. */
 export function SopsPage() {
   const content = sopsEn
@@ -51,6 +38,10 @@ export function SopsPage() {
   const { sops } = useSops()
 
   const [tab, setTab] = useState<SopTabKey>('all')
+  const [query, setQuery] = useState('')
+  const searchRef = useRef<HTMLInputElement>(null)
+  const [documentType, setDocumentType] = useState<SopDocumentFilter>('all')
+  const hasFilters = query.length > 0 || documentType !== 'all'
   const [view, setView] = useState<ViewMode>(readStoredView)
 
   useEffect(() => {
@@ -65,7 +56,15 @@ export function SopsPage() {
     key,
     label: content.tabs[key],
   }))
-  const visibleSops = useMemo(() => filterSops(tab, sops, activeDepartment.id), [tab, sops, activeDepartment.id])
+  const visibleSops = useMemo(
+    () => filterDirectorySops(sops, activeDepartment.id, tab, query, documentType),
+    [sops, activeDepartment.id, tab, query, documentType],
+  )
+  function clearFilters() {
+    setQuery('')
+    setDocumentType('all')
+    searchRef.current?.focus()
+  }
   const ids = tabIds(TAB_ID_PREFIX, tab)
 
   return (
@@ -77,6 +76,34 @@ export function SopsPage() {
         <span className="sr-only">{content.departmentLabel}: </span>
         {activeDepartment.name}
       </p>
+
+      <div role="search" aria-label={content.filters.label} className="mt-6 rounded-xl border border-beige bg-white p-4 sm:p-5">
+        <div className="grid items-end gap-4 sm:grid-cols-[minmax(0,1fr)_12rem]">
+          <TextField
+            ref={searchRef}
+            name="sopSearch"
+            type="search"
+            label={content.filters.searchLabel}
+            placeholder={content.filters.searchPlaceholder}
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            endAdornment={<Search aria-hidden="true" className="mr-2 size-4 text-text-gray" />}
+          />
+          <SelectField
+            name="documentType"
+            label={content.filters.typeLabel}
+            value={documentType}
+            onChange={(event) => setDocumentType(event.target.value as SopDocumentFilter)}
+            options={(['all', 'pdf', 'docx'] as const).map((value) => ({ value, label: content.filters.types[value] }))}
+          />
+        </div>
+        <div className="mt-3 flex min-h-8 flex-wrap items-center justify-between gap-2">
+          <p role="status" aria-live="polite" aria-atomic="true" className="text-sm text-text-gray">
+            {visibleSops.length === 1 ? content.filters.oneResult : content.filters.results.replace('{count}', String(visibleSops.length))}
+          </p>
+          {hasFilters && <Button size="sm" variant="secondary" onClick={clearFilters}>{content.filters.clear}</Button>}
+        </div>
+      </div>
 
       {/* Tabs with the view toggle on the right (on its own line on narrow phones) */}
       <div className="mt-8 flex flex-wrap items-end justify-between gap-x-6 gap-y-3 border-b border-beige">
@@ -101,7 +128,7 @@ export function SopsPage() {
             >
               <FileText className="size-6" strokeWidth={1.75} />
             </span>
-            <p className="mt-4 text-text-gray">{content.empty}</p>
+            <p className="mt-4 text-text-gray">{hasFilters ? content.filters.empty : content.empty}</p>
           </div>
         ) : view === 'grid' ? (
           <SopGrid sops={visibleSops} content={content} />

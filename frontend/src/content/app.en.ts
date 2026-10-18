@@ -12,45 +12,15 @@ export const appShellEn: AppShellContent = {
   homeHref: '/dashboard',
   homeLinkLabel: 'Hawkim, go to dashboard',
   navAriaLabel: 'Main',
-  
-nav: [
-  {
-    label: 'My SOPs',
-    href: '/my-sops',
-    icon: 'mySops',
-    matchSubpaths: true,
-    permission: 'author',
-  },
-  {
-    label: 'My Reviews',
-    href: '/reviews',
-    icon: 'reviews',
-    matchSubpaths: true,
-    permission: ['reviewer', 'approver'],
-  },
-  {
-    label: 'Dashboard',
-    href: '/dashboard',
-    icon: 'dashboard',
-  },
-  {
-    label: 'SOP Directory',
-    href: '/sops',
-    icon: 'sops',
-    matchSubpaths: true,
-  },
-  {
-    label: 'My Request',
-    href: '/requests',
-    icon: 'requests',
-    matchSubpaths: true,
-  },
-  {
-    label: 'Organization Structure',
-    href: '/departments',
-    icon: 'departments',
-  },
-],
+
+  nav: [
+    { label: 'Dashboard', href: '/dashboard', icon: 'dashboard' },
+    { label: 'My SOPs', href: '/my-sops', icon: 'mySops', matchSubpaths: true, permission: 'author' },
+    { label: 'My Reviews', href: '/reviews', icon: 'reviews', matchSubpaths: true, permission: ['reviewer', 'approver'] },
+    { label: 'My Request', href: '/requests', icon: 'requests', matchSubpaths: true },
+    { label: 'SOP Directory', href: '/sops', icon: 'sops', matchSubpaths: true },
+    { label: 'Organization Structure', href: '/departments', icon: 'departments' },
+  ],
 
   signOut: { label: 'Sign Out', href: '/login', icon: 'signOut' },
   openMenu: 'Open menu',
@@ -79,15 +49,12 @@ export const dashboardEn: DashboardContent = {
   recentActivity: { title: 'Recent Activity' },
   quickActions: {
     title: 'Quick Actions',
-    // These screens are not built yet; the links show the Not Found page for now.
     primary: { label: 'Submit a Request', href: '/requests/new', icon: 'submitRequest' },
     secondary: [
       // Author permission only (placed right after "Submit a Request")
       { label: 'Upload SOP', href: '/my-sops/upload', icon: 'upload', permission: 'author' },
       // Reviewer or Approver permission only
       { label: 'My Reviews', href: '/reviews', icon: 'reviews', permission: ['reviewer', 'approver'] },
-      { label: 'View SOP Directory', href: '/sops', icon: 'sops' },
-{ label: 'View Organization Structure', href: '/departments', icon: 'departments' },
     ],
   },
 }

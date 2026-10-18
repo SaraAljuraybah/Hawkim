@@ -1,4 +1,5 @@
 import type { LandingContent, NavLink } from './types'
+import { appShellEn, dashboardEn } from './app.en'
 
 /*
  * English content for the public landing page.
@@ -60,28 +61,24 @@ export const landingEn: LandingContent = {
   hero: {
     headlineLines: ['Governance.', 'Compliance.', 'Intelligence.'],
     subtitle:
-      'Streamline SOP workflows and support regulatory compliance — all in one centralized platform.',
+      'Hawkim streamlines SOP workflows and supports regulatory compliance for pharmaceutical organizations regulated by the Saudi Food and Drug Authority (SFDA).',
     secondaryCta: { label: 'Explore Hawkim', href: '#about' },
-    regulatoryNote:
-      'Designed for pharmaceutical organizations regulated by the Saudi Food and Drug Authority (SFDA)',
 
     // Illustrative sample data for the decorative dashboard preview.
     preview: {
       windowTitle: 'Hawkim',
-      
-sidebar: [
-  { icon: 'dashboard', label: 'Dashboard', active: true },
-  { icon: 'requests', label: 'My Request' },
-  { icon: 'sops', label: 'SOP Directory' },
-  { icon: 'departments', label: 'Organization Structure' },
-],
-
+      // The default author account; reviewer navigation remains permission-dependent.
+      sidebar: appShellEn.nav.filter((item) => item.href !== '/reviews').map((item) => ({
+        icon: item.icon, label: item.label, active: item.href === '/dashboard',
+      })),
       signOut: { icon: 'signOut', label: 'Sign Out' },
       greeting: 'Good morning, Sara',
+      subtitle: dashboardEn.subtitle.replace('{department}', 'Information Technology'),
+      user: { name: 'Sara Aljuraybah', initials: 'SA', department: 'Information Technology' },
       stats: [
-        { icon: 'requests', value: '5', label: 'My Requests', caption: 'In Progress' },
-        { icon: 'sops', value: '12', label: 'SOPs', caption: 'Accessible' },
-        { icon: 'employees', value: '48', label: 'Employees', caption: 'Across the organization' },
+        { icon: 'requests', value: '2', label: dashboardEn.stats.myRequests.label, caption: dashboardEn.stats.myRequests.sublabel },
+        { icon: 'sops', value: '1', label: dashboardEn.stats.sops.label, caption: dashboardEn.stats.sops.sublabel },
+        { icon: 'employees', value: '5', label: dashboardEn.stats.employees.label, caption: dashboardEn.stats.employees.sublabel },
       ],
       recentActivity: {
         title: 'Recent Activity',
@@ -91,19 +88,14 @@ sidebar: [
             meta: '2 hours ago',
             status: 'Pending',
           },
-          { title: 'You were added to the Quality Assurance department', meta: '1 day ago' },
+          { title: 'Your access request to Pharmacovigilance was approved', meta: '1 day ago' },
           { title: 'Your request to access SOP-045 is under review', meta: '2 days ago', status: 'Pending' },
         ],
       },
-      
-quickActions: {
-  title: 'Quick Actions',
-  items: [
-    { icon: 'submitRequest', label: 'Submit a Request' },
-    { icon: 'sops', label: 'View SOP Directory' },
-    { icon: 'departments', label: 'View Organization Structure' },
-  ],
-},
+      quickActions: {
+        title: dashboardEn.quickActions.title,
+        items: [dashboardEn.quickActions.primary, ...dashboardEn.quickActions.secondary.filter((item) => item.href !== '/reviews')],
+      },
 
     },
   },

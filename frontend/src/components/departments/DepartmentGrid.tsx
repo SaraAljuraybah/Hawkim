@@ -98,7 +98,7 @@ export function DepartmentGrid({ departments, content, getState, getMemberCount,
                     <Button
                       to={requestDepartmentAccessPath(department.id)}
                       size="sm"
-                      variant="secondary"
+                      variant="primary"
                       aria-describedby={nameId}
                     >
                       {states.requestAccess}

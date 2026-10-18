@@ -79,7 +79,7 @@ export function DashboardPage() {
         })}
       </ul>
 
-      <div className="mt-6 grid gap-6 lg:mt-8 lg:grid-cols-3">
+      <div className="mt-6 grid gap-6 lg:mt-8 lg:grid-cols-3 lg:items-start">
         {/* Recent activity (about two-thirds) */}
         <Card title={content.recentActivity.title} titleId="recent-activity-title" className="lg:col-span-2">
           <ul className="divide-y divide-beige">

@@ -59,6 +59,8 @@ export interface DashboardPreviewContent {
   sidebar: { icon: IconName; label: string; active?: boolean }[]
   signOut: { icon: IconName; label: string }
   greeting: string
+  subtitle: string
+  user: { name: string; initials: string; department: string }
   stats: { icon: IconName; value: string; label: string; caption: string }[]
   recentActivity: {
     title: string
@@ -107,7 +109,6 @@ export interface LandingContent {
     subtitle: string
     /** The primary call to action is Request Hawkim (see `request`). */
     secondaryCta: CallToAction
-    regulatoryNote: string
     preview: DashboardPreviewContent
   }
   about: {
@@ -271,6 +272,17 @@ export interface SopsContent {
   /** Accessible name of the tab list. */
   tabsLabel: string
   tabs: Record<SopTabKey, string>
+  filters: {
+    label: string
+    searchLabel: string
+    searchPlaceholder: string
+    typeLabel: string
+    types: { all: string; pdf: string; docx: string }
+    clear: string
+    empty: string
+    oneResult: string
+    results: string
+  }
   viewToggle: { label: string; grid: string; list: string }
   /** Column headings for the list view. */
   columns: { code: string; title: string; department: string; version: string; lastUpdated: string }

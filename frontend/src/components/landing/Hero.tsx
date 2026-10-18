@@ -57,16 +57,15 @@ export function Hero({ content, request }: HeroProps) {
             <Button href={request.href} size="lg" withArrow>
               {request.label}
             </Button>
-            <Button href={content.secondaryCta.href} size="lg" variant="secondary">
+            <Button href={content.secondaryCta.href} size="lg" variant="primary">
               {content.secondaryCta.label}
             </Button>
           </div>
 
-          <p className="mt-8 max-w-lg text-sm leading-relaxed text-text-gray">{content.regulatoryNote}</p>
         </div>
 
         {/* Decorative product preview — desktop only */}
-        <div className="relative hidden lg:block">
+        <div className="relative hidden min-w-0 lg:block">
           <span aria-hidden="true" className="absolute -top-5 -left-5 h-24 w-px bg-gold/70" />
           <span aria-hidden="true" className="absolute -top-5 -left-5 h-px w-24 bg-gold/70" />
           <DashboardPreview content={content.preview} />
