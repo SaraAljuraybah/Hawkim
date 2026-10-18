@@ -146,9 +146,9 @@ export function SopsProvider({ children }: { children: ReactNode }) {
       uploadVersion: (id, file) => updateAndCheck(id, (sop) => workflow.uploadVersion(sop, userId, file), true),
       deleteVersion: (id, version) => update(id, (sop) => workflow.deleteVersion(sop, userId, version)),
       addResponse: (id, text) => update(id, (sop) => workflow.addResponse(sop, userId, text)),
-      addCoAuthors: (id, userIds) =>
-        update(id, (sop) => userIds.reduce((next, userId) => workflow.addCoAuthor(next, userId, userId), sop)),
-      removeCoAuthor: (id, userId) => update(id, (sop) => workflow.removeCoAuthor(sop, userId, userId)),
+      // The signed-in user (`userId`) acts; the others are the co-authors added or removed.
+      addCoAuthors: (id, coAuthorIds) => update(id, (sop) => workflow.addCoAuthors(sop, userId, coAuthorIds)),
+      removeCoAuthor: (id, coAuthorId) => update(id, (sop) => workflow.removeCoAuthor(sop, userId, coAuthorId)),
       runCheck: (id) => updateAndCheck(id, (sop) => workflow.assertCanRunCheck(sop, userId), false),
       completeReview: (id, reviewerId, text) => update(id, (sop) => workflow.completeReview(sop, reviewerId, text)),
       returnAsReviewer: (id, reviewerId, text) => update(id, (sop) => workflow.returnAsReviewer(sop, reviewerId, text)),

@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import type { ComplianceCheck, Sop, User } from '../data/mock/types'
 import {
   addCoAuthor,
+  addCoAuthors,
   addResponse,
   approveAs,
   assertCanRunCheck,
@@ -541,6 +542,38 @@ describe('default reviewers and approvers (temporary rule)', () => {
     expect(decisions(submitted.reviewers)).toEqual({ [NOURA]: 'pending' })
     expect(decisions(submitted.approvers)).toEqual({ [HUDA]: 'pending' })
     expect(submitted.timeline.find((item) => item.type === 'submitted')).toMatchObject({ recipientIds: [NOURA] })
+  })
+})
+
+describe('managing co-authors (Add co-authors, Remove)', () => {
+  const OMAR = 'omar'
+  const MAHA = 'maha'
+
+  it('lets the main author add several co-authors in one update', () => {
+    const added = addCoAuthors(draft(), SARA, [OMAR, MAHA])
+    expect(added.coAuthorIds).toEqual([REEM, OMAR, MAHA])
+    expect(added.timeline.map((item) => [item.type, item.actorId, item.subjectId])).toEqual([
+      ['co-author-added', SARA, OMAR],
+      ['co-author-added', SARA, MAHA],
+    ])
+  })
+
+  it('adds nobody if one of them can’t be added', () => {
+    // Noura reviews this SOP; Reem is already a co-author.
+    expect(() => addCoAuthors(inReview(), SARA, [OMAR, NOURA])).toThrow()
+    expect(() => addCoAuthors(draft(), SARA, [OMAR, REEM])).toThrow()
+  })
+
+  it('is only for the main author (the person being added can’t add themselves)', () => {
+    expect(() => addCoAuthors(draft(), REEM, [OMAR])).toThrow(/Only the author/)
+    expect(() => addCoAuthors(draft(), OMAR, [OMAR])).toThrow(/Only the author/)
+  })
+
+  it('lets the main author remove a co-author, but not a co-author themselves', () => {
+    const removed = removeCoAuthor(draft(), SARA, REEM)
+    expect(removed.coAuthorIds).toEqual([])
+    expect(removed.timeline.at(-1)).toMatchObject({ type: 'co-author-removed', actorId: SARA, subjectId: REEM })
+    expect(() => removeCoAuthor(draft(), REEM, REEM)).toThrow(/Only the author/)
   })
 })
 

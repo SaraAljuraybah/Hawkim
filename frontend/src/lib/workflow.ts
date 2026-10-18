@@ -510,6 +510,14 @@ export function addCoAuthor(sop: Sop, actorId: string, userId: string): Sop {
   }
 }
 
+/**
+ * Main author: add several co-authors in one update (the Add co-authors dialog). Each
+ * follows addCoAuthor's rules; if one can't be added, none are.
+ */
+export function addCoAuthors(sop: Sop, actorId: string, userIds: string[]): Sop {
+  return userIds.reduce((next, coAuthorId) => addCoAuthor(next, actorId, coAuthorId), sop)
+}
+
 /** Main author: remove a co-author (PBI 2). Not when Published. */
 export function removeCoAuthor(sop: Sop, actorId: string, userId: string): Sop {
   assert(isAuthor(sop, actorId), 'Only the author can manage co-authors')
