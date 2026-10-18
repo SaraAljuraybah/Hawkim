@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { ComplianceCheck, Sop, User } from '../data/mock/types'
 import {
+  activeVersions,
   addCoAuthor,
   addCoAuthors,
   addResponse,
@@ -347,7 +348,7 @@ describe('deleting a version', () => {
     }
   }
 
-  it('lets the main author delete any version', () => {
+  it('lets the main author delete any eligible unsubmitted version', () => {
     const sop = withReemVersion()
     expect(deleteVersionBlocker(sop, SARA, '1')).toBeUndefined()
     expect(deleteVersionBlocker(sop, SARA, '2')).toBeUndefined() // uploaded by co-author Reem
@@ -369,16 +370,70 @@ describe('deleting a version', () => {
   it('is allowed only while Draft or Returned, for the main author and a co-author alike', () => {
     const sops = inEachStatus()
     // Returned is its own status (shown on the step it came from), never treated as In Review or In Approval.
-    for (const sop of [sops.draft, sops.returnedByReviewer, sops.returnedByApprover]) {
+    for (const sop of [sops.draft]) {
       expect(deleteVersionBlocker(sop, SARA, '1')).toBeUndefined()
       expect(deleteVersionBlocker(sop, REEM, '2')).toBeUndefined()
       expect(() => deleteVersion(sop, REEM, '2')).not.toThrow()
+    }
+    for (const sop of [sops.returnedByReviewer, sops.returnedByApprover]) {
+      // v1 was never submitted; v2 was submitted and remains protected after either kind of return.
+      expect(deleteVersionBlocker(sop, SARA, '1')).toBeUndefined()
+      for (const actor of [SARA, REEM]) {
+        expect(deleteVersionBlocker(sop, actor, '2')).toBe('submitted-version')
+        expect(() => deleteVersion(sop, actor, '2')).toThrow(/previously submitted/)
+      }
+      const newer = uploadVersion(sop, REEM, file)
+      expect(deleteVersionBlocker(newer, SARA, '3')).toBeUndefined()
+      expect(deleteVersionBlocker(newer, REEM, '3')).toBeUndefined()
+      expect(() => deleteVersion(newer, REEM, '3')).not.toThrow()
     }
     for (const sop of [sops.inReview, sops.inApproval, sops.approved, sops.published]) {
       expect(deleteVersionBlocker(sop, SARA, '1')).toBe('status')
       expect(deleteVersionBlocker(sop, REEM, '2')).toBe('status')
       expect(() => deleteVersion(sop, SARA, '1')).toThrow(sop.status)
       expect(() => deleteVersion(sop, REEM, '2')).toThrow(sop.status)
+    }
+  })
+
+  it('protects an originally submitted version after a return and a newer upload', () => {
+    const returned = returnAsReviewer(inReview(), NOURA, 'Fix.')
+    const newer = uploadVersion(returned, SARA, file)
+    const before = structuredClone(newer)
+    expect(deleteVersionBlocker(newer, SARA, '1')).toBe('submitted-version')
+    expect(() => deleteVersion(newer, SARA, '1')).toThrow(/previously submitted/)
+    expect(() => deleteVersion(newer, REEM, '1')).toThrow()
+    expect(newer).toEqual(before)
+    // The main author's newer unsubmitted version is eligible only for the main author.
+    expect(deleteVersionBlocker(newer, REEM, '2')).toBe('not-uploader')
+    const deleted = deleteVersion(newer, SARA, '2')
+    expect(activeVersions(deleted).map((version) => version.version)).toEqual(['1'])
+    expect(deleteVersionBlocker(deleted, SARA, '1')).toBe('submitted-version')
+    expect(deleted.timeline.slice(0, -1)).toEqual(newer.timeline)
+    expect(deleted.timeline.at(-1)).toMatchObject({ type: 'version-deleted', version: '2', actorId: SARA })
+    expect(nextVersion(deleted)).toBe('3')
+  })
+
+  it('protects every submitted and resubmitted version, including a co-author upload', () => {
+    const returned = returnAsReviewer(inReview(), NOURA, 'Fix.')
+    const v2 = uploadVersion(returned, REEM, file)
+    const checked = { ...v2, complianceChecks: [...v2.complianceChecks, completedCheck('2')] }
+    const again = resubmit(checked, SARA, GVP)
+    const back = returnAsReviewer(again, NOURA, 'Another revision.')
+    const v3 = uploadVersion(back, REEM, file)
+    expect(v3.timeline.some((item) => item.type === 'resubmitted' && item.version === '2')).toBe(true)
+    for (const version of ['1', '2']) {
+      expect(deleteVersionBlocker(v3, SARA, version)).toBe('submitted-version')
+      expect(() => deleteVersion(v3, SARA, version)).toThrow(/previously submitted/)
+      expect(() => deleteVersion(v3, REEM, version)).toThrow()
+    }
+    expect(deleteVersionBlocker(v3, REEM, '2')).toBe('submitted-version')
+    // Both the uploader and the main author may delete a newer, unsubmitted co-author version.
+    for (const actor of [SARA, REEM]) {
+      const deleted = deleteVersion(v3, actor, '3')
+      expect(deleted.version).toBe('2')
+      expect(activeVersions(deleted).map((version) => version.version)).toEqual(['1', '2'])
+      expect(deleted.timeline.slice(0, -1)).toEqual(v3.timeline)
+      expect(nextVersion(deleted)).toBe('4')
     }
   })
 

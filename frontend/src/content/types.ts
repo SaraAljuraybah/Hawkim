@@ -546,11 +546,12 @@ export interface SopWorkflowContent {
     unavailable: { word: string; demo: string }
     /**
      * Why Delete isn't available: by the SOP's status (only Draft and Returned allow it),
-     * not the user's version (`{name}` is the main author), or the last version left.
+     * not the user's version (`{name}` is the main author), previously submitted, or the last version left.
      */
     deleteBlocked: {
       status: Record<Exclude<SopStatus, 'draft' | 'returned'>, string>
       'not-uploader': string
+      'submitted-version': string
       'last-version': string
     }
     upload: string

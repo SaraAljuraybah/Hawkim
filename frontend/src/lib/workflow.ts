@@ -316,16 +316,20 @@ function isAuthorOrUploader(sop: Sop, userId: string, version: SopVersion | unde
 }
 
 /** Why a version can't be deleted now (undefined: it can). */
-export type DeleteVersionBlocker = 'status' | 'not-uploader' | 'last-version'
+export type DeleteVersionBlocker = 'status' | 'not-uploader' | 'submitted-version' | 'last-version'
 
 /**
  * Delete a version: only while Draft or Returned (for everyone); by the main author
- * (any version) or the person who uploaded it; at least one version must remain.
+ * (any eligible version) or the person who uploaded it; at least one version must remain.
+ * A version recorded in any submission or resubmission is permanently protected.
  */
 export function deleteVersionBlocker(sop: Sop, actorId: string, version: string): DeleteVersionBlocker | undefined {
   if (sop.status !== 'draft' && sop.status !== 'returned') return 'status'
   const target = activeVersions(sop).find((item) => item.version === version)
   if (!isAuthorOrUploader(sop, actorId, target)) return 'not-uploader'
+  if (sop.timeline.some((item) =>
+    item.version === version && (item.type === 'submitted' || item.type === 'resubmitted'),
+  )) return 'submitted-version'
   if (activeVersions(sop).length <= 1) return 'last-version'
   return undefined
 }
@@ -526,7 +530,7 @@ export function uploadVersion(sop: Sop, actorId: string, file: UploadedFile): So
 }
 
 /**
- * Main author (any version) or the person who uploaded it: delete a version (Draft or
+ * Main author (any eligible version) or the person who uploaded it: delete an unsubmitted version (Draft or
  * Returned only; at least one must remain). Deleting the current version makes the
  * newest remaining one current. The deletion is recorded in the timeline ("Deleted v2").
  */
@@ -536,6 +540,7 @@ export function deleteVersion(sop: Sop, actorId: string, version: string): Sop {
   const blocker = deleteVersionBlocker(sop, actorId, version)
   assert(blocker !== 'status', `Can't delete a version of an SOP that is ${sop.status}`)
   assert(blocker !== 'not-uploader', 'Only the main author or the person who uploaded this version can delete it')
+  assert(blocker !== 'submitted-version', 'Versions previously submitted or resubmitted for review cannot be deleted')
   assert(blocker !== 'last-version', 'At least one version must remain')
   const deletedAt = new Date().toISOString()
   const versions = sop.versions.map((item) => (item === target ? { ...item, deletedAt, deletedById: actorId } : item))

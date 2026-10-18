@@ -97,6 +97,7 @@ export const sopWorkflowEn: SopWorkflowContent = {
         published: "Versions can't be deleted once the SOP is published",
       },
       'not-uploader': "Restricted to {name} (main author) or this version's uploader",
+      'submitted-version': 'Versions previously submitted or resubmitted for review cannot be deleted.',
       'last-version': 'At least one version must remain',
     },
     upload: 'Upload',
