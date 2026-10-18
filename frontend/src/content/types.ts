@@ -591,7 +591,10 @@ export interface SopWorkflowContent {
     fileRequired: string
     submit: {
       title: string
-      /** Optional review due date; under it, how far away it is (`{count}` is replaced in `days`). */
+      /**
+       * Optional review due date; under it, how far away it is and the due date and time
+       * (`{date}` is replaced in both; `{count}` in `days`).
+       */
       reviewDate: { label: string; oneDay: string; days: string }
       /** `{count}` and `{max}` are replaced in the counter. */
       note: { label: string; placeholder: string; counter: string }

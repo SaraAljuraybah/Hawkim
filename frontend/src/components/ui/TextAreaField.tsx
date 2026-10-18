@@ -11,6 +11,8 @@ export interface TextAreaFieldProps extends Omit<TextareaHTMLAttributes<HTMLText
    * It is linked with aria-describedby but not announced on every keystroke.
    */
   counter?: string
+  /** false: fixed size (no resize handle). Default true: can be made taller. */
+  resizable?: boolean
   ref?: Ref<HTMLTextAreaElement>
   className?: string
 }
@@ -21,6 +23,7 @@ export function TextAreaField({
   hint,
   error,
   counter,
+  resizable = true,
   ref,
   id,
   rows = 5,
@@ -55,7 +58,7 @@ export function TextAreaField({
         rows={rows}
         aria-invalid={error ? true : undefined}
         aria-describedby={describedByIds}
-        className={`block min-h-28 resize-y py-2.5 leading-relaxed ${controlClasses(error)}`}
+        className={`block min-h-28 ${resizable ? 'resize-y' : 'resize-none'} py-2.5 leading-relaxed ${controlClasses(error)}`}
         {...textareaProps}
       />
     </FieldShell>

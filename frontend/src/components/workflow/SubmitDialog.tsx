@@ -2,8 +2,8 @@ import { useRef, useState } from 'react'
 import { flushSync } from 'react-dom'
 import type { SopWorkflowContent } from '../../content/types'
 import type { Sop } from '../../data/mock/types'
-import { formatDate } from '../../lib/format'
-import { daysFromToday, defaultAssignees, dueDateRange, parseDueDate } from '../../lib/workflow'
+import { formatDate, formatDateTime } from '../../lib/format'
+import { addDays, defaultAssignees, dueDateRange, parseDueDate } from '../../lib/workflow'
 import type { SubmitOptions } from '../../state/sopsContext'
 import { useUsers } from '../../state/usersContext'
 import { FormDialog } from '../ui/FormDialog'
@@ -30,6 +30,8 @@ export function SubmitDialog({ sop, content, onSubmit, onClose }: SubmitDialogPr
   const [dueDate, setDueDate] = useState('')
   const [note, setNote] = useState('')
   const [dateError, setDateError] = useState<string>()
+  // "11 days from today · Due Oct 29, 2026, 3:52 AM", set when a date is picked (nothing when empty or invalid).
+  const [daysHint, setDaysHint] = useState<string>()
   const dueDateRef = useRef<HTMLInputElement>(null)
 
   const { activeUsers } = useUsers()
@@ -38,9 +40,14 @@ export function SubmitDialog({ sop, content, onSubmit, onClose }: SubmitDialogPr
   const noAssignees = reviewerIds.length === 0 || approverIds.length === 0
 
   const range = dueDateRange()
-  const days = parseDueDate(dueDate).valid ? daysFromToday(dueDate) : undefined
-  const daysHint =
-    days === undefined ? undefined : days === 1 ? text.reviewDate.oneDay : text.reviewDate.days.replace('{count}', String(days))
+
+  /** How far away the picked date is, and its due time if submitted now (as submitForReview counts it). */
+  function hintFor(value: string): string | undefined {
+    const { days } = parseDueDate(value)
+    if (days === undefined) return undefined
+    const away = days === 1 ? text.reviewDate.oneDay : text.reviewDate.days.replace('{count}', String(days))
+    return away.replace('{date}', formatDateTime(addDays(new Date().toISOString(), days)))
+  }
 
   function confirm() {
     if (noAssignees) return false
@@ -83,6 +90,7 @@ export function SubmitDialog({ sop, content, onSubmit, onClose }: SubmitDialogPr
         error={dateError}
         onChange={(event) => {
           setDueDate(event.target.value)
+          setDaysHint(hintFor(event.target.value))
           setDateError(undefined)
         }}
       />
@@ -92,6 +100,7 @@ export function SubmitDialog({ sop, content, onSubmit, onClose }: SubmitDialogPr
         label={text.note.label}
         placeholder={text.note.placeholder}
         maxLength={NOTE_MAX}
+        resizable={false}
         counter={text.note.counter.replace('{count}', String(note.length)).replace('{max}', String(NOTE_MAX))}
         value={note}
         onChange={(event) => setNote(event.target.value)}

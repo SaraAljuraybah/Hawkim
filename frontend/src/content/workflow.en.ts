@@ -156,8 +156,8 @@ export const sopWorkflowEn: SopWorkflowContent = {
       title: 'Submit for review',
       reviewDate: {
         label: 'Review due date (optional)',
-        oneDay: '1 day from today',
-        days: '{count} days from today',
+        oneDay: '1 day from today · Due {date}',
+        days: '{count} days from today · Due {date}',
       },
       note: { label: 'Comments (optional)', placeholder: 'Add a comment for the reviewers…', counter: '{count} / {max}' },
       errors: {
