@@ -73,33 +73,26 @@ Handles user requests, such as access to other departments. The Admin role is no
 Hawkim supports a structured SOP lifecycle involving multiple review and approval stages.
 
 ```text
-SOP Creation
-     │
-     ▼
-Author
-     │
-     ▼
-Review
-     │
-     ▼
-Reviewer
-     │
-     ├── Request Changes ──► Author
-     │
-     ▼
-Approval
-     │
-     ▼
-Approver
-     │
-     ├── Return with Comments ──► Reviewer
-     │
-     ▼
-Approved
-     │
-     ▼
-Training / Distribution / Archive
+Draft ? In Review ? In Approval ? Approved ? Published
+           ?             ?
+           ??? Returned ??
+                 ?
+                 ?
+          Author revises and resubmits ? In Review
 ```
+
+Reviewers act sequentially in assignment order. Only the current reviewer can complete,
+return, or append a reviewer to the queue. The next reviewer is notified when their turn
+begins. Approval remains parallel: all assigned approvers must approve, and any pending
+approver can return the SOP to its author.
+
+Each reviewer may have an optional local-date deadline. Time Given records the original
+calendar-day allocation from submission, independently of Time Remaining. Resubmission
+resets all decisions and recalculates reviewer deadlines from the resubmission date using
+those original allocations; reviewers without deadlines remain without deadlines. Routing
+appends to the queue without an immediate handoff or a new deadline. Existing shared
+review deadlines remain supported. The lifecycle is Draft ? In Review ? In Approval ?
+Approved ? Published, with Returned sending the SOP back to its author.
 
 The workflow maintains the history of actions, feedback, revisions, and decisions to provide clear traceability throughout the SOP lifecycle.
 

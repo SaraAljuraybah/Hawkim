@@ -127,12 +127,18 @@ export type ReviewRole = 'reviewer' | 'approver'
 export type ReviewerDecision = 'pending' | 'completed' | 'returned'
 export type ApproverDecision = 'pending' | 'approved' | 'returned'
 
+
 export interface ReviewerAssignment {
   userId: string
   decision: ReviewerDecision
+  /** Optional deadline for this reviewer (YYYY-MM-DD). */
+  dueDate?: string
+  /** Original calendar-day allocation; null explicitly means no deadline. Undefined is legacy data. */
+  assignedDueDays?: number | null
   /** ISO date and time of the decision. */
   decidedAt?: string
 }
+
 
 export interface ApproverAssignment {
   userId: string

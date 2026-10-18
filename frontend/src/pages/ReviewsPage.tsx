@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ListChecks } from 'lucide-react'
+import { ReviewerDeadline } from '../components/workflow/ReviewerDeadline'
+import { sopWorkflowEn } from '../content/workflow.en'
 import { StatusBadge } from '../components/ui/StatusBadge'
 import { Tabs, type TabItem } from '../components/ui/Tabs'
 import { tabIds } from '../components/ui/tabIds'
@@ -118,8 +120,10 @@ export function ReviewsPage() {
                       <span className={`${pill} border border-maroon/20 bg-maroon/[0.06] text-maroon`}>{text.needs[task.need]}</span>
                     )}
                   </div>
-                  {/* The due date is the user's own only while something is needed from them. */}
-                  {task.group === 'todo' && due(task)}
+                  {/* Reviewer metadata belongs to this person; approval retains its stage deadline. */}
+                  {task.role === 'reviewer' ? (
+                    <ReviewerDeadline sop={task.sop} reviewer={task.sop.reviewers.find((person) => person.userId === user.id)!} content={sopWorkflowEn.reviewerDeadline} showQueue />
+                  ) : task.group === 'todo' && due(task)}
                 </div>
               </li>
             ))}

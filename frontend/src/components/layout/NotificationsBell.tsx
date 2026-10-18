@@ -90,7 +90,7 @@ export function NotificationsBell() {
         .replace('{version}', item.version ?? '')
     switch (item.type) {
       case 'assigned-review':
-        return fill(item.via === 'routed' ? t.routed : item.via === 'resubmitted' ? t.resubmitted : t.submitted)
+        return fill(item.via === 'handoff' ? t.handoff : item.via === 'routed' ? t.routed : item.via === 'resubmitted' ? t.resubmitted : t.submitted)
       case 'assigned-approval':
         return fill(t.assignedApproval)
       case 'ready-to-publish':

@@ -1,6 +1,6 @@
 import type { Sop, TimelineEvent, UserRequest } from '../data/mock/types'
 import { mySopPath, reviewPath } from './routes'
-import { isAuthorOrCoAuthor } from './workflow'
+import { currentDueAt, currentReviewer, isAuthorOrCoAuthor } from './workflow'
 
 /*
  * In-app notifications (PBI 31), derived from the data that already exists (SOP
@@ -10,7 +10,7 @@ import { isAuthorOrCoAuthor } from './workflow'
  */
 
 export type NotificationType =
-  /** Assigned to me: a reviewer (submitted, resubmitted or routed to them). */
+  /** Review turn started: first submission, resubmission or sequential handoff. */
   | 'assigned-review'
   /** Assigned to me: an approver, once every reviewer has completed. */
   | 'assigned-approval'
@@ -45,7 +45,7 @@ export interface AppNotification {
   /** Who acted (submitted, routed, returned). */
   actorId?: string
   /** assigned-review: how it reached them. */
-  via?: 'submitted' | 'resubmitted' | 'routed'
+  via?: 'submitted' | 'resubmitted' | 'routed' | 'handoff'
   /** due-soon / overdue: the stage, and its due date. */
   stage?: 'review' | 'approval'
   dueAt?: string
@@ -75,8 +75,15 @@ function fromEvent(sop: Sop, event: TimelineEvent, userId: string): AppNotificat
   switch (event.type) {
     case 'submitted':
     case 'resubmitted':
+      // Old sample submission events may still list the entire queue.
+      return isRecipient && sop.reviewers[0]?.userId === userId
+        ? { ...base, type: 'assigned-review', via: event.type, link: reviewPath(sop.id) }
+        : undefined
     case 'routed':
-      return isRecipient ? { ...base, type: 'assigned-review', via: event.type, link: reviewPath(sop.id) } : undefined
+      // Joining the queue is not an actionable assignment; the handoff notifies them.
+      return undefined
+    case 'review-completed':
+      return isRecipient ? { ...base, type: 'assigned-review', via: 'handoff', link: reviewPath(sop.id) } : undefined
     case 'forwarded-to-approver':
       return isRecipient ? { ...base, type: 'assigned-approval', link: reviewPath(sop.id) } : undefined
     case 'approved':
@@ -98,21 +105,23 @@ function fromEvent(sop: Sop, event: TimelineEvent, userId: string): AppNotificat
 
 /**
  * "Due soon" (within 24 hours) or "overdue" for a user with a pending decision in the
- * SOP's open stage, when that stage has a due date. One of each per person per stage
- * round: the round is the stage's latest "due date set" event, so a resubmission
+ * SOP's open stage (only the current reviewer), using their own deadline. One per person per stage
+ * round: review uses the latest submission, approval its latest due-date event. A resubmission
  * (a new round) can notify again, while moving the clock doesn't duplicate it.
  * Once overdue, the due-soon notification is no longer listed.
  */
 function dueNotification(sop: Sop, userId: string, now: number): AppNotification | undefined {
   const stage = sop.status === 'in-review' ? 'review' : sop.status === 'in-approval' ? 'approval' : undefined
   if (!stage) return undefined
-  const people = stage === 'review' ? sop.reviewers : sop.approvers
+  const people = stage === 'review' ? [currentReviewer(sop)].filter((person) => person !== undefined) : sop.approvers
   if (!people.some((person) => person.userId === userId && person.decision === 'pending')) return undefined
-  const dueAt = stage === 'review' ? sop.reviewDueAt : sop.approvalDueAt
+  const dueAt = currentDueAt(sop)
   if (!dueAt) return undefined
   const due = new Date(dueAt).getTime()
   const round =
-    [...sop.timeline].reverse().find((event) => event.type === 'stage-due-date-set' && event.stage === stage)?.id ??
+    [...sop.timeline].reverse().find((event) => stage === 'review'
+      ? event.type === 'submitted' || event.type === 'resubmitted'
+      : event.type === 'stage-due-date-set' && event.stage === stage)?.id ??
     `${sop.id}-${stage}-${sop.version}`
   const base = { sopId: sop.id, sopCode: sop.code, version: sop.version, stage, dueAt, link: reviewPath(sop.id) } as const
   if (now >= due) return { ...base, id: `overdue:${round}:${userId}`, type: 'overdue', createdAt: dueAt }

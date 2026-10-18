@@ -60,11 +60,11 @@ export default function DemoPanel({ sop, announce }: DemoPanelProps) {
     })
   }
 
-const activeReviewer = currentReviewer(sop)
-const pendingReviewers = activeReviewer ? [activeReviewer] : []
+  const activeReviewer = currentReviewer(sop)
+  const pendingReviewers = activeReviewer ? [activeReviewer] : []
   const pendingApprovers = sop.status === 'in-approval' ? sop.approvers.filter((p) => p.decision === 'pending') : []
   const publishers = sop.status === 'approved' ? sop.approvers : []
-  // The clock only matters when the open stage has a due date.
+  // Simulation shifts individual or legacy deadlines while preserving original allocations.
   const dueDatesOpen = !!currentDueAt(sop)
 
   const buttons = [

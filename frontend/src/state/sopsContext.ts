@@ -8,14 +8,21 @@ import type { UploadedFile } from '../lib/workflow'
  */
 export type NewDraft = Pick<Sop, 'title' | 'departmentId' | 'description'> & UploadedFile
 
+
 export interface SubmitOptions {
   reviewerIds: string[]
   approverIds: string[]
-  /** Optional: a stage without due days has no due date. */
+
+  /** Optional due date for each reviewer, keyed by user ID. */
+  reviewerDueDates?: Record<string, string>
+
+  /** Legacy stage deadlines, retained for compatibility. */
   reviewDueDays?: number
   approvalDueDays?: number
+
   note?: string
 }
+
 
 export interface SopsStore {
   /** Every SOP, at every lifecycle stage (the directory shows the published ones). */

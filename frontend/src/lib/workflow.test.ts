@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { ComplianceCheck, Sop, User } from '../data/mock/types'
 import {
   addCoAuthor,
@@ -10,6 +10,13 @@ import {
   checkBlocker,
   commentForEvent,
   completeReview,
+  currentDueAt,
+  currentReviewer,
+  pendingPeople,
+  reviewerAssignedDays,
+  reviewerDueAt,
+  reviewerRemainingDays,
+  shiftDueDates,
   daysFromToday,
   defaultAssignees,
   deleteVersion,
@@ -45,6 +52,8 @@ const DAY_MS = 24 * 60 * 60 * 1000
 
 /** The current GVP version. */
 const GVP = '4.0'
+
+afterEach(() => vi.useRealTimers())
 
 /** A completed compliance check of this version (it doesn't have to pass). */
 function completedCheck(version: string): ComplianceCheck {
@@ -141,6 +150,13 @@ describe('reviewers work one after another', () => {
     const returned = returnAsReviewer(inReview(), NOURA, 'Please add the retention period.')
     expect(returned.status).toBe('returned')
     expect(decisions(returned.reviewers)).toEqual({ [NOURA]: 'returned', [FAISAL]: 'pending' })
+    expect(returned.comments.map((comment) => comment.text)).toEqual(['Please add the retention period.'])
+  })
+
+  it('also returns to the author when a later reviewer reaches their turn', () => {
+    const returned = returnAsReviewer(completeReview(inReview(), NOURA), FAISAL, 'Please add the retention period.')
+    expect(returned.status).toBe('returned')
+    expect(decisions(returned.reviewers)).toEqual({ [NOURA]: 'completed', [FAISAL]: 'returned' })
     expect(returned.comments.map((comment) => comment.text)).toEqual(['Please add the retention period.'])
   })
 
@@ -605,7 +621,7 @@ describe('timeline recipients (display)', () => {
   it('leaves rows addressed to others unchanged', () => {
     const submitted = inReview()
     const submit = submitted.timeline.find((item) => item.type === 'submitted')!
-    expect(timelineRecipients(submitted, submit, true)).toEqual([NOURA, FAISAL])
+    expect(timelineRecipients(submitted, submit, true)).toEqual([NOURA])
     const responded = addResponse(returnAsReviewer(submitted, NOURA, 'Fix.'), REEM, 'Done.')
     expect(timelineRecipients(responded, responded.timeline.at(-1)!, true)).toEqual([NOURA])
   })
@@ -749,14 +765,23 @@ describe('routing to another department (PBI 23)', () => {
     expect(decisions(again.reviewers)).toEqual({ [NOURA]: 'pending', [FAISAL]: 'pending', lama: 'pending' })
   })
 
-  it('is only for the current reviewer: not one who already completed, nor one whose turn hasn’t come', () => {
-    // Faisal's turn hasn't come yet.
+  it('resets a routed reviewer who returned the SOP after reaching the front of the queue', () => {
+    const routed = routeToReviewer(inReview(), NOURA, lama)
+    const returned = returnAsReviewer(completeReview(completeReview(routed, NOURA), FAISAL), 'lama', 'Fix it.')
+    const updated = uploadVersion(returned, SARA, { fileName: 'v2.pdf', fileType: 'pdf' })
+    const again = resubmit({ ...updated, complianceChecks: [...updated.complianceChecks, completedCheck('2')] }, SARA, GVP)
+    expect(decisions(again.reviewers)).toEqual({ [NOURA]: 'pending', [FAISAL]: 'pending', lama: 'pending' })
+  })
+
+  it('rejects queued and completed reviewers, and appends without handing off', () => {
     expect(() => routeToReviewer(inReview(), FAISAL, lama)).toThrow(/current reviewer/)
     const nouraDone = completeReview(inReview(), NOURA)
     expect(() => routeToReviewer(nouraDone, NOURA, lama)).toThrow(/current reviewer/)
     const routed = routeToReviewer(nouraDone, FAISAL, lama)
     expect(decisions(routed.reviewers)).toEqual({ [NOURA]: 'completed', [FAISAL]: 'pending', lama: 'pending' })
     expect(routed.status).toBe('in-review')
+    expect(currentReviewer(routed)?.userId).toBe(FAISAL)
+    expect(routed.reviewers.map((person) => person.userId)).toEqual([NOURA, FAISAL, 'lama'])
   })
 
   it('is only for the current reviewer, while the SOP is In Review', () => {
@@ -767,14 +792,14 @@ describe('routing to another department (PBI 23)', () => {
   })
 
   it('needs the Reviewer permission, another department and an active account', () => {
-    expect(() => routeToReviewer(inReview(), FAISAL, person('maha', { permissions: ['approver'] }))).toThrow()
-    expect(() => routeToReviewer(inReview(), FAISAL, person('reem2', { departmentId: 'information-technology' }))).toThrow()
-    expect(() => routeToReviewer(inReview(), FAISAL, person('gone', { deletedAt: '2026-01-01T00:00:00Z' }))).toThrow()
+    expect(() => routeToReviewer(inReview(), NOURA, person('maha', { permissions: ['approver'] }))).toThrow()
+    expect(() => routeToReviewer(inReview(), NOURA, person('reem2', { departmentId: 'information-technology' }))).toThrow()
+    expect(() => routeToReviewer(inReview(), NOURA, person('gone', { deletedAt: '2026-01-01T00:00:00Z' }))).toThrow()
   })
 
   it('keeps separation of duties: never the author, a co-author, a reviewer or an approver', () => {
     for (const id of [SARA, REEM, NOURA, HUDA]) {
-      expect(() => routeToReviewer(inReview(), FAISAL, person(id)), id).toThrow()
+      expect(() => routeToReviewer(inReview(), NOURA, person(id)), id).toThrow()
     }
   })
 })
@@ -788,5 +813,87 @@ describe('optional comments with a decision', () => {
     expect(completeReview(inReview(), NOURA, '   ').comments).toEqual([])
     const approved = approveAs(inApproval(), HUDA, 'Approved for release.')
     expect(approved.comments.at(-1)).toMatchObject({ authorUserId: HUDA, role: 'approver', text: 'Approved for release.' })
+  })
+})
+
+
+describe('individual reviewer deadlines and sequential handoffs', () => {
+  function submitIndividual() {
+    return submitForReview(draft(), SARA, GVP, [NOURA, FAISAL, 'lama'], [HUDA, KHALID], undefined, 3, undefined,
+      { [NOURA]: '2026-10-20', [FAISAL]: '2026-10-25' })
+  }
+  function revise(sop: Sop): Sop {
+    const updated = uploadVersion(sop, SARA, { fileName: 'revised.pdf', fileType: 'pdf' })
+    return { ...updated, complianceChecks: [...updated.complianceChecks, completedCheck(updated.version)] }
+  }
+  it('stores independent original allocations and keeps remaining time separate', () => {
+    vi.useFakeTimers({ now: new Date(2026, 9, 18, 12) })
+    const sop = submitIndividual()
+    expect(sop.reviewers.map((person) => person.assignedDueDays)).toEqual([2, 7, null])
+    vi.setSystemTime(new Date(2026, 9, 19, 18))
+    expect(reviewerAssignedDays(sop, sop.reviewers[0])).toBe(2)
+    expect(reviewerRemainingDays(sop, sop.reviewers[0])).toBe(1)
+    expect(currentDueAt(sop)).toBe(new Date(2026, 9, 20, 23, 59, 59, 999).toISOString())
+  })
+  it('guards every reviewer action and hands off to the next pending reviewer', () => {
+    vi.useFakeTimers({ now: new Date(2026, 9, 18, 12) })
+    const sop = submitIndividual()
+    expect(() => completeReview(sop, FAISAL)).toThrow(/current reviewer/)
+    expect(() => returnAsReviewer(sop, FAISAL, 'Fix')).toThrow(/current reviewer/)
+    expect(pendingPeople(sop)).toEqual([{ userId: NOURA, role: 'reviewer' }])
+    const next = completeReview(sop, NOURA)
+    expect(next.timeline.at(-1)).toMatchObject({ type: 'review-completed', recipientIds: [FAISAL] })
+    expect(currentReviewer(next)?.userId).toBe(FAISAL)
+    expect(currentDueAt(next)).toBe(reviewerDueAt(next, next.reviewers[1]))
+    expect(isOverdue(sop, 'review', new Date(2026, 9, 21).getTime())).toBe(true)
+    expect(isOverdue(next, 'review', new Date(2026, 9, 21).getTime())).toBe(false)
+    const last = completeReview(next, FAISAL)
+    expect(currentDueAt(last)).toBeUndefined()
+    expect(isOverdue(last, 'review', new Date(2027, 0, 1).getTime())).toBe(false)
+    const approval = completeReview(last, 'lama')
+    expect(pendingPeople(approval)).toEqual([{ userId: HUDA, role: 'approver' }, { userId: KHALID, role: 'approver' }])
+    expect(pendingPeople(approveAs(approval, KHALID))).toEqual([{ userId: HUDA, role: 'approver' }])
+  })
+  it('preserves original allocations through simulation and repeated resubmissions', () => {
+    vi.useFakeTimers({ now: new Date(2026, 9, 18, 12) })
+    const shifted = shiftDueDates(submitIndividual(), 3)
+    expect(shifted.reviewers.map((person) => person.dueDate)).toEqual(['2026-10-17', '2026-10-22', undefined])
+    expect(shifted.reviewers.map((person) => person.assignedDueDays)).toEqual([2, 7, null])
+    const returned = returnAsReviewer(shifted, NOURA, 'Fix')
+    vi.setSystemTime(new Date(2026, 9, 27, 12))
+    const again = resubmit(revise(returned), SARA, GVP)
+    expect(again.reviewers.map((person) => person.dueDate)).toEqual(['2026-10-29', '2026-11-03', undefined])
+    expect(again.reviewers.every((person) => person.decision === 'pending' && person.decidedAt === undefined)).toBe(true)
+    expect(again.approvers.every((person) => person.decision === 'pending' && person.decidedAt === undefined)).toBe(true)
+    expect(again.approvalDueAt).toBeUndefined()
+    vi.setSystemTime(new Date(2026, 10, 5, 12))
+    const twice = resubmit(revise(returnAsReviewer(again, NOURA, 'Again')), SARA, GVP)
+    expect(twice.reviewers.map((person) => person.dueDate)).toEqual(['2026-11-07', '2026-11-12', undefined])
+    expect(twice.reviewers.map((person) => person.assignedDueDays)).toEqual([2, 7, null])
+  })
+  it('supports legacy records and explicit blanks without inheriting shared dates', () => {
+    vi.useFakeTimers({ now: new Date(2026, 9, 18, 12) })
+    const legacy = inReview()
+    legacy.reviewers = legacy.reviewers.map(({ userId, decision }) => ({ userId, decision }))
+    expect(reviewerAssignedDays(legacy, legacy.reviewers[0])).toBe(5)
+    expect(currentDueAt(legacy)).toBe(legacy.reviewDueAt)
+    const again = resubmit(revise(returnAsReviewer(legacy, NOURA, 'Fix')), SARA, GVP)
+    expect(currentDueAt(again)).toBe(again.reviewDueAt)
+    const mixed = submitForReview(draft(), SARA, GVP, [NOURA, FAISAL], [HUDA], 5, undefined, undefined, { [FAISAL]: '2026-10-25' })
+    expect(currentDueAt(mixed)).toBeUndefined()
+    expect(reviewerAssignedDays(mixed, mixed.reviewers[0])).toBeUndefined()
+    const datedLegacy = submitIndividual()
+    datedLegacy.reviewers = datedLegacy.reviewers.map(({ assignedDueDays: _days, ...person }) => person)
+    expect(reviewerAssignedDays(datedLegacy, datedLegacy.reviewers[0])).toBe(2)
+    expect(shiftDueDates(datedLegacy, 3).reviewers[0].assignedDueDays).toBe(2)
+  })
+  it('validates dates at the workflow boundary and normalizes whitespace', () => {
+    vi.useFakeTimers({ now: new Date(2026, 9, 18, 12) })
+    const invalidDates: Record<string, string>[] = [{ [NOURA]: '2026-02-30' }, { [NOURA]: '2026-10-18' }, { [NOURA]: '2026-11-18' }, { unknown: '2026-10-20' }, { [NOURA]: ' ' }]
+    for (const dates of invalidDates) {
+      expect(() => submitForReview(draft(), SARA, GVP, [NOURA], [HUDA], undefined, undefined, undefined, dates)).toThrow(/due date/)
+    }
+    const sop = submitForReview(draft(), SARA, GVP, [NOURA], [HUDA], undefined, undefined, undefined, { [NOURA]: ' 2026-10-20 ' })
+    expect(sop.reviewers[0]).toMatchObject({ dueDate: '2026-10-20', assignedDueDays: 2 })
   })
 })

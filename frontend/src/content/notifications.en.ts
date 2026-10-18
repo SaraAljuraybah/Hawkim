@@ -17,6 +17,7 @@ export const notificationsEn: NotificationsContent = {
     submitted: '{name} submitted {code} · v{version} for your review',
     resubmitted: '{name} resubmitted {code} · v{version} for your review',
     routed: '{name} routed {code} · v{version} to you for review',
+    handoff: '{code} ? v{version} is ready for your review',
     assignedApproval: '{code} · v{version} is ready for your approval',
     readyToPublish: '{code} · v{version} is approved and ready to publish',
     returned: '{name} returned {code} · v{version}',

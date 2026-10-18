@@ -110,3 +110,19 @@ describe('sorting To do', () => {
     ])
   })
 })
+
+
+describe('sequential reviewer task deadlines', () => {
+  it('keeps queued reviewers waiting and exposes each person?s own deadline', () => {
+    const item = sop('QUEUE', 'in-review', [
+      { userId: 'noura', decision: 'pending', dueDate: '2026-10-20', assignedDueDays: 2 },
+      { userId: 'faisal', decision: 'pending', dueDate: '2026-10-25', assignedDueDays: 7 },
+    ], [{ userId: 'huda', decision: 'pending' }])
+    expect(group('noura', item)).toBe('reviewer todo review')
+    expect(group('faisal', item)).toBe('reviewer waiting')
+    expect(reviewTasks('faisal', [item])[0].dueAt).toBe(new Date('2026-10-25T23:59:59.999').toISOString())
+    item.reviewers[0].decision = 'completed'
+    expect(group('faisal', item)).toBe('reviewer todo review')
+    expect(group('noura', item)).toBe('reviewer done')
+  })
+})

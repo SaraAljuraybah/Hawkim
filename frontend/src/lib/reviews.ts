@@ -1,5 +1,5 @@
 import type { Sop } from '../data/mock/types'
-import { currentDueAt, currentReviewer, isOverdue } from './workflow'
+import { currentDueAt, currentReviewer, isOverdue, reviewerDueAt } from './workflow'
 
 /*
  * A reviewer's or approver's assignments (My Reviews, PBI 7, 10, 25), from the
@@ -24,7 +24,7 @@ export interface ReviewTask {
   /** Their decision in the current round, and when they made it. */
   decision: string
   decidedAt?: string
-  /** The open stage's due date (In Review or In Approval), if any. */
+  /** The reviewer's own deadline, or the open approval stage deadline. */
   dueAt?: string
 }
 
@@ -35,16 +35,11 @@ export function reviewTasks(userId: string, sops: Sop[]): ReviewTask[] {
     const dueAt = currentDueAt(sop)
     const reviewer = sop.reviewers.find((person) => person.userId === userId)
     if (reviewer) {
-      
-const group: TaskGroup =
-  sop.status === 'returned'
-    ? 'waiting'
-    : sop.status === 'in-review' &&
-        reviewer.decision === 'pending'
-      ? currentReviewer(sop)?.userId === userId
-        ? 'todo'
-        : 'waiting'
-      : 'done'
+      const group: TaskGroup = sop.status === 'returned'
+        ? 'waiting'
+        : sop.status === 'in-review' && reviewer.decision === 'pending'
+          ? currentReviewer(sop)?.userId === userId ? 'todo' : 'waiting'
+          : 'done'
 
       tasks.push({
         sop,
@@ -53,7 +48,7 @@ const group: TaskGroup =
         ...(group === 'todo' ? { need: 'review' as const } : {}),
         decision: reviewer.decision,
         decidedAt: reviewer.decidedAt,
-        dueAt,
+        dueAt: reviewerDueAt(sop, reviewer),
       })
       continue
     }

@@ -13,6 +13,20 @@ export const sopWorkflowEn: SopWorkflowContent = {
   departmentLabel: 'Department',
   roles: { reviewer: 'Reviewer', approver: 'Approver', author: 'Author', coAuthor: 'Co-author', system: 'System' },
 
+  reviewerDeadline: {
+    due: 'Due {date}',
+    noDeadline: 'No deadline assigned',
+    assignedOneDay: 'Time Given: 1 Day',
+    assignedDays: 'Time Given: {count} Days',
+    allocationUnknown: 'Original Time Given unavailable',
+    remainingOneDay: 'Time Remaining: 1 Day',
+    remainingDays: 'Time Remaining: {count} Days',
+    dueToday: 'Time Remaining: Due today',
+    overdue: 'Overdue',
+    current: 'Current reviewer',
+    waiting: 'Waiting in queue',
+  },
+
   tracker: {
     label: 'Workflow status',
     steps: {
@@ -28,6 +42,16 @@ export const sopWorkflowEn: SopWorkflowContent = {
     srReturned: 'returned to the author at this step',
     due: 'Due {date}',
     overdue: 'Overdue',
+    assignee: {
+      title: 'Current Assignee',
+      titlePlural: 'Current Assignees',
+      reviewPending: 'Review Pending',
+      approvalPending: 'Approval Pending',
+      revisionsPending: 'Changes Requested',
+      publicationPending: 'Publication Pending',
+      assignedOneDay: 'Time Given: 1 Day',
+      assignedDays: 'Time Given: {count} Days',
+    },
   },
 
   people: {
@@ -159,11 +183,11 @@ export const sopWorkflowEn: SopWorkflowContent = {
     submit: {
       title: 'Submit for review',
       reviewDate: {
-        label: 'Review due date (optional)',
-        help: 'Deadline for the reviewers only, not the full review and approval cycle.',
-        oneDay: '1 day from today · Due {date}',
-        days: '{count} days from today · Due {date}',
-      },
+  label: 'Review due date (optional)',
+  help: 'Applies only to this reviewer. Leave blank for no deadline.',
+  oneDay: 'Time Given: 1 Day · Due {date}',
+days: 'Time Given: {count} Days · Due {date}',
+},
       note: { label: 'Comments (optional)', placeholder: 'Add a comment for the reviewers…', counter: '{count} / {max}' },
       errors: {
         dateInvalid: 'Choose a date from {min} to {max}.',
@@ -209,11 +233,9 @@ export const sopWorkflowEn: SopWorkflowContent = {
     resubmit: {
       title: 'Resubmit for review',
       description:
-        'v{version} goes to the same reviewers and approvers, and through review and approval again. Their earlier decisions are cleared.',
+        'v{version} returns to the same review queue. Original reviewer durations are preserved and deadlines restart from resubmission. Earlier decisions are cleared.',
       reviewersLabel: 'Reviewers',
-      approversLabel: 'Approvers',
-      reviewDaysLabel: 'Review due in',
-      approvalDaysLabel: 'Approval due in',
+      reviewDaysLabel: 'Time Given',
       days: '{count} days',
       oneDay: '1 day',
       noDueDate: 'No due date',

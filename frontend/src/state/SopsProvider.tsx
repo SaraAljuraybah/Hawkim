@@ -140,7 +140,17 @@ export function SopsProvider({ children }: { children: ReactNode }) {
       addDraft,
       submitForReview: (id, o) =>
         update(id, (sop) =>
-          workflow.submitForReview(sop, userId, guideline.version, o.reviewerIds, o.approverIds, o.reviewDueDays, o.approvalDueDays, o.note),
+          workflow.submitForReview(
+            sop,
+            userId,
+            guideline.version,
+            o.reviewerIds,
+            o.approverIds,
+            o.reviewDueDays,
+            o.approvalDueDays,
+            o.note,
+            o.reviewerDueDates,
+          ),
         ),
       resubmit: (id, note) => update(id, (sop) => workflow.resubmit(sop, userId, guideline.version, note)),
       uploadVersion: (id, file) => updateAndCheck(id, (sop) => workflow.uploadVersion(sop, userId, file), true),

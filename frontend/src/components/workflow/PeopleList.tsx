@@ -2,6 +2,8 @@ import type { ReactNode } from 'react'
 import { UserPlus } from 'lucide-react'
 import type { SopWorkflowContent } from '../../content/types'
 import type { Sop } from '../../data/mock/types'
+import { sopWorkflowEn } from '../../content/workflow.en'
+import { ReviewerDeadline } from './ReviewerDeadline'
 import { useUsers } from '../../state/usersContext'
 import { Button } from '../ui/Button'
 import { DecisionBadge } from './DecisionBadge'
@@ -108,6 +110,9 @@ export function PeopleList({
                   <li key={person.userId} className={rowClasses}>
                     <span className="text-[0.9375rem] text-maroon">{name(person.userId)}</span>
                     <DecisionBadge decision={person.decision} labels={content.decisions} />
+                    {people === sop.reviewers && (
+                      <ReviewerDeadline sop={sop} reviewer={sop.reviewers.find((reviewer) => reviewer.userId === person.userId)!} content={sopWorkflowEn.reviewerDeadline} showQueue />
+                    )}
                   </li>
                 ))}
               </ul>

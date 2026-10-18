@@ -9,6 +9,7 @@ import { Button } from '../components/ui/Button'
 import { ConfirmDialog } from '../components/ui/ConfirmDialog'
 import { StatusBadge } from '../components/ui/StatusBadge'
 import { CommentList } from '../components/workflow/CommentList'
+import { ReviewerDeadline } from '../components/workflow/ReviewerDeadline'
 import { PeopleList } from '../components/workflow/PeopleList'
 import { StatusTracker } from '../components/workflow/StatusTracker'
 import { ReviewTimelineTable } from '../components/workflow/ReviewTimelineTable'
@@ -81,12 +82,10 @@ function Review({ sop }: { sop: Sop }) {
   const department = departmentName(sop.departmentId)
   const reviewer = sop.reviewers.find((person) => person.userId === user.id)
   const approver = sop.approvers.find((person) => person.userId === user.id)
-const canReview =
-  sop.status === 'in-review' &&
-  currentReviewer(sop)?.userId === user.id
+  const canReview = sop.status === 'in-review' && currentReviewer(sop)?.userId === user.id
   const canApprove = sop.status === 'in-approval' && approver?.decision === 'pending'
   const canPublish = sop.status === 'approved' && !!approver
-  // Only the current reviewer (the first pending one) can complete, return or route while In Review.
+  // Only the current reviewer can complete, return or append a reviewer to the queue.
   const canRoute = canReview
 
   const dueAt = currentDueAt(sop)
@@ -175,7 +174,7 @@ const canReview =
             </>
           )}
         </p>
-        {dueAt && (
+        {dueAt && sop.status !== 'in-review' && (
           <p className="mt-2 flex flex-wrap items-center gap-2 text-sm text-maroon">
             <span>
               {text.due.split('{date}')[0]}
@@ -190,6 +189,12 @@ const canReview =
           </p>
         )}
       </div>
+
+      {sop.status === 'in-review' && (reviewer ?? currentReviewer(sop)) && (
+        <div className="mt-3">
+          <ReviewerDeadline sop={sop} reviewer={(reviewer ?? currentReviewer(sop))!} content={workflow.reviewerDeadline} showQueue />
+        </div>
+      )}
 
       {/* Success message after an action (live region stays mounted) */}
       <div role="status" ref={statusRef} tabIndex={-1} className="rounded-lg focus:outline-none">

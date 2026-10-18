@@ -84,8 +84,8 @@ export function daysFromToday(isoDate: string, now = new Date()): number | undef
 }
 
 /**
- * An optional review due date as due days (submitForReview counts them from the moment
- * of submitting, so the due time is the time of day it was submitted). Empty is valid
+ * An optional reviewer deadline as calendar days from submission. Individual deadlines
+ * end at the selected local date; legacy shared deadlines retain their time. Empty is valid
  * (no due date); otherwise it must be 1 to 30 days from today.
  */
 export function parseDueDate(isoDate: string, now = new Date()): { valid: boolean; days?: number } {
@@ -193,19 +193,58 @@ export function pendingPeople(
 
 // ---------- Due dates (PBI 3) ----------
 
-/** The due date of the open stage (review or approval), if any. */
-export function currentDueAt(sop: Sop): string | undefined {
-  if (sop.status === 'in-review') return sop.reviewDueAt
-  if (sop.status === 'in-approval') return sop.approvalDueAt
-  return undefined
+/** Original allocation, with compatibility for date-only and shared-deadline records. */
+export function reviewerAssignedDays(sop: Sop, reviewer: ReviewerAssignment): number | undefined {
+  if (reviewer.assignedDueDays !== undefined) return reviewer.assignedDueDays ?? undefined
+  if (reviewer.dueDate) {
+    const submitted = [...sop.timeline].reverse().find((item) => item.type === 'submitted' || item.type === 'resubmitted')
+    const days = submitted ? daysFromToday(reviewer.dueDate, new Date(submitted.createdAt)) : undefined
+    return days !== undefined && isValidDueDays(days) ? days : undefined
+  }
+  return sop.reviewDueDays
 }
 
-/** Overdue = past the due date while that stage is still open. Only a label; nothing happens automatically. */
-export function isOverdue(sop: Sop, stage: 'review' | 'approval', now = Date.now()): boolean {
-  const open = stage === 'review' ? sop.status === 'in-review' : sop.status === 'in-approval'
-  const dueAt = stage === 'review' ? sop.reviewDueAt : sop.approvalDueAt
+/** This person's deadline, including legacy shared deadlines. An explicit blank never inherits one. */
+export function reviewerDueAt(sop: Sop, reviewer: ReviewerAssignment): string | undefined {
+  if (reviewer.assignedDueDays === null) return undefined
+  return reviewer.dueDate
+    ? new Date(`${reviewer.dueDate}T23:59:59.999`).toISOString()
+    : sop.reviewDueAt
+}
+
+/** The active reviewer's deadline, or the unchanged approval stage deadline. */
+export function currentDueAt(sop: Sop): string | undefined {
+  if (sop.status === 'in-review') {
+    const reviewer = currentReviewer(sop)
+    return reviewer ? reviewerDueAt(sop, reviewer) : undefined
+  }
+  return sop.status === 'in-approval' ? sop.approvalDueAt : undefined
+}
+
+/** Whole calendar days remaining, separate from the original allocation. */
+export function reviewerRemainingDays(sop: Sop, reviewer: ReviewerAssignment, now = new Date()): number | undefined {
+  const dueAt = reviewerDueAt(sop, reviewer)
+  return dueAt ? daysFromToday(todayIsoDate(new Date(dueAt)), now) : undefined
+}
+
+export function isOverdue(
+  sop: Sop,
+  stage: 'review' | 'approval',
+  now = Date.now(),
+): boolean {
+  const open =
+    stage === 'review'
+      ? sop.status === 'in-review'
+      : sop.status === 'in-approval'
+
+  const dueAt =
+    stage === 'review'
+      ? currentDueAt(sop)
+      : sop.approvalDueAt
+
   return open && !!dueAt && new Date(dueAt).getTime() < now
 }
+
 
 // ---------- Returns and feedback ----------
 
@@ -372,6 +411,7 @@ export function submitForReview(
   reviewDueDays: number | undefined,
   approvalDueDays: number | undefined,
   note?: string,
+  reviewerDueDates?: Record<string, string>,
 ): Sop {
   assertStatus(sop, ['draft'], 'submit')
   assert(isAuthor(sop, actorId), 'Only the author can submit this SOP')
@@ -382,12 +422,36 @@ export function submitForReview(
     [reviewDueDays, approvalDueDays].every((days) => days === undefined || isValidDueDays(days)),
     'Due days must be from 1 to 30',
   )
-  const createdAt = new Date().toISOString()
+
+  const dates = reviewerDueDates ?? {}
+  const submittedAt = new Date()
+
+  assert(
+    Object.entries(dates).every(
+      ([reviewerId, date]) =>
+        reviewerIds.includes(reviewerId) &&
+        !!date.trim() &&
+        parseDueDate(date, submittedAt).valid,
+    ),
+    'Invalid reviewer due date',
+  )
+
+  const createdAt = submittedAt.toISOString()
   const reviewDueAt = dueDateFrom(createdAt, reviewDueDays)
+
   return {
     ...sop,
     status: 'in-review',
-    reviewers: reviewerIds.map((userId): ReviewerAssignment => ({ userId, decision: 'pending' })),
+
+    reviewers: reviewerIds.map((userId): ReviewerAssignment => ({
+      userId,
+      decision: 'pending',
+      ...(dates[userId] ? { dueDate: dates[userId].trim() } : {}),
+      assignedDueDays: reviewerDueDates !== undefined
+        ? (dates[userId] ? parseDueDate(dates[userId], submittedAt).days! : null)
+        : reviewDueDays ?? null,
+    })),
+
     approvers: approverIds.map((userId): ApproverAssignment => ({ userId, decision: 'pending' })),
     reviewDueDays,
     approvalDueDays,
@@ -396,7 +460,7 @@ export function submitForReview(
     lastUpdated: todayIsoDate(),
     timeline: [
       ...sop.timeline,
-      { ...event(sop, 'submitted', actorId, { recipientIds: reviewerIds, ...(note ? { note } : {}) }), createdAt },
+      { ...event(sop, 'submitted', actorId, { recipientIds: reviewerIds.slice(0, 1), ...(note ? { note } : {}) }), createdAt },
       ...(reviewDueAt ? [{ ...event(sop, 'stage-due-date-set', actorId, { stage: 'review', dueAt: reviewDueAt }), createdAt }] : []),
     ],
   }
@@ -412,18 +476,33 @@ export function resubmit(sop: Sop, actorId: string, guidelineVersion: string, no
   assert(hasCurrentCheck(sop, guidelineVersion), 'Run a compliance check against the current guideline first')
   const createdAt = new Date().toISOString()
   const reviewDueAt = dueDateFrom(createdAt, sop.reviewDueDays)
+
   const reviewerIds = sop.reviewers.map((p) => p.userId)
+
+  const reviewers: ReviewerAssignment[] = sop.reviewers.map((person) => {
+    const days = reviewerAssignedDays(sop, person)
+    return {
+      userId: person.userId,
+      decision: 'pending',
+      assignedDueDays: days ?? null,
+      // Retain legacy shared-deadline time behavior; individual dates stay local calendar dates.
+      ...(days !== undefined && person.dueDate
+        ? { dueDate: localDatePlus(new Date(createdAt), days) }
+        : {}),
+    }
+  })
+
   return {
     ...sop,
     status: 'in-review',
-    reviewers: sop.reviewers.map((p) => ({ userId: p.userId, decision: 'pending' })),
+    reviewers,
     approvers: sop.approvers.map((p) => ({ userId: p.userId, decision: 'pending' })),
     reviewDueAt,
     approvalDueAt: undefined,
     lastUpdated: todayIsoDate(),
     timeline: [
       ...sop.timeline,
-      { ...event(sop, 'resubmitted', actorId, { recipientIds: reviewerIds, ...(note ? { note } : {}) }), createdAt },
+      { ...event(sop, 'resubmitted', actorId, { recipientIds: reviewerIds.slice(0, 1), ...(note ? { note } : {}) }), createdAt },
       ...(reviewDueAt ? [{ ...event(sop, 'stage-due-date-set', actorId, { stage: 'review', dueAt: reviewDueAt }), createdAt }] : []),
     ],
   }
@@ -565,9 +644,9 @@ function optionalComment(
 export function completeReview(sop: Sop, reviewerId: string, text?: string): Sop {
   assertStatus(sop, ['in-review'], 'complete the review of')
   assert(
-  currentReviewer(sop)?.userId === reviewerId,
-  'Only the current reviewer can act',
-)
+    currentReviewer(sop)?.userId === reviewerId,
+    'Only the current reviewer can act',
+  )
   const createdAt = new Date().toISOString()
   const reviewers = sop.reviewers.map((p) =>
     p.userId === reviewerId ? { ...p, decision: 'completed' as const, decidedAt: createdAt } : p,
@@ -578,7 +657,13 @@ export function completeReview(sop: Sop, reviewerId: string, text?: string): Sop
     reviewers,
     lastUpdated: todayIsoDate(),
     comments: comment ? [...sop.comments, comment] : sop.comments,
-    timeline: [...sop.timeline, { ...event(sop, 'review-completed', reviewerId, comment ? { commentId: comment.id } : {}), createdAt }],
+    timeline: [...sop.timeline, {
+      ...event(sop, 'review-completed', reviewerId, {
+        recipientIds: reviewers.filter((person) => person.decision === 'pending').slice(0, 1).map((person) => person.userId),
+        ...(comment ? { commentId: comment.id } : {}),
+      }),
+      createdAt,
+    }],
   }
   if (reviewers.every((p) => p.decision === 'completed')) {
     // Last reviewer done: forward to the approvers automatically, and start the approval clock (if any).
@@ -602,7 +687,10 @@ export function completeReview(sop: Sop, reviewerId: string, text?: string): Sop
 /** The current reviewer returns the SOP with a comment; it goes back to the author at once. */
 export function returnAsReviewer(sop: Sop, reviewerId: string, text: string): Sop {
   assertStatus(sop, ['in-review'], 'return')
-  assert(currentReviewer(sop)?.userId === reviewerId, 'Only the current reviewer can act')
+  assert(
+    currentReviewer(sop)?.userId === reviewerId,
+    'Only the current reviewer can act',
+  )
   assert(!!text.trim(), 'A comment is required')
   const createdAt = new Date().toISOString()
   const withDecision: Sop = {
@@ -657,9 +745,9 @@ export function canBeRoutedTo(sop: Sop, person: Pick<User, 'id' | 'departmentId'
 }
 
 /**
- * An assigned reviewer routes the SOP to a reviewer from another department (PBI 23).
+ * The current reviewer routes the SOP to a reviewer from another department (PBI 23).
  * Only while In Review. The new reviewer starts pending, so the SOP now also waits
- * for them; the review due date doesn't change. The routing reviewer still decides.
+ * for them. Routing appends to the queue without a deadline; the current reviewer still decides.
  */
 export function routeToReviewer(
   sop: Sop,
@@ -669,14 +757,14 @@ export function routeToReviewer(
 ): Sop {
   assertStatus(sop, ['in-review'], 'route')
   assert(
-  currentReviewer(sop)?.userId === actorId,
-  'Only the current reviewer can route this SOP',
-)
+    currentReviewer(sop)?.userId === actorId,
+    'Only the current reviewer can route this SOP',
+  )
   assert(canBeRoutedTo(sop, newReviewer), 'This person can’t be added as a reviewer')
   const trimmed = note?.trim()
   return {
     ...sop,
-    reviewers: [...sop.reviewers, { userId: newReviewer.id, decision: 'pending' }],
+    reviewers: [...sop.reviewers, { userId: newReviewer.id, decision: 'pending', assignedDueDays: null }],
     lastUpdated: todayIsoDate(),
     timeline: [
       ...sop.timeline,
@@ -722,6 +810,11 @@ export function publishAs(sop: Sop, approverId: string): Sop {
 export function shiftDueDates(sop: Sop, days: number): Sop {
   return {
     ...sop,
+    reviewers: sop.reviewers.map((reviewer) => ({
+      ...reviewer,
+      assignedDueDays: reviewerAssignedDays(sop, reviewer) ?? null,
+      ...(reviewer.dueDate ? { dueDate: localDatePlus(new Date(`${reviewer.dueDate}T12:00:00`), -days) } : {}),
+    })),
     reviewDueAt: sop.reviewDueAt ? addDays(sop.reviewDueAt, -days) : undefined,
     approvalDueAt: sop.approvalDueAt ? addDays(sop.approvalDueAt, -days) : undefined,
   }

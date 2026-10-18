@@ -469,6 +469,19 @@ export interface SopWorkflowContent {
   lastUpdatedTemplate: string
   departmentLabel: string
   roles: { reviewer: string; approver: string; author: string; coAuthor: string; system: string }
+  reviewerDeadline: {
+    due: string
+    noDeadline: string
+    assignedOneDay: string
+    assignedDays: string
+    allocationUnknown: string
+    remainingOneDay: string
+    remainingDays: string
+    dueToday: string
+    overdue: string
+    current: string
+    waiting: string
+  }
   tracker: {
     label: string
     steps: { draft: string; 'in-review': string; 'in-approval': string; approved: string; published: string }
@@ -480,6 +493,16 @@ export interface SopWorkflowContent {
     /** Under In Review / In Approval while open; `{date}` is replaced. */
     due: string
     overdue: string
+    assignee: {
+      title: string
+      titlePlural: string
+      reviewPending: string
+      approvalPending: string
+      revisionsPending: string
+      publicationPending: string
+      assignedOneDay: string
+      assignedDays: string
+    }
   }
   people: {
     title: string
@@ -626,9 +649,7 @@ export interface SopWorkflowContent {
       title: string
       description: string
       reviewersLabel: string
-      approversLabel: string
       reviewDaysLabel: string
-      approvalDaysLabel: string
       /** `{count}` is replaced. */
       days: string
       oneDay: string
@@ -868,6 +889,7 @@ export interface NotificationsContent {
     submitted: string
     resubmitted: string
     routed: string
+    handoff: string
     assignedApproval: string
     readyToPublish: string
     returned: string
