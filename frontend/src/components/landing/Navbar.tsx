@@ -1,3 +1,4 @@
+
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Menu, X } from 'lucide-react'
@@ -18,7 +19,7 @@ export function Navbar({ content }: NavbarProps) {
   const toggleRef = useRef<HTMLButtonElement>(null)
 
   // Close the mobile menu with Escape (and return focus to the toggle),
-  // or automatically when the viewport grows to the desktop layout (lg: links and both buttons fit).
+  // or automatically when the viewport grows to the desktop layout.
   useEffect(() => {
     if (!menuOpen) return
 
@@ -28,11 +29,13 @@ export function Navbar({ content }: NavbarProps) {
         toggleRef.current?.focus()
       }
     }
+
     const desktop = window.matchMedia('(min-width: 1024px)')
     const onResize = () => desktop.matches && setMenuOpen(false)
 
     document.addEventListener('keydown', onKeyDown)
     desktop.addEventListener('change', onResize)
+
     return () => {
       document.removeEventListener('keydown', onKeyDown)
       desktop.removeEventListener('change', onResize)
@@ -41,31 +44,46 @@ export function Navbar({ content }: NavbarProps) {
 
   const closeMenu = () => setMenuOpen(false)
 
-  // The logo leads home ("/"); on the landing page itself that means back to the top.
+  // The logo leads home ("/"); on the landing page
+  // itself that means back to the top.
   function goHome() {
     closeMenu()
-    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    window.scrollTo({ top: 0, behavior: reduceMotion ? 'auto' : 'smooth' })
+    const reduceMotion = window.matchMedia(
+      '(prefers-reduced-motion: reduce)'
+    ).matches
+
+    window.scrollTo({
+      top: 0,
+      behavior: reduceMotion ? 'auto' : 'smooth',
+    })
   }
 
   return (
     <header className="sticky top-0 z-50 border-b border-beige bg-offwhite/90 backdrop-blur-md">
       <Container className="flex h-16 items-center justify-between gap-6 md:h-20">
-        {/* Horizontal logo: the mark with the product name beside it (as in the app sidebar, larger).
-            The link's accessible name comes from aria-label. */}
+        {/* Horizontal logo */}
         <Link
           to="/"
           aria-label={content.homeLinkLabel}
           onClick={goHome}
           className="inline-flex shrink-0 items-center gap-2.5 rounded-md md:gap-3"
         >
-          <Logo variant="mark" alt="" className="h-9 md:h-11" />
+          <Logo
+            variant="mark"
+            alt=""
+            className="h-9 md:h-11"
+          />
+
           <span className="text-xl font-semibold tracking-normal text-maroon md:text-2xl">
-  Hawkim
-</span>
-</Link>
+            {content.brandName}
+          </span>
+        </Link>
+
         {/* Desktop navigation */}
-        <nav aria-label={content.ariaLabel} className="hidden lg:block">
+        <nav
+          aria-label={content.ariaLabel}
+          className="hidden lg:block"
+        >
           <ul className="flex items-center gap-8 xl:gap-10">
             {content.links.map((link) => (
               <li key={link.href}>
@@ -82,7 +100,11 @@ export function Navbar({ content }: NavbarProps) {
 
         <div className="flex items-center gap-3">
           <div className="hidden items-center gap-3 lg:flex">
-            <Button to={content.signIn.href} size="lg" variant="secondary">
+            <Button
+              to={content.signIn.href}
+              size="lg"
+              variant="secondary"
+            >
               {content.signIn.label}
             </Button>
           </div>
@@ -94,20 +116,34 @@ export function Navbar({ content }: NavbarProps) {
             className="inline-flex size-10 items-center justify-center rounded-lg border border-beige text-maroon lg:hidden"
             aria-expanded={menuOpen}
             aria-controls={MOBILE_MENU_ID}
-            aria-label={menuOpen ? content.closeMenu : content.openMenu}
+            aria-label={
+              menuOpen ? content.closeMenu : content.openMenu
+            }
             onClick={() => setMenuOpen((open) => !open)}
           >
             {menuOpen ? (
-              <X aria-hidden="true" className="size-5" strokeWidth={1.75} />
+              <X
+                aria-hidden="true"
+                className="size-5"
+                strokeWidth={1.75}
+              />
             ) : (
-              <Menu aria-hidden="true" className="size-5" strokeWidth={1.75} />
+              <Menu
+                aria-hidden="true"
+                className="size-5"
+                strokeWidth={1.75}
+              />
             )}
           </button>
         </div>
       </Container>
 
       {/* Mobile navigation panel */}
-      <div id={MOBILE_MENU_ID} hidden={!menuOpen} className="border-t border-beige bg-offwhite lg:hidden">
+      <div
+        id={MOBILE_MENU_ID}
+        hidden={!menuOpen}
+        className="border-t border-beige bg-offwhite lg:hidden"
+      >
         <Container className="py-4">
           <nav aria-label={content.ariaLabel}>
             <ul className="flex flex-col">
@@ -124,7 +160,13 @@ export function Navbar({ content }: NavbarProps) {
               ))}
             </ul>
           </nav>
-          <Button to={content.signIn.href} variant="secondary" className="mt-3 w-full" onClick={closeMenu}>
+
+          <Button
+            to={content.signIn.href}
+            variant="secondary"
+            className="mt-3 w-full"
+            onClick={closeMenu}
+          >
             {content.signIn.label}
           </Button>
         </Container>

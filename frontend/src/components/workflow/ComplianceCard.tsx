@@ -67,7 +67,7 @@ export function ComplianceCard({ sop, content }: ComplianceCardProps) {
 
       {check?.status === 'completed' && (
         <>
-          <dl className="grid gap-x-6 gap-y-3 text-sm sm:grid-cols-[auto_auto_1fr]">
+          <dl className="grid gap-x-12 gap-y-3 text-sm sm:grid-cols-[auto_auto_1fr]">
             <div>
               <dt className="text-text-gray">{content.details.checked}</dt>
               <dd className="mt-0.5 font-medium text-maroon">
