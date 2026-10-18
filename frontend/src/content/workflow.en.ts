@@ -115,7 +115,7 @@ export const sopWorkflowEn: SopWorkflowContent = {
     viewMore: 'View more',
     viewLess: 'View less',
     events: {
-      'version-uploaded': 'Version uploaded',
+      'version-uploaded': 'New version uploaded',
       'version-deleted': 'Version deleted',
       response: 'Response',
       submitted: 'Submitted for review',
