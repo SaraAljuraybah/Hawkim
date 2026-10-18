@@ -2,8 +2,11 @@ import { createContext, useContext } from 'react'
 import type { Sop } from '../data/mock/types'
 import type { UploadedFile } from '../lib/workflow'
 
-/** What the author provides when uploading; everything else is set by the store. */
-export type NewDraft = Pick<Sop, 'title' | 'departmentId' | 'description' | 'coAuthorIds'> & UploadedFile
+/**
+ * What the author provides when uploading; everything else is set by the store.
+ * A new SOP has no co-authors (they're added later from the SOP page).
+ */
+export type NewDraft = Pick<Sop, 'title' | 'departmentId' | 'description'> & UploadedFile
 
 export interface SubmitOptions {
   reviewerIds: string[]

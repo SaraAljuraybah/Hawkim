@@ -103,19 +103,8 @@ export function SopsProvider({ children }: { children: ReactNode }) {
       )
       const id = code.toLowerCase()
       const now = new Date().toISOString()
-      const coAuthorIds = draft.coAuthorIds.filter((coAuthorId) => coAuthorId !== userId)
       const timeline: TimelineEvent[] = [
         { id: `evt-${id}-1`, type: 'version-uploaded', actorId: userId, version: '1', createdAt: now },
-        ...coAuthorIds.map(
-          (subjectId, index): TimelineEvent => ({
-            id: `evt-${id}-ca-${index + 1}`,
-            type: 'co-author-added',
-            actorId: userId,
-            subjectId,
-            version: '1',
-            createdAt: now,
-          }),
-        ),
       ]
       const created: Sop = {
         ...draft,
@@ -124,7 +113,8 @@ export function SopsProvider({ children }: { children: ReactNode }) {
         version: '1',
         status: 'draft',
         authorId: userId,
-        coAuthorIds,
+        // Co-authors are added later from the SOP page ("Add author").
+        coAuthorIds: [],
         lastUpdated: todayIsoDate(),
         reviewers: [],
         approvers: [],

@@ -4,19 +4,15 @@ import { useNavigate } from 'react-router-dom'
 import { LoaderCircle, Upload } from 'lucide-react'
 import { Button } from '../components/ui/Button'
 import { FileDropzone } from '../components/ui/FileDropzone'
-import { PeoplePicker } from '../components/ui/PeoplePicker'
 import { TextAreaField } from '../components/ui/TextAreaField'
 import { TextField } from '../components/ui/TextField'
 import { uploadSopEn } from '../content/mySops.en'
 import type { SopFileType } from '../data/mock/types'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
-import { personOption } from '../lib/people'
 import { hasPermission } from '../lib/permissions'
 import { useActiveDepartment } from '../state/activeDepartmentContext'
-import { useDepartments } from '../state/departmentsContext'
 import { useCurrentUser } from '../state/sessionContext'
 import { useSops } from '../state/sopsContext'
-import { useUsers } from '../state/usersContext'
 import { NotFoundPage } from './NotFoundPage'
 import type { MySopsLocationState } from './MySopsPage'
 
@@ -39,8 +35,6 @@ function fileTypeOf(file: File): SopFileType {
 export function UploadSopPage() {
   const content = uploadSopEn
   const user = useCurrentUser()
-  const { activeUsers } = useUsers()
-  const { nameOf: departmentName } = useDepartments()
   const isAuthor = hasPermission(user, 'author')
   useDocumentTitle(isAuthor ? content.pageTitle : undefined)
 
@@ -51,7 +45,6 @@ export function UploadSopPage() {
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [files, setFiles] = useState<File[]>([])
-  const [coAuthorIds, setCoAuthorIds] = useState<string[]>([])
   const [errors, setErrors] = useState<FieldErrors>({})
   const [submitAttempted, setSubmitAttempted] = useState(false)
   const [submitting, setSubmitting] = useState(false)
@@ -60,11 +53,6 @@ export function UploadSopPage() {
   const browseRef = useRef<HTMLButtonElement>(null)
 
   if (!isAuthor) return <NotFoundPage embedded />
-
-  // Co-authors: other (active) users with the Author permission.
-  const coAuthorOptions = activeUsers
-    .filter((u) => u.id !== user.id && hasPermission(u, 'author'))
-    .map((user) => personOption(user, departmentName))
 
   function validate(field: Field, values = { title, files }): string | undefined {
     if (field === 'title') return values.title.trim() ? undefined : content.errors.titleRequired
@@ -103,7 +91,6 @@ export function UploadSopPage() {
       title: title.trim(),
       description: description.trim() || undefined,
       departmentId: activeDepartment.id,
-      coAuthorIds,
       fileName: file.name,
       fileType: fileTypeOf(file),
       fileUrl: URL.createObjectURL(file),
@@ -161,14 +148,6 @@ export function UploadSopPage() {
               .replace('{max}', String(DESCRIPTION_MAX))}
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-          />
-
-          <PeoplePicker
-            label={content.fields.coAuthors.label}
-            hint={content.fields.coAuthors.hint}
-            options={coAuthorOptions}
-            value={coAuthorIds}
-            onChange={setCoAuthorIds}
           />
 
           <div className="flex flex-col-reverse gap-3 border-t border-beige pt-6 sm:flex-row sm:justify-end">
