@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useId, useRef, useState } from 'react'
 import { flushSync } from 'react-dom'
 import type { SopWorkflowContent } from '../../content/types'
 import type { Sop } from '../../data/mock/types'
@@ -33,6 +33,7 @@ export function SubmitDialog({ sop, content, onSubmit, onClose }: SubmitDialogPr
   // "11 days from today · Due Oct 29, 2026, 3:52 AM", set when a date is picked (nothing when empty or invalid).
   const [daysHint, setDaysHint] = useState<string>()
   const dueDateRef = useRef<HTMLInputElement>(null)
+  const daysHintId = useId()
 
   const { activeUsers } = useUsers()
   // TODO: Replace with the Admin's assignment (temporary rule, see defaultAssignees).
@@ -78,22 +79,32 @@ export function SubmitDialog({ sop, content, onSubmit, onClose }: SubmitDialogPr
           {text.errors.noAssignees}
         </p>
       )}
-      <TextField
-        ref={dueDateRef}
-        name="reviewDueDate"
-        type="date"
-        min={range.min}
-        max={range.max}
-        label={text.reviewDate.label}
-        hint={daysHint}
-        value={dueDate}
-        error={dateError}
-        onChange={(event) => {
-          setDueDate(event.target.value)
-          setDaysHint(hintFor(event.target.value))
-          setDateError(undefined)
-        }}
-      />
+      <div>
+        {/* The help line is the field's hint (always shown, like other fields' help text);
+            the days and due time follow on their own line once a date is picked. */}
+        <TextField
+          ref={dueDateRef}
+          name="reviewDueDate"
+          type="date"
+          min={range.min}
+          max={range.max}
+          label={text.reviewDate.label}
+          hint={text.reviewDate.help}
+          aria-describedby={daysHint ? daysHintId : undefined}
+          value={dueDate}
+          error={dateError}
+          onChange={(event) => {
+            setDueDate(event.target.value)
+            setDaysHint(hintFor(event.target.value))
+            setDateError(undefined)
+          }}
+        />
+        {daysHint && (
+          <p id={daysHintId} className="mt-1 text-sm text-text-gray">
+            {daysHint}
+          </p>
+        )}
+      </div>
       <TextAreaField
         name="note"
         rows={3}

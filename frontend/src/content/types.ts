@@ -592,10 +592,10 @@ export interface SopWorkflowContent {
     submit: {
       title: string
       /**
-       * Optional review due date; under it, how far away it is and the due date and time
-       * (`{date}` is replaced in both; `{count}` in `days`).
+       * Optional review due date. `help` is always shown under it; once a date is picked,
+       * how far away it is and the due date and time (`{date}` is replaced in both; `{count}` in `days`).
        */
-      reviewDate: { label: string; oneDay: string; days: string }
+      reviewDate: { label: string; help: string; oneDay: string; days: string }
       /** `{count}` and `{max}` are replaced in the counter. */
       note: { label: string; placeholder: string; counter: string }
       /**

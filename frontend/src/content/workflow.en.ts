@@ -156,6 +156,7 @@ export const sopWorkflowEn: SopWorkflowContent = {
       title: 'Submit for review',
       reviewDate: {
         label: 'Review due date (optional)',
+        help: 'Deadline for the reviewers only, not the full review and approval cycle.',
         oneDay: '1 day from today · Due {date}',
         days: '{count} days from today · Due {date}',
       },
