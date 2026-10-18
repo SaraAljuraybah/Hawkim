@@ -1,5 +1,5 @@
 import type { Sop } from '../data/mock/types'
-import { currentDueAt, isOverdue } from './workflow'
+import { currentDueAt, currentReviewer, isOverdue } from './workflow'
 
 /*
  * A reviewer's or approver's assignments (My Reviews, PBI 7, 10, 25), from the
@@ -35,12 +35,17 @@ export function reviewTasks(userId: string, sops: Sop[]): ReviewTask[] {
     const dueAt = currentDueAt(sop)
     const reviewer = sop.reviewers.find((person) => person.userId === userId)
     if (reviewer) {
-      const group: TaskGroup =
-        sop.status === 'returned'
-          ? 'waiting'
-          : sop.status === 'in-review' && reviewer.decision === 'pending'
-            ? 'todo'
-            : 'done'
+      
+const group: TaskGroup =
+  sop.status === 'returned'
+    ? 'waiting'
+    : sop.status === 'in-review' &&
+        reviewer.decision === 'pending'
+      ? currentReviewer(sop)?.userId === userId
+        ? 'todo'
+        : 'waiting'
+      : 'done'
+
       tasks.push({
         sop,
         role: 'reviewer',

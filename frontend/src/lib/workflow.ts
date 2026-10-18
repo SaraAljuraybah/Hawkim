@@ -153,15 +153,41 @@ export function isApprover(sop: Sop, userId: string): boolean {
 }
 
 /** Reviewers or approvers who still have to decide in the current stage. */
-export function pendingPeople(sop: Sop): { userId: string; role: 'reviewer' | 'approver' }[] {
+
+/** Only the first pending reviewer may act. */
+export function currentReviewer(
+  sop: Sop,
+): ReviewerAssignment | undefined {
+  if (sop.status !== 'in-review') return undefined
+
+  return sop.reviewers.find(
+    (person) => person.decision === 'pending',
+  )
+}
+
+export function pendingPeople(
+  sop: Sop,
+): { userId: string; role: 'reviewer' | 'approver' }[] {
   if (sop.status === 'in-review') {
-    return sop.reviewers.filter((p) => p.decision === 'pending').map((p) => ({ userId: p.userId, role: 'reviewer' }))
+    const reviewer = currentReviewer(sop)
+
+    return reviewer
+      ? [{ userId: reviewer.userId, role: 'reviewer' }]
+      : []
   }
+
   if (sop.status === 'in-approval') {
-    return sop.approvers.filter((p) => p.decision === 'pending').map((p) => ({ userId: p.userId, role: 'approver' }))
+    return sop.approvers
+      .filter((person) => person.decision === 'pending')
+      .map((person) => ({
+        userId: person.userId,
+        role: 'approver',
+      }))
   }
+
   return []
 }
+
 
 // ---------- Due dates (PBI 3) ----------
 
@@ -528,7 +554,10 @@ function optionalComment(
  */
 export function completeReview(sop: Sop, reviewerId: string, text?: string): Sop {
   assertStatus(sop, ['in-review'], 'complete the review of')
-  assert(sop.reviewers.some((p) => p.userId === reviewerId && p.decision === 'pending'), 'Not a pending reviewer')
+  assert(
+  currentReviewer(sop)?.userId === reviewerId,
+  'Only the current reviewer can act',
+)
   const createdAt = new Date().toISOString()
   const reviewers = sop.reviewers.map((p) =>
     p.userId === reviewerId ? { ...p, decision: 'completed' as const, decidedAt: createdAt } : p,
@@ -629,7 +658,10 @@ export function routeToReviewer(
   note?: string,
 ): Sop {
   assertStatus(sop, ['in-review'], 'route')
-  assert(isReviewer(sop, actorId), 'Only an assigned reviewer can route this SOP')
+  assert(
+  currentReviewer(sop)?.userId === actorId,
+  'Only the current reviewer can route this SOP',
+)
   assert(canBeRoutedTo(sop, newReviewer), 'This person can’t be added as a reviewer')
   const trimmed = note?.trim()
   return {

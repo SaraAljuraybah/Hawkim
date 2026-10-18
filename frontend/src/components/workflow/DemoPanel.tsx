@@ -4,7 +4,7 @@ import { FlaskConical } from 'lucide-react'
 import { sopWorkflowEn } from '../../content/workflow.en'
 import { workflowDemoEn } from '../../content/workflowDemo.en'
 import type { ReviewRole, Sop } from '../../data/mock/types'
-import { currentDueAt } from '../../lib/workflow'
+import { currentDueAt, currentReviewer } from '../../lib/workflow'
 import { useSops } from '../../state/sopsContext'
 import { useUsers } from '../../state/usersContext'
 import { Button } from '../ui/Button'
@@ -60,7 +60,8 @@ export default function DemoPanel({ sop, announce }: DemoPanelProps) {
     })
   }
 
-  const pendingReviewers = sop.status === 'in-review' ? sop.reviewers.filter((p) => p.decision === 'pending') : []
+const activeReviewer = currentReviewer(sop)
+const pendingReviewers = activeReviewer ? [activeReviewer] : []
   const pendingApprovers = sop.status === 'in-approval' ? sop.approvers.filter((p) => p.decision === 'pending') : []
   const publishers = sop.status === 'approved' ? sop.approvers : []
   // The clock only matters when the open stage has a due date.

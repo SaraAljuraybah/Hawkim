@@ -12,23 +12,46 @@ export const appShellEn: AppShellContent = {
   homeHref: '/dashboard',
   homeLinkLabel: 'Hawkim, go to dashboard',
   navAriaLabel: 'Main',
-  nav: [
-    { label: 'Dashboard', href: '/dashboard', icon: 'dashboard' },
-    { label: 'SOPs', href: '/sops', icon: 'sops', matchSubpaths: true },
-    { label: 'My Requests', href: '/requests', icon: 'requests', matchSubpaths: true },
-    { label: 'Departments', href: '/departments', icon: 'departments' },
-    // Role-specific items come after the items everyone has.
-    // Author permission only
-    { label: 'My SOPs', href: '/my-sops', icon: 'mySops', matchSubpaths: true, permission: 'author' },
-    // Reviewer or Approver permission only
-    {
-      label: 'My Reviews',
-      href: '/reviews',
-      icon: 'reviews',
-      matchSubpaths: true,
-      permission: ['reviewer', 'approver'],
-    },
-  ],
+  
+nav: [
+  {
+    label: 'My SOPs',
+    href: '/my-sops',
+    icon: 'mySops',
+    matchSubpaths: true,
+    permission: 'author',
+  },
+  {
+    label: 'My Reviews',
+    href: '/reviews',
+    icon: 'reviews',
+    matchSubpaths: true,
+    permission: ['reviewer', 'approver'],
+  },
+  {
+    label: 'Dashboard',
+    href: '/dashboard',
+    icon: 'dashboard',
+  },
+  {
+    label: 'SOP Directory',
+    href: '/sops',
+    icon: 'sops',
+    matchSubpaths: true,
+  },
+  {
+    label: 'My Request',
+    href: '/requests',
+    icon: 'requests',
+    matchSubpaths: true,
+  },
+  {
+    label: 'Organization Structure',
+    href: '/departments',
+    icon: 'departments',
+  },
+],
+
   signOut: { label: 'Sign Out', href: '/login', icon: 'signOut' },
   openMenu: 'Open menu',
   closeMenu: 'Close menu',

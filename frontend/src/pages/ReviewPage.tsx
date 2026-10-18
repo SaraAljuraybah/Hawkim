@@ -81,11 +81,13 @@ function Review({ sop }: { sop: Sop }) {
   const department = departmentName(sop.departmentId)
   const reviewer = sop.reviewers.find((person) => person.userId === user.id)
   const approver = sop.approvers.find((person) => person.userId === user.id)
-  const canReview = sop.status === 'in-review' && reviewer?.decision === 'pending'
+const canReview =
+  sop.status === 'in-review' &&
+  currentReviewer(sop)?.userId === user.id
   const canApprove = sop.status === 'in-approval' && approver?.decision === 'pending'
   const canPublish = sop.status === 'approved' && !!approver
   // Any assigned reviewer can route while the SOP is In Review, even after completing their own review.
-  const canRoute = sop.status === 'in-review' && !!reviewer
+  const canRoute = canReview
 
   const dueAt = currentDueAt(sop)
   const overdue = !!dueAt && isOverdue(sop, sop.status === 'in-approval' ? 'approval' : 'review')
