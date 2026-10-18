@@ -9,17 +9,23 @@ import {
   checkBlocker,
   commentForEvent,
   completeReview,
+  daysFromToday,
+  defaultAssignees,
   deleteVersion,
   deleteVersionBlocker,
+  dueDateRange,
   isOverdue,
   nextVersion,
+  parseDueDate,
   publishAs,
+  removeCoAuthor,
   resubmit,
   responseRecipients,
   returnAsApprover,
   returnAsReviewer,
   routeToReviewer,
   submitForReview,
+  timelineRecipients,
   uploadVersion,
 } from './workflow'
 
@@ -416,6 +422,116 @@ describe('uploading a version (unchanged)', () => {
       expect(uploadVersion(sop, SARA, file).version).toBe('2')
       expect(uploadVersion(sop, REEM, file).version).toBe('2')
     }
+  })
+})
+
+describe('review due date (Submit for review)', () => {
+  // Oct 18, 2026, 3:20 PM local time.
+  const now = new Date(2026, 9, 18, 15, 20)
+
+  it('allows tomorrow to 30 days from today', () => {
+    expect(dueDateRange(now)).toEqual({ min: '2026-10-19', max: '2026-11-17' })
+    expect(parseDueDate('2026-10-19', now)).toEqual({ valid: true, days: 1 })
+    expect(parseDueDate('2026-10-23', now)).toEqual({ valid: true, days: 5 })
+    expect(parseDueDate('2026-11-17', now)).toEqual({ valid: true, days: 30 })
+  })
+
+  it('refuses today, past dates, more than 30 days and dates that don’t exist', () => {
+    for (const date of ['2026-10-18', '2026-10-01', '2026-11-18', '2026-02-30', 'not a date']) {
+      expect(parseDueDate(date, now).valid).toBe(false)
+    }
+  })
+
+  it('is optional: empty means no due date', () => {
+    expect(parseDueDate('', now)).toEqual({ valid: true })
+  })
+
+  it('counts calendar days, whatever the time of day or a daylight-saving change', () => {
+    expect(daysFromToday('2026-10-19', new Date(2026, 9, 18, 23, 59))).toBe(1)
+    expect(daysFromToday('2026-10-19', new Date(2026, 9, 18, 0, 1))).toBe(1)
+    // Late March and late October cross daylight-saving changes in many time zones.
+    expect(daysFromToday('2026-04-05', new Date(2026, 2, 20, 12))).toBe(16)
+    expect(daysFromToday('2026-11-05', new Date(2026, 9, 20, 12))).toBe(16)
+  })
+
+  it('is due at the time of day it was submitted (5 days later), with no approval due date', () => {
+    const submitted = submitForReview(draft(), SARA, GVP, [NOURA], [HUDA], 5, undefined)
+    const submittedAt = submitted.timeline.find((item) => item.type === 'submitted')!.createdAt
+    expect(new Date(submitted.reviewDueAt!).getTime() - new Date(submittedAt).getTime()).toBe(5 * DAY_MS)
+    expect(submitted.approvalDueAt).toBeUndefined()
+  })
+})
+
+describe('default reviewers and approvers (temporary rule)', () => {
+  const person = (id: string, departmentId: string, permissions: User['permissions'], deletedAt?: string) => ({
+    id,
+    departmentId,
+    permissions,
+    deletedAt,
+  })
+  const users = [
+    person(SARA, 'information-technology', ['author']),
+    person(NOURA, 'information-technology', ['reviewer']),
+    person(HUDA, 'information-technology', ['approver']),
+    person(FAISAL, 'quality-assurance', ['reviewer']),
+    person(KHALID, 'quality-assurance', ['approver']),
+    person('gone', 'information-technology', ['reviewer'], '2026-01-01T00:00:00Z'),
+  ]
+
+  it('assigns the active reviewers and approvers of the SOP’s department', () => {
+    expect(defaultAssignees(draft(), users)).toEqual({ reviewerIds: [NOURA], approverIds: [HUDA] })
+  })
+
+  it('never assigns an author or co-author, and someone with both permissions only reviews', () => {
+    const both = person('both', 'information-technology', ['reviewer', 'approver'])
+    const coAuthorReviewer = person(REEM, 'information-technology', ['reviewer'])
+    expect(defaultAssignees(draft(), [...users, both, coAuthorReviewer])).toEqual({
+      reviewerIds: [NOURA, 'both'],
+      approverIds: [HUDA],
+    })
+  })
+
+  it('is empty when the department has nobody (Submit is then blocked)', () => {
+    expect(defaultAssignees(draft({ departmentId: 'pharmacovigilance' }), users)).toEqual({ reviewerIds: [], approverIds: [] })
+  })
+
+  it('sends the submitted SOP to them', () => {
+    const { reviewerIds, approverIds } = defaultAssignees(draft(), users)
+    const submitted = submitForReview(draft(), SARA, GVP, reviewerIds, approverIds, undefined, undefined)
+    expect(decisions(submitted.reviewers)).toEqual({ [NOURA]: 'pending' })
+    expect(decisions(submitted.approvers)).toEqual({ [HUDA]: 'pending' })
+    expect(submitted.timeline.find((item) => item.type === 'submitted')).toMatchObject({ recipientIds: [NOURA] })
+  })
+})
+
+describe('timeline recipients (display)', () => {
+  const returnEvent = (sop: Sop) => sop.timeline.findLast((item) => item.type === 'returned')!
+
+  it('shows a return as sent to the main author only on the author’s page', () => {
+    const byReviewer = returnAsReviewer(inReview(), NOURA, 'Fix section 4.')
+    expect(returnEvent(byReviewer).recipientIds).toEqual([SARA, REEM]) // stored recipients (notifications) unchanged
+    expect(timelineRecipients(byReviewer, returnEvent(byReviewer), true)).toEqual([SARA])
+    const byApprover = returnAsApprover(inApproval(), HUDA, 'Wrong owner listed.')
+    expect(timelineRecipients(byApprover, returnEvent(byApprover), true)).toEqual([SARA])
+  })
+
+  it('keeps every recipient without mainAuthorOnly (the review page)', () => {
+    const returned = returnAsReviewer(inReview(), NOURA, 'Fix section 4.')
+    expect(timelineRecipients(returned, returnEvent(returned))).toEqual([SARA, REEM])
+  })
+
+  it('leaves rows addressed to others unchanged', () => {
+    const submitted = inReview()
+    const submit = submitted.timeline.find((item) => item.type === 'submitted')!
+    expect(timelineRecipients(submitted, submit, true)).toEqual([NOURA, FAISAL])
+    const responded = addResponse(returnAsReviewer(submitted, NOURA, 'Fix.'), REEM, 'Done.')
+    expect(timelineRecipients(responded, responded.timeline.at(-1)!, true)).toEqual([NOURA])
+  })
+
+  it('doesn’t list a co-author who was removed after the return', () => {
+    const returned = returnAsReviewer(inReview(), NOURA, 'Fix section 4.')
+    const removed = removeCoAuthor(returned, SARA, REEM)
+    expect(timelineRecipients(removed, returnEvent(removed), true)).toEqual([SARA])
   })
 })
 

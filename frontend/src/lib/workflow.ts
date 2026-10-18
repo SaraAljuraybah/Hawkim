@@ -58,6 +58,61 @@ export function isValidDueDays(days: number): boolean {
   return Number.isInteger(days) && days >= DUE_DAYS_MIN && days <= DUE_DAYS_MAX
 }
 
+/** `now`'s local calendar date plus `days`, as an ISO date ("2026-10-19"). */
+function localDatePlus(now: Date, days: number): string {
+  return todayIsoDate(new Date(now.getFullYear(), now.getMonth(), now.getDate() + days))
+}
+
+/** The dates a review due date can be: tomorrow to 30 days from today (local dates). */
+export function dueDateRange(now = new Date()): { min: string; max: string } {
+  return { min: localDatePlus(now, DUE_DAYS_MIN), max: localDatePlus(now, DUE_DAYS_MAX) }
+}
+
+/**
+ * Calendar days from today to an ISO date ("2026-10-19"), or undefined if it isn't a
+ * real date. Counted by date, not by hours, so a daylight-saving change doesn't matter.
+ */
+export function daysFromToday(isoDate: string, now = new Date()): number | undefined {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(isoDate)
+  if (!match) return undefined
+  const [year, month, day] = match.slice(1).map(Number)
+  const date = new Date(Date.UTC(year, month - 1, day))
+  if (date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) return undefined // e.g. Feb 30
+  return Math.round((date.getTime() - Date.UTC(now.getFullYear(), now.getMonth(), now.getDate())) / DAY_MS)
+}
+
+/**
+ * An optional review due date as due days (submitForReview counts them from the moment
+ * of submitting, so the due time is the time of day it was submitted). Empty is valid
+ * (no due date); otherwise it must be 1 to 30 days from today.
+ */
+export function parseDueDate(isoDate: string, now = new Date()): { valid: boolean; days?: number } {
+  if (!isoDate.trim()) return { valid: true }
+  const days = daysFromToday(isoDate.trim(), now)
+  return days !== undefined && isValidDueDays(days) ? { valid: true, days } : { valid: false }
+}
+
+/**
+ * TEMPORARY RULE (demo only), until the Admin assigns reviewers and approvers.
+ * TODO: Replace with the Admin's assignment.
+ * Who a submitted SOP goes to: every active user in the SOP's department with the
+ * Reviewer permission, and every one with the Approver permission. Authors and
+ * co-authors are never included, and someone with both permissions only reviews.
+ */
+export function defaultAssignees(
+  sop: Sop,
+  users: Pick<User, 'id' | 'departmentId' | 'permissions' | 'deletedAt'>[],
+): { reviewerIds: string[]; approverIds: string[] } {
+  const eligible = users.filter(
+    (user) => !user.deletedAt && user.departmentId === sop.departmentId && !isAuthorOrCoAuthor(sop, user.id),
+  )
+  const reviewerIds = eligible.filter((user) => user.permissions.includes('reviewer')).map((user) => user.id)
+  const approverIds = eligible
+    .filter((user) => user.permissions.includes('approver') && !reviewerIds.includes(user.id))
+    .map((user) => user.id)
+  return { reviewerIds, approverIds }
+}
+
 /** Response texts are limited like comments. */
 export const RESPONSE_MAX = 1000
 
@@ -154,6 +209,17 @@ export function commentForEvent(sop: Sop, event: TimelineEvent): SopComment | un
   if (event.commentId) return sop.comments.find((comment) => comment.id === event.commentId)
   if (event.type !== 'returned' && event.type !== 'review-completed' && event.type !== 'approved-by') return undefined
   return sop.comments.find((comment) => comment.authorUserId === event.actorId && comment.createdAt === event.createdAt)
+}
+
+/**
+ * Who a timeline event is shown as addressed to. With `mainAuthorOnly` (the author's
+ * page), a return lists only the main author, not the co-authors it was also sent to.
+ * Display only: the event's recipients (and so notifications) don't change.
+ */
+export function timelineRecipients(sop: Sop, event: TimelineEvent, mainAuthorOnly = false): string[] {
+  const recipients = event.recipientIds ?? []
+  if (!mainAuthorOnly || event.type !== 'returned') return recipients
+  return recipients.filter((id) => id === sop.authorId)
 }
 
 /**

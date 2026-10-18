@@ -115,7 +115,7 @@ export const sopWorkflowEn: SopWorkflowContent = {
     viewMore: 'View more',
     viewLess: 'View less',
     events: {
-      'version-uploaded': 'Version uploaded',
+      'version-uploaded': 'New version uploaded',
       'version-deleted': 'Version deleted',
       response: 'Response',
       submitted: 'Submitted for review',
@@ -154,27 +154,16 @@ export const sopWorkflowEn: SopWorkflowContent = {
     fileRequired: 'Upload an SOP file.',
     submit: {
       title: 'Submit for review',
-      description: 'Choose who reviews and who approves this SOP, and how many days each stage has.',
-      reviewers: { label: 'Reviewers', hint: 'Select at least one. Every reviewer must complete their review.' },
-      approvers: {
-        label: 'Approvers',
-        hint: 'Select at least one. Reviewers can’t also be approvers.',
-        unchecked: '{names} is now a reviewer, so they were removed from approvers.',
+      reviewDate: {
+        label: 'Review due date (optional)',
+        help: 'Deadline for the reviewers only, not the full review and approval cycle.',
+        oneDay: '1 day from today · Due {date}',
+        days: '{count} days from today · Due {date}',
       },
-      reviewDays: {
-        label: 'Review due in (days) (optional)',
-        hint: 'From 1 to 30 days after submitting. Leave empty for no due date.',
-        dueHint: 'Due {date}',
-      },
-      approvalDays: {
-        label: 'Approval due in (days) (optional)',
-        hint: 'Counted from when the last reviewer completes. Leave empty for no due date.',
-      },
-      note: { label: 'Note (optional)', placeholder: 'Add a note for the reviewers…', counter: '{count} / {max}' },
+      note: { label: 'Comments (optional)', placeholder: 'Add a comment for the reviewers…', counter: '{count} / {max}' },
       errors: {
-        reviewersRequired: 'Select at least one reviewer.',
-        approversRequired: 'Select at least one approver.',
-        daysInvalid: 'Enter a number of days from 1 to 30.',
+        dateInvalid: 'Choose a date from {min} to {max}.',
+        noAssignees: 'This department has no reviewer or approver yet, so the SOP can’t be submitted.',
       },
       confirm: 'Submit for review',
     },

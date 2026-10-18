@@ -591,16 +591,18 @@ export interface SopWorkflowContent {
     fileRequired: string
     submit: {
       title: string
-      description: string
-      reviewers: { label: string; hint: string }
-      /** `unchecked`: `{names}` is replaced with the approvers unchecked because they became reviewers. */
-      approvers: { label: string; hint: string; unchecked: string }
-      /** `dueHint`: `{date}` is replaced with the due date if submitted now. */
-      /** `dueHint`: `{date}` is replaced with the due date if submitted now. */
-      reviewDays: { label: string; hint: string; dueHint: string }
-      approvalDays: { label: string; hint: string }
+      /**
+       * Optional review due date. `help` is always shown under it; once a date is picked,
+       * how far away it is and the due date and time (`{date}` is replaced in both; `{count}` in `days`).
+       */
+      reviewDate: { label: string; help: string; oneDay: string; days: string }
+      /** `{count}` and `{max}` are replaced in the counter. */
       note: { label: string; placeholder: string; counter: string }
-      errors: { reviewersRequired: string; approversRequired: string; daysInvalid: string }
+      /**
+       * `dateInvalid`: `{min}` and `{max}` are the allowed dates. `noAssignees`: the SOP's
+       * department has no reviewer or approver to send it to.
+       */
+      errors: { dateInvalid: string; noAssignees: string }
       confirm: string
     }
     /** `{version}` is the number the upload becomes. */
