@@ -61,9 +61,9 @@ export default function DemoPanel({ sop, announce }: DemoPanelProps) {
   }
 
   const activeReviewer = currentReviewer(sop)
-  const pendingReviewers = activeReviewer ? [activeReviewer] : []
-  const pendingApprovers = sop.status === 'in-approval' ? sop.approvers.filter((p) => p.decision === 'pending') : []
-  const publishers = sop.status === 'approved' ? sop.approvers : []
+  const pendingReviewers = activeReviewer && !sop.reviewFlow ? [activeReviewer] : []
+  const pendingApprovers = !sop.reviewFlow && sop.status === 'in-approval' ? sop.approvers.filter((p) => p.decision === 'pending') : []
+  const publishers = !sop.reviewFlow && sop.status === 'approved' ? sop.approvers : []
   // Simulation shifts individual or legacy deadlines while preserving original allocations.
   const dueDatesOpen = !!currentDueAt(sop)
 

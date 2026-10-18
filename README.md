@@ -81,18 +81,31 @@ Draft ? In Review ? In Approval ? Approved ? Published
           Author revises and resubmits ? In Review
 ```
 
-Reviewers act sequentially in assignment order. Only the current reviewer can complete,
-return, or append a reviewer to the queue. The next reviewer is notified when their turn
-begins. Approval remains parallel: all assigned approvers must approve, and any pending
-approver can return the SOP to its author.
+New SOP submissions follow the selected-reviewer workflow:
 
-Each reviewer may have an optional local-date deadline. Time Given records the original
-calendar-day allocation from submission, independently of Time Remaining. Resubmission
-resets all decisions and recalculates reviewer deadlines from the resubmission date using
-those original allocations; reviewers without deadlines remain without deadlines. Routing
-appends to the queue without an immediate handoff or a new deadline. Existing shared
-review deadlines remain supported. The lifecycle is Draft ? In Review ? In Approval ?
-Approved ? Published, with Returned sending the SOP back to its author.
+1. The main author selects one eligible Reviewer 1 from the SOP department after a current compliance check.
+2. Reviewer 1 completes and selects a different Reviewer 2 from that department.
+3. Reviewer 2 may return the review to Reviewer 1 (without enabling file editing), request document changes from the author, or complete the initial review.
+4. Reviewer 2 explicitly requires or skips same-division department review, then cross-division department review. For every required department, a normal reviewer is selected dynamically as its representative. That representative selects a different reviewer in the department. Multiple departments are reviewed sequentially.
+5. After every required review, the SOP is sent to the explicitly configured Quality Document Controller, using Approver permission. Missing or ineligible controller configuration blocks final approval. Only the assigned controller approves, returns, or publishes.
+
+In the admin department detail page, Review workflow configuration links a department to an
+organization-supplied division identifier and its Quality Document Controller. Equal division
+identifiers mean the same division. Unconfigured relationships are excluded from department
+routing; no official hierarchy, representative, or controller is inferred from sample users.
+The employee Organization Structure page is unchanged. Configuration uses the existing
+in-memory stores and, like other prototype changes, is lost on reload.
+
+A document-change return requires a new version and current compliance check. Resubmission
+restarts at Reviewer 1 and replays saved required department reviews and reviewer assignments.
+Previously skipped scopes are reconsidered explicitly after the new initial reviews.
+Original Time Given is stored separately from Time Remaining, and deadlines restart from
+resubmission using that allocation. Submitted/resubmitted versions remain protected.
+
+The lifecycle remains Draft, In Review, In Approval, Approved, Published, with Returned
+sending document changes to the author. Review steps are metadata within In Review.
+Existing sample SOPs without a review plan retain their legacy sequential reviewers and
+parallel approval assignments; no in-flight record is silently migrated.
 
 The workflow maintains the history of actions, feedback, revisions, and decisions to provide clear traceability throughout the SOP lifecycle.
 

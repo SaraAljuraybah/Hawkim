@@ -1,5 +1,6 @@
 import { createContext, useContext } from 'react'
 import type { Sop } from '../data/mock/types'
+import type { ReviewAction } from '../lib/reviewFlow'
 import type { UploadedFile } from '../lib/workflow'
 
 /**
@@ -10,17 +11,10 @@ export type NewDraft = Pick<Sop, 'title' | 'departmentId' | 'description'> & Upl
 
 
 export interface SubmitOptions {
-  reviewerIds: string[]
-  approverIds: string[]
-
-  /** Optional due date for each reviewer, keyed by user ID. */
-  reviewerDueDates?: Record<string, string>
-
-  /** Legacy stage deadlines, retained for compatibility. */
-  reviewDueDays?: number
-  approvalDueDays?: number
-
+  reviewerId: string
+  dueDate?: string
   note?: string
+
 }
 
 
@@ -32,6 +26,7 @@ export interface SopsStore {
 
   // Actions by the current user (author or co-author). Each throws if not allowed.
   submitForReview: (sopId: string, options: SubmitOptions) => void
+  reviewAction: (sopId: string, action: ReviewAction) => void
   resubmit: (sopId: string, note?: string) => void
   /** Uploads the next version (Draft or Returned) and starts a compliance check of it. */
   uploadVersion: (sopId: string, file: UploadedFile) => void

@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useRef, useState, type ReactNode } from 'react'
+import { validateWorkflowConfiguration } from '../lib/reviewFlow'
 import { sampleDepartments } from '../data/mock/departments'
 import type { Department, DepartmentId } from '../data/mock/types'
 import {
@@ -68,6 +69,13 @@ export function DepartmentsProvider({ children }: { children: ReactNode }) {
     [commit],
   )
 
+  const configureWorkflow = useCallback<DepartmentsStore['configureWorkflow']>((id, input, actor) => {
+    assertAdmin(actor)
+    if (!latestRef.current.some((d) => d.id === id && !d.removedAt)) throw new Error('Unknown department')
+    const values = validateWorkflowConfiguration(input, actor.users)
+    commit(latestRef.current.map((department) => department.id === id ? { ...department, ...values } : department))
+  }, [commit])
+
   const removeDepartment = useCallback<DepartmentsStore['removeDepartment']>(
     (id, context) => {
       assertAdmin(context)
@@ -82,8 +90,8 @@ export function DepartmentsProvider({ children }: { children: ReactNode }) {
   )
 
   const store = useMemo<DepartmentsStore>(
-    () => ({ departments, activeDepartments, getDepartment, nameOf, addDepartment, updateDepartment, removeDepartment }),
-    [departments, activeDepartments, getDepartment, nameOf, addDepartment, updateDepartment, removeDepartment],
+    () => ({ departments, activeDepartments, getDepartment, nameOf, addDepartment, updateDepartment, configureWorkflow, removeDepartment }),
+    [departments, activeDepartments, getDepartment, nameOf, addDepartment, updateDepartment, configureWorkflow, removeDepartment],
   )
 
   return <DepartmentsContext.Provider value={store}>{children}</DepartmentsContext.Provider>

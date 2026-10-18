@@ -3,6 +3,7 @@ import { flushSync } from 'react-dom'
 import { Link, useParams } from 'react-router-dom'
 import { ArrowLeft, ArrowRight, CircleCheck, Download, FileText, LoaderCircle } from 'lucide-react'
 import { ComplianceSummary, SampleBanner } from '../components/compliance/ComplianceSummary'
+import { ReviewFlowActions } from '../components/reviews/ReviewFlowActions'
 import { CommentDialog, RouteDialog } from '../components/reviews/ReviewDialogs'
 import { PdfViewer } from '../components/sops/PdfViewer'
 import { Button } from '../components/ui/Button'
@@ -208,6 +209,7 @@ function Review({ sop }: { sop: Sop }) {
 
       {/* Actions the rules allow now, or where things stand */}
       <Section id="actions-title" title={text.actions.title} className="mt-6">
+        {sop.reviewFlow && canReview && <ReviewFlowActions key={sop.reviewFlow.stage + user.id} sop={sop} onComplete={(done) => { flushSync(() => setMessage(done)); statusRef.current?.focus() }} />}
         {!decisionNeeded && (
           <ul className="space-y-1 text-sm text-maroon">
             {statusLines().map((line) => (
@@ -215,9 +217,9 @@ function Review({ sop }: { sop: Sop }) {
             ))}
           </ul>
         )}
-        {(decisionNeeded || canRoute) && (
+        {(decisionNeeded || canRoute) && !(sop.reviewFlow && canReview) && (
           <div className={`flex flex-col gap-3 sm:flex-row sm:flex-wrap ${decisionNeeded ? '' : 'mt-4'}`}>
-            {canReview && (
+            {canReview && !sop.reviewFlow && (
               <>
                 <Button onClick={(event) => open('complete', event.currentTarget)}>{text.actions.completeReview}</Button>
                 <Button variant="secondary" onClick={(event) => open('returnReviewer', event.currentTarget)}>
@@ -225,7 +227,7 @@ function Review({ sop }: { sop: Sop }) {
                 </Button>
               </>
             )}
-            {canRoute && (
+            {canRoute && !sop.reviewFlow && (
               <Button variant="secondary" className="sm:self-start" onClick={(event) => open('route', event.currentTarget)}>
                 {text.actions.route}
               </Button>

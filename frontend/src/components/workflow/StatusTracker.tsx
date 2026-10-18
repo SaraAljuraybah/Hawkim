@@ -10,6 +10,7 @@ import {
   returnedFrom,
 } from '../../lib/workflow'
 import { sopWorkflowEn } from '../../content/workflow.en'
+import { ReviewFlowSummary } from './ReviewFlowSummary'
 import { ReviewerDeadline } from './ReviewerDeadline'
 import { useUsers } from '../../state/usersContext'
 
@@ -152,6 +153,8 @@ export function StatusTracker({ sop, content }: StatusTrackerProps) {
         })}
 
       </ol>
+
+      {sop.reviewFlow && <ReviewFlowSummary sop={sop} />}
 
       {assigneeIds.length > 0 && (
         <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-beige pt-4">

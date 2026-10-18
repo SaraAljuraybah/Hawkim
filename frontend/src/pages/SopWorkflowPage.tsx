@@ -1,4 +1,4 @@
-import { lazy, Suspense, useRef, useState, type MouseEvent, type ReactNode } from 'react'
+import { useRef, useState, type MouseEvent, type ReactNode } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { ArrowLeft, ArrowUpRight, CircleCheck, MessageSquareReply, ShieldCheck, Upload } from 'lucide-react'
 import { Button } from '../components/ui/Button'
@@ -44,13 +44,6 @@ import { useUsers } from '../state/usersContext'
 import { NotFoundPage } from './NotFoundPage'
 
 type DialogName = 'submit' | 'newVersion' | 'resubmit' | 'addCoAuthors' | 'response'
-
-/*
- * Development-only demo controls (simulated reviewer and approver actions).
- * In a production build import.meta.env.DEV is false, so this becomes `null` and
- * the panel (with its text) is left out of the bundle entirely.
- */
-const DemoPanel = import.meta.env.DEV ? lazy(() => import('../components/workflow/DemoPanel')) : null
 
 /** Keeps the uploaded file in memory (object URL) so it can be downloaded in this session. */
 function toUploadedFile(file: File): UploadedFile {
@@ -415,11 +408,6 @@ export function SopWorkflowPage() {
         <ReviewTimelineTable sop={sop} content={content} mainAuthorOnly />
       </Section>
 
-      {DemoPanel && (
-        <Suspense fallback={null}>
-          <DemoPanel sop={sop} announce={announce} />
-        </Suspense>
-      )}
 
       {/* Dialogs */}
       {dialog === 'submit' && (

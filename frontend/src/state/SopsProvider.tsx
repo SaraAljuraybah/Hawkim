@@ -4,6 +4,8 @@ import type { Sop, TimelineEvent } from '../data/mock/types'
 import * as compliance from '../lib/compliance'
 import { todayIsoDate } from '../lib/format'
 import { nextSopCode } from '../lib/sopCodes'
+import { applyReviewAction, startReview } from '../lib/reviewFlow'
+import { useDepartments } from './departmentsContext'
 import * as workflow from '../lib/workflow'
 import { useGuidelines } from './guidelinesContext'
 import { useSession } from './sessionContext'
@@ -22,7 +24,7 @@ export function SopsProvider({ children }: { children: ReactNode }) {
   const userId = useSession().user?.id ?? ''
   // New checks use the current GVP version; Submit and Resubmit need a check against it.
   const guideline = useGuidelines().currentGuideline
-  const { getUser } = useUsers()
+  const { getUser, users } = useUsers()
   const [sops, setSops] = useState<Sop[]>(seedSops)
   /*
    * The latest list, updated as soon as a change is applied. Actions read and
@@ -134,25 +136,19 @@ export function SopsProvider({ children }: { children: ReactNode }) {
     [commit, scheduleCompletion, userId, guideline],
   )
 
+  const { departments } = useDepartments()
+  const environment = useMemo(() => ({ users, departments }), [users, departments])
+
   const store = useMemo<SopsStore>(
     () => ({
       sops,
       addDraft,
-      submitForReview: (id, o) =>
-        update(id, (sop) =>
-          workflow.submitForReview(
-            sop,
-            userId,
-            guideline.version,
-            o.reviewerIds,
-            o.approverIds,
-            o.reviewDueDays,
-            o.approvalDueDays,
-            o.note,
-            o.reviewerDueDates,
-          ),
-        ),
-      resubmit: (id, note) => update(id, (sop) => workflow.resubmit(sop, userId, guideline.version, note)),
+      submitForReview: (id, o) => update(id, (sop) => startReview(sop, userId, guideline.version, o.reviewerId, o.dueDate, o.note, environment)),
+      reviewAction: (id, action) => update(id, (sop) => applyReviewAction(sop, userId, action, environment)),
+      resubmit: (id, note) => update(id, (sop) => {
+        if (sop.reviewFlow && !users.some((u) => u.id === userId && !u.deletedAt && u.permissions.includes('author') && !u.permissions.includes('admin'))) throw new Error('An active main Author account is required')
+        return workflow.resubmit(sop, userId, guideline.version, note)
+      }),
       uploadVersion: (id, file) => updateAndCheck(id, (sop) => workflow.uploadVersion(sop, userId, file), true),
       deleteVersion: (id, version) => update(id, (sop) => workflow.deleteVersion(sop, userId, version)),
       addResponse: (id, text) => update(id, (sop) => workflow.addResponse(sop, userId, text)),
@@ -161,20 +157,32 @@ export function SopsProvider({ children }: { children: ReactNode }) {
       removeCoAuthor: (id, coAuthorId) => update(id, (sop) => workflow.removeCoAuthor(sop, userId, coAuthorId)),
       runCheck: (id) => updateAndCheck(id, (sop) => workflow.assertCanRunCheck(sop, userId), false),
       completeReview: (id, reviewerId, text) => update(id, (sop) => workflow.completeReview(sop, reviewerId, text)),
-      returnAsReviewer: (id, reviewerId, text) => update(id, (sop) => workflow.returnAsReviewer(sop, reviewerId, text)),
+      returnAsReviewer: (id, reviewerId, text) => update(id, (sop) => {
+        if (sop.reviewFlow) return applyReviewAction(sop, userId, { type: 'return-author', text }, environment)
+        return workflow.returnAsReviewer(sop, reviewerId, text)
+      }),
       routeToReviewer: (id, reviewerId, newReviewerId, note) => {
         const person = getUser(newReviewerId)
         if (!person) throw new Error(`Unknown user ${newReviewerId}`)
         update(id, (sop) => workflow.routeToReviewer(sop, reviewerId, person, note))
       },
-      approveAs: (id, approverId, text) => update(id, (sop) => workflow.approveAs(sop, approverId, text)),
-      returnAsApprover: (id, approverId, text) => update(id, (sop) => workflow.returnAsApprover(sop, approverId, text)),
-      publishAs: (id, approverId) => update(id, (sop) => workflow.publishAs(sop, approverId)),
+      approveAs: (id, approverId, text) => update(id, (sop) => {
+        if (sop.reviewFlow && (userId !== approverId || !users.some((u) => u.id === userId && !u.deletedAt && u.permissions.includes('approver')))) throw new Error('Only the assigned Quality approver can act')
+        return workflow.approveAs(sop, approverId, text)
+      }),
+      returnAsApprover: (id, approverId, text) => update(id, (sop) => {
+        if (sop.reviewFlow && (userId !== approverId || !users.some((u) => u.id === userId && !u.deletedAt && u.permissions.includes('approver')))) throw new Error('Only the assigned Quality approver can act')
+        return workflow.returnAsApprover(sop, approverId, text)
+      }),
+      publishAs: (id, approverId) => update(id, (sop) => {
+        if (sop.reviewFlow && (userId !== approverId || !users.some((u) => u.id === userId && !u.deletedAt && u.permissions.includes('approver')))) throw new Error('Only the assigned Quality approver can publish')
+        return workflow.publishAs(sop, approverId)
+      }),
       shiftDueDates: (id, days) => update(id, (sop) => workflow.shiftDueDates(sop, days)),
       failNextCheck,
       setFailNextCheck,
     }),
-    [sops, addDraft, update, updateAndCheck, failNextCheck, setFailNextCheck, userId, guideline.version, getUser],
+    [sops, addDraft, update, updateAndCheck, failNextCheck, setFailNextCheck, userId, guideline.version, getUser, users, environment],
   )
 
   return <SopsContext.Provider value={store}>{children}</SopsContext.Provider>

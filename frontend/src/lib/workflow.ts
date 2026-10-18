@@ -95,7 +95,7 @@ export function parseDueDate(isoDate: string, now = new Date()): { valid: boolea
 }
 
 /**
- * TEMPORARY RULE (demo only), until the Admin assigns reviewers and approvers.
+ * Legacy sample-data helper only. New submissions use startReview and select one reviewer.
  * TODO: Replace with the Admin's assignment.
  * Who a submitted SOP goes to: every active user in the SOP's department with the
  * Reviewer permission, and every one with the Approver permission. Authors and
@@ -156,15 +156,14 @@ export function isApprover(sop: Sop, userId: string): boolean {
 
 /** Reviewers or approvers who still have to decide in the current stage. */
 
-/** Only the first pending reviewer may act. */
+/** The explicit review-plan owner, or the first pending reviewer on a legacy SOP. */
 export function currentReviewer(
   sop: Sop,
 ): ReviewerAssignment | undefined {
   if (sop.status !== 'in-review') return undefined
 
-  return sop.reviewers.find(
-    (person) => person.decision === 'pending',
-  )
+  if (sop.reviewFlow) return sop.reviewers.find((person) => person.userId === sop.reviewFlow!.activeReviewerId)
+  return sop.reviewers.find((person) => person.decision === 'pending')
 }
 
 export function pendingPeople(
@@ -401,6 +400,7 @@ function dueDateFrom(from: string, days: number | undefined): string | undefined
 }
 
 /**
+ * Legacy submission adapter for existing records/tests. New submissions use lib/reviewFlow.ts.
  * Author: first submission (PBI 6). The author picks one or more reviewers and
  * approvers, and optionally the due days per stage (PBI 3). A stage without due
  * days has no due date and is never overdue.
@@ -500,7 +500,13 @@ export function resubmit(sop: Sop, actorId: string, guidelineVersion: string, no
     ...sop,
     status: 'in-review',
     reviewers,
-    approvers: sop.approvers.map((p) => ({ userId: p.userId, decision: 'pending' })),
+    approvers: sop.reviewFlow ? [] : sop.approvers.map((p) => ({ userId: p.userId, decision: 'pending' })),
+    ...(sop.reviewFlow ? { reviewFlow: {
+      ...sop.reviewFlow, stage: 'reviewer-1' as const, activeReviewerId: sop.reviewFlow.reviewer1Id,
+      sameDivision: sop.reviewFlow.sameDivision === 'required' ? 'required' as const : 'pending' as const,
+      crossDivision: sop.reviewFlow.crossDivision === 'required' ? 'required' as const : 'pending' as const,
+      qualityControllerId: undefined, departments: sop.reviewFlow.departments.map((d) => ({ ...d, completed: false })),
+    } } : {}),
     reviewDueAt,
     approvalDueAt: undefined,
     lastUpdated: todayIsoDate(),
@@ -647,6 +653,7 @@ function optionalComment(
  * When ALL reviewers have, the SOP moves to In Approval.
  */
 export function completeReview(sop: Sop, reviewerId: string, text?: string): Sop {
+  assert(!sop.reviewFlow, 'Use the current review step to complete or forward this review')
   assertStatus(sop, ['in-review'], 'complete the review of')
   assert(
     currentReviewer(sop)?.userId === reviewerId,
@@ -707,9 +714,29 @@ export function returnAsReviewer(sop: Sop, reviewerId: string, text: string): So
   return returnToAuthors(withDecision, reviewerId, 'reviewer', text.trim(), createdAt)
 }
 
+/** All required initial and department reviews must be evidenced by completed assignments. */
+export function requiredReviewsComplete(sop: Sop): boolean {
+  const flow = sop.reviewFlow
+  if (!flow) return sop.reviewers.every((p) => p.decision === 'completed')
+  const completed = (id: string | undefined) => !!id && sop.reviewers.some((p) => p.userId === id && p.decision === 'completed')
+  return completed(flow.reviewer1Id) && completed(flow.reviewer2Id) &&
+    flow.sameDivision !== 'pending' && flow.crossDivision !== 'pending' &&
+    (flow.sameDivision !== 'required' || flow.departments.some((d) => d.scope === 'same-division')) &&
+    (flow.crossDivision !== 'required' || flow.departments.some((d) => d.scope === 'cross-division')) &&
+    flow.departments.every((d) => d.completed && completed(d.representativeId) && completed(d.reviewerId))
+}
+
+/** Review-plan readiness also protects direct approval and publication calls. */
+function assertQualityReady(sop: Sop, userId: string) {
+  if (!sop.reviewFlow) return
+  assert(sop.reviewFlow.stage === 'quality-approval' && sop.reviewFlow.qualityControllerId === userId && requiredReviewsComplete(sop),
+    'All required reviews and the assigned Quality Document Controller are required')
+}
+
 /** A pending approver approves (PBI 10, 11), with an optional comment. When ALL have, the SOP is Approved. */
 export function approveAs(sop: Sop, approverId: string, text?: string): Sop {
   assertStatus(sop, ['in-approval'], 'approve')
+  assertQualityReady(sop, approverId)
   assert(sop.approvers.some((p) => p.userId === approverId && p.decision === 'pending'), 'Not a pending approver')
   const createdAt = new Date().toISOString()
   const approvers = sop.approvers.map((p) =>
@@ -760,6 +787,7 @@ export function routeToReviewer(
   newReviewer: Pick<User, 'id' | 'departmentId' | 'permissions' | 'deletedAt'>,
   note?: string,
 ): Sop {
+  assert(!sop.reviewFlow, 'Use the current review step to select a department and representative')
   assertStatus(sop, ['in-review'], 'route')
   assert(
     currentReviewer(sop)?.userId === actorId,
@@ -785,6 +813,7 @@ export function routeToReviewer(
 /** A pending approver returns the SOP with a comment; it goes back to the author at once. */
 export function returnAsApprover(sop: Sop, approverId: string, text: string): Sop {
   assertStatus(sop, ['in-approval'], 'return')
+  assertQualityReady(sop, approverId)
   assert(sop.approvers.some((p) => p.userId === approverId && p.decision === 'pending'), 'Not a pending approver')
   assert(!!text.trim(), 'A comment is required')
   const createdAt = new Date().toISOString()
@@ -800,6 +829,8 @@ export function returnAsApprover(sop: Sop, approverId: string, text: string): So
 /** Any assigned approver publishes the approved SOP; it then appears in the SOPs directory. */
 export function publishAs(sop: Sop, approverId: string): Sop {
   assertStatus(sop, ['approved'], 'publish')
+  assertQualityReady(sop, approverId)
+  assert(!sop.reviewFlow || sop.approvers.every((p) => p.decision === 'approved'), 'Final Quality approval is required before publication')
   assert(isApprover(sop, approverId), 'Only an assigned approver can publish')
   return {
     ...sop,

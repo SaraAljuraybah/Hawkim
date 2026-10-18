@@ -37,7 +37,7 @@ export function reviewTasks(userId: string, sops: Sop[]): ReviewTask[] {
     if (reviewer) {
       const group: TaskGroup = sop.status === 'returned'
         ? 'waiting'
-        : sop.status === 'in-review' && reviewer.decision === 'pending'
+        : sop.status === 'in-review' && (reviewer.decision === 'pending' || !!sop.reviewFlow && currentReviewer(sop)?.userId === userId)
           ? currentReviewer(sop)?.userId === userId ? 'todo' : 'waiting'
           : 'done'
 

@@ -36,7 +36,14 @@ export interface User {
  */
 export type DepartmentId = string
 
-export interface Department {
+export interface DepartmentWorkflowConfiguration {
+  /** Explicit organization-supplied key. Equal keys identify the same division. */
+  divisionId?: string
+  /** Configured final controller for SOPs originating in this department. Must have Approver permission. */
+  qualityControllerId?: string
+}
+
+export interface Department extends DepartmentWorkflowConfiguration {
   id: DepartmentId
   name: string
   /** Short abbreviation shown in the initials circle, e.g. "QA". */
@@ -77,9 +84,11 @@ export interface Sop {
   fileUrl?: string
   /**
    * Chosen by the author on the first submission; resubmissions go to the same people.
-   * Reviewers (then approvers) work in parallel: the stage completes when ALL have
-   * decided, and ANY return sends the SOP back to the author.
+   * Reviewers act sequentially. New submissions select reviewers as the review plan progresses.
+   * Legacy records retain their existing approval assignments.
    */
+  /** Present on SOPs using the selected-reviewer workflow; absent on legacy records. */
+  reviewFlow?: ReviewFlow
   reviewers: ReviewerAssignment[]
   approvers: ApproverAssignment[]
   /** Calendar days for each stage (1–30), set on the first submission. */
@@ -123,6 +132,26 @@ export interface SopVersion {
 
 /** Who gives feedback in the workflow. */
 export type ReviewRole = 'reviewer' | 'approver'
+
+export type ReviewScope = 'same-division' | 'cross-division'
+export type ReviewFlowStage = 'reviewer-1' | 'reviewer-2' | 'same-division-decision' | 'same-division-representative' | 'same-division-reviewer' | 'cross-division-decision' | 'cross-division-representative' | 'cross-division-reviewer' | 'quality-routing' | 'quality-approval'
+export interface DepartmentReview {
+  departmentId: string
+  scope: ReviewScope
+  representativeId: string
+  reviewerId?: string
+  completed: boolean
+}
+export interface ReviewFlow {
+  stage: ReviewFlowStage
+  activeReviewerId: string
+  reviewer1Id: string
+  reviewer2Id?: string
+  sameDivision: 'pending' | 'skipped' | 'required'
+  crossDivision: 'pending' | 'skipped' | 'required'
+  departments: DepartmentReview[]
+  qualityControllerId?: string
+}
 
 export type ReviewerDecision = 'pending' | 'completed' | 'returned'
 export type ApproverDecision = 'pending' | 'approved' | 'returned'
@@ -179,6 +208,9 @@ export type TimelineEventType =
   | 'compliance-check-completed'
   | 'compliance-check-failed'
   | 'routed'
+  | 'review-assigned'
+  | 'review-returned'
+  | 'review-scope-decided'
 
 /** One action in an SOP's workflow history (PBI 24). */
 export interface TimelineEvent {
@@ -197,6 +229,9 @@ export interface TimelineEvent {
   /** For stage-due-date-set: which stage and its due date (ISO date and time). */
   stage?: 'review' | 'approval'
   dueAt?: string
+  /** Explicit same-division/cross-division decision, separate from free-text comments. */
+  reviewScope?: ReviewScope
+  reviewsRequired?: boolean
   version: string
   /** ISO date and time */
   createdAt: string

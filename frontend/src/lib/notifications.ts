@@ -82,6 +82,8 @@ function fromEvent(sop: Sop, event: TimelineEvent, userId: string): AppNotificat
     case 'routed':
       // Joining the queue is not an actionable assignment; the handoff notifies them.
       return undefined
+    case 'review-assigned':
+    case 'review-returned':
     case 'review-completed':
       return isRecipient ? { ...base, type: 'assigned-review', via: 'handoff', link: reviewPath(sop.id) } : undefined
     case 'forwarded-to-approver':
