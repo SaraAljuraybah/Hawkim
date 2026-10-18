@@ -87,10 +87,11 @@ describe('assigned to me', () => {
   })
 
   it('notifies a routed reviewer', () => {
-    const sop = routeToReviewer(submit(), 'faisal', lama)
+    // Noura is the current reviewer (assigned first), so she routes.
+    const sop = routeToReviewer(submit(), 'noura', lama)
     expect(kinds('lama', [sop])).toEqual(['assigned-review routed'])
     const notification = deriveNotifications('lama', { sops: [sop], requests: [], now: Date.now() })[0]
-    expect(notification).toMatchObject({ actorId: 'faisal', sopCode: 'SOP-001', version: '1', link: '/reviews/sop-1' })
+    expect(notification).toMatchObject({ actorId: 'noura', sopCode: 'SOP-001', version: '1', link: '/reviews/sop-1' })
   })
 
   it('notifies the approvers when the SOP moves to In Approval, and again when it is approved', () => {

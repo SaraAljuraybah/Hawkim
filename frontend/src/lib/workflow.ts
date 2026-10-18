@@ -20,8 +20,10 @@ import { todayIsoDate } from './format'
  * action isn't allowed.
  *
  * Draft → In Review → (Returned) → In Approval → Approved → Published
- * - Reviewers work in parallel: In Approval only when ALL reviewers completed;
- *   ANY reviewer return sends the SOP back to the author at once.
+ * - Reviewers work one after another, in the order they were assigned (routed reviewers
+ *   join at the end): only the current reviewer (the first pending one) can complete
+ *   their review or route the SOP. In Approval only when ALL reviewers completed;
+ *   ANY pending reviewer's return sends the SOP back to the author at once.
  * - Approvers work the same way: Approved only when ALL approved; ANY return → Returned.
  * - Any assigned approver can publish once Approved.
  * - Separation of duties: the author and co-authors are never reviewers or approvers,

@@ -122,7 +122,13 @@ describe('submitting for review', () => {
   })
 })
 
-describe('reviewers work in parallel', () => {
+describe('reviewers work one after another', () => {
+  it('only lets the current reviewer (the first pending one) complete their review', () => {
+    // Noura was assigned first, so it's her turn; Faisal's comes after.
+    expect(() => completeReview(inReview(), FAISAL)).toThrow(/current reviewer/)
+    expect(completeReview(inReview(), NOURA).status).toBe('in-review')
+  })
+
   it('moves to In Approval only when ALL reviewers have completed', () => {
     const one = completeReview(inReview(), NOURA)
     expect(one.status).toBe('in-review')
@@ -588,15 +594,17 @@ describe('responding to comments', () => {
     // Each step a second apart, so the rounds don't share a timestamp.
     vi.useFakeTimers({ now: new Date('2026-03-01T08:00:00Z') })
     const tick = () => vi.advanceTimersByTime(1000)
-    const returned = returnAsReviewer(inReview(), FAISAL, 'Fix section 4.')
+    // Round 1: Noura (the current reviewer) returns it.
+    const returned = returnAsReviewer(inReview(), NOURA, 'Fix section 4.')
     tick()
     const updated = uploadVersion(returned, SARA, { fileName: 'v2.pdf', fileType: 'pdf' })
     tick()
     const again = resubmit({ ...updated, complianceChecks: [...updated.complianceChecks, completedCheck('2')] }, SARA, GVP)
     tick()
-    const secondReturn = returnAsReviewer(completeReview(again, FAISAL), NOURA, 'Still missing the owner.')
+    // Round 2: Noura completes, then Faisal returns it. Noura's round-1 comment is left out.
+    const secondReturn = returnAsReviewer(completeReview(again, NOURA), FAISAL, 'Still missing the owner.')
     vi.useRealTimers()
-    expect(responseRecipients(secondReturn)).toEqual([NOURA])
+    expect(responseRecipients(secondReturn)).toEqual([FAISAL])
   })
 
   it('needs comments to respond to, a text of up to 1000 characters, and an author', () => {
@@ -674,12 +682,13 @@ describe('routing to another department (PBI 23)', () => {
 
   it('adds a pending reviewer from another department; the SOP waits for them too', () => {
     const submitted = inReview()
-    const routed = routeToReviewer(submitted, FAISAL, lama, '  Please check the PV parts.  ')
+    // Noura is the current reviewer; Lama joins at the end of the order.
+    const routed = routeToReviewer(submitted, NOURA, lama, '  Please check the PV parts.  ')
     expect(decisions(routed.reviewers)).toEqual({ [NOURA]: 'pending', [FAISAL]: 'pending', lama: 'pending' })
     expect(routed.reviewDueAt).toBe(submitted.reviewDueAt)
     expect(routed.timeline.at(-1)).toMatchObject({
       type: 'routed',
-      actorId: FAISAL,
+      actorId: NOURA,
       recipientIds: ['lama'],
       departmentId: 'pharmacovigilance',
       note: 'Please check the PV parts.',
@@ -690,23 +699,27 @@ describe('routing to another department (PBI 23)', () => {
   })
 
   it('resets the routed reviewer on resubmit, like everyone else', () => {
-    const routed = completeReview(routeToReviewer(inReview(), FAISAL, lama), 'lama')
-    const returned = returnAsReviewer(routed, NOURA, 'Fix it.')
+    // Noura routes Lama and completes; Faisal then returns it (Lama is still pending).
+    const routed = completeReview(routeToReviewer(inReview(), NOURA, lama), NOURA)
+    const returned = returnAsReviewer(routed, FAISAL, 'Fix it.')
     const updated = uploadVersion(returned, SARA, { fileName: 'v2.pdf', fileType: 'pdf' })
     const again = resubmit({ ...updated, complianceChecks: [...updated.complianceChecks, completedCheck('2')] }, SARA, GVP)
     expect(decisions(again.reviewers)).toEqual({ [NOURA]: 'pending', [FAISAL]: 'pending', lama: 'pending' })
   })
 
-  it('is allowed for a reviewer who already completed their review, while the SOP is still In Review', () => {
-    const faisalDone = completeReview(inReview(), FAISAL)
-    const routed = routeToReviewer(faisalDone, FAISAL, lama)
-    expect(decisions(routed.reviewers)).toEqual({ [NOURA]: 'pending', [FAISAL]: 'completed', lama: 'pending' })
+  it('is only for the current reviewer: not one who already completed, nor one whose turn hasn’t come', () => {
+    // Faisal's turn hasn't come yet.
+    expect(() => routeToReviewer(inReview(), FAISAL, lama)).toThrow(/current reviewer/)
+    const nouraDone = completeReview(inReview(), NOURA)
+    expect(() => routeToReviewer(nouraDone, NOURA, lama)).toThrow(/current reviewer/)
+    const routed = routeToReviewer(nouraDone, FAISAL, lama)
+    expect(decisions(routed.reviewers)).toEqual({ [NOURA]: 'completed', [FAISAL]: 'pending', lama: 'pending' })
     expect(routed.status).toBe('in-review')
   })
 
-  it('is only for an assigned reviewer, while the SOP is In Review', () => {
-    expect(() => routeToReviewer(inReview(), HUDA, lama)).toThrow(/assigned reviewer/)
-    expect(() => routeToReviewer(inReview(), SARA, lama)).toThrow(/assigned reviewer/)
+  it('is only for the current reviewer, while the SOP is In Review', () => {
+    expect(() => routeToReviewer(inReview(), HUDA, lama)).toThrow(/current reviewer/)
+    expect(() => routeToReviewer(inReview(), SARA, lama)).toThrow(/current reviewer/)
     expect(() => routeToReviewer(inApproval(), NOURA, lama)).toThrow()
     expect(() => routeToReviewer(draft(), NOURA, lama)).toThrow()
   })
