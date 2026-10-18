@@ -86,7 +86,7 @@ const canReview =
   currentReviewer(sop)?.userId === user.id
   const canApprove = sop.status === 'in-approval' && approver?.decision === 'pending'
   const canPublish = sop.status === 'approved' && !!approver
-  // Any assigned reviewer can route while the SOP is In Review, even after completing their own review.
+  // Only the current reviewer (the first pending one) can complete, return or route while In Review.
   const canRoute = canReview
 
   const dueAt = currentDueAt(sop)

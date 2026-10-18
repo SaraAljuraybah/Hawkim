@@ -22,9 +22,9 @@ import { todayIsoDate } from './format'
  * Draft → In Review → (Returned) → In Approval → Approved → Published
  * - Reviewers work one after another, in the order they were assigned (routed reviewers
  *   join at the end): only the current reviewer (the first pending one) can complete
- *   their review or route the SOP. In Approval only when ALL reviewers completed;
- *   ANY pending reviewer's return sends the SOP back to the author at once.
- * - Approvers work the same way: Approved only when ALL approved; ANY return → Returned.
+ *   their review, return the SOP or route it. In Approval only when ALL reviewers
+ *   completed; the current reviewer's return sends the SOP back to the author at once.
+ * - Approvers work in parallel: Approved only when ALL approved; ANY return → Returned.
  * - Any assigned approver can publish once Approved.
  * - Separation of duties: the author and co-authors are never reviewers or approvers,
  *   and nobody is both a reviewer and an approver on the same SOP.
@@ -599,10 +599,10 @@ export function completeReview(sop: Sop, reviewerId: string, text?: string): Sop
   return updated
 }
 
-/** A pending reviewer returns the SOP with a comment; it goes back to the author at once. */
+/** The current reviewer returns the SOP with a comment; it goes back to the author at once. */
 export function returnAsReviewer(sop: Sop, reviewerId: string, text: string): Sop {
   assertStatus(sop, ['in-review'], 'return')
-  assert(sop.reviewers.some((p) => p.userId === reviewerId && p.decision === 'pending'), 'Not a pending reviewer')
+  assert(currentReviewer(sop)?.userId === reviewerId, 'Only the current reviewer can act')
   assert(!!text.trim(), 'A comment is required')
   const createdAt = new Date().toISOString()
   const withDecision: Sop = {

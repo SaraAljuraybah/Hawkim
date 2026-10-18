@@ -137,11 +137,20 @@ describe('reviewers work one after another', () => {
     expect(both.status).toBe('in-approval')
   })
 
-  it('goes back to the author as soon as ANY reviewer returns it', () => {
-    const returned = returnAsReviewer(inReview(), FAISAL, 'Please add the retention period.')
+  it('goes back to the author as soon as the current reviewer returns it', () => {
+    const returned = returnAsReviewer(inReview(), NOURA, 'Please add the retention period.')
     expect(returned.status).toBe('returned')
-    expect(decisions(returned.reviewers)).toEqual({ [NOURA]: 'pending', [FAISAL]: 'returned' })
+    expect(decisions(returned.reviewers)).toEqual({ [NOURA]: 'returned', [FAISAL]: 'pending' })
     expect(returned.comments.map((comment) => comment.text)).toEqual(['Please add the retention period.'])
+  })
+
+  it('only lets the current reviewer return it', () => {
+    // Faisal's turn hasn't come yet.
+    expect(() => returnAsReviewer(inReview(), FAISAL, 'Fix.')).toThrow(/current reviewer/)
+    // Once Noura has completed, her decision is made and it's Faisal's turn.
+    const nouraDone = completeReview(inReview(), NOURA)
+    expect(() => returnAsReviewer(nouraDone, NOURA, 'Fix.')).toThrow(/current reviewer/)
+    expect(returnAsReviewer(nouraDone, FAISAL, 'Fix.').status).toBe('returned')
   })
 })
 
@@ -170,7 +179,7 @@ describe('resubmitting', () => {
   }
 
   it('needs a new version uploaded since the return', () => {
-    const returned = returnAsReviewer(inReview(), FAISAL, 'Fix section 4.')
+    const returned = returnAsReviewer(inReview(), NOURA, 'Fix section 4.')
     expect(() => resubmit(returned, SARA, GVP)).toThrow(/new version/)
   })
 
@@ -186,7 +195,7 @@ describe('resubmitting', () => {
   })
 
   it('needs a completed compliance check of the new version', () => {
-    const returned = returnAsReviewer(inReview(), FAISAL, 'Fix section 4.')
+    const returned = returnAsReviewer(inReview(), NOURA, 'Fix section 4.')
     const updated = uploadVersion(returned, SARA, { fileName: 'SOP-001 v2.pdf', fileType: 'pdf' })
     expect(() => resubmit(updated, SARA, GVP)).toThrow(/compliance check/)
   })
