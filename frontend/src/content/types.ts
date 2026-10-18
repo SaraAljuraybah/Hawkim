@@ -692,7 +692,6 @@ export interface ComplianceContent {
     header: {
       /** Visually hidden heading of the report details. */
       title: string
-      reportId: string
       sop: string
       version: string
       author: string
@@ -777,7 +776,7 @@ export interface ComplianceContent {
     }
     changes: {
       title: string
-      /** `{version}` and `{reportId}` are replaced. */
+      /** `{version}` is replaced. */
       comparedWith: string
       none: string
       /** Visually hidden text for the arrow. */

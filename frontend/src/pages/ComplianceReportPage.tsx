@@ -24,7 +24,6 @@ import {
   latestCompletedChecksByVersion,
   numberedFindings,
   previousReport,
-  reportId,
   RESULT_ORDER,
 } from '../lib/compliance'
 import { formatDateTime } from '../lib/format'
@@ -151,7 +150,6 @@ function Report({ sop, backPath }: { sop: Sop; backPath: string }) {
 
   const details = report
     ? [
-        { label: text.header.reportId, value: reportId(sop, report) },
         { label: text.header.sop, value: `${sop.code} · ${sop.title}` },
         { label: text.header.version, value: content.versionLabel.replace('{version}', report.version) },
         { label: text.header.author, value: author },
@@ -184,7 +182,7 @@ function Report({ sop, backPath }: { sop: Sop; backPath: string }) {
       <div className="mt-5 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between print:mt-0">
         <h1 className="text-2xl leading-tight tracking-tight sm:text-3xl">{text.title}</h1>
         {report && (
-          <Button variant="secondary" className="shrink-0 self-start sm:self-auto print:hidden" onClick={() => window.print()}>
+          <Button size="sm" className="shrink-0 self-start sm:self-auto print:hidden" onClick={() => window.print()}>
             <Download aria-hidden="true" className="size-4" strokeWidth={2} />
             {text.download}
           </Button>
@@ -306,9 +304,7 @@ function Report({ sop, backPath }: { sop: Sop; backPath: string }) {
             {previous ? (
               <ChangesList
                 changes={compareReports(previous, report)}
-                previousLabel={text.changes.comparedWith
-                  .replace('{version}', previous.version)
-                  .replace('{reportId}', reportId(sop, previous))}
+                previousLabel={text.changes.comparedWith.replace('{version}', previous.version)}
                 content={content}
               />
             ) : (
