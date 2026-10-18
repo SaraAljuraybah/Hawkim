@@ -193,9 +193,14 @@ export function SopWorkflowPage() {
   // Response: to everyone who commented in the latest round; not once published.
   const recipients = sop.status === 'published' ? [] : responseRecipients(sop)
 
-  // Compliance check: the main author, or a co-author who uploaded the current version.
+  // Compliance check: hidden once Approved or Published; disabled In Review and In Approval
+  // (that reason wins); otherwise the main author, or a co-author who uploaded the current version.
+  const showCheck = sop.status !== 'approved' && sop.status !== 'published'
+  const checkBlock = checkBlocker(sop, user.id)
   const checkBlockedReason =
-    checkBlocker(sop, user.id) && content.history.checkBlocked['not-uploader'].replace('{name}', authorName)
+    checkBlock === 'status'
+      ? content.history.checkBlocked.status[sop.status as keyof typeof content.history.checkBlocked.status]
+      : checkBlock && content.history.checkBlocked['not-uploader'].replace('{name}', authorName)
 
   // Delete version: Draft or Returned, main author (any version) or its uploader, at least one version left.
   const { deleteBlocked } = content.history
@@ -294,8 +299,8 @@ export function SopWorkflowPage() {
                 {content.history.upload}
               </Button>
             )}
-            {checkBlockedReason ? (
-              // Not allowed for this user: stays focusable (aria-disabled) so the tooltip's reason can be read.
+            {!showCheck ? null : checkBlockedReason ? (
+              // Not allowed now: stays focusable (aria-disabled) so the tooltip's reason can be read.
               <Tooltip text={checkBlockedReason}>
                 {(tooltipId) => (
                   <Button size="sm" grayWhenDisabled aria-disabled aria-describedby={tooltipId}>
@@ -317,7 +322,7 @@ export function SopWorkflowPage() {
               </Button>
             )}
             {sop.status === 'published' && (
-              <Button size="sm" variant="secondary" to={sopPath(sop.id)}>
+              <Button size="sm" to={sopPath(sop.id)}>
                 {content.file.viewInDirectory}
                 <ArrowUpRight aria-hidden="true" className="size-4" strokeWidth={2} />
               </Button>

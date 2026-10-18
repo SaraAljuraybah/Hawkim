@@ -78,6 +78,10 @@ export const sopWorkflowEn: SopWorkflowContent = {
     upload: 'Upload',
     check: 'Compliance Check for Current Version',
     checkBlocked: {
+      status: {
+        'in-review': "Compliance checks can't be run while the SOP is in review",
+        'in-approval': "Compliance checks can't be run while the SOP is in approval",
+      },
       'not-uploader': "Restricted to {name} (main author) or the current version's uploader",
     },
     previewTitle: '{code} · v{version}',

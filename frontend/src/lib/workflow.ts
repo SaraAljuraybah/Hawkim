@@ -264,13 +264,15 @@ export function deleteVersionBlocker(sop: Sop, actorId: string, version: string)
 }
 
 /** Why the user can't run a compliance check now (undefined: they can). */
-export type CheckBlocker = 'not-uploader'
+export type CheckBlocker = 'status' | 'not-uploader'
 
 /**
- * Run a compliance check (of the current version): the main author, or a co-author
- * who uploaded the current version. The rules for a running check are in lib/compliance.ts.
+ * Run a compliance check (of the current version): only while Draft or Returned (for
+ * everyone; this wins over the next rule), by the main author or a co-author who
+ * uploaded the current version. The rules for a running check are in lib/compliance.ts.
  */
 export function checkBlocker(sop: Sop, actorId: string): CheckBlocker | undefined {
+  if (sop.status !== 'draft' && sop.status !== 'returned') return 'status'
   const current = activeVersions(sop).find((item) => item.version === sop.version)
   if (!isAuthorOrUploader(sop, actorId, current)) return 'not-uploader'
   return undefined
@@ -278,7 +280,9 @@ export function checkBlocker(sop: Sop, actorId: string): CheckBlocker | undefine
 
 /** Refuses a manual compliance check the user isn't allowed to run (see checkBlocker). */
 export function assertCanRunCheck(sop: Sop, actorId: string): Sop {
-  assert(checkBlocker(sop, actorId) === undefined, 'Only the main author or the uploader of the current version can run a check')
+  const blocker = checkBlocker(sop, actorId)
+  assert(blocker !== 'status', `Can't run a compliance check of an SOP that is ${sop.status}`)
+  assert(blocker !== 'not-uploader', 'Only the main author or the uploader of the current version can run a check')
   return sop
 }
 

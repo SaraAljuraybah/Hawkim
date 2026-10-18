@@ -534,8 +534,11 @@ export interface SopWorkflowContent {
     }
     upload: string
     check: string
-    /** Why the compliance check isn't available; `{name}` is the main author. */
-    checkBlocked: { 'not-uploader': string }
+    /**
+     * Why the compliance check isn't available: In Review or In Approval (it's hidden once
+     * Approved or Published), or not the current version's uploader (`{name}` is the main author).
+     */
+    checkBlocked: { status: Record<'in-review' | 'in-approval', string>; 'not-uploader': string }
     /** Preview dialog: `{code}` and `{version}` are replaced. */
     previewTitle: string
     /** Accessible name of the embedded viewer; `{code}`, `{title}` and `{version}` are replaced. */

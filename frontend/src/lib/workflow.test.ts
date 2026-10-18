@@ -407,11 +407,45 @@ describe('running a compliance check', () => {
     expect(checkBlocker(draft(), NOURA)).toBe('not-uploader')
   })
 
-  it('keeps any status allowed (no status rule)', () => {
+  /** The same SOP (current v2 uploaded by co-author Reem, checked) in each status. */
+  function inEachStatus() {
     const reemCurrent = { ...uploadVersion(draft(), REEM, file), complianceChecks: [completedCheck('2')] }
     const submitted = submitForReview(reemCurrent, SARA, GVP, [NOURA], [HUDA], undefined, undefined)
-    expect(checkBlocker(submitted, REEM)).toBeUndefined()
-    expect(checkBlocker(publishAs(approveAs(completeReview(submitted, NOURA), HUDA), HUDA), SARA)).toBeUndefined()
+    const inApprovalStage = completeReview(submitted, NOURA)
+    const approved = approveAs(inApprovalStage, HUDA)
+    return {
+      allowed: [
+        reemCurrent,
+        returnAsReviewer(submitted, NOURA, 'Fix.'),
+        returnAsApprover(inApprovalStage, HUDA, 'Fix.'),
+      ],
+      blocked: [submitted, inApprovalStage, approved, publishAs(approved, HUDA)],
+    }
+  }
+
+  it('is allowed while Draft or Returned (by a reviewer or an approver)', () => {
+    for (const sop of inEachStatus().allowed) {
+      expect(checkBlocker(sop, SARA)).toBeUndefined()
+      expect(checkBlocker(sop, REEM)).toBeUndefined()
+      expect(() => assertCanRunCheck(sop, REEM)).not.toThrow()
+    }
+  })
+
+  it('is blocked In Review, In Approval, Approved and Published, for everyone', () => {
+    const blocked = inEachStatus().blocked
+    expect(blocked.map((sop) => sop.status)).toEqual(['in-review', 'in-approval', 'approved', 'published'])
+    for (const sop of blocked) {
+      expect(checkBlocker(sop, SARA)).toBe('status')
+      expect(checkBlocker(sop, REEM)).toBe('status')
+      expect(() => assertCanRunCheck(sop, SARA)).toThrow(sop.status)
+    }
+  })
+
+  it('reports the status before the co-author rule', () => {
+    // v1 is the main author's, so Reem is also not the uploader of the current version.
+    const submitted = submitForReview(draft(), SARA, GVP, [NOURA], [HUDA], undefined, undefined)
+    expect(checkBlocker(submitted, REEM)).toBe('status')
+    expect(checkBlocker(returnAsReviewer(submitted, NOURA, 'Fix.'), REEM)).toBe('not-uploader')
   })
 })
 
