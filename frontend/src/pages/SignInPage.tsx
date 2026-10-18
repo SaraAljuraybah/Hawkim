@@ -135,7 +135,7 @@ export function SignInPage() {
             <HexFragment open={false} className="absolute -top-12 -right-12 size-44 text-maroon/[0.08]" strokeWidth={3} />
           </div>
 
-          <div className="relative flex flex-1 flex-col items-center justify-center px-10 pt-14 text-center">
+          <div className="relative flex flex-1 flex-col items-center justify-center px-10 py-14 text-center">
             <Link to="/" className="rounded-md">
               {/* h-60 ≈ 200px wide at the logo's aspect ratio */}
               <Logo variant="full" alt={content.brand.logoAlt} className="h-60" />
@@ -143,9 +143,6 @@ export function SignInPage() {
             <span aria-hidden="true" className="mt-8 block h-0.5 w-10 bg-gold" />
           </div>
 
-          <p className="relative px-10 pt-6 pb-10 text-center text-[13px] leading-relaxed text-text-gray">
-            {content.brand.regulatoryNote}
-          </p>
         </div>
 
         {/* Form panel */}
@@ -159,9 +156,8 @@ export function SignInPage() {
             <h1 className="mt-8 text-[2rem] leading-tight font-semibold tracking-tight lg:mt-0 lg:text-4xl">
               {content.title}
             </h1>
-            <p className="mt-2 text-text-gray">{content.subtitle}</p>
 
-            <form noValidate onSubmit={handleSubmit} className="mt-8">
+            <form noValidate onSubmit={handleSubmit} className="mt-6">
               <TextField
                 ref={emailRef}
                 name="email"

@@ -95,8 +95,8 @@ export function DashboardPreview({ content, className = '' }: DashboardPreviewPr
               <div className="rounded-lg border border-beige bg-white p-2.5">
                 <p className="mb-2 text-[11px] font-semibold text-maroon">{content.quickActions.title}</p>
                 <ul className="space-y-2">
-                  {content.quickActions.items.map((action, index) => (
-                    <li key={action.label} className={`flex items-center justify-center gap-1 rounded-md border px-2 py-2 text-center text-[10px] leading-snug font-medium ${index === 0 ? 'border-maroon bg-maroon text-offwhite' : 'border-maroon/40 text-maroon'}`}>
+                  {content.quickActions.items.map((action) => (
+                    <li key={action.label} className="flex items-center justify-center gap-1 rounded-md border border-maroon bg-maroon px-2 py-2 text-center text-[10px] leading-snug font-medium text-offwhite">
                       {action.label}<ArrowRight className="size-3 shrink-0" />
                     </li>
                   ))}

@@ -153,11 +153,8 @@ export interface SignInContent {
   pageTitle: string
   brand: {
     logoAlt: string
-    /** Plain-text note at the bottom of the brand panel (no emblems or logos). */
-    regulatoryNote: string
   }
   title: string
-  subtitle: string
   email: { label: string; placeholder: string }
   password: { label: string; placeholder: string; showLabel: string; hideLabel: string }
   forgotPassword: LinkContent

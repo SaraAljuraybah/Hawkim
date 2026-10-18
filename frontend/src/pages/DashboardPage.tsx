@@ -118,7 +118,7 @@ export function DashboardPage() {
               .filter((action) => !action.permission || hasAnyPermission(user, action.permission))
               .map((action) => (
                 <li key={action.href}>
-                  <Button to={action.href} variant="secondary" withArrow className="w-full">
+                  <Button to={action.href} variant={action.href === '/my-sops/upload' ? 'primary' : 'secondary'} withArrow className="w-full">
                     {action.label}
                   </Button>
                 </li>

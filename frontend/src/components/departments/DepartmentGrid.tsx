@@ -80,7 +80,7 @@ export function DepartmentGrid({ departments, content, getState, getMemberCount,
                         <UserCheck aria-hidden="true" className="size-4 shrink-0" strokeWidth={1.75} />
                         {states.member}
                       </span>
-                      <Button size="sm" variant="secondary" aria-describedby={nameId} onClick={() => onOpen(department.id)}>
+                      <Button size="sm" variant="primary" aria-describedby={nameId} onClick={() => onOpen(department.id)}>
                         {states.open}
                       </Button>
                     </>
