@@ -1,17 +1,17 @@
-import { useId, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import { flushSync } from 'react-dom'
 import type { SopWorkflowContent } from '../../content/types'
 import { reviewFlowEn } from '../../content/reviewFlow.en'
 import type { Sop } from '../../data/mock/types'
-import { formatDate, formatDateTime } from '../../lib/format'
+import { formatDate } from '../../lib/format'
 import { eligibleReviewers } from '../../lib/reviewFlow'
-import { dueAtOfDate, dueDateRange, parseDueDate } from '../../lib/workflow'
+import { dueDateRange, parseDueDate } from '../../lib/workflow'
 import type { SubmitOptions } from '../../state/sopsContext'
 import { useUsers } from '../../state/usersContext'
 import { FormDialog } from '../ui/FormDialog'
 import { SelectField } from '../ui/SelectField'
 import { TextAreaField } from '../ui/TextAreaField'
-import { TextField } from '../ui/TextField'
+import { ReviewDueDateField } from './ReviewDueDateField'
 
 /** Submission comments are limited to 500 characters (startReview refuses longer ones). */
 const COMMENT_MAX = 500
@@ -39,15 +39,6 @@ export function SubmitDialog({ sop, content, onSubmit, onClose }: SubmitDialogPr
   const dateRef = useRef<HTMLInputElement>(null)
   const range = dueDateRange()
   const parsed = parseDueDate(dueDate)
-  // "Time given: 11 days · Due Oct 29, 2026, 11:59 PM" (nothing when empty or invalid).
-  const timeGivenId = useId()
-  const timeGiven =
-    parsed.days === undefined
-      ? undefined
-      : (parsed.days === 1 ? text.reviewDate.oneDay : text.reviewDate.days.replace('{count}', String(parsed.days))).replace(
-          '{date}',
-          formatDateTime(dueAtOfDate(dueDate)),
-        )
   function confirm() {
     if (!options.some((u) => u.id === reviewerId)) {
       flushSync(() => setError(reviewFlowEn.selectRequired))
@@ -69,14 +60,8 @@ export function SubmitDialog({ sop, content, onSubmit, onClose }: SubmitDialogPr
       <SelectField ref={reviewerRef} name="reviewer1" label={reviewFlowEn.reviewer1} placeholder={reviewFlowEn.choose}
         options={options.map((u) => ({ value: u.id, label: u.name }))} value={reviewerId} error={error}
         onChange={(event) => { setReviewerId(event.target.value); setError('') }} />
-      <div>
-        {/* The help text is the field's hint; the time given and the real deadline (end of that
-            day) follow on their own line once a date is picked, also linked to the field. */}
-        <TextField ref={dateRef} name="reviewDueDate" type="date" min={range.min} max={range.max} label={text.reviewDate.label}
-          hint={text.reviewDate.help} aria-describedby={timeGiven ? timeGivenId : undefined}
-          value={dueDate} error={dateError} onChange={(event) => { setDueDate(event.target.value); setDateError('') }} />
-        {timeGiven && <p id={timeGivenId} className="mt-1 text-sm text-text-gray">{timeGiven}</p>}
-      </div>
+      <ReviewDueDateField ref={dateRef} name="reviewDueDate" text={text.reviewDate} value={dueDate} error={dateError}
+        onChange={(value) => { setDueDate(value); setDateError('') }} />
       <TextAreaField name="note" rows={3} label={text.note.label} placeholder={text.note.placeholder} maxLength={COMMENT_MAX} resizable={false}
         counter={text.note.counter.replace('{count}', String(note.length)).replace('{max}', String(COMMENT_MAX))} value={note} onChange={(event) => setNote(event.target.value)} />
     </FormDialog>
