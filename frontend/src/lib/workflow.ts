@@ -203,12 +203,15 @@ export function reviewerAssignedDays(sop: Sop, reviewer: ReviewerAssignment): nu
   return sop.reviewDueDays
 }
 
+/** A reviewer's due date ("2026-10-29") as a deadline: the end of that day, local time (ISO date and time). */
+export function dueAtOfDate(isoDate: string): string {
+  return new Date(`${isoDate}T23:59:59.999`).toISOString()
+}
+
 /** This person's deadline, including legacy shared deadlines. An explicit blank never inherits one. */
 export function reviewerDueAt(sop: Sop, reviewer: ReviewerAssignment): string | undefined {
   if (reviewer.assignedDueDays === null) return undefined
-  return reviewer.dueDate
-    ? new Date(`${reviewer.dueDate}T23:59:59.999`).toISOString()
-    : sop.reviewDueAt
+  return reviewer.dueDate ? dueAtOfDate(reviewer.dueDate) : sop.reviewDueAt
 }
 
 /** The active reviewer's deadline, or the unchanged approval stage deadline. */

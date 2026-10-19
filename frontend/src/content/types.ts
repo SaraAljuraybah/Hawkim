@@ -627,7 +627,7 @@ export interface SopWorkflowContent {
       title: string
       /**
        * Optional review due date. `help` is always shown under it; once a date is picked,
-       * how far away it is and the due date and time (`{date}` is replaced in both; `{count}` in `days`).
+       * the time given and the deadline: the end of that day (`{date}` is replaced in both; `{count}` in `days`).
        */
       reviewDate: { label: string; help: string; oneDay: string; days: string }
       /** `{count}` and `{max}` are replaced in the counter. */

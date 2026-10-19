@@ -22,6 +22,7 @@ import {
   defaultAssignees,
   deleteVersion,
   deleteVersionBlocker,
+  dueAtOfDate,
   dueDateRange,
   isOverdue,
   nextVersion,
@@ -547,6 +548,11 @@ describe('uploading a version (unchanged)', () => {
 })
 
 describe('review due date (Submit for review)', () => {
+  it('is due at the end of the chosen day, local time (shown as 11:59 PM)', () => {
+    const due = new Date(dueAtOfDate('2026-10-29'))
+    expect([due.getFullYear(), due.getMonth(), due.getDate(), due.getHours(), due.getMinutes()]).toEqual([2026, 9, 29, 23, 59])
+  })
+
   // Oct 18, 2026, 3:20 PM local time.
   const now = new Date(2026, 9, 18, 15, 20)
 
