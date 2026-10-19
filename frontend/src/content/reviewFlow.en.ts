@@ -30,9 +30,11 @@ export const reviewFlowEn = {
   routeQuality: 'Send for Quality approval',
   qualityMissing: 'Final approval is blocked. An administrator must configure an eligible Quality Document Controller with Approver permission for the SOP department. Authors and assigned reviewers cannot approve their own SOP.',
   qualityAssigned: 'Configured Quality Document Controller',
-  retainedDeadline: 'The saved reviewer keeps the original Time Given and the recalculated resubmission deadline.',
+  retainedDeadline: 'The saved reviewer keeps the original time given and the recalculated resubmission deadline.',
   scopes: { 'same-division': 'Same-division review', 'cross-division': 'Cross-division review' },
   required: 'Required', notRequired: 'Not required',
+  /** Timeline detail for a department review decision; `{scope}` and `{decision}` are replaced. */
+  scopeDecision: '{scope}: {decision}',
   updated: 'Review workflow updated.', cancel: 'Cancel', confirm: 'Confirm',
   plan: 'Department review plan', pending: 'Pending', completed: 'Completed',
   initialPending: 'Reviewer 2 will be selected by Reviewer 1.',

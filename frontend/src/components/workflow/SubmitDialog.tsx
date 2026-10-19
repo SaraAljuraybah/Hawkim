@@ -13,6 +13,9 @@ import { SelectField } from '../ui/SelectField'
 import { TextAreaField } from '../ui/TextAreaField'
 import { TextField } from '../ui/TextField'
 
+/** Submission comments are limited to 500 characters (startReview refuses longer ones). */
+const COMMENT_MAX = 500
+
 interface SubmitDialogProps {
   sop: Sop
   content: SopWorkflowContent['dialogs']
@@ -74,8 +77,8 @@ export function SubmitDialog({ sop, content, onSubmit, onClose }: SubmitDialogPr
           value={dueDate} error={dateError} onChange={(event) => { setDueDate(event.target.value); setDateError('') }} />
         {timeGiven && <p id={timeGivenId} className="mt-1 text-sm text-text-gray">{timeGiven}</p>}
       </div>
-      <TextAreaField name="note" rows={3} label={text.note.label} placeholder={text.note.placeholder} maxLength={500} resizable={false}
-        counter={text.note.counter.replace('{count}', String(note.length)).replace('{max}', '500')} value={note} onChange={(event) => setNote(event.target.value)} />
+      <TextAreaField name="note" rows={3} label={text.note.label} placeholder={text.note.placeholder} maxLength={COMMENT_MAX} resizable={false}
+        counter={text.note.counter.replace('{count}', String(note.length)).replace('{max}', String(COMMENT_MAX))} value={note} onChange={(event) => setNote(event.target.value)} />
     </FormDialog>
   )
 }
