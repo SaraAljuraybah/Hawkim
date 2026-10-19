@@ -195,7 +195,6 @@ days: 'Time Given: {count} Days · Due {date}',
       note: { label: 'Comments (optional)', placeholder: 'Add a comment for the reviewers…', counter: '{count} / {max}' },
       errors: {
         dateInvalid: 'Choose a date from {min} to {max}.',
-        noAssignees: 'This department has no reviewer or approver yet, so the SOP can’t be submitted.',
         submitFailed: "The SOP couldn't be submitted. Refresh the page and try again.",
       },
       confirm: 'Submit for review',

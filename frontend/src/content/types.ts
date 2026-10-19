@@ -633,11 +633,10 @@ export interface SopWorkflowContent {
       /** `{count}` and `{max}` are replaced in the counter. */
       note: { label: string; placeholder: string; counter: string }
       /**
-       * `dateInvalid`: `{min}` and `{max}` are the allowed dates. `noAssignees`: the SOP's
-       * department has no reviewer or approver to send it to. `submitFailed`: the store
+       * `dateInvalid`: `{min}` and `{max}` are the allowed dates. `submitFailed`: the store
        * refused the submission for a reason the dialog can't show (e.g. data changed meanwhile).
        */
-      errors: { dateInvalid: string; noAssignees: string; submitFailed: string }
+      errors: { dateInvalid: string; submitFailed: string }
       confirm: string
     }
     /** `{version}` is the number the upload becomes. */

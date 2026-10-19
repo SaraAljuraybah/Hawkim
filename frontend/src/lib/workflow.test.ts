@@ -19,7 +19,6 @@ import {
   reviewerRemainingDays,
   shiftDueDates,
   daysFromToday,
-  defaultAssignees,
   deleteVersion,
   deleteVersionBlocker,
   dueAtOfDate,
@@ -586,48 +585,6 @@ describe('review due date (Submit for review)', () => {
     const submittedAt = submitted.timeline.find((item) => item.type === 'submitted')!.createdAt
     expect(new Date(submitted.reviewDueAt!).getTime() - new Date(submittedAt).getTime()).toBe(5 * DAY_MS)
     expect(submitted.approvalDueAt).toBeUndefined()
-  })
-})
-
-describe('default reviewers and approvers (temporary rule)', () => {
-  const person = (id: string, departmentId: string, permissions: User['permissions'], deletedAt?: string) => ({
-    id,
-    departmentId,
-    permissions,
-    deletedAt,
-  })
-  const users = [
-    person(SARA, 'information-technology', ['author']),
-    person(NOURA, 'information-technology', ['reviewer']),
-    person(HUDA, 'information-technology', ['approver']),
-    person(FAISAL, 'quality-assurance', ['reviewer']),
-    person(KHALID, 'quality-assurance', ['approver']),
-    person('gone', 'information-technology', ['reviewer'], '2026-01-01T00:00:00Z'),
-  ]
-
-  it('assigns the active reviewers and approvers of the SOP’s department', () => {
-    expect(defaultAssignees(draft(), users)).toEqual({ reviewerIds: [NOURA], approverIds: [HUDA] })
-  })
-
-  it('never assigns an author or co-author, and someone with both permissions only reviews', () => {
-    const both = person('both', 'information-technology', ['reviewer', 'approver'])
-    const coAuthorReviewer = person(REEM, 'information-technology', ['reviewer'])
-    expect(defaultAssignees(draft(), [...users, both, coAuthorReviewer])).toEqual({
-      reviewerIds: [NOURA, 'both'],
-      approverIds: [HUDA],
-    })
-  })
-
-  it('is empty when the department has nobody (Submit is then blocked)', () => {
-    expect(defaultAssignees(draft({ departmentId: 'pharmacovigilance' }), users)).toEqual({ reviewerIds: [], approverIds: [] })
-  })
-
-  it('sends the submitted SOP to them', () => {
-    const { reviewerIds, approverIds } = defaultAssignees(draft(), users)
-    const submitted = submitForReview(draft(), SARA, GVP, reviewerIds, approverIds, undefined, undefined)
-    expect(decisions(submitted.reviewers)).toEqual({ [NOURA]: 'pending' })
-    expect(decisions(submitted.approvers)).toEqual({ [HUDA]: 'pending' })
-    expect(submitted.timeline.find((item) => item.type === 'submitted')).toMatchObject({ recipientIds: [NOURA] })
   })
 })
 

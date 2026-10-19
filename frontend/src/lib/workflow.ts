@@ -94,27 +94,6 @@ export function parseDueDate(isoDate: string, now = new Date()): { valid: boolea
   return days !== undefined && isValidDueDays(days) ? { valid: true, days } : { valid: false }
 }
 
-/**
- * Legacy sample-data helper only. New submissions use startReview and select one reviewer.
- * TODO: Replace with the Admin's assignment.
- * Who a submitted SOP goes to: every active user in the SOP's department with the
- * Reviewer permission, and every one with the Approver permission. Authors and
- * co-authors are never included, and someone with both permissions only reviews.
- */
-export function defaultAssignees(
-  sop: Sop,
-  users: Pick<User, 'id' | 'departmentId' | 'permissions' | 'deletedAt'>[],
-): { reviewerIds: string[]; approverIds: string[] } {
-  const eligible = users.filter(
-    (user) => !user.deletedAt && user.departmentId === sop.departmentId && !isAuthorOrCoAuthor(sop, user.id),
-  )
-  const reviewerIds = eligible.filter((user) => user.permissions.includes('reviewer')).map((user) => user.id)
-  const approverIds = eligible
-    .filter((user) => user.permissions.includes('approver') && !reviewerIds.includes(user.id))
-    .map((user) => user.id)
-  return { reviewerIds, approverIds }
-}
-
 /** Response texts are limited like comments. */
 export const RESPONSE_MAX = 1000
 
