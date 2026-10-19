@@ -21,7 +21,7 @@ interface ResubmitDialogProps {
  * optional due date for Reviewer 1 (every earlier deadline is cleared) and optional
  * comments. Uses the Submit dialog's field texts.
  */
-export function ResubmitDialog({ sop, content, onSubmit, onClose }: ResubmitDialogProps) {
+export function ResubmitDialog({ content, onSubmit, onClose }: ResubmitDialogProps) {
   const text = content.resubmit
   const fields = content.submit
   const [dueDate, setDueDate] = useState('')
@@ -52,7 +52,6 @@ export function ResubmitDialog({ sop, content, onSubmit, onClose }: ResubmitDial
     <FormDialog
       open
       title={text.title}
-      description={text.description.replace('{version}', sop.version)}
       confirmLabel={text.confirm}
       cancelLabel={content.cancel}
       onConfirm={confirm}

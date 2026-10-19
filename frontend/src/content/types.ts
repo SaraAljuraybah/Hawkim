@@ -579,8 +579,9 @@ export interface SopWorkflowContent {
   }
   /** Buttons on the Review timeline. */
   actions: {
-    /** Submit or, once returned, resubmit. */
+    /** The button that opens Submit for review (Draft), or Resubmit for review once Returned. */
     submit: string
+    resubmit: string
     response: string
     resubmitHint: string
     /** Shown to co-authors; `{name}` is the main author. */
@@ -656,12 +657,11 @@ export interface SopWorkflowContent {
     /** `{names}` (the recipients) is replaced in the description; `{count}` and `{max}` in the counter. */
     response: { title: string; description: string; label: string; required: string; counter: string; confirm: string }
     /**
-     * Resubmit for review: `{version}` is replaced in the description. Its date and comments
-     * fields use the `submit` texts. `failed`: the store refused the resubmission.
+     * Resubmit for review. Its date and comments fields use the `submit` texts.
+     * `failed`: the store refused the resubmission.
      */
     resubmit: {
       title: string
-      description: string
       failed: string
       confirm: string
     }

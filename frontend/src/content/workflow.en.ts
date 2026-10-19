@@ -121,6 +121,7 @@ export const sopWorkflowEn: SopWorkflowContent = {
 
   actions: {
     submit: 'Submit for review',
+    resubmit: 'Resubmit for review',
     response: 'Response',
     resubmitHint: 'Upload a new version with your changes before resubmitting.',
     authorOnly: 'Only the author, {name}, can submit this SOP.',
@@ -236,8 +237,6 @@ export const sopWorkflowEn: SopWorkflowContent = {
     },
     resubmit: {
       title: 'Resubmit for review',
-      description:
-        "v{version} goes back to Reviewer 1 and through the same review steps again. Earlier decisions and deadlines are cleared, and each reviewer sets the next reviewer's due date when they forward it.",
       failed: "The SOP couldn't be resubmitted. Refresh the page and try again.",
       confirm: 'Resubmit for review',
     },

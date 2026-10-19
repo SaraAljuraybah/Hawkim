@@ -390,7 +390,7 @@ export function SopWorkflowPage() {
                   aria-describedby={submitReason ? 'submit-hint' : undefined}
                   onClick={(event) => open(sop.status === 'returned' ? 'resubmit' : 'submit', event.currentTarget)}
                 >
-                  {actions.submit}
+                  {sop.status === 'returned' ? actions.resubmit : actions.submit}
                 </Button>
               )}
             </>
