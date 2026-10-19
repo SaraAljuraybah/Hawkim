@@ -5,16 +5,13 @@ import { reviewFlowEn } from '../../content/reviewFlow.en'
 import type { Sop } from '../../data/mock/types'
 import { formatDate } from '../../lib/format'
 import { eligibleReviewers } from '../../lib/reviewFlow'
-import { dueDateRange, parseDueDate } from '../../lib/workflow'
+import { dueDateRange, parseDueDate, SUBMIT_COMMENT_MAX } from '../../lib/workflow'
 import type { SubmitOptions } from '../../state/sopsContext'
 import { useUsers } from '../../state/usersContext'
 import { FormDialog } from '../ui/FormDialog'
 import { SelectField } from '../ui/SelectField'
 import { TextAreaField } from '../ui/TextAreaField'
 import { ReviewDueDateField } from './ReviewDueDateField'
-
-/** Submission comments are limited to 500 characters (startReview refuses longer ones). */
-const COMMENT_MAX = 500
 
 interface SubmitDialogProps {
   sop: Sop
@@ -62,8 +59,8 @@ export function SubmitDialog({ sop, content, onSubmit, onClose }: SubmitDialogPr
         onChange={(event) => { setReviewerId(event.target.value); setError('') }} />
       <ReviewDueDateField ref={dateRef} name="reviewDueDate" text={text.reviewDate} value={dueDate} error={dateError}
         onChange={(value) => { setDueDate(value); setDateError('') }} />
-      <TextAreaField name="note" rows={3} label={text.note.label} placeholder={text.note.placeholder} maxLength={COMMENT_MAX} resizable={false}
-        counter={text.note.counter.replace('{count}', String(note.length)).replace('{max}', String(COMMENT_MAX))} value={note} onChange={(event) => setNote(event.target.value)} />
+      <TextAreaField name="note" rows={3} label={text.note.label} placeholder={text.note.placeholder} maxLength={SUBMIT_COMMENT_MAX} resizable={false}
+        counter={text.note.counter.replace('{count}', String(note.length)).replace('{max}', String(SUBMIT_COMMENT_MAX))} value={note} onChange={(event) => setNote(event.target.value)} />
     </FormDialog>
   )
 }

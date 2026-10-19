@@ -237,12 +237,8 @@ export const sopWorkflowEn: SopWorkflowContent = {
     resubmit: {
       title: 'Resubmit for review',
       description:
-        'v{version} returns to the same review queue. Original reviewer durations are preserved and deadlines restart from resubmission. Earlier decisions are cleared.',
-      reviewersLabel: 'Reviewers',
-      reviewDaysLabel: 'Time given',
-      days: '{count} days',
-      oneDay: '1 day',
-      noDueDate: 'No due date',
+        "v{version} goes back to Reviewer 1 and through the same review steps again. Earlier decisions and deadlines are cleared, and each reviewer sets the next reviewer's due date when they forward it.",
+      failed: "The SOP couldn't be resubmitted. Refresh the page and try again.",
       confirm: 'Resubmit for review',
     },
   },

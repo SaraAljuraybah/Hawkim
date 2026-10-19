@@ -46,10 +46,10 @@ describe('reviewer deadline displays', () => {
     expect(blank).toContain('No deadline assigned')
     expect(blank).not.toContain('<time')
   })
-  it('shows each reviewer allocation in resubmission without approver names or durations', () => {
+  it('asks for a due date for Reviewer 1 and comments on resubmission, like Submit, without a reviewer summary', () => {
     const html = render(<ResubmitDialog sop={sop()} content={sopWorkflowEn.dialogs} onSubmit={() => {}} onClose={() => {}} />)
-    for (const text of ['First reviewer', 'Next reviewer', 'No deadline reviewer', 'Time given', '2 days', '7 days', 'No due date']) expect(html).toContain(text)
-    for (const text of ['Approval person', 'Second approver', '3 days', 'Approval due', 'Approvers']) expect(html).not.toContain(text)
+    for (const text of ['Resubmit for review', 'Review due date (optional)', sopWorkflowEn.dialogs.submit.reviewDate.help, 'Comments (optional)', 'Add a comment for the reviewers', 'type="date"', 'maxLength="500"']) expect(html).toContain(text)
+    for (const text of ['First reviewer', 'Next reviewer', 'No deadline reviewer', 'Time given', 'No due date', 'Approval person', 'Approvers']) expect(html).not.toContain(text)
   })
   it('shows queue positions and individual deadlines in PeopleList', () => {
     const html = render(<PeopleList sop={sop()} content={sopWorkflowEn.people} userId="Author" canManageCoAuthors={false} onAddCoAuthor={() => {}} onRemoveCoAuthor={() => {}} />)

@@ -426,8 +426,8 @@ export function SopWorkflowPage() {
           sop={sop}
           content={dialogs}
           onClose={closeDialog}
-          onSubmit={() => {
-            store.resubmit(sop.id)
+          onSubmit={(options) => {
+            store.resubmit(sop.id, options)
             announce(content.messages.resubmitted)
           }}
         />
