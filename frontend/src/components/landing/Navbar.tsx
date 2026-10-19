@@ -103,7 +103,6 @@ export function Navbar({ content }: NavbarProps) {
             <Button
               to={content.signIn.href}
               size="lg"
-              variant="secondary"
             >
               {content.signIn.label}
             </Button>
@@ -163,7 +162,6 @@ export function Navbar({ content }: NavbarProps) {
 
           <Button
             to={content.signIn.href}
-            variant="secondary"
             className="mt-3 w-full"
             onClick={closeMenu}
           >
