@@ -452,31 +452,38 @@ export function submitForReview(
   }
 }
 
+/** Submission and resubmission comments are limited to 500 characters. */
+export const SUBMIT_COMMENT_MAX = 500
+
 /**
- * Author: resubmit after a new version. Same reviewers, approvers and due days;
- * everyone's decision resets and it goes through review and approval again.
+ * Author: resubmit after a new version. It goes back to the same Reviewer 1 (and the same
+ * saved review steps); everyone's decision resets. Deadlines work like the first
+ * submission: every earlier deadline is cleared, Reviewer 1 gets only the optional new
+ * `dueDate` (tomorrow to 30 days ahead), and each reviewer sets the next reviewer's due
+ * date when they forward it. Original durations are never reused.
  */
-export function resubmit(sop: Sop, actorId: string, guidelineVersion: string, note?: string): Sop {
+export function resubmit(sop: Sop, actorId: string, guidelineVersion: string, note?: string, dueDate?: string): Sop {
   assert(isAuthor(sop, actorId), 'Only the author can resubmit this SOP')
   assert(canResubmit(sop), 'Upload a new version before resubmitting')
   assert(hasCurrentCheck(sop, guidelineVersion), 'Run a compliance check against the current guideline first')
+  const trimmed = note?.trim()
+  assert(!trimmed || trimmed.length <= SUBMIT_COMMENT_MAX, 'Submission comments must be at most 500 characters')
+  const date = dueDate?.trim()
+  const parsed = parseDueDate(date ?? '')
+  assert(parsed.valid, 'Choose an optional deadline from tomorrow to 30 days from today')
   const createdAt = new Date().toISOString()
-  const reviewDueAt = dueDateFrom(createdAt, sop.reviewDueDays)
 
   const reviewerIds = sop.reviewers.map((p) => p.userId)
+  // Reviewer 1: the saved one in the review flow, or the first reviewer on older SOPs.
+  const firstReviewerId = sop.reviewFlow?.reviewer1Id ?? reviewerIds[0]
 
-  const reviewers: ReviewerAssignment[] = sop.reviewers.map((person) => {
-    const days = reviewerAssignedDays(sop, person)
-    return {
-      userId: person.userId,
-      decision: 'pending',
-      assignedDueDays: days ?? null,
-      // Retain legacy shared-deadline time behavior; individual dates stay local calendar dates.
-      ...(days !== undefined && person.dueDate
-        ? { dueDate: localDatePlus(new Date(createdAt), days) }
-        : {}),
-    }
-  })
+  const reviewers: ReviewerAssignment[] = sop.reviewers.map((person) => ({
+    userId: person.userId,
+    decision: 'pending',
+    ...(person.userId === firstReviewerId && date
+      ? { dueDate: date, assignedDueDays: parsed.days }
+      : { assignedDueDays: null }),
+  }))
 
   return {
     ...sop,
@@ -489,13 +496,14 @@ export function resubmit(sop: Sop, actorId: string, guidelineVersion: string, no
       crossDivision: sop.reviewFlow.crossDivision === 'required' ? 'required' as const : 'pending' as const,
       qualityControllerId: undefined, departments: sop.reviewFlow.departments.map((d) => ({ ...d, completed: false })),
     } } : {}),
-    reviewDueAt,
+    reviewDueDays: undefined,
+    approvalDueDays: undefined,
+    reviewDueAt: undefined,
     approvalDueAt: undefined,
     lastUpdated: todayIsoDate(),
     timeline: [
       ...sop.timeline,
-      { ...event(sop, 'resubmitted', actorId, { recipientIds: reviewerIds.slice(0, 1), ...(note ? { note } : {}) }), createdAt },
-      ...(reviewDueAt ? [{ ...event(sop, 'stage-due-date-set', actorId, { stage: 'review', dueAt: reviewDueAt }), createdAt }] : []),
+      { ...event(sop, 'resubmitted', actorId, { recipientIds: firstReviewerId ? [firstReviewerId] : [], ...(trimmed ? { note: trimmed } : {}) }), createdAt },
     ],
   }
 }

@@ -145,9 +145,9 @@ export function SopsProvider({ children }: { children: ReactNode }) {
       addDraft,
       submitForReview: (id, o) => update(id, (sop) => startReview(sop, userId, guideline.version, o.reviewerId, o.dueDate, o.note, environment)),
       reviewAction: (id, action) => update(id, (sop) => applyReviewAction(sop, userId, action, environment)),
-      resubmit: (id, note) => update(id, (sop) => {
+      resubmit: (id, options) => update(id, (sop) => {
         if (sop.reviewFlow && !users.some((u) => u.id === userId && !u.deletedAt && u.permissions.includes('author') && !u.permissions.includes('admin'))) throw new Error('An active main Author account is required')
-        return workflow.resubmit(sop, userId, guideline.version, note)
+        return workflow.resubmit(sop, userId, guideline.version, options?.note, options?.dueDate)
       }),
       uploadVersion: (id, file) => updateAndCheck(id, (sop) => workflow.uploadVersion(sop, userId, file), true),
       deleteVersion: (id, version) => update(id, (sop) => workflow.deleteVersion(sop, userId, version)),

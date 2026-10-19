@@ -2,7 +2,7 @@ import { useRef, useState } from 'react'
 import { reviewFlowEn as text } from '../../content/reviewFlow.en'
 import { sopWorkflowEn } from '../../content/workflow.en'
 import type { Sop } from '../../data/mock/types'
-import { currentDepartmentReview, departmentsForScope, eligibleReviewers, qualityController, type ReviewAction } from '../../lib/reviewFlow'
+import { currentDepartmentReview, departmentsForScope, eligibleReviewers, keepsRoundDeadline, qualityController, type ReviewAction } from '../../lib/reviewFlow'
 import { dueDateRange } from '../../lib/workflow'
 import { useDepartments } from '../../state/departmentsContext'
 import { useSops } from '../../state/sopsContext'
@@ -39,6 +39,8 @@ export function ReviewFlowActions({ sop, onComplete }: Props) {
   const departmentReview = currentDepartmentReview(sop)
   const departmentId = stage === 'reviewer-1' ? sop.departmentId : departmentReview?.departmentId ?? ''
   const retainedId = stage === 'reviewer-1' ? flow.reviewer2Id : departmentReview?.reviewerId
+  // The chosen reviewer already has a deadline in this review round: they keep it (no new date).
+  const keepsDeadline = !!selected && keepsRoundDeadline(sop, selected)
   const options = eligibleReviewers(sop, departmentId, users, sop.reviewers.filter((p) => p.userId !== retainedId).map((p) => p.userId)).filter((u) => !retainedId || u.id === retainedId)
   const candidates = departmentsForScope(sop, scope, departments)
   const controller = qualityController(sop, { users, departments })
@@ -94,8 +96,8 @@ export function ReviewFlowActions({ sop, onComplete }: Props) {
         {dialog === 'forward' && <>
           {options.length === 0 && <p role="status" className="text-sm text-status-rejected-fg">{text.noneEligible}</p>}
           <SelectField ref={fieldRef} name="nextReviewer" label={representative ? text.assignedReviewer : text.reviewer2} placeholder={text.choose} options={options.map((u) => ({ value: u.id, label: u.name }))} value={selected} onChange={(event) => { setSelected(event.target.value); setError('') }} />
-          {retainedId && <p className="text-sm text-text-gray">{text.retainedDeadline}</p>}
-          <TextField name="nextDueDate" type="date" disabled={sop.reviewers.some((p) => p.userId === selected)} label={sopWorkflowEn.dialogs.submit.reviewDate.label} min={range.min} max={range.max} value={dueDate} onChange={(event) => setDueDate(event.target.value)} />
+          {keepsDeadline && <p className="text-sm text-text-gray">{text.retainedDeadline}</p>}
+          <TextField name="nextDueDate" type="date" disabled={keepsDeadline} label={sopWorkflowEn.dialogs.submit.reviewDate.label} min={range.min} max={range.max} value={dueDate} onChange={(event) => setDueDate(event.target.value)} />
         </>}
         {dialog === 'departments' ? <div className="space-y-4">
           <p className="text-sm text-text-gray">{text.unknownDivisions}</p>

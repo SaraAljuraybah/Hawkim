@@ -18,6 +18,12 @@ export interface SubmitOptions {
 }
 
 
+/** Resubmit for review: an optional due date for Reviewer 1 ("2026-10-29") and comments. */
+export interface ResubmitOptions {
+  dueDate?: string
+  note?: string
+}
+
 export interface SopsStore {
   /** Every SOP, at every lifecycle stage (the directory shows the published ones). */
   sops: Sop[]
@@ -27,7 +33,8 @@ export interface SopsStore {
   // Actions by the current user (author or co-author). Each throws if not allowed.
   submitForReview: (sopId: string, options: SubmitOptions) => void
   reviewAction: (sopId: string, action: ReviewAction) => void
-  resubmit: (sopId: string, note?: string) => void
+  /** Main author: back to Reviewer 1, with an optional new due date for them and comments. */
+  resubmit: (sopId: string, options?: ResubmitOptions) => void
   /** Uploads the next version (Draft or Returned) and starts a compliance check of it. */
   uploadVersion: (sopId: string, file: UploadedFile) => void
   /** Main author: deletes a version (Draft or Returned; at least one remains). */

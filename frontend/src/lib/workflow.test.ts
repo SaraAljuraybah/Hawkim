@@ -200,15 +200,37 @@ describe('resubmitting', () => {
     expect(() => resubmit(returned, SARA, GVP)).toThrow(/new version/)
   })
 
-  it('resets every decision and keeps the same people and due days', () => {
+  it('resets every decision, keeps the same people and clears every deadline', () => {
     const before = readyToResubmit()
     const again = resubmit(before, SARA, GVP)
     expect(again.status).toBe('in-review')
     expect(again.version).toBe('2')
     expect(decisions(again.reviewers)).toEqual({ [NOURA]: 'pending', [FAISAL]: 'pending' })
     expect(decisions(again.approvers)).toEqual({ [HUDA]: 'pending', [KHALID]: 'pending' })
-    expect([again.reviewDueDays, again.approvalDueDays]).toEqual([5, 3])
-    expect(again.reviewDueAt).toBeDefined()
+    // The first submission's 5 review days and 3 approval days aren't reused.
+    expect([again.reviewDueDays, again.approvalDueDays, again.reviewDueAt, again.approvalDueAt]).toEqual([undefined, undefined, undefined, undefined])
+    expect(currentDueAt(again)).toBeUndefined()
+    expect(again.timeline.at(-1)?.type).toBe('resubmitted')
+  })
+
+  it('gives only Reviewer 1 the optional new due date, and saves the comments', () => {
+    vi.useFakeTimers({ now: new Date(2026, 9, 18, 12) })
+    const again = resubmit(readyToResubmit(), SARA, GVP, '  Fixed section 4.  ', '2026-10-23')
+    expect(again.reviewers.map((p) => [p.userId, p.dueDate, p.assignedDueDays])).toEqual([
+      [NOURA, '2026-10-23', 5],
+      [FAISAL, undefined, null],
+    ])
+    expect(again.timeline.at(-1)).toMatchObject({ type: 'resubmitted', recipientIds: [NOURA], note: 'Fixed section 4.' })
+    vi.useRealTimers()
+  })
+
+  it('refuses a due date outside 1 to 30 days and comments over 500 characters', () => {
+    vi.useFakeTimers({ now: new Date(2026, 9, 18, 12) })
+    for (const date of ['2026-10-18', '2026-10-17', '2026-11-18']) {
+      expect(() => resubmit(readyToResubmit(), SARA, GVP, undefined, date)).toThrow(/deadline/)
+    }
+    expect(() => resubmit(readyToResubmit(), SARA, GVP, 'x'.repeat(501))).toThrow(/500/)
+    vi.useRealTimers()
   })
 
   it('needs a completed compliance check of the new version', () => {
@@ -872,7 +894,7 @@ describe('individual reviewer deadlines and sequential handoffs', () => {
     expect(pendingPeople(approval)).toEqual([{ userId: HUDA, role: 'approver' }, { userId: KHALID, role: 'approver' }])
     expect(pendingPeople(approveAs(approval, KHALID))).toEqual([{ userId: HUDA, role: 'approver' }])
   })
-  it('preserves original allocations through simulation and repeated resubmissions', () => {
+  it('clears every deadline on resubmit and never brings original durations back', () => {
     vi.useFakeTimers({ now: new Date(2026, 9, 18, 12) })
     const shifted = shiftDueDates(submitIndividual(), 3)
     expect(shifted.reviewers.map((person) => person.dueDate)).toEqual(['2026-10-17', '2026-10-22', undefined])
@@ -880,14 +902,15 @@ describe('individual reviewer deadlines and sequential handoffs', () => {
     const returned = returnAsReviewer(shifted, NOURA, 'Fix')
     vi.setSystemTime(new Date(2026, 9, 27, 12))
     const again = resubmit(revise(returned), SARA, GVP)
-    expect(again.reviewers.map((person) => person.dueDate)).toEqual(['2026-10-29', '2026-11-03', undefined])
+    expect(again.reviewers.map((person) => person.dueDate)).toEqual([undefined, undefined, undefined])
+    expect(again.reviewers.map((person) => person.assignedDueDays)).toEqual([null, null, null])
     expect(again.reviewers.every((person) => person.decision === 'pending' && person.decidedAt === undefined)).toBe(true)
     expect(again.approvers.every((person) => person.decision === 'pending' && person.decidedAt === undefined)).toBe(true)
     expect(again.approvalDueAt).toBeUndefined()
     vi.setSystemTime(new Date(2026, 10, 5, 12))
-    const twice = resubmit(revise(returnAsReviewer(again, NOURA, 'Again')), SARA, GVP)
-    expect(twice.reviewers.map((person) => person.dueDate)).toEqual(['2026-11-07', '2026-11-12', undefined])
-    expect(twice.reviewers.map((person) => person.assignedDueDays)).toEqual([2, 7, null])
+    const twice = resubmit(revise(returnAsReviewer(again, NOURA, 'Again')), SARA, GVP, undefined, '2026-11-08')
+    expect(twice.reviewers.map((person) => person.dueDate)).toEqual(['2026-11-08', undefined, undefined])
+    expect(twice.reviewers.map((person) => person.assignedDueDays)).toEqual([3, null, null])
   })
   it('supports legacy records and explicit blanks without inheriting shared dates', () => {
     vi.useFakeTimers({ now: new Date(2026, 9, 18, 12) })

@@ -181,8 +181,11 @@ describe('due soon and overdue', () => {
 
     const returned = returnAsApprover(approveAs(completeReview(completeReview(sop, 'noura'), 'faisal'), 'huda'), 'khalid', 'x')
     const updated = uploadVersion(returned, 'sara', { fileName: 'v2.pdf', fileType: 'pdf' })
-    const again = resubmit({ ...updated, complianceChecks: [...updated.complianceChecks, check('2')] }, 'sara', GVP)
-    const lateAgain = new Date(again.reviewDueAt!).getTime() + HOUR
+    // Resubmit clears every deadline; the author gives Reviewer 1 (Noura) a new one.
+    const tomorrow = new Date(Date.now() + 24 * HOUR)
+    const date = [tomorrow.getFullYear(), String(tomorrow.getMonth() + 1).padStart(2, '0'), String(tomorrow.getDate()).padStart(2, '0')].join('-')
+    const again = resubmit({ ...updated, complianceChecks: [...updated.complianceChecks, check('2')] }, 'sara', GVP, undefined, date)
+    const lateAgain = new Date(currentDueAt(again)!).getTime() + HOUR
     expect(id(again, lateAgain)).not.toBe(first)
   })
 })

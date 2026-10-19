@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ComplianceCheck, Department, Sop, User } from '../data/mock/types'
-import { applyReviewAction, departmentsForScope, eligibleReviewers, qualityController, startReview, validateWorkflowConfiguration, type ReviewAction, type ReviewEnvironment } from './reviewFlow'
+import { applyReviewAction, departmentsForScope, eligibleReviewers, keepsRoundDeadline, qualityController, startReview, validateWorkflowConfiguration, type ReviewAction, type ReviewEnvironment } from './reviewFlow'
 import { approveAs, assertCanRunCheck, completeReview, currentReviewer, deleteVersion, publishAs, resubmit, returnAsApprover, routeToReviewer, uploadVersion } from './workflow'
 import { reviewTasks } from './reviews'
 import { deriveNotifications } from './notifications'
@@ -204,7 +204,7 @@ describe('Quality approval and publication', () => {
 })
 
 describe('resubmission and configuration', () => {
-  it('requires a new version and current compliance check, protects submitted versions and preserves original durations', () => {
+  it('requires a new version and current compliance check, protects submitted versions and clears earlier deadlines', () => {
     const returned = action(initialReviews(), { type: 'return-author', text: 'Change content' })
     expect(() => resubmit(returned, 'author', '4')).toThrow(/new version/)
     vi.advanceTimersByTime(1000)
@@ -212,14 +212,30 @@ describe('resubmission and configuration', () => {
     expect(() => resubmit(uploaded, 'author', '4')).toThrow(/compliance/)
     expect(() => deleteVersion(uploaded, 'author', '1')).toThrow(/previously submitted/)
     vi.setSystemTime(new Date(2026, 9, 28, 12))
-    const again = resubmit({ ...uploaded, complianceChecks: [...uploaded.complianceChecks, check('2')] }, 'author', '4')
+    const again = resubmit({ ...uploaded, complianceChecks: [...uploaded.complianceChecks, check('2')] }, 'author', '4', undefined, '2026-10-30')
     expect(again.reviewFlow?.stage).toBe('reviewer-1')
     expect(currentReviewer(again)?.userId).toBe('r1')
-    expect(again.reviewers.map((p) => p.assignedDueDays)).toEqual([2, 7])
-    expect(again.reviewers.map((p) => p.dueDate)).toEqual(['2026-10-30', '2026-11-04'])
+    // Only Reviewer 1 gets the new date; Reviewer 2's earlier deadline isn't reused.
+    expect(again.reviewers.map((p) => p.assignedDueDays)).toEqual([2, null])
+    expect(again.reviewers.map((p) => p.dueDate)).toEqual(['2026-10-30', undefined])
     expect(again.reviewers.every((p) => p.decision === 'pending' && p.decidedAt === undefined)).toBe(true)
     expect(again.approvers).toEqual([])
     expect(again.comments).toEqual(returned.comments)
+  })
+  it('lets Reviewer 1 give the saved Reviewer 2 a new deadline after a resubmit, but keeps it within a round', () => {
+    const returned = action(initialReviews(), { type: 'return-author', text: 'Change content' })
+    vi.setSystemTime(new Date(2026, 9, 28, 12))
+    const again = resubmit(revised(returned), 'author', '4')
+    expect(again.reviewers.every((p) => p.dueDate === undefined && p.assignedDueDays === null)).toBe(true)
+    expect(keepsRoundDeadline(again, 'r2')).toBe(false) // the Forward dialog's date field is enabled
+    const forwarded = action(again, { type: 'forward', reviewerId: 'r2', dueDate: '2026-11-02' })
+    expect(forwarded.reviewers.find((p) => p.userId === 'r2')).toMatchObject({ dueDate: '2026-11-02', assignedDueDays: 5 })
+    // Within the round: Reviewer 2 returns it to Reviewer 1, who forwards it again.
+    const back = action(forwarded, { type: 'return-review', text: 'Check section 2 again' })
+    expect(keepsRoundDeadline(back, 'r2')).toBe(true) // the date field is disabled, with the note
+    expect(() => action(back, { type: 'forward', reviewerId: 'r2', dueDate: '2026-11-05' })).toThrow(/already set/)
+    const kept = action(back, { type: 'forward', reviewerId: 'r2' })
+    expect(kept.reviewers.find((p) => p.userId === 'r2')?.dueDate).toBe('2026-11-02')
   })
   it('replays every required department review after Quality returns and cannot skip saved requirements', () => {
     let sop = action(initialReviews(), { type: 'department-review', scope: 'same-division', assignments: [{ departmentId: 'a', representativeId: 'repA' }, { departmentId: 'b', representativeId: 'repB' }] })
