@@ -30,6 +30,8 @@ export function SubmitDialog({ sop, content, onSubmit, onClose }: SubmitDialogPr
   const [note, setNote] = useState('')
   const [error, setError] = useState('')
   const [dateError, setDateError] = useState('')
+  // The store refused the submission (the code's own message is for developers, not shown).
+  const [failed, setFailed] = useState(false)
   const reviewerRef = useRef<HTMLSelectElement>(null)
   const dateRef = useRef<HTMLInputElement>(null)
   const range = dueDateRange()
@@ -46,11 +48,12 @@ export function SubmitDialog({ sop, content, onSubmit, onClose }: SubmitDialogPr
       return false
     }
     try { onSubmit({ reviewerId, dueDate: dueDate || undefined, note: note.trim() || undefined }) }
-    catch (reason) { setError(reason instanceof Error ? reason.message : reviewFlowEn.selectRequired); return false }
+    catch { setFailed(true); return false }
   }
   return (
     <FormDialog open title={text.title} confirmLabel={text.confirm} cancelLabel={content.cancel} onConfirm={confirm} onClose={onClose}>
       {options.length === 0 && <p role="alert" className="text-sm text-status-rejected-fg">{reviewFlowEn.noneEligible}</p>}
+      {failed && <p role="alert" className="text-sm text-status-rejected-fg">{text.errors.submitFailed}</p>}
       <SelectField ref={reviewerRef} name="reviewer1" label={reviewFlowEn.reviewer1} placeholder={reviewFlowEn.choose}
         options={options.map((u) => ({ value: u.id, label: u.name }))} value={reviewerId} error={error}
         onChange={(event) => { setReviewerId(event.target.value); setError('') }} />
