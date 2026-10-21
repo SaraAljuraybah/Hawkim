@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { ComplianceCheck, Sop, User } from '../data/mock/types'
+import { currentCheck, hasCurrentCheck } from './compliance'
 import {
   activeVersions,
   addCoAuthor,
@@ -565,6 +566,14 @@ describe('uploading a version (unchanged)', () => {
       expect(uploadVersion(sop, SARA, file).version).toBe('2')
       expect(uploadVersion(sop, REEM, file).version).toBe('2')
     }
+  })
+
+  it("doesn't start a compliance check: Submit waits until someone runs one", () => {
+    const uploaded = uploadVersion(draft(), SARA, { fileName: 'SOP-001 v2.pdf', fileType: 'pdf' })
+    expect(uploaded.complianceChecks.filter((check) => check.version === '2')).toEqual([])
+    expect(currentCheck(uploaded)).toBeUndefined()
+    expect(hasCurrentCheck(uploaded, GVP)).toBe(false)
+    expect(() => submitForReview(uploaded, SARA, GVP, [NOURA], [HUDA], undefined, undefined)).toThrow(/compliance check/)
   })
 })
 

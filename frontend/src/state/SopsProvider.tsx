@@ -80,14 +80,15 @@ export function SopsProvider({ children }: { children: ReactNode }) {
   )
 
   /**
-   * Applies a transition and starts a compliance check of the result in the same
-   * update: after every upload (automatically) or when the author runs one (PBI 4, 29).
+   * Starts a compliance check of the current version, only when the user presses
+   * "Compliance Check for Current Version" (PBI 4, 29). The rules (who and when) are
+   * checked first. Uploading never starts a check.
    */
-  const updateAndCheck = useCallback(
-    (sopId: string, transition: (sop: Sop) => Sop, afterUpload: boolean) => {
+  const runCheck = useCallback(
+    (sopId: string) => {
       let checkId = ''
       update(sopId, (sop) => {
-        const started = compliance.startCheck(transition(sop), guideline, afterUpload ? { afterUpload: true } : { manualBy: userId })
+        const started = compliance.startCheck(workflow.assertCanRunCheck(sop, userId), guideline, { manualBy: userId })
         checkId = started.checkId
         return started.sop
       })
@@ -125,15 +126,13 @@ export function SopsProvider({ children }: { children: ReactNode }) {
         ],
         comments: [],
         timeline,
+        // No check yet: the author runs one with "Compliance Check for Current Version".
         complianceChecks: [],
       }
-      // Every upload starts a compliance check automatically.
-      const started = compliance.startCheck(created, guideline, { afterUpload: true })
-      commit([started.sop, ...current])
-      scheduleCompletion(started.sop.id, started.checkId)
-      return started.sop
+      commit([created, ...current])
+      return created
     },
-    [commit, scheduleCompletion, userId, guideline],
+    [commit, userId],
   )
 
   const { departments } = useDepartments()
@@ -149,13 +148,13 @@ export function SopsProvider({ children }: { children: ReactNode }) {
         if (sop.reviewFlow && !users.some((u) => u.id === userId && !u.deletedAt && u.permissions.includes('author') && !u.permissions.includes('admin'))) throw new Error('An active main Author account is required')
         return workflow.resubmit(sop, userId, guideline.version, options?.note, options?.dueDate)
       }),
-      uploadVersion: (id, file) => updateAndCheck(id, (sop) => workflow.uploadVersion(sop, userId, file), true),
+      uploadVersion: (id, file) => update(id, (sop) => workflow.uploadVersion(sop, userId, file)),
       deleteVersion: (id, version) => update(id, (sop) => workflow.deleteVersion(sop, userId, version)),
       addResponse: (id, text) => update(id, (sop) => workflow.addResponse(sop, userId, text)),
       // The signed-in user (`userId`) acts; the others are the co-authors added or removed.
       addCoAuthors: (id, coAuthorIds) => update(id, (sop) => workflow.addCoAuthors(sop, userId, coAuthorIds)),
       removeCoAuthor: (id, coAuthorId) => update(id, (sop) => workflow.removeCoAuthor(sop, userId, coAuthorId)),
-      runCheck: (id) => updateAndCheck(id, (sop) => workflow.assertCanRunCheck(sop, userId), false),
+      runCheck,
       completeReview: (id, reviewerId, text) => update(id, (sop) => workflow.completeReview(sop, reviewerId, text)),
       returnAsReviewer: (id, reviewerId, text) => update(id, (sop) => {
         if (sop.reviewFlow) return applyReviewAction(sop, userId, { type: 'return-author', text }, environment)
@@ -182,7 +181,7 @@ export function SopsProvider({ children }: { children: ReactNode }) {
       failNextCheck,
       setFailNextCheck,
     }),
-    [sops, addDraft, update, updateAndCheck, failNextCheck, setFailNextCheck, userId, guideline.version, getUser, users, environment],
+    [sops, addDraft, update, runCheck, failNextCheck, setFailNextCheck, userId, guideline.version, getUser, users, environment],
   )
 
   return <SopsContext.Provider value={store}>{children}</SopsContext.Provider>

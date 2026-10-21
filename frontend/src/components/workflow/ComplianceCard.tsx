@@ -19,8 +19,8 @@ interface ComplianceCardProps {
 /**
  * The compliance check of the current version (PBI 4, 5): running, completed
  * (date, version, guideline and counts per result, with a link to the full
- * report) or failed. Shown only once the version has a check; checks are run from
- * SOP history. The results are sample results for now.
+ * report) or failed, or a "not checked yet" line before the version has a check. Checks
+ * run only from SOP history's button. The results are sample results for now.
  */
 export function ComplianceCard({ sop, content }: ComplianceCardProps) {
   const text = content.card
@@ -38,6 +38,9 @@ export function ComplianceCard({ sop, content }: ComplianceCardProps) {
     setWasRunning(running)
     setEnded(!running && check?.status === 'completed' ? text.completed : '')
   }
+
+  // The current version hasn't been checked yet (checks only run from the button).
+  if (!check) return <p className="text-sm text-text-gray">{text.notChecked.replace('{version}', sop.version)}</p>
 
   return (
     <div>

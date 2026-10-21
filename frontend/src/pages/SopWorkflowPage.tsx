@@ -362,12 +362,10 @@ export function SopWorkflowPage() {
         />
       </Section>
 
-      {/* 4. Compliance overview: only once the current version has a check */}
-      {currentCheck(sop) && (
-        <Section id="compliance-title" title={complianceEn.card.title} className="mt-6">
-          <ComplianceCard sop={sop} content={complianceEn} />
-        </Section>
-      )}
+      {/* 4. Compliance overview (says so when the current version hasn't been checked yet) */}
+      <Section id="compliance-title" title={complianceEn.card.title} className="mt-6">
+        <ComplianceCard sop={sop} content={complianceEn} />
+      </Section>
 
       {/* 5. Review timeline, with Response and Submit for review */}
       <Section

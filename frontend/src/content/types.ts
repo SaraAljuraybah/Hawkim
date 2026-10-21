@@ -703,6 +703,8 @@ export interface ComplianceContent {
     /** Announced when a running check ends. */
     completed: string
     failed: string
+    /** The current version has no check yet; `{version}` is the SOP version. */
+    notChecked: string
     viewReport: string
     /** The SOP's newest check used an older GVP version (PBI 29). `{checked}` and `{current}` are replaced. */
     recheck: { badge: string; note: string }

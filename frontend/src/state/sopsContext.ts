@@ -35,7 +35,7 @@ export interface SopsStore {
   reviewAction: (sopId: string, action: ReviewAction) => void
   /** Main author: back to Reviewer 1, with an optional new due date for them and comments. */
   resubmit: (sopId: string, options?: ResubmitOptions) => void
-  /** Uploads the next version (Draft or Returned) and starts a compliance check of it. */
+  /** Uploads the next version (Draft or Returned). It isn't checked until someone runs a compliance check. */
   uploadVersion: (sopId: string, file: UploadedFile) => void
   /** Main author: deletes a version (Draft or Returned; at least one remains). */
   deleteVersion: (sopId: string, version: string) => void

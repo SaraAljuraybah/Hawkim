@@ -75,36 +75,29 @@ export function sortFindings(findings: Finding[]): Finding[] {
 // ---------- Running checks (sample engine) ----------
 
 /**
- * What started a check: an upload (run automatically for the person who uploaded the
- * current version) or someone pressing Check.
+ * What started a check: someone pressing "Compliance Check for Current Version". Checks
+ * never start on their own (not after an upload either).
  */
-export type CheckTrigger = { afterUpload: true } | { manualBy: string }
+export type CheckTrigger = { manualBy: string }
 
 /**
  * Starts a check of the SOP's current version against `guideline` (the current GVP
  * version, which the report keeps), recording who ran it. Only one check runs at a
- * time: a manual run is refused while one is running, but an upload replaces the
- * running check (it was checking a file that has just been replaced), which leaves
- * no report.
+ * time: a run is refused while one is running.
  */
 export function startCheck(sop: Sop, guideline: Guideline, trigger: CheckTrigger): { sop: Sop; checkId: string } {
-  const afterUpload = 'afterUpload' in trigger
-  if (isCheckRunning(sop) && !afterUpload) throw new Error('A compliance check is already running')
-  const triggeredById = afterUpload
-    ? sop.versions.find((version) => version.version === sop.version && !version.deletedAt)?.uploadedById
-    : trigger.manualBy
-  const kept = sop.complianceChecks.filter((check) => check.status !== 'running')
+  if (isCheckRunning(sop)) throw new Error('A compliance check is already running')
   const check: ComplianceCheck = {
     id: newId('chk'),
     sopId: sop.id,
     version: sop.version,
     status: 'running',
     startedAt: new Date().toISOString(),
-    ...(triggeredById ? { triggeredById } : {}),
+    triggeredById: trigger.manualBy,
     guideline,
     findings: [],
   }
-  return { sop: { ...sop, complianceChecks: [...kept, check] }, checkId: check.id }
+  return { sop: { ...sop, complianceChecks: [...sop.complianceChecks, check] }, checkId: check.id }
 }
 
 /** Ends a running check as completed (with the sample findings) or failed; adds a timeline event by whoever ran it. */

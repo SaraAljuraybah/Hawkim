@@ -28,6 +28,7 @@ export const complianceEn: ComplianceContent = {
     running: 'Checking against SFDA GVP v{version}…',
     completed: 'Compliance check completed.',
     failed: 'The compliance check couldn’t be completed.',
+    notChecked: 'v{version} hasn’t been checked yet. Run a compliance check to see the results.',
     viewReport: 'View full report',
     recheck: {
       badge: 'Recheck recommended',

@@ -202,7 +202,7 @@ export const sopWorkflowEn: SopWorkflowContent = {
     },
     newVersion: {
       title: 'Upload a new version',
-      description: 'Upload the file with your changes. It becomes v{version}, and a compliance check runs automatically.',
+      description: 'Upload the file with your changes. It becomes v{version}.',
       confirm: 'Upload',
     },
     deleteVersion: {
@@ -244,7 +244,7 @@ export const sopWorkflowEn: SopWorkflowContent = {
 
   messages: {
     submitted: 'Submitted for review.',
-    newVersion: 'v{version} uploaded. A compliance check is running.',
+    newVersion: 'v{version} uploaded.',
     versionDeleted: 'v{version} deleted.',
     resubmitted: 'Resubmitted for review.',
     coAuthorsAdded: 'Co-authors added.',
