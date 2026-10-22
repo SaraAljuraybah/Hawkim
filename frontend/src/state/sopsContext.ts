@@ -1,6 +1,7 @@
 import { createContext, useContext } from 'react'
 import type { Sop } from '../data/mock/types'
 import type { ReviewAction } from '../lib/reviewFlow'
+import type { InternalReviewOptions } from '../lib/internalReview'
 import type { UploadedFile } from '../lib/workflow'
 
 /**
@@ -10,12 +11,7 @@ import type { UploadedFile } from '../lib/workflow'
 export type NewDraft = Pick<Sop, 'title' | 'departmentId' | 'description'> & UploadedFile
 
 
-export interface SubmitOptions {
-  reviewerId: string
-  dueDate?: string
-  note?: string
-
-}
+export type SubmitOptions = InternalReviewOptions
 
 
 export interface SopsStore {
@@ -27,6 +23,9 @@ export interface SopsStore {
   // Actions by the current user (author or co-author). Each throws if not allowed.
   submitForReview: (sopId: string, options: SubmitOptions) => void
   reviewAction: (sopId: string, action: ReviewAction) => void
+  beginInternalReview: (sopId: string, roundId: string, assignmentId: string) => void
+  decideInternalReview: (sopId: string, roundId: string, assignmentId: string, decision: 'completed' | 'returned', text?: string) => void
+  cancelInternalReview: (sopId: string, roundId: string, assignmentId: string) => void
   resubmit: (sopId: string, note?: string) => void
   /** Uploads the next version (Draft or Returned) and starts a compliance check of it. */
   uploadVersion: (sopId: string, file: UploadedFile) => void

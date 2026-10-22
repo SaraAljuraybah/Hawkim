@@ -9,6 +9,7 @@ import { Tooltip } from '../components/ui/Tooltip'
 import { AddCoAuthorsDialog } from '../components/workflow/AddCoAuthorsDialog'
 import { ComplianceCard } from '../components/workflow/ComplianceCard'
 import { FileDialog } from '../components/workflow/FileDialog'
+import { InternalReviewPanel } from '../components/workflow/InternalReviewPanel'
 import { PeopleList } from '../components/workflow/PeopleList'
 import { personWithRole } from '../components/workflow/people'
 import { PreviewDialog } from '../components/workflow/PreviewDialog'
@@ -285,6 +286,8 @@ export function SopWorkflowPage() {
           </p>
         )}
       </Section>
+
+      <InternalReviewPanel sop={sop} canCancel={isMainAuthor} />
 
       {/* 2. SOP history */}
       <Section

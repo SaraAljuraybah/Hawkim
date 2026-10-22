@@ -1,5 +1,6 @@
 import { useId, useState, type ReactNode } from 'react'
 import { reviewFlowEn } from '../../content/reviewFlow.en'
+import { internalReviewEn } from '../../content/internalReview.en'
 import type { SopWorkflowContent } from '../../content/types'
 import type { Sop, TimelineEvent } from '../../data/mock/types'
 import { formatDateTime } from '../../lib/format'
@@ -91,6 +92,11 @@ export function ReviewTimelineTable({ sop, content, mainAuthorOnly = false }: Re
   /** Extra facts about some events: the co-author, the routed reviewer's department, the due date. */
   function details(event: TimelineEvent): ReactNode {
     const lines: ReactNode[] = []
+    if (event.reviewRoundId) {
+      const roundIndex = sop.internalReviewRounds?.findIndex((round) => round.id === event.reviewRoundId) ?? -1
+      if (roundIndex >= 0) lines.push(internalReviewEn.panel.roundReference.replace('{number}', String(roundIndex + 1)))
+    }
+    if (event.cancellationReason) lines.push(internalReviewEn.panel.cancellationReasons[event.cancellationReason])
     if (event.reviewScope) lines.push(reviewFlowEn.scopes[event.reviewScope] + ': ' + (event.reviewsRequired ? reviewFlowEn.required : reviewFlowEn.notRequired))
     if (event.subjectId) lines.push(timeline.subject.replace('{name}', nameOf(event.subjectId)))
     if (event.departmentId) lines.push(timeline.department.replace('{name}', departmentName(event.departmentId)))

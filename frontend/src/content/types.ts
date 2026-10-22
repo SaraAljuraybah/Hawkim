@@ -491,6 +491,7 @@ export interface SopWorkflowContent {
     dueToday: string
     overdue: string
     current: string
+    active: string
     waiting: string
   }
   tracker: {
@@ -534,7 +535,7 @@ export interface SopWorkflowContent {
     remove: string
     /** Accessible name of a Remove button; `{name}` is replaced. */
     removeLabel: string
-    decisions: { pending: string; completed: string; approved: string; returned: string }
+    decisions: { pending: string; completed: string; approved: string; returned: string; cancelled: string }
   }
   file: {
     types: Record<SopFileType, string>
@@ -902,6 +903,10 @@ export interface NotificationsContent {
     resubmitted: string
     routed: string
     handoff: string
+    internalReviewCompleted: string
+    reviewCancelled: string
+    requestDueSoon: string
+    requestOverdue: string
     assignedApproval: string
     readyToPublish: string
     returned: string

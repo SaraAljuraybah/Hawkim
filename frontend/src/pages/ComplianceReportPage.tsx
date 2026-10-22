@@ -29,7 +29,8 @@ import {
 import { formatDateTime } from '../lib/format'
 import { hasPermission } from '../lib/permissions'
 import { mySopPath, reviewPath } from '../lib/routes'
-import { isApprover, isAuthorOrCoAuthor, isReviewer } from '../lib/workflow'
+import { isAuthorOrCoAuthor } from '../lib/workflow'
+import { reviewSopForUser } from '../lib/reviewAccess'
 import { useDepartments } from '../state/departmentsContext'
 import { useGuidelines } from '../state/guidelinesContext'
 import { useCurrentUser } from '../state/sessionContext'
@@ -60,16 +61,13 @@ function ComplianceReport({ id, audience }: { id: string | undefined; audience: 
   const text = complianceEn.report
   const { sops } = useSops()
   const user = useCurrentUser()
-  const sop = sops.find((item) => item.id === id)
-  const allowed =
-    !!sop &&
-    (audience === 'author'
-      ? hasPermission(user, 'author') && isAuthorOrCoAuthor(sop, user.id)
-      : isReviewer(sop, user.id) || isApprover(sop, user.id))
+  const source = sops.find((item) => item.id === id)
+  const sop = audience === 'reviewer' && source ? reviewSopForUser(source, user.id)?.sop : source
+  const allowed = !!sop && (audience === 'reviewer' || hasPermission(user, 'author') && isAuthorOrCoAuthor(sop, user.id))
   useDocumentTitle(allowed ? text.pageTitle.replace('{code}', sop.code) : undefined)
 
   if (!allowed) return <NotFoundPage embedded />
-  return <Report sop={sop} backPath={audience === 'author' ? mySopPath(sop.id) : reviewPath(sop.id)} />
+  return <Report key={`${sop.version}:${user.id}`} sop={sop} backPath={audience === 'author' ? mySopPath(sop.id) : reviewPath(sop.id)} />
 }
 
 function Report({ sop, backPath }: { sop: Sop; backPath: string }) {

@@ -26,6 +26,10 @@ const MAX_ITEMS = 20
 
 const ICONS: Record<NotificationType, LucideIcon> = {
   'assigned-review': ListChecks,
+  'internal-review-completed': CircleCheck,
+  'review-cancelled': CircleX,
+  'request-due-soon': Clock,
+  'request-overdue': AlarmClock,
   'assigned-approval': ListChecks,
   'ready-to-publish': Upload,
   'sop-returned': Undo2,
@@ -89,6 +93,10 @@ export function NotificationsBell() {
         .replace('{code}', item.sopCode ?? '')
         .replace('{version}', item.version ?? '')
     switch (item.type) {
+      case 'internal-review-completed': return fill(t.internalReviewCompleted)
+      case 'review-cancelled': return fill(t.reviewCancelled)
+      case 'request-due-soon': return fill(t.requestDueSoon)
+      case 'request-overdue': return fill(t.requestOverdue)
       case 'assigned-review':
         return fill(item.via === 'handoff' ? t.handoff : item.via === 'routed' ? t.routed : item.via === 'resubmitted' ? t.resubmitted : t.submitted)
       case 'assigned-approval':

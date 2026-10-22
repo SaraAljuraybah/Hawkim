@@ -4,7 +4,8 @@ import type { Sop, TimelineEvent } from '../data/mock/types'
 import * as compliance from '../lib/compliance'
 import { todayIsoDate } from '../lib/format'
 import { nextSopCode } from '../lib/sopCodes'
-import { applyReviewAction, startReview } from '../lib/reviewFlow'
+import { applyReviewAction } from '../lib/reviewFlow'
+import { beginInternalReview, cancelInternalReview, decideInternalReview, resubmitInternalReview, startInternalReview } from '../lib/internalReview'
 import { useDepartments } from './departmentsContext'
 import * as workflow from '../lib/workflow'
 import { useGuidelines } from './guidelinesContext'
@@ -143,9 +144,13 @@ export function SopsProvider({ children }: { children: ReactNode }) {
     () => ({
       sops,
       addDraft,
-      submitForReview: (id, o) => update(id, (sop) => startReview(sop, userId, guideline.version, o.reviewerId, o.dueDate, o.note, environment)),
+      submitForReview: (id, o) => update(id, (sop) => startInternalReview(sop, userId, guideline.version, o, environment)),
       reviewAction: (id, action) => update(id, (sop) => applyReviewAction(sop, userId, action, environment)),
+      beginInternalReview: (id, roundId, assignmentId) => update(id, (sop) => beginInternalReview(sop, userId, roundId, assignmentId, environment)),
+      decideInternalReview: (id, roundId, assignmentId, decision, text) => update(id, (sop) => decideInternalReview(sop, userId, roundId, assignmentId, decision, text, environment)),
+      cancelInternalReview: (id, roundId, assignmentId) => update(id, (sop) => cancelInternalReview(sop, userId, roundId, assignmentId, environment)),
       resubmit: (id, note) => update(id, (sop) => {
+        if (sop.internalReviewRounds?.length) return resubmitInternalReview(sop, userId, guideline.version, environment)
         if (sop.reviewFlow && !users.some((u) => u.id === userId && !u.deletedAt && u.permissions.includes('author') && !u.permissions.includes('admin'))) throw new Error('An active main Author account is required')
         return workflow.resubmit(sop, userId, guideline.version, note)
       }),

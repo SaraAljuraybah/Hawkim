@@ -81,31 +81,20 @@ Draft ? In Review ? In Approval ? Approved ? Published
           Author revises and resubmits ? In Review
 ```
 
-New SOP submissions follow the selected-reviewer workflow:
+New SOP submissions use internal parallel review:
 
-1. The main author selects one eligible Reviewer 1 from the SOP department after a current compliance check.
-2. Reviewer 1 completes and selects a different Reviewer 2 from that department.
-3. Reviewer 2 may return the review to Reviewer 1 (without enabling file editing), request document changes from the author, or complete the initial review.
-4. Reviewer 2 explicitly requires or skips same-division department review, then cross-division department review. For every required department, a normal reviewer is selected dynamically as its representative. That representative selects a different reviewer in the department. Multiple departments are reviewed sequentially.
-5. After every required review, the SOP is sent to the explicitly configured Quality Document Controller, using Approver permission. Missing or ineligible controller configuration blocks final approval. Only the assigned controller approves, returns, or publishes.
+1. The main Author selects eligible reviewers from the SOP's home department after a current compliance check. Authors and co-authors cannot review their own SOP.
+2. Every selected reviewer receives a task simultaneously. Each can start work and independently complete a review with optional feedback, or reject with a required reason.
+3. Rejection immediately returns the SOP to its Author, closes the round and automatically cancels unfinished tasks. Completed decisions, feedback and explicit cancellation reasons remain in the history.
+4. The main Author can cancel an undecided task, including one already started. Cancelling every task before any final decision returns the SOP to Draft and permits a new request without erasing the old one.
+5. Resubmission after rejection requires a revised version and completed current compliance check. Required reviewers receive fresh tasks together; decisions remain attached to their original round and version. Manually cancelled tasks remain waived; automatically cancelled tasks are required again.
+6. Successful internal reviews leave the SOP In Review, awaiting the next Author-controlled action. External routing and Submit for Approval are separate work and are not implemented for this new flow yet.
 
-In the admin department detail page, Review workflow configuration links a department to an
-organization-supplied division identifier and its Quality Document Controller. Equal division
-identifiers mean the same division. Unconfigured relationships are excluded from department
-routing; no official hierarchy, representative, or controller is inferred from sample users.
-The employee Organization Structure page is unchanged. Configuration uses the existing
-in-memory stores and, like other prototype changes, is lost on reload.
+Overall request and individual task deadlines are optional, independent calendar dates from tomorrow through 30 days from today. Original Time Given is stored separately from Due Date and Remaining Days. Individual tasks with no deadline do not inherit the request deadline. Resubmission restarts the original allocations. Request reminders go to the main Author; task reminders go to each pending reviewer. Closed or cancelled tasks stop reminders.
 
-A document-change return requires a new version and current compliance check. Resubmission
-restarts at Reviewer 1 and replays saved required department reviews and reviewer assignments.
-Previously skipped scopes are reconsidered explicitly after the new initial reviews.
-Original Time Given is stored separately from Time Remaining, and deadlines restart from
-resubmission using that allocation. Submitted/resubmitted versions remain protected.
+Shared workflow contract: Sop.internalReviewRounds stores version-linked internal rounds. Each round and assignment has its own ID; decisions and cancellations validate both IDs against the latest open round. Sop.reviewers projects the latest round for existing views. A completed internal round is the integration boundary for the external-routing teammate; it does not represent approval. Future routing must preserve previous rounds, decisions and timeline events. Passive task/deadline helpers respect the active status and an explicit subsequent review plan; internalReviewsComplete is distinct from completion of all required assignments. Legacy routing and approval mutation adapters still reject internal rounds: the external-routing/approval work must supply explicit Author-controlled entry transitions, signed-in actor eligibility checks and matching UI actions. No status or historical event alone authorizes those mutations. Reviewer-facing document and compliance views expose only internally assigned versions; historical links cannot reveal a later unassigned version. Cancelling an assignment never changes global Reviewer permission or another SOP assignment; cancelled assignments do not block user administration.
 
-The lifecycle remains Draft, In Review, In Approval, Approved, Published, with Returned
-sending document changes to the author. Review steps are metadata within In Review.
-Existing sample SOPs without a review plan retain their legacy sequential reviewers and
-parallel approval assignments; no in-flight record is silently migrated.
+Existing SOPs without internal rounds keep their legacy sequential review and approval behavior, including previously configured department routing. No in-flight record is silently migrated. Department workflow configuration and all SOP changes remain in memory and reset on reload. Submitted versions remain protected from deletion.
 
 The workflow maintains the history of actions, feedback, revisions, and decisions to provide clear traceability throughout the SOP lifecycle.
 
