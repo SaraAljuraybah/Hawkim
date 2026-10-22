@@ -11,6 +11,7 @@ export const sopWorkflowEn: SopWorkflowContent = {
   versionTemplate: 'v{version}',
   lastUpdatedTemplate: 'Last updated {date}',
   departmentLabel: 'Department',
+  descriptionTitle: 'SOP Description',
   roles: { reviewer: 'Reviewer', approver: 'Approver', author: 'Author', coAuthor: 'Co-author', system: 'System' },
 
   reviewerDeadline: {

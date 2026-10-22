@@ -7,6 +7,7 @@ import { ReviewFlowActions } from '../components/reviews/ReviewFlowActions'
 import { CommentDialog, RouteDialog } from '../components/reviews/ReviewDialogs'
 import { PdfViewer } from '../components/sops/PdfViewer'
 import { Button } from '../components/ui/Button'
+import { Card } from '../components/ui/Card'
 import { ConfirmDialog } from '../components/ui/ConfirmDialog'
 import { StatusBadge } from '../components/ui/StatusBadge'
 import { CommentList } from '../components/workflow/CommentList'
@@ -195,6 +196,12 @@ function Review({ sop }: { sop: Sop }) {
         <div className="mt-3">
           <ReviewerDeadline sop={sop} reviewer={(reviewer ?? currentReviewer(sop))!} content={workflow.reviewerDeadline} showQueue />
         </div>
+      )}
+
+      {sop.description?.trim() && (
+        <Card title={workflow.descriptionTitle} titleId="description-title" className="mt-6">
+          <p className="text-sm leading-relaxed whitespace-pre-wrap break-words text-maroon">{sop.description}</p>
+        </Card>
       )}
 
       {/* Success message after an action (live region stays mounted) */}

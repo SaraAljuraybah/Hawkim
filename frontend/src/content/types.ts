@@ -298,6 +298,7 @@ export interface SopDetailContent {
   pageTitle: string
   back: LinkContent
   exportPdf: string
+  descriptionTitle: string
   /** Accessible title of the embedded viewer; `{code}` and `{title}` are replaced. */
   viewerTitle: string
   /** Shown when the browser can't display PDFs inline (common on phones). */
@@ -477,6 +478,7 @@ export interface SopWorkflowContent {
   /** `{date}` is replaced. */
   lastUpdatedTemplate: string
   departmentLabel: string
+  descriptionTitle: string
   roles: { reviewer: string; approver: string; author: string; coAuthor: string; system: string }
   reviewerDeadline: {
     due: string

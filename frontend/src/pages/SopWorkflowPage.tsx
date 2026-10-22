@@ -2,6 +2,7 @@ import { useRef, useState, type MouseEvent, type ReactNode } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { ArrowLeft, ArrowUpRight, CircleCheck, MessageSquareReply, ShieldCheck, Upload } from 'lucide-react'
 import { Button } from '../components/ui/Button'
+import { Card } from '../components/ui/Card'
 import { ConfirmDialog } from '../components/ui/ConfirmDialog'
 import { StatusBadge } from '../components/ui/StatusBadge'
 import { Tooltip } from '../components/ui/Tooltip'
@@ -250,6 +251,12 @@ export function SopWorkflowPage() {
           </span>
         </div>
       </div>
+
+      {sop.description?.trim() && (
+        <Card title={content.descriptionTitle} titleId="description-title" className="mt-6">
+          <p className="text-sm leading-relaxed whitespace-pre-wrap break-words text-maroon">{sop.description}</p>
+        </Card>
+      )}
 
       {/* Success message after an action (live region stays mounted) */}
       <div role="status" ref={statusRef} tabIndex={-1} className="rounded-lg focus:outline-none">

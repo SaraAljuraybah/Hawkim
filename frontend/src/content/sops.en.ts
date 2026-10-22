@@ -48,6 +48,7 @@ subtitle: 'Browse published SOPs available to you.',
     pageTitle: '{code} | Hawkim',
    back: { label: 'Back to SOP Directory', href: '/sops' },
     exportPdf: 'Export PDF',
+    descriptionTitle: 'SOP Description',
     viewerTitle: '{code} {title} (PDF)',
     fallback: {
       text: "Your browser can't display the PDF here. Open it in a new tab or export it instead.",
