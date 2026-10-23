@@ -14,7 +14,7 @@ export interface RequestsStore {
   cancelRequest: (id: string) => void
 
   // Admin responses (PBI 33), by the signed-in admin. Each checks lib/requestAdmin.ts and throws if not allowed.
-  /** Approves a pending request (a Department Access request gives access at once). */
+  /** Approves a pending request; Department Access grants read-only published-directory access. */
   approveRequest: (id: string) => void
   rejectRequest: (id: string) => void
 }

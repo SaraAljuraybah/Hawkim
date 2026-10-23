@@ -8,10 +8,11 @@ import { getDepartmentState } from '../lib/departments'
 import { useActiveDepartment } from '../state/activeDepartmentContext'
 import { useDepartments } from '../state/departmentsContext'
 import { useMyRequests } from '../state/requestsContext'
+import { useCurrentUser } from '../state/sessionContext'
 import { useUsers } from '../state/usersContext'
 
 /** Where opening a department takes the user. */
-const AFTER_OPEN_PATH = '/dashboard'
+const AFTER_OPEN_PATH = '/sops'
 
 /** Departments ("/departments"): a grid of department cards with the user's state and actions. */
 export function DepartmentsPage() {
@@ -23,9 +24,10 @@ export function DepartmentsPage() {
   const requests = useMyRequests()
   const { activeDepartments } = useDepartments()
   const { users } = useUsers()
-  const { activeDepartment, userDepartments, setActiveDepartment } = useActiveDepartment()
+  const { activeDepartment, setActiveDepartment } = useActiveDepartment()
+  const user = useCurrentUser()
   const getState = (department: Department) =>
-    getDepartmentState(department.id, activeDepartment.id, userDepartments, requests)
+    getDepartmentState(department.id, activeDepartment.id, user, requests)
 
   function openDepartment(id: DepartmentId) {
     setActiveDepartment(id)

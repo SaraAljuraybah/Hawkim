@@ -42,12 +42,12 @@ export function DashboardPage() {
   const firstName = user.name.split(' ')[0]
   const greeting = getGreeting(content.greetings).replace('{name}', firstName)
 
-  // My Requests is personal; SOPs and Employees follow the active department.
+  // My Requests is personal; SOPs and Employees follow the home department.
   const requests = useMyRequests()
-  const { activeDepartment } = useActiveDepartment()
+  const { homeDepartment } = useActiveDepartment()
   const { sops } = useSops()
   const { users } = useUsers()
-  const dashboardStats = getDashboardStats(requests, activeDepartment, sops, members(activeDepartment.id, users).length)
+  const dashboardStats = getDashboardStats(requests, homeDepartment, sops, members(homeDepartment.id, users).length)
 
   return (
     <>
@@ -58,7 +58,7 @@ export function DashboardPage() {
           👋
         </span>
       </h1>
-      <p className="mt-2 text-text-gray">{content.subtitle.replace('{department}', activeDepartment.name)}</p>
+      <p className="mt-2 text-text-gray">{content.subtitle.replace('{department}', homeDepartment.name)}</p>
 
       {/* Statistics */}
       <ul className="mt-8 grid gap-4 sm:grid-cols-3 sm:gap-5">

@@ -10,7 +10,7 @@ import { useUsers } from './usersContext'
 
 /**
  * In-memory requests store shared by Submit a Request, My Requests, the dashboard
- * and the admin portal (the requests list, and a user's joined departments).
+ * and the admin portal (the requests list and published-directory access grants).
  * It starts with the sample data; changes are lost on reload (no backend, no storage).
  * Must be inside <DepartmentsProvider>, <UsersProvider> and <SessionProvider>.
  * TODO: Replace with API calls (load, submit, cancel and decide requests) once the backend exists.

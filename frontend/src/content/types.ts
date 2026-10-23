@@ -233,8 +233,9 @@ export interface AppShellContent extends SidebarContent {
   departmentSwitcher: {
     /** Label before the department name (visible in the drawer, screen-reader only in the top bar). */
     label: string
-    /** Accessible name of the department menu. */
+    /** Accessible name of the published-directory menu. */
     menuLabel: string
+    readOnly: string
   }
 }
 
@@ -324,6 +325,7 @@ export interface DepartmentsContent {
   states: {
     current: string
     member: string
+    directoryAccess: string
     open: string
     accessRequested: string
     requestAccess: string
@@ -1269,8 +1271,8 @@ export interface AdminUserDetailsContent {
     title: string
     email: string
     homeDepartment: string
-    joinedDepartments: string
-    joinedHint: string
+    directoryAccess: string
+    directoryHint: string
     none: string
   }
   permissions: {

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { Department, User, UserRequest } from '../data/mock/types'
 import type { Status } from '../types/status'
-import { getUserDepartments } from './departments'
+import { getDirectoryDepartments, getUserDepartments } from './departments'
 import { approveBlockers, decideRequest, pendingRequests, rejectBlocker, type RequestRulesData } from './requestAdmin'
 
 /* Sara works in IT and asks for access to Quality Assurance. Nouf is the admin. */
@@ -85,11 +85,17 @@ describe('deciding', () => {
   it('gives access when a Department Access request is approved, and not when it is rejected', () => {
     const pending = request('pending')
     const departmentsOf = (requests: UserRequest[]) =>
-      getUserDepartments(sara, requests, [it_, quality]).map((department) => department.id)
+      getDirectoryDepartments(sara, requests, [it_, quality]).map((department) => department.id)
 
     expect(departmentsOf([pending])).toEqual(['it'])
     expect(departmentsOf([decideRequest(pending, 'approved', 'nouf')])).toEqual(['it', 'quality'])
     expect(departmentsOf([decideRequest(pending, 'rejected', 'nouf')])).toEqual(['it'])
+    const before = structuredClone(sara)
+    for (const decision of ['approved', 'rejected'] as const) {
+      decideRequest(pending, decision, 'nouf')
+      expect(getUserDepartments(sara, [it_, quality]).map((department) => department.id)).toEqual(['it'])
+      expect(sara).toEqual(before)
+    }
   })
 
   it('counts only pending requests as waiting', () => {

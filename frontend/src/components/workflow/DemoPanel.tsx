@@ -6,6 +6,7 @@ import { workflowDemoEn } from '../../content/workflowDemo.en'
 import type { ReviewRole, Sop } from '../../data/mock/types'
 import { currentDueAt, currentReviewer } from '../../lib/workflow'
 import { useSops } from '../../state/sopsContext'
+import { useCurrentUser } from '../../state/sessionContext'
 import { useUsers } from '../../state/usersContext'
 import { Button } from '../ui/Button'
 import { FormDialog } from '../ui/FormDialog'
@@ -31,12 +32,13 @@ interface Returner {
  * DEVELOPMENT ONLY: simulates each reviewer's and approver's actions until their
  * screens exist. Loaded only when import.meta.env.DEV is true (see SopWorkflowPage),
  * so it is not part of the production build. Each button uses the same store
- * actions the real screens will use, acting as that person.
+ * actions the real screens use, limited to the signed-in user's assignments.
  */
 export default function DemoPanel({ sop, announce }: DemoPanelProps) {
   const content = workflowDemoEn
   const roles = sopWorkflowEn.roles
   const store = useSops()
+  const user = useCurrentUser()
   const [returner, setReturner] = useState<Returner | null>(null)
   const [comment, setComment] = useState('')
   const [error, setError] = useState<string>()
@@ -61,9 +63,9 @@ export default function DemoPanel({ sop, announce }: DemoPanelProps) {
   }
 
   const activeReviewer = currentReviewer(sop)
-  const pendingReviewers = activeReviewer && !sop.reviewFlow ? [activeReviewer] : []
-  const pendingApprovers = !sop.reviewFlow && sop.status === 'in-approval' ? sop.approvers.filter((p) => p.decision === 'pending') : []
-  const publishers = !sop.reviewFlow && sop.status === 'approved' ? sop.approvers : []
+  const pendingReviewers = activeReviewer && !sop.reviewFlow && activeReviewer.userId === user.id && user.permissions.includes('reviewer') ? [activeReviewer] : []
+  const pendingApprovers = !sop.reviewFlow && sop.status === 'in-approval' ? sop.approvers.filter((p) => p.userId === user.id && p.decision === 'pending' && user.permissions.includes('approver')) : []
+  const publishers = !sop.reviewFlow && sop.status === 'approved' ? sop.approvers.filter((person) => person.userId === user.id && user.permissions.includes('approver')) : []
   // Simulation shifts individual or legacy deadlines while preserving original allocations.
   const dueDatesOpen = !!currentDueAt(sop)
 

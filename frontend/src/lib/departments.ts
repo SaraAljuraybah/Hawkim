@@ -1,51 +1,33 @@
 import type { Department, DepartmentId, User, UserRequest } from '../data/mock/types'
 
-/**
- * The departments a user belongs to: their home department plus every department
- * where their own department-access request was APPROVED ("joined" departments).
- * The home department comes first, then the joined ones in department-list order.
- * Pass the requests and the (active) departments from the shared stores, so the
- * result updates as soon as either changes.
- */
-export function getUserDepartments(
-  user: Pick<User, 'id' | 'departmentId'>,
-  requests: UserRequest[],
-  departments: Department[],
-): Department[] {
-  const joined = new Set(
-    requests
-      .filter(
-        (request) =>
-          request.requesterId === user.id && request.type === 'department-access' && request.status === 'approved',
-      )
-      .map((request) => request.departmentId),
-  )
-  const home = departments.filter((department) => department.id === user.departmentId)
-  const others = departments.filter((department) => department.id !== user.departmentId && joined.has(department.id))
+type DepartmentUser = Pick<User, 'id' | 'departmentId' | 'deletedAt'>
+
+/** Membership is the home department; directory requests never add memberships. */
+export function getUserDepartments(user: DepartmentUser, departments: Department[]): Department[] {
+  return user.deletedAt ? [] : departments.filter((department) => !department.removedAt && department.id === user.departmentId)
+}
+
+/** Published-directory reading is independent of membership and roles. */
+export function hasDirectoryAccess(user: DepartmentUser, departmentId: DepartmentId, requests: UserRequest[]): boolean {
+  return !user.deletedAt && (user.departmentId === departmentId || requests.some((request) =>
+    request.requesterId === user.id && request.type === 'department-access' && request.departmentId === departmentId && request.status === 'approved'))
+}
+
+/** Home first, then independently approved read-only directories, each once. */
+export function getDirectoryDepartments(user: DepartmentUser, requests: UserRequest[], departments: Department[]): Department[] {
+  const home = getUserDepartments(user, departments)
+  const others = departments.filter((department) => !department.removedAt && department.id !== user.departmentId && hasDirectoryAccess(user, department.id, requests))
   return [...home, ...others]
 }
 
-/**
- * The user's relationship with a department (Departments page):
- * - current:   the active department
- * - member:    another department the user belongs to
- * - requested: a department-access request for it is pending
- * - none:      none of the above (the user can request access)
- */
-export type DepartmentState = 'current' | 'member' | 'requested' | 'none'
+export type DepartmentState = 'current' | 'member' | 'directory' | 'requested' | 'none'
 
-/** Pass the user's own requests. */
-export function getDepartmentState(
-  departmentId: DepartmentId,
-  activeDepartmentId: DepartmentId,
-  userDepartments: Department[],
-  requests: UserRequest[],
-): DepartmentState {
-  if (departmentId === activeDepartmentId) return 'current'
-  if (userDepartments.some((department) => department.id === departmentId)) return 'member'
-  const pending = requests.some(
-    (request) =>
-      request.type === 'department-access' && request.departmentId === departmentId && request.status === 'pending',
-  )
+/** Directory selection is a browsing preference, never a membership or role change. */
+export function getDepartmentState(departmentId: DepartmentId, activeDirectoryId: DepartmentId, user: DepartmentUser, requests: UserRequest[]): DepartmentState {
+  if (hasDirectoryAccess(user, departmentId, requests)) {
+    if (departmentId === activeDirectoryId) return 'current'
+    return departmentId === user.departmentId ? 'member' : 'directory'
+  }
+  const pending = !user.deletedAt && requests.some((request) => request.requesterId === user.id && request.type === 'department-access' && request.departmentId === departmentId && request.status === 'pending')
   return pending ? 'requested' : 'none'
 }
