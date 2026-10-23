@@ -3,7 +3,6 @@ import { internalReviewEn as text } from '../../content/internalReview.en'
 import { sopWorkflowEn } from '../../content/workflow.en'
 import type { InternalReviewerAssignment, Sop } from '../../data/mock/types'
 import { formatDateTime } from '../../lib/format'
-import { reviewerAssignedDays, reviewerDueAt } from '../../lib/workflow'
 import { useSops } from '../../state/sopsContext'
 import { useUsers } from '../../state/usersContext'
 import { Button } from '../ui/Button'
@@ -39,18 +38,13 @@ export function InternalReviewPanel({ sop, canCancel }: Props) {
         <p className="mt-1 text-sm text-maroon">{round.status === 'completed' && (!latest || round.version !== sop.version || sop.status !== 'in-review') ? text.panel.decisions.completed : text.panel.states[round.status]}</p>
         <p className="mt-1 text-xs text-text-gray">{text.panel.requested.replace('{date}', formatDateTime(round.requestedAt))}</p>
         <ul className="mt-4 space-y-4">{round.assignments.map((assignment) => {
-          const days = reviewerAssignedDays(sop, assignment)
-          const dueAt = reviewerDueAt(sop, assignment)
           const comment = sop.comments.find((item) => item.id === assignment.commentId)
           return <li key={assignment.id} className="border-t border-beige pt-3 first:border-0 first:pt-0">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <span className="text-sm font-medium text-maroon">{nameOf(assignment.userId)}</span>
               <DecisionBadge decision={assignment.decision} labels={text.panel.decisions} />
             </div>
-            {latest ? <ReviewerDeadline sop={sop} reviewer={assignment} content={sopWorkflowEn.reviewerDeadline} /> : <p className="mt-1 text-xs text-text-gray">
-              {days === undefined ? sopWorkflowEn.reviewerDeadline.noDeadline : days === 1 ? text.panel.oneDay : text.panel.days.replace('{count}', String(days))}
-              {dueAt && <span className="block">{text.panel.due.replace('{date}', formatDateTime(dueAt))}</span>}
-            </p>}
+            <ReviewerDeadline sop={sop} reviewer={assignment} content={sopWorkflowEn.reviewerDeadline} />
             {assignment.startedAt && <p className="mt-1 text-xs text-text-gray">{text.panel.started.replace('{date}', formatDateTime(assignment.startedAt))}</p>}
             {assignment.decidedAt && <p className="mt-1 text-xs text-text-gray">{text.panel.decided.replace('{date}', formatDateTime(assignment.decidedAt))}</p>}
             {comment && <p className="mt-2 text-sm whitespace-pre-wrap break-words text-maroon">{comment.text}</p>}

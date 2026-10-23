@@ -5,7 +5,7 @@ import { sopWorkflowEn } from '../../content/workflow.en'
 import type { Sop } from '../../data/mock/types'
 import { approvalReadiness, type ApprovalSubmissionOptions } from '../../lib/approval'
 import { formatDate } from '../../lib/format'
-import { dueDateRange, parseDueDate } from '../../lib/workflow'
+import { approvalDueDateRange, parseApprovalDueDate } from '../../lib/workflow'
 import { useDepartments } from '../../state/departmentsContext'
 import { useCurrentUser } from '../../state/sessionContext'
 import { useUsers } from '../../state/usersContext'
@@ -50,9 +50,9 @@ export function SubmitForApprovalDialog({ sop, onSubmit, onClose }: SubmitForApp
       errorRef.current?.focus()
       return false
     }
-    if (!parseDueDate(dueDate).valid) {
-      const range = dueDateRange()
-      flushSync(() => setDateError(sopWorkflowEn.dialogs.submit.errors.dateInvalid.replace('{min}', formatDate(range.min)).replace('{max}', formatDate(range.max))))
+    if (!parseApprovalDueDate(dueDate).valid) {
+      const range = approvalDueDateRange()
+      flushSync(() => setDateError(text.dateInvalid.replace('{min}', formatDate(range.min)).replace('{max}', formatDate(range.max))))
       dateRef.current?.focus()
       return false
     }
@@ -98,7 +98,7 @@ export function SubmitForApprovalDialog({ sop, onSubmit, onClose }: SubmitForApp
           <span>{text.feedbackAddressed}</span>
         </label>
       )}
-      <ReviewDueDateField ref={dateRef} name="approvalDueDate" value={dueDate} error={dateError}
+      <ReviewDueDateField ref={dateRef} stage="approval" name="approvalDueDate" value={dueDate} error={dateError}
         text={{ ...sopWorkflowEn.dialogs.submit.reviewDate, label: text.dueDate, help: text.dueDateHelp }}
         onChange={(value) => { setDueDate(value); setDateError(''); setErrors([]) }} />
     </FormDialog>

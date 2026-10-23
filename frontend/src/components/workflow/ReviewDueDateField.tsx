@@ -1,7 +1,9 @@
 import { useId, type Ref } from 'react'
+import { useDeadlineClock } from '../../hooks/useDeadlineClock'
 import type { SopWorkflowContent } from '../../content/types'
 import { formatDateTime } from '../../lib/format'
-import { dueAtOfDate, dueDateRange, parseDueDate } from '../../lib/workflow'
+import { formatReviewDuration } from '../../lib/reviewDuration'
+import { approvalDueDateRange, dueAtOfDate, dueDateRange, parseApprovalDueDate, parseDueDate } from '../../lib/workflow'
 import { TextField } from '../ui/TextField'
 
 interface ReviewDueDateFieldProps {
@@ -13,24 +15,28 @@ interface ReviewDueDateFieldProps {
   text: SopWorkflowContent['dialogs']['submit']['reviewDate']
   error?: string
   disabled?: boolean
+  /** Approval retains its existing tomorrow-through-30-days restriction. */
+  stage?: 'review' | 'approval'
   ref?: Ref<HTMLInputElement>
 }
 
 /**
- * Optional review due date (Submit, Resubmit, Forward): a date from tomorrow to 30 days
- * ahead. The help text is the field's hint; once a valid date is picked, "Time given:
- * N days · Due {date}" follows on its own line, with the real deadline (the end of that
- * day, as reviewerDueAt counts it), also linked to the field. Callers validate with
- * parseDueDate and show `error`.
+ * Optional deadline with an accessible allocation and local end-of-day preview.
+ * Review accepts today and future dates; approval retains its existing range.
  */
-export function ReviewDueDateField({ name, value, onChange, text, error, disabled, ref }: ReviewDueDateFieldProps) {
+export function ReviewDueDateField({ name, value, onChange, text, error, disabled, stage = 'review', ref }: ReviewDueDateFieldProps) {
   const timeGivenId = useId()
-  const range = dueDateRange()
-  const { days } = parseDueDate(value)
+  const nowTimestamp = useDeadlineClock(undefined, !disabled)
+  const now = new Date(nowTimestamp)
+  const range = stage === 'approval' ? approvalDueDateRange(now) : dueDateRange(now)
+  const { valid, days } = stage === 'approval' ? parseApprovalDueDate(value, now) : parseDueDate(value, now)
   const timeGiven =
-    days === undefined || disabled
+    !valid || days === undefined || disabled
       ? undefined
-      : (days === 1 ? text.oneDay : text.days.replace('{count}', String(days))).replace(
+      : (stage === 'approval'
+          ? days === 1 ? text.oneDay : text.days.replace('{count}', String(days))
+          : text.duration.replace('{duration}', formatReviewDuration(new Date(dueAtOfDate(value)).getTime() - now.getTime()))
+        ).replace(
           '{date}',
           formatDateTime(dueAtOfDate(value)),
         )

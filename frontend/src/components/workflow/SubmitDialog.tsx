@@ -20,7 +20,7 @@ interface SubmitDialogProps {
   onClose: () => void
 }
 
-/** One request activates all selected internal reviewers, with independent deadlines. */
+/** One request activates all selected internal reviewers with one shared deadline. */
 export function SubmitDialog({ sop, content, onSubmit, onClose }: SubmitDialogProps) {
   const text = internalReviewEn.submit
   const fields = content.submit
@@ -28,15 +28,13 @@ export function SubmitDialog({ sop, content, onSubmit, onClose }: SubmitDialogPr
   const options = eligibleReviewers(sop, sop.departmentId, activeUsers)
   const [reviewerIds, setReviewerIds] = useState<string[]>([])
   const [dueDate, setDueDate] = useState('')
-  const [reviewerDueDates, setReviewerDueDates] = useState<Record<string, string>>({})
   const [note, setNote] = useState('')
   const [error, setError] = useState('')
-  const [dateErrors, setDateErrors] = useState<Record<string, string>>({})
+  const [dateError, setDateError] = useState('')
   const [failed, setFailed] = useState(false)
   const firstRef = useRef<HTMLButtonElement>(null)
   const reviewerErrorId = useId()
   const requestRef = useRef<HTMLInputElement>(null)
-  const taskRefs = useRef<Record<string, HTMLInputElement | null>>({})
 
   function confirm() {
     if (!reviewerIds.length || reviewerIds.some((id) => !options.some((user) => user.id === id))) {
@@ -44,19 +42,12 @@ export function SubmitDialog({ sop, content, onSubmit, onClose }: SubmitDialogPr
       firstRef.current?.focus()
       return false
     }
-    const dates = Object.fromEntries(reviewerIds.filter((id) => reviewerDueDates[id]?.trim()).map((id) => [id, reviewerDueDates[id]]))
-    const range = dueDateRange()
-    const invalid = text.dateInvalid.replace('{min}', formatDate(range.min)).replace('{max}', formatDate(range.max))
-    const errors: Record<string, string> = {}
-    if (!parseDueDate(dueDate).valid) errors.request = invalid
-    for (const id of reviewerIds) if (!parseDueDate(dates[id] ?? '').valid) errors['task-' + id] = invalid
-    if (Object.keys(errors).length) {
-      flushSync(() => setDateErrors(errors))
-      if (errors.request) requestRef.current?.focus()
-      else taskRefs.current[reviewerIds.find((id) => errors['task-' + id])!]?.focus()
+    if (!parseDueDate(dueDate).valid) {
+      flushSync(() => setDateError(text.dateInvalid.replace('{min}', formatDate(dueDateRange().min))))
+      requestRef.current?.focus()
       return false
     }
-    try { onSubmit({ reviewerIds, dueDate: dueDate || undefined, reviewerDueDates: dates, note: note.trim() || undefined }) }
+    try { onSubmit({ reviewerIds, dueDate: dueDate || undefined, note: note.trim() || undefined }) }
     catch { setFailed(true); return false }
   }
   return (
@@ -69,18 +60,8 @@ export function SubmitDialog({ sop, content, onSubmit, onClose }: SubmitDialogPr
         emptyText={text.noneEligible} onChange={(next) => { setReviewerIds(next); setError(''); setFailed(false) }} />
       <ReviewDueDateField ref={requestRef} name="reviewRequestDueDate"
         text={{ ...fields.reviewDate, label: text.requestDate, help: text.datesHelp }}
-        value={dueDate} error={dateErrors.request}
-        onChange={(value) => { setDueDate(value); setDateErrors((previous) => ({ ...previous, request: '' })); setFailed(false) }} />
-      {reviewerIds.map((id) => <fieldset key={id} className="rounded-lg border border-beige p-3">
-        <legend className="px-1 text-sm font-medium text-maroon">{options.find((user) => user.id === id)?.name}</legend>
-        <ReviewDueDateField ref={(element) => { taskRefs.current[id] = element }} name={'reviewerDueDate-' + id}
-          text={{ ...fields.reviewDate, label: text.taskDate }} value={reviewerDueDates[id] ?? ''} error={dateErrors['task-' + id]}
-          onChange={(value) => {
-            setReviewerDueDates((previous) => ({ ...previous, [id]: value }))
-            setDateErrors((previous) => ({ ...previous, ['task-' + id]: '' }))
-            setFailed(false)
-          }} />
-      </fieldset>)}
+        value={dueDate} error={dateError}
+        onChange={(value) => { setDueDate(value); setDateError(''); setFailed(false) }} />
       <TextAreaField name="note" rows={3} label={fields.note.label} placeholder={fields.note.placeholder} maxLength={SUBMIT_COMMENT_MAX} resizable={false}
         counter={fields.note.counter.replace('{count}', String(note.length)).replace('{max}', String(SUBMIT_COMMENT_MAX))}
         value={note} onChange={(event) => { setNote(event.target.value); setFailed(false) }} />

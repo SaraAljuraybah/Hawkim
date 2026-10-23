@@ -7,6 +7,8 @@ import { ReviewerDeadline } from './ReviewerDeadline'
 import { ResubmitDialog } from './ResubmitDialog'
 import { PeopleList } from './PeopleList'
 import { StatusTracker } from './StatusTracker'
+import { InternalReviewSummary } from './InternalReviewSummary'
+import { formatReviewDuration } from '../../lib/reviewDuration'
 import type { ReactNode } from 'react'
 
 const users: UsersStore = {
@@ -36,7 +38,7 @@ describe('reviewer deadline displays', () => {
     const item = sop()
     const active = render(<ReviewerDeadline sop={item} reviewer={item.reviewers[0]} content={sopWorkflowEn.reviewerDeadline} showQueue />)
     expect(active).toContain('Time given: 2 days')
-    expect(active).toContain('Time Remaining: 1 Day')
+    expect(active).toContain('Time Remaining: 1 day 11 hours')
     expect(active).toContain('Current reviewer')
     const waiting = render(<ReviewerDeadline sop={item} reviewer={item.reviewers[1]} content={sopWorkflowEn.reviewerDeadline} showQueue />)
     expect(waiting).toContain('Time given: 7 days')
@@ -86,7 +88,7 @@ describe('parallel reviewer deadline displays', () => {
     }
     const html = render(<StatusTracker sop={item} content={sopWorkflowEn.tracker} />)
     expect(html).toContain('First reviewer, Next reviewer, No deadline reviewer')
-    expect(html).toContain('Overall Review Request Due Date')
+    expect(html).toContain('Review due date')
   })
   it('uses the individual deadline for overdue and stops displaying remaining time after cancellation', () => {
     vi.useFakeTimers({ now: new Date(2026, 9, 21, 12) })
@@ -99,5 +101,62 @@ describe('parallel reviewer deadline displays', () => {
     expect(cancelled).not.toContain('Overdue')
     expect(cancelled).not.toContain('Time Remaining')
     expect(cancelled).toContain('Time given: 2 days')
+  })
+  it('shows the actual same-day allocation instead of zero days or a full 24 hours', () => {
+    const requestedAt = new Date(2026, 9, 19, 12, 30, 15, 125).toISOString()
+    vi.useFakeTimers({ now: new Date(requestedAt) })
+    const item = sop()
+    const assignment = { id: 'task-today', userId: 'First reviewer', decision: 'pending' as const, dueDate: '2026-10-19', assignedDueDays: 0, assignedAt: requestedAt }
+    item.internalReviewRounds = [{ id: 'today', scope: 'internal', version: item.version, status: 'open', requestedById: 'Author', requestedAt, dueDate: '2026-10-19', assignedDueDays: 0, assignments: [assignment] }]
+    const html = render(<ReviewerDeadline sop={item} reviewer={assignment} content={sopWorkflowEn.reviewerDeadline} />)
+    expect(html).toContain('Time given: 11 hours 29 minutes')
+    expect(html).toContain('Time Remaining: 11 hours 29 minutes')
+    expect(html).not.toContain('0 days')
+    expect(html).not.toContain('24 hours')
+    expect(html).not.toContain('Overdue')
+    const summary = render(<InternalReviewSummary sop={item} />)
+    expect(summary).toContain('Time given: 11 hours 29 minutes')
+    expect(summary).toContain('Time Remaining: 11 hours 29 minutes')
+    expect(summary).not.toContain('Remaining Days')
+  })
+  it('becomes overdue at the exact local end-of-day timestamp, including its last millisecond', () => {
+    const requestedAt = new Date(2026, 9, 19, 12).toISOString()
+    const deadline = new Date(2026, 9, 19, 23, 59, 59, 999).getTime()
+    vi.useFakeTimers({ now: deadline - 1 })
+    const item = sop()
+    const assignment = { id: 'task-today', userId: 'First reviewer', decision: 'pending' as const, dueDate: '2026-10-19', assignedDueDays: 0, assignedAt: requestedAt }
+    item.internalReviewRounds = [{ id: 'today', scope: 'internal', version: item.version, status: 'open', requestedById: 'Author', requestedAt, dueDate: '2026-10-19', assignedDueDays: 0, assignments: [assignment] }]
+    expect(render(<ReviewerDeadline sop={item} reviewer={assignment} content={sopWorkflowEn.reviewerDeadline} />)).toContain('Time Remaining: less than 1 second')
+    expect(render(<InternalReviewSummary sop={item} />)).not.toContain('Overdue')
+    vi.setSystemTime(deadline)
+    const html = render(<ReviewerDeadline sop={item} reviewer={assignment} content={sopWorkflowEn.reviewerDeadline} />)
+    expect(html).toContain('Overdue')
+    expect(html).not.toContain('Time Remaining')
+    expect(render(<InternalReviewSummary sop={item} />)).toContain('Overdue')
+  })
+  it('retains distinct historical reviewer dates and allocations without active countdowns', () => {
+    vi.useFakeTimers({ now: new Date(2026, 10, 1, 12) })
+    const item = sop()
+    const assignedAt = new Date(2026, 9, 18, 9).toISOString()
+    const assignments = item.reviewers.slice(0, 2).map((person, index) => ({ ...person, id: 'old-' + index, assignedAt, decision: 'completed' as const }))
+    item.internalReviewRounds = [
+      { id: 'old-round', scope: 'internal', version: '1', status: 'completed', requestedById: 'Author', requestedAt: assignedAt, dueDate: '2026-10-30', assignedDueDays: 12, assignments },
+      { id: 'new-round', scope: 'internal', version: '2', status: 'open', requestedById: 'Author', requestedAt: new Date().toISOString(), dueDate: '2026-11-01', assignedDueDays: 0, assignments: [] },
+    ]
+    item.version = '2'
+    for (const [index, assignment] of assignments.entries()) {
+      const html = render(<ReviewerDeadline sop={item} reviewer={assignment} content={sopWorkflowEn.reviewerDeadline} />)
+      expect(html).toContain(`Time given: ${index === 0 ? '2' : '7'} days 14 hours`)
+      expect(html).toContain(new Date(2026, 9, index === 0 ? 20 : 25, 23, 59, 59, 999).toISOString())
+      expect(html).not.toContain('Time Remaining')
+      expect(html).not.toContain('Overdue')
+    }
+    expect(assignments.map((assignment) => assignment.dueDate)).toEqual(['2026-10-20', '2026-10-25'])
+  })
+  it('formats timestamp durations without rounding partial units up', () => {
+    expect(formatReviewDuration(24 * 60 * 60 * 1_000 - 1)).toBe('23 hours 59 minutes')
+    expect(formatReviewDuration(45_999)).toBe('45 seconds')
+    expect(formatReviewDuration(999)).toBe('less than 1 second')
+    expect(formatReviewDuration(45 * 24 * 60 * 60 * 1_000)).toBe('45 days')
   })
 })

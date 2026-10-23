@@ -65,8 +65,8 @@ export function ReviewFlowActions({ sop, onComplete }: Props) {
     if (dialog === 'forward') {
       if (!selected) { setError(text.selectRequired); fieldRef.current?.focus(); return false }
       if (!parseDueDate(dueDate).valid) {
-        const { min, max } = dueDateRange()
-        flushSync(() => setDateError(sopWorkflowEn.dialogs.submit.errors.dateInvalid.replace('{min}', formatDate(min)).replace('{max}', formatDate(max))))
+        const { min } = dueDateRange()
+        flushSync(() => setDateError(sopWorkflowEn.dialogs.submit.errors.dateInvalid.replace('{min}', formatDate(min))))
         dateRef.current?.focus()
         return false
       }

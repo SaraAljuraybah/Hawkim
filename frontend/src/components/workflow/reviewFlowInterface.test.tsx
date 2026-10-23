@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { renderToStaticMarkup } from 'react-dom/server'
 import type { Sop, User } from '../../data/mock/types'
 import { sopWorkflowEn } from '../../content/workflow.en'
@@ -6,6 +6,7 @@ import { reviewFlowEn } from '../../content/reviewFlow.en'
 import { SubmitDialog } from './SubmitDialog'
 import { ReviewFlowSummary } from './ReviewFlowSummary'
 import { ReviewFlowActions } from '../reviews/ReviewFlowActions'
+import { ReviewDueDateField } from './ReviewDueDateField'
 
 const fixtures = vi.hoisted(() => ({
   users: [
@@ -35,8 +36,10 @@ describe('review plan interface', () => {
     expect(html).not.toContain('Other Department Reviewer')
     expect(html).not.toContain('Quality Test Controller')
     expect(html).not.toContain('Reviewer 1')
-    expect(html).toContain('Overall Review Request Due Date')
-    expect(html).toContain('type="date"')
+    expect(html).toContain('Review due date (optional)')
+    expect(html.match(/type="date"/g)).toHaveLength(1)
+    expect(html).toContain('Every selected reviewer shares this deadline')
+    expect(html).not.toContain('Individual Reviewer Task Due Date')
   })
   it('shows a clear blocked Quality state when no controller is configured', () => {
     const sop: Sop = { ...draft(), status: 'in-review', reviewers: [{ userId: 'r1', decision: 'completed' }, { userId: 'r2', decision: 'completed' }], reviewFlow: { stage: 'quality-routing', activeReviewerId: 'r2', reviewer1Id: 'r1', reviewer2Id: 'r2', sameDivision: 'skipped', crossDivision: 'skipped', departments: [] } }
@@ -51,5 +54,55 @@ describe('review plan interface', () => {
     expect(html).toContain(reviewFlowEn.stages['same-division-representative'])
     expect(html).toContain('Other Department Reviewer')
     expect(html).toContain(reviewFlowEn.pending)
+  })
+})
+
+afterEach(() => vi.useRealTimers())
+
+describe('review date field policy and accessible allocation preview', () => {
+  function field(value: string, stage?: 'review' | 'approval', error?: string) {
+    return renderToStaticMarkup(<ReviewDueDateField name="deadline" text={sopWorkflowEn.dialogs.submit.reviewDate}
+      value={value} stage={stage} error={error} onChange={() => {}} />)
+  }
+
+  it('allows today with a precise partial-day allocation and no maximum', () => {
+    vi.useFakeTimers({ now: new Date(2026, 9, 24, 12, 34, 56, 789) })
+    const html = field('2026-10-24')
+    const input = html.match(/<input[^>]*>/)![0]
+    expect(input).toContain('min="2026-10-24"')
+    expect(input).not.toContain('max=')
+    expect(input).not.toContain('required=')
+    expect(input).toContain('aria-describedby=')
+    expect(html).toContain('Time given: 11 hours 25 minutes')
+    expect(html).not.toContain('Time given: 0 days')
+    expect(html).not.toContain('Time given: 1 day')
+    expect(html).toContain('23:59:59.999 local time')
+  })
+
+  it('previews dates beyond 30 days without adding a maximum', () => {
+    vi.useFakeTimers({ now: new Date(2026, 9, 24, 12) })
+    const html = field('2026-12-25')
+    expect(html).toContain('Time given: 62 days 11 hours')
+    expect(html.match(/<input[^>]*>/)![0]).not.toContain('max=')
+  })
+
+  it('keeps the date optional and does not show allocations for blank, past, or invalid dates', () => {
+    vi.useFakeTimers({ now: new Date(2026, 9, 24, 12) })
+    for (const value of ['', '2026-10-23', '2026-02-30', 'not-a-date']) {
+      expect(field(value)).not.toContain('Time given:')
+    }
+    const html = field('2026-10-23', 'review', 'Choose today or a future date.')
+    expect(html).toContain('aria-invalid="true"')
+    expect(html).toContain('Choose today or a future date.')
+  })
+
+  it('retains tomorrow through 30 days for approval without changing its allocation preview', () => {
+    vi.useFakeTimers({ now: new Date(2026, 9, 24, 12) })
+    const html = field('2026-10-25', 'approval')
+    expect(html).toContain('min="2026-10-25"')
+    expect(html).toContain('max="2026-11-23"')
+    expect(html).toContain('Time given: 1 day')
+    expect(field('2026-10-24', 'approval')).not.toContain('Time given:')
+    expect(field('2026-11-24', 'approval')).not.toContain('Time given:')
   })
 })

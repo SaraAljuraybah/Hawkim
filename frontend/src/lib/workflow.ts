@@ -41,7 +41,7 @@ export interface UploadedFile {
   fileUrl?: string
 }
 
-/** Allowed range for each stage's due days. */
+/** Legacy numeric allocations and approval dates retain their existing 1–30 day range. */
 export const DUE_DAYS_MIN = 1
 export const DUE_DAYS_MAX = 30
 
@@ -67,8 +67,13 @@ function localDatePlus(now: Date, days: number): string {
   return todayIsoDate(new Date(now.getFullYear(), now.getMonth(), now.getDate() + days))
 }
 
-/** The dates a review due date can be: tomorrow to 30 days from today (local dates). */
-export function dueDateRange(now = new Date()): { min: string; max: string } {
+/** Review dates are optional, today or later, without an upper limit. */
+export function dueDateRange(now = new Date()): { min: string; max?: string } {
+  return { min: todayIsoDate(now) }
+}
+
+/** Approval-stage restrictions are independent of the review date picker. */
+export function approvalDueDateRange(now = new Date()): { min: string; max: string } {
   return { min: localDatePlus(now, DUE_DAYS_MIN), max: localDatePlus(now, DUE_DAYS_MAX) }
 }
 
@@ -80,17 +85,25 @@ export function daysFromToday(isoDate: string, now = new Date()): number | undef
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(isoDate)
   if (!match) return undefined
   const [year, month, day] = match.slice(1).map(Number)
-  const date = new Date(Date.UTC(year, month - 1, day))
-  if (date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) return undefined // e.g. Feb 30
+  const date = new Date(0)
+  date.setUTCFullYear(year, month - 1, day)
+  date.setUTCHours(0, 0, 0, 0)
+  if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) return undefined // e.g. Feb 30
   return Math.round((date.getTime() - Date.UTC(now.getFullYear(), now.getMonth(), now.getDate())) / DAY_MS)
 }
 
 /**
- * An optional reviewer deadline as calendar days from submission. Individual deadlines
- * end at the selected local date; legacy shared deadlines retain their time. Empty is valid
- * (no due date); otherwise it must be 1 to 30 days from today.
+ * An optional review deadline as calendar days from submission. The deadline ends at
+ * 23:59:59.999 on the selected local date. Empty is valid; past/invalid dates are not.
  */
 export function parseDueDate(isoDate: string, now = new Date()): { valid: boolean; days?: number } {
+  if (!isoDate.trim()) return { valid: true }
+  const days = daysFromToday(isoDate.trim(), now)
+  return days !== undefined && days >= 0 ? { valid: true, days } : { valid: false }
+}
+
+/** Approval dates preserve their original tomorrow-through-30-days validation. */
+export function parseApprovalDueDate(isoDate: string, now = new Date()): { valid: boolean; days?: number } {
   if (!isoDate.trim()) return { valid: true }
   const days = daysFromToday(isoDate.trim(), now)
   return days !== undefined && isValidDueDays(days) ? { valid: true, days } : { valid: false }
@@ -187,7 +200,7 @@ export function reviewerAssignedDays(sop: Sop, reviewer: ReviewerAssignment): nu
   if (reviewer.dueDate) {
     const submitted = [...sop.timeline].reverse().find((item) => item.type === 'submitted' || item.type === 'resubmitted')
     const days = submitted ? daysFromToday(reviewer.dueDate, new Date(submitted.createdAt)) : undefined
-    return days !== undefined && isValidDueDays(days) ? days : undefined
+    return days !== undefined && days >= 0 ? days : undefined
   }
   return sop.reviewDueDays
 }
@@ -206,7 +219,7 @@ export function reviewerDueAt(sop: Sop, reviewer: ReviewerAssignment): string | 
 /** Whether this task date has passed; callers also check that the assignment is active. */
 export function reviewerDeadlinePassed(sop: Sop, reviewer: ReviewerAssignment, now = Date.now()): boolean {
   const dueAt = reviewerDueAt(sop, reviewer)
-  return !!dueAt && new Date(dueAt).getTime() < now
+  return !!dueAt && new Date(dueAt).getTime() <= now
 }
 
 /** The overall internal request deadline, active legacy reviewer deadline, or approval deadline. */
@@ -222,10 +235,42 @@ export function currentDueAt(sop: Sop): string | undefined {
   return sop.status === 'in-approval' ? sop.approvalDueAt : undefined
 }
 
-/** Whole calendar days remaining, separate from the original allocation. */
-export function reviewerRemainingDays(sop: Sop, reviewer: ReviewerAssignment, now = new Date()): number | undefined {
+/** Real elapsed time remaining, separate from the original calendar allocation. */
+export function reviewerRemainingMilliseconds(sop: Sop, reviewer: ReviewerAssignment, now = Date.now()): number | undefined {
   const dueAt = reviewerDueAt(sop, reviewer)
-  return dueAt ? daysFromToday(todayIsoDate(new Date(dueAt)), now) : undefined
+  return dueAt ? new Date(dueAt).getTime() - now : undefined
+}
+
+/** A new round's shared request deadline, measured against the actual clock. */
+export function reviewRemainingMilliseconds(sop: Sop, now = Date.now()): number | undefined {
+  const dueAt = currentDueAt(sop)
+  return dueAt ? new Date(dueAt).getTime() - now : undefined
+}
+
+function allocationMilliseconds(assignedAt: string, days: number): number {
+  const started = new Date(assignedAt)
+  return new Date(dueAtOfDate(localDatePlus(started, days))).getTime() - started.getTime()
+}
+
+/** Original real time given; simulating an overdue date does not rewrite this allocation. */
+export function reviewerAssignedMilliseconds(sop: Sop, reviewer: ReviewerAssignment): number | undefined {
+  const days = reviewerAssignedDays(sop, reviewer)
+  if (days === undefined) return undefined
+  if ('assignedAt' in reviewer && typeof reviewer.assignedAt === 'string') return allocationMilliseconds(reviewer.assignedAt, days)
+  // Older records only kept a calendar-day allocation, so retain that original meaning.
+  return days * DAY_MS
+}
+
+export function reviewAssignedMilliseconds(sop: Sop): number | undefined {
+  const round = sop.internalReviewRounds?.at(-1)
+  if (round) return round.assignedDueDays === null ? undefined : allocationMilliseconds(round.requestedAt, round.assignedDueDays)
+  return sop.reviewDueDays === undefined ? undefined : sop.reviewDueDays * DAY_MS
+}
+
+/** Fractional 24-hour days, for legacy consumers; never a calendar-date subtraction. */
+export function reviewerRemainingDays(sop: Sop, reviewer: ReviewerAssignment, now = new Date()): number | undefined {
+  const remaining = reviewerRemainingMilliseconds(sop, reviewer, now.getTime())
+  return remaining === undefined ? undefined : remaining / DAY_MS
 }
 
 export function isOverdue(
@@ -243,7 +288,7 @@ export function isOverdue(
       ? currentDueAt(sop)
       : sop.approvalDueAt
 
-  return open && !!dueAt && new Date(dueAt).getTime() < now
+  return open && !!dueAt && (stage === 'review' ? new Date(dueAt).getTime() <= now : new Date(dueAt).getTime() < now)
 }
 
 
@@ -484,7 +529,7 @@ export const SUBMIT_COMMENT_MAX = 500
  * Author: resubmit after a new version. It goes back to the same Reviewer 1 (and the same
  * saved review steps); everyone's decision resets. Deadlines work like the first
  * submission: every earlier deadline is cleared, Reviewer 1 gets only the optional new
- * `dueDate` (tomorrow to 30 days ahead), and each reviewer sets the next reviewer's due
+ * `dueDate` (today or later), and each reviewer sets the next reviewer's due
  * date when they forward it. Original durations are never reused.
  */
 export function resubmit(sop: Sop, actorId: string, guidelineVersion: string, note?: string, dueDate?: string): Sop {
@@ -496,7 +541,7 @@ export function resubmit(sop: Sop, actorId: string, guidelineVersion: string, no
   assert(!trimmed || trimmed.length <= SUBMIT_COMMENT_MAX, 'Submission comments must be at most 500 characters')
   const date = dueDate?.trim()
   const parsed = parseDueDate(date ?? '')
-  assert(parsed.valid, 'Choose an optional deadline from tomorrow to 30 days from today')
+  assert(parsed.valid, 'Choose an optional review deadline today or later')
   const createdAt = new Date().toISOString()
 
   const reviewerIds = sop.reviewers.map((p) => p.userId)
