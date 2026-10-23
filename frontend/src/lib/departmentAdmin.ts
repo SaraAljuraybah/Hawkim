@@ -21,8 +21,8 @@ export function members(departmentId: DepartmentId, users: User[]): User[] {
 }
 
 /**
- * With access: active users from other departments who joined it through an
- * approved department-access request (each user once).
+ * With access: active users from other departments with read-only published-directory
+ * access through an approved request (each user once), separate from membership.
  */
 export function withAccess(departmentId: DepartmentId, users: User[], requests: UserRequest[]): User[] {
   const approved = new Set(

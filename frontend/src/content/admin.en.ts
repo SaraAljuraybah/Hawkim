@@ -76,8 +76,8 @@ export const adminEn: AdminContent = {
       title: 'Details',
       email: 'Email',
       homeDepartment: 'Home department',
-      joinedDepartments: 'Joined departments',
-      joinedHint: 'Through approved department access requests.',
+      directoryAccess: 'Published directory access',
+      directoryHint: 'Read-only access through approved requests; membership and roles are unchanged.',
       none: 'None',
     },
     permissions: {
@@ -321,7 +321,7 @@ export const adminEn: AdminContent = {
     members: { title: 'Members', empty: 'No members.' },
     withAccess: {
       title: 'With access',
-      hint: 'Users from other departments who joined through approved access requests.',
+      hint: 'Users from other departments with read-only access to published SOPs through approved requests.',
       empty: 'Nobody from other departments has access.',
     },
     sops: { title: 'SOPs', label: 'SOPs by status' },

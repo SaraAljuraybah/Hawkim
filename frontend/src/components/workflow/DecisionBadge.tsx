@@ -8,6 +8,7 @@ const styles: Record<Decision, string> = {
   completed: 'bg-status-approved-bg text-status-approved-fg',
   approved: 'bg-status-approved-bg text-status-approved-fg',
   returned: 'bg-status-rejected-bg text-status-rejected-fg',
+  cancelled: 'bg-beige text-text-gray',
 }
 
 /** A reviewer's or approver's decision as a small pill; the label is always shown as text. */

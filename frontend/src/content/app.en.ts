@@ -28,8 +28,9 @@ export const appShellEn: AppShellContent = {
   drawerLabel: 'Navigation',
   reviewsToDoLabel: '{count} to do',
   departmentSwitcher: {
-    label: 'Department',
-    menuLabel: 'Your departments',
+    label: 'SOP Directory',
+    menuLabel: 'Available SOP directories',
+    readOnly: 'read-only',
   },
 }
 

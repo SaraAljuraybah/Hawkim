@@ -1,6 +1,7 @@
 import { createContext, useContext } from 'react'
 import type { Sop } from '../data/mock/types'
 import type { ReviewAction } from '../lib/reviewFlow'
+import type { InternalReviewOptions } from '../lib/internalReview'
 import type { UploadedFile } from '../lib/workflow'
 
 /**
@@ -10,15 +11,10 @@ import type { UploadedFile } from '../lib/workflow'
 export type NewDraft = Pick<Sop, 'title' | 'departmentId' | 'description'> & UploadedFile
 
 
-export interface SubmitOptions {
-  reviewerId: string
-  dueDate?: string
-  note?: string
-
-}
+export type SubmitOptions = InternalReviewOptions
 
 
-/** Resubmit for review: an optional due date for Reviewer 1 ("2026-10-29") and comments. */
+/** Legacy resubmission overrides. Internal rounds restart their saved allocations without overrides. */
 export interface ResubmitOptions {
   dueDate?: string
   note?: string
@@ -33,7 +29,10 @@ export interface SopsStore {
   // Actions by the current user (author or co-author). Each throws if not allowed.
   submitForReview: (sopId: string, options: SubmitOptions) => void
   reviewAction: (sopId: string, action: ReviewAction) => void
-  /** Main author: back to Reviewer 1, with an optional new due date for them and comments. */
+  beginInternalReview: (sopId: string, roundId: string, assignmentId: string) => void
+  decideInternalReview: (sopId: string, roundId: string, assignmentId: string, decision: 'completed' | 'returned', text?: string) => void
+  cancelInternalReview: (sopId: string, roundId: string, assignmentId: string) => void
+  /** Main author: restart parallel internal reviews, or legacy review with optional new date/comments. */
   resubmit: (sopId: string, options?: ResubmitOptions) => void
   /** Uploads the next version (Draft or Returned). It isn't checked until someone runs a compliance check. */
   uploadVersion: (sopId: string, file: UploadedFile) => void

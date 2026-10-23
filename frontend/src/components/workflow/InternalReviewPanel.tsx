@@ -1,0 +1,69 @@
+import { useRef, useState } from 'react'
+import { internalReviewEn as text } from '../../content/internalReview.en'
+import { sopWorkflowEn } from '../../content/workflow.en'
+import type { InternalReviewerAssignment, Sop } from '../../data/mock/types'
+import { formatDateTime } from '../../lib/format'
+import { reviewerAssignedDays, reviewerDueAt } from '../../lib/workflow'
+import { useSops } from '../../state/sopsContext'
+import { useUsers } from '../../state/usersContext'
+import { Button } from '../ui/Button'
+import { Card } from '../ui/Card'
+import { FormDialog } from '../ui/FormDialog'
+import { DecisionBadge } from './DecisionBadge'
+import { ReviewerDeadline } from './ReviewerDeadline'
+
+interface Props { sop: Sop; canCancel: boolean }
+/** Completed and cancelled assignments remain visible in their original version's round. */
+export function InternalReviewPanel({ sop, canCancel }: Props) {
+  const { nameOf } = useUsers()
+  const store = useSops()
+  const [target, setTarget] = useState<{ roundId: string; assignment: InternalReviewerAssignment } | null>(null)
+  const [error, setError] = useState('')
+  const [message, setMessage] = useState('')
+  const triggerRef = useRef<HTMLButtonElement | null>(null)
+  const statusRef = useRef<HTMLDivElement | null>(null)
+  const rounds = sop.internalReviewRounds ?? []
+  if (!rounds.length) return null
+  function close() { setTarget(null); requestAnimationFrame(() => { if (triggerRef.current?.isConnected) triggerRef.current.focus(); else statusRef.current?.focus() }) }
+  function cancel() {
+    if (!target) return false
+    try { store.cancelInternalReview(sop.id, target.roundId, target.assignment.id); setMessage(text.panel.cancelled) }
+    catch (reason) { setError(reason instanceof Error ? reason.message : text.status.closed); return false }
+  }
+  return <Card title={text.panel.title} titleId="internal-review-title" className="mt-6">
+    <div role="status" ref={statusRef} tabIndex={-1} className="rounded-sm text-sm text-maroon">{message}</div>
+    <ol className="space-y-5">{rounds.map((round, index) => {
+      const latest = index === rounds.length - 1
+      return <li key={round.id} className="rounded-lg border border-beige p-4">
+        <h3 className="text-base font-semibold text-maroon">{text.panel.round.replace('{number}', String(index + 1)).replace('{version}', round.version)}</h3>
+        <p className="mt-1 text-sm text-maroon">{text.panel.states[round.status]}</p>
+        <p className="mt-1 text-xs text-text-gray">{text.panel.requested.replace('{date}', formatDateTime(round.requestedAt))}</p>
+        <ul className="mt-4 space-y-4">{round.assignments.map((assignment) => {
+          const days = reviewerAssignedDays(sop, assignment)
+          const dueAt = reviewerDueAt(sop, assignment)
+          const comment = sop.comments.find((item) => item.id === assignment.commentId)
+          return <li key={assignment.id} className="border-t border-beige pt-3 first:border-0 first:pt-0">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span className="text-sm font-medium text-maroon">{nameOf(assignment.userId)}</span>
+              <DecisionBadge decision={assignment.decision} labels={text.panel.decisions} />
+            </div>
+            {latest ? <ReviewerDeadline sop={sop} reviewer={assignment} content={sopWorkflowEn.reviewerDeadline} /> : <p className="mt-1 text-xs text-text-gray">
+              {days === undefined ? sopWorkflowEn.reviewerDeadline.noDeadline : days === 1 ? text.panel.oneDay : text.panel.days.replace('{count}', String(days))}
+              {dueAt && <span className="block">{text.panel.due.replace('{date}', formatDateTime(dueAt))}</span>}
+            </p>}
+            {assignment.startedAt && <p className="mt-1 text-xs text-text-gray">{text.panel.started.replace('{date}', formatDateTime(assignment.startedAt))}</p>}
+            {assignment.decidedAt && <p className="mt-1 text-xs text-text-gray">{text.panel.decided.replace('{date}', formatDateTime(assignment.decidedAt))}</p>}
+            {comment && <p className="mt-2 text-sm whitespace-pre-wrap break-words text-maroon">{comment.text}</p>}
+            {assignment.cancellationReason && <p className="mt-2 text-sm text-text-gray">{text.panel.cancellationReasons[assignment.cancellationReason]}</p>}
+            {canCancel && latest && sop.status === 'in-review' && round.status === 'open' && assignment.decision === 'pending' &&
+              <Button size="sm" variant="secondary" className="mt-2" aria-label={text.panel.cancelFor.replace('{name}', nameOf(assignment.userId))} onClick={(event) => { triggerRef.current = event.currentTarget; setTarget({ roundId: round.id, assignment }); setError('') }}>{text.panel.cancel}</Button>}
+          </li>
+        })}</ul>
+      </li>
+    })}</ol>
+    {target && <FormDialog open title={text.panel.cancelTitle.replace('{name}', nameOf(target.assignment.userId))}
+      description={text.panel.cancelHelp} confirmLabel={text.panel.cancel} cancelLabel={text.actions.cancel} onConfirm={cancel} onClose={close}>
+      {error && <p role="alert" className="text-sm text-status-rejected-fg">{error}</p>}
+    </FormDialog>}
+  </Card>
+}

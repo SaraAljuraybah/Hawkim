@@ -125,8 +125,10 @@ export function isAuthorOrCoAuthor(sop: Sop, userId: string): boolean {
   return isAuthor(sop, userId) || isCoAuthor(sop, userId)
 }
 
+/** Assignment involvement, including history; use reviewSopForUser for document access. */
 export function isReviewer(sop: Sop, userId: string): boolean {
-  return sop.reviewers.some((person) => person.userId === userId)
+  return sop.reviewers.some((person) => person.userId === userId) ||
+    !!sop.internalReviewRounds?.some((round) => round.assignments.some((person) => person.userId === userId))
 }
 
 export function isApprover(sop: Sop, userId: string): boolean {
@@ -140,8 +142,8 @@ export function currentReviewer(
   sop: Sop,
 ): ReviewerAssignment | undefined {
   if (sop.status !== 'in-review') return undefined
-
-  if (sop.reviewFlow) return sop.reviewers.find((person) => person.userId === sop.reviewFlow!.activeReviewerId)
+  if (sop.reviewFlow) return sop.reviewers.find((person) => person.userId === sop.reviewFlow!.activeReviewerId && person.decision !== 'cancelled')
+  if (sop.internalReviewRounds?.length) return undefined
   return sop.reviewers.find((person) => person.decision === 'pending')
 }
 
@@ -149,6 +151,10 @@ export function pendingPeople(
   sop: Sop,
 ): { userId: string; role: 'reviewer' | 'approver' }[] {
   if (sop.status === 'in-review') {
+    const round = sop.internalReviewRounds?.at(-1)
+    if (round && !sop.reviewFlow) return round.status === 'open' && round.version === sop.version
+      ? round.assignments.filter((person) => person.decision === 'pending').map((person) => ({ userId: person.userId, role: 'reviewer' as const }))
+      : []
     const reviewer = currentReviewer(sop)
 
     return reviewer
@@ -193,9 +199,19 @@ export function reviewerDueAt(sop: Sop, reviewer: ReviewerAssignment): string | 
   return reviewer.dueDate ? dueAtOfDate(reviewer.dueDate) : sop.reviewDueAt
 }
 
-/** The active reviewer's deadline, or the unchanged approval stage deadline. */
+/** Whether this task date has passed; callers also check that the assignment is active. */
+export function reviewerDeadlinePassed(sop: Sop, reviewer: ReviewerAssignment, now = Date.now()): boolean {
+  const dueAt = reviewerDueAt(sop, reviewer)
+  return !!dueAt && new Date(dueAt).getTime() < now
+}
+
+/** The overall internal request deadline, active legacy reviewer deadline, or approval deadline. */
 export function currentDueAt(sop: Sop): string | undefined {
   if (sop.status === 'in-review') {
+    const round = sop.internalReviewRounds?.at(-1)
+    if (round && !sop.reviewFlow) return round.status === 'open' && round.version === sop.version && round.dueDate
+      ? new Date(round.dueDate + 'T23:59:59.999').toISOString()
+      : undefined
     const reviewer = currentReviewer(sop)
     return reviewer ? reviewerDueAt(sop, reviewer) : undefined
   }
@@ -247,6 +263,8 @@ export function returnedFrom(sop: Sop): 'in-review' | 'in-approval' | undefined 
  */
 export function canResubmit(sop: Sop): boolean {
   if (sop.status !== 'returned') return false
+  const round = sop.internalReviewRounds?.at(-1)
+  if (round && (round.status !== 'rejected' || sop.version === round.version)) return false
   const returned = latestReturn(sop)
   const current = activeVersions(sop).find((version) => version.version === sop.version)
   return !!returned && !!current && new Date(current.uploadedAt).getTime() >= new Date(returned.createdAt).getTime()
@@ -399,6 +417,7 @@ export function submitForReview(
   note?: string,
   reviewerDueDates?: Record<string, string>,
 ): Sop {
+  assert(!sop.internalReviewRounds?.length, 'Use the internal review request to submit this SOP')
   assertStatus(sop, ['draft'], 'submit')
   assert(isAuthor(sop, actorId), 'Only the author can submit this SOP')
   // The check must have run for this version against the current guideline; it doesn't have to pass (PBI 4, 29).
@@ -463,6 +482,7 @@ export const SUBMIT_COMMENT_MAX = 500
  * date when they forward it. Original durations are never reused.
  */
 export function resubmit(sop: Sop, actorId: string, guidelineVersion: string, note?: string, dueDate?: string): Sop {
+  assert(!sop.internalReviewRounds?.length, 'Use the internal review request to resubmit this SOP')
   assert(isAuthor(sop, actorId), 'Only the author can resubmit this SOP')
   assert(canResubmit(sop), 'Upload a new version before resubmitting')
   assert(hasCurrentCheck(sop, guidelineVersion), 'Run a compliance check against the current guideline first')
@@ -643,6 +663,7 @@ function optionalComment(
  * When ALL reviewers have, the SOP moves to In Approval.
  */
 export function completeReview(sop: Sop, reviewerId: string, text?: string): Sop {
+  assert(!sop.internalReviewRounds?.length, 'Use the internal review assignment to decide')
   assert(!sop.reviewFlow, 'Use the current review step to complete or forward this review')
   assertStatus(sop, ['in-review'], 'complete the review of')
   assert(
@@ -688,6 +709,7 @@ export function completeReview(sop: Sop, reviewerId: string, text?: string): Sop
 
 /** The current reviewer returns the SOP with a comment; it goes back to the author at once. */
 export function returnAsReviewer(sop: Sop, reviewerId: string, text: string): Sop {
+  assert(!sop.internalReviewRounds?.length, 'Use the internal review assignment to reject')
   assertStatus(sop, ['in-review'], 'return')
   assert(
     currentReviewer(sop)?.userId === reviewerId,
@@ -704,10 +726,25 @@ export function returnAsReviewer(sop: Sop, reviewerId: string, text: string): So
   return returnToAuthors(withDecision, reviewerId, 'reviewer', text.trim(), createdAt)
 }
 
+/** Internal completion alone is the boundary for the next Author-controlled action. */
+export function internalReviewsComplete(sop: Sop): boolean {
+  const round = sop.internalReviewRounds?.at(-1)
+  return !!round && round.version === sop.version && round.status === 'completed' &&
+    round.assignments.some((person) => person.decision === 'completed') &&
+    round.assignments.every((person) => person.decision === 'completed' || person.decision === 'cancelled' && person.cancellationReason === 'author-cancelled')
+}
+
 /** All required initial and department reviews must be evidenced by completed assignments. */
 export function requiredReviewsComplete(sop: Sop): boolean {
+  const round = sop.internalReviewRounds?.at(-1)
+  if (round) {
+    if (!internalReviewsComplete(sop)) return false
+    const waived = (person: ReviewerAssignment) => round.assignments.some((assignment) =>
+      'id' in person && person.id === assignment.id && assignment.decision === 'cancelled' && assignment.cancellationReason === 'author-cancelled')
+    if (!sop.reviewers.every((person) => person.decision === 'completed' || person.decision === 'cancelled' && waived(person))) return false
+  }
   const flow = sop.reviewFlow
-  if (!flow) return sop.reviewers.every((p) => p.decision === 'completed')
+  if (!flow) return !!round || sop.reviewers.every((p) => p.decision === 'completed')
   const completed = (id: string | undefined) => !!id && sop.reviewers.some((p) => p.userId === id && p.decision === 'completed')
   return completed(flow.reviewer1Id) && completed(flow.reviewer2Id) &&
     flow.sameDivision !== 'pending' && flow.crossDivision !== 'pending' &&
@@ -725,6 +762,7 @@ function assertQualityReady(sop: Sop, userId: string) {
 
 /** A pending approver approves (PBI 10, 11), with an optional comment. When ALL have, the SOP is Approved. */
 export function approveAs(sop: Sop, approverId: string, text?: string): Sop {
+  assert(!sop.internalReviewRounds?.length, 'Internal review completion awaits an Author-controlled action')
   assertStatus(sop, ['in-approval'], 'approve')
   assertQualityReady(sop, approverId)
   assert(sop.approvers.some((p) => p.userId === approverId && p.decision === 'pending'), 'Not a pending approver')
@@ -777,6 +815,7 @@ export function routeToReviewer(
   newReviewer: Pick<User, 'id' | 'departmentId' | 'permissions' | 'deletedAt'>,
   note?: string,
 ): Sop {
+  assert(!sop.internalReviewRounds?.length, 'Internal review cannot route to external departments')
   assert(!sop.reviewFlow, 'Use the current review step to select a department and representative')
   assertStatus(sop, ['in-review'], 'route')
   assert(
@@ -802,6 +841,7 @@ export function routeToReviewer(
 
 /** A pending approver returns the SOP with a comment; it goes back to the author at once. */
 export function returnAsApprover(sop: Sop, approverId: string, text: string): Sop {
+  assert(!sop.internalReviewRounds?.length, 'Internal review has no approval assignment')
   assertStatus(sop, ['in-approval'], 'return')
   assertQualityReady(sop, approverId)
   assert(sop.approvers.some((p) => p.userId === approverId && p.decision === 'pending'), 'Not a pending approver')
@@ -818,6 +858,7 @@ export function returnAsApprover(sop: Sop, approverId: string, text: string): So
 
 /** Any assigned approver publishes the approved SOP; it then appears in the SOPs directory. */
 export function publishAs(sop: Sop, approverId: string): Sop {
+  assert(!sop.internalReviewRounds?.length, 'Internal review has no publication action')
   assertStatus(sop, ['approved'], 'publish')
   assertQualityReady(sop, approverId)
   assert(!sop.reviewFlow || sop.approvers.every((p) => p.decision === 'approved'), 'Final Quality approval is required before publication')
@@ -834,6 +875,18 @@ export function publishAs(sop: Sop, approverId: string): Sop {
 
 /** Moves the stored due dates `days` earlier (to test Overdue). Used by the dev-only demo panel. */
 export function shiftDueDates(sop: Sop, days: number): Sop {
+  const round = sop.internalReviewRounds?.at(-1)
+  if (round) {
+    if (round.status !== 'open') return sop
+    const shifted = {
+      ...round,
+      ...(round.dueDate ? { dueDate: localDatePlus(new Date(round.dueDate + 'T12:00:00'), -days) } : {}),
+      assignments: round.assignments.map((person) => person.decision === 'pending' && person.dueDate
+        ? { ...person, dueDate: localDatePlus(new Date(person.dueDate + 'T12:00:00'), -days) } : person),
+    }
+    return { ...sop, internalReviewRounds: [...sop.internalReviewRounds!.slice(0, -1), shifted], reviewers: shifted.assignments,
+      reviewDueAt: shifted.dueDate ? new Date(shifted.dueDate + 'T23:59:59.999').toISOString() : undefined }
+  }
   return {
     ...sop,
     reviewers: sop.reviewers.map((reviewer) => ({

@@ -14,18 +14,18 @@ interface DepartmentSwitcherProps {
 }
 
 /** Where switching department takes the user. */
-const AFTER_SWITCH_PATH = '/dashboard'
+const AFTER_SWITCH_PATH = '/sops'
 
 /**
- * Shows the active department. When the user belongs to more than one department
+ * Shows the selected published directory. When more than one directory is available
  * it is a menu button (menu of `menuitemradio` items, the active one checked):
  * - Down/Enter/Space open it with focus on the active department
  * - Up/Down wrap, Home/End jump; Enter/Space choose
  * - Escape closes and returns focus; Tab or a click outside closes it
- * Choosing a department switches to it and goes to the dashboard.
+ * Choosing a directory opens it without changing home membership or roles.
  */
 export function DepartmentSwitcher({ content, variant, onSwitched }: DepartmentSwitcherProps) {
-  const { activeDepartment, userDepartments, setActiveDepartment } = useActiveDepartment()
+  const { activeDepartment, homeDepartment, directoryDepartments, setActiveDepartment } = useActiveDepartment()
   const navigate = useNavigate()
   const [open, setOpen] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -37,9 +37,9 @@ export function DepartmentSwitcher({ content, variant, onSwitched }: DepartmentS
   // When the menu opens, focus the active department.
   useEffect(() => {
     if (!open) return
-    const index = userDepartments.findIndex((department) => department.id === activeDepartment.id)
+    const index = directoryDepartments.findIndex((department) => department.id === activeDepartment.id)
     itemRefs.current[Math.max(index, 0)]?.focus()
-  }, [open, userDepartments, activeDepartment.id])
+  }, [open, directoryDepartments, activeDepartment.id])
 
   // Close on a click outside.
   useEffect(() => {
@@ -60,7 +60,7 @@ export function DepartmentSwitcher({ content, variant, onSwitched }: DepartmentS
   const srLabel = <span className="sr-only">{content.label}: </span>
 
   // One department: plain text, no menu.
-  if (userDepartments.length < 2) {
+  if (directoryDepartments.length < 2) {
     return (
       <div className={isDrawer ? 'rounded-lg bg-white/10 px-3 py-2.5' : ''}>
         {isDrawer && visibleLabel}
@@ -133,6 +133,7 @@ export function DepartmentSwitcher({ content, variant, onSwitched }: DepartmentS
         <span className="truncate">
           {srLabel}
           {activeDepartment.name}
+          {activeDepartment.id !== homeDepartment.id && ` (${content.readOnly})`}
         </span>
         <ChevronDown
           aria-hidden="true"
@@ -151,7 +152,7 @@ export function DepartmentSwitcher({ content, variant, onSwitched }: DepartmentS
             isDrawer ? 'inset-x-0' : 'right-0 w-64'
           }`}
         >
-          {userDepartments.map((department, index) => {
+          {directoryDepartments.map((department, index) => {
             const checked = department.id === activeDepartment.id
             return (
               <button
@@ -168,7 +169,7 @@ export function DepartmentSwitcher({ content, variant, onSwitched }: DepartmentS
                   checked ? 'font-medium text-maroon' : 'text-text-gray hover:bg-beige/60 hover:text-maroon'
                 } focus:bg-beige/60`}
               >
-                {department.name}
+                <span>{department.name}{department.id !== homeDepartment.id && ` (${content.readOnly})`}</span>
                 {checked && <Check aria-hidden="true" className="size-4 shrink-0 text-maroon" strokeWidth={2} />}
               </button>
             )

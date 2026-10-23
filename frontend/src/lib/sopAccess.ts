@@ -1,34 +1,24 @@
-import type { Sop, User, UserRequest } from '../data/mock/types'
+import type { Department, Sop, User, UserRequest } from '../data/mock/types'
+import { hasDirectoryAccess } from './departments'
 
-/**
- * - granted:   the user may open the SOP
- * - requested: a department-access request for the SOP's department is pending
- * - locked:    no access and no pending request
- */
 export type SopAccess = 'granted' | 'requested' | 'locked'
 
-/**
- * Whether the user can open an SOP. Access is by department: any department
- * the user belongs to (home department, plus departments with an APPROVED
- * department-access request), not only the active one.
- *
- * Pass the user's own requests from the shared requests store, so the result
- * updates as soon as a request is submitted, approved or cancelled.
- *
- * TODO: The backend must enforce this same rule before serving any SOP file.
- * Hiding or locking SOPs in the browser is a convenience, not security.
- */
-export function getSopAccess(
-  sop: Pick<Sop, 'departmentId'>,
-  user: Pick<User, 'departmentId'>,
-  requests: UserRequest[],
-): SopAccess {
-  if (sop.departmentId === user.departmentId) return 'granted'
+/** Published-directory access only. Authoring and review assignments are separate. */
+export function getSopAccess(sop: Pick<Sop, 'departmentId' | 'status'>, user: Pick<User, 'id' | 'departmentId' | 'deletedAt'>, requests: UserRequest[]): SopAccess {
+  if (sop.status !== 'published' || user.deletedAt) return 'locked'
+  if (hasDirectoryAccess(user, sop.departmentId, requests)) return 'granted'
+  const pending = requests.some((request) => request.requesterId === user.id && request.type === 'department-access' && request.departmentId === sop.departmentId && request.status === 'pending')
+  return pending ? 'requested' : 'locked'
+}
 
-  const departmentRequests = requests.filter(
-    (request) => request.type === 'department-access' && request.departmentId === sop.departmentId,
-  )
-  if (departmentRequests.some((request) => request.status === 'approved')) return 'granted'
-  if (departmentRequests.some((request) => request.status === 'pending')) return 'requested'
-  return 'locked'
+/** Authorize before directory search, counts, links or document rendering. */
+export function directorySopsFor(sops: Sop[], user: Pick<User, 'id' | 'departmentId' | 'deletedAt'>, requests: UserRequest[]): Sop[] {
+  return sops.filter((sop) => getSopAccess(sop, user, requests) === 'granted')
+}
+
+/** Directory approvals cannot authorize creation, including direct store calls. */
+export function assertCanCreateSop(user: User | undefined, departmentId: string, departments: Department[]): void {
+  if (!user || user.deletedAt || !user.permissions.includes('author') || user.permissions.includes('admin')) throw new Error('An active Author account is required to create an SOP')
+  if (user.departmentId !== departmentId) throw new Error('SOPs can only be created in your home department')
+  if (!departments.some((department) => department.id === departmentId && !department.removedAt)) throw new Error('The home department is unavailable')
 }

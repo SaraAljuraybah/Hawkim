@@ -4,7 +4,9 @@ import type { Sop, TimelineEvent } from '../data/mock/types'
 import * as compliance from '../lib/compliance'
 import { todayIsoDate } from '../lib/format'
 import { nextSopCode } from '../lib/sopCodes'
-import { applyReviewAction, startReview } from '../lib/reviewFlow'
+import { assertCanCreateSop } from '../lib/sopAccess'
+import { applyReviewAction } from '../lib/reviewFlow'
+import { beginInternalReview, cancelInternalReview, decideInternalReview, resubmitInternalReview, startInternalReview } from '../lib/internalReview'
 import { useDepartments } from './departmentsContext'
 import * as workflow from '../lib/workflow'
 import { useGuidelines } from './guidelinesContext'
@@ -25,6 +27,7 @@ export function SopsProvider({ children }: { children: ReactNode }) {
   // New checks use the current GVP version; Submit and Resubmit need a check against it.
   const guideline = useGuidelines().currentGuideline
   const { getUser, users } = useUsers()
+  const { departments } = useDepartments()
   const [sops, setSops] = useState<Sop[]>(seedSops)
   /*
    * The latest list, updated as soon as a change is applied. Actions read and
@@ -99,6 +102,7 @@ export function SopsProvider({ children }: { children: ReactNode }) {
 
   const addDraft = useCallback(
     (draft: NewDraft) => {
+      assertCanCreateSop(users.find((user) => user.id === userId), draft.departmentId, departments)
       const current = latestRef.current
       const code = nextSopCode(
         current.filter((sop) => sop.authorId === userId).map((sop) => sop.code),
@@ -132,19 +136,31 @@ export function SopsProvider({ children }: { children: ReactNode }) {
       commit([created, ...current])
       return created
     },
-    [commit, userId],
+    [commit, userId, users, departments],
   )
 
-  const { departments } = useDepartments()
   const environment = useMemo(() => ({ users, departments }), [users, departments])
+
+  // Directory grants never substitute for the signed-in actor or an explicit assignment.
+  const assertActor = useCallback((actorId: string, permission: 'reviewer' | 'approver') => {
+    const actor = users.find((user) => user.id === userId && !user.deletedAt)
+    if (!actor || actor.id !== actorId || actor.permissions.includes('admin') || !actor.permissions.includes(permission)) throw new Error('Only the signed-in assigned ' + permission + ' can act')
+  }, [users, userId])
 
   const store = useMemo<SopsStore>(
     () => ({
       sops,
       addDraft,
-      submitForReview: (id, o) => update(id, (sop) => startReview(sop, userId, guideline.version, o.reviewerId, o.dueDate, o.note, environment)),
+      submitForReview: (id, o) => update(id, (sop) => startInternalReview(sop, userId, guideline.version, o, environment)),
       reviewAction: (id, action) => update(id, (sop) => applyReviewAction(sop, userId, action, environment)),
+      beginInternalReview: (id, roundId, assignmentId) => update(id, (sop) => beginInternalReview(sop, userId, roundId, assignmentId, environment)),
+      decideInternalReview: (id, roundId, assignmentId, decision, text) => update(id, (sop) => decideInternalReview(sop, userId, roundId, assignmentId, decision, text, environment)),
+      cancelInternalReview: (id, roundId, assignmentId) => update(id, (sop) => cancelInternalReview(sop, userId, roundId, assignmentId, environment)),
       resubmit: (id, options) => update(id, (sop) => {
+        if (sop.internalReviewRounds?.length) {
+          if (options?.dueDate?.trim() || options?.note?.trim()) throw new Error('Internal resubmission restarts saved allocations without legacy overrides')
+          return resubmitInternalReview(sop, userId, guideline.version, environment)
+        }
         if (sop.reviewFlow && !users.some((u) => u.id === userId && !u.deletedAt && u.permissions.includes('author') && !u.permissions.includes('admin'))) throw new Error('An active main Author account is required')
         return workflow.resubmit(sop, userId, guideline.version, options?.note, options?.dueDate)
       }),
@@ -155,33 +171,47 @@ export function SopsProvider({ children }: { children: ReactNode }) {
       addCoAuthors: (id, coAuthorIds) => update(id, (sop) => workflow.addCoAuthors(sop, userId, coAuthorIds)),
       removeCoAuthor: (id, coAuthorId) => update(id, (sop) => workflow.removeCoAuthor(sop, userId, coAuthorId)),
       runCheck,
-      completeReview: (id, reviewerId, text) => update(id, (sop) => workflow.completeReview(sop, reviewerId, text)),
+      completeReview: (id, reviewerId, text) => update(id, (sop) => {
+        assertActor(reviewerId, 'reviewer')
+        return workflow.completeReview(sop, reviewerId, text)
+      }),
       returnAsReviewer: (id, reviewerId, text) => update(id, (sop) => {
+        assertActor(reviewerId, 'reviewer')
         if (sop.reviewFlow) return applyReviewAction(sop, userId, { type: 'return-author', text }, environment)
         return workflow.returnAsReviewer(sop, reviewerId, text)
       }),
       routeToReviewer: (id, reviewerId, newReviewerId, note) => {
+        assertActor(reviewerId, 'reviewer')
         const person = getUser(newReviewerId)
         if (!person) throw new Error(`Unknown user ${newReviewerId}`)
         update(id, (sop) => workflow.routeToReviewer(sop, reviewerId, person, note))
       },
       approveAs: (id, approverId, text) => update(id, (sop) => {
-        if (sop.reviewFlow && (userId !== approverId || !users.some((u) => u.id === userId && !u.deletedAt && u.permissions.includes('approver')))) throw new Error('Only the assigned Quality approver can act')
+        assertActor(approverId, 'approver')
         return workflow.approveAs(sop, approverId, text)
       }),
       returnAsApprover: (id, approverId, text) => update(id, (sop) => {
-        if (sop.reviewFlow && (userId !== approverId || !users.some((u) => u.id === userId && !u.deletedAt && u.permissions.includes('approver')))) throw new Error('Only the assigned Quality approver can act')
+        assertActor(approverId, 'approver')
         return workflow.returnAsApprover(sop, approverId, text)
       }),
       publishAs: (id, approverId) => update(id, (sop) => {
-        if (sop.reviewFlow && (userId !== approverId || !users.some((u) => u.id === userId && !u.deletedAt && u.permissions.includes('approver')))) throw new Error('Only the assigned Quality approver can publish')
+        assertActor(approverId, 'approver')
         return workflow.publishAs(sop, approverId)
       }),
-      shiftDueDates: (id, days) => update(id, (sop) => workflow.shiftDueDates(sop, days)),
+      shiftDueDates: (id, days) => update(id, (sop) => {
+        const actor = users.find((user) => user.id === userId && !user.deletedAt && !user.permissions.includes('admin'))
+        const assigned = actor && (
+          actor.permissions.includes('author') && workflow.isAuthorOrCoAuthor(sop, actor.id) ||
+          actor.permissions.includes('reviewer') && sop.reviewers.some((person) => person.userId === actor.id && person.decision !== 'cancelled') ||
+          actor.permissions.includes('approver') && workflow.isApprover(sop, actor.id)
+        )
+        if (!assigned) throw new Error('An author or review assignment is required to simulate deadlines')
+        return workflow.shiftDueDates(sop, days)
+      }),
       failNextCheck,
       setFailNextCheck,
     }),
-    [sops, addDraft, update, runCheck, failNextCheck, setFailNextCheck, userId, guideline.version, getUser, users, environment],
+    [sops, addDraft, update, runCheck, failNextCheck, setFailNextCheck, userId, guideline.version, getUser, users, environment, assertActor],
   )
 
   return <SopsContext.Provider value={store}>{children}</SopsContext.Provider>

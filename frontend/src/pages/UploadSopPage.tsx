@@ -31,14 +31,14 @@ function fileTypeOf(file: File): SopFileType {
   return file.name.toLowerCase().endsWith('.pdf') ? 'pdf' : 'docx'
 }
 
-/** Upload SOP ("/my-sops/upload", Author permission): saves a new draft in the active department. */
+/** Upload SOP ("/my-sops/upload", Author permission): saves a new draft in the home department. */
 export function UploadSopPage() {
   const content = uploadSopEn
   const user = useCurrentUser()
   const isAuthor = hasPermission(user, 'author')
   useDocumentTitle(isAuthor ? content.pageTitle : undefined)
 
-  const { activeDepartment } = useActiveDepartment()
+  const { homeDepartment } = useActiveDepartment()
   const { addDraft } = useSops()
   const navigate = useNavigate()
 
@@ -90,7 +90,7 @@ export function UploadSopPage() {
     addDraft({
       title: title.trim(),
       description: description.trim() || undefined,
-      departmentId: activeDepartment.id,
+      departmentId: homeDepartment.id,
       fileName: file.name,
       fileType: fileTypeOf(file),
       fileUrl: URL.createObjectURL(file),
@@ -103,7 +103,7 @@ export function UploadSopPage() {
   return (
     <>
       <h1 className="text-2xl tracking-tight sm:text-3xl">{content.title}</h1>
-      <p className="mt-2 text-text-gray">{content.subtitle.replace('{department}', activeDepartment.name)}</p>
+      <p className="mt-2 text-text-gray">{content.subtitle.replace('{department}', homeDepartment.name)}</p>
 
       <div className="mt-8 max-w-[45rem] rounded-xl border border-beige bg-white p-5 sm:p-8">
         <form noValidate onSubmit={handleSubmit} className="space-y-6">
@@ -119,11 +119,11 @@ export function UploadSopPage() {
             onBlur={() => submitAttempted && setErrors((prev) => ({ ...prev, title: validate('title') }))}
           />
 
-          {/* Read-only: new SOPs are added to the active department */}
+          {/* Read-only: new SOPs are added to the home department */}
           <div>
             <p className="mb-1.5 text-sm font-medium text-maroon">{content.fields.department.label}</p>
             <p className="rounded-lg border border-beige bg-beige/50 px-3.5 py-2.5 text-[0.9375rem] text-maroon">
-              {activeDepartment.name}
+              {homeDepartment.name}
             </p>
           </div>
 

@@ -12,7 +12,7 @@ interface DepartmentGridProps {
   getState: (department: Department) => DepartmentState
   /** Members: active users whose home department it is. */
   getMemberCount: (department: Department) => number
-  /** Switch to a department the user belongs to. */
+  /** Open an authorized published directory without changing membership. */
   onOpen: (id: DepartmentId) => void
 }
 
@@ -74,11 +74,11 @@ export function DepartmentGrid({ departments, content, getState, getMemberCount,
                     </span>
                   )}
 
-                  {state === 'member' && (
+                  {(state === 'member' || state === 'directory') && (
                     <>
                       <span className={stateLabel}>
                         <UserCheck aria-hidden="true" className="size-4 shrink-0" strokeWidth={1.75} />
-                        {states.member}
+                        {state === 'member' ? states.member : states.directoryAccess}
                       </span>
                       <Button size="sm" variant="primary" aria-describedby={nameId} onClick={() => onOpen(department.id)}>
                         {states.open}

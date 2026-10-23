@@ -2,12 +2,14 @@ import { useRef, useState, type MouseEvent, type ReactNode } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { ArrowLeft, ArrowUpRight, CircleCheck, MessageSquareReply, ShieldCheck, Upload } from 'lucide-react'
 import { Button } from '../components/ui/Button'
+import { Card } from '../components/ui/Card'
 import { ConfirmDialog } from '../components/ui/ConfirmDialog'
 import { StatusBadge } from '../components/ui/StatusBadge'
 import { Tooltip } from '../components/ui/Tooltip'
 import { AddCoAuthorsDialog } from '../components/workflow/AddCoAuthorsDialog'
 import { ComplianceCard } from '../components/workflow/ComplianceCard'
 import { FileDialog } from '../components/workflow/FileDialog'
+import { InternalReviewPanel } from '../components/workflow/InternalReviewPanel'
 import { PeopleList } from '../components/workflow/PeopleList'
 import { personWithRole } from '../components/workflow/people'
 import { PreviewDialog } from '../components/workflow/PreviewDialog'
@@ -251,6 +253,12 @@ export function SopWorkflowPage() {
         </div>
       </div>
 
+      {sop.description?.trim() && (
+        <Card title={content.descriptionTitle} titleId="description-title" className="mt-6">
+          <p className="text-sm leading-relaxed whitespace-pre-wrap break-words text-maroon">{sop.description}</p>
+        </Card>
+      )}
+
       {/* Success message after an action (live region stays mounted) */}
       <div role="status" ref={statusRef} tabIndex={-1} className="rounded-lg focus:outline-none">
         {message && (
@@ -278,6 +286,8 @@ export function SopWorkflowPage() {
           </p>
         )}
       </Section>
+
+      <InternalReviewPanel sop={sop} canCancel={isMainAuthor} />
 
       {/* 2. SOP history */}
       <Section

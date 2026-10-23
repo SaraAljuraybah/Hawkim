@@ -56,6 +56,7 @@ function handoff(sop: Sop, flow: ReviewFlow, actorId: string, userId: string, de
   return record({ ...sop, reviewFlow: { ...flow, activeReviewerId: userId } }, 'review-assigned', actorId, { recipientIds: [userId], departmentId })
 }
 export function startReview(sop: Sop, actorId: string, guidelineVersion: string, reviewerId: string, dueDate: string | undefined, note: string | undefined, env: ReviewEnvironment): Sop {
+  assert(!sop.internalReviewRounds?.length, 'Use the internal parallel review request for this SOP')
   const author = env.users.find((u) => u.id === actorId && !u.deletedAt && u.permissions.includes('author') && !u.permissions.includes('admin'))
   assert(author && sop.status === 'draft' && isAuthor(sop, actorId), 'Only the active main author can submit a draft')
   assert(hasCurrentCheck(sop, guidelineVersion), 'Run a compliance check against the current guideline first')

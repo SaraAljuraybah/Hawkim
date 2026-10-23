@@ -11,6 +11,7 @@ export const sopWorkflowEn: SopWorkflowContent = {
   versionTemplate: 'v{version}',
   lastUpdatedTemplate: 'Last updated {date}',
   departmentLabel: 'Department',
+  descriptionTitle: 'SOP Description',
   roles: { reviewer: 'Reviewer', approver: 'Approver', author: 'Author', coAuthor: 'Co-author', system: 'System' },
 
   reviewerDeadline: {
@@ -24,6 +25,7 @@ export const sopWorkflowEn: SopWorkflowContent = {
     dueToday: 'Time Remaining: Due today',
     overdue: 'Overdue',
     current: 'Current reviewer',
+    active: 'Review pending',
     waiting: 'Waiting in queue',
   },
 
@@ -69,7 +71,7 @@ export const sopWorkflowEn: SopWorkflowContent = {
     addAuthor: 'Add author',
     remove: 'Remove',
     removeLabel: 'Remove {name} as co-author',
-    decisions: { pending: 'Pending', completed: 'Completed', approved: 'Approved', returned: 'Returned' },
+    decisions: { pending: 'Pending', completed: 'Completed', approved: 'Approved', returned: 'Returned', cancelled: 'Cancelled' },
   },
 
   file: {
@@ -145,6 +147,10 @@ export const sopWorkflowEn: SopWorkflowContent = {
     viewMore: 'View more',
     viewLess: 'View less',
     events: {
+      'review-started': 'Review started',
+      'review-cancelled': 'Review assignment cancelled',
+      'review-request-cancelled': 'Review request cancelled; SOP returned to Draft',
+      'internal-review-completed': 'Internal reviews completed; awaiting Author',
       'version-uploaded': 'New version uploaded',
       'version-deleted': 'Version deleted',
       response: 'Response',

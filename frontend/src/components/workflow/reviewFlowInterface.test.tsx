@@ -23,15 +23,16 @@ function draft(): Sop {
   return { id: 'test', code: 'TEST', title: 'Test', departmentId: 'test-origin', version: '1', status: 'draft', authorId: 'author', coAuthorIds: [], lastUpdated: '2026-10-18', fileName: 'test.pdf', fileType: 'pdf', reviewers: [], approvers: [], versions: [], comments: [], timeline: [], complianceChecks: [] }
 }
 describe('review plan interface', () => {
-  it('offers an explicit single Reviewer 1 selection without automatically assigning users or approvers', () => {
+  it('offers multiple eligible internal reviewers without assigning authors, external reviewers or approvers', () => {
     const html = renderToStaticMarkup(<SubmitDialog sop={draft()} content={sopWorkflowEn.dialogs} onSubmit={() => {}} onClose={() => {}} />)
-    expect(html).toContain('name="reviewer1"')
+    expect(html).toContain('name="internalReviewers"')
+    expect(html).toContain('type="checkbox"')
     expect(html).toContain('First Test Reviewer')
     expect(html).toContain('Second Test Reviewer')
     expect(html).not.toContain('Other Department Reviewer')
     expect(html).not.toContain('Quality Test Controller')
-    expect(html).not.toContain('multiple=')
-    expect(html).toContain('value="" disabled="" selected=""')
+    expect(html).not.toContain('Reviewer 1')
+    expect(html).toContain('Overall Review Request Due Date')
     expect(html).toContain('type="date"')
   })
   it('shows a clear blocked Quality state when no controller is configured', () => {

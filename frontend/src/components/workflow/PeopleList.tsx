@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { internalReviewEn } from '../../content/internalReview.en'
 import { UserPlus } from 'lucide-react'
 import type { SopWorkflowContent } from '../../content/types'
 import type { Sop } from '../../data/mock/types'
@@ -110,6 +111,7 @@ export function PeopleList({
                   <li key={person.userId} className={rowClasses}>
                     <span className="text-[0.9375rem] text-maroon">{name(person.userId)}</span>
                     <DecisionBadge decision={person.decision} labels={content.decisions} />
+                    {sop.internalReviewRounds?.length && person.decision === 'pending' && 'startedAt' in person && person.startedAt && <span className="text-xs text-text-gray">{internalReviewEn.actions.inProgress}</span>}
                     {people === sop.reviewers && (
                       <ReviewerDeadline sop={sop} reviewer={sop.reviewers.find((reviewer) => reviewer.userId === person.userId)!} content={sopWorkflowEn.reviewerDeadline} showQueue />
                     )}

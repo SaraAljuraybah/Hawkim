@@ -89,6 +89,8 @@ export interface Sop {
    */
   /** Present on SOPs using the selected-reviewer workflow; absent on legacy records. */
   reviewFlow?: ReviewFlow
+  /** Version-linked internal parallel review history; absent on legacy SOPs. */
+  internalReviewRounds?: InternalReviewRound[]
   reviewers: ReviewerAssignment[]
   approvers: ApproverAssignment[]
   /** Calendar days for each stage (1–30), set on the first submission. */
@@ -153,12 +155,14 @@ export interface ReviewFlow {
   qualityControllerId?: string
 }
 
-export type ReviewerDecision = 'pending' | 'completed' | 'returned'
+export type ReviewerDecision = 'pending' | 'completed' | 'returned' | 'cancelled'
 export type ApproverDecision = 'pending' | 'approved' | 'returned'
 
 
 export interface ReviewerAssignment {
   userId: string
+  /** Beginning work does not submit a final decision. */
+  startedAt?: string
   decision: ReviewerDecision
   /** Optional deadline for this reviewer (YYYY-MM-DD). */
   dueDate?: string
@@ -168,6 +172,33 @@ export interface ReviewerAssignment {
   decidedAt?: string
 }
 
+
+/** Cancellation is a request outcome, not a completed content review. */
+export type ReviewCancellationReason = 'author-cancelled' | 'round-rejected'
+
+export interface InternalReviewerAssignment extends ReviewerAssignment {
+  id: string
+  assignedAt: string
+  commentId?: string
+  cancelledAt?: string
+  cancelledById?: string
+  cancellationReason?: ReviewCancellationReason
+}
+
+/** Shared integration boundary: external routing can consume completed internal rounds. */
+export interface InternalReviewRound {
+  id: string
+  scope: 'internal'
+  version: string
+  status: 'open' | 'completed' | 'rejected' | 'cancelled'
+  requestedById: string
+  requestedAt: string
+  /** Overall request date, independent of each reviewer task date. */
+  dueDate?: string
+  assignedDueDays: number | null
+  closedAt?: string
+  assignments: InternalReviewerAssignment[]
+}
 
 export interface ApproverAssignment {
   userId: string
@@ -181,6 +212,8 @@ export const SYSTEM_ACTOR = 'system'
 /** Feedback left when an SOP is returned to its author. */
 export interface SopComment {
   id: string
+  reviewRoundId?: string
+  reviewAssignmentId?: string
   authorUserId: string
   role: ReviewRole
   text: string
@@ -211,10 +244,17 @@ export type TimelineEventType =
   | 'review-assigned'
   | 'review-returned'
   | 'review-scope-decided'
+  | 'review-started'
+  | 'review-cancelled'
+  | 'review-request-cancelled'
+  | 'internal-review-completed'
 
 /** One action in an SOP's workflow history (PBI 24). */
 export interface TimelineEvent {
   id: string
+  reviewRoundId?: string
+  reviewAssignmentId?: string
+  cancellationReason?: ReviewCancellationReason
   type: TimelineEventType
   /** Who did it (User.id, or SYSTEM_ACTOR for automatic steps). */
   actorId: string

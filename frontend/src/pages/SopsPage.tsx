@@ -4,6 +4,9 @@ import { Button } from '../components/ui/Button'
 import { TextField } from '../components/ui/TextField'
 import { SelectField } from '../components/ui/SelectField'
 import { filterDirectorySops, type SopDocumentFilter } from '../lib/sopDirectory'
+import { directorySopsFor } from '../lib/sopAccess'
+import { useCurrentUser } from '../state/sessionContext'
+import { useMyRequests } from '../state/requestsContext'
 import { SopGrid } from '../components/sops/SopGrid'
 import { SopList } from '../components/sops/SopList'
 import { Tabs, type TabItem } from '../components/ui/Tabs'
@@ -36,6 +39,8 @@ export function SopsPage() {
   // TODO: Load the active department's SOPs from the backend API.
   const { activeDepartment } = useActiveDepartment()
   const { sops } = useSops()
+  const user = useCurrentUser()
+  const requests = useMyRequests()
 
   const [tab, setTab] = useState<SopTabKey>('all')
   const [query, setQuery] = useState('')
@@ -57,8 +62,8 @@ export function SopsPage() {
     label: content.tabs[key],
   }))
   const visibleSops = useMemo(
-    () => filterDirectorySops(sops, activeDepartment.id, tab, query, documentType),
-    [sops, activeDepartment.id, tab, query, documentType],
+    () => filterDirectorySops(directorySopsFor(sops, user, requests), activeDepartment.id, tab, query, documentType),
+    [sops, user, requests, activeDepartment.id, tab, query, documentType],
   )
   function clearFilters() {
     setQuery('')

@@ -122,7 +122,7 @@ export function ReviewsPage() {
                   </div>
                   {/* Reviewer metadata belongs to this person; approval retains its stage deadline. */}
                   {task.role === 'reviewer' ? (
-                    <ReviewerDeadline sop={task.sop} reviewer={task.sop.reviewers.find((person) => person.userId === user.id)!} content={sopWorkflowEn.reviewerDeadline} showQueue />
+                    <ReviewerDeadline sop={task.sop} reviewer={(task.reviewer ?? task.sop.reviewers.find((person) => person.userId === user.id))!} content={sopWorkflowEn.reviewerDeadline} showQueue />
                   ) : task.group === 'todo' && due(task)}
                 </div>
               </li>

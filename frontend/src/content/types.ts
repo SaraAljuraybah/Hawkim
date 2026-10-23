@@ -233,8 +233,9 @@ export interface AppShellContent extends SidebarContent {
   departmentSwitcher: {
     /** Label before the department name (visible in the drawer, screen-reader only in the top bar). */
     label: string
-    /** Accessible name of the department menu. */
+    /** Accessible name of the published-directory menu. */
     menuLabel: string
+    readOnly: string
   }
 }
 
@@ -298,6 +299,7 @@ export interface SopDetailContent {
   pageTitle: string
   back: LinkContent
   exportPdf: string
+  descriptionTitle: string
   /** Accessible title of the embedded viewer; `{code}` and `{title}` are replaced. */
   viewerTitle: string
   /** Shown when the browser can't display PDFs inline (common on phones). */
@@ -323,6 +325,7 @@ export interface DepartmentsContent {
   states: {
     current: string
     member: string
+    directoryAccess: string
     open: string
     accessRequested: string
     requestAccess: string
@@ -477,6 +480,7 @@ export interface SopWorkflowContent {
   /** `{date}` is replaced. */
   lastUpdatedTemplate: string
   departmentLabel: string
+  descriptionTitle: string
   roles: { reviewer: string; approver: string; author: string; coAuthor: string; system: string }
   reviewerDeadline: {
     due: string
@@ -489,6 +493,7 @@ export interface SopWorkflowContent {
     dueToday: string
     overdue: string
     current: string
+    active: string
     waiting: string
   }
   tracker: {
@@ -532,7 +537,7 @@ export interface SopWorkflowContent {
     remove: string
     /** Accessible name of a Remove button; `{name}` is replaced. */
     removeLabel: string
-    decisions: { pending: string; completed: string; approved: string; returned: string }
+    decisions: { pending: string; completed: string; approved: string; returned: string; cancelled: string }
   }
   file: {
     types: Record<SopFileType, string>
@@ -901,6 +906,10 @@ export interface NotificationsContent {
     resubmitted: string
     routed: string
     handoff: string
+    internalReviewCompleted: string
+    reviewCancelled: string
+    requestDueSoon: string
+    requestOverdue: string
     assignedApproval: string
     readyToPublish: string
     returned: string
@@ -1262,8 +1271,8 @@ export interface AdminUserDetailsContent {
     title: string
     email: string
     homeDepartment: string
-    joinedDepartments: string
-    joinedHint: string
+    directoryAccess: string
+    directoryHint: string
     none: string
   }
   permissions: {

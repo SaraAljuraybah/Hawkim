@@ -71,3 +71,33 @@ describe('reviewer deadline displays', () => {
     expect(next).not.toContain('Approval person')
   })
 })
+
+
+describe('parallel reviewer deadline displays', () => {
+  it('shows every pending reviewer as active with their own remaining time', () => {
+    vi.useFakeTimers({ now: new Date(2026, 9, 19, 12) })
+    const item = sop()
+    item.internalReviewRounds = [{ id: 'parallel', scope: 'internal', version: item.version, status: 'open', requestedById: 'Author', requestedAt: '2026-10-18T09:00:00Z', dueDate: '2026-10-30', assignedDueDays: 12, assignments: item.reviewers.map((person, index) => ({ ...person, id: 'task-' + index, assignedAt: '2026-10-18T09:00:00Z' })) }]
+    for (const reviewer of item.internalReviewRounds[0].assignments.slice(0, 2)) {
+      const html = render(<ReviewerDeadline sop={item} reviewer={reviewer} content={sopWorkflowEn.reviewerDeadline} showQueue />)
+      expect(html).toContain('Review pending')
+      expect(html).toContain('Time Remaining')
+      expect(html).not.toContain('Waiting in queue')
+    }
+    const html = render(<StatusTracker sop={item} content={sopWorkflowEn.tracker} />)
+    expect(html).toContain('First reviewer, Next reviewer, No deadline reviewer')
+    expect(html).toContain('Overall Review Request Due Date')
+  })
+  it('uses the individual deadline for overdue and stops displaying remaining time after cancellation', () => {
+    vi.useFakeTimers({ now: new Date(2026, 9, 21, 12) })
+    const item = sop()
+    item.internalReviewRounds = [{ id: 'parallel', scope: 'internal', version: item.version, status: 'open', requestedById: 'Author', requestedAt: '2026-10-18T09:00:00Z', dueDate: '2026-10-30', assignedDueDays: 12, assignments: item.reviewers.map((person, index) => ({ ...person, id: 'task-' + index, assignedAt: '2026-10-18T09:00:00Z' })) }]
+    const first = item.internalReviewRounds[0].assignments[0]
+    expect(render(<ReviewerDeadline sop={item} reviewer={first} content={sopWorkflowEn.reviewerDeadline} />)).toContain('Overdue')
+    first.decision = 'cancelled'
+    const cancelled = render(<ReviewerDeadline sop={item} reviewer={first} content={sopWorkflowEn.reviewerDeadline} />)
+    expect(cancelled).not.toContain('Overdue')
+    expect(cancelled).not.toContain('Time Remaining')
+    expect(cancelled).toContain('Time given: 2 days')
+  })
+})

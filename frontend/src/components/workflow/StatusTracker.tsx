@@ -11,6 +11,8 @@ import {
 } from '../../lib/workflow'
 import { sopWorkflowEn } from '../../content/workflow.en'
 import { ReviewFlowSummary } from './ReviewFlowSummary'
+import { InternalReviewSummary } from './InternalReviewSummary'
+import { internalReviewEn } from '../../content/internalReview.en'
 import { ReviewerDeadline } from './ReviewerDeadline'
 import { useUsers } from '../../state/usersContext'
 
@@ -38,7 +40,11 @@ export function StatusTracker({ sop, content }: StatusTrackerProps) {
   const published = sop.status === 'published'
   const { nameOf } = useUsers()
 
-  const assigneeIds =
+  const internalRound = sop.internalReviewRounds?.at(-1)
+  const awaitingAuthor = sop.status === 'in-review' && internalRound?.status === 'completed'
+  const assigneeIds = awaitingAuthor
+    ? sop.authorId ? [sop.authorId] : []
+    :
     sop.status === 'in-review' || sop.status === 'in-approval'
       ? pendingPeople(sop).map((person) => person.userId)
       : sop.status === 'returned'
@@ -49,7 +55,7 @@ export function StatusTracker({ sop, content }: StatusTrackerProps) {
           ? sop.approvers.map((person) => person.userId)
           : []
 
-  const assigneeStatus =
+  const assigneeStatus = awaitingAuthor ? internalReviewEn.status.awaitingAuthor :
     sop.status === 'in-review'
       ? content.assignee.reviewPending
       : sop.status === 'in-approval'
@@ -154,6 +160,7 @@ export function StatusTracker({ sop, content }: StatusTrackerProps) {
 
       </ol>
 
+      {internalRound && <InternalReviewSummary sop={sop} />}
       {sop.reviewFlow && <ReviewFlowSummary sop={sop} />}
 
       {assigneeIds.length > 0 && (
