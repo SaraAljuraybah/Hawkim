@@ -11,6 +11,7 @@ export const approvalEn = {
     feedbackAddressed: 'I confirm that all required reviewer feedback has been addressed for this SOP version.',
     dueDate: 'Approval Due Date (optional)',
     dueDateHelp: 'Applies to the assigned Approver. Leave blank for no deadline.',
+    dateInvalid: 'Choose a date from {min} to {max}, or leave it blank.',
     failed: 'The SOP could not be submitted for approval. Check the current workflow state and try again.',
     cancel: 'Cancel',
   },

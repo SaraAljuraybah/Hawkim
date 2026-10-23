@@ -2,11 +2,13 @@ import { SYSTEM_ACTOR, type InternalReviewRound, type InternalReviewerAssignment
 import { hasCurrentCheck } from './compliance'
 import { todayIsoDate } from './format'
 import { eligibleReviewers, type ReviewEnvironment } from './reviewFlow'
-import { canResubmit, isAuthor, parseDueDate } from './workflow'
+import { canResubmit, dueAtOfDate, isAuthor, parseDueDate } from './workflow'
 
 export interface InternalReviewOptions {
   reviewerIds: string[]
+  /** One optional local calendar deadline shared by the request and every new task. */
   dueDate?: string
+  /** Compatibility for older callers only; differing individual deadlines are rejected. */
   reviewerDueDates?: Record<string, string>
   note?: string
 }
@@ -39,10 +41,10 @@ function event(round: InternalReviewRound, type: TimelineEvent['type'], actorId:
 function save(sop: Sop, round: InternalReviewRound, events: TimelineEvent[], extra: Partial<Sop> = {}): Sop {
   return { ...sop, ...extra, internalReviewRounds: [...sop.internalReviewRounds!.slice(0, -1), round], reviewers: round.assignments, lastUpdated: todayIsoDate(), timeline: [...sop.timeline, ...events] }
 }
-function date(isoDate?: string) {
+function date(isoDate?: string, now = new Date()) {
   const trimmed = isoDate?.trim() || undefined
-  const parsed = parseDueDate(trimmed ?? '')
-  assert(parsed.valid, 'Choose an optional deadline from tomorrow through 30 days from today')
+  const parsed = parseDueDate(trimmed ?? '', now)
+  assert(parsed.valid, 'Choose an optional review deadline today or later')
   return { dueDate: trimmed, assignedDueDays: parsed.days ?? null }
 }
 function plusDays(days: number): string {
@@ -50,15 +52,16 @@ function plusDays(days: number): string {
   return todayIsoDate(new Date(now.getFullYear(), now.getMonth(), now.getDate() + days))
 }
 function create(sop: Sop, actorId: string, options: InternalReviewOptions, kind: 'submitted' | 'resubmitted'): Sop {
-  const now = new Date().toISOString()
-  const timing = date(options.dueDate)
+  const requestedAt = new Date()
+  const now = requestedAt.toISOString()
+  const timing = date(options.dueDate, requestedAt)
   const round: InternalReviewRound = { id: id('internal-round'), scope: 'internal', version: sop.version, status: 'open', requestedById: actorId, requestedAt: now, ...timing,
-    assignments: options.reviewerIds.map((userId) => ({ id: id('internal-task'), userId, decision: 'pending', assignedAt: now, ...date(options.reviewerDueDates?.[userId]) })) }
+    assignments: options.reviewerIds.map((userId) => ({ id: id('internal-task'), userId, decision: 'pending', assignedAt: now, ...timing })) }
   const recipientIds = round.assignments.map((person) => person.userId)
-  const events = [event(round, kind, actorId, { recipientIds, ...(options.note?.trim() ? { note: options.note.trim() } : {}) })]
-  if (round.dueDate) events.push(event(round, 'stage-due-date-set', actorId, { stage: 'review', dueAt: new Date(round.dueDate + 'T23:59:59.999').toISOString() }))
+  const events = [event(round, kind, actorId, { createdAt: now, recipientIds, ...(options.note?.trim() ? { note: options.note.trim() } : {}) })]
+  if (round.dueDate) events.push(event(round, 'stage-due-date-set', actorId, { createdAt: now, stage: 'review', dueAt: dueAtOfDate(round.dueDate) }))
   return { ...sop, status: 'in-review', reviewFlow: undefined, internalReviewRounds: [...(sop.internalReviewRounds ?? []), round], reviewers: round.assignments, approvers: [],
-    reviewDueDays: round.assignedDueDays ?? undefined, reviewDueAt: round.dueDate ? new Date(round.dueDate + 'T23:59:59.999').toISOString() : undefined,
+    reviewDueDays: round.assignedDueDays ?? undefined, reviewDueAt: round.dueDate ? dueAtOfDate(round.dueDate) : undefined,
     approvalDueDays: undefined, approvalDueAt: undefined, lastUpdated: todayIsoDate(), timeline: [...sop.timeline, ...events] }
 }
 function validate(sop: Sop, options: InternalReviewOptions, env: ReviewEnvironment) {
@@ -66,9 +69,9 @@ function validate(sop: Sop, options: InternalReviewOptions, env: ReviewEnvironme
   const eligible = eligibleReviewers(sop, sop.departmentId, env.users)
   assert(options.reviewerIds.every((userId) => eligible.some((user) => user.id === userId)), 'Select eligible reviewers from the SOP home department; Authors and co-authors cannot review')
   assert(Object.keys(options.reviewerDueDates ?? {}).every((key) => options.reviewerIds.includes(key)), 'Task deadlines must belong to selected reviewers')
+  assert(Object.values(options.reviewerDueDates ?? {}).every((value) => value.trim() === (options.dueDate?.trim() ?? '')), 'Use one shared review deadline for every selected reviewer')
   assert(!options.note || options.note.trim().length <= 500, 'Submission notes must be at most 500 characters')
   date(options.dueDate)
-  Object.values(options.reviewerDueDates ?? {}).forEach(date)
 }
 export function startInternalReview(sop: Sop, actorId: string, guidelineVersion: string, options: InternalReviewOptions, env: ReviewEnvironment): Sop {
   author(sop, actorId, env)
@@ -129,8 +132,7 @@ export function resubmitInternalReview(sop: Sop, actorId: string, guidelineVersi
   assert(hasCurrentCheck(sop, guidelineVersion), 'Complete a compliance check of the revised version against the current guideline first')
   const required = round.assignments.filter((person) => person.cancellationReason !== 'author-cancelled')
   const options: InternalReviewOptions = { reviewerIds: required.map((person) => person.userId),
-    ...(round.assignedDueDays !== null ? { dueDate: plusDays(round.assignedDueDays) } : {}),
-    reviewerDueDates: Object.fromEntries(required.filter((person) => person.assignedDueDays != null).map((person) => [person.userId, plusDays(person.assignedDueDays!)])) }
+    ...(round.assignedDueDays != null ? { dueDate: plusDays(round.assignedDueDays) } : {}) }
   validate(sop, options, env)
   return create(sop, actorId, options, 'resubmitted')
 }

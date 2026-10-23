@@ -225,10 +225,14 @@ describe('resubmitting', () => {
     vi.useRealTimers()
   })
 
-  it('refuses a due date outside 1 to 30 days and comments over 500 characters', () => {
+  it('accepts today and distant dates, rejects past/invalid dates and overlong comments', () => {
     vi.useFakeTimers({ now: new Date(2026, 9, 18, 12) })
-    for (const date of ['2026-10-18', '2026-10-17', '2026-11-18']) {
+    for (const date of ['2026-10-17', '2026-02-30', 'invalid']) {
       expect(() => resubmit(readyToResubmit(), SARA, GVP, undefined, date)).toThrow(/deadline/)
+    }
+    for (const [date, days] of [['2026-10-18', 0], ['2026-11-18', 31]] as const) {
+      const updated = resubmit(readyToResubmit(), SARA, GVP, undefined, date)
+      expect(updated.reviewers[0]).toMatchObject({ dueDate: date, assignedDueDays: days })
     }
     expect(() => resubmit(readyToResubmit(), SARA, GVP, 'x'.repeat(501))).toThrow(/500/)
     vi.useRealTimers()
@@ -586,15 +590,18 @@ describe('review due date (Submit for review)', () => {
   // Oct 18, 2026, 3:20 PM local time.
   const now = new Date(2026, 9, 18, 15, 20)
 
-  it('allows tomorrow to 30 days from today', () => {
-    expect(dueDateRange(now)).toEqual({ min: '2026-10-19', max: '2026-11-17' })
+  it('allows today and any future date without a 30-day maximum', () => {
+    expect(dueDateRange(now)).toEqual({ min: '2026-10-18' })
+    expect(parseDueDate('2026-10-18', now)).toEqual({ valid: true, days: 0 })
     expect(parseDueDate('2026-10-19', now)).toEqual({ valid: true, days: 1 })
     expect(parseDueDate('2026-10-23', now)).toEqual({ valid: true, days: 5 })
-    expect(parseDueDate('2026-11-17', now)).toEqual({ valid: true, days: 30 })
+    expect(parseDueDate('2026-11-18', now)).toEqual({ valid: true, days: 31 })
+    const nextYear = '2027-10-18'
+    expect(parseDueDate(nextYear, now)).toEqual({ valid: true, days: 365 })
   })
 
-  it('refuses today, past dates, more than 30 days and dates that don’t exist', () => {
-    for (const date of ['2026-10-18', '2026-10-01', '2026-11-18', '2026-02-30', 'not a date']) {
+  it('rejects past dates, malformed values and nonexistent calendar days', () => {
+    for (const date of ['2026-10-17', '2026-10-01', '2026-02-30', 'not a date', '2026-13-01']) {
       expect(parseDueDate(date, now).valid).toBe(false)
     }
   })
@@ -881,8 +888,12 @@ describe('individual reviewer deadlines and sequential handoffs', () => {
     expect(sop.reviewers.map((person) => person.assignedDueDays)).toEqual([2, 7, null])
     vi.setSystemTime(new Date(2026, 9, 19, 18))
     expect(reviewerAssignedDays(sop, sop.reviewers[0])).toBe(2)
-    expect(reviewerRemainingDays(sop, sop.reviewers[0])).toBe(1)
-    expect(currentDueAt(sop)).toBe(new Date(2026, 9, 20, 23, 59, 59, 999).toISOString())
+    const preciseDeadline = new Date(2026, 9, 20, 23, 59, 59, 999)
+    expect(reviewerRemainingDays(sop, sop.reviewers[0])).toBeCloseTo(
+      (preciseDeadline.getTime() - new Date(2026, 9, 19, 18).getTime()) / DAY_MS,
+      9,
+    )
+    expect(currentDueAt(sop)).toBe(preciseDeadline.toISOString())
   })
   it('guards every reviewer action and hands off to the next pending reviewer', () => {
     vi.useFakeTimers({ now: new Date(2026, 9, 18, 12) })
@@ -939,11 +950,15 @@ describe('individual reviewer deadlines and sequential handoffs', () => {
   })
   it('validates dates at the workflow boundary and normalizes whitespace', () => {
     vi.useFakeTimers({ now: new Date(2026, 9, 18, 12) })
-    const invalidDates: Record<string, string>[] = [{ [NOURA]: '2026-02-30' }, { [NOURA]: '2026-10-18' }, { [NOURA]: '2026-11-18' }, { unknown: '2026-10-20' }, { [NOURA]: ' ' }]
+    const invalidDates: Record<string, string>[] = [{ [NOURA]: '2026-02-30' }, { [NOURA]: '2026-10-17' }, { unknown: '2026-10-20' }, { [NOURA]: ' ' }]
     for (const dates of invalidDates) {
       expect(() => submitForReview(draft(), SARA, GVP, [NOURA], [HUDA], undefined, undefined, undefined, dates)).toThrow(/due date/)
     }
     const sop = submitForReview(draft(), SARA, GVP, [NOURA], [HUDA], undefined, undefined, undefined, { [NOURA]: ' 2026-10-20 ' })
     expect(sop.reviewers[0]).toMatchObject({ dueDate: '2026-10-20', assignedDueDays: 2 })
+    const today = submitForReview(draft(), SARA, GVP, [NOURA], [HUDA], undefined, undefined, undefined, { [NOURA]: '2026-10-18' })
+    expect(today.reviewers[0]).toMatchObject({ dueDate: '2026-10-18', assignedDueDays: 0 })
+    const distant = submitForReview(draft(), SARA, GVP, [NOURA], [HUDA], undefined, undefined, undefined, { [NOURA]: '2026-11-18' })
+    expect(distant.reviewers[0]).toMatchObject({ dueDate: '2026-11-18', assignedDueDays: 31 })
   })
 })

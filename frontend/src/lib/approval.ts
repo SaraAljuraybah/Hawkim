@@ -2,7 +2,7 @@ import type { ApprovalSubmission, ExternalReviewGate, Sop, TimelineEvent, User }
 import { currentCheck } from './compliance'
 import { todayIsoDate } from './format'
 import type { ReviewEnvironment } from './reviewFlow'
-import { externalReviewsComplete, internalReviewsComplete, isAuthorOrCoAuthor, isReviewer, parseDueDate, requiredReviewsComplete } from './workflow'
+import { externalReviewsComplete, internalReviewsComplete, isAuthorOrCoAuthor, isReviewer, parseApprovalDueDate, requiredReviewsComplete } from './workflow'
 
 export interface ApprovalSubmissionOptions {
   /** The version and completed round shown when the Author opened the dialog. */
@@ -80,7 +80,7 @@ export function approvalReadiness(sop: Sop, actorId: string, env: ReviewEnvironm
     !configured.permissions.includes('admin') && !isAuthorOrCoAuthor(sop, configured.id) && !isReviewer(sop, configured.id) &&
     !(gate?.requirement === 'required' && gate.assignments.some((assignment) => assignment.userId === configured.id)) ? configured : undefined
   if (!qualityController) reasons.push('Configure an active eligible Quality Document Controller with Approver permission for the originating department. Authors, co-authors and Reviewers cannot approve this SOP.')
-  if (!parseDueDate(options.dueDate ?? '').valid) reasons.push('Choose an optional approval deadline from tomorrow through 30 days from today.')
+  if (!parseApprovalDueDate(options.dueDate ?? '').valid) reasons.push('Choose an optional approval deadline from tomorrow through 30 days from today.')
   return { ready: reasons.length === 0, reasons, qualityController, requiresExternalConfirmation, requiresFeedbackConfirmation }
 }
 
@@ -95,7 +95,7 @@ export function submitForApproval(sop: Sop, actorId: string, options: ApprovalSu
   const submission: ApprovalSubmission = {
     id: submissionId, version: sop.version, internalReviewRoundId: options.internalReviewRoundId,
     submittedById: actorId, submittedAt: now, approverId: readiness.qualityController!.id,
-    status: 'pending', assignedDueDays: parseDueDate(dueDate ?? '').days ?? null,
+    status: 'pending', assignedDueDays: parseApprovalDueDate(dueDate ?? '').days ?? null,
     ...(dueDate ? { dueDate } : {}), ...(readiness.requiresFeedbackConfirmation ? { feedbackAddressed: true } : {}),
   }
   const record = (type: TimelineEvent['type'], extra: Partial<TimelineEvent> = {}): TimelineEvent => ({

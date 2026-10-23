@@ -97,8 +97,9 @@ export interface Sop {
   approvalSubmissions?: ApprovalSubmission[]
   reviewers: ReviewerAssignment[]
   approvers: ApproverAssignment[]
-  /** Calendar days for each stage (1–30), set on the first submission. */
+  /** Review calendar offset (0 or greater); older records may have numeric 1–30 allocations. */
   reviewDueDays?: number
+  /** Approval calendar allocation retains the existing 1–30 day range. */
   approvalDueDays?: number
   /** Due dates (ISO date and time) of the current round, when the stage has started. */
   reviewDueAt?: string
@@ -197,7 +198,7 @@ export interface InternalReviewRound {
   status: 'open' | 'completed' | 'rejected' | 'cancelled'
   requestedById: string
   requestedAt: string
-  /** Overall request date, independent of each reviewer task date. */
+  /** Shared deadline for new requests; historical rounds may have distinct task dates. */
   dueDate?: string
   assignedDueDays: number | null
   closedAt?: string

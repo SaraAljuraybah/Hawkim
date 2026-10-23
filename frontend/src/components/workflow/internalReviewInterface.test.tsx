@@ -29,7 +29,7 @@ const environment = () => ({ users: fixture.users, departments: fixture.departme
 function draft(): Sop {
   return { id: 'test', code: 'SOP-TEST', title: 'Internal review fixture', description: 'Description retained', departmentId: 'home', version: '1', status: 'draft', lastUpdated: '2026-10-23', authorId: 'author', coAuthorIds: ['coauthor'], fileName: 'test.pdf', fileType: 'pdf', reviewers: [], approvers: [], comments: [], timeline: [], versions: [{ version: '1', fileName: 'test.pdf', fileType: 'pdf', uploadedAt: new Date().toISOString(), uploadedById: 'author' }], complianceChecks: [{ id: 'check', sopId: 'test', version: '1', status: 'completed', startedAt: new Date().toISOString(), guideline: { name: 'GVP', version: '4.0' }, findings: [] }] }
 }
-function start() { return startInternalReview(draft(), 'author', '4.0', { reviewerIds: ['reviewer-a', 'reviewer-b'], dueDate: '2026-10-28', reviewerDueDates: { 'reviewer-a': '2026-10-25', 'reviewer-b': '2026-10-27' } }, environment()) }
+function start() { return startInternalReview(draft(), 'author', '4.0', { reviewerIds: ['reviewer-a', 'reviewer-b'], dueDate: '2026-10-28' }, environment()) }
 function render(page: ReactNode) { return renderToStaticMarkup(<MemoryRouter initialEntries={['/test']}><Routes><Route path="/:id" element={page} /></Routes></MemoryRouter>) }
 function decide(sop: Sop, userId: string, decision: 'completed' | 'returned', text?: string) {
   const round = currentInternalRound(sop)!
@@ -59,7 +59,10 @@ describe('internal parallel review across transitions and detail views', () => {
     expect(html).toContain('Reviewer Alpha')
     expect(html).toContain('Reviewer Beta')
     for (const name of ['Main writer', 'Contributing writer', 'External reviewer', 'Reviewer 1']) expect(html).not.toContain(name)
-    expect(html).toContain('Overall Review Request Due Date')
+    expect(html).toContain('Review due date (optional)')
+    expect(html.match(/type="date"/g)).toHaveLength(1)
+    expect(html).not.toContain('name="reviewerDueDate-')
+    expect(html).not.toContain('max="')
     expect(html).toContain(sopWorkflowEn.dialogs.submit.note.label)
     expect(html).toContain('name="reviewRequestDueDate"')
     expect(html).toContain('name="note"')

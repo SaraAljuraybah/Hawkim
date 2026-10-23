@@ -47,7 +47,7 @@ function assign(sop: Sop, userId: string, dueDate?: string): Sop {
   const date = dueDate?.trim()
   const parsed = parseDueDate(date ?? '')
   assert(!keepsRoundDeadline(sop, userId) || !date || date === existing?.dueDate, 'A reviewer keeps the deadline already set in this review round')
-  assert(parsed.valid, 'Choose an optional deadline from tomorrow to 30 days from today')
+  assert(parsed.valid, 'Choose an optional review deadline of today or a future date')
   const assignment = { ...existing, userId, decision: 'pending' as const, decidedAt: undefined,
     ...(date ? { dueDate: date, assignedDueDays: parsed.days } : existing ? {} : { assignedDueDays: null }) }
   return { ...sop, reviewers: existing ? sop.reviewers.map((p) => p.userId === userId ? assignment : p) : [...sop.reviewers, assignment] }
