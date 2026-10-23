@@ -50,13 +50,15 @@ export function RequestsProvider({ children }: { children: ReactNode }) {
 
   const cancelRequest = useCallback(
     (id: string) => {
+      const request = latestRef.current.find((item) => item.id === id)
+      if (!userId || !request || request.requesterId !== userId || request.status !== 'pending') return
       commit(
-        latestRef.current.map((request) =>
-          request.id === id && request.status === 'pending' ? { ...request, status: 'cancelled' } : request,
+        latestRef.current.map((item) =>
+          item.id === id ? { ...item, status: 'cancelled' } : item,
         ),
       )
     },
-    [commit],
+    [commit, userId],
   )
 
   /** Applies the signed-in admin's decision to a request the rules allow (throws otherwise). */

@@ -10,7 +10,7 @@ export interface RequestsStore {
   requests: UserRequest[]
   /** Adds a pending request by the signed-in user, dated today, and returns it. */
   addRequest: (request: NewRequest) => UserRequest
-  /** Cancels a pending request (other statuses are left unchanged). */
+  /** Cancels only the signed-in user's own pending request; other requests are left unchanged. */
   cancelRequest: (id: string) => void
 
   // Admin responses (PBI 33), by the signed-in admin. Each checks lib/requestAdmin.ts and throws if not allowed.
