@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useId, useRef, useState } from 'react'
 import { flushSync } from 'react-dom'
 import type { SopWorkflowContent } from '../../content/types'
 import { internalReviewEn } from '../../content/internalReview.en'
@@ -8,7 +8,7 @@ import { eligibleReviewers } from '../../lib/reviewFlow'
 import { dueDateRange, parseDueDate, SUBMIT_COMMENT_MAX } from '../../lib/workflow'
 import type { SubmitOptions } from '../../state/sopsContext'
 import { useUsers } from '../../state/usersContext'
-import { CheckboxGroup } from '../ui/CheckboxGroup'
+import { MultiSelectField } from '../ui/MultiSelectField'
 import { FormDialog } from '../ui/FormDialog'
 import { TextAreaField } from '../ui/TextAreaField'
 import { ReviewDueDateField } from './ReviewDueDateField'
@@ -33,7 +33,8 @@ export function SubmitDialog({ sop, content, onSubmit, onClose }: SubmitDialogPr
   const [error, setError] = useState('')
   const [dateErrors, setDateErrors] = useState<Record<string, string>>({})
   const [failed, setFailed] = useState(false)
-  const firstRef = useRef<HTMLInputElement>(null)
+  const firstRef = useRef<HTMLButtonElement>(null)
+  const reviewerErrorId = useId()
   const requestRef = useRef<HTMLInputElement>(null)
   const taskRefs = useRef<Record<string, HTMLInputElement | null>>({})
 
@@ -60,9 +61,10 @@ export function SubmitDialog({ sop, content, onSubmit, onClose }: SubmitDialogPr
   }
   return (
     <FormDialog open title={text.title} confirmLabel={text.confirm} cancelLabel={content.cancel} onConfirm={confirm} onClose={onClose}>
-      {error && <p role="alert" className="text-sm text-status-rejected-fg">{error}</p>}
+      {error && <p id={reviewerErrorId} role="alert" className="text-sm text-status-rejected-fg">{error}</p>}
       {failed && <p role="alert" className="text-sm text-status-rejected-fg">{fields.errors.submitFailed}</p>}
-      <CheckboxGroup firstRef={firstRef} name="internalReviewers" legend={text.reviewers} hint={text.reviewersHelp}
+      <MultiSelectField ref={firstRef} name="internalReviewers" label={text.reviewers} placeholder={text.reviewers}
+        invalid={!!error} describedBy={error ? reviewerErrorId : undefined}
         options={options.map((user) => ({ value: user.id, label: user.name }))} value={reviewerIds}
         emptyText={text.noneEligible} onChange={(next) => { setReviewerIds(next); setError(''); setFailed(false) }} />
       <ReviewDueDateField ref={requestRef} name="reviewRequestDueDate"

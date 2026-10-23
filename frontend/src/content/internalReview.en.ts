@@ -1,9 +1,8 @@
 /** English content for internal parallel review requests and their audit history. */
 export const internalReviewEn = {
   submit: {
-    title: 'Request internal reviews',
-    reviewers: 'Internal reviewers',
-    reviewersHelp: 'Select eligible reviewers from the SOP department. All selected reviewers receive their tasks together.',
+    title: 'Request Reviews',
+    reviewers: 'Select Reviewers',
     reviewerRequired: 'Select at least one eligible reviewer.',
     noneEligible: 'No eligible reviewers are available in this department.',
     requestDate: 'Overall Review Request Due Date (optional)',

@@ -45,12 +45,24 @@ describe('internal parallel review across transitions and detail views', () => {
     expect(render(<SopWorkflowPage />)).not.toContain('Description retained')
     expect(render(<ReviewPage />)).not.toContain('Description retained')
   })
-  it('offers eligible internal reviewers and the request deadline while excluding both writers and external users', () => {
+  it('keeps eligible reviewers in a collapsed multi-select while preserving the request deadline and comments', () => {
     const html = renderToStaticMarkup(<SubmitDialog sop={draft()} content={sopWorkflowEn.dialogs} onSubmit={() => {}} onClose={() => {}} />)
+    expect(html).toContain('Request Reviews')
+    expect(html).not.toContain('Request internal reviews')
+    expect(html).not.toContain('Internal reviewers')
+    expect(html).not.toContain('Select eligible reviewers from the SOP department. All selected reviewers receive their tasks together.')
+    const trigger = html.match(/<button[^>]*aria-label="Select Reviewers"[^>]*>/)?.[0]
+    expect(trigger).toContain('aria-expanded="false"')
+    const reviewerPanel = html.match(/<div[^>]*role="group"[^>]*>/)?.[0]
+    expect(reviewerPanel).toContain('aria-label="Select Reviewers"')
+    expect(reviewerPanel).toContain('hidden=""')
     expect(html).toContain('Reviewer Alpha')
     expect(html).toContain('Reviewer Beta')
     for (const name of ['Main writer', 'Contributing writer', 'External reviewer', 'Reviewer 1']) expect(html).not.toContain(name)
     expect(html).toContain('Overall Review Request Due Date')
+    expect(html).toContain(sopWorkflowEn.dialogs.submit.note.label)
+    expect(html).toContain('name="reviewRequestDueDate"')
+    expect(html).toContain('name="note"')
   })
   it('activates both review pages and tasks without routing or approval controls', () => {
     fixture.sop = start()

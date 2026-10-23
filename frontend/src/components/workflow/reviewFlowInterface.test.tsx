@@ -23,8 +23,11 @@ function draft(): Sop {
   return { id: 'test', code: 'TEST', title: 'Test', departmentId: 'test-origin', version: '1', status: 'draft', authorId: 'author', coAuthorIds: [], lastUpdated: '2026-10-18', fileName: 'test.pdf', fileType: 'pdf', reviewers: [], approvers: [], versions: [], comments: [], timeline: [], complianceChecks: [] }
 }
 describe('review plan interface', () => {
-  it('offers multiple eligible internal reviewers without assigning authors, external reviewers or approvers', () => {
+  it('offers multiple eligible internal reviewers inside a closed dropdown without external reviewers or approvers', () => {
     const html = renderToStaticMarkup(<SubmitDialog sop={draft()} content={sopWorkflowEn.dialogs} onSubmit={() => {}} onClose={() => {}} />)
+    expect(html).toContain('Select Reviewers')
+    expect(html).toContain('aria-expanded="false"')
+    expect(html.match(/<div[^>]*role="group"[^>]*>/)?.[0]).toContain('hidden=""')
     expect(html).toContain('name="internalReviewers"')
     expect(html).toContain('type="checkbox"')
     expect(html).toContain('First Test Reviewer')
