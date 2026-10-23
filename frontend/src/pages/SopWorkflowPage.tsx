@@ -372,12 +372,10 @@ export function SopWorkflowPage() {
         />
       </Section>
 
-      {/* 4. Compliance overview: only once the current version has a check */}
-      {currentCheck(sop) && (
-        <Section id="compliance-title" title={complianceEn.card.title} className="mt-6">
-          <ComplianceCard sop={sop} content={complianceEn} />
-        </Section>
-      )}
+      {/* 4. Compliance overview (says so when the current version hasn't been checked yet) */}
+      <Section id="compliance-title" title={complianceEn.card.title} className="mt-6">
+        <ComplianceCard sop={sop} content={complianceEn} />
+      </Section>
 
       {/* 5. Review timeline, with Response and Submit for review */}
       <Section
@@ -400,7 +398,7 @@ export function SopWorkflowPage() {
                   aria-describedby={submitReason ? 'submit-hint' : undefined}
                   onClick={(event) => open(sop.status === 'returned' ? 'resubmit' : 'submit', event.currentTarget)}
                 >
-                  {actions.submit}
+                  {sop.status === 'returned' ? actions.resubmit : actions.submit}
                 </Button>
               )}
             </>
@@ -436,8 +434,8 @@ export function SopWorkflowPage() {
           sop={sop}
           content={dialogs}
           onClose={closeDialog}
-          onSubmit={() => {
-            store.resubmit(sop.id)
+          onSubmit={(options) => {
+            store.resubmit(sop.id, options)
             announce(content.messages.resubmitted)
           }}
         />

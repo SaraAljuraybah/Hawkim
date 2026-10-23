@@ -14,6 +14,12 @@ export type NewDraft = Pick<Sop, 'title' | 'departmentId' | 'description'> & Upl
 export type SubmitOptions = InternalReviewOptions
 
 
+/** Legacy resubmission overrides. Internal rounds restart their saved allocations without overrides. */
+export interface ResubmitOptions {
+  dueDate?: string
+  note?: string
+}
+
 export interface SopsStore {
   /** Every SOP, at every lifecycle stage (the directory shows the published ones). */
   sops: Sop[]
@@ -26,8 +32,9 @@ export interface SopsStore {
   beginInternalReview: (sopId: string, roundId: string, assignmentId: string) => void
   decideInternalReview: (sopId: string, roundId: string, assignmentId: string, decision: 'completed' | 'returned', text?: string) => void
   cancelInternalReview: (sopId: string, roundId: string, assignmentId: string) => void
-  resubmit: (sopId: string, note?: string) => void
-  /** Uploads the next version (Draft or Returned) and starts a compliance check of it. */
+  /** Main author: restart parallel internal reviews, or legacy review with optional new date/comments. */
+  resubmit: (sopId: string, options?: ResubmitOptions) => void
+  /** Uploads the next version (Draft or Returned). It isn't checked until someone runs a compliance check. */
   uploadVersion: (sopId: string, file: UploadedFile) => void
   /** Main author: deletes a version (Draft or Returned; at least one remains). */
   deleteVersion: (sopId: string, version: string) => void

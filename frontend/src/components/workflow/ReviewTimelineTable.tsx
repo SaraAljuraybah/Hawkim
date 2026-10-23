@@ -97,7 +97,13 @@ export function ReviewTimelineTable({ sop, content, mainAuthorOnly = false }: Re
       if (roundIndex >= 0) lines.push(internalReviewEn.panel.roundReference.replace('{number}', String(roundIndex + 1)))
     }
     if (event.cancellationReason) lines.push(internalReviewEn.panel.cancellationReasons[event.cancellationReason])
-    if (event.reviewScope) lines.push(reviewFlowEn.scopes[event.reviewScope] + ': ' + (event.reviewsRequired ? reviewFlowEn.required : reviewFlowEn.notRequired))
+    if (event.reviewScope) {
+      lines.push(
+        reviewFlowEn.scopeDecision
+          .replace('{scope}', reviewFlowEn.scopes[event.reviewScope])
+          .replace('{decision}', event.reviewsRequired ? reviewFlowEn.required : reviewFlowEn.notRequired),
+      )
+    }
     if (event.subjectId) lines.push(timeline.subject.replace('{name}', nameOf(event.subjectId)))
     if (event.departmentId) lines.push(timeline.department.replace('{name}', departmentName(event.departmentId)))
     if (event.dueAt) {

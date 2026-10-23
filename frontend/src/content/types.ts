@@ -582,8 +582,9 @@ export interface SopWorkflowContent {
   }
   /** Buttons on the Review timeline. */
   actions: {
-    /** Submit or, once returned, resubmit. */
+    /** The button that opens Submit for review (Draft), or Resubmit for review once Returned. */
     submit: string
+    resubmit: string
     response: string
     resubmitHint: string
     /** Shown to co-authors; `{name}` is the main author. */
@@ -630,16 +631,16 @@ export interface SopWorkflowContent {
       title: string
       /**
        * Optional review due date. `help` is always shown under it; once a date is picked,
-       * how far away it is and the due date and time (`{date}` is replaced in both; `{count}` in `days`).
+       * the time given and the deadline: the end of that day (`{date}` is replaced in both; `{count}` in `days`).
        */
       reviewDate: { label: string; help: string; oneDay: string; days: string }
       /** `{count}` and `{max}` are replaced in the counter. */
       note: { label: string; placeholder: string; counter: string }
       /**
-       * `dateInvalid`: `{min}` and `{max}` are the allowed dates. `noAssignees`: the SOP's
-       * department has no reviewer or approver to send it to.
+       * `dateInvalid`: `{min}` and `{max}` are the allowed dates. `submitFailed`: the store
+       * refused the submission for a reason the dialog can't show (e.g. data changed meanwhile).
        */
-      errors: { dateInvalid: string; noAssignees: string }
+      errors: { dateInvalid: string; submitFailed: string }
       confirm: string
     }
     /** `{version}` is the number the upload becomes. */
@@ -658,15 +659,13 @@ export interface SopWorkflowContent {
     removeCoAuthor: { title: string; description: string; keep: string; confirm: string }
     /** `{names}` (the recipients) is replaced in the description; `{count}` and `{max}` in the counter. */
     response: { title: string; description: string; label: string; required: string; counter: string; confirm: string }
+    /**
+     * Resubmit for review. Its date and comments fields use the `submit` texts.
+     * `failed`: the store refused the resubmission.
+     */
     resubmit: {
       title: string
-      description: string
-      reviewersLabel: string
-      reviewDaysLabel: string
-      /** `{count}` is replaced. */
-      days: string
-      oneDay: string
-      noDueDate: string
+      failed: string
       confirm: string
     }
   }
@@ -707,6 +706,8 @@ export interface ComplianceContent {
     /** Announced when a running check ends. */
     completed: string
     failed: string
+    /** The current version has no check yet; `{version}` is the SOP version. */
+    notChecked: string
     viewReport: string
     /** The SOP's newest check used an older GVP version (PBI 29). `{checked}` and `{current}` are replaced. */
     recheck: { badge: string; note: string }

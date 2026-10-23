@@ -17,9 +17,9 @@ export const sopWorkflowEn: SopWorkflowContent = {
   reviewerDeadline: {
     due: 'Due {date}',
     noDeadline: 'No deadline assigned',
-    assignedOneDay: 'Time Given: 1 Day',
-    assignedDays: 'Time Given: {count} Days',
-    allocationUnknown: 'Original Time Given unavailable',
+    assignedOneDay: 'Time given: 1 day',
+    assignedDays: 'Time given: {count} days',
+    allocationUnknown: 'Original time given unavailable',
     remainingOneDay: 'Time Remaining: 1 Day',
     remainingDays: 'Time Remaining: {count} Days',
     dueToday: 'Time Remaining: Due today',
@@ -51,8 +51,8 @@ export const sopWorkflowEn: SopWorkflowContent = {
       approvalPending: 'Approval Pending',
       revisionsPending: 'Changes Requested',
       publicationPending: 'Publication Pending',
-      assignedOneDay: 'Time Given: 1 Day',
-      assignedDays: 'Time Given: {count} Days',
+      assignedOneDay: 'Time given: 1 day',
+      assignedDays: 'Time given: {count} days',
     },
   },
 
@@ -99,7 +99,7 @@ export const sopWorkflowEn: SopWorkflowContent = {
         published: "Versions can't be deleted once the SOP is published",
       },
       'not-uploader': "Restricted to {name} (main author) or this version's uploader",
-      'submitted-version': 'Versions previously submitted or resubmitted for review cannot be deleted.',
+      'submitted-version': 'Versions previously submitted or resubmitted for review cannot be deleted',
       'last-version': 'At least one version must remain',
     },
     upload: 'Upload',
@@ -123,6 +123,7 @@ export const sopWorkflowEn: SopWorkflowContent = {
 
   actions: {
     submit: 'Submit for review',
+    resubmit: 'Resubmit for review',
     response: 'Response',
     resubmitHint: 'Upload a new version with your changes before resubmitting.',
     authorOnly: 'Only the author, {name}, can submit this SOP.',
@@ -193,21 +194,21 @@ export const sopWorkflowEn: SopWorkflowContent = {
     submit: {
       title: 'Submit for review',
       reviewDate: {
-  label: 'Review due date (optional)',
-  help: 'Applies only to this reviewer. Leave blank for no deadline.',
-  oneDay: 'Time Given: 1 Day · Due {date}',
-days: 'Time Given: {count} Days · Due {date}',
-},
+        label: 'Review due date (optional)',
+        help: 'Applies only to this reviewer. Leave blank for no deadline.',
+        oneDay: 'Time given: 1 day · Due {date}',
+        days: 'Time given: {count} days · Due {date}',
+      },
       note: { label: 'Comments (optional)', placeholder: 'Add a comment for the reviewers…', counter: '{count} / {max}' },
       errors: {
         dateInvalid: 'Choose a date from {min} to {max}.',
-        noAssignees: 'This department has no reviewer or approver yet, so the SOP can’t be submitted.',
+        submitFailed: "The SOP couldn't be submitted. Refresh the page and try again.",
       },
       confirm: 'Submit for review',
     },
     newVersion: {
       title: 'Upload a new version',
-      description: 'Upload the file with your changes. It becomes v{version}, and a compliance check runs automatically.',
+      description: 'Upload the file with your changes. It becomes v{version}.',
       confirm: 'Upload',
     },
     deleteVersion: {
@@ -242,20 +243,14 @@ days: 'Time Given: {count} Days · Due {date}',
     },
     resubmit: {
       title: 'Resubmit for review',
-      description:
-        'v{version} returns to the same review queue. Original reviewer durations are preserved and deadlines restart from resubmission. Earlier decisions are cleared.',
-      reviewersLabel: 'Reviewers',
-      reviewDaysLabel: 'Time Given',
-      days: '{count} days',
-      oneDay: '1 day',
-      noDueDate: 'No due date',
+      failed: "The SOP couldn't be resubmitted. Refresh the page and try again.",
       confirm: 'Resubmit for review',
     },
   },
 
   messages: {
     submitted: 'Submitted for review.',
-    newVersion: 'v{version} uploaded. A compliance check is running.',
+    newVersion: 'v{version} uploaded.',
     versionDeleted: 'v{version} deleted.',
     resubmitted: 'Resubmitted for review.',
     coAuthorsAdded: 'Co-authors added.',

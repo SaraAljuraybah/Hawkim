@@ -1,9 +1,11 @@
 import { useRef, useState } from 'react'
+import { flushSync } from 'react-dom'
 import { reviewFlowEn as text } from '../../content/reviewFlow.en'
 import { sopWorkflowEn } from '../../content/workflow.en'
 import type { Sop } from '../../data/mock/types'
-import { currentDepartmentReview, departmentsForScope, eligibleReviewers, qualityController, type ReviewAction } from '../../lib/reviewFlow'
-import { dueDateRange } from '../../lib/workflow'
+import { currentDepartmentReview, departmentsForScope, eligibleReviewers, keepsRoundDeadline, qualityController, type ReviewAction } from '../../lib/reviewFlow'
+import { formatDate } from '../../lib/format'
+import { dueDateRange, parseDueDate } from '../../lib/workflow'
 import { useDepartments } from '../../state/departmentsContext'
 import { useSops } from '../../state/sopsContext'
 import { useUsers } from '../../state/usersContext'
@@ -11,7 +13,7 @@ import { Button } from '../ui/Button'
 import { FormDialog } from '../ui/FormDialog'
 import { SelectField } from '../ui/SelectField'
 import { TextAreaField } from '../ui/TextAreaField'
-import { TextField } from '../ui/TextField'
+import { ReviewDueDateField } from '../workflow/ReviewDueDateField'
 
 interface Props { sop: Sop; onComplete: (message: string) => void }
 /** Only mounted for the active reviewer. Workflow transitions revalidate every selection. */
@@ -23,12 +25,14 @@ export function ReviewFlowActions({ sop, onComplete }: Props) {
   const [dialog, setDialog] = useState<'forward' | 'complete' | 'return-review' | 'return-author' | 'departments' | null>(null)
   const [selected, setSelected] = useState('')
   const [dueDate, setDueDate] = useState('')
+  const [dateError, setDateError] = useState('')
   const [comment, setComment] = useState('')
   const [error, setError] = useState('')
   const [choices, setChoices] = useState<Record<string, string>>({})
   const triggerRef = useRef<HTMLElement | null>(null)
   const panelRef = useRef<HTMLDivElement>(null)
   const fieldRef = useRef<HTMLSelectElement>(null)
+  const dateRef = useRef<HTMLInputElement>(null)
   const commentRef = useRef<HTMLTextAreaElement>(null)
   const stage = flow.stage
   const representative = stage.endsWith('representative')
@@ -39,13 +43,15 @@ export function ReviewFlowActions({ sop, onComplete }: Props) {
   const departmentReview = currentDepartmentReview(sop)
   const departmentId = stage === 'reviewer-1' ? sop.departmentId : departmentReview?.departmentId ?? ''
   const retainedId = stage === 'reviewer-1' ? flow.reviewer2Id : departmentReview?.reviewerId
+  // The chosen reviewer already has a deadline in this review round: they keep it (no new date).
+  const keepsDeadline = !!selected && keepsRoundDeadline(sop, selected)
   const options = eligibleReviewers(sop, departmentId, users, sop.reviewers.filter((p) => p.userId !== retainedId).map((p) => p.userId)).filter((u) => !retainedId || u.id === retainedId)
   const candidates = departmentsForScope(sop, scope, departments)
   const controller = qualityController(sop, { users, departments })
   const source = departments.find((d) => d.id === sop.departmentId)
   function open(next: NonNullable<typeof dialog>, trigger: HTMLElement) {
     triggerRef.current = trigger
-    setError(''); setSelected(''); setComment(''); setDueDate(''); setChoices({}); setDialog(next)
+    setError(''); setSelected(''); setComment(''); setDueDate(''); setDateError(''); setChoices({}); setDialog(next)
   }
   function close() {
     setDialog(null)
@@ -58,6 +64,12 @@ export function ReviewFlowActions({ sop, onComplete }: Props) {
   function confirm() {
     if (dialog === 'forward') {
       if (!selected) { setError(text.selectRequired); fieldRef.current?.focus(); return false }
+      if (!parseDueDate(dueDate).valid) {
+        const { min, max } = dueDateRange()
+        flushSync(() => setDateError(sopWorkflowEn.dialogs.submit.errors.dateInvalid.replace('{min}', formatDate(min)).replace('{max}', formatDate(max))))
+        dateRef.current?.focus()
+        return false
+      }
       return act({ type: 'forward', reviewerId: selected, dueDate: dueDate || undefined, text: comment })
     }
     if (dialog === 'complete') return act({ type: 'complete', text: comment })
@@ -69,7 +81,6 @@ export function ReviewFlowActions({ sop, onComplete }: Props) {
     if (!assignments.length || assignments.some((a) => !a.representativeId)) { setError(text.selectionRequired); return false }
     return act({ type: 'department-review', scope, assignments })
   }
-  const range = dueDateRange()
   const title = dialog === 'forward' ? text.forward : dialog === 'complete' ? text.complete : dialog === 'return-review' ? text.returnReview : dialog === 'return-author' ? text.returnAuthor : text.selectDepartments
   return (
     <div ref={panelRef} tabIndex={-1} className="space-y-4 focus:outline-none">
@@ -94,8 +105,9 @@ export function ReviewFlowActions({ sop, onComplete }: Props) {
         {dialog === 'forward' && <>
           {options.length === 0 && <p role="status" className="text-sm text-status-rejected-fg">{text.noneEligible}</p>}
           <SelectField ref={fieldRef} name="nextReviewer" label={representative ? text.assignedReviewer : text.reviewer2} placeholder={text.choose} options={options.map((u) => ({ value: u.id, label: u.name }))} value={selected} onChange={(event) => { setSelected(event.target.value); setError('') }} />
-          {retainedId && <p className="text-sm text-text-gray">{text.retainedDeadline}</p>}
-          <TextField name="nextDueDate" type="date" disabled={sop.reviewers.some((p) => p.userId === selected)} label={sopWorkflowEn.dialogs.submit.reviewDate.label} min={range.min} max={range.max} value={dueDate} onChange={(event) => setDueDate(event.target.value)} />
+          {keepsDeadline && <p className="text-sm text-text-gray">{text.retainedDeadline}</p>}
+          <ReviewDueDateField ref={dateRef} name="nextDueDate" text={sopWorkflowEn.dialogs.submit.reviewDate} disabled={keepsDeadline}
+            value={dueDate} error={dateError} onChange={(value) => { setDueDate(value); setDateError('') }} />
         </>}
         {dialog === 'departments' ? <div className="space-y-4">
           <p className="text-sm text-text-gray">{text.unknownDivisions}</p>

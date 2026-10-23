@@ -34,11 +34,19 @@ export function eligibleReviewers(sop: Sop, departmentId: string, users: User[],
   return users.filter((user) => !user.deletedAt && !user.permissions.includes('admin') && user.permissions.includes('reviewer') && user.departmentId === departmentId &&
     !isAuthorOrCoAuthor(sop, user.id) && !sop.approvers.some((p) => p.userId === user.id) && !excluded.includes(user.id))
 }
+/**
+ * Within a review round, a reviewer keeps the deadline already set (e.g. when Reviewer 2
+ * returns it to Reviewer 1 and it's forwarded again). Resubmit clears every deadline, so
+ * in a new round the next reviewer can be given a new one.
+ */
+export function keepsRoundDeadline(sop: Sop, userId: string): boolean {
+  return !!sop.reviewers.find((p) => p.userId === userId)?.dueDate
+}
 function assign(sop: Sop, userId: string, dueDate?: string): Sop {
   const existing = sop.reviewers.find((p) => p.userId === userId)
   const date = dueDate?.trim()
   const parsed = parseDueDate(date ?? '')
-  assert(!existing || !date || date === existing.dueDate, 'Previously assigned reviewer durations are preserved on resubmission')
+  assert(!keepsRoundDeadline(sop, userId) || !date || date === existing?.dueDate, 'A reviewer keeps the deadline already set in this review round')
   assert(parsed.valid, 'Choose an optional deadline from tomorrow to 30 days from today')
   const assignment = { ...existing, userId, decision: 'pending' as const, decidedAt: undefined,
     ...(date ? { dueDate: date, assignedDueDays: parsed.days } : existing ? {} : { assignedDueDays: null }) }
