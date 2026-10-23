@@ -1,6 +1,6 @@
 import type { Sop, TimelineEvent, UserRequest } from '../data/mock/types'
 import { mySopPath, reviewPath } from './routes'
-import { currentDueAt, currentReviewer, isAuthorOrCoAuthor, reviewerDueAt } from './workflow'
+import { activeApprovalSubmission, currentDueAt, currentReviewer, isAuthorOrCoAuthor, reviewerDueAt } from './workflow'
 
 /*
  * In-app notifications (PBI 31), derived from the data that already exists (SOP
@@ -100,6 +100,9 @@ function fromEvent(sop: Sop, event: TimelineEvent, userId: string): AppNotificat
     case 'review-returned':
     case 'review-completed':
       return isRecipient ? { ...base, type: 'assigned-review', via: 'handoff', link: reviewPath(sop.id) } : undefined
+    case 'submitted-for-approval':
+      return isRecipient && sop.approvalSubmissions?.some((submission) => submission.id === event.approvalSubmissionId && submission.version === event.version && submission.approverId === userId)
+        ? { ...base, type: 'assigned-approval', link: reviewPath(sop.id) } : undefined
     case 'forwarded-to-approver':
       return isRecipient ? { ...base, type: 'assigned-approval', link: reviewPath(sop.id) } : undefined
     case 'approved':
@@ -137,6 +140,7 @@ function dueNotification(sop: Sop, userId: string, now: number): AppNotification
   }
   const stage = sop.status === 'in-review' ? 'review' : sop.status === 'in-approval' ? 'approval' : undefined
   if (!stage) return undefined
+  if (stage === 'approval' && sop.approvalSubmissions?.length && !activeApprovalSubmission(sop)) return undefined
   const people = stage === 'review' ? [currentReviewer(sop)].filter((person) => person !== undefined) : sop.approvers
   if (!people.some((person) => person.userId === userId && person.decision === 'pending')) return undefined
   const dueAt = currentDueAt(sop)

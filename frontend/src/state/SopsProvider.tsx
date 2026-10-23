@@ -5,6 +5,7 @@ import * as compliance from '../lib/compliance'
 import { todayIsoDate } from '../lib/format'
 import { nextSopCode } from '../lib/sopCodes'
 import { assertCanCreateSop } from '../lib/sopAccess'
+import { submitForApproval } from '../lib/approval'
 import { applyReviewAction } from '../lib/reviewFlow'
 import { beginInternalReview, cancelInternalReview, decideInternalReview, resubmitInternalReview, startInternalReview } from '../lib/internalReview'
 import { useDepartments } from './departmentsContext'
@@ -152,6 +153,7 @@ export function SopsProvider({ children }: { children: ReactNode }) {
       sops,
       addDraft,
       submitForReview: (id, o) => update(id, (sop) => startInternalReview(sop, userId, guideline.version, o, environment)),
+      submitForApproval: (id, options) => update(id, (sop) => submitForApproval(sop, userId, options, environment)),
       reviewAction: (id, action) => update(id, (sop) => applyReviewAction(sop, userId, action, environment)),
       beginInternalReview: (id, roundId, assignmentId) => update(id, (sop) => beginInternalReview(sop, userId, roundId, assignmentId, environment)),
       decideInternalReview: (id, roundId, assignmentId, decision, text) => update(id, (sop) => decideInternalReview(sop, userId, roundId, assignmentId, decision, text, environment)),
@@ -186,24 +188,29 @@ export function SopsProvider({ children }: { children: ReactNode }) {
         if (!person) throw new Error(`Unknown user ${newReviewerId}`)
         update(id, (sop) => workflow.routeToReviewer(sop, reviewerId, person, note))
       },
-      approveAs: (id, approverId, text) => update(id, (sop) => {
+      approveAs: (id, approverId, text, snapshot) => update(id, (sop) => {
         assertActor(approverId, 'approver')
-        return workflow.approveAs(sop, approverId, text)
+        return workflow.approveAs(sop, approverId, text, snapshot)
       }),
-      returnAsApprover: (id, approverId, text) => update(id, (sop) => {
+      returnAsApprover: (id, approverId, text, snapshot) => update(id, (sop) => {
         assertActor(approverId, 'approver')
-        return workflow.returnAsApprover(sop, approverId, text)
+        return workflow.returnAsApprover(sop, approverId, text, snapshot)
       }),
-      publishAs: (id, approverId) => update(id, (sop) => {
+      publishAs: (id, approverId, snapshot) => update(id, (sop) => {
         assertActor(approverId, 'approver')
-        return workflow.publishAs(sop, approverId)
+        return workflow.publishAs(sop, approverId, snapshot)
       }),
       shiftDueDates: (id, days) => update(id, (sop) => {
         const actor = users.find((user) => user.id === userId && !user.deletedAt && !user.permissions.includes('admin'))
+        const modern = !!sop.internalReviewRounds?.length || !!sop.approvalSubmissions?.length
+        // Historical involvement protects audit access and separation of duties, not current mutations.
         const assigned = actor && (
           actor.permissions.includes('author') && workflow.isAuthorOrCoAuthor(sop, actor.id) ||
-          actor.permissions.includes('reviewer') && sop.reviewers.some((person) => person.userId === actor.id && person.decision !== 'cancelled') ||
-          actor.permissions.includes('approver') && workflow.isApprover(sop, actor.id)
+          actor.permissions.includes('reviewer') && workflow.pendingPeople(sop).some((person) => person.role === 'reviewer' && person.userId === actor.id) ||
+          actor.permissions.includes('approver') && sop.status === 'in-approval' && (
+            modern ? workflow.activeApprovalSubmission(sop)?.approverId === actor.id
+              : sop.approvers.some((person) => person.userId === actor.id && person.decision === 'pending' && (person.version === undefined || person.version === sop.version))
+          )
         )
         if (!assigned) throw new Error('An author or review assignment is required to simulate deadlines')
         return workflow.shiftDueDates(sop, days)

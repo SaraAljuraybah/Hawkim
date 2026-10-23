@@ -22,13 +22,13 @@ import { ReviewTimelineTable } from '../components/workflow/ReviewTimelineTable'
 import { complianceEn } from '../content/compliance.en'
 import { reviewsEn } from '../content/reviews.en'
 import { sopWorkflowEn } from '../content/workflow.en'
-import type { Sop } from '../data/mock/types'
+import type { ApprovalDecisionSnapshot, Sop } from '../data/mock/types'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { complianceScore, currentCheck, verdictOf } from '../lib/compliance'
 import { formatDateTime } from '../lib/format'
 import { reviewCompliancePath } from '../lib/routes'
 import { reviewSopForUser } from '../lib/reviewAccess'
-import { currentDueAt, currentReviewer, isOverdue, latestReturn, pendingPeople } from '../lib/workflow'
+import { activeApprovalSubmission, currentDueAt, currentReviewer, isOverdue, latestReturn, pendingPeople } from '../lib/workflow'
 import { useDepartments } from '../state/departmentsContext'
 import { useCurrentUser } from '../state/sessionContext'
 import { useSops } from '../state/sopsContext'
@@ -82,6 +82,7 @@ function Review({ sop, historical }: { sop: Sop; historical: boolean }) {
   const { nameOf: departmentName } = useDepartments()
 
   const [dialog, setDialog] = useState<DialogName | null>(null)
+  const [approvalSnapshot, setApprovalSnapshot] = useState<ApprovalDecisionSnapshot>()
   const [message, setMessage] = useState('')
   const triggerRef = useRef<HTMLElement | null>(null)
   const statusRef = useRef<HTMLDivElement>(null)
@@ -90,9 +91,12 @@ function Review({ sop, historical }: { sop: Sop; historical: boolean }) {
   const internalRound = currentInternalRound(sop)
   const reviewer = sop.reviewers.find((person) => person.userId === user.id) ?? [...(sop.internalReviewRounds ?? [])].reverse().flatMap((round) => round.assignments).find((person) => person.userId === user.id)
   const approver = sop.approvers.find((person) => person.userId === user.id)
+  const approvalSubmission = activeApprovalSubmission(sop)
+  const approvalPhase = !internalRound || !!approvalSubmission
+  const approvalPermission = !internalRound || !user.deletedAt && !user.permissions.includes('admin') && user.permissions.includes('approver')
   const canReview = !historical && (internalRound ? isInternalReviewPending(sop, user.id) : sop.status === 'in-review' && currentReviewer(sop)?.userId === user.id)
-  const canApprove = !historical && !internalRound && sop.status === 'in-approval' && approver?.decision === 'pending'
-  const canPublish = !historical && !internalRound && sop.status === 'approved' && !!approver
+  const canApprove = !historical && approvalPhase && approvalPermission && sop.status === 'in-approval' && approver?.decision === 'pending'
+  const canPublish = !historical && approvalPhase && approvalPermission && sop.status === 'approved' && !!approver
   // Only the current reviewer can complete, return or append a reviewer to the queue.
   const canRoute = !internalRound && canReview
 
@@ -104,6 +108,7 @@ function Review({ sop, historical }: { sop: Sop; historical: boolean }) {
   function open(name: DialogName, trigger: HTMLElement) {
     triggerRef.current = trigger
     setMessage('')
+    setApprovalSnapshot(approvalSubmission ? { version: sop.version, approvalSubmissionId: approvalSubmission.id } : undefined)
     setDialog(name)
   }
 
@@ -126,13 +131,13 @@ function Review({ sop, historical }: { sop: Sop; historical: boolean }) {
 
   /** What the user sees when there's nothing for them to do now. */
   function statusLines(): string[] {
-    if (internalRound) return [reviewer?.decision === 'cancelled' ? internalReviewEn.status.cancelled : internalRound.status === 'completed' ? internalReviewEn.status.awaitingAuthor : internalRound.status !== 'open' ? internalReviewEn.status.closed : reviewer?.decision === 'completed' ? internalReviewEn.actions.completed : ''] .filter(Boolean)
     const date = (iso?: string) => (iso ? formatDateTime(iso) : '')
     if (sop.status === 'published') {
       const published = [...sop.timeline].reverse().find((event) => event.type === 'published')
       return [text.status.published.replace('{date}', date(published?.createdAt))]
     }
     if (sop.status === 'returned') return [text.status.returned.replace('{date}', date(latestReturn(sop)?.createdAt))]
+    if (internalRound && !approver && (sop.status === 'in-review' || sop.status === 'draft')) return [reviewer?.decision === 'cancelled' ? internalReviewEn.status.cancelled : internalRound.status === 'completed' ? internalReviewEn.status.awaitingAuthor : internalRound.status !== 'open' ? internalReviewEn.status.closed : reviewer?.decision === 'completed' ? internalReviewEn.actions.completed : ''] .filter(Boolean)
     const lines: string[] = []
     if (reviewer?.decision === 'completed') lines.push(text.status.reviewCompleted.replace('{date}', date(reviewer.decidedAt)))
     if (approver && sop.status === 'in-review') lines.push(text.status.waitingForReviews)
@@ -232,7 +237,7 @@ function Review({ sop, historical }: { sop: Sop; historical: boolean }) {
             ))}
           </ul>
         )}
-        {!internalRound && (decisionNeeded || canRoute) && !(sop.reviewFlow && canReview) && (
+        {!(internalRound && canReview) && (decisionNeeded || canRoute) && !(sop.reviewFlow && canReview) && (
           <div className={`flex flex-col gap-3 sm:flex-row sm:flex-wrap ${decisionNeeded ? '' : 'mt-4'}`}>
             {canReview && !sop.reviewFlow && (
               <>
@@ -389,7 +394,7 @@ function Review({ sop, historical }: { sop: Sop; historical: boolean }) {
           text={text.dialogs.approve}
           dialogs={text.dialogs}
           onClose={close}
-          onConfirm={(comment) => act(() => store.approveAs(sop.id, user.id, comment), text.messages.approved)}
+          onConfirm={(comment) => act(() => store.approveAs(sop.id, user.id, comment, approvalSnapshot), text.messages.approved)}
         />
       )}
       {dialog === 'returnApprover' && (
@@ -398,7 +403,7 @@ function Review({ sop, historical }: { sop: Sop; historical: boolean }) {
           dialogs={text.dialogs}
           required
           onClose={close}
-          onConfirm={(comment) => act(() => store.returnAsApprover(sop.id, user.id, comment), text.messages.returned)}
+          onConfirm={(comment) => act(() => store.returnAsApprover(sop.id, user.id, comment, approvalSnapshot), text.messages.returned)}
         />
       )}
       <ConfirmDialog
@@ -407,7 +412,7 @@ function Review({ sop, historical }: { sop: Sop; historical: boolean }) {
         description={text.dialogs.publish.description.replace('{department}', department)}
         cancelLabel={text.dialogs.cancel}
         confirmLabel={text.dialogs.publish.confirm}
-        onConfirm={() => act(() => store.publishAs(sop.id, user.id), text.messages.published)}
+        onConfirm={() => act(() => store.publishAs(sop.id, user.id, approvalSnapshot), text.messages.published)}
         onCancel={close}
       />
     </>

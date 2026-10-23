@@ -1,5 +1,6 @@
 import { createContext, useContext } from 'react'
-import type { Sop } from '../data/mock/types'
+import type { ApprovalDecisionSnapshot, Sop } from '../data/mock/types'
+import type { ApprovalSubmissionOptions } from '../lib/approval'
 import type { ReviewAction } from '../lib/reviewFlow'
 import type { InternalReviewOptions } from '../lib/internalReview'
 import type { UploadedFile } from '../lib/workflow'
@@ -28,6 +29,8 @@ export interface SopsStore {
 
   // Actions by the current user (author or co-author). Each throws if not allowed.
   submitForReview: (sopId: string, options: SubmitOptions) => void
+  /** Main Author: submit this reviewed version to its configured Quality Document Controller. */
+  submitForApproval: (sopId: string, options: ApprovalSubmissionOptions) => void
   reviewAction: (sopId: string, action: ReviewAction) => void
   beginInternalReview: (sopId: string, roundId: string, assignmentId: string) => void
   decideInternalReview: (sopId: string, roundId: string, assignmentId: string, decision: 'completed' | 'returned', text?: string) => void
@@ -55,9 +58,9 @@ export interface SopsStore {
   returnAsReviewer: (sopId: string, reviewerId: string, text: string) => void
   /** An assigned reviewer adds a reviewer from another department (PBI 23). */
   routeToReviewer: (sopId: string, reviewerId: string, newReviewerId: string, note?: string) => void
-  approveAs: (sopId: string, approverId: string, text?: string) => void
-  returnAsApprover: (sopId: string, approverId: string, text: string) => void
-  publishAs: (sopId: string, approverId: string) => void
+  approveAs: (sopId: string, approverId: string, text?: string, snapshot?: ApprovalDecisionSnapshot) => void
+  returnAsApprover: (sopId: string, approverId: string, text: string, snapshot?: ApprovalDecisionSnapshot) => void
+  publishAs: (sopId: string, approverId: string, snapshot?: ApprovalDecisionSnapshot) => void
 
   /** DEVELOPMENT ONLY: move this SOP's due dates `days` earlier (to test Overdue). */
   shiftDueDates: (sopId: string, days: number) => void

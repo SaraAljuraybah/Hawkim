@@ -1,5 +1,7 @@
 import {
   SYSTEM_ACTOR,
+  type ApprovalDecisionSnapshot,
+  type ApprovalSubmission,
   type ApproverAssignment,
   type User,
   type ReviewerAssignment,
@@ -128,11 +130,13 @@ export function isAuthorOrCoAuthor(sop: Sop, userId: string): boolean {
 /** Assignment involvement, including history; use reviewSopForUser for document access. */
 export function isReviewer(sop: Sop, userId: string): boolean {
   return sop.reviewers.some((person) => person.userId === userId) ||
-    !!sop.internalReviewRounds?.some((round) => round.assignments.some((person) => person.userId === userId))
+    !!sop.internalReviewRounds?.some((round) => round.assignments.some((person) => person.userId === userId)) ||
+    !!(sop.externalReviewGate?.requirement === 'required' && sop.externalReviewGate.assignments.some((person) => person.userId === userId))
 }
 
 export function isApprover(sop: Sop, userId: string): boolean {
-  return sop.approvers.some((person) => person.userId === userId)
+  return sop.approvers.some((person) => person.userId === userId) ||
+    !!sop.approvalSubmissions?.some((submission) => submission.approverId === userId)
 }
 
 /** Reviewers or approvers who still have to decide in the current stage. */
@@ -264,7 +268,9 @@ export function returnedFrom(sop: Sop): 'in-review' | 'in-approval' | undefined 
 export function canResubmit(sop: Sop): boolean {
   if (sop.status !== 'returned') return false
   const round = sop.internalReviewRounds?.at(-1)
-  if (round && (round.status !== 'rejected' || sop.version === round.version)) return false
+  const approval = sop.approvalSubmissions?.at(-1)
+  const approvalReturned = approval?.status === 'returned' && approval.internalReviewRoundId === round?.id && approval.version === round?.version
+  if (round && ((!approvalReturned && round.status !== 'rejected') || sop.version === round.version)) return false
   const returned = latestReturn(sop)
   const current = activeVersions(sop).find((version) => version.version === sop.version)
   return !!returned && !!current && new Date(current.uploadedAt).getTime() >= new Date(returned.createdAt).getTime()
@@ -632,7 +638,7 @@ export function removeCoAuthor(sop: Sop, actorId: string, userId: string): Sop {
 
 // ---------- Reviewer and approver actions ----------
 
-function returnToAuthors(sop: Sop, actorId: string, role: 'reviewer' | 'approver', text: string, createdAt: string): Sop {
+function returnToAuthors(sop: Sop, actorId: string, role: 'reviewer' | 'approver', text: string, createdAt: string, submission?: ApprovalSubmission): Sop {
   const comment: SopComment = { id: newId('com'), authorUserId: actorId, role, text, createdAt, version: sop.version }
   return {
     ...sop,
@@ -641,7 +647,8 @@ function returnToAuthors(sop: Sop, actorId: string, role: 'reviewer' | 'approver
     comments: [...sop.comments, comment],
     timeline: [
       ...sop.timeline,
-      { ...event(sop, 'returned', actorId, { recipientIds: authors(sop), commentId: comment.id }), createdAt },
+      { ...event(sop, 'returned', actorId, { recipientIds: authors(sop), commentId: comment.id,
+        ...(submission ? { approvalSubmissionId: submission.id, reviewRoundId: submission.internalReviewRoundId } : {}) }), createdAt },
     ],
   }
 }
@@ -753,6 +760,20 @@ export function requiredReviewsComplete(sop: Sop): boolean {
     flow.departments.every((d) => d.completed && completed(d.representativeId) && completed(d.reviewerId))
 }
 
+/** Explicit external-review evidence only; an absent routing plan never means no reviews are required. */
+export function externalReviewsComplete(sop: Sop): boolean {
+  const gate = sop.externalReviewGate
+  const round = sop.internalReviewRounds?.at(-1)
+  if (!gate || gate.version !== sop.version || gate.internalReviewRoundId !== round?.id) return false
+  if (gate.requirement === 'not-required') return gate.confirmedById === sop.authorId && !!gate.confirmedAt
+  return gate.departmentIds.length > 0 && new Set(gate.departmentIds).size === gate.departmentIds.length &&
+    !gate.departmentIds.includes(sop.departmentId) && gate.assignments.length === gate.departmentIds.length &&
+    new Set(gate.assignments.map((assignment) => assignment.id)).size === gate.assignments.length &&
+    gate.departmentIds.every((departmentId) => gate.assignments.filter((assignment) => assignment.departmentId === departmentId).length === 1) &&
+    gate.assignments.every((assignment) => assignment.version === sop.version && assignment.decision === 'completed' &&
+      (!assignment.feedbackRequired || assignment.feedbackAddressed === true))
+}
+
 /** Review-plan readiness also protects direct approval and publication calls. */
 function assertQualityReady(sop: Sop, userId: string) {
   if (!sop.reviewFlow) return
@@ -760,10 +781,39 @@ function assertQualityReady(sop: Sop, userId: string) {
     'All required reviews and the assigned Quality Document Controller are required')
 }
 
+/** A current Author-controlled approval phase, independent of retained internal review history. */
+export function activeApprovalSubmission(sop: Sop): ApprovalSubmission | undefined {
+  const submission = sop.approvalSubmissions?.at(-1)
+  const round = sop.internalReviewRounds?.at(-1)
+  if (!submission || submission.version !== sop.version || submission.internalReviewRoundId !== round?.id ||
+    !internalReviewsComplete(sop) || !requiredReviewsComplete(sop) || !externalReviewsComplete(sop) ||
+    sop.approvers.length !== 1 || sop.approvers[0].userId !== submission.approverId ||
+    sop.approvers[0].id !== submission.id || sop.approvers[0].version !== submission.version) return undefined
+  const expected = sop.status === 'in-approval' ? 'pending' : sop.status === 'approved' ? 'approved' : sop.status === 'published' ? 'published' : undefined
+  if (submission.status !== expected || sop.approvers[0].decision !== (expected === 'pending' ? 'pending' : 'approved')) return undefined
+  return submission
+}
+
+/** Modern requests require the exact request/version captured by the acting Approver's page. */
+function assertApprovalSnapshot(sop: Sop, approverId: string, snapshot?: ApprovalDecisionSnapshot): ApprovalSubmission | undefined {
+  if (!sop.internalReviewRounds?.length && !sop.approvalSubmissions?.length) return undefined
+  const submission = activeApprovalSubmission(sop)
+  assert(!!submission && submission.approverId === approverId && snapshot?.version === sop.version && snapshot.approvalSubmissionId === submission.id,
+    'Internal review requires a current Author-controlled approval request; this request is stale, unavailable, or assigned to another Approver')
+  assert(!isAuthorOrCoAuthor(sop, approverId) && !isReviewer(sop, approverId), 'Authors and Reviewers cannot approve the same SOP')
+  return submission
+}
+
+function updateApprovalSubmission(sop: Sop, submission: ApprovalSubmission | undefined, status: ApprovalSubmission['status'], decidedAt: string, commentId?: string): Pick<Sop, 'approvalSubmissions'> {
+  return submission ? { approvalSubmissions: sop.approvalSubmissions!.map((item) => item.id === submission.id ? {
+    ...item, status, ...(status !== 'published' ? { decidedAt } : {}), ...(commentId ? { commentId } : {}),
+  } : item) } : {}
+}
+
 /** A pending approver approves (PBI 10, 11), with an optional comment. When ALL have, the SOP is Approved. */
-export function approveAs(sop: Sop, approverId: string, text?: string): Sop {
-  assert(!sop.internalReviewRounds?.length, 'Internal review completion awaits an Author-controlled action')
+export function approveAs(sop: Sop, approverId: string, text?: string, snapshot?: ApprovalDecisionSnapshot): Sop {
   assertStatus(sop, ['in-approval'], 'approve')
+  const submission = assertApprovalSnapshot(sop, approverId, snapshot)
   assertQualityReady(sop, approverId)
   assert(sop.approvers.some((p) => p.userId === approverId && p.decision === 'pending'), 'Not a pending approver')
   const createdAt = new Date().toISOString()
@@ -773,16 +823,19 @@ export function approveAs(sop: Sop, approverId: string, text?: string): Sop {
   const comment = optionalComment(sop, approverId, 'approver', text, createdAt)
   let updated: Sop = {
     ...sop,
+    ...updateApprovalSubmission(sop, submission, 'approved', createdAt, comment?.id),
     approvers,
     lastUpdated: todayIsoDate(),
     comments: comment ? [...sop.comments, comment] : sop.comments,
-    timeline: [...sop.timeline, { ...event(sop, 'approved-by', approverId, comment ? { commentId: comment.id } : {}), createdAt }],
+    timeline: [...sop.timeline, { ...event(sop, 'approved-by', approverId, {
+      ...(comment ? { commentId: comment.id } : {}), ...(submission ? { approvalSubmissionId: submission.id, reviewRoundId: submission.internalReviewRoundId } : {}),
+    }), createdAt }],
   }
   if (approvers.every((p) => p.decision === 'approved')) {
     updated = {
       ...updated,
       status: 'approved',
-      timeline: [...updated.timeline, { ...event(sop, 'approved', SYSTEM_ACTOR), createdAt }],
+      timeline: [...updated.timeline, { ...event(sop, 'approved', SYSTEM_ACTOR, submission ? { approvalSubmissionId: submission.id, reviewRoundId: submission.internalReviewRoundId } : {}), createdAt }],
     }
   }
   return updated
@@ -840,12 +893,13 @@ export function routeToReviewer(
 }
 
 /** A pending approver returns the SOP with a comment; it goes back to the author at once. */
-export function returnAsApprover(sop: Sop, approverId: string, text: string): Sop {
-  assert(!sop.internalReviewRounds?.length, 'Internal review has no approval assignment')
+export function returnAsApprover(sop: Sop, approverId: string, text: string, snapshot?: ApprovalDecisionSnapshot): Sop {
   assertStatus(sop, ['in-approval'], 'return')
+  const submission = assertApprovalSnapshot(sop, approverId, snapshot)
   assertQualityReady(sop, approverId)
   assert(sop.approvers.some((p) => p.userId === approverId && p.decision === 'pending'), 'Not a pending approver')
   assert(!!text.trim(), 'A comment is required')
+  assert(!submission || text.trim().length <= RESPONSE_MAX, 'A comment of up to 1000 characters is required')
   const createdAt = new Date().toISOString()
   const withDecision: Sop = {
     ...sop,
@@ -853,21 +907,23 @@ export function returnAsApprover(sop: Sop, approverId: string, text: string): So
       p.userId === approverId ? { ...p, decision: 'returned' as const, decidedAt: createdAt } : p,
     ),
   }
-  return returnToAuthors(withDecision, approverId, 'approver', text.trim(), createdAt)
+  const returned = returnToAuthors(withDecision, approverId, 'approver', text.trim(), createdAt, submission)
+  return { ...returned, ...updateApprovalSubmission(returned, submission, 'returned', createdAt, returned.comments.at(-1)?.id) }
 }
 
 /** Any assigned approver publishes the approved SOP; it then appears in the SOPs directory. */
-export function publishAs(sop: Sop, approverId: string): Sop {
-  assert(!sop.internalReviewRounds?.length, 'Internal review has no publication action')
+export function publishAs(sop: Sop, approverId: string, snapshot?: ApprovalDecisionSnapshot): Sop {
   assertStatus(sop, ['approved'], 'publish')
+  const submission = assertApprovalSnapshot(sop, approverId, snapshot)
   assertQualityReady(sop, approverId)
   assert(!sop.reviewFlow || sop.approvers.every((p) => p.decision === 'approved'), 'Final Quality approval is required before publication')
   assert(isApprover(sop, approverId), 'Only an assigned approver can publish')
   return {
     ...sop,
+    ...updateApprovalSubmission(sop, submission, 'published', new Date().toISOString()),
     status: 'published',
     lastUpdated: todayIsoDate(),
-    timeline: [...sop.timeline, event(sop, 'published', approverId)],
+    timeline: [...sop.timeline, event(sop, 'published', approverId, submission ? { approvalSubmissionId: submission.id, reviewRoundId: submission.internalReviewRoundId } : {})],
   }
 }
 
@@ -875,6 +931,13 @@ export function publishAs(sop: Sop, approverId: string): Sop {
 
 /** Moves the stored due dates `days` earlier (to test Overdue). Used by the dev-only demo panel. */
 export function shiftDueDates(sop: Sop, days: number): Sop {
+  const approval = activeApprovalSubmission(sop)
+  if (approval && sop.status === 'in-approval') return {
+    ...sop,
+    approvalDueAt: sop.approvalDueAt ? addDays(sop.approvalDueAt, -days) : undefined,
+    approvalSubmissions: sop.approvalSubmissions!.map((submission) => submission.id === approval.id && submission.dueDate
+      ? { ...submission, dueDate: localDatePlus(new Date(submission.dueDate + 'T12:00:00'), -days) } : submission),
+  }
   const round = sop.internalReviewRounds?.at(-1)
   if (round) {
     if (round.status !== 'open') return sop

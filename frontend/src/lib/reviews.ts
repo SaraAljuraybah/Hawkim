@@ -1,5 +1,6 @@
 import type { ReviewerAssignment, Sop } from '../data/mock/types'
-import { currentDueAt, currentReviewer, isOverdue, reviewerDueAt } from './workflow'
+import { reviewSopForUser } from './reviewAccess'
+import { activeApprovalSubmission, currentDueAt, currentReviewer, isOverdue, reviewerDueAt } from './workflow'
 
 /*
  * A reviewer's or approver's assignments (My Reviews, PBI 7, 10, 25), from the
@@ -32,7 +33,10 @@ export interface ReviewTask {
 /** One task per SOP the user is assigned to (a person is never both reviewer and approver on one SOP). */
 export function reviewTasks(userId: string, sops: Sop[]): ReviewTask[] {
   const tasks: ReviewTask[] = []
-  for (const sop of sops) {
+  for (const source of sops) {
+    const access = reviewSopForUser(source, userId)
+    if (!access) continue
+    const { sop, historical } = access
     const round = sop.internalReviewRounds?.at(-1)
     const assignedApprover = sop.approvers.some((person) => person.userId === userId)
     if (round && !sop.reviewFlow && !assignedApprover) {
@@ -68,9 +72,10 @@ export function reviewTasks(userId: string, sops: Sop[]): ReviewTask[] {
     if (approver) {
       let group: TaskGroup = 'done'
       let need: TaskNeed | undefined
-      if (sop.status === 'returned' || sop.status === 'in-review') group = 'waiting'
-      else if (sop.status === 'in-approval' && approver.decision === 'pending') [group, need] = ['todo', 'approval']
-      else if (sop.status === 'approved') [group, need] = ['todo', 'publish']
+      const activeApproval = !sop.approvalSubmissions?.length || !!activeApprovalSubmission(sop)
+      if (!historical && (sop.status === 'returned' || sop.status === 'in-review')) group = 'waiting'
+      else if (!historical && activeApproval && sop.status === 'in-approval' && approver.decision === 'pending') [group, need] = ['todo', 'approval']
+      else if (!historical && activeApproval && sop.status === 'approved') [group, need] = ['todo', 'publish']
       tasks.push({ sop, role: 'approver', group, ...(need ? { need } : {}), decision: approver.decision, decidedAt: approver.decidedAt, dueAt })
     }
   }

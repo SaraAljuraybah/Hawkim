@@ -36,7 +36,7 @@ export function InternalReviewPanel({ sop, canCancel }: Props) {
       const latest = index === rounds.length - 1
       return <li key={round.id} className="rounded-lg border border-beige p-4">
         <h3 className="text-base font-semibold text-maroon">{text.panel.round.replace('{number}', String(index + 1)).replace('{version}', round.version)}</h3>
-        <p className="mt-1 text-sm text-maroon">{text.panel.states[round.status]}</p>
+        <p className="mt-1 text-sm text-maroon">{round.status === 'completed' && (!latest || round.version !== sop.version || sop.status !== 'in-review') ? text.panel.decisions.completed : text.panel.states[round.status]}</p>
         <p className="mt-1 text-xs text-text-gray">{text.panel.requested.replace('{date}', formatDateTime(round.requestedAt))}</p>
         <ul className="mt-4 space-y-4">{round.assignments.map((assignment) => {
           const days = reviewerAssignedDays(sop, assignment)

@@ -91,6 +91,10 @@ export interface Sop {
   reviewFlow?: ReviewFlow
   /** Version-linked internal parallel review history; absent on legacy SOPs. */
   internalReviewRounds?: InternalReviewRound[]
+  /** Version/round-scoped external requirement, shared with future Author-controlled routing. */
+  externalReviewGate?: ExternalReviewGate
+  /** Author-controlled approval requests and their decisions, retained across revised versions. */
+  approvalSubmissions?: ApprovalSubmission[]
   reviewers: ReviewerAssignment[]
   approvers: ApproverAssignment[]
   /** Calendar days for each stage (1–30), set on the first submission. */
@@ -201,9 +205,52 @@ export interface InternalReviewRound {
 }
 
 export interface ApproverAssignment {
+  /** Present on Author-controlled approval requests; legacy assignments have no identity. */
+  id?: string
+  version?: string
+  assignedAt?: string
   userId: string
   decision: ApproverDecision
   decidedAt?: string
+}
+
+/** Completion evidence supplied by the future external review workflow, never created by approval submission. */
+export interface ExternalReviewEvidence {
+  id: string
+  departmentId: string
+  userId: string
+  version: string
+  decision: ReviewerDecision
+  decidedAt?: string
+  feedbackRequired?: boolean
+  feedbackAddressed?: boolean
+}
+
+export type ExternalReviewGate = { version: string; internalReviewRoundId: string } & (
+  | { requirement: 'not-required'; confirmedById: string; confirmedAt: string }
+  | { requirement: 'required'; departmentIds: string[]; assignments: ExternalReviewEvidence[] }
+)
+
+export interface ApprovalSubmission {
+  id: string
+  version: string
+  internalReviewRoundId: string
+  submittedById: string
+  submittedAt: string
+  approverId: string
+  status: 'pending' | 'approved' | 'returned' | 'published'
+  assignedDueDays: number | null
+  dueDate?: string
+  /** The main Author acknowledged feedback on completed internal reviews. */
+  feedbackAddressed?: boolean
+  decidedAt?: string
+  commentId?: string
+}
+
+/** Captured when opening an approval action; prevents a stale page acting on a later request. */
+export interface ApprovalDecisionSnapshot {
+  version: string
+  approvalSubmissionId: string
 }
 
 /** Actor id used for automatic workflow steps (shown as "System"). */
@@ -248,10 +295,13 @@ export type TimelineEventType =
   | 'review-cancelled'
   | 'review-request-cancelled'
   | 'internal-review-completed'
+  | 'external-reviews-not-required'
+  | 'submitted-for-approval'
 
 /** One action in an SOP's workflow history (PBI 24). */
 export interface TimelineEvent {
   id: string
+  approvalSubmissionId?: string
   reviewRoundId?: string
   reviewAssignmentId?: string
   cancellationReason?: ReviewCancellationReason

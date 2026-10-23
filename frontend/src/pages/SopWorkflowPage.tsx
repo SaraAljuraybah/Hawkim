@@ -18,12 +18,15 @@ import { ResubmitDialog } from '../components/workflow/ResubmitDialog'
 import { ReviewTimelineTable } from '../components/workflow/ReviewTimelineTable'
 import { StatusTracker } from '../components/workflow/StatusTracker'
 import { SubmitDialog } from '../components/workflow/SubmitDialog'
+import { SubmitForApprovalDialog } from '../components/workflow/SubmitForApprovalDialog'
 import { VersionHistory } from '../components/workflow/VersionHistory'
 import { complianceEn } from '../content/compliance.en'
+import { approvalEn } from '../content/approval.en'
 import { sopWorkflowEn } from '../content/workflow.en'
 import type { SopVersion } from '../data/mock/types'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { currentCheck, hasCurrentCheck, isCheckRunning } from '../lib/compliance'
+import { approvalReadiness } from '../lib/approval'
 import { formatDate } from '../lib/format'
 import { hasPermission } from '../lib/permissions'
 import { sopPath } from '../lib/routes'
@@ -45,7 +48,7 @@ import { useSops } from '../state/sopsContext'
 import { useUsers } from '../state/usersContext'
 import { NotFoundPage } from './NotFoundPage'
 
-type DialogName = 'submit' | 'newVersion' | 'resubmit' | 'addCoAuthors' | 'response'
+type DialogName = 'submit' | 'approval' | 'newVersion' | 'resubmit' | 'addCoAuthors' | 'response'
 
 /** Keeps the uploaded file in memory (object URL) so it can be downloaded in this session. */
 function toUploadedFile(file: File): UploadedFile {
@@ -94,7 +97,7 @@ export function SopWorkflowPage() {
   const { id } = useParams()
   const store = useSops()
   const user = useCurrentUser()
-  const { nameOf } = useUsers()
+  const { nameOf, users } = useUsers()
   const departments = useDepartments()
   const guidelines = useGuidelines()
   const sop = store.sops.find((item) => item.id === id)
@@ -184,6 +187,14 @@ export function SopWorkflowPage() {
         ? actions.checkCurrentNeeded.replace('{version}', guidelines.current.version)
         : actions.checkNeeded
   const submitReason = sop.status === 'returned' && !canResubmit(sop) ? actions.resubmitHint : checkReason
+  // Legacy review plans keep their existing handoff. Parallel reviews await this main-Author action.
+  const showApproval = isMainAuthor && !!sop.internalReviewRounds?.length && sop.status !== 'approved' && sop.status !== 'published'
+  const approval = showApproval
+    ? approvalReadiness(sop, user.id, { users, departments: departments.departments }, {
+        noExternalReviewsRequired: true,
+        feedbackAddressed: true,
+      })
+    : undefined
 
   // Response: to everyone who commented in the latest round; not once published.
   const recipients = sop.status === 'published' ? [] : responseRecipients(sop)
@@ -383,7 +394,7 @@ export function SopWorkflowPage() {
         title={content.timeline.title}
         className="mt-6"
         actions={
-          (recipients.length > 0 || (isMainAuthor && canUpload)) && (
+          (recipients.length > 0 || (isMainAuthor && canUpload) || showApproval) && (
             <>
               {recipients.length > 0 && (
                 <Button size="sm" variant="secondary" onClick={(event) => open('response', event.currentTarget)}>
@@ -401,6 +412,13 @@ export function SopWorkflowPage() {
                   {sop.status === 'returned' ? actions.resubmit : actions.submit}
                 </Button>
               )}
+              {showApproval && (
+                <Button size="sm" disabled={!approval?.ready}
+                  aria-describedby={!approval?.ready ? 'approval-hint' : undefined}
+                  onClick={(event) => open('approval', event.currentTarget)}>
+                  {approvalEn.action}
+                </Button>
+              )}
             </>
           )
         }
@@ -413,11 +431,23 @@ export function SopWorkflowPage() {
         {canUpload && !isMainAuthor && (
           <p className="mb-4 text-sm text-text-gray">{actions.authorOnly.replace('{name}', authorName)}</p>
         )}
+        {showApproval && approval && !approval.ready && (
+          <ul id="approval-hint" className="mb-4 list-disc space-y-1 pl-5 text-sm text-text-gray">
+            {approval.reasons.map((reason) => <li key={reason}>{reason}</li>)}
+          </ul>
+        )}
         <ReviewTimelineTable sop={sop} content={content} mainAuthorOnly />
       </Section>
 
 
       {/* Dialogs */}
+      {dialog === 'approval' && (
+        <SubmitForApprovalDialog sop={sop} onClose={closeDialog}
+          onSubmit={(options) => {
+            store.submitForApproval(sop.id, options)
+            announce(approvalEn.submitted)
+          }} />
+      )}
       {dialog === 'submit' && (
         <SubmitDialog
           sop={sop}

@@ -3,8 +3,8 @@ import { flushSync } from 'react-dom'
 import { FlaskConical } from 'lucide-react'
 import { sopWorkflowEn } from '../../content/workflow.en'
 import { workflowDemoEn } from '../../content/workflowDemo.en'
-import type { ReviewRole, Sop } from '../../data/mock/types'
-import { currentDueAt, currentReviewer } from '../../lib/workflow'
+import type { ApprovalDecisionSnapshot, ReviewRole, Sop } from '../../data/mock/types'
+import { activeApprovalSubmission, currentDueAt, currentReviewer } from '../../lib/workflow'
 import { useSops } from '../../state/sopsContext'
 import { useCurrentUser } from '../../state/sessionContext'
 import { useUsers } from '../../state/usersContext'
@@ -26,6 +26,7 @@ interface DemoPanelProps {
 interface Returner {
   userId: string
   role: ReviewRole
+  snapshot?: ApprovalDecisionSnapshot
 }
 
 /**
@@ -63,6 +64,8 @@ export default function DemoPanel({ sop, announce }: DemoPanelProps) {
   }
 
   const activeReviewer = currentReviewer(sop)
+  const approval = activeApprovalSubmission(sop)
+  const snapshot = approval ? { version: approval.version, approvalSubmissionId: approval.id } : undefined
   const pendingReviewers = activeReviewer && !sop.reviewFlow && activeReviewer.userId === user.id && user.permissions.includes('reviewer') ? [activeReviewer] : []
   const pendingApprovers = !sop.reviewFlow && sop.status === 'in-approval' ? sop.approvers.filter((p) => p.userId === user.id && p.decision === 'pending' && user.permissions.includes('approver')) : []
   const publishers = !sop.reviewFlow && sop.status === 'approved' ? sop.approvers.filter((person) => person.userId === user.id && user.permissions.includes('approver')) : []
@@ -97,7 +100,7 @@ export default function DemoPanel({ sop, announce }: DemoPanelProps) {
         size="sm"
         variant="secondary"
         onClick={() => {
-          store.approveAs(sop.id, userId)
+          store.approveAs(sop.id, userId, undefined, snapshot)
           announce(label(content.messages.approved, userId))
         }}
       >
@@ -107,7 +110,7 @@ export default function DemoPanel({ sop, announce }: DemoPanelProps) {
         key={`return-${userId}`}
         size="sm"
         variant="secondary"
-        onClick={(event) => openComment({ userId, role: 'approver' }, event.currentTarget)}
+        onClick={(event) => openComment({ userId, role: 'approver', snapshot }, event.currentTarget)}
       >
         {label(content.buttons.returnWithComment, userId)}
       </Button>,
@@ -118,7 +121,7 @@ export default function DemoPanel({ sop, announce }: DemoPanelProps) {
         size="sm"
         variant="secondary"
         onClick={() => {
-          store.publishAs(sop.id, userId)
+          store.publishAs(sop.id, userId, snapshot)
           announce(content.messages.published)
         }}
       >
@@ -180,7 +183,7 @@ export default function DemoPanel({ sop, announce }: DemoPanelProps) {
               return false
             }
             if (returner.role === 'reviewer') store.returnAsReviewer(sop.id, returner.userId, comment.trim())
-            else store.returnAsApprover(sop.id, returner.userId, comment.trim())
+            else store.returnAsApprover(sop.id, returner.userId, comment.trim(), returner.snapshot)
             announce(content.messages.returned)
           }}
         >

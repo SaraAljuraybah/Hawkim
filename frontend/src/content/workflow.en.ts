@@ -4,6 +4,7 @@
  */
 
 import type { SopWorkflowContent } from './types'
+import { approvalEn } from './approval.en'
 
 export const sopWorkflowEn: SopWorkflowContent = {
   pageTitle: '{code} | Hawkim',
@@ -151,6 +152,8 @@ export const sopWorkflowEn: SopWorkflowContent = {
       'review-cancelled': 'Review assignment cancelled',
       'review-request-cancelled': 'Review request cancelled; SOP returned to Draft',
       'internal-review-completed': 'Internal reviews completed; awaiting Author',
+      'external-reviews-not-required': approvalEn.events['external-reviews-not-required'],
+      'submitted-for-approval': approvalEn.events['submitted-for-approval'],
       'version-uploaded': 'New version uploaded',
       'version-deleted': 'Version deleted',
       response: 'Response',

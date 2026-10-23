@@ -1,7 +1,7 @@
 import type { Department, DepartmentReview, DepartmentWorkflowConfiguration, ReviewFlow, ReviewScope, Sop, TimelineEvent, User } from '../data/mock/types'
 import { hasCurrentCheck } from './compliance'
 import { todayIsoDate } from './format'
-import { currentReviewer, isAuthor, isAuthorOrCoAuthor, parseDueDate, requiredReviewsComplete, returnAsReviewer } from './workflow'
+import { currentReviewer, isApprover, isAuthor, isAuthorOrCoAuthor, parseDueDate, requiredReviewsComplete, returnAsReviewer } from './workflow'
 
 export interface ReviewEnvironment { users: User[]; departments: Department[] }
 export type ReviewAction =
@@ -32,7 +32,7 @@ function withDecision(sop: Sop, userId: string, decision: 'pending' | 'completed
 /** Eligibility uses the ordinary Reviewer permission, home department and separation of duties. */
 export function eligibleReviewers(sop: Sop, departmentId: string, users: User[], excluded: string[] = []): User[] {
   return users.filter((user) => !user.deletedAt && !user.permissions.includes('admin') && user.permissions.includes('reviewer') && user.departmentId === departmentId &&
-    !isAuthorOrCoAuthor(sop, user.id) && !sop.approvers.some((p) => p.userId === user.id) && !excluded.includes(user.id))
+    !isAuthorOrCoAuthor(sop, user.id) && !isApprover(sop, user.id) && !excluded.includes(user.id))
 }
 /**
  * Within a review round, a reviewer keeps the deadline already set (e.g. when Reviewer 2

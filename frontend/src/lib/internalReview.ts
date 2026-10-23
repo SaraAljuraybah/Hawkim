@@ -123,7 +123,9 @@ export function cancelInternalReview(sop: Sop, actorId: string, roundId: string,
 export function resubmitInternalReview(sop: Sop, actorId: string, guidelineVersion: string, env: ReviewEnvironment): Sop {
   author(sop, actorId, env)
   const round = currentInternalRound(sop)
-  assert(round?.status === 'rejected' && sop.version !== round.version && canResubmit(sop), 'Upload a new revised version after rejection before resubmitting')
+  const approval = sop.approvalSubmissions?.at(-1)
+  const returnedFromApproval = approval?.status === 'returned' && approval.internalReviewRoundId === round?.id && approval.version === round?.version
+  assert(round && (round.status === 'rejected' || round.status === 'completed' && returnedFromApproval) && sop.version !== round.version && canResubmit(sop), 'Upload a new revised version after rejection before resubmitting')
   assert(hasCurrentCheck(sop, guidelineVersion), 'Complete a compliance check of the revised version against the current guideline first')
   const required = round.assignments.filter((person) => person.cancellationReason !== 'author-cancelled')
   const options: InternalReviewOptions = { reviewerIds: required.map((person) => person.userId),
