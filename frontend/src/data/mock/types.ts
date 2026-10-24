@@ -178,14 +178,12 @@ export interface ReviewerAssignment {
 }
 
 
-/** Cancellation is a request outcome, not a completed content review. */
-export type ReviewCancellationReason = 'author-cancelled' | 'round-rejected'
-
 /**
- * An internal review request: pending until the reviewer accepts or declines; only an
- * accepted request can be completed or returned.
+ * An internal review request: pending until the reviewer accepts or declines (or it is withdrawn
+ * when the response due date ends); only an accepted request can be completed or returned. The main
+ * author can remove a reviewer at any time.
  */
-export type InternalReviewDecision = 'pending' | 'accepted' | 'declined' | 'withdrawn' | 'removed' | 'completed' | 'returned' | 'cancelled'
+export type InternalReviewDecision = 'pending' | 'accepted' | 'declined' | 'withdrawn' | 'removed' | 'completed' | 'returned'
 
 export interface InternalReviewerAssignment extends Omit<ReviewerAssignment, 'decision' | 'startedAt'> {
   id: string
@@ -208,10 +206,8 @@ export interface InternalReviewerAssignment extends Omit<ReviewerAssignment, 'de
   removalReason?: string
   /** Required when the reviewer declines. */
   declineReason?: string
+  /** The comments of a return (required) or a completed review (optional). */
   commentId?: string
-  cancelledAt?: string
-  cancelledById?: string
-  cancellationReason?: ReviewCancellationReason
 }
 
 /** Shared integration boundary: external routing can consume completed internal rounds. */
@@ -322,8 +318,6 @@ export type TimelineEventType =
   | 'review-withdrawn'
   | 'reviewer-removed'
   | 'review-changes-requested'
-  | 'review-cancelled'
-  | 'review-request-cancelled'
   | 'internal-review-completed'
   | 'external-reviews-not-required'
   | 'submitted-for-approval'
@@ -334,7 +328,6 @@ export interface TimelineEvent {
   approvalSubmissionId?: string
   reviewRoundId?: string
   reviewAssignmentId?: string
-  cancellationReason?: ReviewCancellationReason
   type: TimelineEventType
   /** Who did it (User.id, or SYSTEM_ACTOR for automatic steps). */
   actorId: string

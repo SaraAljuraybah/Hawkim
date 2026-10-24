@@ -1,6 +1,5 @@
 import { useId, useState, type ReactNode } from 'react'
 import { reviewFlowEn } from '../../content/reviewFlow.en'
-import { internalReviewEn } from '../../content/internalReview.en'
 import type { SopWorkflowContent } from '../../content/types'
 import type { Sop, TimelineEvent } from '../../data/mock/types'
 import { formatDateTime } from '../../lib/format'
@@ -92,7 +91,6 @@ export function ReviewTimelineTable({ sop, content, mainAuthorOnly = false }: Re
   /** Extra facts about some events: the co-author, the routed reviewer's department, the due date. */
   function details(event: TimelineEvent): ReactNode {
     const lines: ReactNode[] = []
-    if (event.cancellationReason) lines.push(internalReviewEn.panel.cancellationReasons[event.cancellationReason])
     if (event.reviewScope) {
       lines.push(
         reviewFlowEn.scopeDecision

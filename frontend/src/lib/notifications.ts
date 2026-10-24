@@ -14,7 +14,6 @@ export type NotificationType =
   /** Review turn started: first submission, resubmission or sequential handoff. */
   | 'assigned-review'
   | 'internal-review-completed'
-  | 'review-cancelled'
   /** Internal review requests: to the author (and co-authors), or to the reviewer concerned. */
   | 'review-declined'
   | 'review-withdrawn'
@@ -97,8 +96,6 @@ function fromEvent(sop: Sop, event: TimelineEvent, userId: string): AppNotificat
   switch (event.type) {
     case 'internal-review-completed':
       return isRecipient ? { ...base, type: 'internal-review-completed', link: mySopPath(sop.id) } : undefined
-    case 'review-cancelled':
-      return isRecipient ? { ...base, type: 'review-cancelled', link: reviewPath(sop.id) } : undefined
     // Internal review requests: the author and co-authors hear about declines and returns, the author
     // about each completion, the reviewer about a removal, and both about a withdrawal.
     case 'review-declined':
@@ -118,7 +115,7 @@ function fromEvent(sop: Sop, event: TimelineEvent, userId: string): AppNotificat
       if (event.reviewRoundId) {
         const round = sop.internalReviewRounds?.find((item) => item.id === event.reviewRoundId)
         const assignment = latestAssignmentOf(round, userId)
-        return isRecipient && assignment && assignment.decision !== 'cancelled'
+        return isRecipient && assignment
           ? { ...base, type: 'assigned-review', via: event.type, link: reviewPath(sop.id) } : undefined
       }
       // Old sample submission events may still list the entire queue.

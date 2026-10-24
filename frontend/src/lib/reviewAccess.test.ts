@@ -12,7 +12,7 @@ function fixture(): Sop {
     versions: ['1', '2'].map((version) => ({ version, fileName: 'private-v' + version + '.pdf', fileType: 'pdf', fileUrl: '/private-v' + version + '.pdf', uploadedAt: '2026-10-23T09:00:00Z' })),
     complianceChecks: ['1', '2'].map((version) => ({ id: 'check-' + version, sopId: 'test', version, status: 'completed', startedAt: '2026-10-23T09:00:00Z', guideline: { name: 'GVP', version: '4.0' }, findings: [] })),
     comments: ['1', '2'].map((version) => ({ id: 'comment-' + version, version, authorUserId: 'a', role: 'reviewer', text: 'Feedback v' + version, createdAt: '2026-10-23T09:00:00Z' })),
-    timeline: ['1', '2'].map((version) => ({ id: 'event-' + version, version, type: 'review-cancelled', actorId: 'author', createdAt: '2026-10-23T09:00:00Z' })),
+    timeline: ['1', '2'].map((version) => ({ id: 'event-' + version, version, type: 'reviewer-removed', actorId: 'author', createdAt: '2026-10-23T09:00:00Z' })),
   }
 }
 

@@ -914,7 +914,6 @@ export interface NotificationsContent {
     routed: string
     handoff: string
     internalReviewCompleted: string
-    reviewCancelled: string
     /** Internal review requests ({name}: the reviewer, or the author for a removal). */
     reviewDeclined: string
     reviewWithdrawn: { author: string; reviewer: string }

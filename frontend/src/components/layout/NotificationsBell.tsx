@@ -30,7 +30,6 @@ const MAX_ITEMS = 20
 const ICONS: Record<NotificationType, LucideIcon> = {
   'assigned-review': ListChecks,
   'internal-review-completed': CircleCheck,
-  'review-cancelled': CircleX,
   'review-declined': CircleX,
   'review-withdrawn': AlarmClock,
   'reviewer-removed': CircleX,
@@ -104,7 +103,6 @@ export function NotificationsBell() {
         .replace('{reason}', item.reason ?? '')
     switch (item.type) {
       case 'internal-review-completed': return fill(t.internalReviewCompleted)
-      case 'review-cancelled': return fill(t.reviewCancelled)
       case 'review-declined': return fill(t.reviewDeclined)
       case 'review-withdrawn': return fill(item.forReviewer ? t.reviewWithdrawn.reviewer : t.reviewWithdrawn.author)
       case 'reviewer-removed': return fill(t.reviewerRemoved)

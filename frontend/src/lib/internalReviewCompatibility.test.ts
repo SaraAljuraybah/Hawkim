@@ -116,14 +116,16 @@ describe('retained internal history and subsequent passive workflow consumers', 
       expect(requiredReviewsComplete(sop)).toBe(true)
     }
   })
-  it('accepts only an explicit Author waiver as successful-round cancellation evidence', () => {
+  it('counts only reviewers no longer taking part, not open requests, alongside completed reviews', () => {
     const sop = completed()
     const assignment = sop.internalReviewRounds![0].assignments[1]
-    assignment.decision = 'cancelled'
-    assignment.cancellationReason = 'round-rejected'
+    assignment.decision = 'accepted'
     expect(internalReviewsComplete(sop)).toBe(false)
-    assignment.cancellationReason = 'author-cancelled'
-    expect(requiredReviewsComplete(sop)).toBe(true)
+    for (const decision of ['declined', 'withdrawn', 'removed'] as const) {
+      assignment.decision = decision
+      sop.reviewers = projectReviewers(sop.internalReviewRounds![0])
+      expect(requiredReviewsComplete(sop)).toBe(true)
+    }
     sop.reviewers = [...sop.reviewers, { userId: 'b', decision: 'cancelled' }]
     expect(requiredReviewsComplete(sop)).toBe(false)
   })

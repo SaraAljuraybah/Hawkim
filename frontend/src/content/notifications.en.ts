@@ -19,7 +19,6 @@ export const notificationsEn: NotificationsContent = {
     routed: '{name} routed {code} · v{version} to you for review',
     handoff: '{code} · v{version} is ready for your review',
     internalReviewCompleted: 'All reviewers completed {code} · v{version}. You can now submit it for approval.',
-    reviewCancelled: 'Your review request for {code} · v{version} was cancelled',
     reviewDeclined: '{name} declined the review of {code} · v{version}. Reason: {reason}',
     reviewWithdrawn: {
       author: '{name} did not respond in time, so the review request for {code} · v{version} was withdrawn',

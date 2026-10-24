@@ -191,7 +191,7 @@ describe('returns, removals, new versions and immutable history', () => {
     expect(returned.comments.map((comment) => comment.text)).toEqual(['Good content', 'Revise section 2'])
     expect(returned.comments.every((comment) => comment.version === '1' && comment.reviewRoundId && comment.reviewAssignmentId)).toBe(true)
     expect(returned.timeline.at(-1)).toMatchObject({ type: 'review-changes-requested', actorId: 'b', recipientIds: ['author', 'coauthor'], commentId: returned.comments[1].id })
-    expect(returned.timeline.some((event) => event.type === 'review-cancelled' || event.type === 'returned')).toBe(false)
+    expect(returned.timeline.some((event) => event.type === 'returned')).toBe(false)
     // The others can still finish; once they have, the round asks for a new version.
     const settled = decide(returned, 'c', 'completed')
     expect(currentInternalRound(settled)!.status).toBe('changes-requested')

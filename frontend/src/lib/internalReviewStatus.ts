@@ -42,9 +42,9 @@ export function isOpenDecision(decision: InternalReviewDecision): boolean {
   return decision === 'pending' || decision === 'accepted'
 }
 
-/** The reviewer no longer takes part in this round. */
+/** The reviewer no longer takes part in this round, so they don't count against completing it. */
 export function isInactiveDecision(decision: InternalReviewDecision): boolean {
-  return decision === 'declined' || decision === 'withdrawn' || decision === 'removed' || decision === 'cancelled'
+  return decision === 'declined' || decision === 'withdrawn' || decision === 'removed'
 }
 
 /**
@@ -68,12 +68,6 @@ export function isActiveRequest(sop: Pick<Sop, 'status' | 'version' | 'internalR
   const round = sop.internalReviewRounds?.at(-1)
   return sop.status === 'in-review' && !!round && round.version === sop.version && round.status === 'open' &&
     round.assignments.includes(request) && latestAssignmentOf(round, request.userId) === request && isOpenDecision(request.decision)
-}
-
-/** Doesn't count against completing the round: declined, withdrawn, removed, or cancelled by the author. */
-export function isWaived(assignment: Pick<InternalReviewerAssignment, 'decision' | 'cancellationReason'>): boolean {
-  return assignment.decision === 'declined' || assignment.decision === 'withdrawn' || assignment.decision === 'removed' ||
-    assignment.decision === 'cancelled' && assignment.cancellationReason === 'author-cancelled'
 }
 
 /**

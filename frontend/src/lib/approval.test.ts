@@ -93,8 +93,8 @@ describe('Author-controlled approval eligibility', () => {
     expect(submit(sop).status).toBe('in-approval')
     expect(submit(sop).internalReviewRounds!.at(-1)!.assignments[1]).toMatchObject({ decision: 'removed', removalReason: 'No longer needed' })
     const malformed = structuredClone(sop)
-    // An automatic cancellation is not a waiver: that reviewer would still be required.
-    malformed.internalReviewRounds!.at(-1)!.assignments[1] = { ...malformed.internalReviewRounds!.at(-1)!.assignments[1], decision: 'cancelled', cancellationReason: 'round-rejected' }
+    // A reviewer still taking part (here: an open request) must complete before approval.
+    malformed.internalReviewRounds!.at(-1)!.assignments[1] = { ...malformed.internalReviewRounds!.at(-1)!.assignments[1], decision: 'accepted' }
     malformed.reviewers = projectReviewers(malformed.internalReviewRounds!.at(-1)!)
     expect(() => submit(malformed)).toThrow()
   })
