@@ -225,6 +225,8 @@ export interface SidebarContent {
 export interface AppShellContent extends SidebarContent {
   /** Visually hidden link that lets keyboard users jump past the navigation. */
   skipLink: string
+  /** Accessible name of the sidebar logo link in a read-only department (it opens the SOP Directory). */
+  homeLinkLabelReadOnly: string
   openMenu: string
   /** Accessible name of the mobile navigation drawer. */
   drawerLabel: string

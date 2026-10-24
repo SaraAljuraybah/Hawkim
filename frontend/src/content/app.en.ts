@@ -11,6 +11,7 @@ export const appShellEn: AppShellContent = {
   brandName: 'Hawkim',
   homeHref: '/dashboard',
   homeLinkLabel: 'Hawkim, go to dashboard',
+  homeLinkLabelReadOnly: 'Hawkim, go to SOP Directory',
   navAriaLabel: 'Main',
 
   nav: [

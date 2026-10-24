@@ -2,8 +2,9 @@ import { Suspense, useRef, useState, type ReactNode } from 'react'
 import { Outlet } from 'react-router-dom'
 import { appShellEn } from '../../content/app.en'
 import { useTopBarScrollPadding } from '../../hooks/useTopBarScrollPadding'
-import { hasAnyPermission } from '../../lib/permissions'
+import { isReadOnlyDepartment, READ_ONLY_LANDING_PATH, visibleNavItems } from '../../lib/departmentNavigation'
 import { reviewTasks } from '../../lib/reviews'
+import { useActiveDepartment } from '../../state/activeDepartmentContext'
 import { useCurrentUser } from '../../state/sessionContext'
 import { useSops } from '../../state/sopsContext'
 import { PageLoading } from '../ui/PageLoading'
@@ -18,10 +19,14 @@ import { TopBar } from './TopBar'
  */
 export function AppLayout({ children }: { children?: ReactNode }) {
   const user = useCurrentUser()
-  // Items tied to a permission (e.g. My SOPs for authors) are only shown to users who have it.
+  const { activeDepartment } = useActiveDepartment()
+  const readOnly = isReadOnlyDepartment(activeDepartment.id, user)
+  // Items tied to a permission (e.g. My SOPs for authors) are only shown to users who have it;
+  // in a read-only department only the directory pages are shown (and the logo opens the directory).
   const content = {
     ...appShellEn,
-    nav: appShellEn.nav.filter((item) => !item.permission || hasAnyPermission(user, item.permission)),
+    nav: visibleNavItems(appShellEn.nav, user, readOnly),
+    ...(readOnly && { homeHref: READ_ONLY_LANDING_PATH, homeLinkLabel: appShellEn.homeLinkLabelReadOnly }),
   }
 
   useTopBarScrollPadding()
