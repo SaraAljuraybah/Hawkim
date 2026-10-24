@@ -10,7 +10,9 @@ import { TextField } from '../components/ui/TextField'
 import { requestsEn } from '../content/requests.en'
 import type { DepartmentId, RequestType } from '../data/mock/types'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
+import { isReadOnlyDepartment } from '../lib/departmentNavigation'
 import { REQUEST_PREFILL_PARAMS } from '../lib/routes'
+import { useActiveDepartment } from '../state/activeDepartmentContext'
 import { useDepartments } from '../state/departmentsContext'
 import { useCurrentUser } from '../state/sessionContext'
 import { useRequests } from '../state/requestsContext'
@@ -55,6 +57,10 @@ export function SubmitRequestPage() {
   const { addRequest } = useRequests()
   const user = useCurrentUser()
   const { activeDepartments } = useDepartments()
+  // My Requests is hidden in a read-only department: Cancel returns to Organization
+  // Structure and the confirmation has no link there (the department card shows the status).
+  const { activeDepartment } = useActiveDepartment()
+  const readOnly = isReadOnlyDepartment(activeDepartment.id, user)
 
   const [searchParams] = useSearchParams()
   const [files, setFiles] = useState<File[]>([])
@@ -186,7 +192,9 @@ export function SubmitRequestPage() {
             </h2>
             <p className="mt-2 max-w-md text-text-gray">{content.confirmation.text}</p>
             <div className="mt-8 flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
-              <Button to={content.confirmation.viewRequests.href}>{content.confirmation.viewRequests.label}</Button>
+              {!readOnly && (
+                <Button to={content.confirmation.viewRequests.href}>{content.confirmation.viewRequests.label}</Button>
+              )}
               <Button variant="secondary" onClick={startAnotherRequest}>
                 {content.confirmation.submitAnother}
               </Button>
@@ -258,7 +266,7 @@ export function SubmitRequestPage() {
             />
 
             <div className="flex flex-col-reverse gap-3 border-t border-beige pt-6 sm:flex-row sm:justify-end">
-              <Button to={content.cancel.href} variant="secondary">
+              <Button to={readOnly ? content.readOnlyCancelHref : content.cancel.href} variant="secondary">
                 {content.cancel.label}
               </Button>
               <Button type="submit" aria-disabled={submitting || undefined}>

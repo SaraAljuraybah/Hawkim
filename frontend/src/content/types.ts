@@ -364,6 +364,8 @@ export interface SubmitRequestContent {
     descriptionRequired: string
   }
   cancel: LinkContent
+  /** Where Cancel goes in a read-only department (My Requests is hidden there). */
+  readOnlyCancelHref: string
   submit: { label: string; loadingLabel: string }
   confirmation: {
     title: string
