@@ -19,6 +19,7 @@ describe('sidebar items', () => {
     expect(labels([], false)).toEqual(['Dashboard', 'My Request', 'SOP Directory', 'Organization Structure'])
     expect(labels(['author'], false)).toEqual(['Dashboard', 'My SOPs', 'My Request', 'SOP Directory', 'Organization Structure'])
     expect(labels(['reviewer', 'approver'], false)).toEqual(['Dashboard', 'My Reviews', 'My Request', 'SOP Directory', 'Organization Structure'])
+    expect(labels(['author', 'reviewer'], false)).toEqual(['Dashboard', 'My SOPs', 'My Reviews', 'My Request', 'SOP Directory', 'Organization Structure'])
   })
 
   it('shows only SOP Directory and Organization Structure in a read-only department', () => {
