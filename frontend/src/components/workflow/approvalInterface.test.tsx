@@ -5,9 +5,11 @@ import type { Department, Sop, User } from '../../data/mock/types'
 import { approvalEn } from '../../content/approval.en'
 import { sopWorkflowEn } from '../../content/workflow.en'
 import { submitForApproval } from '../../lib/approval'
-import { acceptInternalReview, cancelInternalReview, currentInternalRound, decideInternalReview, startInternalReview } from '../../lib/internalReview'
+import { acceptInternalReview, currentInternalRound, decideInternalReview, removeInternalReviewer, startInternalReview } from '../../lib/internalReview'
 import { SopWorkflowPage } from '../../pages/SopWorkflowPage'
 import { SubmitForApprovalDialog } from './SubmitForApprovalDialog'
+import { ReviewTimelineTable } from './ReviewTimelineTable'
+import { reviewSopForUser } from '../../lib/reviewAccess'
 
 const fixture = vi.hoisted(() => ({
   sop: null as Sop | null,
@@ -30,7 +32,7 @@ vi.mock('../../state/sessionContext', () => ({ useCurrentUser: () => fixture.use
 vi.mock('../../state/usersContext', () => ({ useUsers: () => ({ users: fixture.users, activeUsers: fixture.users, nameOf: (id: string) => fixture.users.find((user) => user.id === id)?.name ?? id ?? '', getUser: (id: string) => fixture.users.find((user) => user.id === id) }) }))
 vi.mock('../../state/departmentsContext', () => ({ useDepartments: () => ({ departments: fixture.departments, nameOf: (id: string) => id }) }))
 vi.mock('../../state/guidelinesContext', () => ({ useGuidelines: () => ({ current: { version: '4.0' } }) }))
-vi.mock('../../state/sopsContext', () => ({ useSops: () => ({ sops: [fixture.sop], submitForApproval: vi.fn(), cancelInternalReview: vi.fn() }) }))
+vi.mock('../../state/sopsContext', () => ({ useSops: () => ({ sops: [fixture.sop], submitForApproval: vi.fn(), removeInternalReviewer: vi.fn() }) }))
 
 function draft(): Sop {
   return {
@@ -98,7 +100,7 @@ describe('main Author approval interface', () => {
     expect(approvalButton(renderPage())).toContain(' disabled=""')
     let cancelled = start()
     const round = currentInternalRound(cancelled)!
-    for (const assignment of round.assignments) cancelled = cancelInternalReview(cancelled, 'author', round.id, assignment.id, { users: fixture.users, departments: fixture.departments })
+    for (const assignment of round.assignments) cancelled = removeInternalReviewer(cancelled, 'author', round.id, assignment.id, 'No longer needed', { users: fixture.users, departments: fixture.departments })
     fixture.sop = cancelled
     const html = renderPage()
     expect(approvalButton(html)).toContain(' disabled=""')
@@ -108,9 +110,14 @@ describe('main Author approval interface', () => {
   it('allows approval after a real completed review and an individually cancelled assignment', () => {
     const reviewed = decide(start(), 'reviewer-a')
     const round = currentInternalRound(reviewed)!
-    fixture.sop = cancelInternalReview(reviewed, 'author', round.id, round.assignments.find((assignment) => assignment.userId === 'reviewer-b')!.id, { users: fixture.users, departments: fixture.departments })
+    fixture.sop = removeInternalReviewer(reviewed, 'author', round.id, round.assignments.find((assignment) => assignment.userId === 'reviewer-b')!.id, 'No longer needed', { users: fixture.users, departments: fixture.departments })
     expect(approvalButton(renderPage())).not.toContain(' disabled=""')
-    expect(fixture.sop.internalReviewRounds?.at(-1)?.assignments.find((assignment) => assignment.userId === 'reviewer-b')?.decision).toBe('cancelled')
+    expect(fixture.sop!.internalReviewRounds?.at(-1)?.assignments.find((assignment) => assignment.userId === 'reviewer-b')?.decision).toBe('removed')
+    // The approver sees the removal and its reason in the review timeline.
+    const submitted = submitForApproval(fixture.sop!, 'author', { version: fixture.sop!.version, internalReviewRoundId: round.id, noExternalReviewsRequired: true, feedbackAddressed: true }, { users: fixture.users, departments: fixture.departments })
+    const timeline = renderToStaticMarkup(<ReviewTimelineTable sop={reviewSopForUser(submitted, 'controller')!.sop} content={sopWorkflowEn} />)
+    expect(timeline).toContain(sopWorkflowEn.timeline.events['reviewer-removed'])
+    expect(timeline).toContain('No longer needed')
   })
   it('shows why a missing Quality Controller blocks approval', () => {
     fixture.sop = finished()

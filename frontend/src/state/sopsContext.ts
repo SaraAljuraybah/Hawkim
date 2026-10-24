@@ -37,7 +37,8 @@ export interface SopsStore {
   /** Reviewer: turn the task down with a required reason. */
   declineInternalReview: (sopId: string, roundId: string, assignmentId: string, reason: string) => void
   decideInternalReview: (sopId: string, roundId: string, assignmentId: string, decision: 'completed' | 'returned', text?: string) => void
-  cancelInternalReview: (sopId: string, roundId: string, assignmentId: string) => void
+  /** Main author: remove a reviewer from the current round at any time, with a required reason. */
+  removeInternalReviewer: (sopId: string, roundId: string, assignmentId: string, reason: string) => void
   /** Main author: restart parallel internal reviews, or legacy review with optional new date/comments. */
   resubmit: (sopId: string, options?: ResubmitOptions) => void
   /** Uploads the next version (Draft or Returned). It isn't checked until someone runs a compliance check. */

@@ -294,7 +294,7 @@ describe('assigned controller decisions at the store boundary', () => {
     const author = capture('author', revised)
     author.resubmit(sop.id)
     const round = currentInternalRound(current())!
-    author.cancelInternalReview(sop.id, round.id, round.assignments[0].id)
+    author.removeInternalReviewer(sop.id, round.id, round.assignments[0].id, 'No longer needed')
     expect(current().status).toBe('draft')
     expect(current().approvers).toEqual([])
     expect(() => author.submitForReview(sop.id, { reviewerIds: ['controller'] })).toThrow(/eligible reviewers/)

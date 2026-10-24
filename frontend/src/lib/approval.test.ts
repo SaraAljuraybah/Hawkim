@@ -1,7 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ApprovalDecisionSnapshot, ExternalReviewGate, Sop, User } from '../data/mock/types'
 import { approvalReadiness, submitForApproval, type ApprovalSubmissionOptions } from './approval'
-import { acceptInternalReview, cancelInternalReview, decideInternalReview, resubmitInternalReview, startInternalReview } from './internalReview'
+import { projectReviewers } from './internalReviewStatus'
+import { acceptInternalReview, decideInternalReview, removeInternalReviewer, resubmitInternalReview, startInternalReview } from './internalReview'
 import type { ReviewEnvironment } from './reviewFlow'
 import { activeApprovalSubmission, approveAs, canResubmit, completeReview, currentDueAt, pendingPeople, publishAs, returnAsApprover, shiftDueDates, submitForReview, uploadVersion } from './workflow'
 
@@ -38,7 +39,7 @@ function decide(source: Sop, userId: string, decision: 'completed' | 'returned' 
 }
 function cancel(sop: Sop, userId: string): Sop {
   const round = sop.internalReviewRounds!.at(-1)!
-  return cancelInternalReview(sop, 'author', round.id, round.assignments.find((assignment) => assignment.userId === userId)!.id, environment())
+  return removeInternalReviewer(sop, 'author', round.id, round.assignments.find((assignment) => assignment.userId === userId)!.id, 'No longer needed', environment())
 }
 function complete(text?: string): Sop { return decide(decide(requested(), 'b'), 'a', 'completed', text) }
 function options(sop: Sop): ApprovalSubmissionOptions {
@@ -87,12 +88,14 @@ describe('Author-controlled approval eligibility', () => {
     }
   })
 
-  it('accepts a manually cancelled assignment only after a different required reviewer completed', () => {
+  it('accepts a removed reviewer only after a different required reviewer completed', () => {
     const sop = cancel(decide(requested(), 'a'), 'b')
     expect(submit(sop).status).toBe('in-approval')
-    expect(submit(sop).internalReviewRounds!.at(-1)!.assignments[1]).toMatchObject({ decision: 'cancelled', cancellationReason: 'author-cancelled' })
+    expect(submit(sop).internalReviewRounds!.at(-1)!.assignments[1]).toMatchObject({ decision: 'removed', removalReason: 'No longer needed' })
     const malformed = structuredClone(sop)
-    malformed.internalReviewRounds!.at(-1)!.assignments[1].cancellationReason = 'round-rejected'
+    // An automatic cancellation is not a waiver: that reviewer would still be required.
+    malformed.internalReviewRounds!.at(-1)!.assignments[1] = { ...malformed.internalReviewRounds!.at(-1)!.assignments[1], decision: 'cancelled', cancellationReason: 'round-rejected' }
+    malformed.reviewers = projectReviewers(malformed.internalReviewRounds!.at(-1)!)
     expect(() => submit(malformed)).toThrow()
   })
 

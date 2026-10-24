@@ -154,6 +154,7 @@ export const sopWorkflowEn: SopWorkflowContent = {
       'review-accepted': 'Review accepted',
       'review-declined': 'Review declined',
       'review-withdrawn': 'Review request withdrawn (no response)',
+      'reviewer-removed': 'Reviewer removed',
       'review-cancelled': 'Review assignment cancelled',
       'review-request-cancelled': 'Review request cancelled; SOP returned to Draft',
       'internal-review-completed': 'Internal reviews completed; awaiting Author',

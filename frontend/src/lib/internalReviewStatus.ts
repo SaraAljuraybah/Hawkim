@@ -44,7 +44,13 @@ export function isOpenDecision(decision: InternalReviewDecision): boolean {
 
 /** The reviewer no longer takes part in this round. */
 export function isInactiveDecision(decision: InternalReviewDecision): boolean {
-  return decision === 'declined' || decision === 'withdrawn' || decision === 'cancelled'
+  return decision === 'declined' || decision === 'withdrawn' || decision === 'removed' || decision === 'cancelled'
+}
+
+/** Doesn't count against completing the round: declined, withdrawn, removed, or cancelled by the author. */
+export function isWaived(assignment: Pick<InternalReviewerAssignment, 'decision' | 'cancellationReason'>): boolean {
+  return assignment.decision === 'declined' || assignment.decision === 'withdrawn' || assignment.decision === 'removed' ||
+    assignment.decision === 'cancelled' && assignment.cancellationReason === 'author-cancelled'
 }
 
 /**
@@ -87,7 +93,7 @@ export function activeAssignments(round: InternalReviewRound): InternalReviewerA
 /** The decision shared views (people list, user administration, legacy helpers) understand. */
 export function legacyDecision(decision: InternalReviewDecision): ReviewerDecision {
   if (decision === 'accepted') return 'pending'
-  if (decision === 'declined' || decision === 'withdrawn') return 'cancelled'
+  if (decision === 'declined' || decision === 'withdrawn' || decision === 'removed') return 'cancelled'
   return decision
 }
 

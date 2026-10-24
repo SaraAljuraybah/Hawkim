@@ -11,6 +11,7 @@ const styles: Record<Decision, string> = {
   returned: 'bg-status-rejected-bg text-status-rejected-fg',
   declined: 'bg-status-cancelled-bg text-status-cancelled-fg',
   withdrawn: 'bg-status-cancelled-bg text-status-cancelled-fg',
+  removed: 'bg-status-cancelled-bg text-status-cancelled-fg',
   cancelled: 'bg-beige text-text-gray',
 }
 

@@ -269,7 +269,7 @@ function Review({ sop, historical }: { sop: Sop; historical: boolean }) {
         <StatusTracker sop={sop} content={workflow.tracker} />
       </Section>
 
-      {internalRound && <InternalReviewPanel sop={sop} canCancel={false} />}
+      {internalRound && <InternalReviewPanel sop={sop} canRemove={false} />}
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
         <Section id="people-title" title={workflow.people.title}>

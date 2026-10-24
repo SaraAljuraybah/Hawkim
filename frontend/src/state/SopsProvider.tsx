@@ -7,7 +7,7 @@ import { nextSopCode } from '../lib/sopCodes'
 import { assertCanCreateSop } from '../lib/sopAccess'
 import { submitForApproval } from '../lib/approval'
 import { applyReviewAction } from '../lib/reviewFlow'
-import { acceptInternalReview, cancelInternalReview, decideInternalReview, declineInternalReview, nextWithdrawalAt, resubmitInternalReview, startInternalReview, withdrawUnanswered } from '../lib/internalReview'
+import { acceptInternalReview, decideInternalReview, declineInternalReview, nextWithdrawalAt, removeInternalReviewer, resubmitInternalReview, startInternalReview, withdrawUnanswered } from '../lib/internalReview'
 import { useDepartments } from './departmentsContext'
 import * as workflow from '../lib/workflow'
 import { useGuidelines } from './guidelinesContext'
@@ -174,7 +174,7 @@ export function SopsProvider({ children }: { children: ReactNode }) {
       acceptInternalReview: (id, roundId, assignmentId) => update(id, (sop) => acceptInternalReview(sop, userId, roundId, assignmentId, environment)),
       declineInternalReview: (id, roundId, assignmentId, reason) => update(id, (sop) => declineInternalReview(sop, userId, roundId, assignmentId, reason, environment)),
       decideInternalReview: (id, roundId, assignmentId, decision, text) => update(id, (sop) => decideInternalReview(sop, userId, roundId, assignmentId, decision, text, environment)),
-      cancelInternalReview: (id, roundId, assignmentId) => update(id, (sop) => cancelInternalReview(sop, userId, roundId, assignmentId, environment)),
+      removeInternalReviewer: (id, roundId, assignmentId, reason) => update(id, (sop) => removeInternalReviewer(sop, userId, roundId, assignmentId, reason, environment)),
       resubmit: (id, options) => update(id, (sop) => {
         if (sop.internalReviewRounds?.length) {
           if (options?.dueDate?.trim() || options?.note?.trim()) throw new Error('Internal resubmission restarts saved allocations without legacy overrides')

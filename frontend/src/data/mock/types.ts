@@ -185,7 +185,7 @@ export type ReviewCancellationReason = 'author-cancelled' | 'round-rejected'
  * An internal review request: pending until the reviewer accepts or declines; only an
  * accepted request can be completed or returned.
  */
-export type InternalReviewDecision = 'pending' | 'accepted' | 'declined' | 'withdrawn' | 'completed' | 'returned' | 'cancelled'
+export type InternalReviewDecision = 'pending' | 'accepted' | 'declined' | 'withdrawn' | 'removed' | 'completed' | 'returned' | 'cancelled'
 
 export interface InternalReviewerAssignment extends Omit<ReviewerAssignment, 'decision' | 'startedAt'> {
   id: string
@@ -202,6 +202,10 @@ export interface InternalReviewerAssignment extends Omit<ReviewerAssignment, 'de
   reviewDueDate?: string
   /** Set when a pending request was withdrawn automatically at the end of its response due date. */
   withdrawnAt?: string
+  /** Set when the main author removed the reviewer from the round, with the required reason. */
+  removedAt?: string
+  removedById?: string
+  removalReason?: string
   /** Required when the reviewer declines. */
   declineReason?: string
   commentId?: string
@@ -315,6 +319,7 @@ export type TimelineEventType =
   | 'review-accepted'
   | 'review-declined'
   | 'review-withdrawn'
+  | 'reviewer-removed'
   | 'review-cancelled'
   | 'review-request-cancelled'
   | 'internal-review-completed'

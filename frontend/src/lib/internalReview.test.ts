@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { SYSTEM_ACTOR, type Sop, type User } from '../data/mock/types'
-import { acceptInternalReview, cancelInternalReview, currentInternalRound, decideInternalReview, declineInternalReview, isInternalReviewPending, nextWithdrawalAt, resubmitInternalReview, startInternalReview, withdrawUnanswered } from './internalReview'
+import { acceptInternalReview, currentInternalRound, decideInternalReview, declineInternalReview, isInternalReviewPending, nextWithdrawalAt, removeInternalReviewer, resubmitInternalReview, startInternalReview, withdrawUnanswered } from './internalReview'
 import { deriveNotifications } from './notifications'
 import { reviewTasks } from './reviews'
 import { deleteBlockers, permissionChangeBlockers, sopsUsing } from './userAdmin'
@@ -23,7 +23,7 @@ function decide(sop: Sop, userId: string, decision: 'completed' | 'returned' = '
   const accepted = task(sop, userId).decision === 'pending' ? accept(sop, userId) : sop
   return decideInternalReview(accepted, userId, currentInternalRound(accepted)!.id, task(accepted, userId).id, decision, text, env())
 }
-function cancel(sop: Sop, userId: string, actor = 'author') { return cancelInternalReview(sop, actor, currentInternalRound(sop)!.id, task(sop, userId).id, env()) }
+function cancel(sop: Sop, userId: string, actor = 'author', reason = 'No longer needed') { return removeInternalReviewer(sop, actor, currentInternalRound(sop)!.id, task(sop, userId).id, reason, env()) }
 function revise(sop: Sop) { vi.advanceTimersByTime(1000); const updated = uploadVersion(sop, 'author', { fileName: 'revised.pdf', fileType: 'pdf' }); return { ...updated, complianceChecks: [...updated.complianceChecks, check(updated.version)] } }
 beforeEach(() => vi.useFakeTimers({ now: new Date(2026, 9, 23, 12) }))
 afterEach(() => vi.useRealTimers())
@@ -125,7 +125,7 @@ describe('internal parallel review requests', () => {
     expect(accepted.timeline.at(-1)).toMatchObject({ type: 'review-accepted', actorId: 'a', reviewAssignmentId: task(sop, 'a').id })
     expect(isInternalReviewPending(accepted, 'a')).toBe(true)
     expect(reviewTasks('a', [accepted])[0].group).toBe('todo')
-    expect(task(cancel(accepted, 'a'), 'a').cancellationReason).toBe('author-cancelled')
+    expect(task(cancel(accepted, 'a'), 'a')).toMatchObject({ decision: 'removed', removalReason: 'No longer needed', removedById: 'author' })
     expect(() => accept(accepted, 'a')).toThrow(/already/)
   })
 })
@@ -192,12 +192,18 @@ describe('rejection, cancellation and immutable history', () => {
     expect(() => decide(returned, 'c')).toThrow()
     expect(deriveNotifications('c', { sops: [returned], requests: [], now: Date.parse('2026-11-01') }).some((item) => item.type === 'due-soon' || item.type === 'overdue')).toBe(false)
   })
-  it('permits only the main Author to cancel undecided tasks, never completed or rejected decisions', () => {
+  it('permits only the main Author to remove a reviewer, whatever their status, with a required reason', () => {
     const sop = start()
     for (const actor of ['a', 'coauthor', 'other', 'admin', 'missing']) expect(() => cancel(sop, 'b', actor)).toThrow()
     const completed = decide(sop, 'a')
-    expect(() => cancel(completed, 'a')).toThrow()
-    expect(() => cancel(decide(sop, 'a', 'returned', 'Revise'), 'a')).toThrow()
+    for (const reason of ['', '   ', 'x'.repeat(1001)]) expect(() => cancel(sop, 'a', 'author', reason)).toThrow(/reason/)
+    const removed = cancel(completed, 'a', 'author', '  Left the department  ')
+    expect(task(removed, 'a')).toMatchObject({ decision: 'removed', removalReason: 'Left the department' })
+    expect(removed.comments).toEqual(completed.comments)
+    expect(removed.timeline.at(-1)).toMatchObject({ type: 'reviewer-removed', actorId: 'author', note: 'Left the department', recipientIds: ['a'], reviewAssignmentId: task(sop, 'a').id })
+    expect(task(cancel(decline(sop, 'a'), 'a'), 'a').decision).toBe('removed')
+    expect(() => cancel(removed, 'a')).toThrow()
+
     expect(task(cancel(sop, 'a'), 'b').decision).toBe('pending')
   })
   it('blocks stale and duplicate decisions after cancellation and duplicate final decisions', () => {
@@ -218,7 +224,7 @@ describe('rejection, cancellation and immutable history', () => {
     const next = startInternalReview(sop, 'author', '4.0', { reviewerIds: ['b', 'c'] }, env())
     expect(JSON.stringify(next.internalReviewRounds!.slice(0, -1))).toBe(old)
     expect(() => decideInternalReview(next, 'a', first.id, first.assignments[0].id, 'completed', undefined, env())).toThrow()
-    expect(reviewTasks('a', [next])[0]).toMatchObject({ group: 'done', decision: 'cancelled' })
+    expect(reviewTasks('a', [next])[0]).toMatchObject({ group: 'done', decision: 'removed' })
   })
   it('finishes awaiting Author if pending tasks are waived after a successful final review', () => {
     const sop = cancel(cancel(decide(start(), 'a'), 'b'), 'c')
@@ -284,7 +290,7 @@ describe('assignment cancellation is separate from global Reviewer permission', 
     const other = { ...start(), id: 'other-sop', code: 'OTHER' }
     const otherBefore = JSON.stringify(other)
     const round = currentInternalRound(original)!
-    const cancelled = cancelInternalReview(original, 'author', round.id, task(original, 'a').id, environment)
+    const cancelled = removeInternalReviewer(original, 'author', round.id, task(original, 'a').id, 'No longer needed', environment)
     const user = environment.users.find((person) => person.id === 'a')!
     const context = { actorId: 'admin', users: environment.users, sops: [cancelled] }
     expect(user.permissions).toEqual(['reviewer'])
@@ -297,8 +303,8 @@ describe('assignment cancellation is separate from global Reviewer permission', 
     expect(deleteBlockers(user, { ...context, sops: [cancelled, other] })[0]).toMatchObject({ kind: 'in-use', sops: [other] })
     expect(reviewTasks(user.id, [cancelled, other]).filter((task) => task.group === 'todo').map((task) => task.sop.id)).toEqual(['other-sop'])
     expect(pendingPeople(cancelled).map((person) => person.userId)).toEqual(['b', 'c'])
-    expect(task(cancelled, 'a')).toMatchObject({ decision: 'cancelled', responseDueDate: '2026-10-28', reviewDurationDays: 5, cancellationReason: 'author-cancelled' })
-    expect(cancelled.timeline).toEqual(expect.arrayContaining([expect.objectContaining({ type: 'review-cancelled', reviewAssignmentId: task(original, 'a').id })]))
+    expect(task(cancelled, 'a')).toMatchObject({ decision: 'removed', responseDueDate: '2026-10-28', reviewDurationDays: 5, removalReason: 'No longer needed' })
+    expect(cancelled.timeline).toEqual(expect.arrayContaining([expect.objectContaining({ type: 'reviewer-removed', reviewAssignmentId: task(original, 'a').id })]))
     const notifications = deriveNotifications(user.id, { sops: [cancelled, other], requests: [], now: new Date(2026, 9, 28, 12).getTime() })
     expect(notifications.filter((item) => item.type === 'due-soon' || item.type === 'overdue').map((item) => item.sopId)).toEqual(['other-sop'])
     expect(JSON.stringify(other)).toBe(otherBefore)

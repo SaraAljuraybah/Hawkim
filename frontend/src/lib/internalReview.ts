@@ -56,7 +56,7 @@ export function withdrawUnanswered(sop: Sop, now = Date.now()): Sop {
     updated = update(updated, person.id, { decision: 'withdrawn', withdrawnAt })
     events.push(event(round, 'review-withdrawn', SYSTEM_ACTOR, { reviewAssignmentId: person.id, createdAt: withdrawnAt, recipientIds: [sop.authorId!, person.userId] }))
   }
-  return finishIfReady(sop, updated, events)
+  return settleRound(sop, updated, events)
 }
 /** When the next automatic withdrawal is due across these SOPs (epoch milliseconds), if any. */
 export function nextWithdrawalAt(sops: Sop[]): number | undefined {
@@ -141,12 +141,14 @@ export function declineInternalReview(sop: Sop, actorId: string, roundId: string
   assert(trimmed && trimmed.length <= REVIEW_TEXT_MAX, 'A reason of up to 1000 characters is required to decline')
   const now = new Date().toISOString()
   const updated = update(round, assignmentId, { decision: 'declined', declineReason: trimmed, decidedAt: now })
-  return finishIfReady(sop, updated, [event(round, 'review-declined', actorId, { reviewAssignmentId: assignmentId, note: trimmed, recipientIds: [sop.authorId!, ...sop.coAuthorIds] })])
+  return settleRound(sop, updated, [event(round, 'review-declined', actorId, { reviewAssignmentId: assignmentId, note: trimmed, recipientIds: [sop.authorId!, ...sop.coAuthorIds] })])
 }
-function finishIfReady(sop: Sop, round: InternalReviewRound, events: TimelineEvent[]): Sop {
-  const latest = latestAssignments(round)
-  if (latest.some((person) => isOpenDecision(person.decision))) return save(sop, round, events)
-  const completed = latest.some((person) => person.decision === 'completed')
+/** Recalculates the round after any change: open while someone taking part hasn't finished, completed once they all have. */
+function settleRound(sop: Sop, round: InternalReviewRound, events: TimelineEvent[]): Sop {
+  const taking = latestAssignments(round).filter((person) => !isInactiveDecision(person.decision))
+  if (taking.some((person) => isOpenDecision(person.decision))) return save(sop, { ...round, status: 'open', closedAt: undefined }, events)
+  if (taking.length && round.status === 'completed') return save(sop, round, events)
+  const completed = taking.length > 0
   const updated: InternalReviewRound = { ...round, status: completed ? 'completed' : 'cancelled', closedAt: new Date().toISOString() }
   events.push(event(round, completed ? 'internal-review-completed' : 'review-request-cancelled', SYSTEM_ACTOR, { recipientIds: [sop.authorId!], ...(!completed ? { cancellationReason: 'author-cancelled' as const } : {}) }))
   return save(sop, updated, events, { status: completed ? 'in-review' : 'draft' })
@@ -172,14 +174,23 @@ export function decideInternalReview(sop: Sop, actorId: string, roundId: string,
     })
     return save(commented, updated, events, { status: 'returned' })
   }
-  return finishIfReady(commented, updated, events)
+  return settleRound(commented, updated, events)
 }
-export function cancelInternalReview(sop: Sop, actorId: string, roundId: string, assignmentId: string, env: ReviewEnvironment): Sop {
+/**
+ * The main author removes a reviewer from the current round at any time, whatever their status,
+ * with a required reason. The reviewer is told; their decision and comments stay in the history.
+ */
+export function removeInternalReviewer(sop: Sop, actorId: string, roundId: string, assignmentId: string, reason: string, env: ReviewEnvironment): Sop {
   author(sop, actorId, env)
-  const { round } = active(sop, roundId, assignmentId)
+  const round = currentInternalRound(sop)
+  assert(sop.status === 'in-review' && round?.id === roundId && round.version === sop.version, 'This review round is no longer current')
+  const assignment = round.assignments.find((person) => person.id === assignmentId)
+  assert(assignment && latestAssignmentOf(round, assignment.userId) === assignment && assignment.decision !== 'removed', 'This reviewer is no longer part of the review')
+  const trimmed = reason.trim()
+  assert(trimmed && trimmed.length <= REVIEW_TEXT_MAX, 'A reason of up to 1000 characters is required to remove a reviewer')
   const now = new Date().toISOString()
-  const updated = update(round, assignmentId, { decision: 'cancelled', cancelledAt: now, cancelledById: actorId, cancellationReason: 'author-cancelled' })
-  return finishIfReady(sop, updated, [event(round, 'review-cancelled', actorId, { reviewAssignmentId: assignmentId, recipientIds: [round.assignments.find((person) => person.id === assignmentId)!.userId], cancellationReason: 'author-cancelled' })])
+  const updated = update(round, assignmentId, { decision: 'removed', removedAt: now, removedById: actorId, removalReason: trimmed })
+  return settleRound(sop, updated, [event(round, 'reviewer-removed', actorId, { reviewAssignmentId: assignmentId, note: trimmed, recipientIds: [assignment.userId] })])
 }
 export function resubmitInternalReview(sop: Sop, actorId: string, guidelineVersion: string, env: ReviewEnvironment): Sop {
   author(sop, actorId, env)

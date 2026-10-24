@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import type { ReactNode } from 'react'
 import type { Sop, User } from '../../data/mock/types'
-import { acceptInternalReview, cancelInternalReview, currentInternalRound, decideInternalReview, resubmitInternalReview, startInternalReview } from '../../lib/internalReview'
+import { acceptInternalReview, currentInternalRound, decideInternalReview, removeInternalReviewer, resubmitInternalReview, startInternalReview } from '../../lib/internalReview'
 import { uploadVersion } from '../../lib/workflow'
 import { reviewTasks } from '../../lib/reviews'
 import { deriveNotifications } from '../../lib/notifications'
@@ -25,7 +25,7 @@ vi.mock('../../state/sessionContext', () => ({ useCurrentUser: () => fixture.use
 vi.mock('../../state/usersContext', () => ({ useUsers: () => ({ users: fixture.users, activeUsers: fixture.users, nameOf: (id: string) => fixture.users.find((user) => user.id === id)?.name ?? id ?? '', getUser: (id: string) => fixture.users.find((user) => user.id === id) }) }))
 vi.mock('../../state/departmentsContext', () => ({ useDepartments: () => ({ departments: fixture.departments, nameOf: (id: string) => id }) }))
 vi.mock('../../state/guidelinesContext', () => ({ useGuidelines: () => ({ current: { version: '4.0' } }) }))
-vi.mock('../../state/sopsContext', () => ({ useSops: () => ({ sops: [fixture.sop], cancelInternalReview: vi.fn(), acceptInternalReview: vi.fn(), declineInternalReview: vi.fn(), decideInternalReview: vi.fn() }) }))
+vi.mock('../../state/sopsContext', () => ({ useSops: () => ({ sops: [fixture.sop], removeInternalReviewer: vi.fn(), acceptInternalReview: vi.fn(), declineInternalReview: vi.fn(), decideInternalReview: vi.fn() }) }))
 const environment = () => ({ users: fixture.users, departments: fixture.departments })
 function draft(): Sop {
   return { id: 'test', code: 'SOP-TEST', title: 'Internal review fixture', description: 'Description retained', departmentId: 'home', version: '1', status: 'draft', lastUpdated: '2026-10-23', authorId: 'author', coAuthorIds: ['coauthor'], fileName: 'test.pdf', fileType: 'pdf', reviewers: [], approvers: [], comments: [], timeline: [], versions: [{ version: '1', fileName: 'test.pdf', fileType: 'pdf', uploadedAt: new Date().toISOString(), uploadedById: 'author' }], complianceChecks: [{ id: 'check', sopId: 'test', version: '1', status: 'completed', startedAt: new Date().toISOString(), guideline: { name: 'GVP', version: '4.0' }, findings: [] }] }
@@ -104,12 +104,14 @@ describe('internal parallel review across transitions and detail views', () => {
       expect(html).not.toContain('>Approve<')
     }
   })
-  it('allows only the main author to see cancellation controls and keeps rejection history after a new round', () => {
+  it('allows only the main author to see Remove reviewer controls and keeps rejection history after a new round', () => {
     const original = start()
     fixture.sop = original
-    expect(render(<SopWorkflowPage />)).toContain('Cancel review request')
+    expect(render(<SopWorkflowPage />)).toContain('>Remove reviewer<')
+    expect(render(<SopWorkflowPage />)).toContain('aria-label="Remove Reviewer Alpha from this review"')
+    expect(render(<SopWorkflowPage />)).not.toContain('Cancel review request')
     fixture.userId = 'coauthor'
-    expect(render(<SopWorkflowPage />)).not.toContain('>Cancel review request<')
+    expect(render(<SopWorkflowPage />)).not.toContain('>Remove reviewer<')
     fixture.userId = 'author'
     const returned = decide(decide(original, 'reviewer-a', 'completed', 'Checked version one'), 'reviewer-b', 'returned', 'Revise the safety section')
     const history = JSON.stringify(returned.internalReviewRounds)
@@ -128,7 +130,7 @@ describe('internal parallel review across transitions and detail views', () => {
   it('removes actionable tasks after cancellation and returns to Draft without counting reviews', () => {
     let sop = start()
     const round = currentInternalRound(sop)!
-    for (const assignment of round.assignments) sop = cancelInternalReview(sop, 'author', round.id, assignment.id, environment())
+    for (const assignment of round.assignments) sop = removeInternalReviewer(sop, 'author', round.id, assignment.id, 'No longer needed', environment())
     fixture.sop = sop
     expect(sop.status).toBe('draft')
     for (const userId of ['reviewer-a', 'reviewer-b']) {
@@ -154,7 +156,7 @@ describe('historical review pages cannot reveal a later unassigned version', () 
   it('keeps former reviewer history and report access scoped while the newly assigned reviewer can work', () => {
     let sop = start()
     const round = currentInternalRound(sop)!
-    for (const assignment of round.assignments) sop = cancelInternalReview(sop, 'author', round.id, assignment.id, environment())
+    for (const assignment of round.assignments) sop = removeInternalReviewer(sop, 'author', round.id, assignment.id, 'No longer needed', environment())
     const history = JSON.stringify(sop.internalReviewRounds)
     vi.advanceTimersByTime(1000)
     const revised = uploadVersion(sop, 'author', { fileName: 'private-revision.docx', fileType: 'docx', fileUrl: '/private-v2.docx' })
