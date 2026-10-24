@@ -17,7 +17,7 @@ export const notificationsEn: NotificationsContent = {
     submitted: '{name} submitted {code} · v{version} for your review',
     resubmitted: '{name} resubmitted {code} · v{version} for your review',
     routed: '{name} routed {code} · v{version} to you for review',
-    handoff: '{code} ? v{version} is ready for your review',
+    handoff: '{code} · v{version} is ready for your review',
     internalReviewCompleted: '{code} - v{version} internal reviews are complete and awaiting your next action',
     reviewCancelled: 'Your review request for {code} - v{version} was cancelled',
     requestDueSoon: 'The overall review request for {code} is due within 24 hours',

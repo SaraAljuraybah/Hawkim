@@ -24,7 +24,7 @@ export const internalReviewEn = {
     awaitingAuthor: 'Internal reviews are complete. Awaiting the next Author action.',
   },
   panel: {
-    title: 'Internal review requests', round: 'Review round {number} ? v{version}',
+    title: 'Internal review requests', round: 'Review round {number} · v{version}',
     requested: 'Requested {date}', decided: 'Decision submitted {date}', started: 'Started {date}',
     empty: 'No internal review requests yet.',
     states: { open: 'Reviews in progress', completed: 'Awaiting Author', rejected: 'Rejected; returned to Author', cancelled: 'Cancelled; returned to Draft' },
