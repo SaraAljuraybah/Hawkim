@@ -15,7 +15,7 @@ import {
 import type { SopStatus } from '../types/status'
 import { hasCurrentCheck } from './compliance'
 import { todayIsoDate } from './format'
-import { isOpenDecision, isWaived, latestAssignments, projectReviewers, requestDeadline } from './internalReviewStatus'
+import { isOpenDecision, isUnsentVersion, isWaived, latestAssignments, projectReviewers, requestDeadline, reviewAllowsNewVersion } from './internalReviewStatus'
 
 /*
  * SOP workflow rules (Sprint 0, PBI 2 / 3 / 6 / 8 / 12 / 22 / 24) as pure functions.
@@ -325,10 +325,8 @@ export function returnedFrom(sop: Sop): 'in-review' | 'in-approval' | undefined 
  */
 export function canResubmit(sop: Sop): boolean {
   if (sop.status !== 'returned') return false
-  const round = sop.internalReviewRounds?.at(-1)
-  const approval = sop.approvalSubmissions?.at(-1)
-  const approvalReturned = approval?.status === 'returned' && approval.internalReviewRoundId === round?.id && approval.version === round?.version
-  if (round && ((!approvalReturned && round.status !== 'rejected') || sop.version === round.version)) return false
+  // Internal reviews send a new version with Request reviews instead.
+  if (sop.internalReviewRounds?.length) return false
   const returned = latestReturn(sop)
   const current = activeVersions(sop).find((version) => version.version === sop.version)
   return !!returned && !!current && new Date(current.uploadedAt).getTime() >= new Date(returned.createdAt).getTime()
@@ -387,7 +385,9 @@ export type DeleteVersionBlocker = 'status' | 'not-uploader' | 'submitted-versio
  * A version recorded in any submission or resubmission is permanently protected.
  */
 export function deleteVersionBlocker(sop: Sop, actorId: string, version: string): DeleteVersionBlocker | undefined {
-  if (sop.status !== 'draft' && sop.status !== 'returned') return 'status'
+  // Internal review: a version never sent to any reviewer can be deleted In Review too (sent ones stay protected below).
+  const internalReview = sop.status === 'in-review' && !!sop.internalReviewRounds?.length && !sop.reviewFlow
+  if (sop.status !== 'draft' && sop.status !== 'returned' && !internalReview) return 'status'
   const target = activeVersions(sop).find((item) => item.version === version)
   if (!isAuthorOrUploader(sop, actorId, target)) return 'not-uploader'
   if (sop.timeline.some((item) =>
@@ -406,7 +406,8 @@ export type CheckBlocker = 'status' | 'not-uploader'
  * uploaded the current version. The rules for a running check are in lib/compliance.ts.
  */
 export function checkBlocker(sop: Sop, actorId: string): CheckBlocker | undefined {
-  if (sop.status !== 'draft' && sop.status !== 'returned') return 'status'
+  // Internal review: a new version uploaded during review is checked before it's sent.
+  if (sop.status !== 'draft' && sop.status !== 'returned' && !(sop.status === 'in-review' && isUnsentVersion(sop))) return 'status'
   const current = activeVersions(sop).find((item) => item.version === sop.version)
   if (!isAuthorOrUploader(sop, actorId, current)) return 'not-uploader'
   return undefined
@@ -597,7 +598,8 @@ export function resubmit(sop: Sop, actorId: string, guidelineVersion: string, no
  * (v1, v2…), which becomes current. Only while the SOP is a Draft or Returned.
  */
 export function uploadVersion(sop: Sop, actorId: string, file: UploadedFile): Sop {
-  assertStatus(sop, ['draft', 'returned'], 'upload a version of')
+  // During internal review, a new version can follow once every reviewer has finished the current one.
+  if (!reviewAllowsNewVersion(sop)) assertStatus(sop, ['draft', 'returned'], 'upload a version of')
   assert(isAuthorOrCoAuthor(sop, actorId), 'Only the author or a co-author can upload a version')
   const version = nextVersion(sop)
   const uploadedAt = new Date().toISOString()

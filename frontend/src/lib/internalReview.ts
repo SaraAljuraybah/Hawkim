@@ -1,9 +1,9 @@
 import { SYSTEM_ACTOR, type InternalReviewRound, type InternalReviewerAssignment, type Sop, type SopComment, type TimelineEvent } from '../data/mock/types'
 import { hasCurrentCheck } from './compliance'
 import { todayIsoDate } from './format'
-import { isInactiveDecision, isOpenDecision, isValidReviewDuration, isWithdrawalDue, latestAssignmentOf, latestAssignments, projectReviewers, reviewDueDateFrom, withdrawalDueAt } from './internalReviewStatus'
+import { isInactiveDecision, isOpenDecision, isUnsentVersion, isValidReviewDuration, isWithdrawalDue, latestAssignmentOf, latestAssignments, projectReviewers, reviewDueDateFrom, withdrawalDueAt } from './internalReviewStatus'
 import { eligibleReviewers, type ReviewEnvironment } from './reviewFlow'
-import { canResubmit, daysFromToday, isAuthor, parseDueDate } from './workflow'
+import { isAuthor, parseDueDate } from './workflow'
 
 export interface InternalReviewOptions {
   reviewerIds: string[]
@@ -87,13 +87,6 @@ function deadlines(options: InternalReviewOptions, now = new Date()): Pick<Inter
   assert(isValidReviewDuration(options.reviewDurationDays), 'Choose an optional review duration of 1 to 30 whole days')
   return { ...(responseDueDate ? { responseDueDate } : {}), ...(options.reviewDurationDays !== undefined ? { reviewDurationDays: options.reviewDurationDays } : {}) }
 }
-/** The same number of days from today as the earlier response due date was from its request. */
-function sameResponseAllowance(requestedAt: string, responseDueDate: string | undefined): string | undefined {
-  if (!responseDueDate) return undefined
-  const days = daysFromToday(responseDueDate, new Date(requestedAt)) ?? 0
-  const now = new Date()
-  return todayIsoDate(new Date(now.getFullYear(), now.getMonth(), now.getDate() + days))
-}
 function create(sop: Sop, actorId: string, options: InternalReviewOptions, kind: 'submitted' | 'resubmitted'): Sop {
   const requestedAt = new Date()
   const now = requestedAt.toISOString()
@@ -173,38 +166,35 @@ export function declineInternalReview(sop: Sop, actorId: string, roundId: string
   const updated = update(round, assignmentId, { decision: 'declined', declineReason: trimmed, decidedAt: now })
   return settleRound(sop, updated, [event(round, 'review-declined', actorId, { reviewAssignmentId: assignmentId, note: trimmed, recipientIds: [sop.authorId!, ...sop.coAuthorIds] })])
 }
-/** Recalculates the round after any change: open while someone taking part hasn't finished, completed once they all have. */
+/**
+ * Recalculates the round after any change: open while someone taking part hasn't finished (or nobody
+ * is taking part); once they all have, completed, or changes-requested if anyone returned it.
+ */
 function settleRound(sop: Sop, round: InternalReviewRound, events: TimelineEvent[]): Sop {
   const taking = latestAssignments(round).filter((person) => !isInactiveDecision(person.decision))
-  if (taking.some((person) => isOpenDecision(person.decision))) return save(sop, { ...round, status: 'open', closedAt: undefined }, events)
   // With nobody taking part, the round stays open (and the SOP In Review) until the author asks someone else.
-  if (!taking.length) return save(sop, { ...round, status: 'open', closedAt: undefined }, events)
-  if (round.status === 'completed') return save(sop, round, events)
-  const updated: InternalReviewRound = { ...round, status: 'completed', closedAt: new Date().toISOString() }
-  events.push(event(round, 'internal-review-completed', SYSTEM_ACTOR, { recipientIds: [sop.authorId!] }))
-  return save(sop, updated, events)
+  if (!taking.length || taking.some((person) => isOpenDecision(person.decision))) return save(sop, { ...round, status: 'open', closedAt: undefined }, events)
+  const status = taking.every((person) => person.decision === 'completed') ? 'completed' : 'changes-requested'
+  if (round.status === status) return save(sop, round, events)
+  if (status === 'completed') events.push(event(round, 'internal-review-completed', SYSTEM_ACTOR, { recipientIds: [sop.authorId!] }))
+  return save(sop, { ...round, status, closedAt: new Date().toISOString() }, events)
 }
+/**
+ * An accepted reviewer completes the review (optional comments), or returns it to the author with
+ * required comments. A return affects only this reviewer; the SOP stays In Review.
+ */
 export function decideInternalReview(sop: Sop, actorId: string, roundId: string, assignmentId: string, decision: 'completed' | 'returned', text: string | undefined, env: ReviewEnvironment): Sop {
   const { round, assignment } = active(sop, roundId, assignmentId)
   reviewer(sop, actorId, assignment, env)
   assert(assignment.decision === 'accepted', 'Accept the review before deciding')
   assert(decision === 'completed' || decision === 'returned', 'Choose a final review decision')
   const trimmed = text?.trim() ?? ''
-  assert(trimmed.length <= REVIEW_TEXT_MAX && (decision !== 'returned' || !!trimmed), 'Rejection requires a non-empty reason; feedback must be at most 1000 characters')
+  assert(trimmed.length <= REVIEW_TEXT_MAX && (decision !== 'returned' || !!trimmed), 'Returning to the author requires comments; comments must be at most 1000 characters')
   const now = new Date().toISOString()
   const comment: SopComment | undefined = trimmed ? { id: id('internal-comment'), authorUserId: actorId, role: 'reviewer', text: trimmed, version: round.version, createdAt: now, reviewRoundId: round.id, reviewAssignmentId: assignmentId } : undefined
   const updated = update(round, assignmentId, { decision, decidedAt: now, ...(comment ? { commentId: comment.id } : {}) })
   const commented = comment ? { ...sop, comments: [...sop.comments, comment] } : sop
-  const events = [event(round, decision === 'returned' ? 'returned' : 'review-completed', actorId, { reviewAssignmentId: assignmentId, ...(comment ? { commentId: comment.id } : {}), ...(decision === 'returned' ? { recipientIds: [sop.authorId!, ...sop.coAuthorIds] } : {}) })]
-  if (decision === 'returned') {
-    updated.status = 'rejected'; updated.closedAt = now
-    updated.assignments = updated.assignments.map((person) => {
-      if (!isOpenDecision(person.decision)) return person
-      events.push(event(round, 'review-cancelled', SYSTEM_ACTOR, { reviewAssignmentId: person.id, recipientIds: [person.userId], cancellationReason: 'round-rejected' }))
-      return { ...person, decision: 'cancelled', cancelledAt: now, cancelledById: SYSTEM_ACTOR, cancellationReason: 'round-rejected' }
-    })
-    return save(commented, updated, events, { status: 'returned' })
-  }
+  const events = [event(round, decision === 'returned' ? 'review-changes-requested' : 'review-completed', actorId, { reviewAssignmentId: assignmentId, ...(comment ? { commentId: comment.id } : {}), recipientIds: decision === 'returned' ? [sop.authorId!, ...sop.coAuthorIds] : [sop.authorId!] })]
   return settleRound(commented, updated, events)
 }
 /**
@@ -223,17 +213,15 @@ export function removeInternalReviewer(sop: Sop, actorId: string, roundId: strin
   const updated = update(round, assignmentId, { decision: 'removed', removedAt: now, removedById: actorId, removalReason: trimmed })
   return settleRound(sop, updated, [event(round, 'reviewer-removed', actorId, { reviewAssignmentId: assignmentId, note: trimmed, recipientIds: [assignment.userId] })])
 }
-export function resubmitInternalReview(sop: Sop, actorId: string, guidelineVersion: string, env: ReviewEnvironment): Sop {
+/** A new version, uploaded once everyone finished (or after an approver return), is ready to be sent to reviewers. */
+export function canSendNewVersion(sop: Sop): boolean {
+  return (sop.status === 'in-review' || sop.status === 'returned') && isUnsentVersion(sop)
+}
+/** The main author sends the new version to the reviewers they choose (all, some, or new ones) as a new round. */
+export function sendNewVersionForReview(sop: Sop, actorId: string, guidelineVersion: string, options: InternalReviewOptions, env: ReviewEnvironment): Sop {
   author(sop, actorId, env)
-  const round = currentInternalRound(sop)
-  const approval = sop.approvalSubmissions?.at(-1)
-  const returnedFromApproval = approval?.status === 'returned' && approval.internalReviewRoundId === round?.id && approval.version === round?.version
-  assert(round && (round.status === 'rejected' || round.status === 'completed' && returnedFromApproval) && sop.version !== round.version && canResubmit(sop), 'Upload a new revised version after rejection before resubmitting')
-  assert(hasCurrentCheck(sop, guidelineVersion), 'Complete a compliance check of the revised version against the current guideline first')
-  const required = latestAssignments(round).filter((person) => person.cancellationReason !== 'author-cancelled' && !isInactiveDecision(person.decision) || person.cancellationReason === 'round-rejected')
-  // Every resent request restarts with the same response allowance and review duration.
-  const options: InternalReviewOptions = { reviewerIds: required.map((person) => person.userId),
-    responseDueDate: sameResponseAllowance(round.requestedAt, required[0]?.responseDueDate), reviewDurationDays: required[0]?.reviewDurationDays }
+  assert(canSendNewVersion(sop), 'Upload a new version once every reviewer has finished before sending it for review')
+  assert(hasCurrentCheck(sop, guidelineVersion), 'Complete a compliance check of the new version against the current guideline first')
   validate(sop, options, env)
   return create(sop, actorId, options, 'resubmitted')
 }

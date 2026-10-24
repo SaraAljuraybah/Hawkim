@@ -2,9 +2,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ApprovalDecisionSnapshot, ExternalReviewGate, Sop, User } from '../data/mock/types'
 import { approvalReadiness, submitForApproval, type ApprovalSubmissionOptions } from './approval'
 import { projectReviewers } from './internalReviewStatus'
-import { acceptInternalReview, decideInternalReview, removeInternalReviewer, resubmitInternalReview, startInternalReview } from './internalReview'
+import { acceptInternalReview, decideInternalReview, canSendNewVersion, removeInternalReviewer, sendNewVersionForReview, startInternalReview } from './internalReview'
 import type { ReviewEnvironment } from './reviewFlow'
-import { activeApprovalSubmission, approveAs, canResubmit, completeReview, currentDueAt, pendingPeople, publishAs, returnAsApprover, shiftDueDates, submitForReview, uploadVersion } from './workflow'
+import { activeApprovalSubmission, approveAs, completeReview, currentDueAt, pendingPeople, publishAs, returnAsApprover, shiftDueDates, submitForReview, uploadVersion } from './workflow'
 
 function person(id: string, permissions: User['permissions'], departmentId = 'home'): User {
   return { id, name: id, email: id + '@example.test', initials: 'TT', permissions, departmentId }
@@ -246,7 +246,7 @@ describe('approval phase transitions with retained parallel review history', () 
     expect(() => approveAs(changedGate, 'controller', undefined, snapshot(submitted))).toThrow(/stale/)
   })
 
-  it('returns with a required reason, then requires a revised checked version and a new internal round', () => {
+  it('returns with a required reason, then sends a revised checked version to the chosen reviewers as a new round', () => {
     const sop = submit()
     const token = snapshot(sop)
     expect(() => returnAsApprover(sop, 'controller', ' ', token)).toThrow(/comment/)
@@ -254,13 +254,13 @@ describe('approval phase transitions with retained parallel review history', () 
     expect(returned.status).toBe('returned')
     expect(returned.approvalSubmissions!.at(-1)).toMatchObject({ status: 'returned', commentId: returned.comments.at(-1)!.id })
     expect(activeApprovalSubmission(returned)).toBeUndefined()
-    expect(canResubmit(returned)).toBe(false)
+    expect(canSendNewVersion(returned)).toBe(false)
     vi.advanceTimersByTime(1000)
     const revised = uploadVersion(returned, 'author', { fileName: 'revised.pdf', fileType: 'pdf' })
-    expect(canResubmit(revised)).toBe(true)
-    expect(() => resubmitInternalReview(revised, 'author', '4.0', environment())).toThrow(/compliance/)
+    expect(canSendNewVersion(revised)).toBe(true)
+    expect(() => sendNewVersionForReview(revised, 'author', '4.0', { reviewerIds: ['a', 'b'] }, environment())).toThrow(/compliance/)
     const checked = { ...revised, complianceChecks: [...revised.complianceChecks, check(revised.version)] }
-    const next = resubmitInternalReview(checked, 'author', '4.0', environment())
+    const next = sendNewVersionForReview(checked, 'author', '4.0', { reviewerIds: ['a', 'b'] }, environment())
     expect(next.status).toBe('in-review')
     expect(next.internalReviewRounds).toHaveLength(2)
     expect(next.internalReviewRounds!.at(-1)!.assignments.every((assignment) => assignment.decision === 'pending')).toBe(true)

@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import type { ReactNode } from 'react'
 import type { Sop, User } from '../../data/mock/types'
-import { acceptInternalReview, currentInternalRound, decideInternalReview, declineInternalReview, removeInternalReviewer, resubmitInternalReview, startInternalReview } from '../../lib/internalReview'
+import { acceptInternalReview, currentInternalRound, decideInternalReview, declineInternalReview, removeInternalReviewer, sendNewVersionForReview, startInternalReview } from '../../lib/internalReview'
 import { uploadVersion } from '../../lib/workflow'
 import { reviewTasks } from '../../lib/reviews'
 import { deriveNotifications } from '../../lib/notifications'
@@ -46,6 +46,23 @@ beforeEach(() => { vi.useFakeTimers({ now: new Date(2026, 9, 23, 12) }); fixture
 afterEach(() => vi.useRealTimers())
 
 describe('internal parallel review across transitions and detail views', () => {
+  it('offers uploading once every reviewer has finished, and sends the checked new version to chosen reviewers', () => {
+    const finished = decide(decide(start(), 'reviewer-a', 'completed', 'Fine'), 'reviewer-b', 'returned', 'Revise the safety section')
+    fixture.sop = finished
+    expect(render(<SopWorkflowPage />)).toContain('>' + sopWorkflowEn.history.upload + '<')
+    expect(render(<SopWorkflowPage />)).not.toContain('>' + internalReviewEn.submit.button + '<')
+    vi.advanceTimersByTime(1000)
+    const uploaded = uploadVersion(finished, 'author', { fileName: 'revised.pdf', fileType: 'pdf' })
+    fixture.sop = uploaded
+    const button = render(<SopWorkflowPage />).match(/<button[^>]*>Request reviews<\/button>/)![0]
+    expect(button).toContain('disabled=""')
+    expect(button).toContain('aria-describedby="submit-hint"')
+    const html = renderToStaticMarkup(<SubmitDialog mode="version" sop={uploaded} content={sopWorkflowEn.dialogs} onSubmit={() => {}} onClose={() => {}} />)
+    expect(html).toContain(internalReviewEn.submit.versionIntro.replace('{version}', '2'))
+    expect(html).toContain(internalReviewEn.submit.versionHint)
+    expect(html).toContain('Reviewer Alpha · Completed v1')
+    expect(html).toContain('Reviewer Beta · Returned with comments v1')
+  })
   it('offers the Request reviews dialog for the same version with only reviewers who can be asked again', () => {
     const started = start(), round = currentInternalRound(started)!
     const sop = declineInternalReview(started, 'reviewer-a', round.id, round.assignments[0].id, 'On leave', environment())
@@ -107,7 +124,7 @@ describe('internal parallel review across transitions and detail views', () => {
       fixture.sop = accept(fixture.sop, userId)
       const accepted = render(<ReviewPage />)
       expect(accepted).toContain('>Complete review<')
-      expect(accepted).toContain('>Reject SOP<')
+      expect(accepted).toContain('>Return to author<')
       expect(accepted).not.toContain('>Accept review<')
 
       expect(html).toContain('Description retained')
@@ -116,7 +133,7 @@ describe('internal parallel review across transitions and detail views', () => {
       expect(html).not.toContain('>Approve<')
     }
   })
-  it('allows only the main author to see Remove reviewer controls and keeps rejection history after a new round', () => {
+  it('allows only the main author to see Remove reviewer controls and keeps return history after a new version', () => {
     const original = start()
     fixture.sop = original
     expect(render(<SopWorkflowPage />)).toContain('>Remove reviewer<')
@@ -130,7 +147,7 @@ describe('internal parallel review across transitions and detail views', () => {
     vi.advanceTimersByTime(1000)
     const revised = uploadVersion(returned, 'author', { fileName: 'revised.pdf', fileType: 'pdf' })
     revised.complianceChecks = [...revised.complianceChecks, { ...draft().complianceChecks[0], id: 'check-new', version: revised.version }]
-    fixture.sop = resubmitInternalReview(revised, 'author', '4.0', environment())
+    fixture.sop = sendNewVersionForReview(revised, 'author', '4.0', { reviewerIds: ['reviewer-a', 'reviewer-b'] }, environment())
     expect(JSON.stringify(fixture.sop.internalReviewRounds?.slice(0, -1))).toBe(history)
     const html = render(<SopWorkflowPage />)
     expect(html).toContain('Checked version one')
@@ -152,7 +169,7 @@ describe('internal parallel review across transitions and detail views', () => {
       fixture.userId = userId
       const html = render(<ReviewPage />)
       expect(html).not.toContain('>Complete review<')
-      expect(html).not.toContain('>Reject SOP<')
+      expect(html).not.toContain('>Return to author<')
     }
   })
   it('shows the main Author as next actor after all successful reviews without an approval task', () => {
@@ -175,7 +192,7 @@ describe('historical review pages cannot reveal a later unassigned version', () 
     vi.advanceTimersByTime(1000)
     const revised = uploadVersion(sop, 'author', { fileName: 'private-revision.docx', fileType: 'docx', fileUrl: '/private-v2.docx' })
     revised.complianceChecks = [...revised.complianceChecks, { ...draft().complianceChecks[0], id: 'private-check', version: revised.version, guideline: { name: 'Private v2 guideline', version: '4.0' } }]
-    fixture.sop = resubmitInternalReview(revised, 'author', '4.0', environment())
+    fixture.sop = sendNewVersionForReview(revised, 'author', '4.0', { reviewerIds: ['reviewer-b'] }, environment())
     expect(currentInternalRound(fixture.sop)!.assignments.map((assignment) => assignment.userId)).toEqual(['reviewer-b'])
     fixture.userId = 'reviewer-a'
     const detail = render(<ReviewPage />)
@@ -185,7 +202,7 @@ describe('historical review pages cannot reveal a later unassigned version', () 
     expect(detail).not.toContain('/private-v2')
     expect(detail).not.toContain('Private v2 guideline')
     expect(detail).not.toContain('>Complete review<')
-    expect(detail).not.toContain('>Reject SOP<')
+    expect(detail).not.toContain('>Return to author<')
     const report = render(<ComplianceReportPage audience="reviewer" />)
     expect(report).toContain('>v1</dd>')
     expect(report).not.toContain('>v2</dd>')

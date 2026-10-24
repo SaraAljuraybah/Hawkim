@@ -1,11 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { SYSTEM_ACTOR, type Sop, type User } from '../data/mock/types'
-import { acceptInternalReview, addableReviewers, addInternalReviewers, canAddReviewers, currentInternalRound, decideInternalReview, declineInternalReview, isInternalReviewPending, nextWithdrawalAt, removeInternalReviewer, resubmitInternalReview, startInternalReview, withdrawUnanswered } from './internalReview'
-import { latestAssignmentOf } from './internalReviewStatus'
+import { acceptInternalReview, addableReviewers, addInternalReviewers, canAddReviewers, currentInternalRound, decideInternalReview, declineInternalReview, isInternalReviewPending, nextWithdrawalAt, removeInternalReviewer, canSendNewVersion, sendNewVersionForReview, startInternalReview, withdrawUnanswered } from './internalReview'
+import { latestAssignmentOf, reviewAllowsNewVersion } from './internalReviewStatus'
 import { deriveNotifications } from './notifications'
 import { reviewTasks } from './reviews'
 import { deleteBlockers, permissionChangeBlockers, sopsUsing } from './userAdmin'
-import { canResubmit, currentDueAt, isOverdue, pendingPeople, requiredReviewsComplete, reviewerDeadlinePassed, reviewerDueAt, reviewerRemainingMilliseconds, shiftDueDates, uploadVersion } from './workflow'
+import { checkBlocker, currentDueAt, deleteVersionBlocker, isOverdue, pendingPeople, requiredReviewsComplete, reviewerDeadlinePassed, reviewerDueAt, reviewerRemainingMilliseconds, shiftDueDates, uploadVersion } from './workflow'
 
 function person(id: string, permissions: User['permissions'] = ['reviewer'], departmentId = 'home'): User {
   return { id, name: id, email: id + '@example.test', initials: 'TT', permissions, departmentId }
@@ -167,8 +167,8 @@ describe('accepting and declining review requests', () => {
   })
 })
 
-describe('rejection, cancellation and immutable history', () => {
-  it('requires a non-empty rejection reason and validates the assigned actor at the transition boundary', () => {
+describe('returns, removals, new versions and immutable history', () => {
+  it('requires comments to return and validates the assigned actor at the transition boundary', () => {
     const sop = start(); const round = currentInternalRound(sop)!
     for (const reason of ['', '   ', 'x'.repeat(1001)]) expect(() => decide(sop, 'a', 'returned', reason)).toThrow()
     expect(() => decideInternalReview(sop, 'b', round.id, task(sop, 'a').id, 'completed', undefined, env())).toThrow()
@@ -177,22 +177,27 @@ describe('rejection, cancellation and immutable history', () => {
     const moved = env(); moved.users.find((user) => user.id === 'a')!.departmentId = 'other'
     expect(() => decideInternalReview(sop, 'a', round.id, task(sop, 'a').id, 'completed', undefined, moved)).toThrow()
   })
-  it('returns immediately on rejection, preserves completed feedback and cancels every unfinished task with a reason', () => {
+  it('returns to the author with required comments without affecting the other reviewers', () => {
     const completed = decide(start(), 'a', 'completed', 'Good content')
     const first = accept(completed, 'c')
     const before = JSON.stringify(first)
     const returned = decide(first, 'b', 'returned', '  Revise section 2  ')
     expect(JSON.stringify(first)).toBe(before)
-    expect(returned.status).toBe('returned')
-    expect(currentInternalRound(returned)!.status).toBe('rejected')
+    expect(returned.status).toBe('in-review')
+    expect(currentInternalRound(returned)!.status).toBe('open')
     expect(task(returned, 'a')).toMatchObject({ decision: 'completed' })
     expect(task(returned, 'b')).toMatchObject({ decision: 'returned' })
-    expect(task(returned, 'c')).toMatchObject({ decision: 'cancelled', cancellationReason: 'round-rejected' })
+    expect(task(returned, 'c')).toMatchObject({ decision: 'accepted' })
     expect(returned.comments.map((comment) => comment.text)).toEqual(['Good content', 'Revise section 2'])
     expect(returned.comments.every((comment) => comment.version === '1' && comment.reviewRoundId && comment.reviewAssignmentId)).toBe(true)
-    expect(returned.timeline).toEqual(expect.arrayContaining([expect.objectContaining({ type: 'review-cancelled', cancellationReason: 'round-rejected', recipientIds: ['c'] })]))
-    expect(() => decide(returned, 'c')).toThrow()
-    expect(deriveNotifications('c', { sops: [returned], requests: [], now: Date.parse('2026-11-01') }).some((item) => item.type === 'due-soon' || item.type === 'overdue')).toBe(false)
+    expect(returned.timeline.at(-1)).toMatchObject({ type: 'review-changes-requested', actorId: 'b', recipientIds: ['author', 'coauthor'], commentId: returned.comments[1].id })
+    expect(returned.timeline.some((event) => event.type === 'review-cancelled' || event.type === 'returned')).toBe(false)
+    // The others can still finish; once they have, the round asks for a new version.
+    const settled = decide(returned, 'c', 'completed')
+    expect(currentInternalRound(settled)!.status).toBe('changes-requested')
+    expect(settled.status).toBe('in-review')
+    expect(requiredReviewsComplete(settled)).toBe(false)
+    expect(settled.timeline.some((event) => event.type === 'internal-review-completed')).toBe(false)
   })
   it('permits only the main Author to remove a reviewer, whatever their status, with a required reason', () => {
     const sop = start()
@@ -265,36 +270,52 @@ describe('rejection, cancellation and immutable history', () => {
     expect(currentInternalRound(sop)!.status).toBe('completed')
     expect(requiredReviewsComplete(sop)).toBe(true)
   })
-  it('requires a revised version and current completed compliance before resubmitting every required reviewer', () => {
-    const returned = decide(start(), 'a', 'returned', 'Changes')
-    expect(canResubmit(returned)).toBe(false)
-    expect(() => resubmitInternalReview(returned, 'author', '4.0', env())).toThrow(/version/)
-    const updated = revise(returned)
-    expect(() => resubmitInternalReview({ ...updated, complianceChecks: [] }, 'author', '4.0', env())).toThrow(/compliance/)
-    expect(() => resubmitInternalReview(updated, 'coauthor', '4.0', env())).toThrow()
-    const history = JSON.stringify(updated.internalReviewRounds)
-    const again = resubmitInternalReview(updated, 'author', '4.0', env())
+  it('allows a new version only once every reviewer taking part has finished the current one', () => {
+    const sop = decide(start(), 'b', 'returned', 'Changes')
+    expect(reviewAllowsNewVersion(sop)).toBe(false)
+    expect(() => revise(sop)).toThrow(/in-review/)
+    const finished = decide(decline(sop, 'c'), 'a')
+    expect(reviewAllowsNewVersion(finished)).toBe(true)
+    expect(revise(finished).version).toBe('2')
+    // With nobody taking part, a new version is allowed too.
+    let nobody = start()
+    for (const user of ['a', 'b', 'c']) nobody = cancel(nobody, user)
+    expect(reviewAllowsNewVersion(nobody)).toBe(true)
+    expect(revise(nobody).version).toBe('2')
+  })
+  it('sends the new version to the reviewers the author chooses, once checked, as a new round', () => {
+    const finished = decide(decide(decide(start(), 'a', 'completed', 'Fine'), 'b', 'returned', 'Changes'), 'c')
+    expect(canSendNewVersion(finished)).toBe(false)
+    expect(() => sendNewVersionForReview(finished, 'author', '4.0', { reviewerIds: ['b'] }, env())).toThrow(/new version/)
+    expect(addableReviewers(finished, env().users)).toEqual([])
+    const uploaded = uploadVersion(finished, 'author', { fileName: 'revised.pdf', fileType: 'pdf' })
+    expect(canSendNewVersion(uploaded)).toBe(true)
+    expect(() => sendNewVersionForReview(uploaded, 'author', '4.0', { reviewerIds: ['b'] }, env())).toThrow(/compliance/)
+    const checked = { ...uploaded, complianceChecks: [...uploaded.complianceChecks, check(uploaded.version)] }
+    expect(() => sendNewVersionForReview(checked, 'coauthor', '4.0', { reviewerIds: ['b'] }, env())).toThrow()
+    const history = JSON.stringify(checked.internalReviewRounds)
+    const again = sendNewVersionForReview(checked, 'author', '4.0', { reviewerIds: ['b', 'c'], reviewDurationDays: 3 }, env())
     expect(JSON.stringify(again.internalReviewRounds!.slice(0, -1))).toBe(history)
-    expect(currentInternalRound(again)!.version).toBe('2')
-    expect(currentInternalRound(again)!.assignments.map((assignment) => assignment.decision)).toEqual(['pending', 'pending', 'pending'])
-    expect(currentInternalRound(again)!.assignments.every((assignment) => !returned.reviewers.some((old) => 'id' in old && old.id === assignment.id))).toBe(true)
+    expect(currentInternalRound(again)).toMatchObject({ version: '2', status: 'open' })
+    expect(currentInternalRound(again)!.assignments.map((assignment) => [assignment.userId, assignment.decision, assignment.reviewDurationDays])).toEqual([['b', 'pending', 3], ['c', 'pending', 3]])
+    expect(again.timeline.at(-1)).toMatchObject({ type: 'resubmitted', version: '2', recipientIds: ['b', 'c'] })
     expect(again.comments[0].version).toBe('1')
-    expect(() => decideInternalReview(again, 'a', currentInternalRound(returned)!.id, task(returned, 'a').id, 'completed', undefined, env())).toThrow()
-  })
-  it('restarts each request with the same response allowance and review duration, retaining waivers while revalidating required reviewers', () => {
-    const returned = decide(cancel(start(), 'c'), 'a', 'returned', 'Changes')
-    vi.advanceTimersByTime(4 * 24 * 60 * 60 * 1000)
-    const revised = revise(returned)
-    const again = resubmitInternalReview(revised, 'author', '4.0', env())
-    expect(again.reviewers.map((person) => person.userId)).toEqual(['a', 'b'])
-    expect(task(again, 'a')).toMatchObject({ decision: 'pending', responseDueDate: '2026-11-01', reviewDurationDays: 5 })
-    expect(task(again, 'b')).toMatchObject({ decision: 'pending', responseDueDate: '2026-11-01', reviewDurationDays: 5 })
-    expect(task(again, 'a').acceptedAt).toBeUndefined()
-    expect(currentInternalRound(again)!.dueDate).toBeUndefined()
+    // a completed v1 only; with v2 sent to b and c, a no longer takes part.
+    expect(pendingPeople(again).map((person) => person.userId)).toEqual(['b', 'c'])
+    expect(() => decideInternalReview(again, 'a', currentInternalRound(finished)!.id, latestAssignmentOf(currentInternalRound(finished), 'a')!.id, 'completed', undefined, env())).toThrow()
     const unavailable = env(); unavailable.users.find((user) => user.id === 'b')!.deletedAt = new Date().toISOString()
-    expect(() => resubmitInternalReview(revised, 'author', '4.0', unavailable)).toThrow(/eligible/)
+    expect(() => sendNewVersionForReview(checked, 'author', '4.0', { reviewerIds: ['b'] }, unavailable)).toThrow(/eligible/)
   })
-  it('reminds each reviewer of their own response, then review, deadline and stops on round closure', () => {
+  it('checks and deletes only an unsent version while In Review', () => {
+    const finished = decide(start(), 'a')
+    let sop = decide(decide(finished, 'b'), 'c')
+    expect(checkBlocker(sop, 'author')).toBe('status')
+    sop = uploadVersion(sop, 'author', { fileName: 'revised.pdf', fileType: 'pdf' })
+    expect(checkBlocker(sop, 'author')).toBeUndefined()
+    expect(deleteVersionBlocker(sop, 'author', '2')).toBeUndefined()
+    expect(deleteVersionBlocker(sop, 'author', '1')).toBe('submitted-version')
+  })
+  it('reminds each reviewer of their own response, then review, deadline and stops once they finish', () => {
     const sop = start()
     const taskSoon = new Date(2026, 9, 25, 12).getTime()
     expect(deriveNotifications('a', { sops: [sop], requests: [], now: taskSoon }).some((item) => item.type === 'due-soon')).toBe(false)
@@ -309,9 +330,11 @@ describe('rejection, cancellation and immutable history', () => {
     const reminders = deriveNotifications('a', { sops: [accepted], requests: [], now: reviewSoon }).filter((item) => item.type === 'due-soon')
     expect(reminders.map((item) => item.dueAt)).toEqual([new Date(2026, 9, 28, 23, 59, 59, 999).toISOString()])
     expect(reminders[0].id).toContain(':review:')
-    const rejected = decide(sop, 'b', 'returned', 'Changes')
-    expect(deriveNotifications('a', { sops: [rejected], requests: [], now: requestSoon }).some((item) => item.type === 'review-cancelled')).toBe(true)
-    expect(deriveNotifications('author', { sops: [rejected], requests: [], now: requestSoon }).some((item) => item.type === 'request-due-soon' || item.type === 'request-overdue')).toBe(false)
+    // A reviewer's reminders stop once they finish; the others' continue.
+    const completedA = decide(sop, 'a')
+    expect(deriveNotifications('a', { sops: [completedA], requests: [], now: requestSoon }).some((item) => item.type === 'due-soon')).toBe(false)
+    expect(deriveNotifications('b', { sops: [completedA], requests: [], now: requestSoon }).some((item) => item.type === 'due-soon')).toBe(true)
+    expect(deriveNotifications('author', { sops: [completedA], requests: [], now: requestSoon }).some((item) => item.type === 'request-due-soon' || item.type === 'request-overdue')).toBe(false)
   })
 })
 
@@ -342,17 +365,18 @@ describe('assignment cancellation is separate from global Reviewer permission', 
     expect(notifications.filter((item) => item.type === 'due-soon' || item.type === 'overdue').map((item) => item.sopId)).toEqual(['other-sop'])
     expect(JSON.stringify(other)).toBe(otherBefore)
   })
-  it('does not count automatically cancelled work as active or silently modify permissions', () => {
+  it('keeps the other reviewers in use after one returns, without changing permissions', () => {
     const environment = env()
     const before = JSON.stringify(environment.users)
     const returned = decide(start(), 'b', 'returned', 'Changes')
-    expect(sopsUsing('reviewer', 'a', [returned])).toEqual([])
+    expect(sopsUsing('reviewer', 'a', [returned])).toEqual([returned])
     expect(sopsUsing('reviewer', 'b', [returned])).toEqual([returned])
     expect(JSON.stringify(environment.users)).toBe(before)
-    expect(task(returned, 'a').cancellationReason).toBe('round-rejected')
     // Any later request still revalidates eligibility rather than changing roles itself.
+    const finished = decide(decide(returned, 'a'), 'c')
+    const checked = { ...revise(finished) }
     environment.users.find((user) => user.id === 'a')!.permissions = []
-    expect(() => resubmitInternalReview(revise(returned), 'author', '4.0', environment)).toThrow(/eligible/)
+    expect(() => sendNewVersionForReview(checked, 'author', '4.0', { reviewerIds: ['a'] }, environment)).toThrow(/eligible/)
   })
 })
 
@@ -393,5 +417,18 @@ describe('automatic withdrawal of unanswered requests', () => {
     expect(currentInternalRound(settled)!.status).toBe('completed')
     expect(requiredReviewsComplete(settled)).toBe(true)
     expect(reviewTasks('c', [settled])[0]).toMatchObject({ group: 'done', decision: 'withdrawn' })
+  })
+})
+
+describe('removing a reviewer who returned with comments', () => {
+  it('is allowed, and the round completes when everyone still taking part completed', () => {
+    const returned = decide(decide(decide(start(), 'a'), 'b'), 'c', 'returned', 'Please revise')
+    expect(currentInternalRound(returned)!.status).toBe('changes-requested')
+    const removed = cancel(returned, 'c', 'author', 'Comments handled offline')
+    expect(task(removed, 'c')).toMatchObject({ decision: 'removed', removalReason: 'Comments handled offline' })
+    expect(removed.comments.map((comment) => comment.text)).toContain('Please revise')
+    expect(currentInternalRound(removed)!.status).toBe('completed')
+    expect(requiredReviewsComplete(removed)).toBe(true)
+    expect(removed.timeline.at(-1)).toMatchObject({ type: 'internal-review-completed' })
   })
 })

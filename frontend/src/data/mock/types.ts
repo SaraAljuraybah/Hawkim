@@ -219,7 +219,8 @@ export interface InternalReviewRound {
   id: string
   scope: 'internal'
   version: string
-  status: 'open' | 'completed' | 'rejected' | 'cancelled'
+  /** Open while anyone taking part hasn't finished (or nobody is); then completed, or changes-requested if anyone returned it. */
+  status: 'open' | 'completed' | 'changes-requested'
   requestedById: string
   requestedAt: string
   /** Shared deadline for new requests; historical rounds may have distinct task dates. */
@@ -320,6 +321,7 @@ export type TimelineEventType =
   | 'review-declined'
   | 'review-withdrawn'
   | 'reviewer-removed'
+  | 'review-changes-requested'
   | 'review-cancelled'
   | 'review-request-cancelled'
   | 'internal-review-completed'

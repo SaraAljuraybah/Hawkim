@@ -31,16 +31,13 @@ export function InternalReviewActions({ sop, onComplete }: { sop: Sop; onComplet
   }
   function confirm() {
     if (!target) return false
-    const required = target.decision === 'returned' ? text.actions.requiredReason : target.decision === 'declined' ? text.actions.declineRequired : ''
+    const required = target.decision === 'returned' ? text.actions.returnRequired : target.decision === 'declined' ? text.actions.declineRequired : ''
     if (required && !comment.trim()) { setFieldError(required); commentRef.current?.focus(); return false }
     try {
-      if (target.decision === 'declined') {
-        store.declineInternalReview(sop.id, target.roundId, target.assignmentId, comment)
-        setTarget(null); onComplete(text.actions.declined)
-      } else {
-        store.decideInternalReview(sop.id, target.roundId, target.assignmentId, target.decision, comment)
-        setTarget(null); onComplete(text.actions.updated)
-      }
+      if (target.decision === 'declined') store.declineInternalReview(sop.id, target.roundId, target.assignmentId, comment)
+      else store.decideInternalReview(sop.id, target.roundId, target.assignmentId, target.decision, comment)
+      setTarget(null)
+      onComplete(target.decision === 'declined' ? text.actions.declined : target.decision === 'returned' ? text.actions.returned : text.actions.reviewCompleted)
     }
     catch (reason) { setError(reason instanceof Error ? reason.message : text.status.closed); return false }
   }
@@ -49,8 +46,12 @@ export function InternalReviewActions({ sop, onComplete }: { sop: Sop; onComplet
     catch (reason) { setError(reason instanceof Error ? reason.message : text.status.closed) }
   }
   const pending = assignment.decision === 'pending'
-  const title = target?.decision === 'declined' ? text.actions.declineTitle : target?.decision === 'returned' ? text.actions.reject : text.actions.complete
-  const label = target?.decision === 'declined' ? text.actions.declineReason : target?.decision === 'returned' ? text.actions.rejectionReason : text.actions.comment
+  // Decline and Return need a reason or comments; Complete takes optional comments.
+  const dialog = !target ? undefined : target.decision === 'declined'
+    ? { title: text.actions.declineTitle, description: text.actions.declineHelp, label: text.actions.declineReason, confirm: text.actions.decline }
+    : target.decision === 'returned'
+      ? { title: text.actions.returnToAuthor, description: text.actions.returnHelp, label: text.actions.returnComments, confirm: text.actions.returnToAuthor }
+      : { title: text.actions.complete, description: text.actions.completeHelp.replace('{version}', sop.version), label: text.actions.comment, confirm: text.actions.complete }
   return <div className="space-y-3">
     {error && !target && <p role="alert" className="text-sm text-status-rejected-fg">{error}</p>}
     {pending ? <>
@@ -61,12 +62,12 @@ export function InternalReviewActions({ sop, onComplete }: { sop: Sop; onComplet
       </div>
     </> : <div className="flex flex-wrap gap-3">
       <Button onClick={(event) => open('completed', event.currentTarget)}>{text.actions.complete}</Button>
-      <Button variant="secondary" onClick={(event) => open('returned', event.currentTarget)}>{text.actions.reject}</Button>
+      <Button variant="secondary" onClick={(event) => open('returned', event.currentTarget)}>{text.actions.returnToAuthor}</Button>
     </div>}
-    {target && <FormDialog open title={title} description={target.decision === 'declined' ? text.actions.declineHelp : undefined}
-      confirmLabel={target.decision === 'declined' ? text.actions.decline : text.actions.confirm} cancelLabel={text.actions.cancel} onConfirm={confirm} onClose={close}>
+    {target && dialog && <FormDialog open title={dialog.title} description={dialog.description}
+      confirmLabel={dialog.confirm} cancelLabel={text.actions.cancel} onConfirm={confirm} onClose={close}>
       {error && <p role="alert" className="text-sm text-status-rejected-fg">{error}</p>}
-      <TextAreaField ref={commentRef} name="internalReviewFeedback" label={label}
+      <TextAreaField ref={commentRef} name="internalReviewFeedback" label={dialog.label}
         required={target.decision !== 'completed'} error={fieldError || undefined} rows={4} maxLength={REVIEW_TEXT_MAX} value={comment} onChange={(event) => { setComment(event.target.value); setError(''); setFieldError('') }} />
     </FormDialog>}
   </div>

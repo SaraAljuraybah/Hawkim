@@ -1,13 +1,10 @@
 import { useRef, useState } from 'react'
 import { flushSync } from 'react-dom'
 import type { SopWorkflowContent } from '../../content/types'
-import { internalReviewEn } from '../../content/internalReview.en'
 import type { Sop } from '../../data/mock/types'
 import { formatDate } from '../../lib/format'
-import { isInactiveDecision, latestAssignments } from '../../lib/internalReviewStatus'
 import { dueDateRange, parseDueDate, SUBMIT_COMMENT_MAX } from '../../lib/workflow'
 import type { ResubmitOptions } from '../../state/sopsContext'
-import { useUsers } from '../../state/usersContext'
 import { FormDialog } from '../ui/FormDialog'
 import { TextAreaField } from '../ui/TextAreaField'
 import { ReviewDueDateField } from './ReviewDueDateField'
@@ -19,32 +16,8 @@ interface ResubmitDialogProps {
   onClose: () => void
 }
 
-/** Internal rounds restart one shared allocation; legacy rounds accept a fresh deadline. */
-export function ResubmitDialog(props: ResubmitDialogProps) {
-  return props.sop.internalReviewRounds?.length ? <InternalResubmitDialog {...props} /> : <LegacyResubmitDialog {...props} />
-}
-
-function InternalResubmitDialog({ sop, content, onSubmit, onClose }: ResubmitDialogProps) {
-  const text = content.resubmit
-  const { nameOf } = useUsers()
-  const [failed, setFailed] = useState(false)
-  const round = sop.internalReviewRounds!.at(-1)!
-  const reviewers = latestAssignments(round).filter((person) => person.cancellationReason !== 'author-cancelled' && !isInactiveDecision(person.decision) || person.cancellationReason === 'round-rejected')
-  function confirm() {
-    try { onSubmit({}) }
-    catch { setFailed(true); return false }
-  }
-  return <FormDialog open title={text.title} confirmLabel={text.confirm} cancelLabel={content.cancel} onConfirm={confirm} onClose={onClose}>
-    {failed && <p role="alert" className="text-sm text-status-rejected-fg">{text.failed}</p>}
-    <p className="text-sm text-text-gray">{internalReviewEn.panel.resubmitHelp}</p>
-    <ul className="grid list-none gap-3 rounded-lg border border-beige bg-beige/40 p-4 text-sm font-medium text-maroon sm:grid-cols-2">
-      {reviewers.map((reviewer) => <li key={reviewer.id}>{nameOf(reviewer.userId)}</li>)}
-    </ul>
-  </FormDialog>
-}
-
-/** Legacy resubmission clears earlier deadlines and accepts an optional new date and comments. */
-function LegacyResubmitDialog({ content, onSubmit, onClose }: ResubmitDialogProps) {
+/** Legacy resubmission clears earlier deadlines and accepts an optional new date and comments. Internal reviews send a new version with Request reviews. */
+export function ResubmitDialog({ content, onSubmit, onClose }: ResubmitDialogProps) {
   const text = content.resubmit
   const fields = content.submit
   const [dueDate, setDueDate] = useState('')

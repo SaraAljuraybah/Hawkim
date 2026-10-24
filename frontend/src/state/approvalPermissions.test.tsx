@@ -66,7 +66,7 @@ function restartedReview(): Sop {
   vi.advanceTimersByTime(1000)
   const revised = uploadVersion(returned, 'author', { fileName: 'revised.pdf', fileType: 'pdf' })
   revised.complianceChecks = [...revised.complianceChecks, check(revised.version)]
-  capture('author', revised).resubmit(sop.id)
+  capture('author', revised).submitForReview(sop.id, { reviewerIds: ['reviewer'], responseDueDate: '2026-10-28' })
   return current()
 }
 beforeEach(() => {
@@ -266,17 +266,18 @@ describe('assigned controller decisions at the store boundary', () => {
     expect(() => store.publishAs(sop.id, 'controller', valid)).toThrow()
   })
 
-  it('restarts internal reviews of a revised and checked version after an Approver return', () => {
+  it('sends a revised and checked version to the chosen reviewers after an Approver return', () => {
     const sop = submitted(), controller = capture('controller', sop)
     controller.returnAsApprover(sop.id, 'controller', 'Upload a revision', snapshot(sop))
     let returned = current()
-    expect(() => capture('author', returned).resubmit(sop.id)).toThrow()
+    expect(() => capture('author', returned).submitForReview(sop.id, { reviewerIds: ['reviewer'] })).toThrow(/new version/)
+    expect(() => capture('author', returned).resubmit(sop.id)).toThrow(/Request reviews/)
     vi.advanceTimersByTime(1000)
     returned = uploadVersion(returned, 'author', { fileName: 'revised.pdf', fileType: 'pdf' })
-    expect(() => capture('author', returned).resubmit(sop.id)).toThrow(/compliance/)
+    expect(() => capture('author', returned).submitForReview(sop.id, { reviewerIds: ['reviewer'] })).toThrow(/compliance/)
     returned = { ...returned, complianceChecks: [...returned.complianceChecks, check(returned.version)] }
     const author = capture('author', returned)
-    author.resubmit(sop.id)
+    author.submitForReview(sop.id, { reviewerIds: ['reviewer'] })
     expect(current()).toMatchObject({ status: 'in-review', version: '2', approvers: [] })
     expect(currentInternalRound(current())).toMatchObject({ status: 'open', version: '2' })
     expect(currentInternalRound(current())!.assignments.every((assignment) => assignment.decision === 'pending')).toBe(true)
@@ -292,7 +293,7 @@ describe('assigned controller decisions at the store boundary', () => {
     const revised = uploadVersion(returned, 'author', { fileName: 'revised.pdf', fileType: 'pdf' })
     revised.complianceChecks = [...revised.complianceChecks, check(revised.version)]
     const author = capture('author', revised)
-    author.resubmit(sop.id)
+    author.submitForReview(sop.id, { reviewerIds: ['reviewer'] })
     const round = currentInternalRound(current())!
     author.removeInternalReviewer(sop.id, round.id, round.assignments[0].id, 'No longer needed')
     expect(current().status).toBe('in-review')

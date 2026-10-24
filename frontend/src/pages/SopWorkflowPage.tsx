@@ -28,7 +28,8 @@ import type { SopVersion } from '../data/mock/types'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { currentCheck, hasCurrentCheck, isCheckRunning } from '../lib/compliance'
 import { approvalReadiness } from '../lib/approval'
-import { canAddReviewers } from '../lib/internalReview'
+import { canAddReviewers, canSendNewVersion } from '../lib/internalReview'
+import { reviewAllowsNewVersion } from '../lib/internalReviewStatus'
 import { formatDate } from '../lib/format'
 import { hasPermission } from '../lib/permissions'
 import { sopPath } from '../lib/routes'
@@ -172,7 +173,11 @@ export function SopWorkflowPage() {
   }
 
   const returned = sop.status === 'returned' ? latestReturn(sop) : undefined
-  const canUpload = sop.status === 'draft' || sop.status === 'returned'
+  const internal = !!sop.internalReviewRounds?.length
+  // Upload: Draft or Returned, or during internal review once every reviewer has finished the current version.
+  const canUpload = sop.status === 'draft' || sop.status === 'returned' || reviewAllowsNewVersion(sop)
+  // Submit for review from Draft, or Resubmit a legacy SOP; internal reviews use Request reviews afterwards.
+  const canSubmit = sop.status === 'draft' || sop.status === 'returned' && !internal
 
   // Submit for review: Submit when Draft, Resubmit when Returned (main author only).
   // A completed compliance check of the current version, against the current GVP
@@ -190,8 +195,10 @@ export function SopWorkflowPage() {
         : actions.checkNeeded
   const submitReason = sop.status === 'returned' && !canResubmit(sop) ? actions.resubmitHint : checkReason
   // Legacy review plans keep their existing handoff. Parallel reviews await this main-Author action.
-  // While In Review, the main author can send the current version to more reviewers.
+  // Request reviews: the current version to more reviewers, or a new version (once checked) to the reviewers chosen.
   const addReviewers = isMainAuthor && canAddReviewers(sop)
+  const sendVersion = isMainAuthor && internal && canSendNewVersion(sop)
+  const requestReason = sendVersion ? checkReason : undefined
   const showApproval = isMainAuthor && !!sop.internalReviewRounds?.length && sop.status !== 'approved' && sop.status !== 'published'
   const approval = showApproval
     ? approvalReadiness(sop, user.id, { users, departments: departments.departments }, {
@@ -398,7 +405,7 @@ export function SopWorkflowPage() {
         title={content.timeline.title}
         className="mt-6"
         actions={
-          (recipients.length > 0 || (isMainAuthor && canUpload) || addReviewers || showApproval) && (
+          (recipients.length > 0 || (isMainAuthor && canSubmit) || addReviewers || sendVersion || showApproval) && (
             <>
               {recipients.length > 0 && (
                 <Button size="sm" variant="secondary" onClick={(event) => open('response', event.currentTarget)}>
@@ -406,7 +413,7 @@ export function SopWorkflowPage() {
                   {actions.response}
                 </Button>
               )}
-              {isMainAuthor && canUpload && (
+              {isMainAuthor && canSubmit && (
                 <Button
                   size="sm"
                   disabled={!!submitReason}
@@ -416,8 +423,9 @@ export function SopWorkflowPage() {
                   {sop.status === 'returned' ? actions.resubmit : actions.submit}
                 </Button>
               )}
-              {addReviewers && (
-                <Button size="sm" onClick={(event) => open('addReviewers', event.currentTarget)}>{internalReviewEn.submit.button}</Button>
+              {(addReviewers || sendVersion) && (
+                <Button size="sm" disabled={!!requestReason} aria-describedby={requestReason ? 'submit-hint' : undefined}
+                  onClick={(event) => open(sendVersion ? 'submit' : 'addReviewers', event.currentTarget)}>{internalReviewEn.submit.button}</Button>
               )}
               {showApproval && (
                 <Button size="sm" disabled={!approval?.ready}
@@ -430,9 +438,9 @@ export function SopWorkflowPage() {
           )
         }
       >
-        {canUpload && isMainAuthor && submitReason && (
+        {isMainAuthor && (canSubmit && submitReason || requestReason) && (
           <p id="submit-hint" className="mb-4 text-sm text-text-gray">
-            {submitReason}
+            {canSubmit ? submitReason : requestReason}
           </p>
         )}
         {canUpload && !isMainAuthor && (
@@ -457,12 +465,13 @@ export function SopWorkflowPage() {
       )}
       {dialog === 'submit' && (
         <SubmitDialog
+          mode={sendVersion ? 'version' : 'submit'}
           sop={sop}
           content={dialogs}
           onClose={closeDialog}
           onSubmit={(options) => {
             store.submitForReview(sop.id, options)
-            announce(content.messages.submitted)
+            announce(sendVersion ? internalReviewEn.submit.added : content.messages.submitted)
           }}
         />
       )}

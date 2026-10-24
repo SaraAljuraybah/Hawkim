@@ -1,4 +1,4 @@
-import type { InternalReviewDecision, InternalReviewRound, InternalReviewerAssignment, ReviewerAssignment, ReviewerDecision } from '../data/mock/types'
+import type { InternalReviewDecision, InternalReviewRound, InternalReviewerAssignment, ReviewerAssignment, ReviewerDecision, Sop } from '../data/mock/types'
 import { todayIsoDate } from './format'
 
 /*
@@ -45,6 +45,22 @@ export function isOpenDecision(decision: InternalReviewDecision): boolean {
 /** The reviewer no longer takes part in this round. */
 export function isInactiveDecision(decision: InternalReviewDecision): boolean {
   return decision === 'declined' || decision === 'withdrawn' || decision === 'removed' || decision === 'cancelled'
+}
+
+/**
+ * During internal review the author can upload a new version only once everyone taking part has
+ * finished reviewing the current one (returned it or completed it), or when nobody is taking part.
+ */
+export function reviewAllowsNewVersion(sop: Pick<Sop, 'status' | 'internalReviewRounds' | 'reviewFlow'>): boolean {
+  const round = sop.internalReviewRounds?.at(-1)
+  if (sop.status !== 'in-review' || sop.reviewFlow || !round) return false
+  return round.status !== 'open' || activeAssignments(round).length === 0
+}
+
+/** The current version was uploaded during internal review and hasn't been sent to any reviewer yet. */
+export function isUnsentVersion(sop: Pick<Sop, 'version' | 'internalReviewRounds' | 'reviewFlow'>): boolean {
+  const round = sop.internalReviewRounds?.at(-1)
+  return !sop.reviewFlow && !!round && round.version !== sop.version
 }
 
 /** Doesn't count against completing the round: declined, withdrawn, removed, or cancelled by the author. */

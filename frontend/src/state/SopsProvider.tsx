@@ -7,7 +7,7 @@ import { nextSopCode } from '../lib/sopCodes'
 import { assertCanCreateSop } from '../lib/sopAccess'
 import { submitForApproval } from '../lib/approval'
 import { applyReviewAction } from '../lib/reviewFlow'
-import { acceptInternalReview, addInternalReviewers, decideInternalReview, declineInternalReview, nextWithdrawalAt, removeInternalReviewer, resubmitInternalReview, startInternalReview, withdrawUnanswered } from '../lib/internalReview'
+import { acceptInternalReview, addInternalReviewers, decideInternalReview, declineInternalReview, nextWithdrawalAt, removeInternalReviewer, sendNewVersionForReview, startInternalReview, withdrawUnanswered } from '../lib/internalReview'
 import { useDepartments } from './departmentsContext'
 import * as workflow from '../lib/workflow'
 import { useGuidelines } from './guidelinesContext'
@@ -168,7 +168,10 @@ export function SopsProvider({ children }: { children: ReactNode }) {
     () => ({
       sops,
       addDraft,
-      submitForReview: (id, o) => update(id, (sop) => startInternalReview(sop, userId, guideline.version, o, environment)),
+      // The first submission from Draft, or a new version sent once every reviewer has finished.
+      submitForReview: (id, o) => update(id, (sop) => sop.status === 'draft'
+        ? startInternalReview(sop, userId, guideline.version, o, environment)
+        : sendNewVersionForReview(sop, userId, guideline.version, o, environment)),
       submitForApproval: (id, options) => update(id, (sop) => submitForApproval(sop, userId, options, environment)),
       reviewAction: (id, action) => update(id, (sop) => applyReviewAction(sop, userId, action, environment)),
       acceptInternalReview: (id, roundId, assignmentId) => update(id, (sop) => acceptInternalReview(sop, userId, roundId, assignmentId, environment)),
@@ -178,8 +181,7 @@ export function SopsProvider({ children }: { children: ReactNode }) {
       removeInternalReviewer: (id, roundId, assignmentId, reason) => update(id, (sop) => removeInternalReviewer(sop, userId, roundId, assignmentId, reason, environment)),
       resubmit: (id, options) => update(id, (sop) => {
         if (sop.internalReviewRounds?.length) {
-          if (options?.dueDate?.trim() || options?.note?.trim()) throw new Error('Internal resubmission restarts saved allocations without legacy overrides')
-          return resubmitInternalReview(sop, userId, guideline.version, environment)
+          throw new Error('Use Request reviews to send the new version to reviewers')
         }
         if (sop.reviewFlow && !users.some((u) => u.id === userId && !u.deletedAt && u.permissions.includes('author') && !u.permissions.includes('admin'))) throw new Error('An active main Author account is required')
         return workflow.resubmit(sop, userId, guideline.version, options?.note, options?.dueDate)

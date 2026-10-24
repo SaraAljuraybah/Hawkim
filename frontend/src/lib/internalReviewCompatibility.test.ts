@@ -31,11 +31,11 @@ describe('internal parallel review compatibility boundaries', () => {
     expect(currentDueAt(sop)).toBeUndefined()
     expect(pendingPeople(sop)).toEqual([])
   })
-  it('does not count an entirely cancelled request or the wrong document version as completed reviews', () => {
+  it('does not count a round where everyone was removed, or the wrong document version, as completed reviews', () => {
     const sop = fixture()
     const round = sop.internalReviewRounds![0]
-    round.status = 'cancelled'
-    round.assignments.forEach((assignment) => { assignment.decision = 'cancelled'; assignment.cancellationReason = 'author-cancelled' })
+    round.status = 'open'
+    round.assignments.forEach((assignment) => { assignment.decision = 'removed'; assignment.removalReason = 'No longer needed' })
     sop.reviewers = projectReviewers(round)
     expect(requiredReviewsComplete(sop)).toBe(false)
     round.status = 'completed'
@@ -69,7 +69,7 @@ describe('internal parallel review compatibility boundaries', () => {
   })
   it('shifts only the current round during demo simulation and keeps blank deadlines blank', () => {
     const sop = fixture()
-    const old = { ...sop.internalReviewRounds![0], id: 'old', status: 'rejected' as const, version: '0' }
+    const old = { ...sop.internalReviewRounds![0], id: 'old', status: 'changes-requested' as const, version: '0' }
     sop.internalReviewRounds = [old, sop.internalReviewRounds![0]]
     const before = JSON.stringify(sop)
     const shifted = shiftDueDates(sop, 2)

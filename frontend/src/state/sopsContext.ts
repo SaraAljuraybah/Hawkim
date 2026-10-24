@@ -28,6 +28,7 @@ export interface SopsStore {
   addDraft: (draft: NewDraft) => Sop
 
   // Actions by the current user (author or co-author). Each throws if not allowed.
+  /** Main author: first submission from Draft, or a new version sent to the chosen reviewers. */
   submitForReview: (sopId: string, options: SubmitOptions) => void
   /** Main Author: submit this reviewed version to its configured Quality Document Controller. */
   submitForApproval: (sopId: string, options: ApprovalSubmissionOptions) => void
@@ -41,7 +42,7 @@ export interface SopsStore {
   addInternalReviewers: (sopId: string, options: SubmitOptions) => void
   /** Main author: remove a reviewer from the current round at any time, with a required reason. */
   removeInternalReviewer: (sopId: string, roundId: string, assignmentId: string, reason: string) => void
-  /** Main author: restart parallel internal reviews, or legacy review with optional new date/comments. */
+  /** Main author: legacy resubmission with an optional new date and comments (internal reviews use submitForReview). */
   resubmit: (sopId: string, options?: ResubmitOptions) => void
   /** Uploads the next version (Draft or Returned). It isn't checked until someone runs a compliance check. */
   uploadVersion: (sopId: string, file: UploadedFile) => void
