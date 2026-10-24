@@ -31,8 +31,12 @@ const ICONS: Record<NotificationType, LucideIcon> = {
   'assigned-review': ListChecks,
   'internal-review-completed': CircleCheck,
   'review-cancelled': CircleX,
-  'request-due-soon': Clock,
-  'request-overdue': AlarmClock,
+  'review-declined': CircleX,
+  'review-withdrawn': AlarmClock,
+  'reviewer-removed': CircleX,
+  'review-completed': CircleCheck,
+  'review-returned': Undo2,
+  'review-overdue': AlarmClock,
   'assigned-approval': ListChecks,
   'ready-to-publish': Upload,
   'sop-returned': Undo2,
@@ -97,11 +101,16 @@ export function NotificationsBell() {
         .replace('{name}', nameOf(item.actorId))
         .replace('{code}', item.sopCode ?? '')
         .replace('{version}', item.version ?? '')
+        .replace('{reason}', item.reason ?? '')
     switch (item.type) {
       case 'internal-review-completed': return fill(t.internalReviewCompleted)
       case 'review-cancelled': return fill(t.reviewCancelled)
-      case 'request-due-soon': return fill(t.requestDueSoon)
-      case 'request-overdue': return fill(t.requestOverdue)
+      case 'review-declined': return fill(t.reviewDeclined)
+      case 'review-withdrawn': return fill(item.forReviewer ? t.reviewWithdrawn.reviewer : t.reviewWithdrawn.author)
+      case 'reviewer-removed': return fill(t.reviewerRemoved)
+      case 'review-completed': return fill(t.reviewCompleted)
+      case 'review-returned': return fill(t.reviewReturned)
+      case 'review-overdue': return fill(t.reviewOverdue)
       case 'assigned-review':
         return fill(item.via === 'handoff' ? t.handoff : item.via === 'routed' ? t.routed : item.via === 'resubmitted' ? t.resubmitted : t.submitted)
       case 'assigned-approval':
@@ -119,7 +128,8 @@ export function NotificationsBell() {
       case 'due-soon': {
         // Within 24 hours: today, or tomorrow (local dates).
         const today = new Date(now).toDateString() === new Date(item.dueAt ?? '').toDateString()
-        return fill(t.dueSoon[item.stage ?? 'review']).replace('{day}', today ? t.days.today : t.days.tomorrow)
+        // An internal request not yet accepted is reminded to accept or decline before it's withdrawn.
+        return fill(item.phase === 'response' ? t.dueSoon.response : t.dueSoon[item.stage ?? 'review']).replace('{day}', today ? t.days.today : t.days.tomorrow)
       }
       case 'overdue':
         return fill(t.overdue[item.stage ?? 'review'])

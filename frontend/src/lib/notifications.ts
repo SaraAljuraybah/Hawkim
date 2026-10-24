@@ -1,5 +1,5 @@
 import type { Sop, TimelineEvent, UserRequest } from '../data/mock/types'
-import { isOpenDecision, latestAssignmentOf } from './internalReviewStatus'
+import { isOpenDecision, latestAssignmentOf, latestAssignments, requestDeadline } from './internalReviewStatus'
 import { mySopPath, reviewPath } from './routes'
 import { activeApprovalSubmission, currentDueAt, currentReviewer, isAuthorOrCoAuthor, reviewerDueAt } from './workflow'
 
@@ -15,8 +15,14 @@ export type NotificationType =
   | 'assigned-review'
   | 'internal-review-completed'
   | 'review-cancelled'
-  | 'request-due-soon'
-  | 'request-overdue'
+  /** Internal review requests: to the author (and co-authors), or to the reviewer concerned. */
+  | 'review-declined'
+  | 'review-withdrawn'
+  | 'reviewer-removed'
+  | 'review-completed'
+  | 'review-returned'
+  /** The author: a reviewer's accepted review passed its due date. */
+  | 'review-overdue'
   /** Assigned to me: an approver, once every reviewer has completed. */
   | 'assigned-approval'
   /** Assigned to me: an approver, once every approver has approved. */
@@ -53,7 +59,13 @@ export interface AppNotification {
   via?: 'submitted' | 'resubmitted' | 'routed' | 'handoff'
   /** due-soon / overdue: the stage, and its due date. */
   stage?: 'review' | 'approval'
+  /** Internal review due-soon: accepting or declining (response), or finishing the review. */
+  phase?: 'response' | 'review'
   dueAt?: string
+  /** A decline or removal reason. */
+  reason?: string
+  /** review-withdrawn: whether the user is the reviewer whose request was withdrawn (otherwise the author). */
+  forReviewer?: boolean
   /** Request notifications. */
   request?: Pick<UserRequest, 'title' | 'type' | 'departmentId'>
 }
@@ -63,7 +75,12 @@ export const DUE_SOON_MS = 24 * 60 * 60 * 1000
 
 /** The notification types that are never counted as read just because they're old. */
 export function isDueNotification(type: NotificationType): boolean {
-  return type === 'due-soon' || type === 'overdue' || type === 'request-due-soon' || type === 'request-overdue'
+  return type === 'due-soon' || type === 'overdue' || type === 'review-overdue'
+}
+
+/** The reviewer of an internal review request named by a timeline event. */
+function requestReviewer(sop: Sop, event: TimelineEvent): string | undefined {
+  return sop.internalReviewRounds?.flatMap((round) => round.assignments).find((assignment) => assignment.id === event.reviewAssignmentId)?.userId
 }
 
 function fromEvent(sop: Sop, event: TimelineEvent, userId: string): AppNotification | undefined {
@@ -82,6 +99,20 @@ function fromEvent(sop: Sop, event: TimelineEvent, userId: string): AppNotificat
       return isRecipient ? { ...base, type: 'internal-review-completed', link: mySopPath(sop.id) } : undefined
     case 'review-cancelled':
       return isRecipient ? { ...base, type: 'review-cancelled', link: reviewPath(sop.id) } : undefined
+    // Internal review requests: the author and co-authors hear about declines and returns, the author
+    // about each completion, the reviewer about a removal, and both about a withdrawal.
+    case 'review-declined':
+      return isRecipient ? { ...base, type: 'review-declined', reason: event.note, link: mySopPath(sop.id) } : undefined
+    case 'review-changes-requested':
+      return isRecipient ? { ...base, type: 'review-returned', link: mySopPath(sop.id) } : undefined
+    case 'reviewer-removed':
+      return isRecipient ? { ...base, type: 'reviewer-removed', reason: event.note, link: reviewPath(sop.id) } : undefined
+    case 'review-withdrawn': {
+      if (!isRecipient) return undefined
+      const reviewerId = requestReviewer(sop, event)
+      const forReviewer = reviewerId === userId
+      return { ...base, actorId: reviewerId, type: 'review-withdrawn', forReviewer, link: forReviewer ? reviewPath(sop.id) : mySopPath(sop.id) }
+    }
     case 'submitted':
     case 'resubmitted':
       if (event.reviewRoundId) {
@@ -97,9 +128,12 @@ function fromEvent(sop: Sop, event: TimelineEvent, userId: string): AppNotificat
     case 'routed':
       // Joining the queue is not an actionable assignment; the handoff notifies them.
       return undefined
+    case 'review-completed':
+      // An internal reviewer finished: the author is told each time.
+      if (event.reviewRoundId) return isRecipient ? { ...base, type: 'review-completed', link: mySopPath(sop.id) } : undefined
+      return isRecipient ? { ...base, type: 'assigned-review', via: 'handoff', link: reviewPath(sop.id) } : undefined
     case 'review-assigned':
     case 'review-returned':
-    case 'review-completed':
       return isRecipient ? { ...base, type: 'assigned-review', via: 'handoff', link: reviewPath(sop.id) } : undefined
     case 'submitted-for-approval':
       return isRecipient && sop.approvalSubmissions?.some((submission) => submission.id === event.approvalSubmissionId && submission.version === event.version && submission.approverId === userId)
@@ -138,7 +172,7 @@ function dueNotification(sop: Sop, userId: string, now: number): AppNotification
     const dueAt = reviewerDueAt(sop, assignment)
     if (!dueAt) return undefined
     // Responding and reviewing are separate reminders: accepting can notify again.
-    return internalDeadline(sop, internalRound.id + ':' + assignment.id + ':' + (assignment.acceptedAt ? 'review' : 'response'), dueAt, userId, now, false)
+    return internalDeadline(sop, internalRound.id + ':' + assignment.id, dueAt, userId, now, assignment.acceptedAt ? 'review' : 'response')
   }
   const stage = sop.status === 'in-review' ? 'review' : sop.status === 'in-approval' ? 'approval' : undefined
   if (!stage) return undefined
@@ -161,18 +195,29 @@ function dueNotification(sop: Sop, userId: string, now: number): AppNotification
   return undefined
 }
 
-/** Both request and task reminders have independent, round-stable identities. */
-function internalDeadline(sop: Sop, roundKey: string, dueAt: string, userId: string, now: number, request: boolean): AppNotification | undefined {
+/**
+ * A reviewer's reminder for their own request, with a stable identity per request and phase.
+ * A passed response due date withdraws the request instead, so only a review can be overdue.
+ */
+function internalDeadline(sop: Sop, requestKey: string, dueAt: string, userId: string, now: number, phase: 'response' | 'review'): AppNotification | undefined {
   const due = new Date(dueAt).getTime()
-  const base = { sopId: sop.id, sopCode: sop.code, version: sop.version, stage: 'review' as const, dueAt, link: request ? mySopPath(sop.id) : reviewPath(sop.id) }
-  if (now >= due) return { ...base, id: (request ? 'request-overdue:' : 'overdue:') + roundKey + ':' + userId, type: request ? 'request-overdue' : 'overdue', createdAt: dueAt }
-  if (due - now <= DUE_SOON_MS) return { ...base, id: (request ? 'request-due-soon:' : 'due-soon:') + roundKey + ':' + userId, type: request ? 'request-due-soon' : 'due-soon', createdAt: new Date(due - DUE_SOON_MS).toISOString() }
+  const key = requestKey + ':' + phase + ':' + userId
+  const base = { sopId: sop.id, sopCode: sop.code, version: sop.version, stage: 'review' as const, phase, dueAt, link: reviewPath(sop.id) }
+  if (now >= due) return phase === 'review' ? { ...base, id: 'overdue:' + key, type: 'overdue', createdAt: dueAt } : undefined
+  if (due - now <= DUE_SOON_MS) return { ...base, id: 'due-soon:' + key, type: 'due-soon', createdAt: new Date(due - DUE_SOON_MS).toISOString() }
   return undefined
 }
-function requestDeadline(sop: Sop, userId: string, now: number): AppNotification | undefined {
+
+/** The main author: each accepted review that passed its due date (it is only marked overdue). */
+function authorOverdue(sop: Sop, userId: string, now: number): AppNotification[] {
   const round = sop.internalReviewRounds?.at(-1)
-  if (sop.reviewFlow || sop.authorId !== userId || sop.status !== 'in-review' || round?.status !== 'open' || round.version !== sop.version || !round.dueDate) return undefined
-  return internalDeadline(sop, round.id, new Date(round.dueDate + 'T23:59:59.999').toISOString(), userId, now, true)
+  if (sop.reviewFlow || sop.authorId !== userId || sop.status !== 'in-review' || round?.status !== 'open' || round.version !== sop.version) return []
+  return latestAssignments(round).flatMap((assignment): AppNotification[] => {
+    const deadline = assignment.decision === 'accepted' ? requestDeadline(assignment) : undefined
+    if (!deadline || new Date(deadline.dueAt).getTime() > now) return []
+    return [{ id: `review-overdue:${assignment.id}:${userId}`, type: 'review-overdue', createdAt: deadline.dueAt, link: mySopPath(sop.id),
+      sopId: sop.id, sopCode: sop.code, version: sop.version, actorId: assignment.userId, dueAt: deadline.dueAt }]
+  })
 }
 
 /** Every notification for the user, newest first. */
@@ -188,8 +233,7 @@ export function deriveNotifications(
     }
     const due = dueNotification(sop, userId, now)
     if (due) notifications.push(due)
-    const requestDue = requestDeadline(sop, userId, now)
-    if (requestDue) notifications.push(requestDue)
+    notifications.push(...authorOverdue(sop, userId, now))
   }
   for (const request of requests) {
     if (request.requesterId !== userId || !request.decidedAt) continue

@@ -137,7 +137,7 @@ describe('retained internal history and subsequent passive workflow consumers', 
     expect(currentDueAt(sop)).toBe(new Date('2026-10-29T23:59:59.999').toISOString())
     expect(reviewTasks('external', [sop])[0]).toMatchObject({ group: 'todo', need: 'review' })
     expect(deriveNotifications('external', { sops: [sop], requests: [], now: Date.parse('2026-10-31T09:00:00Z') })).toEqual(expect.arrayContaining([expect.objectContaining({ type: 'overdue' })]))
-    expect(deriveNotifications('author', { sops: [sop], requests: [], now: Date.parse('2026-10-31T09:00:00Z') }).some((item) => item.type === 'request-overdue')).toBe(false)
+    expect(deriveNotifications('author', { sops: [sop], requests: [], now: Date.parse('2026-10-31T09:00:00Z') }).some((item) => item.type === 'review-overdue')).toBe(false)
     expect(requiredReviewsComplete(sop)).toBe(false)
     expect(JSON.stringify(sop.internalReviewRounds)).toBe(history)
     sop.reviewers.at(-1)!.decision = 'cancelled'

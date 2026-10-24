@@ -323,7 +323,7 @@ describe('returns, removals, new versions and immutable history', () => {
     expect(deriveNotifications('c', { sops: [sop], requests: [], now: taskSoon }).some((item) => item.type === 'due-soon')).toBe(false)
     const requestSoon = new Date(2026, 9, 28, 12).getTime()
     for (const user of ['a', 'b', 'c']) expect(deriveNotifications(user, { sops: [sop], requests: [], now: requestSoon }).some((item) => item.type === 'due-soon')).toBe(true)
-    expect(deriveNotifications('author', { sops: [sop], requests: [], now: requestSoon }).some((item) => item.type === 'request-due-soon')).toBe(false)
+    expect(deriveNotifications('author', { sops: [sop], requests: [], now: requestSoon }).some((item) => item.type === 'due-soon' || item.type === 'review-overdue')).toBe(false)
     // After accepting, the response reminder gives way to a separate review reminder.
     const accepted = accept(sop, 'a')
     const reviewSoon = new Date(2026, 9, 28, 12).getTime()
@@ -334,7 +334,7 @@ describe('returns, removals, new versions and immutable history', () => {
     const completedA = decide(sop, 'a')
     expect(deriveNotifications('a', { sops: [completedA], requests: [], now: requestSoon }).some((item) => item.type === 'due-soon')).toBe(false)
     expect(deriveNotifications('b', { sops: [completedA], requests: [], now: requestSoon }).some((item) => item.type === 'due-soon')).toBe(true)
-    expect(deriveNotifications('author', { sops: [completedA], requests: [], now: requestSoon }).some((item) => item.type === 'request-due-soon' || item.type === 'request-overdue')).toBe(false)
+    expect(deriveNotifications('author', { sops: [completedA], requests: [], now: requestSoon }).some((item) => item.type === 'due-soon' || item.type === 'review-overdue')).toBe(false)
   })
 })
 

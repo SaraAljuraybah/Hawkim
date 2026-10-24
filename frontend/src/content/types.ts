@@ -907,7 +907,7 @@ export interface NotificationsContent {
   unread: string
   /** Relative time under a minute. */
   justNow: string
-  /** `{name}`, `{code}`, `{version}`, `{day}`, `{department}` and `{title}` are replaced. */
+  /** `{name}`, `{code}`, `{version}`, `{day}`, `{reason}`, `{department}` and `{title}` are replaced. */
   texts: {
     submitted: string
     resubmitted: string
@@ -915,15 +915,21 @@ export interface NotificationsContent {
     handoff: string
     internalReviewCompleted: string
     reviewCancelled: string
-    requestDueSoon: string
-    requestOverdue: string
+    /** Internal review requests ({name}: the reviewer, or the author for a removal). */
+    reviewDeclined: string
+    reviewWithdrawn: { author: string; reviewer: string }
+    reviewerRemoved: string
+    reviewCompleted: string
+    reviewReturned: string
+    reviewOverdue: string
     assignedApproval: string
     readyToPublish: string
     returned: string
     approved: string
     published: string
     response: string
-    dueSoon: { review: string; approval: string }
+    /** `response`: a reviewer's reminder to accept or decline before the request is withdrawn. */
+    dueSoon: { review: string; response: string; approval: string }
     days: { today: string; tomorrow: string }
     overdue: { review: string; approval: string }
     accessRequest: { approved: string; rejected: string }
