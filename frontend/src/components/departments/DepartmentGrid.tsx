@@ -45,7 +45,13 @@ export function DepartmentGrid({ departments, content, getState, getMemberCount,
         return (
           <li key={department.id}>
             {/* TODO: Make the card a link to the department detail page once it exists. */}
-            <article className="flex h-full items-start gap-4 rounded-xl border border-beige bg-white p-5 sm:p-6">
+            {/* The department being viewed: maroon border (15:1 on white) plus its text label */}
+            <article
+              aria-current={state === 'current' ? 'true' : undefined}
+              className={`flex h-full items-start gap-4 rounded-xl border bg-white p-5 sm:p-6 ${
+                state === 'current' ? 'border-maroon ring-1 ring-maroon' : 'border-beige'
+              }`}
+            >
               <span
                 aria-hidden="true"
                 className={`inline-flex size-12 shrink-0 items-center justify-center rounded-full text-sm font-semibold ${
