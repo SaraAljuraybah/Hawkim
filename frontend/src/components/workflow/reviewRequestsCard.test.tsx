@@ -1,0 +1,100 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { renderToStaticMarkup } from 'react-dom/server'
+import { MemoryRouter } from 'react-router-dom'
+import type { ReactNode } from 'react'
+import { internalReviewEn } from '../../content/internalReview.en'
+import type { Department, Sop, User } from '../../data/mock/types'
+import { acceptInternalReview, currentInternalRound, declineInternalReview, removeInternalReviewer, startInternalReview, withdrawUnanswered } from '../../lib/internalReview'
+import { latestAssignmentOf } from '../../lib/internalReviewStatus'
+import { reviewTasks } from '../../lib/reviews'
+import { ReviewsPage } from '../../pages/ReviewsPage'
+import { InternalReviewPanel } from './InternalReviewPanel'
+import { ReviewRequestDetails } from './ReviewRequestDetails'
+
+const fixture = vi.hoisted(() => ({
+  userId: 'author', sop: null as Sop | null,
+  users: [
+    { id: 'author', name: 'Main Author', permissions: ['author'], departmentId: 'home' },
+    { id: 'alpha', name: 'Reviewer Alpha', permissions: ['reviewer'], departmentId: 'home' },
+    { id: 'beta', name: 'Reviewer Beta', permissions: ['reviewer'], departmentId: 'home' },
+    { id: 'gamma', name: 'Reviewer Gamma', permissions: ['reviewer'], departmentId: 'home' },
+  ] as User[],
+  departments: [{ id: 'home', name: 'Home', initials: 'HM', description: '' }] as Department[],
+}))
+vi.mock('../../state/sessionContext', () => ({ useCurrentUser: () => fixture.users.find((user) => user.id === fixture.userId) }))
+vi.mock('../../state/usersContext', () => ({ useUsers: () => ({ users: fixture.users, activeUsers: fixture.users, nameOf: (id: string) => fixture.users.find((user) => user.id === id)?.name ?? id ?? '' }) }))
+vi.mock('../../state/departmentsContext', () => ({ useDepartments: () => ({ departments: fixture.departments, nameOf: () => 'Home' }) }))
+vi.mock('../../state/sopsContext', () => ({ useSops: () => ({ sops: [fixture.sop], removeInternalReviewer: vi.fn() }) }))
+
+const env = () => ({ users: fixture.users, departments: fixture.departments })
+function draft(): Sop {
+  return { id: 'test', code: 'TEST', title: 'Card fixture', version: '1', departmentId: 'home', authorId: 'author', coAuthorIds: [], status: 'draft', lastUpdated: '2026-10-23', fileName: 'test.pdf', fileType: 'pdf', versions: [{ version: '1', fileName: 'test.pdf', fileType: 'pdf', uploadedAt: new Date().toISOString() }], reviewers: [], approvers: [], comments: [], timeline: [], complianceChecks: [{ id: 'check', sopId: 'test', version: '1', status: 'completed', startedAt: new Date().toISOString(), guideline: { name: 'GVP', version: '4.0' }, findings: [] }] }
+}
+const request = (sop: Sop, userId: string) => latestAssignmentOf(currentInternalRound(sop), userId)!
+function render(node: ReactNode) { return renderToStaticMarkup(<MemoryRouter>{node}</MemoryRouter>) }
+beforeEach(() => { vi.useFakeTimers({ now: new Date(2026, 9, 23, 12) }); fixture.userId = 'author' })
+afterEach(() => vi.useRealTimers())
+
+describe('review requests card', () => {
+  it('shows each reviewer with status, sent date, version, deadlines and reasons, without a round heading', () => {
+    let sop = startInternalReview(draft(), 'author', '4.0', { reviewerIds: ['alpha', 'beta', 'gamma'], responseDueDate: '2026-10-24', reviewDurationDays: 3 }, env())
+    const round = currentInternalRound(sop)!
+    sop = acceptInternalReview(sop, 'alpha', round.id, request(sop, 'alpha').id, env())
+    sop = declineInternalReview(sop, 'beta', round.id, request(sop, 'beta').id, 'On leave', env())
+    sop = removeInternalReviewer(sop, 'author', round.id, request(sop, 'gamma').id, 'Asked the wrong person', env())
+    const html = render(<InternalReviewPanel sop={sop} canRemove />)
+    expect(html).not.toContain('Review round')
+    for (const name of ['Reviewer Alpha', 'Reviewer Beta', 'Reviewer Gamma']) expect(html).toContain(`<h3 class="text-base font-semibold text-maroon">${name}</h3>`)
+    for (const label of ['Accepted', 'Declined', 'Removed']) expect(html).toContain(`</span>${label}</span>`)
+    expect(html).toContain('Request sent ')
+    expect(html).toContain(internalReviewEn.panel.version.replace('{version}', '1'))
+    expect(html).toContain('Review due ')
+    expect(html).toContain('Reason: On leave')
+    expect(html).toContain('Reason: Asked the wrong person')
+    // Remove is offered for everyone not already removed, whatever their status.
+    expect(html.match(/>Remove reviewer</g)).toHaveLength(2)
+    expect(render(<InternalReviewPanel sop={sop} canRemove={false} />)).not.toContain('>Remove reviewer<')
+  })
+  it('shows Pending with the response due date and duration, then Withdrawn with its date', () => {
+    const sop = startInternalReview(draft(), 'author', '4.0', { reviewerIds: ['alpha'], responseDueDate: '2026-10-24', reviewDurationDays: 3 }, env())
+    const pending = render(<InternalReviewPanel sop={sop} canRemove />)
+    expect(pending).toContain('</span>Pending</span>')
+    expect(pending).toContain('If there is no response by then, the request is withdrawn.')
+    expect(pending).toContain('Review duration: 3 days, starts when accepted')
+    const withdrawn = withdrawUnanswered(sop, new Date(2026, 9, 24, 23, 59, 59, 999).getTime())
+    const html = render(<InternalReviewPanel sop={withdrawn} canRemove />)
+    expect(html).toContain('</span>Withdrawn</span>')
+    expect(html).toContain('Withdrawn automatically: no response by')
+    expect(html).not.toContain('starts when accepted')
+  })
+  it('shows Overdue once an accepted review passes its due date', () => {
+    let sop = startInternalReview(draft(), 'author', '4.0', { reviewerIds: ['alpha'], reviewDurationDays: 1 }, env())
+    sop = acceptInternalReview(sop, 'alpha', currentInternalRound(sop)!.id, request(sop, 'alpha').id, env())
+    expect(render(<InternalReviewPanel sop={sop} canRemove />)).toContain('</span>Accepted</span>')
+    vi.setSystemTime(new Date(2026, 9, 24, 23, 59, 59, 999))
+    const html = render(<InternalReviewPanel sop={sop} canRemove />)
+    expect(html).toContain('</span>Overdue</span>')
+    expect(html).toContain('Review overdue')
+    // Overdue only marks the request: it is still accepted.
+    expect(request(sop, 'alpha').decision).toBe('accepted')
+  })
+})
+
+describe('My Reviews', () => {
+  it('shows the reviewer the same request details, and keeps removed and withdrawn requests in Done', () => {
+    let sop = startInternalReview(draft(), 'author', '4.0', { reviewerIds: ['alpha', 'beta'], responseDueDate: '2026-10-24', reviewDurationDays: 3 }, env())
+    fixture.sop = sop
+    fixture.userId = 'alpha'
+    const todo = render(<ReviewsPage />)
+    expect(todo).toContain('</span>Pending</span>')
+    expect(todo).toContain('Request sent ')
+    expect(todo).toContain(internalReviewEn.panel.version.replace('{version}', '1'))
+    expect(todo).toContain('Review duration: 3 days, starts when accepted')
+    sop = removeInternalReviewer(sop, 'author', currentInternalRound(sop)!.id, request(sop, 'alpha').id, 'Covered by another team', env())
+    sop = withdrawUnanswered(sop, new Date(2026, 9, 24, 23, 59, 59, 999).getTime())
+    expect(reviewTasks('alpha', [sop])[0]).toMatchObject({ group: 'done', decision: 'removed' })
+    expect(reviewTasks('beta', [sop])[0]).toMatchObject({ group: 'done', decision: 'withdrawn' })
+    expect(render(<ReviewRequestDetails sop={sop} request={request(sop, 'alpha')} />)).toContain('Reason: Covered by another team')
+    expect(render(<ReviewRequestDetails sop={sop} request={request(sop, 'beta')} />)).toContain('Withdrawn automatically: no response by')
+  })
+})

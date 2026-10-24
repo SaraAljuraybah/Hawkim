@@ -63,6 +63,13 @@ export function isUnsentVersion(sop: Pick<Sop, 'version' | 'internalReviewRounds
   return !sop.reviewFlow && !!round && round.version !== sop.version
 }
 
+/** The request is the reviewer's latest one in the current version's open round, still waiting for them. */
+export function isActiveRequest(sop: Pick<Sop, 'status' | 'version' | 'internalReviewRounds'>, request: InternalReviewerAssignment): boolean {
+  const round = sop.internalReviewRounds?.at(-1)
+  return sop.status === 'in-review' && !!round && round.version === sop.version && round.status === 'open' &&
+    round.assignments.includes(request) && latestAssignmentOf(round, request.userId) === request && isOpenDecision(request.decision)
+}
+
 /** Doesn't count against completing the round: declined, withdrawn, removed, or cancelled by the author. */
 export function isWaived(assignment: Pick<InternalReviewerAssignment, 'decision' | 'cancellationReason'>): boolean {
   return assignment.decision === 'declined' || assignment.decision === 'withdrawn' || assignment.decision === 'removed' ||

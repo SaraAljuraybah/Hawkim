@@ -1,6 +1,6 @@
 import type { ApproverDecision, InternalReviewDecision, ReviewerDecision } from '../../data/mock/types'
 
-type Decision = ReviewerDecision | ApproverDecision | InternalReviewDecision
+type Decision = ReviewerDecision | ApproverDecision | InternalReviewDecision | 'overdue'
 
 /* Same colour pairs as the status badges (all meet WCAG AA). */
 const styles: Record<Decision, string> = {
@@ -13,6 +13,7 @@ const styles: Record<Decision, string> = {
   withdrawn: 'bg-status-cancelled-bg text-status-cancelled-fg',
   removed: 'bg-status-cancelled-bg text-status-cancelled-fg',
   cancelled: 'bg-beige text-text-gray',
+  overdue: 'bg-status-rejected-bg text-status-rejected-fg',
 }
 
 /** A reviewer's or approver's decision as a small pill; the label is always shown as text. */

@@ -69,6 +69,8 @@ function RequestDeadline({ sop, content, showQueue = false, request }: ReviewerD
   const remaining = reviewDueAt ? new Date(reviewDueAt).getTime() - now : undefined
   const overdue = active && remaining !== undefined && remaining <= 0
   const duration = request.reviewDurationDays
+  // A request that ended before acceptance (declined, withdrawn or removed) has no deadline left to show.
+  if (!active && !request.acceptedAt) return null
   return (
     <span className="flex w-full flex-col gap-0.5 text-xs text-text-gray">
       {showQueue && active && <span className="font-semibold text-maroon">{content.active}</span>}

@@ -2,6 +2,8 @@ import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ListChecks } from 'lucide-react'
 import { ReviewerDeadline } from '../components/workflow/ReviewerDeadline'
+import { RequestStatusBadge, ReviewRequestDetails } from '../components/workflow/ReviewRequestDetails'
+import type { InternalReviewerAssignment, ReviewerAssignment } from '../data/mock/types'
 import { sopWorkflowEn } from '../content/workflow.en'
 import { StatusBadge } from '../components/ui/StatusBadge'
 import { Tabs, type TabItem } from '../components/ui/Tabs'
@@ -121,7 +123,13 @@ export function ReviewsPage() {
                     )}
                   </div>
                   {/* Reviewer metadata belongs to this person; approval retains its stage deadline. */}
-                  {task.role === 'reviewer' ? (
+                  {task.role === 'reviewer' && task.reviewer && isInternalRequest(task.reviewer) ? (
+                    // Internal review: the same request details as on the author's review requests card.
+                    <div>
+                      <RequestStatusBadge sop={task.sop} request={task.reviewer} />
+                      <ReviewRequestDetails sop={task.sop} request={task.reviewer} />
+                    </div>
+                  ) : task.role === 'reviewer' ? (
                     <ReviewerDeadline sop={task.sop} reviewer={(task.reviewer ?? task.sop.reviewers.find((person) => person.userId === user.id))!} content={sopWorkflowEn.reviewerDeadline} showQueue />
                   ) : task.group === 'todo' && due(task)}
                 </div>
@@ -132,4 +140,9 @@ export function ReviewsPage() {
       </div>
     </>
   )
+}
+
+/** An internal review request (with its own id and sent time), not a legacy reviewer assignment. */
+function isInternalRequest(reviewer: ReviewerAssignment | InternalReviewerAssignment): reviewer is InternalReviewerAssignment {
+  return 'id' in reviewer && 'assignedAt' in reviewer
 }

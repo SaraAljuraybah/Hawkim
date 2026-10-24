@@ -92,10 +92,6 @@ export function ReviewTimelineTable({ sop, content, mainAuthorOnly = false }: Re
   /** Extra facts about some events: the co-author, the routed reviewer's department, the due date. */
   function details(event: TimelineEvent): ReactNode {
     const lines: ReactNode[] = []
-    if (event.reviewRoundId) {
-      const roundIndex = sop.internalReviewRounds?.findIndex((round) => round.id === event.reviewRoundId) ?? -1
-      if (roundIndex >= 0) lines.push(internalReviewEn.panel.roundReference.replace('{number}', String(roundIndex + 1)))
-    }
     if (event.cancellationReason) lines.push(internalReviewEn.panel.cancellationReasons[event.cancellationReason])
     if (event.reviewScope) {
       lines.push(
