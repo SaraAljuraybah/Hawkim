@@ -3,6 +3,7 @@ import { flushSync } from 'react-dom'
 import type { SopWorkflowContent } from '../../content/types'
 import { internalReviewEn } from '../../content/internalReview.en'
 import type { Sop } from '../../data/mock/types'
+import { addableReviewers } from '../../lib/internalReview'
 import { isValidReviewDuration, REVIEW_DURATION_MAX, REVIEW_DURATION_MIN } from '../../lib/internalReviewStatus'
 import { eligibleReviewers } from '../../lib/reviewFlow'
 import { parseDueDate, SUBMIT_COMMENT_MAX } from '../../lib/workflow'
@@ -19,6 +20,8 @@ interface SubmitDialogProps {
   content: SopWorkflowContent['dialogs']
   onSubmit: (options: SubmitOptions) => void
   onClose: () => void
+  /** 'add': send the current version to more reviewers in its open (or settled) review. */
+  mode?: 'submit' | 'add'
 }
 
 /** The duration field's value as days: blank is no review deadline, anything else must be a whole number. */
@@ -29,11 +32,12 @@ function durationDays(value: string): number | undefined | null {
 }
 
 /** Sends review requests to the selected reviewers, each with the same optional response due date and review duration. */
-export function SubmitDialog({ sop, content, onSubmit, onClose }: SubmitDialogProps) {
+export function SubmitDialog({ sop, content, onSubmit, onClose, mode = 'submit' }: SubmitDialogProps) {
   const text = internalReviewEn.submit
   const fields = content.submit
   const { activeUsers } = useUsers()
-  const options = eligibleReviewers(sop, sop.departmentId, activeUsers)
+  // Adding: only reviewers not yet asked, or whose latest request was declined, withdrawn or removed.
+  const options = mode === 'add' ? addableReviewers(sop, activeUsers) : eligibleReviewers(sop, sop.departmentId, activeUsers)
   const [reviewerIds, setReviewerIds] = useState<string[]>([])
   const [dueDate, setDueDate] = useState('')
   const [duration, setDuration] = useState('')
@@ -70,6 +74,7 @@ export function SubmitDialog({ sop, content, onSubmit, onClose }: SubmitDialogPr
   return (
     <FormDialog open title={text.title} confirmLabel={text.confirm} cancelLabel={content.cancel} onConfirm={confirm} onClose={onClose}>
       {error && <p id={reviewerErrorId} role="alert" className="text-sm text-status-rejected-fg">{error}</p>}
+      {mode === 'add' && <p className="text-sm text-text-gray">{text.addIntro.replace('{version}', sop.version)}</p>}
       {failed && <p role="alert" className="text-sm text-status-rejected-fg">{fields.errors.submitFailed}</p>}
       <MultiSelectField ref={firstRef} name="internalReviewers" label={text.reviewers} placeholder={text.reviewers}
         invalid={!!error} describedBy={error ? reviewerErrorId : undefined}

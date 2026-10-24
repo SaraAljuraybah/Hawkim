@@ -295,9 +295,10 @@ describe('assigned controller decisions at the store boundary', () => {
     author.resubmit(sop.id)
     const round = currentInternalRound(current())!
     author.removeInternalReviewer(sop.id, round.id, round.assignments[0].id, 'No longer needed')
-    expect(current().status).toBe('draft')
+    expect(current().status).toBe('in-review')
     expect(current().approvers).toEqual([])
-    expect(() => author.submitForReview(sop.id, { reviewerIds: ['controller'] })).toThrow(/eligible reviewers/)
+    // The former approver can't be added as a reviewer of the same SOP.
+    expect(() => author.addInternalReviewers(sop.id, { reviewerIds: ['controller'] })).toThrow(/eligible reviewers/)
     expect(() => author.addCoAuthors(sop.id, ['controller'])).toThrow(/approvers cannot be co-authors/)
   })
 })

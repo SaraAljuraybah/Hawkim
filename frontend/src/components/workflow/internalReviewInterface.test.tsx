@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import type { ReactNode } from 'react'
 import type { Sop, User } from '../../data/mock/types'
-import { acceptInternalReview, currentInternalRound, decideInternalReview, removeInternalReviewer, resubmitInternalReview, startInternalReview } from '../../lib/internalReview'
+import { acceptInternalReview, currentInternalRound, decideInternalReview, declineInternalReview, removeInternalReviewer, resubmitInternalReview, startInternalReview } from '../../lib/internalReview'
 import { uploadVersion } from '../../lib/workflow'
 import { reviewTasks } from '../../lib/reviews'
 import { deriveNotifications } from '../../lib/notifications'
@@ -46,6 +46,18 @@ beforeEach(() => { vi.useFakeTimers({ now: new Date(2026, 9, 23, 12) }); fixture
 afterEach(() => vi.useRealTimers())
 
 describe('internal parallel review across transitions and detail views', () => {
+  it('offers the Request reviews dialog for the same version with only reviewers who can be asked again', () => {
+    const started = start(), round = currentInternalRound(started)!
+    const sop = declineInternalReview(started, 'reviewer-a', round.id, round.assignments[0].id, 'On leave', environment())
+    fixture.sop = sop
+    expect(render(<SopWorkflowPage />)).toContain('>' + internalReviewEn.submit.button + '<')
+    const html = renderToStaticMarkup(<SubmitDialog mode="add" sop={sop} content={sopWorkflowEn.dialogs} onSubmit={() => {}} onClose={() => {}} />)
+    expect(html).toContain(internalReviewEn.submit.addIntro.replace('{version}', '1'))
+    expect(html).toContain('Reviewer Alpha')
+    expect(html).not.toContain('Reviewer Beta')
+    fixture.userId = 'coauthor'
+    expect(render(<SopWorkflowPage />)).not.toContain('>' + internalReviewEn.submit.button + '<')
+  })
   it('keeps unassigned users outside the Author and Reviewer detail views', () => {
     fixture.sop = start()
     fixture.userId = 'external'
@@ -127,12 +139,13 @@ describe('internal parallel review across transitions and detail views', () => {
     expect(html).toContain('v2')
     expect(fixture.sop.description).toBe('Description retained')
   })
-  it('removes actionable tasks after cancellation and returns to Draft without counting reviews', () => {
+  it('removes actionable tasks after every reviewer is removed and stays In Review without counting reviews', () => {
     let sop = start()
     const round = currentInternalRound(sop)!
     for (const assignment of round.assignments) sop = removeInternalReviewer(sop, 'author', round.id, assignment.id, 'No longer needed', environment())
     fixture.sop = sop
-    expect(sop.status).toBe('draft')
+    expect(sop.status).toBe('in-review')
+    expect(currentInternalRound(sop)!.status).toBe('open')
     for (const userId of ['reviewer-a', 'reviewer-b']) {
       expect(reviewTasks(userId, [sop]).every((task) => task.group !== 'todo')).toBe(true)
       expect(deriveNotifications(userId, { sops: [sop], requests: [], now: Date.now() }).some((item) => item.type === 'due-soon' || item.type === 'overdue')).toBe(false)
@@ -156,16 +169,18 @@ describe('historical review pages cannot reveal a later unassigned version', () 
   it('keeps former reviewer history and report access scoped while the newly assigned reviewer can work', () => {
     let sop = start()
     const round = currentInternalRound(sop)!
-    for (const assignment of round.assignments) sop = removeInternalReviewer(sop, 'author', round.id, assignment.id, 'No longer needed', environment())
+    sop = removeInternalReviewer(sop, 'author', round.id, round.assignments[0].id, 'No longer needed', environment())
+    sop = decide(sop, 'reviewer-b', 'returned', 'Revise version one')
     const history = JSON.stringify(sop.internalReviewRounds)
     vi.advanceTimersByTime(1000)
     const revised = uploadVersion(sop, 'author', { fileName: 'private-revision.docx', fileType: 'docx', fileUrl: '/private-v2.docx' })
     revised.complianceChecks = [...revised.complianceChecks, { ...draft().complianceChecks[0], id: 'private-check', version: revised.version, guideline: { name: 'Private v2 guideline', version: '4.0' } }]
-    fixture.sop = startInternalReview(revised, 'author', '4.0', { reviewerIds: ['reviewer-b'] }, environment())
+    fixture.sop = resubmitInternalReview(revised, 'author', '4.0', environment())
+    expect(currentInternalRound(fixture.sop)!.assignments.map((assignment) => assignment.userId)).toEqual(['reviewer-b'])
     fixture.userId = 'reviewer-a'
     const detail = render(<ReviewPage />)
     expect(detail).toContain('test.pdf')
-    expect(detail).toContain('Cancelled')
+    expect(detail).toContain('Removed')
     expect(detail).not.toContain('private-revision')
     expect(detail).not.toContain('/private-v2')
     expect(detail).not.toContain('Private v2 guideline')

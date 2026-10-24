@@ -2,6 +2,7 @@
 export const internalReviewEn = {
   submit: {
     title: 'Request reviews',
+    button: 'Request reviews', addIntro: 'Add reviewers to the review of v{version}.', added: 'Review requests sent.',
     reviewers: 'Select reviewers',
     reviewerRequired: 'Select at least one eligible reviewer.',
     noneEligible: 'No eligible reviewers are available in this department.',

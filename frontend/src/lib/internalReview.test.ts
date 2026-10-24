@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { SYSTEM_ACTOR, type Sop, type User } from '../data/mock/types'
-import { acceptInternalReview, currentInternalRound, decideInternalReview, declineInternalReview, isInternalReviewPending, nextWithdrawalAt, removeInternalReviewer, resubmitInternalReview, startInternalReview, withdrawUnanswered } from './internalReview'
+import { acceptInternalReview, addableReviewers, addInternalReviewers, canAddReviewers, currentInternalRound, decideInternalReview, declineInternalReview, isInternalReviewPending, nextWithdrawalAt, removeInternalReviewer, resubmitInternalReview, startInternalReview, withdrawUnanswered } from './internalReview'
+import { latestAssignmentOf } from './internalReviewStatus'
 import { deriveNotifications } from './notifications'
 import { reviewTasks } from './reviews'
 import { deleteBlockers, permissionChangeBlockers, sopsUsing } from './userAdmin'
@@ -15,7 +16,8 @@ function draft(): Sop {
   return { id: 'test', code: 'TEST', title: 'Test SOP', version: '1', departmentId: 'home', authorId: 'author', coAuthorIds: ['coauthor'], status: 'draft', lastUpdated: '2026-10-23', fileName: 'test.pdf', fileType: 'pdf', versions: [{ version: '1', fileName: 'test.pdf', fileType: 'pdf', uploadedAt: new Date().toISOString() }], reviewers: [], approvers: [], comments: [], timeline: [], complianceChecks: [check('1')] }
 }
 const start = () => startInternalReview(draft(), 'author', '4.0', { reviewerIds: ['a', 'b', 'c'], responseDueDate: '2026-10-28', reviewDurationDays: 5 }, env())
-function task(sop: Sop, userId: string) { return currentInternalRound(sop)!.assignments.find((assignment) => assignment.userId === userId)! }
+/** The reviewer's latest request in the current round. */
+function task(sop: Sop, userId: string) { return latestAssignmentOf(currentInternalRound(sop), userId)! }
 function accept(sop: Sop, userId: string) { return acceptInternalReview(sop, userId, currentInternalRound(sop)!.id, task(sop, userId).id, env()) }
 function decline(sop: Sop, userId: string, reason = 'Busy this week') { return declineInternalReview(sop, userId, currentInternalRound(sop)!.id, task(sop, userId).id, reason, env()) }
 /** Accepts first when needed: a decision is only possible on an accepted request. */
@@ -214,17 +216,48 @@ describe('rejection, cancellation and immutable history', () => {
     expect(() => cancel(cancelled, 'a')).toThrow()
     expect(() => decide(decide(sop, 'a'), 'a')).toThrow()
   })
-  it('returns to Draft if all assignments are cancelled before finals and preserves a new request on the same version separately', () => {
+  it('stays In Review with an open round when every reviewer is removed, and the author adds reviewers to the same version', () => {
     let sop = start(); const first = currentInternalRound(sop)!
     for (const user of ['a', 'b', 'c']) sop = cancel(sop, user)
-    expect(sop.status).toBe('draft')
+    expect(sop.status).toBe('in-review')
     expect(requiredReviewsComplete(sop)).toBe(false)
-    expect(currentInternalRound(sop)!.status).toBe('cancelled')
-    const old = JSON.stringify(sop.internalReviewRounds)
-    const next = startInternalReview(sop, 'author', '4.0', { reviewerIds: ['b', 'c'] }, env())
-    expect(JSON.stringify(next.internalReviewRounds!.slice(0, -1))).toBe(old)
-    expect(() => decideInternalReview(next, 'a', first.id, first.assignments[0].id, 'completed', undefined, env())).toThrow()
-    expect(reviewTasks('a', [next])[0]).toMatchObject({ group: 'done', decision: 'removed' })
+    expect(currentInternalRound(sop)!.status).toBe('open')
+    expect(pendingPeople(sop)).toEqual([])
+    const added = addInternalReviewers(sop, 'author', { reviewerIds: ['b', 'c'], responseDueDate: '2026-10-30' }, env())
+    expect(added.internalReviewRounds).toHaveLength(1)
+    expect(currentInternalRound(added)!.id).toBe(first.id)
+    expect(currentInternalRound(added)!.assignments.filter((person) => person.userId === 'b').map((person) => person.decision)).toEqual(['removed', 'pending'])
+    expect(currentInternalRound(added)!.assignments.at(-1)).toMatchObject({ userId: 'c', decision: 'pending', responseDueDate: '2026-10-30' })
+    expect(pendingPeople(added).map((person) => person.userId)).toEqual(['b', 'c'])
+    expect(added.reviewers.find((person) => person.userId === 'b')!.decision).toBe('pending')
+    expect(added.timeline.at(-1)).toMatchObject({ type: 'submitted', actorId: 'author', recipientIds: ['b', 'c'], reviewRoundId: first.id })
+    expect(deriveNotifications('b', { sops: [added], requests: [], now: Date.now() }).filter((item) => item.type === 'assigned-review').length).toBeGreaterThan(0)
+    expect(reviewTasks('a', [added])[0]).toMatchObject({ group: 'done', decision: 'removed' })
+    expect(reviewTasks('b', [added])[0]).toMatchObject({ group: 'todo' })
+  })
+  it('only adds new reviewers or those who declined, were withdrawn or were removed, by the main author', () => {
+    const sop = decline(start(), 'a')
+    expect(addableReviewers(sop, env().users).map((user) => user.id)).toEqual(['a'])
+    for (const reviewerIds of [['b'], ['a', 'b'], ['author'], ['other']]) expect(() => addInternalReviewers(sop, 'author', { reviewerIds }, env())).toThrow()
+    for (const actor of ['coauthor', 'a', 'admin']) expect(() => addInternalReviewers(sop, actor, { reviewerIds: ['a'] }, env())).toThrow()
+    expect(() => addInternalReviewers(sop, 'author', { reviewerIds: ['a'], reviewDurationDays: 31 }, env())).toThrow(/duration/)
+    expect(task(addInternalReviewers(sop, 'author', { reviewerIds: ['a'] }, env()), 'a').decision).toBe('pending')
+    const withdrawn = withdrawUnanswered(start(), new Date(2026, 9, 28, 23, 59, 59, 999).getTime())
+    expect(addableReviewers(withdrawn, env().users).map((user) => user.id)).toEqual(['a', 'b', 'c'])
+  })
+  it('reopens a settled round when a reviewer is added before submitting for approval', () => {
+    const settled = decide(decide(decide(start(), 'a'), 'b'), 'c')
+    expect(currentInternalRound(settled)!.status).toBe('completed')
+    expect(canAddReviewers(settled)).toBe(true)
+    const removed = cancel(settled, 'c')
+    expect(currentInternalRound(removed)!.status).toBe('completed')
+    const reopened = addInternalReviewers(removed, 'author', { reviewerIds: ['c'] }, env())
+    expect(currentInternalRound(reopened)!.status).toBe('open')
+    expect(currentInternalRound(reopened)!.closedAt).toBeUndefined()
+    expect(requiredReviewsComplete(reopened)).toBe(false)
+    const again = decide(reopened, 'c')
+    expect(currentInternalRound(again)!.status).toBe('completed')
+    expect(requiredReviewsComplete(again)).toBe(true)
   })
   it('finishes awaiting Author if pending tasks are waived after a successful final review', () => {
     const sop = cancel(cancel(decide(start(), 'a'), 'b'), 'c')

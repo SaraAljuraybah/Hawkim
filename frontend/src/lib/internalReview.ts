@@ -121,6 +121,36 @@ export function startInternalReview(sop: Sop, actorId: string, guidelineVersion:
   validate(sop, options, env)
   return create(sop, actorId, options, 'submitted')
 }
+/** Reviewers who can be sent the current version now: not yet asked, or their latest request was declined, withdrawn or removed. */
+export function addableReviewers(sop: Sop, users: ReviewEnvironment['users']) {
+  const round = currentInternalRound(sop)
+  return eligibleReviewers(sop, sop.departmentId, users).filter((user) => {
+    const latest = latestAssignmentOf(round?.version === sop.version ? round : undefined, user.id)
+    return !latest || isInactiveDecision(latest.decision)
+  })
+}
+/** Whether the main author can add reviewers to the current version's review now (it reopens a settled round). */
+export function canAddReviewers(sop: Sop): boolean {
+  const round = currentInternalRound(sop)
+  return sop.status === 'in-review' && !sop.reviewFlow && !!round && round.version === sop.version && (round.status === 'open' || round.status === 'completed')
+}
+/**
+ * The main author sends the current version to more reviewers, e.g. to replace one who declined,
+ * was withdrawn or was removed. Each gets a new request; their earlier one stays in the history.
+ */
+export function addInternalReviewers(sop: Sop, actorId: string, options: InternalReviewOptions, env: ReviewEnvironment): Sop {
+  author(sop, actorId, env)
+  assert(canAddReviewers(sop), 'Reviewers can only be added to the review of the current version')
+  validate(sop, options, env)
+  const addable = addableReviewers(sop, env.users)
+  assert(options.reviewerIds.every((userId) => addable.some((user) => user.id === userId)), 'These reviewers already have a request for this version')
+  const round = currentInternalRound(sop)!
+  const now = new Date().toISOString()
+  const timing = deadlines(options)
+  const updated: InternalReviewRound = { ...round, assignments: [...round.assignments,
+    ...options.reviewerIds.map((userId) => ({ id: id('internal-task'), userId, decision: 'pending' as const, assignedAt: now, assignedDueDays: null, ...timing }))] }
+  return settleRound(sop, updated, [event(round, 'submitted', actorId, { createdAt: now, recipientIds: options.reviewerIds, ...(options.note?.trim() ? { note: options.note.trim() } : {}) })])
+}
 /** The reviewer takes the task; a decision is only possible after accepting. */
 export function acceptInternalReview(sop: Sop, actorId: string, roundId: string, assignmentId: string, env: ReviewEnvironment): Sop {
   const { round, assignment } = active(sop, roundId, assignmentId)
@@ -147,11 +177,12 @@ export function declineInternalReview(sop: Sop, actorId: string, roundId: string
 function settleRound(sop: Sop, round: InternalReviewRound, events: TimelineEvent[]): Sop {
   const taking = latestAssignments(round).filter((person) => !isInactiveDecision(person.decision))
   if (taking.some((person) => isOpenDecision(person.decision))) return save(sop, { ...round, status: 'open', closedAt: undefined }, events)
-  if (taking.length && round.status === 'completed') return save(sop, round, events)
-  const completed = taking.length > 0
-  const updated: InternalReviewRound = { ...round, status: completed ? 'completed' : 'cancelled', closedAt: new Date().toISOString() }
-  events.push(event(round, completed ? 'internal-review-completed' : 'review-request-cancelled', SYSTEM_ACTOR, { recipientIds: [sop.authorId!], ...(!completed ? { cancellationReason: 'author-cancelled' as const } : {}) }))
-  return save(sop, updated, events, { status: completed ? 'in-review' : 'draft' })
+  // With nobody taking part, the round stays open (and the SOP In Review) until the author asks someone else.
+  if (!taking.length) return save(sop, { ...round, status: 'open', closedAt: undefined }, events)
+  if (round.status === 'completed') return save(sop, round, events)
+  const updated: InternalReviewRound = { ...round, status: 'completed', closedAt: new Date().toISOString() }
+  events.push(event(round, 'internal-review-completed', SYSTEM_ACTOR, { recipientIds: [sop.authorId!] }))
+  return save(sop, updated, events)
 }
 export function decideInternalReview(sop: Sop, actorId: string, roundId: string, assignmentId: string, decision: 'completed' | 'returned', text: string | undefined, env: ReviewEnvironment): Sop {
   const { round, assignment } = active(sop, roundId, assignmentId)

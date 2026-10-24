@@ -3,6 +3,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import type { Department, Sop, User } from '../../data/mock/types'
 import { approvalEn } from '../../content/approval.en'
+import { internalReviewEn } from '../../content/internalReview.en'
 import { sopWorkflowEn } from '../../content/workflow.en'
 import { submitForApproval } from '../../lib/approval'
 import { acceptInternalReview, currentInternalRound, decideInternalReview, removeInternalReviewer, startInternalReview } from '../../lib/internalReview'
@@ -105,7 +106,8 @@ describe('main Author approval interface', () => {
     const html = renderPage()
     expect(approvalButton(html)).toContain(' disabled=""')
     expect(html).toContain('id="approval-hint"')
-    expect(html).toContain(sopWorkflowEn.actions.submit)
+    // Everyone removed: still In Review, and the author can ask other reviewers.
+    expect(html).toContain('>' + internalReviewEn.submit.button + '<')
   })
   it('allows approval after a real completed review and an individually cancelled assignment', () => {
     const reviewed = decide(start(), 'reviewer-a')
