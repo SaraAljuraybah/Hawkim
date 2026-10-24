@@ -7,7 +7,7 @@ import { nextSopCode } from '../lib/sopCodes'
 import { assertCanCreateSop } from '../lib/sopAccess'
 import { submitForApproval } from '../lib/approval'
 import { applyReviewAction } from '../lib/reviewFlow'
-import { beginInternalReview, cancelInternalReview, decideInternalReview, resubmitInternalReview, startInternalReview } from '../lib/internalReview'
+import { acceptInternalReview, cancelInternalReview, decideInternalReview, declineInternalReview, resubmitInternalReview, startInternalReview } from '../lib/internalReview'
 import { useDepartments } from './departmentsContext'
 import * as workflow from '../lib/workflow'
 import { useGuidelines } from './guidelinesContext'
@@ -155,7 +155,8 @@ export function SopsProvider({ children }: { children: ReactNode }) {
       submitForReview: (id, o) => update(id, (sop) => startInternalReview(sop, userId, guideline.version, o, environment)),
       submitForApproval: (id, options) => update(id, (sop) => submitForApproval(sop, userId, options, environment)),
       reviewAction: (id, action) => update(id, (sop) => applyReviewAction(sop, userId, action, environment)),
-      beginInternalReview: (id, roundId, assignmentId) => update(id, (sop) => beginInternalReview(sop, userId, roundId, assignmentId, environment)),
+      acceptInternalReview: (id, roundId, assignmentId) => update(id, (sop) => acceptInternalReview(sop, userId, roundId, assignmentId, environment)),
+      declineInternalReview: (id, roundId, assignmentId, reason) => update(id, (sop) => declineInternalReview(sop, userId, roundId, assignmentId, reason, environment)),
       decideInternalReview: (id, roundId, assignmentId, decision, text) => update(id, (sop) => decideInternalReview(sop, userId, roundId, assignmentId, decision, text, environment)),
       cancelInternalReview: (id, roundId, assignmentId) => update(id, (sop) => cancelInternalReview(sop, userId, roundId, assignmentId, environment)),
       resubmit: (id, options) => update(id, (sop) => {

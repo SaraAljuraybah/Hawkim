@@ -45,7 +45,8 @@ export function InternalReviewPanel({ sop, canCancel }: Props) {
               <DecisionBadge decision={assignment.decision} labels={text.panel.decisions} />
             </div>
             <ReviewerDeadline sop={sop} reviewer={assignment} content={sopWorkflowEn.reviewerDeadline} />
-            {assignment.startedAt && <p className="mt-1 text-xs text-text-gray">{text.panel.started.replace('{date}', formatDateTime(assignment.startedAt))}</p>}
+            {assignment.acceptedAt && <p className="mt-1 text-xs text-text-gray">{text.panel.accepted.replace('{date}', formatDateTime(assignment.acceptedAt))}</p>}
+            {assignment.declineReason && <p className="mt-2 text-sm whitespace-pre-wrap break-words text-maroon">{text.panel.declineReason.replace('{reason}', assignment.declineReason)}</p>}
             {assignment.decidedAt && <p className="mt-1 text-xs text-text-gray">{text.panel.decided.replace('{date}', formatDateTime(assignment.decidedAt))}</p>}
             {comment && <p className="mt-2 text-sm whitespace-pre-wrap break-words text-maroon">{comment.text}</p>}
             {assignment.cancellationReason && <p className="mt-2 text-sm text-text-gray">{text.panel.cancellationReasons[assignment.cancellationReason]}</p>}

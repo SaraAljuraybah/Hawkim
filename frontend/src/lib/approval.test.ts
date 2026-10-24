@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ApprovalDecisionSnapshot, ExternalReviewGate, Sop, User } from '../data/mock/types'
 import { approvalReadiness, submitForApproval, type ApprovalSubmissionOptions } from './approval'
-import { beginInternalReview, cancelInternalReview, decideInternalReview, resubmitInternalReview, startInternalReview } from './internalReview'
+import { acceptInternalReview, cancelInternalReview, decideInternalReview, resubmitInternalReview, startInternalReview } from './internalReview'
 import type { ReviewEnvironment } from './reviewFlow'
 import { activeApprovalSubmission, approveAs, canResubmit, completeReview, currentDueAt, pendingPeople, publishAs, returnAsApprover, shiftDueDates, submitForReview, uploadVersion } from './workflow'
 
@@ -26,7 +26,13 @@ function draft(): Sop {
     reviewers: [], approvers: [], comments: [], timeline: [], complianceChecks: [check('1')] }
 }
 function requested() { return startInternalReview(draft(), 'author', '4.0', { reviewerIds: ['a', 'b'] }, environment()) }
-function decide(sop: Sop, userId: string, decision: 'completed' | 'returned' = 'completed', text?: string): Sop {
+/** Reviewers accept before deciding. */
+function accept(sop: Sop, userId: string): Sop {
+  const round = sop.internalReviewRounds!.at(-1)!, assignment = round.assignments.find((item) => item.userId === userId)!
+  return assignment.decision === 'pending' ? acceptInternalReview(sop, userId, round.id, assignment.id, environment()) : sop
+}
+function decide(source: Sop, userId: string, decision: 'completed' | 'returned' = 'completed', text?: string): Sop {
+  const sop = accept(source, userId)
   const round = sop.internalReviewRounds!.at(-1)!
   return decideInternalReview(sop, userId, round.id, round.assignments.find((assignment) => assignment.userId === userId)!.id, decision, text, environment())
 }
@@ -92,7 +98,7 @@ describe('Author-controlled approval eligibility', () => {
 
   it('blocks a started but unfinished task and cannot infer completion from the pending count', () => {
     const sop = requested(); const round = sop.internalReviewRounds!.at(-1)!
-    const started = beginInternalReview(sop, 'a', round.id, round.assignments[0].id, environment())
+    const started = acceptInternalReview(sop, 'a', round.id, round.assignments[0].id, environment())
     expect(() => submit(decide(started, 'b'))).toThrow()
     const cancelled = cancel(cancel(started, 'a'), 'b')
     expect(pendingPeople(cancelled)).toEqual([])

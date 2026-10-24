@@ -181,9 +181,21 @@ export interface ReviewerAssignment {
 /** Cancellation is a request outcome, not a completed content review. */
 export type ReviewCancellationReason = 'author-cancelled' | 'round-rejected'
 
-export interface InternalReviewerAssignment extends ReviewerAssignment {
+/**
+ * An internal review request: pending until the reviewer accepts or declines; only an
+ * accepted request can be completed or returned.
+ */
+export type InternalReviewDecision = 'pending' | 'accepted' | 'declined' | 'completed' | 'returned' | 'cancelled'
+
+export interface InternalReviewerAssignment extends Omit<ReviewerAssignment, 'decision' | 'startedAt'> {
   id: string
+  decision: InternalReviewDecision
+  /** When the request was sent. */
   assignedAt: string
+  /** When the reviewer accepted the request. */
+  acceptedAt?: string
+  /** Required when the reviewer declines. */
+  declineReason?: string
   commentId?: string
   cancelledAt?: string
   cancelledById?: string
@@ -292,7 +304,8 @@ export type TimelineEventType =
   | 'review-assigned'
   | 'review-returned'
   | 'review-scope-decided'
-  | 'review-started'
+  | 'review-accepted'
+  | 'review-declined'
   | 'review-cancelled'
   | 'review-request-cancelled'
   | 'internal-review-completed'

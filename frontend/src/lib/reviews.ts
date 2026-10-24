@@ -1,4 +1,5 @@
-import type { ReviewerAssignment, Sop } from '../data/mock/types'
+import type { InternalReviewerAssignment, ReviewerAssignment, Sop } from '../data/mock/types'
+import { isOpenDecision, latestAssignmentOf } from './internalReviewStatus'
 import { reviewSopForUser } from './reviewAccess'
 import { activeApprovalSubmission, currentDueAt, currentReviewer, isOverdue, reviewerDueAt } from './workflow'
 
@@ -27,7 +28,7 @@ export interface ReviewTask {
   decidedAt?: string
   /** The reviewer's own deadline, or the open approval stage deadline. */
   dueAt?: string
-  reviewer?: ReviewerAssignment
+  reviewer?: ReviewerAssignment | InternalReviewerAssignment
 }
 
 /** One task per SOP the user is assigned to (a person is never both reviewer and approver on one SOP). */
@@ -41,9 +42,9 @@ export function reviewTasks(userId: string, sops: Sop[]): ReviewTask[] {
     const assignedApprover = sop.approvers.some((person) => person.userId === userId)
     if (round && !sop.reviewFlow && !assignedApprover) {
       const ownRound = [...sop.internalReviewRounds!].reverse().find((item) => item.assignments.some((person) => person.userId === userId))
-      const assignment = ownRound?.assignments.find((person) => person.userId === userId)
+      const assignment = latestAssignmentOf(ownRound, userId)
       if (assignment) {
-        const active = ownRound!.id === round.id && round.status === 'open' && round.version === sop.version && sop.status === 'in-review' && assignment.decision === 'pending'
+        const active = ownRound!.id === round.id && round.status === 'open' && round.version === sop.version && sop.status === 'in-review' && isOpenDecision(assignment.decision)
         tasks.push({ sop, role: 'reviewer', group: active ? 'todo' : 'done', ...(active ? { need: 'review' as const } : {}), decision: assignment.decision, decidedAt: assignment.decidedAt, dueAt: reviewerDueAt(sop, assignment), reviewer: assignment })
         continue
       }

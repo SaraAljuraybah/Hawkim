@@ -1,18 +1,20 @@
-import type { ApproverDecision, ReviewerDecision } from '../../data/mock/types'
+import type { ApproverDecision, InternalReviewDecision, ReviewerDecision } from '../../data/mock/types'
 
-type Decision = ReviewerDecision | ApproverDecision
+type Decision = ReviewerDecision | ApproverDecision | InternalReviewDecision
 
 /* Same colour pairs as the status badges (all meet WCAG AA). */
 const styles: Record<Decision, string> = {
   pending: 'bg-status-pending-bg text-status-pending-fg',
+  accepted: 'bg-status-published-bg text-status-published-fg',
   completed: 'bg-status-approved-bg text-status-approved-fg',
   approved: 'bg-status-approved-bg text-status-approved-fg',
   returned: 'bg-status-rejected-bg text-status-rejected-fg',
+  declined: 'bg-status-cancelled-bg text-status-cancelled-fg',
   cancelled: 'bg-beige text-text-gray',
 }
 
 /** A reviewer's or approver's decision as a small pill; the label is always shown as text. */
-export function DecisionBadge({ decision, labels }: { decision: Decision; labels: Record<Decision, string> }) {
+export function DecisionBadge<D extends Decision>({ decision, labels }: { decision: D; labels: Record<D, string> }) {
   return (
     <span
       className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border border-current/15 px-2.5 py-0.5 text-xs font-medium whitespace-nowrap ${styles[decision]}`}

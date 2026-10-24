@@ -151,7 +151,8 @@ export const sopWorkflowEn: SopWorkflowContent = {
     viewMore: 'View more',
     viewLess: 'View less',
     events: {
-      'review-started': 'Review started',
+      'review-accepted': 'Review accepted',
+      'review-declined': 'Review declined',
       'review-cancelled': 'Review assignment cancelled',
       'review-request-cancelled': 'Review request cancelled; SOP returned to Draft',
       'internal-review-completed': 'Internal reviews completed; awaiting Author',

@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { renderToStaticMarkup } from 'react-dom/server'
 import type { ApprovalDecisionSnapshot, Department, Sop, User } from '../data/mock/types'
 import { submitForApproval, type ApprovalSubmissionOptions } from '../lib/approval'
-import { currentInternalRound, decideInternalReview, startInternalReview, type InternalReviewOptions } from '../lib/internalReview'
+import { acceptInternalReview, currentInternalRound, decideInternalReview, startInternalReview, type InternalReviewOptions } from '../lib/internalReview'
 import { activeApprovalSubmission, isApprover, returnAsApprover, uploadVersion } from '../lib/workflow'
 import { SopsProvider } from './SopsProvider'
 import { useSops, type SopsStore } from './sopsContext'
@@ -36,7 +36,8 @@ function reviewed(deadlines: Pick<InternalReviewOptions, 'dueDate'> = {}): Sop {
   const draft: Sop = { id: 'test', code: 'TEST', title: 'Approval fixture', description: 'Preserved description', version: '1', departmentId: 'home', authorId: 'author', coAuthorIds: ['coauthor'], status: 'draft', lastUpdated: '2026-10-23', fileName: 'test.pdf', fileType: 'pdf', fileUrl: '/test.pdf', versions: [{ version: '1', fileName: 'test.pdf', fileType: 'pdf', fileUrl: '/test.pdf', uploadedAt: new Date().toISOString() }], reviewers: [], approvers: [], comments: [], timeline: [], complianceChecks: [check('1')] }
   const started = startInternalReview(draft, 'author', '4.0', { reviewerIds: ['reviewer'], ...deadlines }, env())
   const round = currentInternalRound(started)!
-  return decideInternalReview(started, 'reviewer', round.id, round.assignments[0].id, 'completed', 'Checked this version', env())
+  const accepted = acceptInternalReview(started, 'reviewer', round.id, round.assignments[0].id, env())
+  return decideInternalReview(accepted, 'reviewer', round.id, round.assignments[0].id, 'completed', 'Checked this version', env())
 }
 function options(sop: Sop): ApprovalSubmissionOptions {
   return { version: sop.version, internalReviewRoundId: currentInternalRound(sop)!.id, noExternalReviewsRequired: true, feedbackAddressed: true, dueDate: '2026-10-28' }
@@ -100,7 +101,8 @@ describe('deadline simulation requires a current assignment', () => {
 
   it('allows a current v2 Approver to shift only the active approval deadline, preserving v1 history and original allocations', () => {
     const revised = restartedReview(), round = currentInternalRound(revised)!
-    const completed = decideInternalReview(revised, 'reviewer', round.id, round.assignments[0].id, 'completed', undefined, env())
+    const accepted = acceptInternalReview(revised, 'reviewer', round.id, round.assignments[0].id, env())
+    const completed = decideInternalReview(accepted, 'reviewer', round.id, round.assignments[0].id, 'completed', undefined, env())
     const sop = submitForApproval(completed, 'author', options(completed), env())
     const before = structuredClone(sop), store = capture('controller', sop)
     store.shiftDueDates(sop.id, 1)

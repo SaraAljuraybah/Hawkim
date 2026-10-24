@@ -1,13 +1,14 @@
 import type { SopWorkflowContent } from '../../content/types'
-import type { ReviewerAssignment, Sop } from '../../data/mock/types'
+import type { InternalReviewerAssignment, ReviewerAssignment, Sop } from '../../data/mock/types'
 import { useDeadlineClock } from '../../hooks/useDeadlineClock'
 import { formatDateTime } from '../../lib/format'
+import { isOpenDecision, latestAssignmentOf } from '../../lib/internalReviewStatus'
 import { formatReviewDuration } from '../../lib/reviewDuration'
 import { currentReviewer, reviewerAssignedMilliseconds, reviewerDueAt, reviewerRemainingMilliseconds } from '../../lib/workflow'
 
 interface ReviewerDeadlineProps {
   sop: Sop
-  reviewer: ReviewerAssignment
+  reviewer: ReviewerAssignment | InternalReviewerAssignment
   content: SopWorkflowContent['reviewerDeadline']
   showQueue?: boolean
 }
@@ -18,7 +19,7 @@ export function ReviewerDeadline({ sop, reviewer, content, showQueue = false }: 
   const dueAt = reviewerDueAt(sop, reviewer)
   const round = !sop.reviewFlow ? sop.internalReviewRounds?.at(-1) : undefined
   const active = round
-    ? sop.status === 'in-review' && round.status === 'open' && round.version === sop.version && round.assignments.some((person) => person.userId === reviewer.userId && person.decision === 'pending' && (!('id' in reviewer) || person.id === reviewer.id))
+    ? sop.status === 'in-review' && round.status === 'open' && round.version === sop.version && isLatestOpen(latestAssignmentOf(round, reviewer.userId), reviewer)
     : currentReviewer(sop)?.userId === reviewer.userId
   const now = useDeadlineClock(dueAt, active)
   const remaining = reviewerRemainingMilliseconds(sop, reviewer, now)
@@ -39,4 +40,9 @@ export function ReviewerDeadline({ sop, reviewer, content, showQueue = false }: 
       )}
     </span>
   )
+}
+
+/** The reviewer's latest request is still open, and it's the one shown (when it has an id). */
+function isLatestOpen(latest: InternalReviewerAssignment | undefined, reviewer: ReviewerAssignment | InternalReviewerAssignment): boolean {
+  return !!latest && isOpenDecision(latest.decision) && (!('id' in reviewer) || latest.id === reviewer.id)
 }

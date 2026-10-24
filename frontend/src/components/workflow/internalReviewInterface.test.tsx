@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import type { ReactNode } from 'react'
 import type { Sop, User } from '../../data/mock/types'
-import { cancelInternalReview, currentInternalRound, decideInternalReview, resubmitInternalReview, startInternalReview } from '../../lib/internalReview'
+import { acceptInternalReview, cancelInternalReview, currentInternalRound, decideInternalReview, resubmitInternalReview, startInternalReview } from '../../lib/internalReview'
 import { uploadVersion } from '../../lib/workflow'
 import { reviewTasks } from '../../lib/reviews'
 import { deriveNotifications } from '../../lib/notifications'
@@ -24,14 +24,20 @@ vi.mock('../../state/sessionContext', () => ({ useCurrentUser: () => fixture.use
 vi.mock('../../state/usersContext', () => ({ useUsers: () => ({ users: fixture.users, activeUsers: fixture.users, nameOf: (id: string) => fixture.users.find((user) => user.id === id)?.name ?? id ?? '', getUser: (id: string) => fixture.users.find((user) => user.id === id) }) }))
 vi.mock('../../state/departmentsContext', () => ({ useDepartments: () => ({ departments: fixture.departments, nameOf: (id: string) => id }) }))
 vi.mock('../../state/guidelinesContext', () => ({ useGuidelines: () => ({ current: { version: '4.0' } }) }))
-vi.mock('../../state/sopsContext', () => ({ useSops: () => ({ sops: [fixture.sop], cancelInternalReview: vi.fn(), beginInternalReview: vi.fn(), decideInternalReview: vi.fn() }) }))
+vi.mock('../../state/sopsContext', () => ({ useSops: () => ({ sops: [fixture.sop], cancelInternalReview: vi.fn(), acceptInternalReview: vi.fn(), declineInternalReview: vi.fn(), decideInternalReview: vi.fn() }) }))
 const environment = () => ({ users: fixture.users, departments: fixture.departments })
 function draft(): Sop {
   return { id: 'test', code: 'SOP-TEST', title: 'Internal review fixture', description: 'Description retained', departmentId: 'home', version: '1', status: 'draft', lastUpdated: '2026-10-23', authorId: 'author', coAuthorIds: ['coauthor'], fileName: 'test.pdf', fileType: 'pdf', reviewers: [], approvers: [], comments: [], timeline: [], versions: [{ version: '1', fileName: 'test.pdf', fileType: 'pdf', uploadedAt: new Date().toISOString(), uploadedById: 'author' }], complianceChecks: [{ id: 'check', sopId: 'test', version: '1', status: 'completed', startedAt: new Date().toISOString(), guideline: { name: 'GVP', version: '4.0' }, findings: [] }] }
 }
 function start() { return startInternalReview(draft(), 'author', '4.0', { reviewerIds: ['reviewer-a', 'reviewer-b'], dueDate: '2026-10-28' }, environment()) }
 function render(page: ReactNode) { return renderToStaticMarkup(<MemoryRouter initialEntries={['/test']}><Routes><Route path="/:id" element={page} /></Routes></MemoryRouter>) }
-function decide(sop: Sop, userId: string, decision: 'completed' | 'returned', text?: string) {
+function accept(sop: Sop, userId: string) {
+  const round = currentInternalRound(sop)!
+  return acceptInternalReview(sop, userId, round.id, round.assignments.find((item) => item.userId === userId)!.id, environment())
+}
+function decide(source: Sop, userId: string, decision: 'completed' | 'returned', text?: string) {
+  const first = currentInternalRound(source)!, own = first.assignments.find((item) => item.userId === userId)!
+  const sop = own.decision === 'pending' ? acceptInternalReview(source, userId, first.id, own.id, environment()) : source
   const round = currentInternalRound(sop)!
   return decideInternalReview(sop, userId, round.id, round.assignments.find((item) => item.userId === userId)!.id, decision, text, environment())
 }
@@ -73,8 +79,15 @@ describe('internal parallel review across transitions and detail views', () => {
       fixture.userId = userId
       expect(reviewTasks(userId, [fixture.sop])[0].group).toBe('todo')
       const html = render(<ReviewPage />)
-      expect(html).toContain('Complete review')
-      expect(html).toContain('Reject SOP')
+      expect(html).toContain('>Accept review<')
+      expect(html).toContain('>Decline review<')
+      expect(html).not.toContain('>Complete review<')
+      fixture.sop = accept(fixture.sop, userId)
+      const accepted = render(<ReviewPage />)
+      expect(accepted).toContain('>Complete review<')
+      expect(accepted).toContain('>Reject SOP<')
+      expect(accepted).not.toContain('>Accept review<')
+
       expect(html).toContain('Description retained')
       expect(html).not.toContain('Route to another department')
       expect(html).not.toContain('Forward to reviewer')
@@ -152,7 +165,7 @@ describe('historical review pages cannot reveal a later unassigned version', () 
     expect(report).not.toContain('value="2"')
     expect(report).not.toContain('Private v2 guideline')
     fixture.userId = 'reviewer-b'
-    expect(render(<ReviewPage />)).toContain('Complete review')
+    expect(render(<ReviewPage />)).toContain('>Accept review<')
     expect(render(<ReviewPage />)).toContain('/private-v2.docx')
     expect(JSON.stringify(fixture.sop.internalReviewRounds!.slice(0, -1))).toBe(history)
   })

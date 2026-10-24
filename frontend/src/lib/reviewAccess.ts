@@ -1,4 +1,5 @@
 import type { Sop } from '../data/mock/types'
+import { projectReviewers } from './internalReviewStatus'
 import { isApprover, isReviewer } from './workflow'
 
 /** A reviewer-facing view; historical membership never authorizes a newer file. */
@@ -41,7 +42,7 @@ export function reviewSopForUser(sop: Sop, userId: string): { sop: Sop; historic
         fileType: file!.fileType,
         fileUrl: file!.fileUrl,
         status: approval ? approval.status === 'pending' ? 'in-approval' as const : approval.status : round?.status === 'rejected' ? 'returned' as const : round?.status === 'cancelled' ? 'draft' as const : 'in-review' as const,
-        reviewers: round?.assignments ?? [],
+        reviewers: round ? projectReviewers(round) : [],
         approvers: approval ? [{ userId, version, decision: approval.status === 'pending' ? 'pending' as const : approval.status === 'returned' ? 'returned' as const : 'approved' as const, decidedAt: approval.decidedAt }] : [],
         reviewFlow: undefined,
         reviewDueDays: round?.assignedDueDays ?? undefined,

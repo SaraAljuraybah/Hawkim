@@ -14,6 +14,7 @@ import {
 import type { SopStatus } from '../types/status'
 import { hasCurrentCheck } from './compliance'
 import { todayIsoDate } from './format'
+import { isOpenDecision, latestAssignments, projectReviewers } from './internalReviewStatus'
 
 /*
  * SOP workflow rules (Sprint 0, PBI 2 / 3 / 6 / 8 / 12 / 22 / 24) as pure functions.
@@ -170,7 +171,7 @@ export function pendingPeople(
   if (sop.status === 'in-review') {
     const round = sop.internalReviewRounds?.at(-1)
     if (round && !sop.reviewFlow) return round.status === 'open' && round.version === sop.version
-      ? round.assignments.filter((person) => person.decision === 'pending').map((person) => ({ userId: person.userId, role: 'reviewer' as const }))
+      ? latestAssignments(round).filter((person) => isOpenDecision(person.decision)).map((person) => ({ userId: person.userId, role: 'reviewer' as const }))
       : []
     const reviewer = currentReviewer(sop)
 
@@ -194,8 +195,11 @@ export function pendingPeople(
 
 // ---------- Due dates (PBI 3) ----------
 
+/** A legacy reviewer assignment or an internal review request: what its deadline depends on. */
+export type DeadlineHolder = Pick<ReviewerAssignment, 'userId' | 'dueDate' | 'assignedDueDays'> & { assignedAt?: string }
+
 /** Original allocation, with compatibility for date-only and shared-deadline records. */
-export function reviewerAssignedDays(sop: Sop, reviewer: ReviewerAssignment): number | undefined {
+export function reviewerAssignedDays(sop: Sop, reviewer: DeadlineHolder): number | undefined {
   if (reviewer.assignedDueDays !== undefined) return reviewer.assignedDueDays ?? undefined
   if (reviewer.dueDate) {
     const submitted = [...sop.timeline].reverse().find((item) => item.type === 'submitted' || item.type === 'resubmitted')
@@ -211,13 +215,13 @@ export function dueAtOfDate(isoDate: string): string {
 }
 
 /** This person's deadline, including legacy shared deadlines. An explicit blank never inherits one. */
-export function reviewerDueAt(sop: Sop, reviewer: ReviewerAssignment): string | undefined {
+export function reviewerDueAt(sop: Sop, reviewer: DeadlineHolder): string | undefined {
   if (reviewer.assignedDueDays === null) return undefined
   return reviewer.dueDate ? dueAtOfDate(reviewer.dueDate) : sop.reviewDueAt
 }
 
 /** Whether this task date has passed; callers also check that the assignment is active. */
-export function reviewerDeadlinePassed(sop: Sop, reviewer: ReviewerAssignment, now = Date.now()): boolean {
+export function reviewerDeadlinePassed(sop: Sop, reviewer: DeadlineHolder, now = Date.now()): boolean {
   const dueAt = reviewerDueAt(sop, reviewer)
   return !!dueAt && new Date(dueAt).getTime() <= now
 }
@@ -236,7 +240,7 @@ export function currentDueAt(sop: Sop): string | undefined {
 }
 
 /** Real elapsed time remaining, separate from the original calendar allocation. */
-export function reviewerRemainingMilliseconds(sop: Sop, reviewer: ReviewerAssignment, now = Date.now()): number | undefined {
+export function reviewerRemainingMilliseconds(sop: Sop, reviewer: DeadlineHolder, now = Date.now()): number | undefined {
   const dueAt = reviewerDueAt(sop, reviewer)
   return dueAt ? new Date(dueAt).getTime() - now : undefined
 }
@@ -253,7 +257,7 @@ function allocationMilliseconds(assignedAt: string, days: number): number {
 }
 
 /** Original real time given; simulating an overdue date does not rewrite this allocation. */
-export function reviewerAssignedMilliseconds(sop: Sop, reviewer: ReviewerAssignment): number | undefined {
+export function reviewerAssignedMilliseconds(sop: Sop, reviewer: DeadlineHolder): number | undefined {
   const days = reviewerAssignedDays(sop, reviewer)
   if (days === undefined) return undefined
   if ('assignedAt' in reviewer && typeof reviewer.assignedAt === 'string') return allocationMilliseconds(reviewer.assignedAt, days)
@@ -268,7 +272,7 @@ export function reviewAssignedMilliseconds(sop: Sop): number | undefined {
 }
 
 /** Fractional 24-hour days, for legacy consumers; never a calendar-date subtraction. */
-export function reviewerRemainingDays(sop: Sop, reviewer: ReviewerAssignment, now = new Date()): number | undefined {
+export function reviewerRemainingDays(sop: Sop, reviewer: DeadlineHolder, now = new Date()): number | undefined {
   const remaining = reviewerRemainingMilliseconds(sop, reviewer, now.getTime())
   return remaining === undefined ? undefined : remaining / DAY_MS
 }
@@ -781,9 +785,10 @@ export function returnAsReviewer(sop: Sop, reviewerId: string, text: string): So
 /** Internal completion alone is the boundary for the next Author-controlled action. */
 export function internalReviewsComplete(sop: Sop): boolean {
   const round = sop.internalReviewRounds?.at(-1)
+  const latest = round ? latestAssignments(round) : []
   return !!round && round.version === sop.version && round.status === 'completed' &&
-    round.assignments.some((person) => person.decision === 'completed') &&
-    round.assignments.every((person) => person.decision === 'completed' || person.decision === 'cancelled' && person.cancellationReason === 'author-cancelled')
+    latest.some((person) => person.decision === 'completed') &&
+    latest.every((person) => person.decision === 'completed' || person.decision === 'declined' || person.decision === 'cancelled' && person.cancellationReason === 'author-cancelled')
 }
 
 /** All required initial and department reviews must be evidenced by completed assignments. */
@@ -792,7 +797,7 @@ export function requiredReviewsComplete(sop: Sop): boolean {
   if (round) {
     if (!internalReviewsComplete(sop)) return false
     const waived = (person: ReviewerAssignment) => round.assignments.some((assignment) =>
-      'id' in person && person.id === assignment.id && assignment.decision === 'cancelled' && assignment.cancellationReason === 'author-cancelled')
+      'id' in person && person.id === assignment.id && (assignment.decision === 'declined' || assignment.decision === 'cancelled' && assignment.cancellationReason === 'author-cancelled'))
     if (!sop.reviewers.every((person) => person.decision === 'completed' || person.decision === 'cancelled' && waived(person))) return false
   }
   const flow = sop.reviewFlow
@@ -989,10 +994,10 @@ export function shiftDueDates(sop: Sop, days: number): Sop {
     const shifted = {
       ...round,
       ...(round.dueDate ? { dueDate: localDatePlus(new Date(round.dueDate + 'T12:00:00'), -days) } : {}),
-      assignments: round.assignments.map((person) => person.decision === 'pending' && person.dueDate
+      assignments: round.assignments.map((person) => isOpenDecision(person.decision) && person.dueDate
         ? { ...person, dueDate: localDatePlus(new Date(person.dueDate + 'T12:00:00'), -days) } : person),
     }
-    return { ...sop, internalReviewRounds: [...sop.internalReviewRounds!.slice(0, -1), shifted], reviewers: shifted.assignments,
+    return { ...sop, internalReviewRounds: [...sop.internalReviewRounds!.slice(0, -1), shifted], reviewers: projectReviewers(shifted),
       reviewDueAt: shifted.dueDate ? new Date(shifted.dueDate + 'T23:59:59.999').toISOString() : undefined }
   }
   return {

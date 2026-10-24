@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Sop, User } from '../data/mock/types'
-import { beginInternalReview, cancelInternalReview, currentInternalRound, decideInternalReview, isInternalReviewPending, resubmitInternalReview, startInternalReview } from './internalReview'
+import { acceptInternalReview, cancelInternalReview, currentInternalRound, decideInternalReview, declineInternalReview, isInternalReviewPending, resubmitInternalReview, startInternalReview } from './internalReview'
 import { deriveNotifications } from './notifications'
 import { reviewTasks } from './reviews'
 import { deleteBlockers, permissionChangeBlockers, sopsUsing } from './userAdmin'
@@ -16,7 +16,13 @@ function draft(): Sop {
 }
 const start = () => startInternalReview(draft(), 'author', '4.0', { reviewerIds: ['a', 'b', 'c'], dueDate: '2026-10-28' }, env())
 function task(sop: Sop, userId: string) { return currentInternalRound(sop)!.assignments.find((assignment) => assignment.userId === userId)! }
-function decide(sop: Sop, userId: string, decision: 'completed' | 'returned' = 'completed', text?: string) { return decideInternalReview(sop, userId, currentInternalRound(sop)!.id, task(sop, userId).id, decision, text, env()) }
+function accept(sop: Sop, userId: string) { return acceptInternalReview(sop, userId, currentInternalRound(sop)!.id, task(sop, userId).id, env()) }
+function decline(sop: Sop, userId: string, reason = 'Busy this week') { return declineInternalReview(sop, userId, currentInternalRound(sop)!.id, task(sop, userId).id, reason, env()) }
+/** Accepts first when needed: a decision is only possible on an accepted request. */
+function decide(sop: Sop, userId: string, decision: 'completed' | 'returned' = 'completed', text?: string) {
+  const accepted = task(sop, userId).decision === 'pending' ? accept(sop, userId) : sop
+  return decideInternalReview(accepted, userId, currentInternalRound(accepted)!.id, task(accepted, userId).id, decision, text, env())
+}
 function cancel(sop: Sop, userId: string, actor = 'author') { return cancelInternalReview(sop, actor, currentInternalRound(sop)!.id, task(sop, userId).id, env()) }
 function revise(sop: Sop) { vi.advanceTimersByTime(1000); const updated = uploadVersion(sop, 'author', { fileName: 'revised.pdf', fileType: 'pdf' }); return { ...updated, complianceChecks: [...updated.complianceChecks, check(updated.version)] } }
 beforeEach(() => vi.useFakeTimers({ now: new Date(2026, 9, 23, 12) }))
@@ -98,13 +104,51 @@ describe('internal parallel review requests', () => {
     expect(currentInternalRound(distant)!.assignedDueDays).toBeGreaterThan(30)
     expect(distant.reviewers.every((assignment) => assignment.dueDate === '2027-01-15')).toBe(true)
   })
-  it('supports beginning work without a final decision and author cancellation while in progress', () => {
+  it('supports accepting without a final decision and author cancellation while in progress', () => {
+    const sop = start()
+    const accepted = accept(sop, 'a')
+    expect(task(accepted, 'a').decision).toBe('accepted')
+    expect(task(accepted, 'a').acceptedAt).toBe(new Date().toISOString())
+    expect(accepted.timeline.at(-1)).toMatchObject({ type: 'review-accepted', actorId: 'a', reviewAssignmentId: task(sop, 'a').id })
+    expect(isInternalReviewPending(accepted, 'a')).toBe(true)
+    expect(reviewTasks('a', [accepted])[0].group).toBe('todo')
+    expect(task(cancel(accepted, 'a'), 'a').cancellationReason).toBe('author-cancelled')
+    expect(() => accept(accepted, 'a')).toThrow(/already/)
+  })
+})
+
+describe('accepting and declining review requests', () => {
+  it('requires accepting before completing or returning the review', () => {
     const sop = start(); const round = currentInternalRound(sop)!
-    const began = beginInternalReview(sop, 'a', round.id, task(sop, 'a').id, env())
-    expect(task(began, 'a').decision).toBe('pending')
-    expect(task(began, 'a').startedAt).toBeTruthy()
-    expect(task(cancel(began, 'a'), 'a').cancellationReason).toBe('author-cancelled')
-    expect(() => beginInternalReview(began, 'a', round.id, task(sop, 'a').id, env())).toThrow(/already/)
+    for (const decision of ['completed', 'returned'] as const) {
+      expect(() => decideInternalReview(sop, 'a', round.id, task(sop, 'a').id, decision, 'Comments', env())).toThrow(/Accept/)
+    }
+    expect(task(decide(sop, 'a'), 'a').decision).toBe('completed')
+  })
+  it('requires a reason to decline, notifies the author and co-authors, and keeps the other requests open', () => {
+    const sop = start()
+    for (const reason of ['', '   ', 'x'.repeat(1001)]) expect(() => decline(sop, 'a', reason)).toThrow(/reason/)
+    const declined = decline(sop, 'a', '  On leave until next month  ')
+    expect(task(declined, 'a')).toMatchObject({ decision: 'declined', declineReason: 'On leave until next month', decidedAt: new Date().toISOString() })
+    expect(declined.timeline.at(-1)).toMatchObject({ type: 'review-declined', actorId: 'a', note: 'On leave until next month', recipientIds: ['author', 'coauthor'] })
+    expect(isInternalReviewPending(declined, 'a')).toBe(false)
+    expect(pendingPeople(declined).map((person) => person.userId)).toEqual(['b', 'c'])
+    expect(declined.reviewers.find((person) => person.userId === 'a')!.decision).toBe('cancelled')
+    expect(sopsUsing('reviewer', 'a', [declined])).toEqual([])
+  })
+  it('only allows accepting or declining a pending request, by the assigned reviewer', () => {
+    const sop = start()
+    expect(() => decline(accept(sop, 'a'), 'a')).toThrow(/not been accepted/)
+    expect(() => accept(decline(sop, 'a'), 'a')).toThrow()
+    expect(() => decline(decline(sop, 'a'), 'a')).toThrow()
+    const round = currentInternalRound(sop)!
+    expect(() => acceptInternalReview(sop, 'b', round.id, task(sop, 'a').id, env())).toThrow()
+    expect(() => declineInternalReview(sop, 'b', round.id, task(sop, 'a').id, 'Busy', env())).toThrow()
+  })
+  it('counts declined reviewers as finished when the others complete', () => {
+    const sop = decide(decide(decline(start(), 'a'), 'b'), 'c')
+    expect(currentInternalRound(sop)!.status).toBe('completed')
+    expect(requiredReviewsComplete(sop)).toBe(true)
   })
 })
 
@@ -120,7 +164,7 @@ describe('rejection, cancellation and immutable history', () => {
   })
   it('returns immediately on rejection, preserves completed feedback and cancels every unfinished task with a reason', () => {
     const completed = decide(start(), 'a', 'completed', 'Good content')
-    const first = beginInternalReview(completed, 'c', currentInternalRound(completed)!.id, task(completed, 'c').id, env())
+    const first = accept(completed, 'c')
     const before = JSON.stringify(first)
     const returned = decide(first, 'b', 'returned', '  Revise section 2  ')
     expect(JSON.stringify(first)).toBe(before)
@@ -147,7 +191,7 @@ describe('rejection, cancellation and immutable history', () => {
     const sop = start(); const round = currentInternalRound(sop)!; const assignment = task(sop, 'a')
     const cancelled = cancel(sop, 'a')
     expect(() => decideInternalReview(cancelled, 'a', round.id, assignment.id, 'completed', 'Late', env())).toThrow()
-    expect(() => beginInternalReview(cancelled, 'a', round.id, assignment.id, env())).toThrow()
+    expect(() => acceptInternalReview(cancelled, 'a', round.id, assignment.id, env())).toThrow()
     expect(() => cancel(cancelled, 'a')).toThrow()
     expect(() => decide(decide(sop, 'a'), 'a')).toThrow()
   })

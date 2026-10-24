@@ -5,7 +5,7 @@ import type { Department, Sop, User } from '../../data/mock/types'
 import { approvalEn } from '../../content/approval.en'
 import { sopWorkflowEn } from '../../content/workflow.en'
 import { submitForApproval } from '../../lib/approval'
-import { cancelInternalReview, currentInternalRound, decideInternalReview, startInternalReview } from '../../lib/internalReview'
+import { acceptInternalReview, cancelInternalReview, currentInternalRound, decideInternalReview, startInternalReview } from '../../lib/internalReview'
 import { SopWorkflowPage } from '../../pages/SopWorkflowPage'
 import { SubmitForApprovalDialog } from './SubmitForApprovalDialog'
 
@@ -44,7 +44,9 @@ function draft(): Sop {
 function start() {
   return startInternalReview(draft(), 'author', '4.0', { reviewerIds: ['reviewer-a', 'reviewer-b'] }, { users: fixture.users, departments: fixture.departments })
 }
-function decide(sop: Sop, userId: string, decision: 'completed' | 'returned' = 'completed', text?: string) {
+function decide(source: Sop, userId: string, decision: 'completed' | 'returned' = 'completed', text?: string) {
+  const first = currentInternalRound(source)!, own = first.assignments.find((item) => item.userId === userId)!
+  const sop = own.decision === 'pending' ? acceptInternalReview(source, userId, first.id, own.id, { users: fixture.users, departments: fixture.departments }) : source
   const round = currentInternalRound(sop)!
   return decideInternalReview(sop, userId, round.id, round.assignments.find((item) => item.userId === userId)!.id, decision, text, { users: fixture.users, departments: fixture.departments })
 }

@@ -1,4 +1,5 @@
 import type { Sop, TimelineEvent, UserRequest } from '../data/mock/types'
+import { isOpenDecision, latestAssignmentOf } from './internalReviewStatus'
 import { mySopPath, reviewPath } from './routes'
 import { activeApprovalSubmission, currentDueAt, currentReviewer, isAuthorOrCoAuthor, reviewerDueAt } from './workflow'
 
@@ -85,7 +86,7 @@ function fromEvent(sop: Sop, event: TimelineEvent, userId: string): AppNotificat
     case 'resubmitted':
       if (event.reviewRoundId) {
         const round = sop.internalReviewRounds?.find((item) => item.id === event.reviewRoundId)
-        const assignment = round?.assignments.find((person) => person.userId === userId)
+        const assignment = latestAssignmentOf(round, userId)
         return isRecipient && assignment && assignment.decision !== 'cancelled'
           ? { ...base, type: 'assigned-review', via: event.type, link: reviewPath(sop.id) } : undefined
       }
@@ -132,8 +133,8 @@ function fromEvent(sop: Sop, event: TimelineEvent, userId: string): AppNotificat
 function dueNotification(sop: Sop, userId: string, now: number): AppNotification | undefined {
   const internalRound = sop.internalReviewRounds?.at(-1)
   if (internalRound && sop.status === 'in-review' && !sop.reviewFlow) {
-    const assignment = internalRound.assignments.find((person) => person.userId === userId)
-    if (internalRound.status !== 'open' || internalRound.version !== sop.version || assignment?.decision !== 'pending') return undefined
+    const assignment = latestAssignmentOf(internalRound, userId)
+    if (internalRound.status !== 'open' || internalRound.version !== sop.version || !assignment || !isOpenDecision(assignment.decision)) return undefined
     const dueAt = reviewerDueAt(sop, assignment)
     if (!dueAt) return undefined
     return internalDeadline(sop, internalRound.id + ':' + assignment.id, dueAt, userId, now, false)

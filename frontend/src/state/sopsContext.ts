@@ -32,7 +32,10 @@ export interface SopsStore {
   /** Main Author: submit this reviewed version to its configured Quality Document Controller. */
   submitForApproval: (sopId: string, options: ApprovalSubmissionOptions) => void
   reviewAction: (sopId: string, action: ReviewAction) => void
-  beginInternalReview: (sopId: string, roundId: string, assignmentId: string) => void
+  /** Reviewer: take the task (required before completing or returning it). */
+  acceptInternalReview: (sopId: string, roundId: string, assignmentId: string) => void
+  /** Reviewer: turn the task down with a required reason. */
+  declineInternalReview: (sopId: string, roundId: string, assignmentId: string, reason: string) => void
   decideInternalReview: (sopId: string, roundId: string, assignmentId: string, decision: 'completed' | 'returned', text?: string) => void
   cancelInternalReview: (sopId: string, roundId: string, assignmentId: string) => void
   /** Main author: restart parallel internal reviews, or legacy review with optional new date/comments. */

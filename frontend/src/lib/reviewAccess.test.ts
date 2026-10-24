@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { InternalReviewRound, Sop } from '../data/mock/types'
+import { projectReviewers } from './internalReviewStatus'
 import { previousReport } from './compliance'
 import { reviewSopForUser } from './reviewAccess'
 
@@ -7,7 +8,7 @@ function fixture(): Sop {
   const round = (version: string, userId: string): InternalReviewRound => ({ id: 'round-' + version, scope: 'internal', version, status: version === '1' ? 'cancelled' : 'open', requestedById: 'author', requestedAt: '2026-10-23T09:00:00Z', assignedDueDays: null,
     assignments: [{ id: 'task-' + version, userId, decision: version === '1' ? 'cancelled' : 'pending', assignedAt: '2026-10-23T09:00:00Z', assignedDueDays: null, ...(version === '1' ? { cancellationReason: 'author-cancelled' as const } : {}) }] })
   const rounds = [round('1', 'a'), round('2', 'b')]
-  return { id: 'test', code: 'TEST', title: 'Test', departmentId: 'home', authorId: 'author', coAuthorIds: [], version: '2', status: 'in-review', lastUpdated: '2026-10-23', fileName: 'private-v2.pdf', fileType: 'pdf', fileUrl: '/private-v2.pdf', reviewers: rounds[1].assignments, approvers: [], internalReviewRounds: rounds,
+  return { id: 'test', code: 'TEST', title: 'Test', departmentId: 'home', authorId: 'author', coAuthorIds: [], version: '2', status: 'in-review', lastUpdated: '2026-10-23', fileName: 'private-v2.pdf', fileType: 'pdf', fileUrl: '/private-v2.pdf', reviewers: projectReviewers(rounds[1]), approvers: [], internalReviewRounds: rounds,
     versions: ['1', '2'].map((version) => ({ version, fileName: 'private-v' + version + '.pdf', fileType: 'pdf', fileUrl: '/private-v' + version + '.pdf', uploadedAt: '2026-10-23T09:00:00Z' })),
     complianceChecks: ['1', '2'].map((version) => ({ id: 'check-' + version, sopId: 'test', version, status: 'completed', startedAt: '2026-10-23T09:00:00Z', guideline: { name: 'GVP', version: '4.0' }, findings: [] })),
     comments: ['1', '2'].map((version) => ({ id: 'comment-' + version, version, authorUserId: 'a', role: 'reviewer', text: 'Feedback v' + version, createdAt: '2026-10-23T09:00:00Z' })),

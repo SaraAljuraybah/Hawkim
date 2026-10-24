@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { InternalReviewRound, Sop } from '../data/mock/types'
+import { projectReviewers } from './internalReviewStatus'
 import { deriveNotifications } from './notifications'
 import { reviewTasks } from './reviews'
 import { startReview } from './reviewFlow'
@@ -10,7 +11,7 @@ function fixture(): Sop {
     { id: 'a', userId: 'a', decision: 'pending', assignedAt: '2026-10-23T09:00:00Z', dueDate: '2026-10-25', assignedDueDays: 2 },
     { id: 'b', userId: 'b', decision: 'pending', assignedAt: '2026-10-23T09:00:00Z', assignedDueDays: null },
   ] }
-  return { id: 'test', code: 'TEST', title: 'Test', departmentId: 'home', authorId: 'author', coAuthorIds: [], version: '1', status: 'in-review', lastUpdated: '2026-10-23', fileName: 'test.pdf', fileType: 'pdf', versions: [], comments: [], timeline: [], complianceChecks: [], reviewers: round.assignments, approvers: [], internalReviewRounds: [round], reviewDueAt: new Date('2026-10-28T23:59:59.999').toISOString() }
+  return { id: 'test', code: 'TEST', title: 'Test', departmentId: 'home', authorId: 'author', coAuthorIds: [], version: '1', status: 'in-review', lastUpdated: '2026-10-23', fileName: 'test.pdf', fileType: 'pdf', versions: [], comments: [], timeline: [], complianceChecks: [], reviewers: projectReviewers(round), approvers: [], internalReviewRounds: [round], reviewDueAt: new Date('2026-10-28T23:59:59.999').toISOString() }
 }
 
 describe('internal parallel review compatibility boundaries', () => {
@@ -35,10 +36,12 @@ describe('internal parallel review compatibility boundaries', () => {
     const round = sop.internalReviewRounds![0]
     round.status = 'cancelled'
     round.assignments.forEach((assignment) => { assignment.decision = 'cancelled'; assignment.cancellationReason = 'author-cancelled' })
+    sop.reviewers = projectReviewers(round)
     expect(requiredReviewsComplete(sop)).toBe(false)
     round.status = 'completed'
     expect(requiredReviewsComplete(sop)).toBe(false)
     round.assignments[0].decision = 'completed'
+    sop.reviewers = projectReviewers(round)
     expect(requiredReviewsComplete(sop)).toBe(true)
     sop.version = '2'
     expect(requiredReviewsComplete(sop)).toBe(false)
@@ -84,7 +87,9 @@ describe('retained internal history and subsequent passive workflow consumers', 
   function completed(): Sop {
     const sop = fixture()
     sop.internalReviewRounds![0].status = 'completed'
-    sop.reviewers.forEach((person) => { person.decision = 'completed' })
+    sop.internalReviewRounds![0].assignments.forEach((person) => { person.decision = 'completed' })
+    // Sop.reviewers is a projection of the round, so refresh it after changing the round.
+    sop.reviewers = projectReviewers(sop.internalReviewRounds![0])
     return sop
   }
   it('does not hide a later assigned approver task or reminder behind internal history', () => {
