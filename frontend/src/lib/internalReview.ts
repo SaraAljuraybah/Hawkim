@@ -1,16 +1,16 @@
 import { SYSTEM_ACTOR, type InternalReviewRound, type InternalReviewerAssignment, type Sop, type SopComment, type TimelineEvent } from '../data/mock/types'
 import { hasCurrentCheck } from './compliance'
 import { todayIsoDate } from './format'
-import { isInactiveDecision, isOpenDecision, latestAssignmentOf, latestAssignments, projectReviewers } from './internalReviewStatus'
+import { isInactiveDecision, isOpenDecision, isValidReviewDuration, latestAssignmentOf, latestAssignments, projectReviewers, reviewDueDateFrom } from './internalReviewStatus'
 import { eligibleReviewers, type ReviewEnvironment } from './reviewFlow'
-import { canResubmit, dueAtOfDate, isAuthor, parseDueDate } from './workflow'
+import { canResubmit, daysFromToday, isAuthor, parseDueDate } from './workflow'
 
 export interface InternalReviewOptions {
   reviewerIds: string[]
-  /** One optional local calendar deadline shared by the request and every new task. */
-  dueDate?: string
-  /** Compatibility for older callers only; differing individual deadlines are rejected. */
-  reviewerDueDates?: Record<string, string>
+  /** Optional deadline to accept or decline (YYYY-MM-DD, today or later), the same for every request sent. */
+  responseDueDate?: string
+  /** Optional review duration (whole calendar days, 1–30), counted from each reviewer's acceptance. */
+  reviewDurationDays?: number
   note?: string
 }
 /** Decline reasons and review comments are limited like other comments. */
@@ -50,37 +50,39 @@ function save(sop: Sop, round: InternalReviewRound, events: TimelineEvent[], ext
 function update(round: InternalReviewRound, assignmentId: string, change: Partial<InternalReviewerAssignment>): InternalReviewRound {
   return { ...round, assignments: round.assignments.map((person) => person.id === assignmentId ? { ...person, ...change } : person) }
 }
-function date(isoDate?: string, now = new Date()) {
-  const trimmed = isoDate?.trim() || undefined
-  const parsed = parseDueDate(trimmed ?? '', now)
-  assert(parsed.valid, 'Choose an optional review deadline today or later')
-  return { dueDate: trimmed, assignedDueDays: parsed.days ?? null }
+/** The deadlines each new request gets, validated: a response date today or later, and a whole-day duration. */
+function deadlines(options: InternalReviewOptions, now = new Date()): Pick<InternalReviewerAssignment, 'responseDueDate' | 'reviewDurationDays'> {
+  const responseDueDate = options.responseDueDate?.trim() || undefined
+  assert(parseDueDate(responseDueDate ?? '', now).valid, 'Choose an optional response due date today or later')
+  assert(isValidReviewDuration(options.reviewDurationDays), 'Choose an optional review duration of 1 to 30 whole days')
+  return { ...(responseDueDate ? { responseDueDate } : {}), ...(options.reviewDurationDays !== undefined ? { reviewDurationDays: options.reviewDurationDays } : {}) }
 }
-function plusDays(days: number): string {
+/** The same number of days from today as the earlier response due date was from its request. */
+function sameResponseAllowance(requestedAt: string, responseDueDate: string | undefined): string | undefined {
+  if (!responseDueDate) return undefined
+  const days = daysFromToday(responseDueDate, new Date(requestedAt)) ?? 0
   const now = new Date()
   return todayIsoDate(new Date(now.getFullYear(), now.getMonth(), now.getDate() + days))
 }
 function create(sop: Sop, actorId: string, options: InternalReviewOptions, kind: 'submitted' | 'resubmitted'): Sop {
   const requestedAt = new Date()
   const now = requestedAt.toISOString()
-  const timing = date(options.dueDate, requestedAt)
-  const round: InternalReviewRound = { id: id('internal-round'), scope: 'internal', version: sop.version, status: 'open', requestedById: actorId, requestedAt: now, ...timing,
-    assignments: options.reviewerIds.map((userId) => ({ id: id('internal-task'), userId, decision: 'pending', assignedAt: now, ...timing })) }
+  const timing = deadlines(options, requestedAt)
+  // Deadlines belong to each request; the round keeps no shared deadline.
+  const round: InternalReviewRound = { id: id('internal-round'), scope: 'internal', version: sop.version, status: 'open', requestedById: actorId, requestedAt: now, assignedDueDays: null,
+    assignments: options.reviewerIds.map((userId) => ({ id: id('internal-task'), userId, decision: 'pending', assignedAt: now, assignedDueDays: null, ...timing })) }
   const recipientIds = round.assignments.map((person) => person.userId)
   const events = [event(round, kind, actorId, { createdAt: now, recipientIds, ...(options.note?.trim() ? { note: options.note.trim() } : {}) })]
-  if (round.dueDate) events.push(event(round, 'stage-due-date-set', actorId, { createdAt: now, stage: 'review', dueAt: dueAtOfDate(round.dueDate) }))
   return { ...sop, status: 'in-review', reviewFlow: undefined, internalReviewRounds: [...(sop.internalReviewRounds ?? []), round], reviewers: projectReviewers(round), approvers: [],
-    reviewDueDays: round.assignedDueDays ?? undefined, reviewDueAt: round.dueDate ? dueAtOfDate(round.dueDate) : undefined,
+    reviewDueDays: undefined, reviewDueAt: undefined,
     approvalDueDays: undefined, approvalDueAt: undefined, lastUpdated: todayIsoDate(), timeline: [...sop.timeline, ...events] }
 }
 function validate(sop: Sop, options: InternalReviewOptions, env: ReviewEnvironment) {
   assert(options.reviewerIds.length > 0 && new Set(options.reviewerIds).size === options.reviewerIds.length, 'Select one or more different eligible internal reviewers')
   const eligible = eligibleReviewers(sop, sop.departmentId, env.users)
   assert(options.reviewerIds.every((userId) => eligible.some((user) => user.id === userId)), 'Select eligible reviewers from the SOP home department; Authors and co-authors cannot review')
-  assert(Object.keys(options.reviewerDueDates ?? {}).every((key) => options.reviewerIds.includes(key)), 'Task deadlines must belong to selected reviewers')
-  assert(Object.values(options.reviewerDueDates ?? {}).every((value) => value.trim() === (options.dueDate?.trim() ?? '')), 'Use one shared review deadline for every selected reviewer')
   assert(!options.note || options.note.trim().length <= 500, 'Submission notes must be at most 500 characters')
-  date(options.dueDate)
+  deadlines(options)
 }
 export function startInternalReview(sop: Sop, actorId: string, guidelineVersion: string, options: InternalReviewOptions, env: ReviewEnvironment): Sop {
   author(sop, actorId, env)
@@ -94,7 +96,10 @@ export function acceptInternalReview(sop: Sop, actorId: string, roundId: string,
   const { round, assignment } = active(sop, roundId, assignmentId)
   reviewer(sop, actorId, assignment, env)
   assert(assignment.decision === 'pending', 'This review has already been accepted')
-  const updated = update(round, assignmentId, { decision: 'accepted', acceptedAt: new Date().toISOString() })
+  const acceptedAt = new Date().toISOString()
+  // The review duration starts now; its last day is fixed so history and the demo clock stay consistent.
+  const reviewDueDate = assignment.reviewDurationDays !== undefined ? reviewDueDateFrom(acceptedAt, assignment.reviewDurationDays) : undefined
+  const updated = update(round, assignmentId, { decision: 'accepted', acceptedAt, ...(reviewDueDate ? { reviewDueDate } : {}) })
   return save(sop, updated, [event(round, 'review-accepted', actorId, { reviewAssignmentId: assignmentId })])
 }
 /** The reviewer turns the task down with a required reason; the author can ask someone else. */
@@ -154,8 +159,9 @@ export function resubmitInternalReview(sop: Sop, actorId: string, guidelineVersi
   assert(round && (round.status === 'rejected' || round.status === 'completed' && returnedFromApproval) && sop.version !== round.version && canResubmit(sop), 'Upload a new revised version after rejection before resubmitting')
   assert(hasCurrentCheck(sop, guidelineVersion), 'Complete a compliance check of the revised version against the current guideline first')
   const required = latestAssignments(round).filter((person) => person.cancellationReason !== 'author-cancelled' && !isInactiveDecision(person.decision) || person.cancellationReason === 'round-rejected')
+  // Every resent request restarts with the same response allowance and review duration.
   const options: InternalReviewOptions = { reviewerIds: required.map((person) => person.userId),
-    ...(round.assignedDueDays != null ? { dueDate: plusDays(round.assignedDueDays) } : {}) }
+    responseDueDate: sameResponseAllowance(round.requestedAt, required[0]?.responseDueDate), reviewDurationDays: required[0]?.reviewDurationDays }
   validate(sop, options, env)
   return create(sop, actorId, options, 'resubmitted')
 }

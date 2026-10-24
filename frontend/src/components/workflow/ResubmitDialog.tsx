@@ -1,11 +1,10 @@
 import { useRef, useState } from 'react'
 import { flushSync } from 'react-dom'
-import { useDeadlineClock } from '../../hooks/useDeadlineClock'
 import type { SopWorkflowContent } from '../../content/types'
 import { internalReviewEn } from '../../content/internalReview.en'
 import type { Sop } from '../../data/mock/types'
-import { formatDate, formatDateTime } from '../../lib/format'
-import { formatReviewDuration } from '../../lib/reviewDuration'
+import { formatDate } from '../../lib/format'
+import { isInactiveDecision, latestAssignments } from '../../lib/internalReviewStatus'
 import { dueDateRange, parseDueDate, SUBMIT_COMMENT_MAX } from '../../lib/workflow'
 import type { ResubmitOptions } from '../../state/sopsContext'
 import { useUsers } from '../../state/usersContext'
@@ -30,10 +29,7 @@ function InternalResubmitDialog({ sop, content, onSubmit, onClose }: ResubmitDia
   const { nameOf } = useUsers()
   const [failed, setFailed] = useState(false)
   const round = sop.internalReviewRounds!.at(-1)!
-  const nowTimestamp = useDeadlineClock(undefined, true)
-  const now = new Date(nowTimestamp)
-  const nextDueAt = round.assignedDueDays === null ? undefined : new Date(now.getFullYear(), now.getMonth(), now.getDate() + round.assignedDueDays, 23, 59, 59, 999)
-  const reviewers = round.assignments.filter((person) => person.cancellationReason !== 'author-cancelled')
+  const reviewers = latestAssignments(round).filter((person) => person.cancellationReason !== 'author-cancelled' && !isInactiveDecision(person.decision) || person.cancellationReason === 'round-rejected')
   function confirm() {
     try { onSubmit({}) }
     catch { setFailed(true); return false }
@@ -41,10 +37,6 @@ function InternalResubmitDialog({ sop, content, onSubmit, onClose }: ResubmitDia
   return <FormDialog open title={text.title} confirmLabel={text.confirm} cancelLabel={content.cancel} onConfirm={confirm} onClose={onClose}>
     {failed && <p role="alert" className="text-sm text-status-rejected-fg">{text.failed}</p>}
     <p className="text-sm text-text-gray">{internalReviewEn.panel.resubmitHelp}</p>
-    {nextDueAt ? <div className="text-sm text-maroon">
-      <p>{internalReviewEn.panel.requestDeadline}: <time dateTime={nextDueAt.toISOString()}>{formatDateTime(nextDueAt.toISOString())}</time></p>
-      <p className="mt-1 text-text-gray">{internalReviewEn.panel.timeGiven.replace('{duration}', formatReviewDuration(nextDueAt.getTime() - now.getTime()))}</p>
-    </div> : <p className="text-sm text-maroon">{internalReviewEn.panel.noDeadline}</p>}
     <ul className="grid list-none gap-3 rounded-lg border border-beige bg-beige/40 p-4 text-sm font-medium text-maroon sm:grid-cols-2">
       {reviewers.map((reviewer) => <li key={reviewer.id}>{nameOf(reviewer.userId)}</li>)}
     </ul>

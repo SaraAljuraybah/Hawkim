@@ -32,7 +32,7 @@ function person(id: string, permissions: User['permissions']): User {
 }
 const env = () => ({ users: fixture.users, departments: fixture.departments })
 const check = (version: string) => ({ id: 'check-' + version, sopId: 'test', version, status: 'completed' as const, startedAt: new Date().toISOString(), guideline: { name: 'GVP', version: '4.0' }, findings: [] })
-function reviewed(deadlines: Pick<InternalReviewOptions, 'dueDate'> = {}): Sop {
+function reviewed(deadlines: Pick<InternalReviewOptions, 'responseDueDate'> = {}): Sop {
   const draft: Sop = { id: 'test', code: 'TEST', title: 'Approval fixture', description: 'Preserved description', version: '1', departmentId: 'home', authorId: 'author', coAuthorIds: ['coauthor'], status: 'draft', lastUpdated: '2026-10-23', fileName: 'test.pdf', fileType: 'pdf', fileUrl: '/test.pdf', versions: [{ version: '1', fileName: 'test.pdf', fileType: 'pdf', fileUrl: '/test.pdf', uploadedAt: new Date().toISOString() }], reviewers: [], approvers: [], comments: [], timeline: [], complianceChecks: [check('1')] }
   const started = startInternalReview(draft, 'author', '4.0', { reviewerIds: ['reviewer'], ...deadlines }, env())
   const round = currentInternalRound(started)!
@@ -42,7 +42,7 @@ function reviewed(deadlines: Pick<InternalReviewOptions, 'dueDate'> = {}): Sop {
 function options(sop: Sop): ApprovalSubmissionOptions {
   return { version: sop.version, internalReviewRoundId: currentInternalRound(sop)!.id, noExternalReviewsRequired: true, feedbackAddressed: true, dueDate: '2026-10-28' }
 }
-function submitted(deadlines: Pick<InternalReviewOptions, 'dueDate'> = {}): Sop {
+function submitted(deadlines: Pick<InternalReviewOptions, 'responseDueDate'> = {}): Sop {
   const sop = reviewed(deadlines)
   return submitForApproval(sop, 'author', options(sop), env())
 }
@@ -61,7 +61,7 @@ function capture(userId: string, sop: Sop): SopsStore {
 }
 function current(): Sop { return (fixture.commit.mock.lastCall?.[0] ?? fixture.sops)[0] }
 function restartedReview(): Sop {
-  const sop = submitted({ dueDate: '2026-10-28' })
+  const sop = submitted({ responseDueDate: '2026-10-28' })
   const returned = returnAsApprover(sop, 'controller', 'Revise this SOP', snapshot(sop))
   vi.advanceTimersByTime(1000)
   const revised = uploadVersion(returned, 'author', { fileName: 'revised.pdf', fileType: 'pdf' })
@@ -117,8 +117,8 @@ describe('deadline simulation requires a current assignment', () => {
   it.each(['author', 'coauthor', 'reviewer'])('preserves authorized %s deadline simulation for the active internal round', (actor) => {
     const sop = restartedReview(), before = structuredClone(sop), store = capture(actor, sop)
     store.shiftDueDates(sop.id, 1)
-    expect(currentInternalRound(current())).toMatchObject({ version: '2', dueDate: '2026-10-27', assignedDueDays: 5 })
-    expect(currentInternalRound(current())!.assignments[0]).toMatchObject({ dueDate: '2026-10-27', assignedDueDays: 5 })
+    expect(currentInternalRound(current())).toMatchObject({ version: '2' })
+    expect(currentInternalRound(current())!.assignments[0]).toMatchObject({ responseDueDate: '2026-10-27' })
     expect(current().internalReviewRounds![0]).toEqual(before.internalReviewRounds![0])
     expect(current().approvalSubmissions).toEqual(before.approvalSubmissions)
     expect(current().timeline).toEqual(before.timeline)

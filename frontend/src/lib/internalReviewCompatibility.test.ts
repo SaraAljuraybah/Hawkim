@@ -7,8 +7,8 @@ import { startReview } from './reviewFlow'
 import { approveAs, completeReview, currentDueAt, currentReviewer, internalReviewsComplete, isReviewer, pendingPeople, publishAs, requiredReviewsComplete, resubmit, returnAsReviewer, reviewerDueAt, routeToReviewer, shiftDueDates, submitForReview } from './workflow'
 
 function fixture(): Sop {
-  const round: InternalReviewRound = { id: 'round', scope: 'internal', version: '1', status: 'open', requestedById: 'author', requestedAt: '2026-10-23T09:00:00Z', assignedDueDays: 5, dueDate: '2026-10-28', assignments: [
-    { id: 'a', userId: 'a', decision: 'pending', assignedAt: '2026-10-23T09:00:00Z', dueDate: '2026-10-25', assignedDueDays: 2 },
+  const round: InternalReviewRound = { id: 'round', scope: 'internal', version: '1', status: 'open', requestedById: 'author', requestedAt: '2026-10-23T09:00:00Z', assignedDueDays: null, assignments: [
+    { id: 'a', userId: 'a', decision: 'pending', assignedAt: '2026-10-23T09:00:00Z', assignedDueDays: null, responseDueDate: '2026-10-25' },
     { id: 'b', userId: 'b', decision: 'pending', assignedAt: '2026-10-23T09:00:00Z', assignedDueDays: null },
   ] }
   return { id: 'test', code: 'TEST', title: 'Test', departmentId: 'home', authorId: 'author', coAuthorIds: [], version: '1', status: 'in-review', lastUpdated: '2026-10-23', fileName: 'test.pdf', fileType: 'pdf', versions: [], comments: [], timeline: [], complianceChecks: [], reviewers: projectReviewers(round), approvers: [], internalReviewRounds: [round], reviewDueAt: new Date('2026-10-28T23:59:59.999').toISOString() }
@@ -22,9 +22,9 @@ describe('internal parallel review compatibility boundaries', () => {
     sop.internalReviewRounds![0].assignments[0].decision = 'completed'
     expect(pendingPeople(sop)).toEqual([{ userId: 'b', role: 'reviewer' }])
   })
-  it('keeps overall request deadlines independent of individual task dates and explicit blanks', () => {
+  it('uses the nearest open request deadline and keeps explicit blanks', () => {
     const sop = fixture()
-    expect(currentDueAt(sop)).toBe(new Date('2026-10-28T23:59:59.999').toISOString())
+    expect(currentDueAt(sop)).toBe(new Date('2026-10-25T23:59:59.999').toISOString())
     expect(reviewerDueAt(sop, sop.reviewers[0])).toBe(new Date('2026-10-25T23:59:59.999').toISOString())
     expect(reviewerDueAt(sop, sop.reviewers[1])).toBeUndefined()
     sop.internalReviewRounds![0].status = 'completed'
@@ -67,7 +67,7 @@ describe('internal parallel review compatibility boundaries', () => {
     expect(() => approveAs({ ...sop, status: 'in-approval' }, 'q')).toThrow(/Author-controlled/)
     expect(() => publishAs({ ...sop, status: 'approved' }, 'q')).toThrow(/Internal review/)
   })
-  it('shifts only the current round during demo simulation and preserves original allocations', () => {
+  it('shifts only the current round during demo simulation and keeps blank deadlines blank', () => {
     const sop = fixture()
     const old = { ...sop.internalReviewRounds![0], id: 'old', status: 'rejected' as const, version: '0' }
     sop.internalReviewRounds = [old, sop.internalReviewRounds![0]]
@@ -75,10 +75,10 @@ describe('internal parallel review compatibility boundaries', () => {
     const shifted = shiftDueDates(sop, 2)
     expect(JSON.stringify(sop)).toBe(before)
     expect(shifted.internalReviewRounds![0]).toBe(old)
-    expect(shifted.internalReviewRounds![1].dueDate).toBe('2026-10-26')
-    expect(shifted.reviewers[0].dueDate).toBe('2026-10-23')
-    expect(shifted.reviewers[0].assignedDueDays).toBe(2)
-    expect(shifted.internalReviewRounds![1].assignedDueDays).toBe(5)
+    expect(shifted.internalReviewRounds![1].dueDate).toBeUndefined()
+    expect(shifted.internalReviewRounds![1].assignments[0].responseDueDate).toBe('2026-10-23')
+    expect(shifted.internalReviewRounds![1].assignments[1].responseDueDate).toBeUndefined()
+    expect(shifted.internalReviewRounds![1].assignedDueDays).toBeNull()
     expect(shifted.reviewers[1].assignedDueDays).toBeNull()
   })
 })

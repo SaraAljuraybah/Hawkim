@@ -3,6 +3,7 @@ import {
   type ApprovalDecisionSnapshot,
   type ApprovalSubmission,
   type ApproverAssignment,
+  type InternalReviewerAssignment,
   type User,
   type ReviewerAssignment,
   type Sop,
@@ -14,7 +15,7 @@ import {
 import type { SopStatus } from '../types/status'
 import { hasCurrentCheck } from './compliance'
 import { todayIsoDate } from './format'
-import { isOpenDecision, latestAssignments, projectReviewers } from './internalReviewStatus'
+import { isOpenDecision, latestAssignments, projectReviewers, requestDeadline } from './internalReviewStatus'
 
 /*
  * SOP workflow rules (Sprint 0, PBI 2 / 3 / 6 / 8 / 12 / 22 / 24) as pure functions.
@@ -196,7 +197,8 @@ export function pendingPeople(
 // ---------- Due dates (PBI 3) ----------
 
 /** A legacy reviewer assignment or an internal review request: what its deadline depends on. */
-export type DeadlineHolder = Pick<ReviewerAssignment, 'userId' | 'dueDate' | 'assignedDueDays'> & { assignedAt?: string }
+export type DeadlineHolder = Pick<ReviewerAssignment, 'userId' | 'dueDate' | 'assignedDueDays'> & { assignedAt?: string } &
+  Partial<Pick<InternalReviewerAssignment, 'id' | 'acceptedAt' | 'responseDueDate' | 'reviewDueDate'>>
 
 /** Original allocation, with compatibility for date-only and shared-deadline records. */
 export function reviewerAssignedDays(sop: Sop, reviewer: DeadlineHolder): number | undefined {
@@ -214,8 +216,12 @@ export function dueAtOfDate(isoDate: string): string {
   return new Date(`${isoDate}T23:59:59.999`).toISOString()
 }
 
-/** This person's deadline, including legacy shared deadlines. An explicit blank never inherits one. */
+/**
+ * This person's deadline, including legacy shared deadlines. An explicit blank never inherits one.
+ * An internal review request has its own: the response due date until accepted, then the review due date.
+ */
 export function reviewerDueAt(sop: Sop, reviewer: DeadlineHolder): string | undefined {
+  if (sop.internalReviewRounds?.length && reviewer.id) return requestDeadline(reviewer)?.dueAt
   if (reviewer.assignedDueDays === null) return undefined
   return reviewer.dueDate ? dueAtOfDate(reviewer.dueDate) : sop.reviewDueAt
 }
@@ -226,13 +232,16 @@ export function reviewerDeadlinePassed(sop: Sop, reviewer: DeadlineHolder, now =
   return !!dueAt && new Date(dueAt).getTime() <= now
 }
 
-/** The overall internal request deadline, active legacy reviewer deadline, or approval deadline. */
+/** The nearest open internal request deadline, active legacy reviewer deadline, or approval deadline. */
 export function currentDueAt(sop: Sop): string | undefined {
   if (sop.status === 'in-review') {
     const round = sop.internalReviewRounds?.at(-1)
-    if (round && !sop.reviewFlow) return round.status === 'open' && round.version === sop.version && round.dueDate
-      ? new Date(round.dueDate + 'T23:59:59.999').toISOString()
-      : undefined
+    if (round && !sop.reviewFlow) {
+      if (round.status !== 'open' || round.version !== sop.version) return undefined
+      const open = latestAssignments(round).filter((person) => isOpenDecision(person.decision))
+      return open.map((person) => requestDeadline(person)?.dueAt).filter((dueAt) => dueAt !== undefined)
+        .sort((a, b) => new Date(a).getTime() - new Date(b).getTime())[0]
+    }
     const reviewer = currentReviewer(sop)
     return reviewer ? reviewerDueAt(sop, reviewer) : undefined
   }
@@ -991,14 +1000,15 @@ export function shiftDueDates(sop: Sop, days: number): Sop {
   const round = sop.internalReviewRounds?.at(-1)
   if (round) {
     if (round.status !== 'open') return sop
+    // Each open request's own deadlines move; acceptance times and durations stay as they were.
+    const earlier = (isoDate: string | undefined) => isoDate ? localDatePlus(new Date(isoDate + 'T12:00:00'), -days) : undefined
     const shifted = {
       ...round,
-      ...(round.dueDate ? { dueDate: localDatePlus(new Date(round.dueDate + 'T12:00:00'), -days) } : {}),
-      assignments: round.assignments.map((person) => isOpenDecision(person.decision) && person.dueDate
-        ? { ...person, dueDate: localDatePlus(new Date(person.dueDate + 'T12:00:00'), -days) } : person),
+      assignments: round.assignments.map((person) => isOpenDecision(person.decision)
+        ? { ...person, ...(person.responseDueDate ? { responseDueDate: earlier(person.responseDueDate) } : {}), ...(person.reviewDueDate ? { reviewDueDate: earlier(person.reviewDueDate) } : {}) }
+        : person),
     }
-    return { ...sop, internalReviewRounds: [...sop.internalReviewRounds!.slice(0, -1), shifted], reviewers: projectReviewers(shifted),
-      reviewDueAt: shifted.dueDate ? new Date(shifted.dueDate + 'T23:59:59.999').toISOString() : undefined }
+    return { ...sop, internalReviewRounds: [...sop.internalReviewRounds!.slice(0, -1), shifted], reviewers: projectReviewers(shifted) }
   }
   return {
     ...sop,

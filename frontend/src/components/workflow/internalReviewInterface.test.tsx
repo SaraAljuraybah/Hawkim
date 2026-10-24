@@ -7,6 +7,7 @@ import { acceptInternalReview, cancelInternalReview, currentInternalRound, decid
 import { uploadVersion } from '../../lib/workflow'
 import { reviewTasks } from '../../lib/reviews'
 import { deriveNotifications } from '../../lib/notifications'
+import { internalReviewEn } from '../../content/internalReview.en'
 import { sopWorkflowEn } from '../../content/workflow.en'
 import { SubmitDialog } from './SubmitDialog'
 import { SopWorkflowPage } from '../../pages/SopWorkflowPage'
@@ -29,7 +30,7 @@ const environment = () => ({ users: fixture.users, departments: fixture.departme
 function draft(): Sop {
   return { id: 'test', code: 'SOP-TEST', title: 'Internal review fixture', description: 'Description retained', departmentId: 'home', version: '1', status: 'draft', lastUpdated: '2026-10-23', authorId: 'author', coAuthorIds: ['coauthor'], fileName: 'test.pdf', fileType: 'pdf', reviewers: [], approvers: [], comments: [], timeline: [], versions: [{ version: '1', fileName: 'test.pdf', fileType: 'pdf', uploadedAt: new Date().toISOString(), uploadedById: 'author' }], complianceChecks: [{ id: 'check', sopId: 'test', version: '1', status: 'completed', startedAt: new Date().toISOString(), guideline: { name: 'GVP', version: '4.0' }, findings: [] }] }
 }
-function start() { return startInternalReview(draft(), 'author', '4.0', { reviewerIds: ['reviewer-a', 'reviewer-b'], dueDate: '2026-10-28' }, environment()) }
+function start() { return startInternalReview(draft(), 'author', '4.0', { reviewerIds: ['reviewer-a', 'reviewer-b'], responseDueDate: '2026-10-28', reviewDurationDays: 5 }, environment()) }
 function render(page: ReactNode) { return renderToStaticMarkup(<MemoryRouter initialEntries={['/test']}><Routes><Route path="/:id" element={page} /></Routes></MemoryRouter>) }
 function accept(sop: Sop, userId: string) {
   const round = currentInternalRound(sop)!
@@ -51,24 +52,33 @@ describe('internal parallel review across transitions and detail views', () => {
     expect(render(<SopWorkflowPage />)).not.toContain('Description retained')
     expect(render(<ReviewPage />)).not.toContain('Description retained')
   })
-  it('keeps eligible reviewers in a collapsed multi-select while preserving the request deadline and comments', () => {
+  it('keeps eligible reviewers in a collapsed multi-select with a response due date, review duration and comments', () => {
     const html = renderToStaticMarkup(<SubmitDialog sop={draft()} content={sopWorkflowEn.dialogs} onSubmit={() => {}} onClose={() => {}} />)
-    expect(html).toContain('Request Reviews')
+    expect(html).toContain('Request reviews')
     expect(html).not.toContain('Request internal reviews')
     expect(html).not.toContain('Internal reviewers')
     expect(html).not.toContain('Select eligible reviewers from the SOP department. All selected reviewers receive their tasks together.')
-    const trigger = html.match(/<button[^>]*aria-label="Select Reviewers"[^>]*>/)?.[0]
+    const trigger = html.match(/<button[^>]*aria-label="Select reviewers"[^>]*>/)?.[0]
     expect(trigger).toContain('aria-expanded="false"')
     const reviewerPanel = html.match(/<div[^>]*role="group"[^>]*>/)?.[0]
-    expect(reviewerPanel).toContain('aria-label="Select Reviewers"')
+    expect(reviewerPanel).toContain('aria-label="Select reviewers"')
     expect(reviewerPanel).toContain('hidden=""')
     expect(html).toContain('Reviewer Alpha')
     expect(html).toContain('Reviewer Beta')
     for (const name of ['Main writer', 'Contributing writer', 'External reviewer', 'Reviewer 1']) expect(html).not.toContain(name)
-    expect(html).toContain('Review due date (optional)')
+    expect(html).toContain('Response due date (optional)')
+    expect(html).toContain(internalReviewEn.submit.responseHelp)
+    expect(html).not.toContain('23:59:59.999')
+    const duration = html.match(/<input[^>]*name="reviewDurationDays"[^>]*>/)![0]
+    expect(duration).toContain('type="number"')
+    expect(duration).toContain('min="1"')
+    expect(duration).toContain('max="30"')
+    expect(duration).toContain('aria-describedby=')
+    expect(html).toContain('Review duration in days (optional)')
+    expect(html).toContain(internalReviewEn.submit.durationHelp)
     expect(html.match(/type="date"/g)).toHaveLength(1)
     expect(html).not.toContain('name="reviewerDueDate-')
-    expect(html).not.toContain('max="')
+    expect(html.match(/<input[^>]*type="date"[^>]*>/)![0]).not.toContain('max="')
     expect(html).toContain(sopWorkflowEn.dialogs.submit.note.label)
     expect(html).toContain('name="reviewRequestDueDate"')
     expect(html).toContain('name="note"')

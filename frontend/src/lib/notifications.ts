@@ -137,7 +137,8 @@ function dueNotification(sop: Sop, userId: string, now: number): AppNotification
     if (internalRound.status !== 'open' || internalRound.version !== sop.version || !assignment || !isOpenDecision(assignment.decision)) return undefined
     const dueAt = reviewerDueAt(sop, assignment)
     if (!dueAt) return undefined
-    return internalDeadline(sop, internalRound.id + ':' + assignment.id, dueAt, userId, now, false)
+    // Responding and reviewing are separate reminders: accepting can notify again.
+    return internalDeadline(sop, internalRound.id + ':' + assignment.id + ':' + (assignment.acceptedAt ? 'review' : 'response'), dueAt, userId, now, false)
   }
   const stage = sop.status === 'in-review' ? 'review' : sop.status === 'in-approval' ? 'approval' : undefined
   if (!stage) return undefined

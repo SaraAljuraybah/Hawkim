@@ -192,8 +192,14 @@ export interface InternalReviewerAssignment extends Omit<ReviewerAssignment, 'de
   decision: InternalReviewDecision
   /** When the request was sent. */
   assignedAt: string
+  /** Optional deadline to accept or decline (YYYY-MM-DD); it ends at the end of that local day. */
+  responseDueDate?: string
+  /** Optional review duration in calendar days (1–30), counted from acceptance. */
+  reviewDurationDays?: number
   /** When the reviewer accepted the request. */
   acceptedAt?: string
+  /** The review's last day (YYYY-MM-DD), fixed on acceptance when a duration was set. */
+  reviewDueDate?: string
   /** Required when the reviewer declines. */
   declineReason?: string
   commentId?: string

@@ -4,7 +4,7 @@ import { acceptInternalReview, cancelInternalReview, currentInternalRound, decid
 import { deriveNotifications } from './notifications'
 import { reviewTasks } from './reviews'
 import { deleteBlockers, permissionChangeBlockers, sopsUsing } from './userAdmin'
-import { canResubmit, dueAtOfDate, isOverdue, pendingPeople, requiredReviewsComplete, reviewAssignedMilliseconds, reviewerAssignedDays, reviewerAssignedMilliseconds, reviewerDeadlinePassed, reviewerRemainingDays, reviewerRemainingMilliseconds, shiftDueDates, uploadVersion } from './workflow'
+import { canResubmit, currentDueAt, isOverdue, pendingPeople, requiredReviewsComplete, reviewerDeadlinePassed, reviewerDueAt, reviewerRemainingMilliseconds, shiftDueDates, uploadVersion } from './workflow'
 
 function person(id: string, permissions: User['permissions'] = ['reviewer'], departmentId = 'home'): User {
   return { id, name: id, email: id + '@example.test', initials: 'TT', permissions, departmentId }
@@ -14,7 +14,7 @@ const check = (version: string) => ({ id: 'check-' + version, sopId: 'test', ver
 function draft(): Sop {
   return { id: 'test', code: 'TEST', title: 'Test SOP', version: '1', departmentId: 'home', authorId: 'author', coAuthorIds: ['coauthor'], status: 'draft', lastUpdated: '2026-10-23', fileName: 'test.pdf', fileType: 'pdf', versions: [{ version: '1', fileName: 'test.pdf', fileType: 'pdf', uploadedAt: new Date().toISOString() }], reviewers: [], approvers: [], comments: [], timeline: [], complianceChecks: [check('1')] }
 }
-const start = () => startInternalReview(draft(), 'author', '4.0', { reviewerIds: ['a', 'b', 'c'], dueDate: '2026-10-28' }, env())
+const start = () => startInternalReview(draft(), 'author', '4.0', { reviewerIds: ['a', 'b', 'c'], responseDueDate: '2026-10-28', reviewDurationDays: 5 }, env())
 function task(sop: Sop, userId: string) { return currentInternalRound(sop)!.assignments.find((assignment) => assignment.userId === userId)! }
 function accept(sop: Sop, userId: string) { return acceptInternalReview(sop, userId, currentInternalRound(sop)!.id, task(sop, userId).id, env()) }
 function decline(sop: Sop, userId: string, reason = 'Busy this week') { return declineInternalReview(sop, userId, currentInternalRound(sop)!.id, task(sop, userId).id, reason, env()) }
@@ -61,48 +61,61 @@ describe('internal parallel review requests', () => {
     expect(() => startInternalReview(draft(), 'author', '4.0', { reviewerIds: [] }, env())).toThrow()
     expect(() => startInternalReview({ ...draft(), complianceChecks: [] }, 'author', '4.0', { reviewerIds: ['a'] }, env())).toThrow(/compliance/)
   })
-  it('shares one request deadline and keeps its original allocation separate from elapsed time', () => {
+  it('gives every request the same optional response due date and review duration, without a shared round deadline', () => {
     const sop = start()
-    expect(currentInternalRound(sop)).toMatchObject({ assignedDueDays: 5, dueDate: '2026-10-28' })
-    expect(sop.reviewers.every((reviewer) => reviewer.dueDate === '2026-10-28' && reviewer.assignedDueDays === 5)).toBe(true)
-    expect(reviewerAssignedDays(sop, task(sop, 'a'))).toBe(5)
-    const remaining = reviewerRemainingMilliseconds(sop, task(sop, 'a'))!
-    expect(remaining).toBe(new Date(dueAtOfDate('2026-10-28')).getTime() - Date.now())
-    expect(reviewerRemainingDays(sop, task(sop, 'a'))).toBe(remaining / (24 * 60 * 60 * 1000))
-    vi.advanceTimersByTime(24 * 60 * 60 * 1000)
-    expect(reviewerAssignedDays(sop, task(sop, 'a'))).toBe(5)
-    expect(reviewerRemainingMilliseconds(sop, task(sop, 'a'))).toBe(remaining - 24 * 60 * 60 * 1000)
-    const noDeadline = startInternalReview(draft(), 'author', '4.0', { reviewerIds: ['a', 'b'] }, env())
-    expect(noDeadline.reviewers.every((reviewer) => reviewer.assignedDueDays === null && reviewer.dueDate === undefined)).toBe(true)
-    expect(reviewTasks('a', [noDeadline])[0].dueAt).toBeUndefined()
-    for (const dueDate of ['2026-10-22', '2026-02-30', 'invalid']) expect(() => startInternalReview(draft(), 'author', '4.0', { reviewerIds: ['a'], dueDate }, env())).toThrow(/deadline/)
-    expect(() => startInternalReview(draft(), 'author', '4.0', { reviewerIds: ['a'], reviewerDueDates: { other: '2026-10-26' } }, env())).toThrow()
-    expect(() => startInternalReview(draft(), 'author', '4.0', { reviewerIds: ['a'], dueDate: '2026-10-28', reviewerDueDates: { a: '2026-10-27' } }, env())).toThrow(/shared/)
+    expect(currentInternalRound(sop)).toMatchObject({ assignedDueDays: null })
+    expect(currentInternalRound(sop)!.dueDate).toBeUndefined()
+    expect(currentInternalRound(sop)!.assignments.every((assignment) => assignment.responseDueDate === '2026-10-28' && assignment.reviewDurationDays === 5 && !assignment.reviewDueDate)).toBe(true)
+    // Before acceptance the response due date applies, at the end of that local day.
+    expect(reviewerDueAt(sop, task(sop, 'a'))).toBe(new Date(2026, 9, 28, 23, 59, 59, 999).toISOString())
+    expect(reviewTasks('a', [sop])[0].dueAt).toBe(new Date(2026, 9, 28, 23, 59, 59, 999).toISOString())
+    const blank = startInternalReview(draft(), 'author', '4.0', { reviewerIds: ['a', 'b'] }, env())
+    expect(currentInternalRound(blank)!.assignments.every((assignment) => assignment.responseDueDate === undefined && assignment.reviewDurationDays === undefined)).toBe(true)
+    expect(reviewTasks('a', [blank])[0].dueAt).toBeUndefined()
+    expect(reviewerDueAt(accept(blank, 'a'), task(accept(blank, 'a'), 'a'))).toBeUndefined()
+    expect(currentDueAt(blank)).toBeUndefined()
   })
-  it('accepts today and dates beyond 30 days, preserving precise request time and same-day expiry', () => {
-    const now = new Date(2026, 9, 23, 15, 20, 30, 123)
-    vi.setSystemTime(now)
-    const sop = startInternalReview(draft(), 'author', '4.0', { reviewerIds: ['a', 'b'], dueDate: '2026-10-23' }, env())
-    const round = currentInternalRound(sop)!
-    expect(round.requestedAt).toBe(now.toISOString())
-    expect(round.assignments.every((assignment) => assignment.assignedAt === round.requestedAt && assignment.dueDate === round.dueDate && assignment.assignedDueDays === 0)).toBe(true)
-    const deadline = new Date(2026, 9, 23, 23, 59, 59, 999).getTime()
-    const allocation = deadline - now.getTime()
-    expect(reviewerAssignedMilliseconds(sop, task(sop, 'a'))).toBe(allocation)
-    expect(reviewAssignedMilliseconds(sop)).toBe(allocation)
-    expect(allocation).toBeGreaterThan(8 * 60 * 60 * 1000)
-    expect(allocation).toBeLessThan(9 * 60 * 60 * 1000)
-    const shifted = shiftDueDates(sop, 3)
-    expect(reviewerAssignedMilliseconds(shifted, task(shifted, 'a'))).toBe(allocation)
-    expect(reviewAssignedMilliseconds(shifted)).toBe(allocation)
+  it('accepts a response due date of today or later and a whole-number duration from 1 to 30 days', () => {
+    expect(() => startInternalReview(draft(), 'author', '4.0', { reviewerIds: ['a'], responseDueDate: '2026-10-23' }, env())).not.toThrow()
+    expect(() => startInternalReview(draft(), 'author', '4.0', { reviewerIds: ['a'], responseDueDate: '2027-01-15' }, env())).not.toThrow()
+    for (const responseDueDate of ['2026-10-22', '2026-02-30', 'invalid']) {
+      expect(() => startInternalReview(draft(), 'author', '4.0', { reviewerIds: ['a'], responseDueDate }, env())).toThrow(/response due date/)
+    }
+    for (const reviewDurationDays of [1, 30]) expect(() => startInternalReview(draft(), 'author', '4.0', { reviewerIds: ['a'], reviewDurationDays }, env())).not.toThrow()
+    for (const reviewDurationDays of [0, 31, 2.5, -1, Number.NaN]) {
+      expect(() => startInternalReview(draft(), 'author', '4.0', { reviewerIds: ['a'], reviewDurationDays }, env())).toThrow(/duration/)
+    }
+  })
+  it('starts the review duration when each reviewer accepts, due at the end of the last day', () => {
+    vi.setSystemTime(new Date(2026, 9, 25, 15))
+    const sop = startInternalReview(draft(), 'author', '4.0', { reviewerIds: ['a', 'b', 'c'], reviewDurationDays: 5 }, env())
+    const a = accept(sop, 'a')
+    expect(task(a, 'a')).toMatchObject({ acceptedAt: new Date(2026, 9, 25, 15).toISOString(), reviewDueDate: '2026-10-30' })
+    expect(reviewerDueAt(a, task(a, 'a'))).toBe(new Date(2026, 9, 30, 23, 59, 59, 999).toISOString())
+    // Accepting at any time of the same day gives the same last day.
+    vi.setSystemTime(new Date(2026, 9, 25, 23, 59))
+    expect(task(accept(a, 'b'), 'b').reviewDueDate).toBe('2026-10-30')
+    // A later acceptance gives that reviewer a later due date, across the month end.
+    vi.setSystemTime(new Date(2026, 9, 27, 0, 0, 1))
+    const c = accept(a, 'c')
+    expect(task(c, 'c').reviewDueDate).toBe('2026-11-01')
+    expect(task(c, 'a').reviewDueDate).toBe('2026-10-30')
+    // The nearest open deadline is the SOP's current one.
+    expect(currentDueAt(c)).toBe(new Date(2026, 9, 30, 23, 59, 59, 999).toISOString())
+  })
+  it('marks an accepted review overdue at the exact end of its last day, without changing anything', () => {
+    vi.setSystemTime(new Date(2026, 9, 25, 15))
+    const sop = accept(startInternalReview(draft(), 'author', '4.0', { reviewerIds: ['a', 'b'], reviewDurationDays: 1 }, env()), 'a')
+    const deadline = new Date(2026, 9, 26, 23, 59, 59, 999).getTime()
     expect(reviewerDeadlinePassed(sop, task(sop, 'a'), deadline - 1)).toBe(false)
     expect(reviewerDeadlinePassed(sop, task(sop, 'a'), deadline)).toBe(true)
-    expect(isOverdue(sop, 'review', deadline)).toBe(true)
     expect(reviewerRemainingMilliseconds(sop, task(sop, 'a'), deadline)).toBe(0)
-    expect(reviewerRemainingMilliseconds(sop, task(sop, 'a'), deadline + 1)).toBe(-1)
-    const distant = startInternalReview(draft(), 'author', '4.0', { reviewerIds: ['a', 'b'], dueDate: '2027-01-15' }, env())
-    expect(currentInternalRound(distant)!.assignedDueDays).toBeGreaterThan(30)
-    expect(distant.reviewers.every((assignment) => assignment.dueDate === '2027-01-15')).toBe(true)
+    expect(isOverdue(sop, 'review', deadline)).toBe(true)
+    expect(task(sop, 'a').decision).toBe('accepted')
+    expect(isInternalReviewPending(sop, 'a')).toBe(true)
+    // The demo clock moves the open deadlines, never the acceptance or the duration.
+    const shifted = shiftDueDates(sop, 1)
+    expect(task(shifted, 'a')).toMatchObject({ reviewDueDate: '2026-10-25', reviewDurationDays: 1, acceptedAt: task(sop, 'a').acceptedAt })
   })
   it('supports accepting without a final decision and author cancellation while in progress', () => {
     const sop = start()
@@ -229,19 +242,20 @@ describe('rejection, cancellation and immutable history', () => {
     expect(again.comments[0].version).toBe('1')
     expect(() => decideInternalReview(again, 'a', currentInternalRound(returned)!.id, task(returned, 'a').id, 'completed', undefined, env())).toThrow()
   })
-  it('restarts original deadline allocations and retains waivers while revalidating required reviewers', () => {
+  it('restarts each request with the same response allowance and review duration, retaining waivers while revalidating required reviewers', () => {
     const returned = decide(cancel(start(), 'c'), 'a', 'returned', 'Changes')
     vi.advanceTimersByTime(4 * 24 * 60 * 60 * 1000)
     const revised = revise(returned)
     const again = resubmitInternalReview(revised, 'author', '4.0', env())
     expect(again.reviewers.map((person) => person.userId)).toEqual(['a', 'b'])
-    expect(task(again, 'a')).toMatchObject({ assignedDueDays: 5, dueDate: '2026-11-01' })
-    expect(task(again, 'b')).toMatchObject({ assignedDueDays: 5, dueDate: '2026-11-01' })
-    expect(currentInternalRound(again)).toMatchObject({ assignedDueDays: 5, dueDate: '2026-11-01' })
+    expect(task(again, 'a')).toMatchObject({ decision: 'pending', responseDueDate: '2026-11-01', reviewDurationDays: 5 })
+    expect(task(again, 'b')).toMatchObject({ decision: 'pending', responseDueDate: '2026-11-01', reviewDurationDays: 5 })
+    expect(task(again, 'a').acceptedAt).toBeUndefined()
+    expect(currentInternalRound(again)!.dueDate).toBeUndefined()
     const unavailable = env(); unavailable.users.find((user) => user.id === 'b')!.deletedAt = new Date().toISOString()
     expect(() => resubmitInternalReview(revised, 'author', '4.0', unavailable)).toThrow(/eligible/)
   })
-  it('uses the shared deadline for task and Author request reminders, then stops them on round closure', () => {
+  it('reminds each reviewer of their own response, then review, deadline and stops on round closure', () => {
     const sop = start()
     const taskSoon = new Date(2026, 9, 25, 12).getTime()
     expect(deriveNotifications('a', { sops: [sop], requests: [], now: taskSoon }).some((item) => item.type === 'due-soon')).toBe(false)
@@ -249,7 +263,13 @@ describe('rejection, cancellation and immutable history', () => {
     expect(deriveNotifications('c', { sops: [sop], requests: [], now: taskSoon }).some((item) => item.type === 'due-soon')).toBe(false)
     const requestSoon = new Date(2026, 9, 28, 12).getTime()
     for (const user of ['a', 'b', 'c']) expect(deriveNotifications(user, { sops: [sop], requests: [], now: requestSoon }).some((item) => item.type === 'due-soon')).toBe(true)
-    expect(deriveNotifications('author', { sops: [sop], requests: [], now: requestSoon }).some((item) => item.type === 'request-due-soon')).toBe(true)
+    expect(deriveNotifications('author', { sops: [sop], requests: [], now: requestSoon }).some((item) => item.type === 'request-due-soon')).toBe(false)
+    // After accepting, the response reminder gives way to a separate review reminder.
+    const accepted = accept(sop, 'a')
+    const reviewSoon = new Date(2026, 9, 28, 12).getTime()
+    const reminders = deriveNotifications('a', { sops: [accepted], requests: [], now: reviewSoon }).filter((item) => item.type === 'due-soon')
+    expect(reminders.map((item) => item.dueAt)).toEqual([new Date(2026, 9, 28, 23, 59, 59, 999).toISOString()])
+    expect(reminders[0].id).toContain(':review:')
     const rejected = decide(sop, 'b', 'returned', 'Changes')
     expect(deriveNotifications('a', { sops: [rejected], requests: [], now: requestSoon }).some((item) => item.type === 'review-cancelled')).toBe(true)
     expect(deriveNotifications('author', { sops: [rejected], requests: [], now: requestSoon }).some((item) => item.type === 'request-due-soon' || item.type === 'request-overdue')).toBe(false)
@@ -277,7 +297,7 @@ describe('assignment cancellation is separate from global Reviewer permission', 
     expect(deleteBlockers(user, { ...context, sops: [cancelled, other] })[0]).toMatchObject({ kind: 'in-use', sops: [other] })
     expect(reviewTasks(user.id, [cancelled, other]).filter((task) => task.group === 'todo').map((task) => task.sop.id)).toEqual(['other-sop'])
     expect(pendingPeople(cancelled).map((person) => person.userId)).toEqual(['b', 'c'])
-    expect(task(cancelled, 'a')).toMatchObject({ decision: 'cancelled', dueDate: '2026-10-28', assignedDueDays: 5, cancellationReason: 'author-cancelled' })
+    expect(task(cancelled, 'a')).toMatchObject({ decision: 'cancelled', responseDueDate: '2026-10-28', reviewDurationDays: 5, cancellationReason: 'author-cancelled' })
     expect(cancelled.timeline).toEqual(expect.arrayContaining([expect.objectContaining({ type: 'review-cancelled', reviewAssignmentId: task(original, 'a').id })]))
     const notifications = deriveNotifications(user.id, { sops: [cancelled, other], requests: [], now: new Date(2026, 9, 28, 12).getTime() })
     expect(notifications.filter((item) => item.type === 'due-soon' || item.type === 'overdue').map((item) => item.sopId)).toEqual(['other-sop'])
