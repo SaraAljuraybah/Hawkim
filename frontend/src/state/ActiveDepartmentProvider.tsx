@@ -2,19 +2,10 @@ import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react
 import type { DepartmentId } from '../data/mock/types'
 import { getDirectoryDepartments } from '../lib/departments'
 import { ActiveDepartmentContext, type ActiveDepartmentStore } from './activeDepartmentContext'
+import { readStoredActiveDepartment, storeActiveDepartment } from './activeDepartmentStorage'
 import { useDepartments } from './departmentsContext'
 import { useRequests } from './requestsContext'
 import { useCurrentUser } from './sessionContext'
-
-const STORAGE_KEY = 'hawkim.activeDepartment'
-
-function readStored(): string | null {
-  try {
-    return localStorage.getItem(STORAGE_KEY)
-  } catch {
-    return null // storage unavailable (private mode, blocked): fall back to the home department
-  }
-}
 
 /**
  * The selected published SOP directory. Approved requests add read-only browsing
@@ -33,7 +24,7 @@ export function ActiveDepartmentProvider({ children }: { children: ReactNode }) 
     [user, requests, activeDepartments],
   )
 
-  const [selectedId, setSelectedId] = useState<string | null>(readStored)
+  const [selectedId, setSelectedId] = useState<string | null>(readStoredActiveDepartment)
 
   // Fall back to the home department when the selection isn't (or is no longer) valid.
   const activeDepartment =
@@ -41,13 +32,7 @@ export function ActiveDepartmentProvider({ children }: { children: ReactNode }) 
     directoryDepartments.find((department) => department.id === user.departmentId) ??
     directoryDepartments[0] ?? homeDepartment
 
-  useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY, activeDepartment.id)
-    } catch {
-      // Remembering the department is optional; ignore storage errors.
-    }
-  }, [activeDepartment.id])
+  useEffect(() => storeActiveDepartment(activeDepartment.id), [activeDepartment.id])
 
   const setActiveDepartment = useCallback(
     (id: DepartmentId) => {
