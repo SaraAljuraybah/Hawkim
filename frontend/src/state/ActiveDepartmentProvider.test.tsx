@@ -7,7 +7,7 @@ import { useActiveDepartment, type ActiveDepartmentStore } from './activeDepartm
 const fixture = vi.hoisted(() => ({
   user: { id: 'visitor', name: 'Visitor', initials: 'VV', email: 'v@example.test', departmentId: 'home', permissions: ['author', 'reviewer'] } as User,
   departments: ['home', 'a', 'b'].map((id) => ({ id, name: id, initials: id, description: '' })) as Department[],
-  requests: [] as UserRequest[], stored: 'a',
+  requests: [] as UserRequest[], stored: 'a' as string | null,
 }))
 vi.mock('./sessionContext', () => ({ useCurrentUser: () => fixture.user }))
 vi.mock('./requestsContext', () => ({ useRequests: () => ({ requests: fixture.requests }) }))
@@ -46,6 +46,11 @@ describe('directory browsing selection', () => {
     fixture.requests = [{ ...request('a', 'approved'), requesterId: 'other' }]
     expect(capture().activeDepartment.id).toBe('home')
     fixture.stored = 'unknown'
+    expect(capture().activeDepartment.id).toBe('home')
+  })
+  it('starts in the home department when nothing is stored (as after signing in)', () => {
+    fixture.requests = [request('a', 'approved')]
+    fixture.stored = null
     expect(capture().activeDepartment.id).toBe('home')
   })
 })
