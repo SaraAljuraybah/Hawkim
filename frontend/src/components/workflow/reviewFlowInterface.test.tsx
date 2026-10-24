@@ -76,7 +76,8 @@ describe('review date field policy and accessible allocation preview', () => {
     expect(html).toContain('Time given: 11 hours 25 minutes')
     expect(html).not.toContain('Time given: 0 days')
     expect(html).not.toContain('Time given: 1 day')
-    expect(html).toContain('23:59:59.999 local time')
+    expect(html).toContain(sopWorkflowEn.dialogs.submit.reviewDate.help)
+    expect(html).not.toContain('23:59:59.999')
   })
 
   it('previews dates beyond 30 days without adding a maximum', () => {
