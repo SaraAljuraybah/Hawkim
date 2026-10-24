@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { Sop, User } from '../data/mock/types'
-import { acceptInternalReview, cancelInternalReview, currentInternalRound, decideInternalReview, declineInternalReview, isInternalReviewPending, resubmitInternalReview, startInternalReview } from './internalReview'
+import { SYSTEM_ACTOR, type Sop, type User } from '../data/mock/types'
+import { acceptInternalReview, cancelInternalReview, currentInternalRound, decideInternalReview, declineInternalReview, isInternalReviewPending, nextWithdrawalAt, resubmitInternalReview, startInternalReview, withdrawUnanswered } from './internalReview'
 import { deriveNotifications } from './notifications'
 import { reviewTasks } from './reviews'
 import { deleteBlockers, permissionChangeBlockers, sopsUsing } from './userAdmin'
@@ -314,5 +314,45 @@ describe('assignment cancellation is separate from global Reviewer permission', 
     // Any later request still revalidates eligibility rather than changing roles itself.
     environment.users.find((user) => user.id === 'a')!.permissions = []
     expect(() => resubmitInternalReview(revise(returned), 'author', '4.0', environment)).toThrow(/eligible/)
+  })
+})
+
+describe('automatic withdrawal of unanswered requests', () => {
+  const endOfDay = (day: number) => new Date(2026, 9, day, 23, 59, 59, 999).getTime()
+  it('withdraws a pending request exactly when its response due date has ended, dated at the deadline by System', () => {
+    const sop = start()
+    expect(withdrawUnanswered(sop, endOfDay(28) - 1)).toBe(sop)
+    const withdrawn = withdrawUnanswered(sop, endOfDay(28))
+    for (const user of ['a', 'b', 'c']) expect(task(withdrawn, user)).toMatchObject({ decision: 'withdrawn', withdrawnAt: new Date(endOfDay(28)).toISOString() })
+    expect(withdrawn.timeline.filter((event) => event.type === 'review-withdrawn')).toEqual(['a', 'b', 'c'].map((user) => expect.objectContaining({
+      actorId: SYSTEM_ACTOR, createdAt: new Date(endOfDay(28)).toISOString(), recipientIds: ['author', user], reviewAssignmentId: task(sop, user).id,
+    })))
+    // Applying the rule again changes nothing.
+    expect(withdrawUnanswered(withdrawn, endOfDay(30))).toBe(withdrawn)
+    expect(sopsUsing('reviewer', 'a', [withdrawn])).toEqual([])
+  })
+  it('never withdraws a request without a response due date, or one that was accepted', () => {
+    const blank = startInternalReview(draft(), 'author', '4.0', { reviewerIds: ['a', 'b'], reviewDurationDays: 1 }, env())
+    expect(withdrawUnanswered(blank, endOfDay(31) * 2)).toBe(blank)
+    const accepted = accept(start(), 'a')
+    const later = withdrawUnanswered(accepted, endOfDay(28))
+    expect(task(later, 'a').decision).toBe('accepted')
+    expect(task(later, 'b').decision).toBe('withdrawn')
+    expect(nextWithdrawalAt([accepted])).toBe(endOfDay(28))
+    expect(nextWithdrawalAt([later, blank])).toBeUndefined()
+  })
+  it('refuses accepting or declining once the response due date has ended, even before the rule has run', () => {
+    const sop = start()
+    vi.setSystemTime(endOfDay(28))
+    expect(() => accept(sop, 'a')).toThrow(/withdrawn/)
+    expect(() => decline(sop, 'a')).toThrow(/withdrawn/)
+  })
+  it('does not count a withdrawn reviewer as taking part', () => {
+    const sop = decide(decide(accept(accept(start(), 'a'), 'b'), 'a'), 'b')
+    const settled = withdrawUnanswered(sop, endOfDay(28))
+    expect(task(settled, 'c').decision).toBe('withdrawn')
+    expect(currentInternalRound(settled)!.status).toBe('completed')
+    expect(requiredReviewsComplete(settled)).toBe(true)
+    expect(reviewTasks('c', [settled])[0]).toMatchObject({ group: 'done', decision: 'withdrawn' })
   })
 })

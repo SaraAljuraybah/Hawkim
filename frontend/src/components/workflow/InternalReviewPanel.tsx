@@ -2,7 +2,7 @@ import { useRef, useState } from 'react'
 import { internalReviewEn as text } from '../../content/internalReview.en'
 import { sopWorkflowEn } from '../../content/workflow.en'
 import type { InternalReviewerAssignment, Sop } from '../../data/mock/types'
-import { formatDateTime } from '../../lib/format'
+import { formatDate, formatDateTime } from '../../lib/format'
 import { useSops } from '../../state/sopsContext'
 import { useUsers } from '../../state/usersContext'
 import { Button } from '../ui/Button'
@@ -46,6 +46,7 @@ export function InternalReviewPanel({ sop, canCancel }: Props) {
             </div>
             <ReviewerDeadline sop={sop} reviewer={assignment} content={sopWorkflowEn.reviewerDeadline} />
             {assignment.acceptedAt && <p className="mt-1 text-xs text-text-gray">{text.panel.accepted.replace('{date}', formatDateTime(assignment.acceptedAt))}</p>}
+            {assignment.withdrawnAt && assignment.responseDueDate && <p className="mt-1 text-xs text-text-gray">{text.panel.withdrawn.replace('{date}', formatDate(assignment.responseDueDate))}</p>}
             {assignment.declineReason && <p className="mt-2 text-sm whitespace-pre-wrap break-words text-maroon">{text.panel.declineReason.replace('{reason}', assignment.declineReason)}</p>}
             {assignment.decidedAt && <p className="mt-1 text-xs text-text-gray">{text.panel.decided.replace('{date}', formatDateTime(assignment.decidedAt))}</p>}
             {comment && <p className="mt-2 text-sm whitespace-pre-wrap break-words text-maroon">{comment.text}</p>}

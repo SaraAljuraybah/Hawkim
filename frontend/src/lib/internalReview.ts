@@ -1,7 +1,7 @@
 import { SYSTEM_ACTOR, type InternalReviewRound, type InternalReviewerAssignment, type Sop, type SopComment, type TimelineEvent } from '../data/mock/types'
 import { hasCurrentCheck } from './compliance'
 import { todayIsoDate } from './format'
-import { isInactiveDecision, isOpenDecision, isValidReviewDuration, latestAssignmentOf, latestAssignments, projectReviewers, reviewDueDateFrom } from './internalReviewStatus'
+import { isInactiveDecision, isOpenDecision, isValidReviewDuration, isWithdrawalDue, latestAssignmentOf, latestAssignments, projectReviewers, reviewDueDateFrom, withdrawalDueAt } from './internalReviewStatus'
 import { eligibleReviewers, type ReviewEnvironment } from './reviewFlow'
 import { canResubmit, daysFromToday, isAuthor, parseDueDate } from './workflow'
 
@@ -34,8 +34,38 @@ function active(sop: Sop, roundId: string, assignmentId: string) {
   const round = currentInternalRound(sop)
   assert(sop.status === 'in-review' && round?.id === roundId && round.version === sop.version && round.status === 'open', 'This internal review round is no longer open')
   const assignment = round.assignments.find((person) => person.id === assignmentId)
+  assert(assignment?.decision !== 'withdrawn', 'This review request was withdrawn because it was not accepted or declined by its response due date')
   assert(assignment && isOpenDecision(assignment.decision) && latestAssignmentOf(round, assignment.userId) === assignment, 'This assignment is cancelled, decided, or no longer open')
+  assert(!isWithdrawalDue(assignment, Date.now()), 'This review request was withdrawn because it was not accepted or declined by its response due date')
   return { round, assignment }
+}
+/**
+ * Applies the automatic withdrawal rule (see withdrawalDueAt) to the open round: each pending
+ * request whose response due date has ended is withdrawn, dated at that deadline, by System.
+ * The author and the reviewer are told. Returns the same SOP when nothing is due.
+ */
+export function withdrawUnanswered(sop: Sop, now = Date.now()): Sop {
+  const round = currentInternalRound(sop)
+  if (!round || round.status !== 'open' || sop.status !== 'in-review') return sop
+  const due = latestAssignments(round).filter((person) => isWithdrawalDue(person, now))
+  if (!due.length) return sop
+  let updated = round
+  const events: TimelineEvent[] = []
+  for (const person of due) {
+    const withdrawnAt = withdrawalDueAt(person)!
+    updated = update(updated, person.id, { decision: 'withdrawn', withdrawnAt })
+    events.push(event(round, 'review-withdrawn', SYSTEM_ACTOR, { reviewAssignmentId: person.id, createdAt: withdrawnAt, recipientIds: [sop.authorId!, person.userId] }))
+  }
+  return finishIfReady(sop, updated, events)
+}
+/** When the next automatic withdrawal is due across these SOPs (epoch milliseconds), if any. */
+export function nextWithdrawalAt(sops: Sop[]): number | undefined {
+  const times = sops.flatMap((sop) => {
+    const round = currentInternalRound(sop)
+    if (!round || round.status !== 'open' || sop.status !== 'in-review') return []
+    return latestAssignments(round).map((person) => withdrawalDueAt(person)).filter((dueAt) => dueAt !== undefined).map((dueAt) => new Date(dueAt).getTime())
+  })
+  return times.length ? Math.min(...times) : undefined
 }
 function reviewer(sop: Sop, actorId: string, assignment: InternalReviewerAssignment, env: ReviewEnvironment) {
   assert(assignment.userId === actorId && eligibleReviewers(sop, sop.departmentId, env.users).some((person) => person.id === actorId), 'Only the active assigned internal Reviewer can decide')

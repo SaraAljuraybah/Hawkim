@@ -301,3 +301,21 @@ describe('assigned controller decisions at the store boundary', () => {
     expect(() => author.addCoAuthors(sop.id, ['controller'])).toThrow(/approvers cannot be co-authors/)
   })
 })
+
+describe('automatic withdrawal at the store boundary', () => {
+  function requested(): Sop {
+    fixture.users.push(person('second', ['reviewer']))
+    const draft: Sop = { id: 'test', code: 'TEST', title: 'Withdrawal fixture', version: '1', departmentId: 'home', authorId: 'author', coAuthorIds: [], status: 'draft', lastUpdated: '2026-10-23', fileName: 'test.pdf', fileType: 'pdf', versions: [{ version: '1', fileName: 'test.pdf', fileType: 'pdf', uploadedAt: new Date().toISOString() }], reviewers: [], approvers: [], comments: [], timeline: [], complianceChecks: [check('1')] }
+    const sop = startInternalReview(draft, 'author', '4.0', { reviewerIds: ['reviewer', 'second'], responseDueDate: '2026-10-24' }, env())
+    return acceptInternalReview(sop, 'second', currentInternalRound(sop)!.id, currentInternalRound(sop)!.assignments[1].id, env())
+  }
+  it('withdraws unanswered requests before the next action and refuses acting on them', () => {
+    const sop = requested()
+    vi.setSystemTime(new Date(2026, 9, 25, 9))
+    expect(() => capture('reviewer', sop).acceptInternalReview(sop.id, currentInternalRound(sop)!.id, currentInternalRound(sop)!.assignments[0].id)).toThrow(/withdrawn/)
+    const round = currentInternalRound(sop)!
+    capture('second', sop).decideInternalReview(sop.id, round.id, round.assignments[1].id, 'completed', 'Fine')
+    expect(currentInternalRound(current())!.assignments.map((assignment) => assignment.decision)).toEqual(['withdrawn', 'completed'])
+    expect(current().timeline.find((event) => event.type === 'review-withdrawn')).toMatchObject({ createdAt: new Date(2026, 9, 24, 23, 59, 59, 999).toISOString() })
+  })
+})

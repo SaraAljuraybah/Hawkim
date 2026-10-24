@@ -797,7 +797,7 @@ export function internalReviewsComplete(sop: Sop): boolean {
   const latest = round ? latestAssignments(round) : []
   return !!round && round.version === sop.version && round.status === 'completed' &&
     latest.some((person) => person.decision === 'completed') &&
-    latest.every((person) => person.decision === 'completed' || person.decision === 'declined' || person.decision === 'cancelled' && person.cancellationReason === 'author-cancelled')
+    latest.every((person) => person.decision === 'completed' || person.decision === 'declined' || person.decision === 'withdrawn' || person.decision === 'cancelled' && person.cancellationReason === 'author-cancelled')
 }
 
 /** All required initial and department reviews must be evidenced by completed assignments. */
@@ -806,7 +806,7 @@ export function requiredReviewsComplete(sop: Sop): boolean {
   if (round) {
     if (!internalReviewsComplete(sop)) return false
     const waived = (person: ReviewerAssignment) => round.assignments.some((assignment) =>
-      'id' in person && person.id === assignment.id && (assignment.decision === 'declined' || assignment.decision === 'cancelled' && assignment.cancellationReason === 'author-cancelled'))
+      'id' in person && person.id === assignment.id && (assignment.decision === 'declined' || assignment.decision === 'withdrawn' || assignment.decision === 'cancelled' && assignment.cancellationReason === 'author-cancelled'))
     if (!sop.reviewers.every((person) => person.decision === 'completed' || person.decision === 'cancelled' && waived(person))) return false
   }
   const flow = sop.reviewFlow

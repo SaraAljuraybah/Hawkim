@@ -10,6 +10,7 @@ const styles: Record<Decision, string> = {
   approved: 'bg-status-approved-bg text-status-approved-fg',
   returned: 'bg-status-rejected-bg text-status-rejected-fg',
   declined: 'bg-status-cancelled-bg text-status-cancelled-fg',
+  withdrawn: 'bg-status-cancelled-bg text-status-cancelled-fg',
   cancelled: 'bg-beige text-text-gray',
 }
 

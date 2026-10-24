@@ -44,7 +44,24 @@ export function isOpenDecision(decision: InternalReviewDecision): boolean {
 
 /** The reviewer no longer takes part in this round. */
 export function isInactiveDecision(decision: InternalReviewDecision): boolean {
-  return decision === 'declined' || decision === 'cancelled'
+  return decision === 'declined' || decision === 'withdrawn' || decision === 'cancelled'
+}
+
+/**
+ * THE ONLY AUTOMATIC STEP in internal review: a request that is still pending when its
+ * response due date has ended (the end of that local day) is withdrawn. Without a response
+ * due date it never expires; once accepted, nothing happens automatically.
+ * Returns when that happens, or undefined when it can't.
+ * TODO: The real withdrawal must run on the backend (a scheduled job), not in the browser.
+ */
+export function withdrawalDueAt(assignment: Pick<InternalReviewerAssignment, 'decision' | 'responseDueDate'>): string | undefined {
+  return assignment.decision === 'pending' && assignment.responseDueDate ? endOfLocalDay(assignment.responseDueDate) : undefined
+}
+
+/** Whether the request is due to be withdrawn at `now`. */
+export function isWithdrawalDue(assignment: Pick<InternalReviewerAssignment, 'decision' | 'responseDueDate'>, now: number): boolean {
+  const dueAt = withdrawalDueAt(assignment)
+  return dueAt !== undefined && new Date(dueAt).getTime() <= now
 }
 
 /** Each reviewer's latest request in the round (a later request replaces an earlier one), in first-sent order. */
@@ -70,7 +87,7 @@ export function activeAssignments(round: InternalReviewRound): InternalReviewerA
 /** The decision shared views (people list, user administration, legacy helpers) understand. */
 export function legacyDecision(decision: InternalReviewDecision): ReviewerDecision {
   if (decision === 'accepted') return 'pending'
-  if (decision === 'declined') return 'cancelled'
+  if (decision === 'declined' || decision === 'withdrawn') return 'cancelled'
   return decision
 }
 

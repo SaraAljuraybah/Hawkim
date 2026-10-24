@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { sops as seedSops } from '../data/mock/sops'
 import type { Sop, TimelineEvent } from '../data/mock/types'
 import * as compliance from '../lib/compliance'
@@ -7,13 +7,15 @@ import { nextSopCode } from '../lib/sopCodes'
 import { assertCanCreateSop } from '../lib/sopAccess'
 import { submitForApproval } from '../lib/approval'
 import { applyReviewAction } from '../lib/reviewFlow'
-import { acceptInternalReview, cancelInternalReview, decideInternalReview, declineInternalReview, resubmitInternalReview, startInternalReview } from '../lib/internalReview'
+import { acceptInternalReview, cancelInternalReview, decideInternalReview, declineInternalReview, nextWithdrawalAt, resubmitInternalReview, startInternalReview, withdrawUnanswered } from '../lib/internalReview'
 import { useDepartments } from './departmentsContext'
 import * as workflow from '../lib/workflow'
 import { useGuidelines } from './guidelinesContext'
 import { useSession } from './sessionContext'
 import { useUsers } from './usersContext'
 import { SopsContext, type NewDraft, type SopsStore } from './sopsContext'
+
+const DAY_MS = 24 * 60 * 60 * 1000
 
 /**
  * In-memory store of every SOP (one list for the directory, My SOPs and the workflow).
@@ -51,11 +53,25 @@ export function SopsProvider({ children }: { children: ReactNode }) {
       const current = latestRef.current
       const sop = current.find((item) => item.id === sopId)
       if (!sop) throw new Error(`Unknown SOP ${sopId}`)
-      const updated = transition(sop)
+      // Unanswered review requests past their response due date are withdrawn before anything else happens.
+      const updated = transition(withdrawUnanswered(sop))
       commit(current.map((item) => (item.id === sopId ? updated : item)))
     },
     [commit],
   )
+
+  // The automatic withdrawal also runs on load and at the moment the next response due date ends.
+  useEffect(() => {
+    const next = nextWithdrawalAt(sops)
+    if (next === undefined) return
+    // Long waits are re-checked daily (browser timers can't wait longer than about 24 days).
+    const timer = window.setTimeout(() => {
+      const now = Date.now()
+      const swept = latestRef.current.map((sop) => withdrawUnanswered(sop, now))
+      if (swept.some((sop, index) => sop !== latestRef.current[index])) commit(swept)
+    }, Math.min(Math.max(0, next - Date.now()), DAY_MS))
+    return () => window.clearTimeout(timer)
+  }, [sops, commit])
 
   // DEVELOPMENT ONLY (demo panel): the next check started fails instead of completing.
   const [failNextCheck, setFailNextCheckState] = useState(false)
