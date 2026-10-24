@@ -38,12 +38,12 @@ describe('reviewer deadline displays', () => {
     const item = sop()
     const active = render(<ReviewerDeadline sop={item} reviewer={item.reviewers[0]} content={sopWorkflowEn.reviewerDeadline} showQueue />)
     expect(active).toContain('Time given: 2 days')
-    expect(active).toContain('Time Remaining: 1 day 11 hours')
+    expect(active).toContain('Time remaining: 1 day 11 hours')
     expect(active).toContain('Current reviewer')
     const waiting = render(<ReviewerDeadline sop={item} reviewer={item.reviewers[1]} content={sopWorkflowEn.reviewerDeadline} showQueue />)
     expect(waiting).toContain('Time given: 7 days')
     expect(waiting).toContain('Waiting in queue')
-    expect(waiting).not.toContain('Time Remaining')
+    expect(waiting).not.toContain('Time remaining')
     const blank = render(<ReviewerDeadline sop={item} reviewer={item.reviewers[2]} content={sopWorkflowEn.reviewerDeadline} />)
     expect(blank).toContain('No deadline assigned')
     expect(blank).not.toContain('<time')
@@ -83,7 +83,7 @@ describe('parallel reviewer deadline displays', () => {
     for (const reviewer of item.internalReviewRounds[0].assignments.slice(0, 2)) {
       const html = render(<ReviewerDeadline sop={item} reviewer={reviewer} content={sopWorkflowEn.reviewerDeadline} showQueue />)
       expect(html).toContain('Review pending')
-      expect(html).toContain('Time Remaining')
+      expect(html).toContain('Time remaining')
       expect(html).not.toContain('Waiting in queue')
     }
     const html = render(<StatusTracker sop={item} content={sopWorkflowEn.tracker} />)
@@ -99,7 +99,7 @@ describe('parallel reviewer deadline displays', () => {
     first.decision = 'cancelled'
     const cancelled = render(<ReviewerDeadline sop={item} reviewer={first} content={sopWorkflowEn.reviewerDeadline} />)
     expect(cancelled).not.toContain('Overdue')
-    expect(cancelled).not.toContain('Time Remaining')
+    expect(cancelled).not.toContain('Time remaining')
     expect(cancelled).toContain('Time given: 2 days')
   })
   it('shows the actual same-day allocation instead of zero days or a full 24 hours', () => {
@@ -110,14 +110,14 @@ describe('parallel reviewer deadline displays', () => {
     item.internalReviewRounds = [{ id: 'today', scope: 'internal', version: item.version, status: 'open', requestedById: 'Author', requestedAt, dueDate: '2026-10-19', assignedDueDays: 0, assignments: [assignment] }]
     const html = render(<ReviewerDeadline sop={item} reviewer={assignment} content={sopWorkflowEn.reviewerDeadline} />)
     expect(html).toContain('Time given: 11 hours 29 minutes')
-    expect(html).toContain('Time Remaining: 11 hours 29 minutes')
+    expect(html).toContain('Time remaining: 11 hours 29 minutes')
     expect(html).not.toContain('0 days')
     expect(html).not.toContain('24 hours')
     expect(html).not.toContain('Overdue')
     const summary = render(<InternalReviewSummary sop={item} />)
     expect(summary).toContain('Time given: 11 hours 29 minutes')
-    expect(summary).toContain('Time Remaining: 11 hours 29 minutes')
-    expect(summary).not.toContain('Remaining Days')
+    expect(summary).toContain('Time remaining: 11 hours 29 minutes')
+    expect(summary).not.toContain('Remaining days')
   })
   it('becomes overdue at the exact local end-of-day timestamp, including its last millisecond', () => {
     const requestedAt = new Date(2026, 9, 19, 12).toISOString()
@@ -126,12 +126,12 @@ describe('parallel reviewer deadline displays', () => {
     const item = sop()
     const assignment = { id: 'task-today', userId: 'First reviewer', decision: 'pending' as const, dueDate: '2026-10-19', assignedDueDays: 0, assignedAt: requestedAt }
     item.internalReviewRounds = [{ id: 'today', scope: 'internal', version: item.version, status: 'open', requestedById: 'Author', requestedAt, dueDate: '2026-10-19', assignedDueDays: 0, assignments: [assignment] }]
-    expect(render(<ReviewerDeadline sop={item} reviewer={assignment} content={sopWorkflowEn.reviewerDeadline} />)).toContain('Time Remaining: less than 1 second')
+    expect(render(<ReviewerDeadline sop={item} reviewer={assignment} content={sopWorkflowEn.reviewerDeadline} />)).toContain('Time remaining: less than 1 second')
     expect(render(<InternalReviewSummary sop={item} />)).not.toContain('Overdue')
     vi.setSystemTime(deadline)
     const html = render(<ReviewerDeadline sop={item} reviewer={assignment} content={sopWorkflowEn.reviewerDeadline} />)
     expect(html).toContain('Overdue')
-    expect(html).not.toContain('Time Remaining')
+    expect(html).not.toContain('Time remaining')
     expect(render(<InternalReviewSummary sop={item} />)).toContain('Overdue')
   })
   it('retains distinct historical reviewer dates and allocations without active countdowns', () => {
@@ -148,7 +148,7 @@ describe('parallel reviewer deadline displays', () => {
       const html = render(<ReviewerDeadline sop={item} reviewer={assignment} content={sopWorkflowEn.reviewerDeadline} />)
       expect(html).toContain(`Time given: ${index === 0 ? '2' : '7'} days 14 hours`)
       expect(html).toContain(new Date(2026, 9, index === 0 ? 20 : 25, 23, 59, 59, 999).toISOString())
-      expect(html).not.toContain('Time Remaining')
+      expect(html).not.toContain('Time remaining')
       expect(html).not.toContain('Overdue')
     }
     expect(assignments.map((assignment) => assignment.dueDate)).toEqual(['2026-10-20', '2026-10-25'])
