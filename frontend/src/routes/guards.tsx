@@ -1,12 +1,14 @@
-import { lazy, Suspense } from 'react'
-import { Navigate } from 'react-router-dom'
+import { lazy, Suspense, type ReactNode } from 'react'
+import { Navigate, useLocation } from 'react-router-dom'
 import { AppLayout } from '../components/layout/AppLayout'
 import { PageLoading } from '../components/ui/PageLoading'
+import { isPathAllowed, isReadOnlyDepartment, READ_ONLY_LANDING_PATH } from '../lib/departmentNavigation'
 import { hasPermission } from '../lib/permissions'
 import { ADMIN_USERS_PATH } from '../lib/routes'
 import { NotFoundPage } from '../pages/NotFoundPage'
 import { ActiveDepartmentProvider } from '../state/ActiveDepartmentProvider'
-import { useSession } from '../state/sessionContext'
+import { useActiveDepartment } from '../state/activeDepartmentContext'
+import { useCurrentUser, useSession } from '../state/sessionContext'
 
 /** The admin portal's layout is in the admin chunk (see routes/adminPortal.ts). */
 const AdminLayout = lazy(() => import('./adminPortal').then((m) => ({ default: m.AdminLayout })))
@@ -29,9 +31,25 @@ export function EmployeeArea() {
   return (
     // The active department depends on the user's approved department-access requests.
     <ActiveDepartmentProvider>
-      <AppLayout />
+      <DepartmentRouteGuard>
+        <AppLayout />
+      </DepartmentRouteGuard>
     </ActiveDepartmentProvider>
   )
+}
+
+/**
+ * In a department the user only has read-only access to, pages other than the
+ * directory pages (typed URLs, or the page open when switching) lead to the SOP Directory.
+ */
+function DepartmentRouteGuard({ children }: { children: ReactNode }) {
+  const { pathname } = useLocation()
+  const user = useCurrentUser()
+  const { activeDepartment } = useActiveDepartment()
+  if (!isPathAllowed(pathname, isReadOnlyDepartment(activeDepartment.id, user))) {
+    return <Navigate to={READ_ONLY_LANDING_PATH} replace />
+  }
+  return children
 }
 
 /**
