@@ -1,9 +1,9 @@
 /** Author-controlled approval submission, separate from internal review requests. */
 export const approvalEn = {
-  action: 'Submit for Approval',
+  action: 'Submit for approval',
   submitted: 'Submitted for approval.',
   dialog: {
-    title: 'Submit for Approval',
+    title: 'Submit for approval',
     description: 'Send this version to the configured Quality Document Controller after all required reviews are complete.',
     controller: 'Assigned Approver',
     noExternalReviews: 'I confirm that no external department reviews are required for this SOP version.',

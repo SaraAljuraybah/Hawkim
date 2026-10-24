@@ -1,5 +1,6 @@
 import type { ApprovalSubmission, ExternalReviewGate, Sop, TimelineEvent, User } from '../data/mock/types'
 import { currentCheck } from './compliance'
+import { reviewPhaseMissing, type ReviewPhaseItem } from './internalReview'
 import { todayIsoDate } from './format'
 import type { ReviewEnvironment } from './reviewFlow'
 import { externalReviewsComplete, internalReviewsComplete, isAuthorOrCoAuthor, isReviewer, parseApprovalDueDate, requiredReviewsComplete } from './workflow'
@@ -16,6 +17,8 @@ export interface ApprovalSubmissionOptions {
 export interface ApprovalReadiness {
   ready: boolean
   reasons: string[]
+  /** The reviewers still to finish the latest version (shown first, in place of a general review reason). */
+  missing: ReviewPhaseItem[]
   qualityController?: User
   requiresExternalConfirmation: boolean
   requiresFeedbackConfirmation: boolean
@@ -27,19 +30,20 @@ const id = (prefix: string) => prefix + '-' + Date.now().toString(36) + '-' + (+
 /** Reused by the Author interface and the transition; missing assignments never imply readiness. */
 export function approvalReadiness(sop: Sop, actorId: string, env: ReviewEnvironment, options: Partial<ApprovalSubmissionOptions> = {}): ApprovalReadiness {
   const reasons: string[] = []
+  const missing = reviewPhaseMissing(sop)
   const actor = env.users.find((user) => user.id === actorId)
   if (actorId !== sop.authorId || !actor || actor.deletedAt || !actor.permissions.includes('author') || actor.permissions.includes('admin')) {
     reasons.push('Only the active main Author can submit this SOP for approval.')
   }
   const department = env.departments.find((item) => item.id === sop.departmentId && !item.removedAt)
   if (!department) reasons.push('The SOP department is unavailable.')
-  if (sop.status !== 'in-review' || sop.reviewFlow) reasons.push('Submit for approval is available after the internal parallel review stage.')
+  if ((sop.status !== 'in-review' || sop.reviewFlow) && !missing.length) reasons.push('Submit for approval is available after the internal parallel review stage.')
   const round = sop.internalReviewRounds?.at(-1)
-  if (!internalReviewsComplete(sop) || !requiredReviewsComplete(sop)) {
+  if ((!internalReviewsComplete(sop) || !requiredReviewsComplete(sop)) && !missing.length) {
     reasons.push('Complete at least one required internal review and all remaining required reviews for the current version. Returned or cancelled rounds are not complete.')
   }
   if (options.version !== undefined && options.version !== sop.version || options.internalReviewRoundId !== undefined && options.internalReviewRoundId !== round?.id) {
-    reasons.push('The SOP version or review round has changed. Reopen Submit for Approval.')
+    reasons.push('The SOP version or review round has changed. Reopen Submit for approval.')
   }
   if (sop.approvalSubmissions?.some((submission) => submission.version === sop.version && submission.internalReviewRoundId === round?.id) || sop.approvers.length) {
     reasons.push('This review round already has an approval request.')
@@ -81,14 +85,14 @@ export function approvalReadiness(sop: Sop, actorId: string, env: ReviewEnvironm
     !(gate?.requirement === 'required' && gate.assignments.some((assignment) => assignment.userId === configured.id)) ? configured : undefined
   if (!qualityController) reasons.push('Configure an active eligible Quality Document Controller with Approver permission for the originating department. Authors, co-authors and Reviewers cannot approve this SOP.')
   if (!parseApprovalDueDate(options.dueDate ?? '').valid) reasons.push('Choose an optional approval deadline from tomorrow through 30 days from today.')
-  return { ready: reasons.length === 0, reasons, qualityController, requiresExternalConfirmation, requiresFeedbackConfirmation }
+  return { ready: reasons.length === 0 && missing.length === 0, reasons, missing, qualityController, requiresExternalConfirmation, requiresFeedbackConfirmation }
 }
 
 /** Main-Author-only handoff. It creates one real approval task and never routes external reviews. */
 export function submitForApproval(sop: Sop, actorId: string, options: ApprovalSubmissionOptions, env: ReviewEnvironment): Sop {
   if (!options.version || !options.internalReviewRoundId) throw new Error('The current SOP version and internal review round are required.')
   const readiness = approvalReadiness(sop, actorId, env, options)
-  if (!readiness.ready) throw new Error(readiness.reasons.join(' '))
+  if (!readiness.ready) throw new Error(readiness.reasons.join(' ') || 'Every reviewer taking part must complete the latest version before approval.')
   const now = new Date().toISOString()
   const submissionId = id('approval-request')
   const dueDate = options.dueDate?.trim() || undefined

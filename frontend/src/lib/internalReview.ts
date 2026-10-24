@@ -225,3 +225,26 @@ export function sendNewVersionForReview(sop: Sop, actorId: string, guidelineVers
   validate(sop, options, env)
   return create(sop, actorId, options, 'resubmitted')
 }
+/** What stands between the review phase and Submit for approval, one item per reviewer still taking part. */
+export type ReviewPhaseItem =
+  | { kind: 'no-reviewers' }
+  | { kind: 'respond'; userId: string }
+  | { kind: 'finish'; userId: string; version: string }
+  | { kind: 'returned'; userId: string; version: string }
+
+/**
+ * The review phase is done only when every reviewer taking part has completed the latest version.
+ * Lists what is still missing (empty once done). Nobody taking part, or a version not yet sent, is missing reviewers.
+ */
+export function reviewPhaseMissing(sop: Sop): ReviewPhaseItem[] {
+  const round = currentInternalRound(sop)
+  if (!round || round.version !== sop.version) return [{ kind: 'no-reviewers' }]
+  const taking = latestAssignments(round).filter((person) => !isInactiveDecision(person.decision))
+  if (!taking.length) return [{ kind: 'no-reviewers' }]
+  return taking.flatMap((person): ReviewPhaseItem[] => {
+    if (person.decision === 'pending') return [{ kind: 'respond', userId: person.userId }]
+    if (person.decision === 'accepted') return [{ kind: 'finish', userId: person.userId, version: round.version }]
+    if (person.decision === 'returned') return [{ kind: 'returned', userId: person.userId, version: round.version }]
+    return []
+  })
+}

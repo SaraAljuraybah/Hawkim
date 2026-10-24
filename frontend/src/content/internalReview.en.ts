@@ -32,6 +32,13 @@ export const internalReviewEn = {
     updated: 'Internal review updated.', inProgress: 'In progress', cancelled: 'This review assignment was cancelled.',
     completed: 'Your review is complete.', awaitingAuthor: 'Internal reviews are complete. Awaiting the next Author action.',
   },
+  approvalMissing: {
+    title: 'Submit for approval is available when:',
+    noReviewers: 'At least one reviewer is taking part in the review.',
+    respond: '{name} has accepted or declined the request.',
+    finish: '{name} has finished reviewing v{version}.',
+    returned: '{name} returned v{version} with comments: upload a new version and send it for review.',
+  },
   status: {
     cancelled: 'This review assignment was cancelled.', closed: 'This review round is closed.',
     awaitingAuthor: 'Internal reviews are complete. Awaiting the next Author action.',

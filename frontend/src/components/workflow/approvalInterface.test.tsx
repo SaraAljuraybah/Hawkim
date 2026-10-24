@@ -5,6 +5,7 @@ import type { Department, Sop, User } from '../../data/mock/types'
 import { approvalEn } from '../../content/approval.en'
 import { internalReviewEn } from '../../content/internalReview.en'
 import { sopWorkflowEn } from '../../content/workflow.en'
+import { returnAsApprover } from '../../lib/workflow'
 import { submitForApproval } from '../../lib/approval'
 import { acceptInternalReview, currentInternalRound, decideInternalReview, removeInternalReviewer, startInternalReview } from '../../lib/internalReview'
 import { SopWorkflowPage } from '../../pages/SopWorkflowPage'
@@ -57,7 +58,7 @@ function finished(text?: string) { return decide(decide(start(), 'reviewer-a', '
 function renderPage() {
   return renderToStaticMarkup(<MemoryRouter initialEntries={['/approval-ui']}><Routes><Route path="/:id" element={<SopWorkflowPage />} /></Routes></MemoryRouter>)
 }
-function approvalButton(html: string) { return html.match(/<button[^>]*>Submit for Approval<\/button>/)?.[0] }
+function approvalButton(html: string) { return html.match(/<button[^>]*>Submit for approval<\/button>/)?.[0] }
 function renderDialog(sop: Sop) { return renderToStaticMarkup(<SubmitForApprovalDialog sop={sop} onSubmit={() => {}} onClose={() => {}} />) }
 
 beforeEach(() => {
@@ -72,11 +73,29 @@ describe('main Author approval interface', () => {
     fixture.sop = finished()
     const html = renderPage()
     expect(approvalButton(html)).toBeDefined()
-    expect(approvalButton(html)).not.toContain(' disabled=""')
+    expect(approvalButton(html)).not.toContain('aria-disabled="true"')
     expect(html).not.toContain('name="noExternalReviewsRequired"')
     expect(html).toContain('Description remains visible')
     expect(fixture.sop.status).toBe('in-review')
     expect(fixture.sop.approvers).toEqual([])
+  })
+  it('shows Submit for approval disabled but focusable in Draft and after an approver return, with what is missing', () => {
+    fixture.sop = draft()
+    const html = renderPage()
+    const button = approvalButton(html)!
+    expect(button).toContain('aria-disabled="true"')
+    expect(button).not.toContain(' disabled=""')
+    expect(button).toContain('aria-disabled:bg-beige')
+    expect(button).toContain('aria-describedby="approval-hint"')
+    expect(html).toContain('<li>' + internalReviewEn.approvalMissing.noReviewers + '</li>')
+    const reviewed = finished()
+    const submitted = submitForApproval(reviewed, 'author', { version: '1', internalReviewRoundId: currentInternalRound(reviewed)!.id, noExternalReviewsRequired: true, feedbackAddressed: true }, { users: fixture.users, departments: fixture.departments })
+    const approval = submitted.approvalSubmissions!.at(-1)!
+    fixture.sop = returnAsApprover(submitted, 'controller', 'Revise the controls', { version: approval.version, approvalSubmissionId: approval.id })
+    expect(fixture.sop.status).toBe('returned')
+    const returned = renderPage()
+    expect(approvalButton(returned)).toContain('aria-disabled="true"')
+    expect(returned).toContain('id="approval-hint"')
   })
   it('never gives Co-Authors or Reviewers the approval submission control', () => {
     fixture.sop = finished()
@@ -92,19 +111,19 @@ describe('main Author approval interface', () => {
   it('shows an accessible blocked reason while a reviewer is still pending', () => {
     fixture.sop = decide(start(), 'reviewer-a')
     const html = renderPage()
-    expect(approvalButton(html)).toContain(' disabled=""')
+    expect(approvalButton(html)).toContain('aria-disabled="true"')
     expect(approvalButton(html)).toContain('aria-describedby="approval-hint"')
-    expect(html).toMatch(/<ul id="approval-hint"[^>]*><li>[^<]+/)
+    expect(html).toMatch(/<div id="approval-hint"[^>]*><p[^>]*>Submit for approval is available when:<\/p><ul[^>]*><li>Reviewer B has accepted or declined the request.<\/li>/)
   })
   it('keeps approval disabled after rejection or cancellation of every review', () => {
     fixture.sop = decide(start(), 'reviewer-a', 'returned', 'A revision is required')
-    expect(approvalButton(renderPage())).toContain(' disabled=""')
+    expect(approvalButton(renderPage())).toContain('aria-disabled="true"')
     let cancelled = start()
     const round = currentInternalRound(cancelled)!
     for (const assignment of round.assignments) cancelled = removeInternalReviewer(cancelled, 'author', round.id, assignment.id, 'No longer needed', { users: fixture.users, departments: fixture.departments })
     fixture.sop = cancelled
     const html = renderPage()
-    expect(approvalButton(html)).toContain(' disabled=""')
+    expect(approvalButton(html)).toContain('aria-disabled="true"')
     expect(html).toContain('id="approval-hint"')
     // Everyone removed: still In Review, and the author can ask other reviewers.
     expect(html).toContain('>' + internalReviewEn.submit.button + '<')
@@ -113,7 +132,7 @@ describe('main Author approval interface', () => {
     const reviewed = decide(start(), 'reviewer-a')
     const round = currentInternalRound(reviewed)!
     fixture.sop = removeInternalReviewer(reviewed, 'author', round.id, round.assignments.find((assignment) => assignment.userId === 'reviewer-b')!.id, 'No longer needed', { users: fixture.users, departments: fixture.departments })
-    expect(approvalButton(renderPage())).not.toContain(' disabled=""')
+    expect(approvalButton(renderPage())).not.toContain('aria-disabled="true"')
     expect(fixture.sop!.internalReviewRounds?.at(-1)?.assignments.find((assignment) => assignment.userId === 'reviewer-b')?.decision).toBe('removed')
     // The approver sees the removal and its reason in the review timeline.
     const submitted = submitForApproval(fixture.sop!, 'author', { version: fixture.sop!.version, internalReviewRoundId: round.id, noExternalReviewsRequired: true, feedbackAddressed: true }, { users: fixture.users, departments: fixture.departments })
@@ -125,8 +144,8 @@ describe('main Author approval interface', () => {
     fixture.sop = finished()
     fixture.departments[0].qualityControllerId = undefined
     const html = renderPage()
-    expect(approvalButton(html)).toContain(' disabled=""')
-    expect(html).toMatch(/<ul id="approval-hint"[^>]*><li>[^<]*(?:Quality|controller)[^<]*/)
+    expect(approvalButton(html)).toContain('aria-disabled="true"')
+    expect(html).toMatch(/id="approval-hint"[\s\S]*<li>[^<]*(?:Quality|controller)[^<]*/)
   })
   it('uses a separate dialog with an explicit unchecked external-review attestation and optional approval deadline', () => {
     const html = renderDialog(finished())
@@ -157,7 +176,7 @@ describe('main Author approval interface', () => {
         },
       }
       const html = renderPage()
-      expect(approvalButton(html)).toContain(' disabled=""')
+      expect(approvalButton(html)).toContain('aria-disabled="true"')
       expect(html).toContain('Complete every required external department review')
       expect(renderDialog(fixture.sop)).not.toContain('name="noExternalReviewsRequired"')
     }
@@ -172,7 +191,7 @@ describe('main Author approval interface', () => {
         assignments: [{ id: 'external-task', departmentId: 'other', userId: 'external', version: sop.version, decision: 'completed', decidedAt: new Date().toISOString() }],
       },
     }
-    expect(approvalButton(renderPage())).not.toContain(' disabled=""')
+    expect(approvalButton(renderPage())).not.toContain('aria-disabled="true"')
     expect(renderDialog(fixture.sop)).not.toContain('name="noExternalReviewsRequired"')
   })
   it('renders the Author-controlled submission and confirmation in the timeline and blocks a second request', () => {
@@ -186,7 +205,7 @@ describe('main Author approval interface', () => {
     expect(html).toContain(approvalEn.events['submitted-for-approval'])
     expect(html).toContain('feedback from the completed internal reviews has been addressed')
     expect(html).toContain('Quality Controller')
-    expect(approvalButton(html)).toContain(' disabled=""')
+    expect(approvalButton(html)).toContain('aria-disabled="true"')
     expect(fixture.sop.status).toBe('in-approval')
     expect(fixture.sop.approvers).toHaveLength(1)
   })

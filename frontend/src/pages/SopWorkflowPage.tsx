@@ -28,7 +28,7 @@ import type { SopVersion } from '../data/mock/types'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { currentCheck, hasCurrentCheck, isCheckRunning } from '../lib/compliance'
 import { approvalReadiness } from '../lib/approval'
-import { canAddReviewers, canSendNewVersion } from '../lib/internalReview'
+import { canAddReviewers, canSendNewVersion, type ReviewPhaseItem } from '../lib/internalReview'
 import { reviewAllowsNewVersion } from '../lib/internalReviewStatus'
 import { formatDate } from '../lib/format'
 import { hasPermission } from '../lib/permissions'
@@ -199,7 +199,8 @@ export function SopWorkflowPage() {
   const addReviewers = isMainAuthor && canAddReviewers(sop)
   const sendVersion = isMainAuthor && internal && canSendNewVersion(sop)
   const requestReason = sendVersion ? checkReason : undefined
-  const showApproval = isMainAuthor && !!sop.internalReviewRounds?.length && sop.status !== 'approved' && sop.status !== 'published'
+  // Submit for approval stays visible (Draft, In Review, and Returned after an approver return); it's disabled until ready.
+  const showApproval = isMainAuthor && (sop.status === 'draft' || internal) && sop.status !== 'approved' && sop.status !== 'published'
   const approval = showApproval
     ? approvalReadiness(sop, user.id, { users, departments: departments.departments }, {
         noExternalReviewsRequired: true,
@@ -207,6 +208,13 @@ export function SopWorkflowPage() {
       })
     : undefined
 
+  /** One reviewer still to finish the latest version (or nobody taking part), as a line of the missing list. */
+  function missingText(item: ReviewPhaseItem): string {
+    const text = internalReviewEn.approvalMissing
+    if (item.kind === 'no-reviewers') return text.noReviewers
+    const template = item.kind === 'respond' ? text.respond : item.kind === 'finish' ? text.finish : text.returned
+    return template.replace('{name}', nameOf(item.userId)).replace('{version}', 'version' in item ? item.version : '')
+  }
   // Response: to everyone who commented in the latest round; not once published.
   const recipients = sop.status === 'published' ? [] : responseRecipients(sop)
 
@@ -428,9 +436,10 @@ export function SopWorkflowPage() {
                   onClick={(event) => open(sendVersion ? 'submit' : 'addReviewers', event.currentTarget)}>{internalReviewEn.submit.button}</Button>
               )}
               {showApproval && (
-                <Button size="sm" disabled={!approval?.ready}
+                // Not available yet: grey and aria-disabled, so it stays focusable and the list below is read with it.
+                <Button size="sm" grayWhenDisabled aria-disabled={!approval?.ready || undefined}
                   aria-describedby={!approval?.ready ? 'approval-hint' : undefined}
-                  onClick={(event) => open('approval', event.currentTarget)}>
+                  onClick={(event) => { if (approval?.ready) open('approval', event.currentTarget) }}>
                   {approvalEn.action}
                 </Button>
               )}
@@ -447,9 +456,13 @@ export function SopWorkflowPage() {
           <p className="mb-4 text-sm text-text-gray">{actions.authorOnly.replace('{name}', authorName)}</p>
         )}
         {showApproval && approval && !approval.ready && (
-          <ul id="approval-hint" className="mb-4 list-disc space-y-1 pl-5 text-sm text-text-gray">
-            {approval.reasons.map((reason) => <li key={reason}>{reason}</li>)}
-          </ul>
+          <div id="approval-hint" className="mb-4 text-sm text-text-gray">
+            <p className="font-medium text-maroon">{internalReviewEn.approvalMissing.title}</p>
+            <ul className="mt-1 list-disc space-y-1 pl-5">
+              {approval.missing.map((item) => <li key={item.kind + ('userId' in item ? item.userId : '')}>{missingText(item)}</li>)}
+              {approval.reasons.map((reason) => <li key={reason}>{reason}</li>)}
+            </ul>
+          </div>
         )}
         <ReviewTimelineTable sop={sop} content={content} mainAuthorOnly />
       </Section>
