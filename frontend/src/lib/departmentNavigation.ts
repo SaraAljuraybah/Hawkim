@@ -28,6 +28,14 @@ export function isPathAllowed(pathname: string, readOnly: boolean): boolean {
   return READ_ONLY_PATHS.some((path) => pathname === path || pathname.startsWith(`${path}/`))
 }
 
+/**
+ * Whether following a link (e.g. a notification) needs the home department first,
+ * because the page it opens is hidden in the active read-only department.
+ */
+export function needsHomeDepartment(link: string, readOnly: boolean): boolean {
+  return !isPathAllowed(link.split(/[?#]/)[0], readOnly)
+}
+
 /** The sidebar items to show: those the user's permissions allow and the active department permits. */
 export function visibleNavItems(items: AppNavItem[], user: Pick<User, 'permissions'>, readOnly: boolean): AppNavItem[] {
   return items.filter(

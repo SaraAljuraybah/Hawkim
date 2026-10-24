@@ -16,9 +16,12 @@ import {
 } from 'lucide-react'
 import { notificationsEn } from '../../content/notifications.en'
 import type { NotificationType } from '../../lib/notifications'
+import { isReadOnlyDepartment, needsHomeDepartment } from '../../lib/departmentNavigation'
 import { formatRelativeTime } from '../../lib/format'
+import { useActiveDepartment } from '../../state/activeDepartmentContext'
 import { useDepartments } from '../../state/departmentsContext'
 import { useNotifications, type NotificationItem } from '../../state/notificationsContext'
+import { useCurrentUser } from '../../state/sessionContext'
 import { useUsers } from '../../state/usersContext'
 
 /** Most recent notifications listed (the list scrolls inside the panel). */
@@ -55,6 +58,8 @@ export function NotificationsBell() {
   const { notifications, unreadCount, now, markRead, markAllRead } = useNotifications()
   const { nameOf } = useUsers()
   const { nameOf: departmentName } = useDepartments()
+  const user = useCurrentUser()
+  const { activeDepartment, homeDepartment, setActiveDepartment } = useActiveDepartment()
   const navigate = useNavigate()
   const [open, setOpen] = useState(false)
   const wrapperRef = useRef<HTMLDivElement>(null)
@@ -131,6 +136,9 @@ export function NotificationsBell() {
   function openItem(item: NotificationItem) {
     markRead(item.id)
     setOpen(false)
+    // Pages hidden in a read-only department open in the home department.
+    const readOnly = isReadOnlyDepartment(activeDepartment.id, user)
+    if (needsHomeDepartment(item.link, readOnly)) setActiveDepartment(homeDepartment.id)
     navigate(item.link)
   }
 

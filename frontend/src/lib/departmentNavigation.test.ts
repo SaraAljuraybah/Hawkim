@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { appShellEn } from '../content/app.en'
 import type { Permission } from '../data/mock/types'
-import { isPathAllowed, isReadOnlyDepartment, visibleNavItems } from './departmentNavigation'
+import { isPathAllowed, isReadOnlyDepartment, needsHomeDepartment, visibleNavItems } from './departmentNavigation'
 
 const user = (permissions: Permission[]) => ({ departmentId: 'home', permissions })
 const labels = (permissions: Permission[], readOnly: boolean) =>
@@ -51,5 +51,20 @@ describe('routes', () => {
   it('matches whole path segments only', () => {
     expect(isPathAllowed('/sopsx', true)).toBe(false)
     expect(isPathAllowed('/departments-old', true)).toBe(false)
+  })
+})
+
+describe('notification links', () => {
+  it('switch to the home department first when they open a hidden page', () => {
+    for (const link of ['/my-sops/sop-079', '/reviews/sop-079', '/requests']) {
+      expect(needsHomeDepartment(link, true)).toBe(true)
+      expect(needsHomeDepartment(link, false)).toBe(false)
+    }
+  })
+
+  it('stay in the read-only department for directory pages, ignoring query and hash', () => {
+    expect(needsHomeDepartment('/sops/sop-079', true)).toBe(false)
+    expect(needsHomeDepartment('/sops/sop-079?tab=history#top', true)).toBe(false)
+    expect(needsHomeDepartment('/requests?status=pending', true)).toBe(true)
   })
 })
