@@ -7,26 +7,61 @@
  *
  * Security: the secret (service_role) key bypasses row level security and must
  * never be used here or in any VITE_ variable, which ends up in the browser.
- *
- * Not used by any screen yet; the stores move to it feature by feature.
  */
 
-import { createClient } from '@supabase/supabase-js'
+import { createClient, type SupabaseClient } from '@supabase/supabase-js'
+
+/** Why the client can't be created: no URL or key, or the secret key was used by mistake. */
+export type SupabaseConfigProblem = 'missing' | 'secret-key'
 
 const url = import.meta.env.VITE_SUPABASE_URL?.trim()
 const key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY?.trim()
 
-if (!url || !key) {
-  throw new Error('Supabase is not configured: set VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY in frontend/.env.local')
-}
-if (isSecretKey(key)) {
-  throw new Error('VITE_SUPABASE_PUBLISHABLE_KEY must be the publishable key, never the secret (service_role) key')
+/** Set when the app can't connect; App.tsx then shows the "not configured" screen instead. */
+export const supabaseConfigProblem: SupabaseConfigProblem | undefined =
+  !url || !key ? 'missing' : isSecretKey(key) ? 'secret-key' : undefined
+
+/**
+ * The session lives in sessionStorage: one account per browser tab, and it ends when the
+ * tab closes. Storage can be unavailable (private mode, blocked); the session then only
+ * lasts until reload.
+ */
+const tabStorage = {
+  getItem: (name: string) => {
+    try {
+      return sessionStorage.getItem(name)
+    } catch {
+      return null
+    }
+  },
+  setItem: (name: string, value: string) => {
+    try {
+      sessionStorage.setItem(name, value)
+    } catch {
+      // Without storage the session only lasts until reload.
+    }
+  },
+  removeItem: (name: string) => {
+    try {
+      sessionStorage.removeItem(name)
+    } catch {
+      // Nothing was stored.
+    }
+  },
 }
 
-export const supabase = createClient(url, key)
+const client = supabaseConfigProblem
+  ? undefined
+  : createClient(url!, key!, { auth: { storage: tabStorage, persistSession: true, autoRefreshToken: true, detectSessionInUrl: false } })
+
+/** The client. Only called once the app is configured (App.tsx checks supabaseConfigProblem first). */
+export function supabase(): SupabaseClient {
+  if (!client) throw new Error('Supabase is not configured: set VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY in frontend/.env.local')
+  return client
+}
 
 /** A secret key ("sb_secret_…"), or a legacy key whose role is service_role. */
-function isSecretKey(value: string): boolean {
+export function isSecretKey(value: string): boolean {
   if (value.startsWith('sb_secret_')) return true
   const payload = value.split('.')[1]
   if (!payload) return false

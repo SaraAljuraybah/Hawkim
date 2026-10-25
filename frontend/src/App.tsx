@@ -9,10 +9,12 @@ import { UploadSopPage } from './pages/UploadSopPage'
 import { SopsPage } from './pages/SopsPage'
 import { SubmitRequestPage } from './pages/SubmitRequestPage'
 import { LandingPage } from './pages/LandingPage'
+import { NotConfiguredPage } from './pages/NotConfiguredPage'
 import { NotFoundPage } from './pages/NotFoundPage'
 import { SignInPage } from './pages/SignInPage'
 import { ADMIN_USERS_PATH } from './lib/routes'
 import { AdminArea, EmployeeArea } from './routes/guards'
+import { supabaseConfigProblem } from './services/supabase'
 import { DepartmentsProvider } from './state/DepartmentsProvider'
 import { GuidelinesProvider } from './state/GuidelinesProvider'
 import { NotificationsProvider } from './state/NotificationsProvider'
@@ -57,6 +59,9 @@ function App() {
   useEffect(() => {
     if (!hash) window.scrollTo({ top: 0, behavior: 'instant' })
   }, [pathname, hash])
+
+  // Without frontend/.env.local (or with the wrong key) nothing can work: say so clearly.
+  if (supabaseConfigProblem) return <NotConfiguredPage problem={supabaseConfigProblem} />
 
   return (
     // Shared in-memory state: GVP versions, departments, users, who is signed in,

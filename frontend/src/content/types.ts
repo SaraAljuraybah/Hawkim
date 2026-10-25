@@ -889,6 +889,26 @@ export interface LoadingContent {
   label: string
 }
 
+/* ---------- App-wide screens (connection to the backend) ---------- */
+
+export interface SystemContent {
+  logoAlt: string
+  /** frontend/.env.local is missing, incomplete, or uses the secret key. */
+  notConfigured: {
+    pageTitle: string
+    title: string
+    missing: string
+    secretKey: string
+  }
+  /** The people or departments couldn't be loaded after sign-in. */
+  loadFailed: {
+    pageTitle: string
+    title: string
+    text: string
+    retry: string
+  }
+}
+
 /* ---------- Notifications (bell in the employee top bar) ---------- */
 
 export interface NotificationsContent {
