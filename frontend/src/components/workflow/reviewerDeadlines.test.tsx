@@ -13,7 +13,7 @@ import { formatReviewDuration } from '../../lib/reviewDuration'
 import type { ReactNode } from 'react'
 
 const users: UsersStore = {
-  users: [], activeUsers: [], getUser: () => undefined, nameOf: (id) => id ?? '',
+  status: 'ready', users: [], activeUsers: [], getUser: () => undefined, nameOf: (id) => id ?? '',
   addUser: () => { throw new Error('unused') }, updatePermissions: () => {}, deleteUser: () => {},
 }
 const render = (node: ReactNode) => renderToStaticMarkup(<UsersContext value={users}>{node}</UsersContext>)

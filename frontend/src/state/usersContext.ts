@@ -1,6 +1,7 @@
 import { createContext, useContext } from 'react'
 import type { Permission, Sop, User } from '../data/mock/types'
 import type { NewUser } from '../lib/userAdmin'
+import type { LoadStatus } from './useLoadAfterSignIn'
 
 /** What the admin actions check against: who is acting, and every SOP (for permissions in use). */
 export interface AdminActionContext {
@@ -9,9 +10,11 @@ export interface AdminActionContext {
 }
 
 export interface UsersStore {
+  /** Whether the people have been loaded from the database (after sign-in). */
+  status: LoadStatus
   /** Every user, deleted ones included (their names stay on SOP history). */
   users: User[]
-  /** Users who can use Hawkim (not deleted): lists, pickers and sign-in. */
+  /** Users who can use Hawkim (not deleted): lists and pickers. */
   activeUsers: User[]
   /** A user by id, deleted or not (undefined if unknown). */
   getUser: (id: string | undefined) => User | undefined

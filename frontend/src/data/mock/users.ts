@@ -2,9 +2,8 @@ import type { User } from './types'
 
 /*
  * Sample users. Every user is an employee; permissions add features on top.
- * They seed the in-memory users store (src/state/UsersProvider.tsx), which the
- * admin portal changes. Sara comes first: she is the demo's default account.
- * TODO: Replace with data from the backend API.
+ * Test fixtures only: the app loads the people from the database
+ * (src/state/UsersProvider.tsx). The sample SOPs and requests still refer to these ids.
  */
 export const sampleUsers: User[] = [
   {

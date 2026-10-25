@@ -64,12 +64,13 @@ function App() {
   if (supabaseConfigProblem) return <NotConfiguredPage problem={supabaseConfigProblem} />
 
   return (
-    // Shared in-memory state: GVP versions, departments, users, who is signed in,
-    // requests, all SOPs and which notifications were read. It lives above every route, so it survives signing out and in.
+    // Shared state: GVP versions, who is signed in, departments and users (from the database,
+    // after sign-in), requests, all SOPs and which notifications were read. It lives above every
+    // route, so it survives signing out and in.
     <GuidelinesProvider>
-      <DepartmentsProvider>
-        <UsersProvider>
-          <SessionProvider>
+      <SessionProvider>
+        <DepartmentsProvider>
+          <UsersProvider>
             <RequestsProvider>
               <SopsProvider>
                 <NotificationsProvider>
@@ -77,9 +78,9 @@ function App() {
                 </NotificationsProvider>
               </SopsProvider>
             </RequestsProvider>
-          </SessionProvider>
-        </UsersProvider>
-      </DepartmentsProvider>
+          </UsersProvider>
+        </DepartmentsProvider>
+      </SessionProvider>
     </GuidelinesProvider>
   )
 }
