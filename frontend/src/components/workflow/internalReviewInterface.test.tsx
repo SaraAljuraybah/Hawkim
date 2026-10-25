@@ -214,7 +214,12 @@ describe('internal parallel review across transitions and detail views', () => {
   it('shows the main Author as next actor after all successful reviews without an approval task', () => {
     fixture.sop = decide(decide(start(), 'reviewer-b', 'completed'), 'reviewer-a', 'completed')
     const html = render(<SopWorkflowPage />)
-    expect(html).toContain('Awaiting the next Author action')
+    // The author's Workflow status box shows only the steps; the timeline records that reviews are complete.
+    expect(html).not.toContain('Awaiting the next Author action')
+    expect(html).toContain('>' + sopWorkflowEn.timeline.events['internal-review-completed'] + '<')
+    // The review page's box still shows the summary and the next actor.
+    fixture.userId = 'reviewer-a'
+    expect(render(<ReviewPage />)).toContain('Awaiting the next Author action')
     expect(fixture.sop.status).toBe('in-review')
     expect(fixture.sop.approvers).toEqual([])
     expect(fixture.sop.timeline.some((event) => event.type === 'forwarded-to-approver')).toBe(false)

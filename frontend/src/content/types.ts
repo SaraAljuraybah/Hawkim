@@ -604,11 +604,6 @@ export interface SopWorkflowContent {
     /** The completed check used an older GVP version; `{version}` is the current one. */
     checkCurrentNeeded: string
   }
-  /**
-   * Under the workflow status when the SOP is Returned: `{name}` is who returned it and
-   * `{link}` is replaced with a link (`link`) to the Review timeline.
-   */
-  returnedNote: { text: string; link: string }
   comments: {
     title: string
     empty: string

@@ -19,6 +19,8 @@ import { useUsers } from '../../state/usersContext'
 interface StatusTrackerProps {
   sop: Sop
   content: SopWorkflowContent['tracker']
+  /** Only the steps (the author's SOP page): no review summary and no current assignee below them. */
+  stepsOnly?: boolean
 }
 
 const STEPS = ['draft', 'in-review', 'in-approval', 'approved', 'published'] as const
@@ -33,7 +35,7 @@ type StepState = 'done' | 'current' | 'returned' | 'upcoming'
  * once it has passed, an "Overdue" label. Every state is also given as text (never colour alone).
  * Horizontal from sm, vertical on phones.
  */
-export function StatusTracker({ sop, content }: StatusTrackerProps) {
+export function StatusTracker({ sop, content, stepsOnly = false }: StatusTrackerProps) {
   const returnedStep = sop.status === 'returned' ? (returnedFrom(sop) ?? 'in-review') : undefined
   const currentIndex = STEPS.indexOf((returnedStep ?? sop.status) as (typeof STEPS)[number])
 
@@ -160,10 +162,10 @@ export function StatusTracker({ sop, content }: StatusTrackerProps) {
 
       </ol>
 
-      {internalRound && <InternalReviewSummary sop={sop} />}
-      {sop.reviewFlow && <ReviewFlowSummary sop={sop} />}
+      {!stepsOnly && internalRound && <InternalReviewSummary sop={sop} />}
+      {!stepsOnly && sop.reviewFlow && <ReviewFlowSummary sop={sop} />}
 
-      {assigneeIds.length > 0 && (
+      {!stepsOnly && assigneeIds.length > 0 && (
         <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-beige pt-4">
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-text-gray">

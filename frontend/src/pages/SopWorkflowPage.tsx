@@ -1,4 +1,4 @@
-import { useRef, useState, type MouseEvent, type ReactNode } from 'react'
+import { useRef, useState, type ReactNode } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { ArrowLeft, ArrowUpRight, CircleCheck, MessageSquareReply, ShieldCheck, Upload } from 'lucide-react'
 import { Button } from '../components/ui/Button'
@@ -39,7 +39,6 @@ import {
   checkBlocker,
   deleteVersionBlocker,
   isAuthorOrCoAuthor,
-  latestReturn,
   nextVersion,
   responseRecipients,
   type UploadedFile,
@@ -162,17 +161,6 @@ export function SopWorkflowPage() {
     })
   }
 
-  /** The Returned note's link: scroll to the Review timeline and move focus to its heading. */
-  function goToTimeline(event: MouseEvent<HTMLAnchorElement>) {
-    event.preventDefault()
-    const heading = document.getElementById('timeline-title')
-    if (!heading) return
-    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    heading.focus({ preventScroll: true })
-    heading.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' })
-  }
-
-  const returned = sop.status === 'returned' ? latestReturn(sop) : undefined
   const internal = !!sop.internalReviewRounds?.length
   // Upload: Draft or Returned, or during internal review once every reviewer has finished the current version.
   const canUpload = sop.status === 'draft' || sop.status === 'returned' || reviewAllowsNewVersion(sop)
@@ -268,7 +256,6 @@ export function SopWorkflowPage() {
     announce(content.messages.checkStarted)
   }
 
-  const [noteBefore, noteAfter] = content.returnedNote.text.split('{link}')
 
   return (
     <>
@@ -319,20 +306,8 @@ export function SopWorkflowPage() {
 
       {/* 1. Workflow status */}
       <Section id="tracker-title" title={content.tracker.label} className="mt-6">
-        <StatusTracker sop={sop} content={content.tracker} />
-        {returned && (
-          <p className="mt-5 border-t border-beige pt-4 text-sm text-maroon">
-            {noteBefore.replace('{name}', nameOf(returned.actorId))}
-            <a
-              href="#timeline-title"
-              onClick={goToTimeline}
-              className="rounded-sm font-medium underline underline-offset-2 hover:no-underline"
-            >
-              {content.returnedNote.link}
-            </a>
-            {noteAfter}
-          </p>
-        )}
+        {/* Only the steps: who returned it and why, and who's next, are in the Review timeline, the review requests and People. */}
+        <StatusTracker sop={sop} content={content.tracker} stepsOnly />
       </Section>
 
       <InternalReviewPanel sop={sop} canRemove={isMainAuthor} activeOnly compact />

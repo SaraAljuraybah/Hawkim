@@ -136,8 +136,6 @@ export const sopWorkflowEn: SopWorkflowContent = {
     checkCurrentNeeded: 'Run a compliance check against GVP v{version} first.',
   },
 
-  returnedNote: { text: 'Returned by {name} — see the comments in the {link}.', link: 'Review timeline' },
-
   comments: {
     title: 'Comments',
     empty: 'No comments yet.',

@@ -110,6 +110,20 @@ describe('main Author approval interface', () => {
     fixture.sop = uploadVersion(fixture.sop, 'author', { fileName: 'revised.pdf', fileType: 'pdf' })
     expect(approvalTooltip(renderPage())).toEqual([heading, 'Add at least one reviewer first.', 'Run the compliance check for the current version first.'])
   })
+  it('shows only the steps in the Workflow status box, with the Returned pill, while the timeline keeps the return', () => {
+    const sop = finished()
+    const submitted = submitForApproval(sop, 'author', { version: '1', internalReviewRoundId: currentInternalRound(sop)!.id, noExternalReviewsRequired: true, feedbackAddressed: true }, { users: fixture.users, departments: fixture.departments })
+    const approval = submitted.approvalSubmissions!.at(-1)!
+    fixture.sop = returnAsApprover(submitted, 'controller', 'Revise the controls', { version: approval.version, approvalSubmissionId: approval.id })
+    const html = renderPage()
+    const box = html.slice(html.indexOf('id="tracker-title"'), html.indexOf('id="internal-review-title"'))
+    expect(box).toContain('aria-label="' + sopWorkflowEn.tracker.label + '"')
+    expect(box).toContain('>' + sopWorkflowEn.tracker.returned + '<')
+    for (const text of [sopWorkflowEn.tracker.assignee.title, sopWorkflowEn.tracker.assignee.revisionsPending, 'Returned by ', internalReviewEn.panel.decisions.completed, 'border-t']) expect(box).not.toContain(text)
+    // Who returned it and why stay in the Review timeline.
+    expect(html).toContain('>' + sopWorkflowEn.timeline.events.returned + '<')
+    expect(html).toContain('Revise the controls')
+  })
   it('says "Already sent for approval." while the SOP is In Approval', () => {
     const sop = finished()
     fixture.sop = submitForApproval(sop, 'author', { version: '1', internalReviewRoundId: currentInternalRound(sop)!.id, noExternalReviewsRequired: true, feedbackAddressed: true }, { users: fixture.users, departments: fixture.departments })
