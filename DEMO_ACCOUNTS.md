@@ -20,11 +20,15 @@ URL and publishable key (see the README).
 
 ## Good to know (until the next phases)
 
-- Only sign-in, people and departments come from the database. SOPs, requests and
-  notifications are still sample data in the browser and reset when the page reloads.
+- Sign-in, people, departments, new SOPs, their versions and files come from the
+  database and survive a reload. Co-authors, compliance checks, review requests,
+  comments, status changes and their notifications are still kept in the browser and
+  are lost on reload (the SOP is back in Draft).
+- Until co-authors and reviewers are in the database: only the main author can upload
+  a new version, and reviewers and co-authors can't open the SOP's file.
 - The sample SOPs, requests and notifications belong to the old sample accounts, so
-  My SOPs, My Reviews, My Requests and the notifications start empty, and sample
-  authors and requesters show without a name. Test with new SOPs.
+  they don't appear in My SOPs, My Reviews or My Requests, and sample authors and
+  requesters show without a name. Test with new SOPs.
 - Use one browser tab to pass an SOP between accounts: sign out, then sign in as the
   next person. Each tab has its own sign-in, and it ends when the tab closes.
 - Accounts are created by the project owner in Supabase. A user added in
