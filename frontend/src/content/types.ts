@@ -659,8 +659,8 @@ export interface SopWorkflowContent {
     addCoAuthors: {
       title: string
       description: string
+      /** The search field's name, for screen readers only. */
       label: string
-      hint: string
       required: string
       confirm: string
     }

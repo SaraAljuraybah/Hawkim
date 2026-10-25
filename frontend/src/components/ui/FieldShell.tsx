@@ -10,6 +10,8 @@ interface FieldShellProps {
   errorId: string
   /** Extra content on the right of the hint/error line (e.g. a character counter). */
   aside?: ReactNode
+  /** Keeps the label for screen readers only, e.g. when the dialog title already names the field. */
+  hideLabel?: boolean
   className?: string
   children: ReactNode
 }
@@ -18,7 +20,7 @@ interface FieldShellProps {
  * Label + control + hint/inline error, shared by TextField, SelectField and TextAreaField.
  * Use with `useFieldIds()` so the ids and aria-describedby line up.
  */
-export function FieldShell({ label, inputId, hint, hintId, error, errorId, aside, className = '', children }: FieldShellProps) {
+export function FieldShell({ label, inputId, hint, hintId, error, errorId, aside, hideLabel = false, className = '', children }: FieldShellProps) {
   const message = error ? (
     <p id={errorId} className="flex items-start gap-1.5 text-sm text-maroon-secondary">
       <CircleAlert aria-hidden="true" className="mt-0.5 size-4 shrink-0" strokeWidth={1.75} />
@@ -34,7 +36,7 @@ export function FieldShell({ label, inputId, hint, hintId, error, errorId, aside
 
   return (
     <div className={className}>
-      <label htmlFor={inputId} className="mb-1.5 block text-sm font-medium text-maroon">
+      <label htmlFor={inputId} className={hideLabel ? 'sr-only' : 'mb-1.5 block text-sm font-medium text-maroon'}>
         {label}
       </label>
       {children}

@@ -229,10 +229,8 @@ export const sopWorkflowEn: SopWorkflowContent = {
     },
     addCoAuthors: {
       title: 'Add co-authors',
-      description:
-        'Co-authors can upload new versions, delete the versions they uploaded, and run a compliance check on the current version if they uploaded it. Only you can submit the SOP for review.',
+      description: 'Co-authors can upload versions and run compliance checks on their own uploads. Only you can submit for review.',
       label: 'Co-authors',
-      hint: 'Reviewers and approvers of this SOP can’t be co-authors.',
       required: 'Select at least one co-author.',
       confirm: 'Add co-authors',
     },
