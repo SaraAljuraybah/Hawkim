@@ -11,6 +11,8 @@ import { ReviewsPage } from '../../pages/ReviewsPage'
 import { InternalReviewPanel } from './InternalReviewPanel'
 import { ReviewRequestDetails } from './ReviewRequestDetails'
 import { DecisionBadge } from './DecisionBadge'
+import { PeopleList } from './PeopleList'
+import { sopWorkflowEn } from '../../content/workflow.en'
 
 const fixture = vi.hoisted(() => ({
   userId: 'author', sop: null as Sop | null,
@@ -93,10 +95,14 @@ describe('review request status colours', () => {
     expect(badge(html, 'Accepted')).toContain('bg-status-approved-bg text-status-approved-fg')
     expect(badge(html, 'Completed')).toContain('bg-status-published-bg text-status-published-fg')
     expect(badge(html, 'Pending')).toContain('bg-status-pending-bg text-status-pending-fg')
+    // The People section shows the same reviewer's Completed in the same colour.
+    const people = render(<PeopleList sop={sop} content={sopWorkflowEn.people} userId="author" canManageCoAuthors={false} onAddCoAuthor={() => {}} onRemoveCoAuthor={() => {}} />)
+    expect(badge(people, 'Completed')).toContain('bg-status-published-bg text-status-published-fg')
   })
-  it('keeps the shared decision colours for other badges, e.g. a legacy Completed in the people list', () => {
-    const html = renderToStaticMarkup(<DecisionBadge decision="completed" labels={{ completed: 'Completed' } as Record<'completed', string>} />)
-    expect(badge(html, 'Completed')).toContain('bg-status-approved-bg text-status-approved-fg')
+  it('uses the same colours for a legacy reviewer Completed, while an approver Approved stays green', () => {
+    const labels = { completed: 'Completed', approved: 'Approved' }
+    expect(badge(renderToStaticMarkup(<DecisionBadge decision="completed" labels={labels} />), 'Completed')).toContain('bg-status-published-bg text-status-published-fg')
+    expect(badge(renderToStaticMarkup(<DecisionBadge decision="approved" labels={labels} />), 'Approved')).toContain('bg-status-approved-bg text-status-approved-fg')
   })
 })
 
