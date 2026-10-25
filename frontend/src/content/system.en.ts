@@ -11,6 +11,8 @@ export const systemEn: SystemContent = {
     title: "Hawkim isn't configured",
     missing:
       'Create frontend/.env.local with the Supabase URL and publishable key (see frontend/.env.example), then restart the app.',
+    urlFormat:
+      'VITE_SUPABASE_URL in frontend/.env.local must be only the project address, like https://abcdefghijkl.supabase.co. Remove anything after .supabase.co (such as /rest/v1/ or a final /), then restart the app.',
     secretKey:
       'frontend/.env.local uses the secret key. Replace it with the publishable key, then restart the app.',
   },

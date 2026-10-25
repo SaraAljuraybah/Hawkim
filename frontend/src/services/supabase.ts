@@ -11,15 +11,35 @@
 
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 
-/** Why the client can't be created: no URL or key, or the secret key was used by mistake. */
-export type SupabaseConfigProblem = 'missing' | 'secret-key'
+/**
+ * Why the client can't be created: no URL or key, a URL that isn't only the project
+ * address (e.g. ".../rest/v1/" copied from the Data API page), or the secret key.
+ */
+export type SupabaseConfigProblem = 'missing' | 'url-format' | 'secret-key'
 
 const url = import.meta.env.VITE_SUPABASE_URL?.trim()
 const key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY?.trim()
 
 /** Set when the app can't connect; App.tsx then shows the "not configured" screen instead. */
-export const supabaseConfigProblem: SupabaseConfigProblem | undefined =
-  !url || !key ? 'missing' : isSecretKey(key) ? 'secret-key' : undefined
+export const supabaseConfigProblem = configProblem(url, key)
+
+/** What's wrong with the configured URL and key, if anything. */
+export function configProblem(url: string | undefined, key: string | undefined): SupabaseConfigProblem | undefined {
+  if (!url || !key) return 'missing'
+  if (!isProjectAddress(url)) return 'url-format'
+  if (isSecretKey(key)) return 'secret-key'
+  return undefined
+}
+
+/** Only "https://<project>.supabase.co" (or another origin): no path, not even a trailing "/", no query. */
+function isProjectAddress(value: string): boolean {
+  try {
+    const parsed = new URL(value)
+    return (parsed.protocol === 'https:' || parsed.protocol === 'http:') && value === parsed.origin
+  } catch {
+    return false
+  }
+}
 
 /**
  * The session lives in sessionStorage: one account per browser tab, and it ends when the

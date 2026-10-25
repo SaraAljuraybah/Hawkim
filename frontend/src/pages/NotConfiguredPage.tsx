@@ -10,7 +10,7 @@ export function NotConfiguredPage({ problem }: { problem: SupabaseConfigProblem 
   return (
     <MessageScreen
       title={content.title}
-      text={problem === 'secret-key' ? content.secretKey : content.missing}
+      text={problem === 'secret-key' ? content.secretKey : problem === 'url-format' ? content.urlFormat : content.missing}
       logoAlt={systemEn.logoAlt}
     />
   )

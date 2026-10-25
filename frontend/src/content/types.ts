@@ -911,6 +911,8 @@ export interface SystemContent {
     pageTitle: string
     title: string
     missing: string
+    /** The URL has a path (e.g. /rest/v1/) or isn't a valid address. */
+    urlFormat: string
     secretKey: string
   }
   /** The people or departments couldn't be loaded after sign-in. */
