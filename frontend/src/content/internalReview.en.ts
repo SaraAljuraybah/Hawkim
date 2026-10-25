@@ -44,7 +44,7 @@ export const internalReviewEn = {
     awaitingAuthor: 'Internal reviews are complete. Awaiting the next Author action.',
   },
   panel: {
-    title: 'Internal review requests',
+    title: 'Internal review requests', noActive: 'No active reviewers.',
     sent: 'Request sent {date}', version: 'Version v{version}', reviewerHistory: 'Review requests for {name}',
     decided: 'Decision submitted {date}', accepted: 'Accepted {date}',
     declined: 'Declined {date}', declineReason: 'Reason: {reason}',

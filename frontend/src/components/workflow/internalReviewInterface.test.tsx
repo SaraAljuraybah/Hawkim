@@ -84,6 +84,17 @@ describe('internal parallel review across transitions and detail views', () => {
     fixture.userId = 'coauthor'
     expect(render(<SopWorkflowPage />)).not.toContain('>' + sopWorkflowEn.actions.submit + '<')
   })
+  it('shows only active reviewers in the author page panel, while the review page and the timeline keep the declined request', () => {
+    const started = start(), round = currentInternalRound(started)!
+    fixture.sop = declineInternalReview(started, 'reviewer-a', round.id, round.assignments[0].id, 'On leave', environment())
+    const heading = (name: string) => `<h3 class="text-base font-semibold text-maroon">${name}</h3>`
+    const author = render(<SopWorkflowPage />)
+    expect(author).not.toContain(heading('Reviewer Alpha'))
+    expect(author).toContain(heading('Reviewer Beta'))
+    expect(author).toContain('>' + sopWorkflowEn.timeline.events['review-declined'] + '<')
+    fixture.userId = 'reviewer-b'
+    expect(render(<ReviewPage />)).toContain(heading('Reviewer Alpha'))
+  })
   it('keeps unassigned users outside the Author and Reviewer detail views', () => {
     fixture.sop = start()
     fixture.userId = 'external'
