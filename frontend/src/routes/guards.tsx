@@ -11,6 +11,7 @@ import { ActiveDepartmentProvider } from '../state/ActiveDepartmentProvider'
 import { useActiveDepartment } from '../state/activeDepartmentContext'
 import { useDepartments } from '../state/departmentsContext'
 import { useCurrentUser, useSession } from '../state/sessionContext'
+import { useSops } from '../state/sopsContext'
 import type { LoadStatus } from '../state/useLoadAfterSignIn'
 import { useUsers } from '../state/usersContext'
 
@@ -26,12 +27,11 @@ const SIGN_IN_PATH = '/login'
  * session and the user's permissions. Hiding screens in the browser is not security.
  */
 
-/** The people and departments every screen needs, loaded from the database after sign-in. */
+/** The people, departments and the person's SOPs every screen needs, loaded from the database after sign-in. */
 function useSharedData(): LoadStatus {
-  const users = useUsers().status
-  const departments = useDepartments().status
-  if (users === 'error' || departments === 'error') return 'error'
-  return users === 'ready' && departments === 'ready' ? 'ready' : 'loading'
+  const statuses = [useUsers().status, useDepartments().status, useSops().status]
+  if (statuses.includes('error')) return 'error'
+  return statuses.every((status) => status === 'ready') ? 'ready' : 'loading'
 }
 
 /** Employee screens (sidebar + top bar): signed-in users without the Admin permission. */

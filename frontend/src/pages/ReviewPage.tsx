@@ -24,6 +24,7 @@ import { reviewsEn } from '../content/reviews.en'
 import { sopWorkflowEn } from '../content/workflow.en'
 import type { ApprovalDecisionSnapshot, Sop } from '../data/mock/types'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
+import { useFileUrl } from '../hooks/useFileUrl'
 import { complianceScore, currentCheck, verdictOf } from '../lib/compliance'
 import { formatDateTime } from '../lib/format'
 import { reviewCompliancePath } from '../lib/routes'
@@ -75,6 +76,7 @@ export function ReviewPage() {
 
 function Review({ sop, historical }: { sop: Sop; historical: boolean }) {
   const text = reviewsEn.page
+  const fileUrl = useFileUrl(sop)
   const workflow = sopWorkflowEn
   const store = useSops()
   const user = useCurrentUser()
@@ -332,17 +334,17 @@ function Review({ sop, historical }: { sop: Sop; historical: boolean }) {
               </p>
             </div>
           </div>
-          {sop.fileUrl && (
-            <Button href={sop.fileUrl} download={downloadName(sop)} size="sm" variant="secondary" className="self-start sm:self-auto">
+          {fileUrl && (
+            <Button href={fileUrl} download={downloadName(sop)} size="sm" variant="secondary" className="self-start sm:self-auto">
               <Download aria-hidden="true" className="size-4" strokeWidth={2} />
               {text.file.download}
             </Button>
           )}
         </div>
-        {sop.fileUrl && sop.fileType === 'pdf' && (
+        {fileUrl && sop.fileType === 'pdf' && (
           <div className="mt-4 rounded-xl border border-beige p-3 sm:p-4">
             <PdfViewer
-              url={sop.fileUrl}
+              url={fileUrl}
               title={text.file.viewerTitle.replace('{code}', sop.code).replace('{title}', sop.title)}
               fallback={text.file.fallback}
             />

@@ -93,7 +93,7 @@ export const sopWorkflowEn: SopWorkflowContent = {
     deleteLabel: 'Delete v{version}',
     unavailable: {
       word: 'Preview isn’t available for Word files',
-      demo: 'File not available in the demo',
+      demo: 'File not available',
     },
     deleteBlocked: {
       status: {
@@ -197,6 +197,7 @@ export const sopWorkflowEn: SopWorkflowContent = {
       sizeError: '{name} is too large. Files must be {max} or smaller.',
     },
     fileRequired: 'Upload an SOP file.',
+    uploadFailed: "The new version couldn't be saved. Check your connection and try again.",
     submit: {
       title: 'Submit for review',
       reviewDate: {
@@ -257,6 +258,8 @@ export const sopWorkflowEn: SopWorkflowContent = {
     submitted: 'Submitted for review.',
     newVersion: 'v{version} uploaded.',
     versionDeleted: 'v{version} deleted.',
+    deleteFailed: "v{version} couldn't be deleted. Check your connection and try again.",
+    fileFailed: "The file couldn't be opened. Try again.",
     resubmitted: 'Resubmitted for review.',
     coAuthorsAdded: 'Co-authors added.',
     coAuthorRemoved: '{name} removed as co-author.',

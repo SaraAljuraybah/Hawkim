@@ -41,26 +41,16 @@ import {
   isAuthorOrCoAuthor,
   nextVersion,
   responseRecipients,
-  type UploadedFile,
 } from '../lib/workflow'
 import { useDepartments } from '../state/departmentsContext'
 import { useGuidelines } from '../state/guidelinesContext'
 import { useCurrentUser } from '../state/sessionContext'
 import { useSops } from '../state/sopsContext'
+import { fileUrlOf } from '../services/files'
 import { useUsers } from '../state/usersContext'
 import { NotFoundPage } from './NotFoundPage'
 
 type DialogName = 'submit' | 'addReviewers' | 'approval' | 'newVersion' | 'resubmit' | 'addCoAuthors' | 'response'
-
-/** Keeps the uploaded file in memory (object URL) so it can be downloaded in this session. */
-function toUploadedFile(file: File): UploadedFile {
-  // TODO: Upload the file to the backend instead of keeping it in browser memory.
-  return {
-    fileName: file.name,
-    fileType: file.name.toLowerCase().endsWith('.pdf') ? 'pdf' : 'docx',
-    fileUrl: URL.createObjectURL(file),
-  }
-}
 
 interface SectionProps {
   id: string
@@ -111,7 +101,7 @@ export function SopWorkflowPage() {
   const [removingId, setRemovingId] = useState<string | null>(null)
   // Version waiting for the delete confirmation, and the version being previewed.
   const [deleting, setDeleting] = useState<SopVersion | null>(null)
-  const [previewing, setPreviewing] = useState<SopVersion | null>(null)
+  const [previewing, setPreviewing] = useState<{ version: SopVersion; url: string } | null>(null)
   const [message, setMessage] = useState('')
   const triggerRef = useRef<HTMLElement | null>(null)
   const statusRef = useRef<HTMLDivElement>(null)
@@ -368,7 +358,19 @@ export function SopWorkflowPage() {
           deleteReason={deleteReason}
           onPreview={(version, trigger) => {
             triggerRef.current = trigger
-            setPreviewing(version)
+            setMessage('')
+            // A signed link that works for 10 minutes, made each time.
+            fileUrlOf(version).then(
+              (url) => (url ? setPreviewing({ version, url }) : announce(content.messages.fileFailed)),
+              () => announce(content.messages.fileFailed),
+            )
+          }}
+          onDownload={(version, fileName) => {
+            setMessage('')
+            fileUrlOf(version, fileName).then(
+              (url) => (url ? window.location.assign(url) : announce(content.messages.fileFailed)),
+              () => announce(content.messages.fileFailed),
+            )
           }}
           onDelete={(version, trigger) => {
             triggerRef.current = trigger
@@ -508,9 +510,9 @@ export function SopWorkflowPage() {
           description={dialogs.newVersion.description.replace('{version}', nextVersion(sop))}
           confirmLabel={dialogs.newVersion.confirm}
           onClose={closeDialog}
-          onSubmit={(file) => {
+          onSubmit={async (file) => {
             const version = nextVersion(sop)
-            store.uploadVersion(sop.id, toUploadedFile(file))
+            await store.uploadVersion(sop.id, file)
             announce(content.messages.newVersion.replace('{version}', version))
           }}
         />
@@ -567,19 +569,21 @@ export function SopWorkflowPage() {
         onConfirm={() => {
           if (!deleting) return
           const version = deleting.version
-          store.deleteVersion(sop.id, version)
           closeOverlay()
-          announce(content.messages.versionDeleted.replace('{version}', version))
+          store.deleteVersion(sop.id, version).then(
+            () => announce(content.messages.versionDeleted.replace('{version}', version)),
+            () => announce(content.messages.deleteFailed.replace('{version}', version)),
+          )
         }}
       />
-      {previewing?.fileUrl && (
+      {previewing && (
         <PreviewDialog
-          title={content.history.previewTitle.replace('{code}', sop.code).replace('{version}', previewing.version)}
-          url={previewing.fileUrl}
+          title={content.history.previewTitle.replace('{code}', sop.code).replace('{version}', previewing.version.version)}
+          url={previewing.url}
           viewerTitle={content.history.viewerTitle
             .replace('{code}', sop.code)
             .replace('{title}', sop.title)
-            .replace('{version}', previewing.version)}
+            .replace('{version}', previewing.version.version)}
           closeLabel={content.history.close}
           fallback={content.history.fallback}
           onClose={closeOverlay}

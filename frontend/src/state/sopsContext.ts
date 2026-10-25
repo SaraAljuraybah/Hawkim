@@ -3,13 +3,13 @@ import type { ApprovalDecisionSnapshot, Sop } from '../data/mock/types'
 import type { ApprovalSubmissionOptions } from '../lib/approval'
 import type { ReviewAction } from '../lib/reviewFlow'
 import type { InternalReviewOptions } from '../lib/internalReview'
-import type { UploadedFile } from '../lib/workflow'
+import type { LoadStatus } from './useLoadAfterSignIn'
 
 /**
- * What the author provides when uploading; everything else is set by the store.
- * A new SOP has no co-authors (they're added later from the SOP page).
+ * What the author provides when uploading; everything else is set by the store and
+ * the database. A new SOP has no co-authors (they're added later from the SOP page).
  */
-export type NewDraft = Pick<Sop, 'title' | 'departmentId' | 'description'> & UploadedFile
+export type NewDraft = Pick<Sop, 'title' | 'departmentId' | 'description'> & { file: File }
 
 
 export type SubmitOptions = InternalReviewOptions
@@ -22,10 +22,12 @@ export interface ResubmitOptions {
 }
 
 export interface SopsStore {
+  /** Whether the signed-in person's SOPs have been read from the database. */
+  status: LoadStatus
   /** Every SOP, at every lifecycle stage (the directory shows the published ones). */
   sops: Sop[]
-  /** Saves a new draft by the current user (next free code, version 1.0, today) and returns it. */
-  addDraft: (draft: NewDraft) => Sop
+  /** Uploads the file and saves a new draft by the current user (the database gives it its number and v1); returns it. */
+  addDraft: (draft: NewDraft) => Promise<Sop>
 
   // Actions by the current user (author or co-author). Each throws if not allowed.
   /** Main author: first submission from Draft, or a new version sent to the chosen reviewers. */
@@ -44,10 +46,10 @@ export interface SopsStore {
   removeInternalReviewer: (sopId: string, roundId: string, assignmentId: string, reason: string) => void
   /** Main author: legacy resubmission with an optional new date and comments (internal reviews use submitForReview). */
   resubmit: (sopId: string, options?: ResubmitOptions) => void
-  /** Uploads the next version (Draft or Returned). It isn't checked until someone runs a compliance check. */
-  uploadVersion: (sopId: string, file: UploadedFile) => void
-  /** Main author: deletes a version (Draft or Returned; at least one remains). */
-  deleteVersion: (sopId: string, version: string) => void
+  /** Uploads the file as the next version (Draft or Returned). It isn't checked until someone runs a compliance check. */
+  uploadVersion: (sopId: string, file: File) => Promise<void>
+  /** Main author or its uploader: deletes a version (Draft or Returned; at least one remains). */
+  deleteVersion: (sopId: string, version: string) => Promise<void>
   /** Author or co-author: replies to the latest round's comments. */
   addResponse: (sopId: string, text: string) => void
   /** Adds one or more co-authors in a single update. */

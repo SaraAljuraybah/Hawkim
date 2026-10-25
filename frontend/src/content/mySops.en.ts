@@ -44,6 +44,7 @@ export const uploadSopEn: UploadSopContent = {
   errors: {
     titleRequired: 'Enter a title.',
     fileRequired: 'Upload an SOP file.',
+    saveFailed: "The SOP couldn't be saved. Check your connection and try again.",
   },
   cancel: { label: 'Cancel', href: '/my-sops' },
   submit: { label: 'Upload SOP', loadingLabel: 'Uploading…' },

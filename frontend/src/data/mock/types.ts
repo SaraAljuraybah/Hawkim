@@ -129,6 +129,8 @@ export interface SopVersion {
   uploadedAt: string
   /** Only when the file is available (sample PDFs, or files uploaded in this session). */
   fileUrl?: string
+  /** Where the file is in the sop-files bucket, for SOPs from the database (opened through a signed link). */
+  storagePath?: string
   /**
    * Set when the main author deleted this version. It is kept so version numbers are
    * never reused, but hidden everywhere (and its compliance reports are no longer listed).

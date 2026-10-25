@@ -11,6 +11,25 @@ vi.mock('./sessionContext', () => ({ useSession: () => ({ user: fixture.users.fi
 vi.mock('./usersContext', () => ({ useUsers: () => ({ users: fixture.users, getUser: (id: string) => fixture.users.find((user) => user.id === id) }) }))
 vi.mock('./departmentsContext', () => ({ useDepartments: () => ({ departments: fixture.departments }) }))
 vi.mock('./guidelinesContext', () => ({ useGuidelines: () => ({ currentGuideline: { name: 'GVP', version: '4.0' } }) }))
+// The database: each created SOP is read back as a draft by its author, in the department asked for.
+const database = vi.hoisted(() => ({ created: [] as { title: string; departmentId: string; description?: string }[] }))
+vi.mock('../services/files', () => ({
+  fileTypeOf: (name: string) => (name.endsWith('.pdf') ? 'pdf' : 'docx'),
+  uploadSopFile: vi.fn(async (_userId: string, file: File) => ({ storagePath: 'visitor/file.pdf', fileName: file.name })),
+}))
+vi.mock('../services/sops', () => ({
+  fetchSops: vi.fn(async () => []),
+  createSop: vi.fn(async (input: { title: string; departmentId: string; description?: string }) => {
+    database.created.push(input)
+    return 'created-' + database.created.length
+  }),
+  fetchSop: vi.fn(async (id: string) => {
+    const input = database.created[Number(id.replace('created-', '')) - 1]
+    return input ? sop({ id, ...input, authorId: fixture.userId, status: 'draft' }) : sop({ id, coAuthorIds: fixture.sops.find((item) => item.id === id)?.coAuthorIds ?? [] })
+  }),
+  uploadSopVersion: vi.fn(async () => '2'),
+  deleteSopVersion: vi.fn(async () => {}),
+}))
 
 function person(id: string, departmentId: string, permissions: User['permissions']): User {
   return { id, name: id, email: id + '@example.test', initials: 'TT', departmentId, permissions }
@@ -19,7 +38,10 @@ function sop(overrides: Partial<Sop> = {}): Sop {
   return { id: 'foreign', code: 'SOP-100', title: 'Private SOP', departmentId: 'other', description: 'Private description', authorId: 'writer', coAuthorIds: [], status: 'draft', version: '1', lastUpdated: '2026-10-23', fileName: 'private.pdf', fileType: 'pdf', fileUrl: '/private.pdf', reviewers: [], approvers: [], comments: [], timeline: [], complianceChecks: [], versions: [{ version: '1', fileName: 'private.pdf', fileType: 'pdf', uploadedById: 'writer', uploadedAt: '2026-10-23T09:00:00Z' }], ...overrides }
 }
 const grant = (): UserRequest => ({ id: 'access-other', type: 'department-access', departmentId: 'other', requesterId: 'visitor', title: 'Directory access', description: '', status: 'approved', createdAt: '2026-10-23' })
-const draft = (departmentId = 'home'): NewDraft => ({ title: 'Home procedure', departmentId, description: 'Description retained', fileName: 'procedure.pdf', fileType: 'pdf' })
+const pdf = (name: string) => new File(['%PDF'], name, { type: 'application/pdf' })
+const draft = (departmentId = 'home'): NewDraft => ({ title: 'Home procedure', departmentId, description: 'Description retained', file: pdf('procedure.pdf') })
+/** Whether an action is refused, whether it throws at once or its promise is rejected. */
+const refused = (action: () => unknown) => expect(Promise.resolve().then(action)).rejects.toThrow()
 function storeFor(userId: string, sops: Sop[] = []): SopsStore {
   fixture.userId = userId
   fixture.sops.splice(0, fixture.sops.length, ...sops)
@@ -32,46 +54,48 @@ beforeEach(() => {
   fixture.users.splice(0, fixture.users.length, person('visitor', 'home', ['author', 'reviewer', 'approver']), person('writer', 'other', ['author']), person('assigned-reviewer', 'other', ['reviewer']), person('assigned-approver', 'other', ['approver']), person('route-target', 'home', ['reviewer']))
   fixture.departments.splice(0, fixture.departments.length, { id: 'home', name: 'Home', initials: 'HM', description: '' }, { id: 'other', name: 'Other', initials: 'OT', description: '' })
   fixture.sops.splice(0, fixture.sops.length)
+  database.created.splice(0)
 })
 
 describe('directory access never authorizes authoring', () => {
-  it('preserves home-department authoring, descriptions and permissions', () => {
+  it('preserves home-department authoring, descriptions and permissions', async () => {
     const user = fixture.users[0], before = structuredClone(user)
     expect(getDirectoryDepartments(user, [grant()], fixture.departments).map((department) => department.id)).toEqual(['home', 'other'])
     const store = storeFor('visitor')
-    const created = store.addDraft(draft())
+    const created = await store.addDraft(draft())
     expect(created).toMatchObject({ departmentId: 'home', authorId: 'visitor', description: 'Description retained', status: 'draft' })
-    expect(store.addDraft(draft()).id).not.toBe(created.id)
+    expect((await store.addDraft(draft())).id).not.toBe(created.id)
     expect(user).toEqual(before)
   })
-  it('rejects direct creation in an approved foreign directory', () => {
+  it('rejects direct creation in an approved foreign directory', async () => {
     expect(getDirectoryDepartments(fixture.users[0], [grant()], fixture.departments)).toHaveLength(2)
     const store = storeFor('visitor')
-    expect(() => store.addDraft(draft('other'))).toThrow(/home department/)
-    expect(fixture.sops).toEqual([])
+    await expect(store.addDraft(draft('other'))).rejects.toThrow(/home department/)
+    expect(database.created).toEqual([])
   })
-  it.each(['signed-out', 'no-author', 'deleted', 'admin', 'removed-home', 'missing-home'] as const)('refuses new drafts for %s', (condition) => {
+  it.each(['signed-out', 'no-author', 'deleted', 'admin', 'removed-home', 'missing-home'] as const)('refuses new drafts for %s', async (condition) => {
     if (condition === 'no-author') fixture.users[0].permissions = ['reviewer']
     if (condition === 'deleted') fixture.users[0].deletedAt = '2026-10-23'
     if (condition === 'admin') fixture.users[0].permissions.push('admin')
     if (condition === 'removed-home') fixture.departments[0].removedAt = '2026-10-23'
     if (condition === 'missing-home') fixture.departments.splice(0, 1)
-    expect(() => storeFor(condition === 'signed-out' ? 'unknown' : 'visitor').addDraft(draft())).toThrow()
+    await expect(storeFor(condition === 'signed-out' ? 'unknown' : 'visitor').addDraft(draft())).rejects.toThrow()
+    expect(database.created).toEqual([])
   })
-  it('cannot edit, delete, manage authors, run checks or change dates without a separate relationship', () => {
+  it('cannot edit, delete, manage authors, run checks or change dates without a separate relationship', async () => {
     const foreign = sop(), before = JSON.stringify(foreign), store = storeFor('visitor', [foreign])
     const actions = [
-      () => store.uploadVersion(foreign.id, { fileName: 'replacement.pdf', fileType: 'pdf' }),
+      () => store.uploadVersion(foreign.id, pdf('replacement.pdf')),
       () => store.deleteVersion(foreign.id, '1'), () => store.addCoAuthors(foreign.id, ['route-target']),
       () => store.removeCoAuthor(foreign.id, 'writer'), () => store.runCheck(foreign.id),
       () => store.shiftDueDates(foreign.id, 3),
     ]
-    for (const action of actions) expect(action).toThrow()
+    for (const action of actions) await refused(action)
     expect(JSON.stringify(foreign)).toBe(before)
   })
-  it('preserves an explicit cross-department coauthor assignment', () => {
+  it('preserves an explicit cross-department coauthor assignment', async () => {
     const store = storeFor('visitor', [sop({ coAuthorIds: ['visitor'] })])
-    expect(() => store.uploadVersion('foreign', { fileName: 'coauthored.pdf', fileType: 'pdf' })).not.toThrow()
+    await expect(store.uploadVersion('foreign', pdf('coauthored.pdf'))).resolves.toBeUndefined()
   })
 })
 

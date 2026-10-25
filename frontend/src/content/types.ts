@@ -471,7 +471,12 @@ export interface UploadSopContent {
     }
     description: { label: string; placeholder: string; /** `{count}` and `{max}` are replaced. */ counter: string }
   }
-  errors: { titleRequired: string; fileRequired: string }
+  errors: {
+    titleRequired: string
+    fileRequired: string
+    /** The file couldn't be uploaded or the SOP couldn't be saved. */
+    saveFailed: string
+  }
   cancel: LinkContent
   submit: { label: string; loadingLabel: string }
 }
@@ -576,7 +581,7 @@ export interface SopWorkflowContent {
     previewLabel: string
     downloadLabel: string
     deleteLabel: string
-    /** Why Preview / Download aren't available. */
+    /** Why Preview / Download aren't available: a Word file can't be previewed; the file isn't available (a sample, or no access). */
     unavailable: { word: string; demo: string }
     /**
      * Why Delete isn't available: by the SOP's status (only Draft and Returned allow it),
@@ -644,6 +649,8 @@ export interface SopWorkflowContent {
     cancel: string
     fileField: SopFileFieldContent
     fileRequired: string
+    /** The new version's file couldn't be uploaded or saved. */
+    uploadFailed: string
     submit: {
       title: string
       /**
@@ -692,6 +699,10 @@ export interface SopWorkflowContent {
     newVersion: string
     /** `{version}` is replaced. */
     versionDeleted: string
+    /** `{version}` is replaced. */
+    deleteFailed: string
+    /** A file couldn't be opened or downloaded. */
+    fileFailed: string
     resubmitted: string
     coAuthorsAdded: string
     /** `{name}` is replaced. */

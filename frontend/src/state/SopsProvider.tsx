@@ -1,28 +1,34 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { sops as seedSops } from '../data/mock/sops'
-import type { Sop, TimelineEvent } from '../data/mock/types'
+import type { Sop } from '../data/mock/types'
 import * as compliance from '../lib/compliance'
-import { todayIsoDate } from '../lib/format'
-import { nextSopCode } from '../lib/sopCodes'
 import { assertCanCreateSop } from '../lib/sopAccess'
 import { submitForApproval } from '../lib/approval'
 import { applyReviewAction } from '../lib/reviewFlow'
 import { acceptInternalReview, addInternalReviewers, decideInternalReview, declineInternalReview, nextWithdrawalAt, removeInternalReviewer, sendNewVersionForReview, startInternalReview, withdrawUnanswered } from '../lib/internalReview'
 import { useDepartments } from './departmentsContext'
 import * as workflow from '../lib/workflow'
+import { fileTypeOf, uploadSopFile } from '../services/files'
+import { createSop, deleteSopVersion, fetchSop, fetchSops, uploadSopVersion } from '../services/sops'
+import { mergeSops } from './mergeSops'
 import { useGuidelines } from './guidelinesContext'
 import { useSession } from './sessionContext'
 import { useUsers } from './usersContext'
 import { SopsContext, type NewDraft, type SopsStore } from './sopsContext'
+import type { LoadStatus } from './useLoadAfterSignIn'
 
 const DAY_MS = 24 * 60 * 60 * 1000
 
 /**
- * In-memory store of every SOP (one list for the directory, My SOPs and the workflow).
- * Starts with the sample data; changes are lost on reload.
+ * Store of every SOP (one list for the directory, My SOPs and the workflow).
+ * The SOPs, their versions and files come from the database: they're read after each
+ * sign-in (merged with what this tab already has, see mergeSops.ts), and creating an
+ * SOP, uploading a version and deleting one are saved there. Everything else (status
+ * changes, co-authors, compliance checks, review requests, comments) is still kept in
+ * this tab only and lost on reload, like the sample SOPs it starts with.
  * Workflow rules live in lib/workflow.ts. Actions are by the signed-in user.
  * Must be inside <SessionProvider>.
- * TODO: Replace with API calls once the backend exists.
+ * TODO: Save the remaining actions in the database, phase by phase.
  */
 export function SopsProvider({ children }: { children: ReactNode }) {
   // The signed-in user's id ('' when nobody is: their actions are then refused by the workflow rules).
@@ -41,6 +47,45 @@ export function SopsProvider({ children }: { children: ReactNode }) {
   const commit = useCallback((next: Sop[]) => {
     latestRef.current = next
     setSops(next)
+  }, [])
+
+  // The SOPs this person may read, after each sign-in (other SOPs already in the tab stay).
+  const [loaded, setLoaded] = useState<{ userId: string; status: LoadStatus } | null>(null)
+  useEffect(() => {
+    if (!userId) return
+    let active = true
+    fetchSops().then(
+      (stored) => {
+        if (!active) return
+        commit(mergeSops(latestRef.current, stored))
+        setLoaded({ userId, status: 'ready' })
+      },
+      () => {
+        if (active) setLoaded({ userId, status: 'error' })
+      },
+    )
+    return () => {
+      active = false
+    }
+  }, [userId, commit])
+  const status: LoadStatus = userId && loaded?.userId === userId ? loaded.status : 'loading'
+
+  /** Reads one SOP again after a change saved in the database, keeping what this tab has for it. */
+  const refresh = useCallback(
+    async (sopId: string) => {
+      const stored = await fetchSop(sopId)
+      if (!stored) throw new Error(`Unknown SOP ${sopId}`)
+      commit(mergeSops(latestRef.current, [stored]))
+      return latestRef.current.find((sop) => sop.id === sopId)!
+    },
+    [commit],
+  )
+
+  /** The SOP as the workflow rules see it now (unanswered review requests withdrawn first). */
+  const current = useCallback((sopId: string) => {
+    const sop = latestRef.current.find((item) => item.id === sopId)
+    if (!sop) throw new Error(`Unknown SOP ${sopId}`)
+    return withdrawUnanswered(sop)
   }, [])
 
   /**
@@ -118,42 +163,14 @@ export function SopsProvider({ children }: { children: ReactNode }) {
   )
 
   const addDraft = useCallback(
-    (draft: NewDraft) => {
+    async ({ file, ...draft }: NewDraft) => {
       assertCanCreateSop(users.find((user) => user.id === userId), draft.departmentId, departments)
-      const current = latestRef.current
-      const code = nextSopCode(
-        current.filter((sop) => sop.authorId === userId).map((sop) => sop.code),
-        current.map((sop) => sop.code),
-      )
-      const id = code.toLowerCase()
-      const now = new Date().toISOString()
-      const timeline: TimelineEvent[] = [
-        { id: `evt-${id}-1`, type: 'version-uploaded', actorId: userId, version: '1', createdAt: now },
-      ]
-      const created: Sop = {
-        ...draft,
-        id,
-        code,
-        version: '1',
-        status: 'draft',
-        authorId: userId,
-        // Co-authors are added later from the SOP page ("Add author").
-        coAuthorIds: [],
-        lastUpdated: todayIsoDate(),
-        reviewers: [],
-        approvers: [],
-        versions: [
-          { version: '1', fileName: draft.fileName, fileType: draft.fileType, uploadedById: userId, uploadedAt: now, fileUrl: draft.fileUrl },
-        ],
-        comments: [],
-        timeline,
-        // No check yet: the author runs one with "Compliance Check for Current Version".
-        complianceChecks: [],
-      }
-      commit([created, ...current])
-      return created
+      // The file first, then the SOP; the database gives it its number and version 1.
+      const stored = await uploadSopFile(userId, file)
+      const id = await createSop({ ...draft, file: stored })
+      return refresh(id)
     },
-    [commit, userId, users, departments],
+    [userId, users, departments, refresh],
   )
 
   const environment = useMemo(() => ({ users, departments }), [users, departments])
@@ -166,6 +183,7 @@ export function SopsProvider({ children }: { children: ReactNode }) {
 
   const store = useMemo<SopsStore>(
     () => ({
+      status,
       sops,
       addDraft,
       // The first submission from Draft, or a new version sent once every reviewer has finished.
@@ -186,8 +204,18 @@ export function SopsProvider({ children }: { children: ReactNode }) {
         if (sop.reviewFlow && !users.some((u) => u.id === userId && !u.deletedAt && u.permissions.includes('author') && !u.permissions.includes('admin'))) throw new Error('An active main Author account is required')
         return workflow.resubmit(sop, userId, guideline.version, options?.note, options?.dueDate)
       }),
-      uploadVersion: (id, file) => update(id, (sop) => workflow.uploadVersion(sop, userId, file)),
-      deleteVersion: (id, version) => update(id, (sop) => workflow.deleteVersion(sop, userId, version)),
+      uploadVersion: async (id, file) => {
+        // The browser's rules first (they also cover the review state the database doesn't have yet).
+        workflow.uploadVersion(current(id), userId, { fileName: file.name, fileType: fileTypeOf(file.name) ?? 'pdf' })
+        const stored = await uploadSopFile(userId, file)
+        await uploadSopVersion(id, stored)
+        await refresh(id)
+      },
+      deleteVersion: async (id, version) => {
+        workflow.deleteVersion(current(id), userId, version)
+        await deleteSopVersion(id, version)
+        await refresh(id)
+      },
       addResponse: (id, text) => update(id, (sop) => workflow.addResponse(sop, userId, text)),
       // The signed-in user (`userId`) acts; the others are the co-authors added or removed.
       addCoAuthors: (id, coAuthorIds) => update(id, (sop) => workflow.addCoAuthors(sop, userId, coAuthorIds)),
@@ -238,7 +266,7 @@ export function SopsProvider({ children }: { children: ReactNode }) {
       failNextCheck,
       setFailNextCheck,
     }),
-    [sops, addDraft, update, runCheck, failNextCheck, setFailNextCheck, userId, guideline.version, getUser, users, environment, assertActor],
+    [status, sops, addDraft, refresh, current, update, runCheck, failNextCheck, setFailNextCheck, userId, guideline.version, getUser, users, environment, assertActor],
   )
 
   return <SopsContext.Provider value={store}>{children}</SopsContext.Provider>
