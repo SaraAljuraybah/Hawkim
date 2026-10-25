@@ -19,8 +19,9 @@ interface AddCoAuthorsDialogProps {
 }
 
 /**
- * "Add co-authors": other users with the Author permission who aren't already on
- * the SOP. Its reviewers and approvers are never offered (separation of duties).
+ * "Add co-authors": other users with the Author permission from the SOP's department
+ * who aren't already on the SOP. Its reviewers and approvers are never offered
+ * (separation of duties). The database checks the same department rule.
  */
 export function AddCoAuthorsDialog({ sop, content, onSubmit, onClose }: AddCoAuthorsDialogProps) {
   const text = content.addCoAuthors
@@ -34,6 +35,7 @@ export function AddCoAuthorsDialog({ sop, content, onSubmit, onClose }: AddCoAut
     .filter(
       (user) =>
         hasPermission(user, 'author') &&
+        user.departmentId === sop.departmentId &&
         !isAuthorOrCoAuthor(sop, user.id) &&
         !isReviewer(sop, user.id) &&
         !isApprover(sop, user.id),

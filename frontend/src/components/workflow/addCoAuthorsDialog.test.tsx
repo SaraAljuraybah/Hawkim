@@ -10,6 +10,7 @@ const fixture = vi.hoisted(() => ({
     { id: 'writer', name: 'Other Writer', permissions: ['author'], departmentId: 'home' },
     { id: 'reviewing', name: 'Reviewing Writer', permissions: ['author', 'reviewer'], departmentId: 'home' },
     { id: 'approving', name: 'Approving Writer', permissions: ['author', 'approver'], departmentId: 'home' },
+    { id: 'elsewhere', name: 'Other Department Writer', permissions: ['author'], departmentId: 'other' },
   ] as User[],
 }))
 vi.mock('../../state/usersContext', () => ({ useUsers: () => ({ users: fixture.users, activeUsers: fixture.users }) }))
@@ -32,6 +33,10 @@ describe('Add co-authors dialog', () => {
     const id = input.match(/id="([^"]+)"/)![1]
     expect(html).toContain(`<label for="${id}" class="sr-only">Co-authors</label>`)
     expect(input).toContain('placeholder="Search by name or department…"')
+  })
+  it('offers only authors from the SOP’s department', () => {
+    expect(html).toContain('Other Writer')
+    expect(html).not.toContain('Other Department Writer')
   })
   it('still leaves out the SOP’s reviewers and approvers', () => {
     expect(html).toContain('Other Writer')
