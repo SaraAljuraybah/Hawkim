@@ -5,7 +5,7 @@ import type { Department, Sop, User } from '../../data/mock/types'
 import { approvalEn } from '../../content/approval.en'
 import { internalReviewEn } from '../../content/internalReview.en'
 import { sopWorkflowEn } from '../../content/workflow.en'
-import { returnAsApprover } from '../../lib/workflow'
+import { returnAsApprover, uploadVersion } from '../../lib/workflow'
 import { submitForApproval } from '../../lib/approval'
 import { acceptInternalReview, currentInternalRound, decideInternalReview, removeInternalReviewer, startInternalReview } from '../../lib/internalReview'
 import { SopWorkflowPage } from '../../pages/SopWorkflowPage'
@@ -59,6 +59,13 @@ function renderPage() {
   return renderToStaticMarkup(<MemoryRouter initialEntries={['/approval-ui']}><Routes><Route path="/:id" element={<SopWorkflowPage />} /></Routes></MemoryRouter>)
 }
 function approvalButton(html: string) { return html.match(/<button[^>]*>Submit for approval<\/button>/)?.[0] }
+/** The lines of the tooltip the disabled button is described by: its heading, then each reason. */
+function approvalTooltip(html: string): string[] {
+  const id = approvalButton(html)?.match(/aria-describedby="([^"]+)"/)?.[1]
+  const tooltip = id ? html.match(new RegExp(`<span id="${id}" role="tooltip" hidden=""[^>]*><span[^>]*>(.*?)</span></span></span>`))?.[1] : undefined
+  return tooltip ? [...tooltip.matchAll(/<span[^>]*>([^<]*)/g)].map((match) => match[1]) : []
+}
+const heading = internalReviewEn.approvalMissing.title
 function renderDialog(sop: Sop) { return renderToStaticMarkup(<SubmitForApprovalDialog sop={sop} onSubmit={() => {}} onClose={() => {}} />) }
 
 beforeEach(() => {
@@ -86,8 +93,10 @@ describe('main Author approval interface', () => {
     expect(button).toContain('aria-disabled="true"')
     expect(button).not.toContain(' disabled=""')
     expect(button).toContain('aria-disabled:bg-beige')
-    expect(button).toContain('aria-describedby="approval-hint"')
-    expect(html).toContain('<li>' + internalReviewEn.approvalMissing.noReviewers + '</li>')
+    expect(approvalTooltip(html)).toEqual([heading, 'Add at least one reviewer first.'])
+    // The list under the Review timeline is gone.
+    expect(html).not.toContain('id="approval-hint"')
+    expect(html).not.toContain('<li>')
     const reviewed = finished()
     const submitted = submitForApproval(reviewed, 'author', { version: '1', internalReviewRoundId: currentInternalRound(reviewed)!.id, noExternalReviewsRequired: true, feedbackAddressed: true }, { users: fixture.users, departments: fixture.departments })
     const approval = submitted.approvalSubmissions!.at(-1)!
@@ -95,7 +104,25 @@ describe('main Author approval interface', () => {
     expect(fixture.sop.status).toBe('returned')
     const returned = renderPage()
     expect(approvalButton(returned)).toContain('aria-disabled="true"')
-    expect(returned).toContain('id="approval-hint"')
+    expect(approvalTooltip(returned)).toEqual([heading, 'The approver returned this SOP. Upload a new version first.'])
+    // Once a new version is uploaded, the reviewer line says what's next.
+    vi.advanceTimersByTime(1000)
+    fixture.sop = uploadVersion(fixture.sop, 'author', { fileName: 'revised.pdf', fileType: 'pdf' })
+    expect(approvalTooltip(renderPage())).toEqual([heading, 'Add at least one reviewer first.', 'Run the compliance check for the current version first.'])
+  })
+  it('says "Already sent for approval." while the SOP is In Approval', () => {
+    const sop = finished()
+    fixture.sop = submitForApproval(sop, 'author', { version: '1', internalReviewRoundId: currentInternalRound(sop)!.id, noExternalReviewsRequired: true, feedbackAddressed: true }, { users: fixture.users, departments: fixture.departments })
+    expect(fixture.sop.status).toBe('in-approval')
+    expect(approvalTooltip(renderPage())).toEqual([heading, 'Already sent for approval.'])
+  })
+  it('shows each reviewer still to respond or finish, and a return, in simple words', () => {
+    let sop = start()
+    sop = decide(sop, 'reviewer-a', 'returned', 'Fix the scope')
+    const round = currentInternalRound(sop)!
+    fixture.sop = acceptInternalReview(sop, 'reviewer-b', round.id, round.assignments.find((item) => item.userId === 'reviewer-b')!.id, { users: fixture.users, departments: fixture.departments })
+    expect(approvalTooltip(renderPage())).toEqual([heading,
+      'Reviewer A returned v1 with comments. Upload a new version and submit it for review.', 'Waiting for Reviewer B to finish reviewing v1.'])
   })
   it('never gives Co-Authors or Reviewers the approval submission control', () => {
     fixture.sop = finished()
@@ -112,8 +139,7 @@ describe('main Author approval interface', () => {
     fixture.sop = decide(start(), 'reviewer-a')
     const html = renderPage()
     expect(approvalButton(html)).toContain('aria-disabled="true"')
-    expect(approvalButton(html)).toContain('aria-describedby="approval-hint"')
-    expect(html).toMatch(/<div id="approval-hint"[^>]*><p[^>]*>Submit for approval is available when:<\/p><ul[^>]*><li>Reviewer B has accepted or declined the request.<\/li>/)
+    expect(approvalTooltip(html)).toEqual([heading, 'Waiting for Reviewer B to accept or decline.'])
   })
   it('keeps approval disabled after rejection or cancellation of every review', () => {
     fixture.sop = decide(start(), 'reviewer-a', 'returned', 'A revision is required')
@@ -124,7 +150,7 @@ describe('main Author approval interface', () => {
     fixture.sop = cancelled
     const html = renderPage()
     expect(approvalButton(html)).toContain('aria-disabled="true"')
-    expect(html).toContain('id="approval-hint"')
+    expect(approvalTooltip(html)).toEqual([heading, 'Add at least one reviewer first.'])
     // Everyone removed: still In Review, and the author can ask other reviewers.
     expect(html).toContain('>' + sopWorkflowEn.actions.submit + '<')
   })
@@ -145,7 +171,7 @@ describe('main Author approval interface', () => {
     fixture.departments[0].qualityControllerId = undefined
     const html = renderPage()
     expect(approvalButton(html)).toContain('aria-disabled="true"')
-    expect(html).toMatch(/id="approval-hint"[\s\S]*<li>[^<]*(?:Quality|controller)[^<]*/)
+    expect(approvalTooltip(html)).toEqual([heading, 'No approver is assigned.'])
   })
   it('uses a separate dialog with an explicit unchecked external-review attestation and optional approval deadline', () => {
     const html = renderDialog(finished())
@@ -177,7 +203,7 @@ describe('main Author approval interface', () => {
       }
       const html = renderPage()
       expect(approvalButton(html)).toContain('aria-disabled="true"')
-      expect(html).toContain('Complete every required external department review')
+      expect(approvalTooltip(html)).toEqual([heading, 'Wait for the required reviews from other departments to finish.'])
       expect(renderDialog(fixture.sop)).not.toContain('name="noExternalReviewsRequired"')
     }
   })

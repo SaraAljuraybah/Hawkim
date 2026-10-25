@@ -33,11 +33,11 @@ export const internalReviewEn = {
     inProgress: 'In progress', completed: 'Your review is complete.',
   },
   approvalMissing: {
-    title: 'Submit for approval is available when:',
-    noReviewers: 'At least one reviewer is taking part in the review.',
-    respond: '{name} has accepted or declined the request.',
-    finish: '{name} has finished reviewing v{version}.',
-    returned: '{name} returned v{version} with comments: upload a new version and send it for review.',
+    title: 'You can’t submit for approval yet:',
+    noReviewers: 'Add at least one reviewer first.',
+    respond: 'Waiting for {name} to accept or decline.',
+    finish: 'Waiting for {name} to finish reviewing v{version}.',
+    returned: '{name} returned v{version} with comments. Upload a new version and submit it for review.',
   },
   status: {
     cancelled: 'You are no longer taking part in this review.', closed: 'This review round is closed.',

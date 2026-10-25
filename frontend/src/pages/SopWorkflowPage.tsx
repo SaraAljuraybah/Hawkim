@@ -24,10 +24,10 @@ import { complianceEn } from '../content/compliance.en'
 import { approvalEn } from '../content/approval.en'
 import { internalReviewEn } from '../content/internalReview.en'
 import { sopWorkflowEn } from '../content/workflow.en'
-import type { SopVersion } from '../data/mock/types'
+import type { Sop, SopVersion } from '../data/mock/types'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { currentCheck, hasCurrentCheck, isCheckRunning } from '../lib/compliance'
-import { approvalReadiness } from '../lib/approval'
+import { approvalReadiness, type ApprovalReadiness } from '../lib/approval'
 import { canAddReviewers, canSendNewVersion, type ReviewPhaseItem } from '../lib/internalReview'
 import { reviewAllowsNewVersion } from '../lib/internalReviewStatus'
 import { formatDate } from '../lib/format'
@@ -214,6 +214,24 @@ export function SopWorkflowPage() {
     if (item.kind === 'no-reviewers') return text.noReviewers
     const template = item.kind === 'respond' ? text.respond : item.kind === 'finish' ? text.finish : text.returned
     return template.replace('{name}', nameOf(item.userId)).replace('{version}', 'version' in item ? item.version : '')
+  }
+  /**
+   * The approval tooltip's lines: the reviewers still missing, then the other reasons in simple words.
+   * Display only: the codes come from approvalReadiness, unchanged.
+   */
+  function approvalLines(readiness: ApprovalReadiness, current: Sop): string[] {
+    const blocked = approvalEn.blockers
+    const requested = readiness.blockers.includes('already-requested')
+    const latest = current.approvalSubmissions?.at(-1)
+    return [...readiness.missing.map(missingText), ...readiness.blockers.flatMap((code, index) => {
+      // "Already sent" (or the approver's return) explains it; "not in review" would only repeat it.
+      if (code === 'not-in-review' && requested) return []
+      if (code === 'already-requested' && current.status === 'returned') {
+        // After a new version is uploaded, the reviewer line says what's next.
+        return latest?.status === 'returned' && latest.version === current.version ? [approvalEn.returnedByApprover] : []
+      }
+      return [code in blocked ? blocked[code as keyof typeof blocked] : readiness.reasons[index]]
+    })]
   }
   // Response: to everyone who commented in the latest round; not once published.
   const recipients = sop.status === 'published' ? [] : responseRecipients(sop)
@@ -435,14 +453,20 @@ export function SopWorkflowPage() {
                 <Button size="sm" disabled={!!requestReason} aria-describedby={requestReason ? 'submit-hint' : undefined}
                   onClick={(event) => open(sendVersion ? 'submit' : 'addReviewers', event.currentTarget)}>{actions.submit}</Button>
               )}
-              {showApproval && (
-                // Not available yet: grey and aria-disabled, so it stays focusable and the list below is read with it.
-                <Button size="sm" grayWhenDisabled aria-disabled={!approval?.ready || undefined}
-                  aria-describedby={!approval?.ready ? 'approval-hint' : undefined}
-                  onClick={(event) => { if (approval?.ready) open('approval', event.currentTarget) }}>
-                  {approvalEn.action}
-                </Button>
-              )}
+              {showApproval && (approval?.ready ? (
+                <Button size="sm" grayWhenDisabled onClick={(event) => open('approval', event.currentTarget)}>{approvalEn.action}</Button>
+              ) : (
+                // Not available yet: grey and aria-disabled, so it stays focusable; the tooltip says why
+                // (on hover, keyboard focus or a tap) and is read with the button.
+                <Tooltip openOnTap wide text={<>
+                  <span className="block font-semibold">{internalReviewEn.approvalMissing.title}</span>
+                  {approval && approvalLines(approval, sop).map((line) => <span key={line} className="ml-4 list-item list-disc">{line}</span>)}
+                </>}>
+                  {(tooltipId) => (
+                    <Button size="sm" grayWhenDisabled aria-disabled aria-describedby={tooltipId}>{approvalEn.action}</Button>
+                  )}
+                </Tooltip>
+              ))}
             </>
           )
         }
@@ -454,15 +478,6 @@ export function SopWorkflowPage() {
         )}
         {canUpload && !isMainAuthor && (
           <p className="mb-4 text-sm text-text-gray">{actions.authorOnly.replace('{name}', authorName)}</p>
-        )}
-        {showApproval && approval && !approval.ready && (
-          <div id="approval-hint" className="mb-4 text-sm text-text-gray">
-            <p className="font-medium text-maroon">{internalReviewEn.approvalMissing.title}</p>
-            <ul className="mt-1 list-disc space-y-1 pl-5">
-              {approval.missing.map((item) => <li key={item.kind + ('userId' in item ? item.userId : '')}>{missingText(item)}</li>)}
-              {approval.reasons.map((reason) => <li key={reason}>{reason}</li>)}
-            </ul>
-          </div>
         )}
         <ReviewTimelineTable sop={sop} content={content} mainAuthorOnly />
       </Section>
