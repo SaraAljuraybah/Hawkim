@@ -2,6 +2,7 @@ import { lazy, useEffect } from 'react'
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { DashboardPage } from './pages/DashboardPage'
 import { DepartmentsPage } from './pages/DepartmentsPage'
+import { ForgotPasswordPage } from './pages/ForgotPasswordPage'
 import { MyRequestsPage } from './pages/MyRequestsPage'
 import { MySopsPage } from './pages/MySopsPage'
 import { ReviewsPage } from './pages/ReviewsPage'
@@ -48,8 +49,8 @@ const UserDetailsPage = lazy(() => adminPortal().then((m) => ({ default: m.UserD
 
 /**
  * Client-side routes.
- * Any URL without its own route (including /forgot-password, /terms and
- * /privacy until those pages exist) shows the Not Found page.
+ * Any URL without its own route (including /terms and /privacy until those
+ * pages exist) shows the Not Found page.
  */
 function App() {
   const { pathname, hash } = useLocation()
@@ -90,6 +91,7 @@ function AppRoutes() {
     <Routes>
       <Route path="/" element={<LandingPage />} />
       <Route path="/login" element={<SignInPage />} />
+      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
 
       {/* Signed-in app: every screen inside shares the sidebar + top bar.
           Anyone not signed in is sent to /login. */}

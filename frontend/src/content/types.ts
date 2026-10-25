@@ -183,6 +183,16 @@ export interface SignInContent {
   }
 }
 
+/** The page behind "Forgot password?": passwords are reset by the project owner for now. */
+export interface ForgotPasswordContent {
+  /** Browser tab title. */
+  pageTitle: string
+  logoAlt: string
+  title: string
+  text: string
+  backLink: LinkContent
+}
+
 /* ---------- Not Found page ---------- */
 
 export interface NotFoundContent {

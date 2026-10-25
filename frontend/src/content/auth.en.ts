@@ -4,7 +4,7 @@
  * so an Arabic version (auth.ar.ts) can be added later.
  */
 
-import type { SignInContent } from './types'
+import type { ForgotPasswordContent, SignInContent } from './types'
 
 export const signInEn: SignInContent = {
   pageTitle: 'Sign In | Hawkim',
@@ -26,8 +26,7 @@ export const signInEn: SignInContent = {
     hideLabel: 'Hide password',
   },
 
-  // The forgot-password page will be built in a later feature branch
-  // (until then this link shows the Not Found page).
+  // Leads to a short page: passwords are reset by the project owner for now.
   forgotPassword: { label: 'Forgot password?', href: '/forgot-password' },
 
   submit: {
@@ -58,4 +57,12 @@ export const signInEn: SignInContent = {
     privacy: { label: 'Privacy Policy', href: '/privacy' },
     suffix: '.',
   },
+}
+
+export const forgotPasswordEn: ForgotPasswordContent = {
+  pageTitle: 'Forgot Password | Hawkim',
+  logoAlt: 'Hawkim',
+  title: 'Forgot your password?',
+  text: 'Ask the project owner to reset your password.',
+  backLink: { label: 'Back to sign in', href: '/login' },
 }
