@@ -7,13 +7,26 @@
 import type { SopsContent } from './types'
 
 export const sopsEn: SopsContent = {
-  pageTitle: 'SOPs | Hawkim',
-  title: 'Standard Operating Procedures',
-  subtitle: 'Access and view approved SOPs.',
+  
+pageTitle: 'SOP Directory | Hawkim',
+title: 'SOP Directory',
+subtitle: 'Browse published SOPs available to you.',
+
   tabsLabel: 'Filter SOPs',
   tabs: {
     all: 'All',
     recent: 'Recently Added',
+  },
+  filters: {
+    label: 'Search and filter SOPs',
+    searchLabel: 'Search SOPs',
+    searchPlaceholder: 'Search by SOP code or title',
+    typeLabel: 'Document type',
+    types: { all: 'All document types', pdf: 'PDF', docx: 'Word' },
+    clear: 'Clear filters',
+    empty: 'No SOPs match your search and filters. Try another search or clear the filters.',
+    oneResult: '1 SOP found',
+    results: '{count} SOPs found',
   },
   viewToggle: {
     label: 'View',
@@ -33,8 +46,9 @@ export const sopsEn: SopsContent = {
 
   detail: {
     pageTitle: '{code} | Hawkim',
-    back: { label: 'Back to SOPs', href: '/sops' },
+   back: { label: 'Back to SOP Directory', href: '/sops' },
     exportPdf: 'Export PDF',
+    descriptionTitle: 'SOP Description',
     viewerTitle: '{code} {title} (PDF)',
     fallback: {
       text: "Your browser can't display the PDF here. Open it in a new tab or export it instead.",

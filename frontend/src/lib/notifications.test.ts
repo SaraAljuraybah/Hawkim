@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { ComplianceCheck, Sop, User, UserRequest } from '../data/mock/types'
 import { decideRequest } from './requestAdmin'
 import { deriveNotifications, isRead, type AppNotification } from './notifications'
@@ -6,6 +6,8 @@ import {
   addResponse,
   approveAs,
   completeReview,
+  currentDueAt,
+  shiftDueDates,
   publishAs,
   resubmit,
   returnAsApprover,
@@ -20,6 +22,8 @@ import {
  * can be routed in; Huda and Khalid approve.
  */
 const GVP = '4.0'
+
+afterEach(() => vi.useRealTimers())
 const HOUR = 60 * 60 * 1000
 
 function check(version: string): ComplianceCheck {
@@ -77,20 +81,27 @@ function kinds(userId: string, sops: Sop[], now = Date.now(), requests: UserRequ
 }
 
 describe('assigned to me', () => {
-  it('notifies the reviewers at submission, but not the approvers or the author', () => {
+  it('notifies only the first reviewer at submission, but not the approvers or the author', () => {
     const sop = submit()
     expect(kinds('noura', [sop])).toEqual(['assigned-review submitted'])
-    expect(kinds('faisal', [sop])).toEqual(['assigned-review submitted'])
+    expect(kinds('faisal', [sop])).toEqual([])
     expect(kinds('huda', [sop])).toEqual([])
     expect(kinds('khalid', [sop])).toEqual([])
     expect(kinds('sara', [sop])).toEqual([])
   })
 
-  it('notifies a routed reviewer', () => {
-    const sop = routeToReviewer(submit(), 'faisal', lama)
-    expect(kinds('lama', [sop])).toEqual(['assigned-review routed'])
-    const notification = deriveNotifications('lama', { sops: [sop], requests: [], now: Date.now() })[0]
-    expect(notification).toMatchObject({ actorId: 'faisal', sopCode: 'SOP-001', version: '1', link: '/reviews/sop-1' })
+  it('notifies queued and routed reviewers only when their turn begins', () => {
+    // Preserve the current-reviewer guard: Noura routes; queued reviewers are notified at handoff.
+    const routed = routeToReviewer(submit(), 'noura', lama)
+    expect(kinds('lama', [routed])).toEqual([])
+    expect(kinds('faisal', [routed])).toEqual([])
+    const next = completeReview(routed, 'noura')
+    expect(kinds('faisal', [next])).toEqual(['assigned-review handoff'])
+    expect(kinds('lama', [next])).toEqual([])
+    const last = completeReview(next, 'faisal')
+    expect(kinds('lama', [last])).toEqual(['assigned-review handoff'])
+    expect(deriveNotifications('lama', { sops: [last], requests: [], now: Date.now() })[0])
+      .toMatchObject({ actorId: 'faisal', sopCode: 'SOP-001', version: '1', link: '/reviews/sop-1' })
   })
 
   it('notifies the approvers when the SOP moves to In Approval, and again when it is approved', () => {
@@ -164,14 +175,17 @@ describe('due soon and overdue', () => {
   it('keeps the same id within a round and a new one after a resubmit', () => {
     const sop = submit(2)
     const late = new Date(sop.reviewDueAt!).getTime() + HOUR
-    const id = (item: Sop, now: number) => deriveNotifications('faisal', { sops: [item], requests: [], now })[0].id
+    const id = (item: Sop, now: number) => deriveNotifications('noura', { sops: [item], requests: [], now }).find((notification) => notification.type === 'overdue')!.id
     const first = id(sop, late)
     expect(id(sop, late + 48 * HOUR)).toBe(first)
 
     const returned = returnAsApprover(approveAs(completeReview(completeReview(sop, 'noura'), 'faisal'), 'huda'), 'khalid', 'x')
     const updated = uploadVersion(returned, 'sara', { fileName: 'v2.pdf', fileType: 'pdf' })
-    const again = resubmit({ ...updated, complianceChecks: [...updated.complianceChecks, check('2')] }, 'sara', GVP)
-    const lateAgain = new Date(again.reviewDueAt!).getTime() + HOUR
+    // Resubmit clears every deadline; the author gives Reviewer 1 (Noura) a new one.
+    const tomorrow = new Date(Date.now() + 24 * HOUR)
+    const date = [tomorrow.getFullYear(), String(tomorrow.getMonth() + 1).padStart(2, '0'), String(tomorrow.getDate()).padStart(2, '0')].join('-')
+    const again = resubmit({ ...updated, complianceChecks: [...updated.complianceChecks, check('2')] }, 'sara', GVP, undefined, date)
+    const lateAgain = new Date(currentDueAt(again)!).getTime() + HOUR
     expect(id(again, lateAgain)).not.toBe(first)
   })
 })
@@ -222,5 +236,32 @@ describe('read state', () => {
     expect(isRead(item, new Set([item.id]), sessionStart)).toBe(true)
     const overdue = notification('overdue', '2026-10-05T08:00:00Z')
     expect(isRead(overdue, new Set([overdue.id]), sessionStart)).toBe(true)
+  })
+})
+
+
+describe('individual deadline notifications', () => {
+  it('uses only the active reviewer deadline, preserves reminder ids during simulation, and supports no deadline', () => {
+    vi.useFakeTimers({ now: new Date(2026, 9, 18, 12) })
+    const sop = submitForReview(draft(), 'sara', GVP, ['noura', 'faisal', 'lama'], ['huda'], undefined, undefined, undefined,
+      { noura: '2026-10-20', faisal: '2026-10-25' })
+    const due = new Date(currentDueAt(sop)!).getTime()
+    expect(kinds('noura', [sop], due - HOUR)).toContain('due-soon')
+    expect(kinds('noura', [sop], due + 1)).toContain('overdue')
+    expect(kinds('faisal', [sop], due + 20 * 24 * HOUR)).toEqual([])
+    const overdueId = (item: Sop) => deriveNotifications('noura', { sops: [item], requests: [], now: due + HOUR }).find((n) => n.type === 'overdue')!.id
+    expect(overdueId(shiftDueDates(sop, 3))).toBe(overdueId(sop))
+    const next = completeReview(sop, 'noura')
+    expect(kinds('noura', [next], due + HOUR)).not.toContain('overdue')
+    expect(kinds('faisal', [next], due + HOUR)).not.toContain('overdue')
+    expect(kinds('faisal', [next], new Date(currentDueAt(next)!).getTime() + 1)).toContain('overdue')
+    const last = completeReview(next, 'faisal')
+    expect(kinds('lama', [last], due + 100 * 24 * HOUR)).toEqual(['assigned-review handoff'])
+  })
+  it('suppresses queued assignments from legacy submission events', () => {
+    const sop = submit()
+    sop.timeline = sop.timeline.map((event) => event.type === 'submitted' ? { ...event, recipientIds: ['noura', 'faisal'] } : event)
+    expect(kinds('faisal', [sop])).toEqual([])
+    expect(kinds('noura', [sop])).toEqual(['assigned-review submitted'])
   })
 })

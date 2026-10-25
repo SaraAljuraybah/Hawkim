@@ -1,8 +1,9 @@
 import { useId, useState, type ReactNode } from 'react'
+import { reviewFlowEn } from '../../content/reviewFlow.en'
 import type { SopWorkflowContent } from '../../content/types'
 import type { Sop, TimelineEvent } from '../../data/mock/types'
 import { formatDateTime } from '../../lib/format'
-import { commentForEvent } from '../../lib/workflow'
+import { commentForEvent, timelineRecipients } from '../../lib/workflow'
 import { useDepartments } from '../../state/departmentsContext'
 import { useUsers } from '../../state/usersContext'
 import { personWithRole } from './people'
@@ -10,6 +11,8 @@ import { personWithRole } from './people'
 interface ReviewTimelineTableProps {
   sop: Sop
   content: SopWorkflowContent
+  /** The author's page: returns are shown as sent to the main author only (in "To"). */
+  mainAuthorOnly?: boolean
 }
 
 /** Comments longer than this are shortened, with View more / View less. */
@@ -60,9 +63,9 @@ function Comment({ text, content }: { text: string | undefined; content: SopWork
  * Review timeline (PBI 24) as a table: every action, newest first, with who did it,
  * to whom, when, the version and the comment (a return's or decision's comment, a
  * note or a response). Stacked cards on phones. Used on the author's workflow page
- * and on the review page.
+ * (where a return's "To" shows only the main author) and on the review page.
  */
-export function ReviewTimelineTable({ sop, content }: ReviewTimelineTableProps) {
+export function ReviewTimelineTable({ sop, content, mainAuthorOnly = false }: ReviewTimelineTableProps) {
   const { timeline, versionTemplate, roles } = content
   const { nameOf } = useUsers()
   const { nameOf: departmentName } = useDepartments()
@@ -71,7 +74,10 @@ export function ReviewTimelineTable({ sop, content }: ReviewTimelineTableProps) 
   const action = (event: TimelineEvent) =>
     event.type === 'stage-due-date-set' && event.stage ? timeline.stageDue[event.stage] : timeline.events[event.type]
   const by = (event: TimelineEvent) => personWithRole(sop, event.actorId, roles, nameOf)
-  const to = (event: TimelineEvent) => (event.recipientIds ?? []).map((id) => personWithRole(sop, id, roles, nameOf)).join(', ')
+  const to = (event: TimelineEvent) =>
+    timelineRecipients(sop, event, mainAuthorOnly)
+      .map((id) => personWithRole(sop, id, roles, nameOf))
+      .join(', ')
   const comment = (event: TimelineEvent) => event.note ?? commentForEvent(sop, event)?.text
   const version = (event: TimelineEvent) => versionTemplate.replace('{version}', event.version)
   const date = (event: TimelineEvent) => <time dateTime={event.createdAt}>{formatDateTime(event.createdAt)}</time>
@@ -85,6 +91,13 @@ export function ReviewTimelineTable({ sop, content }: ReviewTimelineTableProps) 
   /** Extra facts about some events: the co-author, the routed reviewer's department, the due date. */
   function details(event: TimelineEvent): ReactNode {
     const lines: ReactNode[] = []
+    if (event.reviewScope) {
+      lines.push(
+        reviewFlowEn.scopeDecision
+          .replace('{scope}', reviewFlowEn.scopes[event.reviewScope])
+          .replace('{decision}', event.reviewsRequired ? reviewFlowEn.required : reviewFlowEn.notRequired),
+      )
+    }
     if (event.subjectId) lines.push(timeline.subject.replace('{name}', nameOf(event.subjectId)))
     if (event.departmentId) lines.push(timeline.department.replace('{name}', departmentName(event.departmentId)))
     if (event.dueAt) {

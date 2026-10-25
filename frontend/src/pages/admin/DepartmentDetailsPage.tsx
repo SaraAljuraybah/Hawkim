@@ -2,6 +2,7 @@ import { useRef, useState, type ReactNode } from 'react'
 import { flushSync } from 'react-dom'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, CircleAlert, CircleCheck, Pencil, Trash2 } from 'lucide-react'
+import { DepartmentWorkflowConfig } from '../../components/admin/DepartmentWorkflowConfig'
 import { DepartmentBadge } from '../../components/admin/DepartmentBadge'
 import { UserAvatar } from '../../components/admin/UserBits'
 import { Button } from '../../components/ui/Button'
@@ -55,6 +56,7 @@ export function DepartmentDetailsPage() {
       </Link>
       {/* Another department starts fresh (no messages). */}
       <DepartmentPanels key={department.id} department={department} />
+      <DepartmentWorkflowConfig key={department.id + '-workflow'} department={department} />
     </>
   )
 }

@@ -11,11 +11,9 @@ export const signInEn: SignInContent = {
 
   brand: {
     logoAlt: 'Hawkim',
-    regulatoryNote: 'Designed for pharmaceutical organizations regulated by the SFDA',
   },
 
   title: 'Welcome Back',
-  subtitle: 'Sign in to your Hawkim account',
 
   email: {
     label: 'Email',

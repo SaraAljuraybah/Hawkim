@@ -138,7 +138,7 @@ export function MyRequestsPage() {
                       {request.status === 'pending' && (
                         <Button
                           size="sm"
-                          variant="secondary"
+                          variant="primary"
                           aria-describedby={titleId}
                           onClick={(event) => {
                             cancelTriggerRef.current = event.currentTarget

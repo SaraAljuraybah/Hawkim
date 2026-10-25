@@ -42,12 +42,12 @@ export function DashboardPage() {
   const firstName = user.name.split(' ')[0]
   const greeting = getGreeting(content.greetings).replace('{name}', firstName)
 
-  // My Requests is personal; SOPs and Employees follow the active department.
+  // My Requests is personal; SOPs and Employees follow the home department.
   const requests = useMyRequests()
-  const { activeDepartment } = useActiveDepartment()
+  const { homeDepartment } = useActiveDepartment()
   const { sops } = useSops()
   const { users } = useUsers()
-  const dashboardStats = getDashboardStats(requests, activeDepartment, sops, members(activeDepartment.id, users).length)
+  const dashboardStats = getDashboardStats(requests, homeDepartment, sops, members(homeDepartment.id, users).length)
 
   return (
     <>
@@ -58,7 +58,7 @@ export function DashboardPage() {
           👋
         </span>
       </h1>
-      <p className="mt-2 text-text-gray">{content.subtitle.replace('{department}', activeDepartment.name)}</p>
+      <p className="mt-2 text-text-gray">{content.subtitle.replace('{department}', homeDepartment.name)}</p>
 
       {/* Statistics */}
       <ul className="mt-8 grid gap-4 sm:grid-cols-3 sm:gap-5">
@@ -79,7 +79,7 @@ export function DashboardPage() {
         })}
       </ul>
 
-      <div className="mt-6 grid gap-6 lg:mt-8 lg:grid-cols-3">
+      <div className="mt-6 grid gap-6 lg:mt-8 lg:grid-cols-3 lg:items-start">
         {/* Recent activity (about two-thirds) */}
         <Card title={content.recentActivity.title} titleId="recent-activity-title" className="lg:col-span-2">
           <ul className="divide-y divide-beige">
@@ -118,7 +118,7 @@ export function DashboardPage() {
               .filter((action) => !action.permission || hasAnyPermission(user, action.permission))
               .map((action) => (
                 <li key={action.href}>
-                  <Button to={action.href} variant="secondary" withArrow className="w-full">
+                  <Button to={action.href} withArrow className="w-full">
                     {action.label}
                   </Button>
                 </li>

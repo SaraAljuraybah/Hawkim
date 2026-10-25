@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useState, type ReactNode } from 'react'
+import { clearStoredActiveDepartment } from './activeDepartmentStorage'
 import { SessionContext, type SessionStore } from './sessionContext'
 import { useUsers } from './usersContext'
 
@@ -26,6 +27,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const user = activeUsers.find((item) => item.id === userId) ?? null
 
   const signIn = useCallback((id: string) => {
+    // Every sign-in starts in the user's home department (not one remembered from before).
+    clearStoredActiveDepartment()
     setUserId(id)
     try {
       sessionStorage.setItem(STORAGE_KEY, id)

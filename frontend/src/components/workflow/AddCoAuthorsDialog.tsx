@@ -61,7 +61,7 @@ export function AddCoAuthorsDialog({ sop, content, onSubmit, onClose }: AddCoAut
     >
       <PeoplePicker
         label={text.label}
-        hint={text.hint}
+        hideLabel
         options={options}
         value={selected}
         error={error}

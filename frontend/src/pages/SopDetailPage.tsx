@@ -2,6 +2,7 @@ import { Link, useParams } from 'react-router-dom'
 import { ArrowLeft, Clock, Download, FileText, Lock } from 'lucide-react'
 import { AccessPanel, PdfViewer } from '../components/sops/PdfViewer'
 import { Button } from '../components/ui/Button'
+import { Card } from '../components/ui/Card'
 import { StatusBadge } from '../components/ui/StatusBadge'
 import { sopsEn } from '../content/sops.en'
 import type { Sop } from '../data/mock/types'
@@ -79,6 +80,12 @@ export function SopDetailPage() {
         </div>
         {exportButton && <div className="shrink-0">{exportButton}</div>}
       </div>
+
+      {granted && sop.description?.trim() && (
+        <Card title={content.descriptionTitle} titleId="description-title" className="mt-6">
+          <p className="text-sm leading-relaxed whitespace-pre-wrap break-words text-maroon">{sop.description}</p>
+        </Card>
+      )}
 
       <div className="mt-6 rounded-xl border border-beige bg-white p-3 sm:p-4">
         {access === 'locked' && (

@@ -12,7 +12,7 @@ interface DepartmentGridProps {
   getState: (department: Department) => DepartmentState
   /** Members: active users whose home department it is. */
   getMemberCount: (department: Department) => number
-  /** Switch to a department the user belongs to. */
+  /** Open an authorized published directory without changing membership. */
   onOpen: (id: DepartmentId) => void
 }
 
@@ -45,7 +45,13 @@ export function DepartmentGrid({ departments, content, getState, getMemberCount,
         return (
           <li key={department.id}>
             {/* TODO: Make the card a link to the department detail page once it exists. */}
-            <article className="flex h-full items-start gap-4 rounded-xl border border-beige bg-white p-5 sm:p-6">
+            {/* The department being viewed: maroon border (15:1 on white) plus its text label */}
+            <article
+              aria-current={state === 'current' ? 'true' : undefined}
+              className={`flex h-full items-start gap-4 rounded-xl border bg-white p-5 sm:p-6 ${
+                state === 'current' ? 'border-maroon ring-1 ring-maroon' : 'border-beige'
+              }`}
+            >
               <span
                 aria-hidden="true"
                 className={`inline-flex size-12 shrink-0 items-center justify-center rounded-full text-sm font-semibold ${
@@ -74,13 +80,13 @@ export function DepartmentGrid({ departments, content, getState, getMemberCount,
                     </span>
                   )}
 
-                  {state === 'member' && (
+                  {(state === 'member' || state === 'directory') && (
                     <>
                       <span className={stateLabel}>
                         <UserCheck aria-hidden="true" className="size-4 shrink-0" strokeWidth={1.75} />
-                        {states.member}
+                        {state === 'member' ? states.member : states.directoryAccess}
                       </span>
-                      <Button size="sm" variant="secondary" aria-describedby={nameId} onClick={() => onOpen(department.id)}>
+                      <Button size="sm" variant="primary" aria-describedby={nameId} onClick={() => onOpen(department.id)}>
                         {states.open}
                       </Button>
                     </>
@@ -98,7 +104,7 @@ export function DepartmentGrid({ departments, content, getState, getMemberCount,
                     <Button
                       to={requestDepartmentAccessPath(department.id)}
                       size="sm"
-                      variant="secondary"
+                      variant="primary"
                       aria-describedby={nameId}
                     >
                       {states.requestAccess}

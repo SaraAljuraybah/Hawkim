@@ -15,9 +15,10 @@ export const departmentsEn: DepartmentsContent = {
     other: '{count} members',
   },
   states: {
-    current: 'Current department',
-    member: 'Member',
-    open: 'Open',
+    current: 'Currently viewing',
+    member: 'Home department',
+    directoryAccess: 'Directory access (read-only)',
+    open: 'Open SOP Directory',
     accessRequested: 'Access requested',
     requestAccess: 'Request access',
   },

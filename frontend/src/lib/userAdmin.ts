@@ -80,7 +80,7 @@ export type InUsePermission = Exclude<Permission, 'admin'>
  * The SOPs that keep a permission in use (so it can't be removed and the user can't be deleted):
  * - author:   the user authors or co-authors an SOP that isn't published yet;
  * - reviewer: assigned as a reviewer on an SOP in review, in approval, returned or
- *             approved, whatever their own decision;
+ *             approved, excluding cancelled assignments;
  * - approver: assigned as an approver on such an SOP, whatever their own decision.
  */
 export function sopsUsing(permission: InUsePermission, userId: string, sops: Sop[]): Sop[] {
@@ -91,7 +91,7 @@ export function sopsUsing(permission: InUsePermission, userId: string, sops: Sop
         case 'author':
           return (sop.authorId === userId || sop.coAuthorIds.includes(userId)) && sop.status !== 'published'
         case 'reviewer':
-          return ASSIGNED_STATUSES.includes(sop.status) && assigned(sop.reviewers)
+          return ASSIGNED_STATUSES.includes(sop.status) && sop.reviewers.some((person) => person.userId === userId && person.decision !== 'cancelled')
         case 'approver':
           return ASSIGNED_STATUSES.includes(sop.status) && assigned(sop.approvers)
       }

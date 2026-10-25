@@ -2,8 +2,9 @@ import { Suspense, useRef, useState, type ReactNode } from 'react'
 import { Outlet } from 'react-router-dom'
 import { appShellEn } from '../../content/app.en'
 import { useTopBarScrollPadding } from '../../hooks/useTopBarScrollPadding'
-import { hasAnyPermission } from '../../lib/permissions'
+import { isReadOnlyDepartment, READ_ONLY_LANDING_PATH, visibleNavItems } from '../../lib/departmentNavigation'
 import { reviewTasks } from '../../lib/reviews'
+import { useActiveDepartment } from '../../state/activeDepartmentContext'
 import { useCurrentUser } from '../../state/sessionContext'
 import { useSops } from '../../state/sopsContext'
 import { PageLoading } from '../ui/PageLoading'
@@ -18,10 +19,14 @@ import { TopBar } from './TopBar'
  */
 export function AppLayout({ children }: { children?: ReactNode }) {
   const user = useCurrentUser()
-  // Items tied to a permission (e.g. My SOPs for authors) are only shown to users who have it.
+  const { activeDepartment } = useActiveDepartment()
+  const readOnly = isReadOnlyDepartment(activeDepartment.id, user)
+  // Items tied to a permission (e.g. My SOPs for authors) are only shown to users who have it;
+  // in a read-only department only the directory pages are shown (and the logo opens the directory).
   const content = {
     ...appShellEn,
-    nav: appShellEn.nav.filter((item) => !item.permission || hasAnyPermission(user, item.permission)),
+    nav: visibleNavItems(appShellEn.nav, user, readOnly),
+    ...(readOnly && { homeHref: READ_ONLY_LANDING_PATH, homeLinkLabel: appShellEn.homeLinkLabelReadOnly }),
   }
 
   useTopBarScrollPadding()
@@ -77,7 +82,7 @@ export function AppLayout({ children }: { children?: ReactNode }) {
         />
         <main id="main" tabIndex={-1} className="flex-1 px-4 py-8 focus:outline-none sm:px-6 lg:px-10 lg:py-10 print:p-0">
           {/* Left-aligned next to the sidebar, up to 1680px wide (long text and forms keep their own readable widths) */}
-          <div className="w-full max-w-[105rem]">
+          <div className="mx-auto w-full max-w-[90rem]">
             {/* Pages loaded on demand show a loading state inside the shell */}
             <Suspense fallback={<PageLoading />}>{children ?? <Outlet />}</Suspense>
           </div>

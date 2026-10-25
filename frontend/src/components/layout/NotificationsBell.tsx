@@ -16,9 +16,12 @@ import {
 } from 'lucide-react'
 import { notificationsEn } from '../../content/notifications.en'
 import type { NotificationType } from '../../lib/notifications'
+import { isReadOnlyDepartment, needsHomeDepartment } from '../../lib/departmentNavigation'
 import { formatRelativeTime } from '../../lib/format'
+import { useActiveDepartment } from '../../state/activeDepartmentContext'
 import { useDepartments } from '../../state/departmentsContext'
 import { useNotifications, type NotificationItem } from '../../state/notificationsContext'
+import { useCurrentUser } from '../../state/sessionContext'
 import { useUsers } from '../../state/usersContext'
 
 /** Most recent notifications listed (the list scrolls inside the panel). */
@@ -26,6 +29,13 @@ const MAX_ITEMS = 20
 
 const ICONS: Record<NotificationType, LucideIcon> = {
   'assigned-review': ListChecks,
+  'internal-review-completed': CircleCheck,
+  'review-declined': CircleX,
+  'review-withdrawn': AlarmClock,
+  'reviewer-removed': CircleX,
+  'review-completed': CircleCheck,
+  'review-returned': Undo2,
+  'review-overdue': AlarmClock,
   'assigned-approval': ListChecks,
   'ready-to-publish': Upload,
   'sop-returned': Undo2,
@@ -51,6 +61,8 @@ export function NotificationsBell() {
   const { notifications, unreadCount, now, markRead, markAllRead } = useNotifications()
   const { nameOf } = useUsers()
   const { nameOf: departmentName } = useDepartments()
+  const user = useCurrentUser()
+  const { activeDepartment, homeDepartment, setActiveDepartment } = useActiveDepartment()
   const navigate = useNavigate()
   const [open, setOpen] = useState(false)
   const wrapperRef = useRef<HTMLDivElement>(null)
@@ -88,9 +100,17 @@ export function NotificationsBell() {
         .replace('{name}', nameOf(item.actorId))
         .replace('{code}', item.sopCode ?? '')
         .replace('{version}', item.version ?? '')
+        .replace('{reason}', item.reason ?? '')
     switch (item.type) {
+      case 'internal-review-completed': return fill(t.internalReviewCompleted)
+      case 'review-declined': return fill(t.reviewDeclined)
+      case 'review-withdrawn': return fill(item.forReviewer ? t.reviewWithdrawn.reviewer : t.reviewWithdrawn.author)
+      case 'reviewer-removed': return fill(t.reviewerRemoved)
+      case 'review-completed': return fill(t.reviewCompleted)
+      case 'review-returned': return fill(t.reviewReturned)
+      case 'review-overdue': return fill(t.reviewOverdue)
       case 'assigned-review':
-        return fill(item.via === 'routed' ? t.routed : item.via === 'resubmitted' ? t.resubmitted : t.submitted)
+        return fill(item.via === 'handoff' ? t.handoff : item.via === 'routed' ? t.routed : item.via === 'resubmitted' ? t.resubmitted : t.submitted)
       case 'assigned-approval':
         return fill(t.assignedApproval)
       case 'ready-to-publish':
@@ -106,7 +126,8 @@ export function NotificationsBell() {
       case 'due-soon': {
         // Within 24 hours: today, or tomorrow (local dates).
         const today = new Date(now).toDateString() === new Date(item.dueAt ?? '').toDateString()
-        return fill(t.dueSoon[item.stage ?? 'review']).replace('{day}', today ? t.days.today : t.days.tomorrow)
+        // An internal request not yet accepted is reminded to accept or decline before it's withdrawn.
+        return fill(item.phase === 'response' ? t.dueSoon.response : t.dueSoon[item.stage ?? 'review']).replace('{day}', today ? t.days.today : t.days.tomorrow)
       }
       case 'overdue':
         return fill(t.overdue[item.stage ?? 'review'])
@@ -123,6 +144,9 @@ export function NotificationsBell() {
   function openItem(item: NotificationItem) {
     markRead(item.id)
     setOpen(false)
+    // Pages hidden in a read-only department open in the home department.
+    const readOnly = isReadOnlyDepartment(activeDepartment.id, user)
+    if (needsHomeDepartment(item.link, readOnly)) setActiveDepartment(homeDepartment.id)
     navigate(item.link)
   }
 

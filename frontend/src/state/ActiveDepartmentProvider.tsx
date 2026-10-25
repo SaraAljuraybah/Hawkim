@@ -1,63 +1,49 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import type { DepartmentId } from '../data/mock/types'
-import { getUserDepartments } from '../lib/departments'
+import { getDirectoryDepartments } from '../lib/departments'
 import { ActiveDepartmentContext, type ActiveDepartmentStore } from './activeDepartmentContext'
+import { readStoredActiveDepartment, storeActiveDepartment } from './activeDepartmentStorage'
 import { useDepartments } from './departmentsContext'
 import { useRequests } from './requestsContext'
 import { useCurrentUser } from './sessionContext'
 
-const STORAGE_KEY = 'hawkim.activeDepartment'
-
-function readStored(): string | null {
-  try {
-    return localStorage.getItem(STORAGE_KEY)
-  } catch {
-    return null // storage unavailable (private mode, blocked): fall back to the home department
-  }
-}
-
 /**
- * The department the user is working in (one at a time). Defaults to the home
- * department and is remembered in localStorage. If the remembered department is
- * no longer one of the user's departments, the home department is used instead.
- * Must be inside <RequestsProvider> (membership comes from approved requests) and
- * only used for a signed-in user.
+ * The selected published SOP directory. Approved requests add read-only browsing
+ * choices; home membership and authoring remain independent of this selection.
+ * Must be inside <RequestsProvider> and only used for a signed-in user.
  */
 export function ActiveDepartmentProvider({ children }: { children: ReactNode }) {
   const user = useCurrentUser()
   const { requests } = useRequests()
-  const { activeDepartments } = useDepartments()
-  const userDepartments = useMemo(
-    () => getUserDepartments(user, requests, activeDepartments),
+  const { activeDepartments, departments } = useDepartments()
+  const homeDepartment = useMemo(() => departments.find((department) => department.id === user.departmentId) ?? {
+    id: user.departmentId, name: user.departmentId, initials: '', description: '',
+  }, [departments, user.departmentId])
+  const directoryDepartments = useMemo(
+    () => getDirectoryDepartments(user, requests, activeDepartments),
     [user, requests, activeDepartments],
   )
 
-  const [selectedId, setSelectedId] = useState<string | null>(readStored)
+  const [selectedId, setSelectedId] = useState<string | null>(readStoredActiveDepartment)
 
   // Fall back to the home department when the selection isn't (or is no longer) valid.
   const activeDepartment =
-    userDepartments.find((department) => department.id === selectedId) ??
-    userDepartments.find((department) => department.id === user.departmentId) ??
-    userDepartments[0]
+    directoryDepartments.find((department) => department.id === selectedId) ??
+    directoryDepartments.find((department) => department.id === user.departmentId) ??
+    directoryDepartments[0] ?? homeDepartment
 
-  useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY, activeDepartment.id)
-    } catch {
-      // Remembering the department is optional; ignore storage errors.
-    }
-  }, [activeDepartment.id])
+  useEffect(() => storeActiveDepartment(activeDepartment.id), [activeDepartment.id])
 
   const setActiveDepartment = useCallback(
     (id: DepartmentId) => {
-      if (userDepartments.some((department) => department.id === id)) setSelectedId(id)
+      if (directoryDepartments.some((department) => department.id === id)) setSelectedId(id)
     },
-    [userDepartments],
+    [directoryDepartments],
   )
 
   const store = useMemo<ActiveDepartmentStore>(
-    () => ({ activeDepartment, userDepartments, setActiveDepartment }),
-    [activeDepartment, userDepartments, setActiveDepartment],
+    () => ({ activeDepartment, homeDepartment, directoryDepartments, setActiveDepartment }),
+    [activeDepartment, homeDepartment, directoryDepartments, setActiveDepartment],
   )
 
   return <ActiveDepartmentContext.Provider value={store}>{children}</ActiveDepartmentContext.Provider>

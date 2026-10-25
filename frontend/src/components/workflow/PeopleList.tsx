@@ -1,7 +1,10 @@
 import type { ReactNode } from 'react'
+import { internalReviewEn } from '../../content/internalReview.en'
 import { UserPlus } from 'lucide-react'
 import type { SopWorkflowContent } from '../../content/types'
 import type { Sop } from '../../data/mock/types'
+import { sopWorkflowEn } from '../../content/workflow.en'
+import { ReviewerDeadline } from './ReviewerDeadline'
 import { useUsers } from '../../state/usersContext'
 import { Button } from '../ui/Button'
 import { DecisionBadge } from './DecisionBadge'
@@ -62,7 +65,7 @@ export function PeopleList({
         title={content.coAuthors}
         action={
           canManageCoAuthors && (
-            <Button size="sm" variant="secondary" onClick={(event) => onAddCoAuthor(event.currentTarget)}>
+            <Button size="sm" onClick={(event) => onAddCoAuthor(event.currentTarget)}>
               <UserPlus aria-hidden="true" className="size-4" strokeWidth={2} />
               {authorsOnly ? content.addAuthor : content.addCoAuthor}
             </Button>
@@ -108,6 +111,10 @@ export function PeopleList({
                   <li key={person.userId} className={rowClasses}>
                     <span className="text-[0.9375rem] text-maroon">{name(person.userId)}</span>
                     <DecisionBadge decision={person.decision} labels={content.decisions} />
+                    {!!sop.internalReviewRounds?.length && person.decision === 'pending' && 'acceptedAt' in person && typeof person.acceptedAt === 'string' && <span className="text-xs text-text-gray">{internalReviewEn.actions.inProgress}</span>}
+                    {people === sop.reviewers && (
+                      <ReviewerDeadline sop={sop} reviewer={sop.reviewers.find((reviewer) => reviewer.userId === person.userId)!} content={sopWorkflowEn.reviewerDeadline} showQueue />
+                    )}
                   </li>
                 ))}
               </ul>

@@ -1,8 +1,17 @@
 import type { DepartmentId, RequestType } from '../data/mock/types'
 
+/** The SOP Directory (published SOPs of the active department). */
+export const SOP_DIRECTORY_PATH = '/sops'
+
+/** The Organization Structure page (department cards). */
+export const DEPARTMENTS_PATH = '/departments'
+
+/** The Submit a Request form. */
+export const SUBMIT_REQUEST_PATH = '/requests/new'
+
 /** Path of an SOP's detail page in the SOPs directory. */
 export function sopPath(sopId: string): string {
-  return `/sops/${encodeURIComponent(sopId)}`
+  return `${SOP_DIRECTORY_PATH}/${encodeURIComponent(sopId)}`
 }
 
 /** Path of an SOP's workflow page (the author's view). */
@@ -38,7 +47,7 @@ export function requestDepartmentAccessPath(departmentId: DepartmentId): string 
     [REQUEST_PREFILL_PARAMS.type]: type,
     [REQUEST_PREFILL_PARAMS.department]: departmentId,
   })
-  return `/requests/new?${params.toString()}`
+  return `${SUBMIT_REQUEST_PATH}?${params.toString()}`
 }
 
 /** The admin portal's home (its users list); admins opening an employee screen go here. */

@@ -28,6 +28,7 @@ export const complianceEn: ComplianceContent = {
     running: 'Checking against SFDA GVP v{version}…',
     completed: 'Compliance check completed.',
     failed: 'The compliance check couldn’t be completed.',
+    notChecked: 'v{version} hasn’t been checked yet. Run a compliance check to see the results.',
     viewReport: 'View full report',
     recheck: {
       badge: 'Recheck recommended',
@@ -43,7 +44,6 @@ export const complianceEn: ComplianceContent = {
     versionSelect: { label: 'Report for', option: 'v{version}', current: 'v{version} (current)' },
     header: {
       title: 'Report details',
-      reportId: 'Report ID',
       sop: 'SOP',
       version: 'Version checked',
       author: 'Author',
@@ -136,7 +136,7 @@ export const complianceEn: ComplianceContent = {
     },
     changes: {
       title: 'Changes since the previous version',
-      comparedWith: 'Compared with the report for v{version} ({reportId}).',
+      comparedWith: 'Compared with the report for v{version}.',
       none: 'No previous report.',
       changedTo: 'changed to',
       kinds: {

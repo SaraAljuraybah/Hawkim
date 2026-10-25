@@ -7,6 +7,7 @@ import type {
   SopFileType,
   TimelineEventType,
 } from '../data/mock/types'
+import type { SopStatus } from '../types/status'
 
 /*
  * Shape of the landing page content.
@@ -58,6 +59,8 @@ export interface DashboardPreviewContent {
   sidebar: { icon: IconName; label: string; active?: boolean }[]
   signOut: { icon: IconName; label: string }
   greeting: string
+  subtitle: string
+  user: { name: string; initials: string; department: string }
   stats: { icon: IconName; value: string; label: string; caption: string }[]
   recentActivity: {
     title: string
@@ -106,7 +109,6 @@ export interface LandingContent {
     subtitle: string
     /** The primary call to action is Request Hawkim (see `request`). */
     secondaryCta: CallToAction
-    regulatoryNote: string
     preview: DashboardPreviewContent
   }
   about: {
@@ -151,11 +153,8 @@ export interface SignInContent {
   pageTitle: string
   brand: {
     logoAlt: string
-    /** Plain-text note at the bottom of the brand panel (no emblems or logos). */
-    regulatoryNote: string
   }
   title: string
-  subtitle: string
   email: { label: string; placeholder: string }
   password: { label: string; placeholder: string; showLabel: string; hideLabel: string }
   forgotPassword: LinkContent
@@ -212,6 +211,7 @@ export interface AppNavItem {
 export interface SidebarContent {
   /** Product name shown as text next to the logo mark in the sidebar. */
   brandName: string
+  homeHref: string
   /** Small label after the product name, e.g. "Admin" (admin portal only). */
   portalLabel?: string
   /** Accessible name of the sidebar logo link. */
@@ -225,6 +225,8 @@ export interface SidebarContent {
 export interface AppShellContent extends SidebarContent {
   /** Visually hidden link that lets keyboard users jump past the navigation. */
   skipLink: string
+  /** Accessible name of the sidebar logo link in a read-only department (it opens the SOP Directory). */
+  homeLinkLabelReadOnly: string
   openMenu: string
   /** Accessible name of the mobile navigation drawer. */
   drawerLabel: string
@@ -233,8 +235,9 @@ export interface AppShellContent extends SidebarContent {
   departmentSwitcher: {
     /** Label before the department name (visible in the drawer, screen-reader only in the top bar). */
     label: string
-    /** Accessible name of the department menu. */
+    /** Accessible name of the published-directory menu. */
     menuLabel: string
+    readOnly: string
   }
 }
 
@@ -269,6 +272,17 @@ export interface SopsContent {
   /** Accessible name of the tab list. */
   tabsLabel: string
   tabs: Record<SopTabKey, string>
+  filters: {
+    label: string
+    searchLabel: string
+    searchPlaceholder: string
+    typeLabel: string
+    types: { all: string; pdf: string; docx: string }
+    clear: string
+    empty: string
+    oneResult: string
+    results: string
+  }
   viewToggle: { label: string; grid: string; list: string }
   /** Column headings for the list view. */
   columns: { code: string; title: string; department: string; version: string; lastUpdated: string }
@@ -287,6 +301,7 @@ export interface SopDetailContent {
   pageTitle: string
   back: LinkContent
   exportPdf: string
+  descriptionTitle: string
   /** Accessible title of the embedded viewer; `{code}` and `{title}` are replaced. */
   viewerTitle: string
   /** Shown when the browser can't display PDFs inline (common on phones). */
@@ -312,6 +327,7 @@ export interface DepartmentsContent {
   states: {
     current: string
     member: string
+    directoryAccess: string
     open: string
     accessRequested: string
     requestAccess: string
@@ -348,6 +364,8 @@ export interface SubmitRequestContent {
     descriptionRequired: string
   }
   cancel: LinkContent
+  /** Where Cancel goes in a read-only department (My Requests is hidden there). */
+  readOnlyCancelHref: string
   submit: { label: string; loadingLabel: string }
   confirmation: {
     title: string
@@ -439,8 +457,6 @@ export interface UploadSopContent {
       sizeError: string
     }
     description: { label: string; placeholder: string; /** `{count}` and `{max}` are replaced. */ counter: string }
-    /** Optional co-authors: other users with the Author permission. */
-    coAuthors: { label: string; hint: string }
   }
   errors: { titleRequired: string; fileRequired: string }
   cancel: LinkContent
@@ -468,7 +484,25 @@ export interface SopWorkflowContent {
   /** `{date}` is replaced. */
   lastUpdatedTemplate: string
   departmentLabel: string
+  descriptionTitle: string
   roles: { reviewer: string; approver: string; author: string; coAuthor: string; system: string }
+  reviewerDeadline: {
+    due: string
+    noDeadline: string
+    assignedOneDay: string
+    assignedDays: string
+    assignedDuration: string
+    remainingDuration: string
+    lessThanSecond: string
+    allocationUnknown: string
+    remainingOneDay: string
+    remainingDays: string
+    dueToday: string
+    overdue: string
+    current: string
+    active: string
+    waiting: string
+  }
   tracker: {
     label: string
     steps: { draft: string; 'in-review': string; 'in-approval': string; approved: string; published: string }
@@ -480,6 +514,16 @@ export interface SopWorkflowContent {
     /** Under In Review / In Approval while open; `{date}` is replaced. */
     due: string
     overdue: string
+    assignee: {
+      title: string
+      titlePlural: string
+      reviewPending: string
+      approvalPending: string
+      revisionsPending: string
+      publicationPending: string
+      assignedOneDay: string
+      assignedDays: string
+    }
   }
   people: {
     title: string
@@ -500,7 +544,7 @@ export interface SopWorkflowContent {
     remove: string
     /** Accessible name of a Remove button; `{name}` is replaced. */
     removeLabel: string
-    decisions: { pending: string; completed: string; approved: string; returned: string }
+    decisions: { pending: string; completed: string; approved: string; returned: string; cancelled: string }
   }
   file: {
     types: Record<SopFileType, string>
@@ -521,10 +565,23 @@ export interface SopWorkflowContent {
     deleteLabel: string
     /** Why Preview / Download aren't available. */
     unavailable: { word: string; demo: string }
-    /** Why Delete isn't available; `{name}` is the main author in `not-main-author`. */
-    deleteBlocked: { status: string; 'not-main-author': string; 'last-version': string }
+    /**
+     * Why Delete isn't available: by the SOP's status (only Draft and Returned allow it),
+     * not the user's version (`{name}` is the main author), previously submitted, or the last version left.
+     */
+    deleteBlocked: {
+      status: Record<Exclude<SopStatus, 'draft' | 'returned'>, string>
+      'not-uploader': string
+      'submitted-version': string
+      'last-version': string
+    }
     upload: string
     check: string
+    /**
+     * Why the compliance check isn't available: In Review or In Approval (it's hidden once
+     * Approved or Published), or not the current version's uploader (`{name}` is the main author).
+     */
+    checkBlocked: { status: Record<'in-review' | 'in-approval', string>; 'not-uploader': string }
     /** Preview dialog: `{code}` and `{version}` are replaced. */
     previewTitle: string
     /** Accessible name of the embedded viewer; `{code}`, `{title}` and `{version}` are replaced. */
@@ -534,8 +591,9 @@ export interface SopWorkflowContent {
   }
   /** Buttons on the Review timeline. */
   actions: {
-    /** Submit or, once returned, resubmit. */
+    /** The button that opens Submit for review (Draft), or Resubmit for review once Returned. */
     submit: string
+    resubmit: string
     response: string
     resubmitHint: string
     /** Shown to co-authors; `{name}` is the main author. */
@@ -546,11 +604,6 @@ export interface SopWorkflowContent {
     /** The completed check used an older GVP version; `{version}` is the current one. */
     checkCurrentNeeded: string
   }
-  /**
-   * Under the workflow status when the SOP is Returned: `{name}` is who returned it and
-   * `{link}` is replaced with a link (`link`) to the Review timeline.
-   */
-  returnedNote: { text: string; link: string }
   comments: {
     title: string
     empty: string
@@ -580,16 +633,18 @@ export interface SopWorkflowContent {
     fileRequired: string
     submit: {
       title: string
-      description: string
-      reviewers: { label: string; hint: string }
-      /** `unchecked`: `{names}` is replaced with the approvers unchecked because they became reviewers. */
-      approvers: { label: string; hint: string; unchecked: string }
-      /** `dueHint`: `{date}` is replaced with the due date if submitted now. */
-      /** `dueHint`: `{date}` is replaced with the due date if submitted now. */
-      reviewDays: { label: string; hint: string; dueHint: string }
-      approvalDays: { label: string; hint: string }
+      /**
+       * Optional review due date. `help` is always shown under it; once a date is picked,
+       * the time given and the deadline: the end of that day (`{date}` is replaced in both; `{count}` in `days`).
+       */
+      reviewDate: { label: string; help: string; oneDay: string; days: string; duration: string }
+      /** `{count}` and `{max}` are replaced in the counter. */
       note: { label: string; placeholder: string; counter: string }
-      errors: { reviewersRequired: string; approversRequired: string; daysInvalid: string }
+      /**
+       * `dateInvalid`: `{min}` and `{max}` are the allowed dates. `submitFailed`: the store
+       * refused the submission for a reason the dialog can't show (e.g. data changed meanwhile).
+       */
+      errors: { dateInvalid: string; submitFailed: string }
       confirm: string
     }
     /** `{version}` is the number the upload becomes. */
@@ -599,8 +654,8 @@ export interface SopWorkflowContent {
     addCoAuthors: {
       title: string
       description: string
+      /** The search field's name, for screen readers only. */
       label: string
-      hint: string
       required: string
       confirm: string
     }
@@ -608,17 +663,13 @@ export interface SopWorkflowContent {
     removeCoAuthor: { title: string; description: string; keep: string; confirm: string }
     /** `{names}` (the recipients) is replaced in the description; `{count}` and `{max}` in the counter. */
     response: { title: string; description: string; label: string; required: string; counter: string; confirm: string }
+    /**
+     * Resubmit for review. Its date and comments fields use the `submit` texts.
+     * `failed`: the store refused the resubmission.
+     */
     resubmit: {
       title: string
-      description: string
-      reviewersLabel: string
-      approversLabel: string
-      reviewDaysLabel: string
-      approvalDaysLabel: string
-      /** `{count}` is replaced. */
-      days: string
-      oneDay: string
-      noDueDate: string
+      failed: string
       confirm: string
     }
   }
@@ -659,6 +710,8 @@ export interface ComplianceContent {
     /** Announced when a running check ends. */
     completed: string
     failed: string
+    /** The current version has no check yet; `{version}` is the SOP version. */
+    notChecked: string
     viewReport: string
     /** The SOP's newest check used an older GVP version (PBI 29). `{checked}` and `{current}` are replaced. */
     recheck: { badge: string; note: string }
@@ -678,7 +731,6 @@ export interface ComplianceContent {
     header: {
       /** Visually hidden heading of the report details. */
       title: string
-      reportId: string
       sop: string
       version: string
       author: string
@@ -763,7 +815,7 @@ export interface ComplianceContent {
     }
     changes: {
       title: string
-      /** `{version}` and `{reportId}` are replaced. */
+      /** `{version}` is replaced. */
       comparedWith: string
       none: string
       /** Visually hidden text for the arrow. */
@@ -850,18 +902,28 @@ export interface NotificationsContent {
   unread: string
   /** Relative time under a minute. */
   justNow: string
-  /** `{name}`, `{code}`, `{version}`, `{day}`, `{department}` and `{title}` are replaced. */
+  /** `{name}`, `{code}`, `{version}`, `{day}`, `{reason}`, `{department}` and `{title}` are replaced. */
   texts: {
     submitted: string
     resubmitted: string
     routed: string
+    handoff: string
+    internalReviewCompleted: string
+    /** Internal review requests ({name}: the reviewer, or the author for a removal). */
+    reviewDeclined: string
+    reviewWithdrawn: { author: string; reviewer: string }
+    reviewerRemoved: string
+    reviewCompleted: string
+    reviewReturned: string
+    reviewOverdue: string
     assignedApproval: string
     readyToPublish: string
     returned: string
     approved: string
     published: string
     response: string
-    dueSoon: { review: string; approval: string }
+    /** `response`: a reviewer's reminder to accept or decline before the request is withdrawn. */
+    dueSoon: { review: string; response: string; approval: string }
     days: { today: string; tomorrow: string }
     overdue: { review: string; approval: string }
     accessRequest: { approved: string; rejected: string }
@@ -1216,8 +1278,8 @@ export interface AdminUserDetailsContent {
     title: string
     email: string
     homeDepartment: string
-    joinedDepartments: string
-    joinedHint: string
+    directoryAccess: string
+    directoryHint: string
     none: string
   }
   permissions: {

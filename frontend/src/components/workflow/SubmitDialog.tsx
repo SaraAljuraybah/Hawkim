@@ -1,207 +1,97 @@
-import { useRef, useState } from 'react'
+import { useId, useRef, useState } from 'react'
 import { flushSync } from 'react-dom'
 import type { SopWorkflowContent } from '../../content/types'
+import { internalReviewEn } from '../../content/internalReview.en'
 import type { Sop } from '../../data/mock/types'
-import { formatDateTime } from '../../lib/format'
-import { personOption } from '../../lib/people'
-import { hasPermission } from '../../lib/permissions'
-import { addDays, DUE_DAYS_MAX, DUE_DAYS_MIN, isAuthorOrCoAuthor, isValidDueDays } from '../../lib/workflow'
-import { useDepartments } from '../../state/departmentsContext'
+import { addableReviewers } from '../../lib/internalReview'
+import { isValidReviewDuration, REVIEW_DURATION_MAX, REVIEW_DURATION_MIN } from '../../lib/internalReviewStatus'
+import { eligibleReviewers } from '../../lib/reviewFlow'
+import { parseResponseDueDate } from '../../lib/responseTime'
+import { SUBMIT_COMMENT_MAX } from '../../lib/workflow'
 import type { SubmitOptions } from '../../state/sopsContext'
 import { useUsers } from '../../state/usersContext'
+import { MultiSelectField } from '../ui/MultiSelectField'
 import { FormDialog } from '../ui/FormDialog'
-import { PeoplePicker } from '../ui/PeoplePicker'
 import { TextAreaField } from '../ui/TextAreaField'
 import { TextField } from '../ui/TextField'
-
-const NOTE_MAX = 500
-
-type Field = 'reviewers' | 'approvers' | 'reviewDays' | 'approvalDays'
-type Errors = Partial<Record<Field, string>>
+import { ReviewDueDateField } from './ReviewDueDateField'
 
 interface SubmitDialogProps {
   sop: Sop
   content: SopWorkflowContent['dialogs']
   onSubmit: (options: SubmitOptions) => void
   onClose: () => void
+  /** 'add': the current version to more reviewers in its open (or settled) review; 'version': a new version to the reviewers chosen. */
+  mode?: 'submit' | 'add' | 'version'
 }
 
-/**
- * Optional due days: empty is valid (no due date); otherwise a whole number
- * from 1 to 30.
- */
-function parseDays(text: string): { valid: boolean; days?: number } {
-  const trimmed = text.trim()
-  if (!trimmed) return { valid: true }
-  const days = Number(trimmed)
-  return /^\d+$/.test(trimmed) && isValidDueDays(days) ? { valid: true, days } : { valid: false }
+/** The duration field's value as days: blank is no review deadline, anything else must be a whole number. */
+function durationDays(value: string): number | undefined | null {
+  const trimmed = value.trim()
+  if (!trimmed) return undefined
+  return /^\d+$/.test(trimmed) ? Number(trimmed) : null
 }
 
-/**
- * "Submit for review": the author picks the reviewers, the approvers and how many
- * days each stage has (PBI 6). Separation of duties: the author and co-authors are
- * never offered, and nobody can be both a reviewer and an approver.
- */
-export function SubmitDialog({ sop, content, onSubmit, onClose }: SubmitDialogProps) {
-  const text = content.submit
+/** Sends review requests to the selected reviewers, each with the same optional response due date and review duration. */
+export function SubmitDialog({ sop, content, onSubmit, onClose, mode = 'submit' }: SubmitDialogProps) {
+  const text = internalReviewEn.submit
+  const fields = content.submit
+  const { activeUsers } = useUsers()
+  // Adding: only reviewers not yet asked, or whose latest request was declined, withdrawn or removed.
+  const options = mode === 'add' ? addableReviewers(sop, activeUsers) : eligibleReviewers(sop, sop.departmentId, activeUsers)
   const [reviewerIds, setReviewerIds] = useState<string[]>([])
-  const [approverIds, setApproverIds] = useState<string[]>([])
-  const [reviewDays, setReviewDays] = useState('')
-  const [approvalDays, setApprovalDays] = useState('')
+  const [dueDate, setDueDate] = useState('')
+  const [duration, setDuration] = useState('')
   const [note, setNote] = useState('')
-  // "Due Oct 5, 2026, 3:19 PM": the review due date if the SOP were submitted now.
-  const [reviewDueHint, setReviewDueHint] = useState<string>()
-  const [errors, setErrors] = useState<Errors>({})
-  // Approvers removed because they were then picked as reviewers (only while they still are).
-  const [uncheckedIds, setUncheckedIds] = useState<string[]>([])
-  const reviewersRef = useRef<HTMLInputElement>(null)
-  const approversRef = useRef<HTMLInputElement>(null)
-  const reviewDaysRef = useRef<HTMLInputElement>(null)
-  const approvalDaysRef = useRef<HTMLInputElement>(null)
-
-  const { activeUsers, nameOf } = useUsers()
-  const { nameOf: departmentName } = useDepartments()
-  const eligible = activeUsers.filter((user) => !isAuthorOrCoAuthor(sop, user.id))
-  const reviewerOptions = eligible.filter((user) => hasPermission(user, 'reviewer')).map((user) => personOption(user, departmentName))
-  const approverOptions = eligible
-    .filter((user) => hasPermission(user, 'approver') && !reviewerIds.includes(user.id))
-    .map((user) => personOption(user, departmentName))
-
-  function clearError(field: Field) {
-    if (errors[field]) setErrors((prev) => ({ ...prev, [field]: undefined }))
-  }
-
-  function chooseReviewers(next: string[]) {
-    setReviewerIds(next)
-    clearError('reviewers')
-    // Someone picked as a reviewer can't also approve: remove them from approvers and say so.
-    const removed = approverIds.filter((id) => next.includes(id))
-    if (removed.length > 0) setApproverIds(approverIds.filter((id) => !next.includes(id)))
-    setUncheckedIds([...uncheckedIds.filter((id) => next.includes(id)), ...removed])
-  }
+  const [error, setError] = useState('')
+  const [dateError, setDateError] = useState('')
+  const [durationError, setDurationError] = useState('')
+  const [failed, setFailed] = useState(false)
+  const firstRef = useRef<HTMLButtonElement>(null)
+  const reviewerErrorId = useId()
+  const requestRef = useRef<HTMLInputElement>(null)
+  const durationRef = useRef<HTMLInputElement>(null)
 
   function confirm() {
-    const review = parseDays(reviewDays)
-    const approval = parseDays(approvalDays)
-    const next: Errors = {
-      reviewers: reviewerIds.length > 0 ? undefined : text.errors.reviewersRequired,
-      approvers: approverIds.length > 0 ? undefined : text.errors.approversRequired,
-      reviewDays: review.valid ? undefined : text.errors.daysInvalid,
-      approvalDays: approval.valid ? undefined : text.errors.daysInvalid,
-    }
-    // Render the messages before moving focus, so screen readers read them with the field.
-    flushSync(() => setErrors(next))
-    const firstInvalid = (
-      [
-        ['reviewers', reviewersRef],
-        ['approvers', approversRef],
-        ['reviewDays', reviewDaysRef],
-        ['approvalDays', approvalDaysRef],
-      ] as const
-    ).find(([field]) => next[field])
-    if (firstInvalid) {
-      firstInvalid[1].current?.focus()
+    if (!reviewerIds.length || reviewerIds.some((id) => !options.some((user) => user.id === id))) {
+      flushSync(() => setError(text.reviewerRequired))
+      firstRef.current?.focus()
       return false
     }
-    onSubmit({
-      reviewerIds,
-      approverIds,
-      reviewDueDays: review.days,
-      approvalDueDays: approval.days,
-      note: note.trim() || undefined,
-    })
+    if (!parseResponseDueDate(dueDate).valid) {
+      flushSync(() => setDateError(text.dateInvalid))
+      requestRef.current?.focus()
+      return false
+    }
+    const days = durationDays(duration)
+    if (days === null || !isValidReviewDuration(days)) {
+      flushSync(() => setDurationError(text.durationInvalid))
+      durationRef.current?.focus()
+      return false
+    }
+    try { onSubmit({ reviewerIds, responseDueDate: dueDate || undefined, reviewDurationDays: days, note: note.trim() || undefined }) }
+    catch { setFailed(true); return false }
   }
-
   return (
-    <FormDialog
-      open
-      title={text.title}
-      description={text.description}
-      confirmLabel={text.confirm}
-      cancelLabel={content.cancel}
-      onConfirm={confirm}
-      onClose={onClose}
-    >
-      <PeoplePicker
-        label={text.reviewers.label}
-        hint={text.reviewers.hint}
-        options={reviewerOptions}
-        value={reviewerIds}
-        error={errors.reviewers}
-        inputRef={reviewersRef}
-        onChange={chooseReviewers}
-      />
-      <div>
-        <PeoplePicker
-          label={text.approvers.label}
-          hint={text.approvers.hint}
-          options={approverOptions}
-          value={approverIds}
-          error={errors.approvers}
-          inputRef={approversRef}
-          onChange={(next) => {
-            setApproverIds(next)
-            clearError('approvers')
-          }}
-        />
-        <p role="status" className="text-sm text-maroon">
-          {uncheckedIds.length > 0 && (
-            <span className="mt-1.5 block">
-              {text.approvers.unchecked.replace('{names}', uncheckedIds.map((id) => nameOf(id)).join(', '))}
-            </span>
-          )}
-        </p>
-      </div>
-      <div className="grid gap-5 sm:grid-cols-2">
-        <TextField
-          ref={reviewDaysRef}
-          name="reviewDueDays"
-          type="number"
-          inputMode="numeric"
-          min={DUE_DAYS_MIN}
-          max={DUE_DAYS_MAX}
-          step={1}
-          label={text.reviewDays.label}
-          hint={reviewDueHint ?? text.reviewDays.hint}
-          value={reviewDays}
-          error={errors.reviewDays}
-          onChange={(event) => {
-            setReviewDays(event.target.value)
-            clearError('reviewDays')
-            const { days } = parseDays(event.target.value)
-            setReviewDueHint(
-              days ? text.reviewDays.dueHint.replace('{date}', formatDateTime(addDays(new Date().toISOString(), days))) : undefined,
-            )
-          }}
-        />
-        <TextField
-          ref={approvalDaysRef}
-          name="approvalDueDays"
-          type="number"
-          inputMode="numeric"
-          min={DUE_DAYS_MIN}
-          max={DUE_DAYS_MAX}
-          step={1}
-          label={text.approvalDays.label}
-          hint={text.approvalDays.hint}
-          value={approvalDays}
-          error={errors.approvalDays}
-          onChange={(event) => {
-            setApprovalDays(event.target.value)
-            clearError('approvalDays')
-          }}
-        />
-      </div>
-      <TextAreaField
-        name="note"
-        rows={3}
-        label={text.note.label}
-        placeholder={text.note.placeholder}
-        maxLength={NOTE_MAX}
-        counter={text.note.counter.replace('{count}', String(note.length)).replace('{max}', String(NOTE_MAX))}
-        value={note}
-        onChange={(event) => setNote(event.target.value)}
-      />
+    <FormDialog open title={text.title} confirmLabel={text.confirm} cancelLabel={content.cancel} onConfirm={confirm} onClose={onClose}>
+      {error && <p id={reviewerErrorId} role="alert" className="text-sm text-status-rejected-fg">{error}</p>}
+      {mode === 'add' && <p className="text-sm text-text-gray">{text.addIntro.replace('{version}', sop.version)}</p>}
+      {mode === 'version' && <p className="text-sm text-maroon">{text.versionIntro.replace('{version}', sop.version)}</p>}
+      {failed && <p role="alert" className="text-sm text-status-rejected-fg">{fields.errors.submitFailed}</p>}
+      <MultiSelectField ref={firstRef} name="internalReviewers" label={text.reviewers} placeholder={text.reviewers}
+        invalid={!!error} describedBy={error ? reviewerErrorId : undefined}
+        options={options.map((user) => ({ value: user.id, label: user.name }))} value={reviewerIds}
+        emptyText={text.noneEligible} onChange={(next) => { setReviewerIds(next); setError(''); setFailed(false) }} />
+      <ReviewDueDateField ref={requestRef} name="reviewRequestDueDate" stage="response"
+        text={{ ...fields.reviewDate, label: text.responseDate, help: text.responseHelp, duration: text.responseTimeGiven }}
+        value={dueDate} error={dateError} closeLabel={text.closeAlert} onDismissError={() => setDateError('')}
+        onChange={(value) => { setDueDate(value); setDateError(''); setFailed(false) }} />
+      <TextField ref={durationRef} name="reviewDurationDays" type="number" inputMode="numeric" min={REVIEW_DURATION_MIN} max={REVIEW_DURATION_MAX} step={1}
+        label={text.duration} hint={text.durationHelp} value={duration} error={durationError || undefined}
+        onChange={(event) => { setDuration(event.target.value); setDurationError(''); setFailed(false) }} />
+      <TextAreaField name="note" rows={3} label={fields.note.label} placeholder={fields.note.placeholder} maxLength={SUBMIT_COMMENT_MAX} resizable={false}
+        counter={fields.note.counter.replace('{count}', String(note.length)).replace('{max}', String(SUBMIT_COMMENT_MAX))}
+        value={note} onChange={(event) => { setNote(event.target.value); setFailed(false) }} />
     </FormDialog>
   )
 }

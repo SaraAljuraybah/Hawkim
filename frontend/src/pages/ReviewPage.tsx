@@ -3,24 +3,32 @@ import { flushSync } from 'react-dom'
 import { Link, useParams } from 'react-router-dom'
 import { ArrowLeft, ArrowRight, CircleCheck, Download, FileText, LoaderCircle } from 'lucide-react'
 import { ComplianceSummary, SampleBanner } from '../components/compliance/ComplianceSummary'
+import { InternalReviewActions } from '../components/reviews/InternalReviewActions'
+import { InternalReviewPanel } from '../components/workflow/InternalReviewPanel'
+import { internalReviewEn } from '../content/internalReview.en'
+import { currentInternalRound, isInternalReviewPending } from '../lib/internalReview'
+import { ReviewFlowActions } from '../components/reviews/ReviewFlowActions'
 import { CommentDialog, RouteDialog } from '../components/reviews/ReviewDialogs'
 import { PdfViewer } from '../components/sops/PdfViewer'
 import { Button } from '../components/ui/Button'
+import { Card } from '../components/ui/Card'
 import { ConfirmDialog } from '../components/ui/ConfirmDialog'
 import { StatusBadge } from '../components/ui/StatusBadge'
 import { CommentList } from '../components/workflow/CommentList'
+import { ReviewerDeadline } from '../components/workflow/ReviewerDeadline'
 import { PeopleList } from '../components/workflow/PeopleList'
 import { StatusTracker } from '../components/workflow/StatusTracker'
 import { ReviewTimelineTable } from '../components/workflow/ReviewTimelineTable'
 import { complianceEn } from '../content/compliance.en'
 import { reviewsEn } from '../content/reviews.en'
 import { sopWorkflowEn } from '../content/workflow.en'
-import type { Sop } from '../data/mock/types'
+import type { ApprovalDecisionSnapshot, Sop } from '../data/mock/types'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { complianceScore, currentCheck, verdictOf } from '../lib/compliance'
 import { formatDateTime } from '../lib/format'
 import { reviewCompliancePath } from '../lib/routes'
-import { currentDueAt, isApprover, isOverdue, isReviewer, latestReturn, pendingPeople } from '../lib/workflow'
+import { reviewSopForUser } from '../lib/reviewAccess'
+import { activeApprovalSubmission, currentDueAt, currentReviewer, isOverdue, latestReturn, pendingPeople } from '../lib/workflow'
 import { useDepartments } from '../state/departmentsContext'
 import { useCurrentUser } from '../state/sessionContext'
 import { useSops } from '../state/sopsContext'
@@ -57,15 +65,15 @@ export function ReviewPage() {
   const { sops } = useSops()
   const user = useCurrentUser()
   const sop = sops.find((item) => item.id === id)
-  const allowed = !!sop && (isReviewer(sop, user.id) || isApprover(sop, user.id))
-  useDocumentTitle(allowed ? reviewsEn.page.pageTitle.replace('{code}', sop.code) : undefined)
+  const access = sop ? reviewSopForUser(sop, user.id) : undefined
+  useDocumentTitle(access ? reviewsEn.page.pageTitle.replace('{code}', access.sop.code) : undefined)
 
-  if (!allowed) return <NotFoundPage embedded />
-  // Another SOP starts fresh (no message, no open dialog).
-  return <Review key={sop.id} sop={sop} />
+  if (!access) return <NotFoundPage embedded />
+  // Reset dialogs when the authorized version or signed-in reviewer changes.
+  return <Review key={`${access.sop.id}:${access.sop.version}:${user.id}`} sop={access.sop} historical={access.historical} />
 }
 
-function Review({ sop }: { sop: Sop }) {
+function Review({ sop, historical }: { sop: Sop; historical: boolean }) {
   const text = reviewsEn.page
   const workflow = sopWorkflowEn
   const store = useSops()
@@ -74,18 +82,23 @@ function Review({ sop }: { sop: Sop }) {
   const { nameOf: departmentName } = useDepartments()
 
   const [dialog, setDialog] = useState<DialogName | null>(null)
+  const [approvalSnapshot, setApprovalSnapshot] = useState<ApprovalDecisionSnapshot>()
   const [message, setMessage] = useState('')
   const triggerRef = useRef<HTMLElement | null>(null)
   const statusRef = useRef<HTMLDivElement>(null)
 
   const department = departmentName(sop.departmentId)
-  const reviewer = sop.reviewers.find((person) => person.userId === user.id)
+  const internalRound = currentInternalRound(sop)
+  const reviewer = sop.reviewers.find((person) => person.userId === user.id) ?? [...(sop.internalReviewRounds ?? [])].reverse().flatMap((round) => round.assignments).find((person) => person.userId === user.id)
   const approver = sop.approvers.find((person) => person.userId === user.id)
-  const canReview = sop.status === 'in-review' && reviewer?.decision === 'pending'
-  const canApprove = sop.status === 'in-approval' && approver?.decision === 'pending'
-  const canPublish = sop.status === 'approved' && !!approver
-  // Any assigned reviewer can route while the SOP is In Review, even after completing their own review.
-  const canRoute = sop.status === 'in-review' && !!reviewer
+  const approvalSubmission = activeApprovalSubmission(sop)
+  const approvalPhase = !internalRound || !!approvalSubmission
+  const approvalPermission = !internalRound || !user.deletedAt && !user.permissions.includes('admin') && user.permissions.includes('approver')
+  const canReview = !historical && (internalRound ? isInternalReviewPending(sop, user.id) : sop.status === 'in-review' && currentReviewer(sop)?.userId === user.id)
+  const canApprove = !historical && approvalPhase && approvalPermission && sop.status === 'in-approval' && approver?.decision === 'pending'
+  const canPublish = !historical && approvalPhase && approvalPermission && sop.status === 'approved' && !!approver
+  // Only the current reviewer can complete, return or append a reviewer to the queue.
+  const canRoute = !internalRound && canReview
 
   const dueAt = currentDueAt(sop)
   const overdue = !!dueAt && isOverdue(sop, sop.status === 'in-approval' ? 'approval' : 'review')
@@ -95,6 +108,7 @@ function Review({ sop }: { sop: Sop }) {
   function open(name: DialogName, trigger: HTMLElement) {
     triggerRef.current = trigger
     setMessage('')
+    setApprovalSnapshot(approvalSubmission ? { version: sop.version, approvalSubmissionId: approvalSubmission.id } : undefined)
     setDialog(name)
   }
 
@@ -123,6 +137,7 @@ function Review({ sop }: { sop: Sop }) {
       return [text.status.published.replace('{date}', date(published?.createdAt))]
     }
     if (sop.status === 'returned') return [text.status.returned.replace('{date}', date(latestReturn(sop)?.createdAt))]
+    if (internalRound && !approver && (sop.status === 'in-review' || sop.status === 'draft')) return [reviewer?.decision === 'cancelled' ? internalReviewEn.status.cancelled : internalRound.status === 'completed' ? internalReviewEn.status.awaitingAuthor : internalRound.status !== 'open' ? internalReviewEn.status.closed : reviewer?.decision === 'completed' ? internalReviewEn.actions.completed : ''] .filter(Boolean)
     const lines: string[] = []
     if (reviewer?.decision === 'completed') lines.push(text.status.reviewCompleted.replace('{date}', date(reviewer.decidedAt)))
     if (approver && sop.status === 'in-review') lines.push(text.status.waitingForReviews)
@@ -173,7 +188,7 @@ function Review({ sop }: { sop: Sop }) {
             </>
           )}
         </p>
-        {dueAt && (
+        {dueAt && sop.status !== 'in-review' && (
           <p className="mt-2 flex flex-wrap items-center gap-2 text-sm text-maroon">
             <span>
               {text.due.split('{date}')[0]}
@@ -189,6 +204,18 @@ function Review({ sop }: { sop: Sop }) {
         )}
       </div>
 
+      {sop.status === 'in-review' && (reviewer ?? currentReviewer(sop)) && (
+        <div className="mt-3">
+          <ReviewerDeadline sop={sop} reviewer={(reviewer ?? currentReviewer(sop))!} content={workflow.reviewerDeadline} showQueue />
+        </div>
+      )}
+
+      {sop.description?.trim() && (
+        <Card title={workflow.descriptionTitle} titleId="description-title" className="mt-6">
+          <p className="text-sm leading-relaxed whitespace-pre-wrap break-words text-maroon">{sop.description}</p>
+        </Card>
+      )}
+
       {/* Success message after an action (live region stays mounted) */}
       <div role="status" ref={statusRef} tabIndex={-1} className="rounded-lg focus:outline-none">
         {message && (
@@ -201,6 +228,8 @@ function Review({ sop }: { sop: Sop }) {
 
       {/* Actions the rules allow now, or where things stand */}
       <Section id="actions-title" title={text.actions.title} className="mt-6">
+        {internalRound && canReview && <InternalReviewActions key={internalRound.id} sop={sop} onComplete={(done) => { flushSync(() => setMessage(done)); statusRef.current?.focus() }} />}
+        {sop.reviewFlow && canReview && <ReviewFlowActions key={sop.reviewFlow.stage + user.id} sop={sop} onComplete={(done) => { flushSync(() => setMessage(done)); statusRef.current?.focus() }} />}
         {!decisionNeeded && (
           <ul className="space-y-1 text-sm text-maroon">
             {statusLines().map((line) => (
@@ -208,9 +237,9 @@ function Review({ sop }: { sop: Sop }) {
             ))}
           </ul>
         )}
-        {(decisionNeeded || canRoute) && (
+        {!(internalRound && canReview) && (decisionNeeded || canRoute) && !(sop.reviewFlow && canReview) && (
           <div className={`flex flex-col gap-3 sm:flex-row sm:flex-wrap ${decisionNeeded ? '' : 'mt-4'}`}>
-            {canReview && (
+            {canReview && !sop.reviewFlow && (
               <>
                 <Button onClick={(event) => open('complete', event.currentTarget)}>{text.actions.completeReview}</Button>
                 <Button variant="secondary" onClick={(event) => open('returnReviewer', event.currentTarget)}>
@@ -218,7 +247,7 @@ function Review({ sop }: { sop: Sop }) {
                 </Button>
               </>
             )}
-            {canRoute && (
+            {canRoute && !sop.reviewFlow && (
               <Button variant="secondary" className="sm:self-start" onClick={(event) => open('route', event.currentTarget)}>
                 {text.actions.route}
               </Button>
@@ -239,6 +268,8 @@ function Review({ sop }: { sop: Sop }) {
       <Section id="tracker-title" title={workflow.tracker.label} className="mt-6">
         <StatusTracker sop={sop} content={workflow.tracker} />
       </Section>
+
+      {internalRound && <InternalReviewPanel sop={sop} canRemove={false} />}
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
         <Section id="people-title" title={workflow.people.title}>
@@ -363,7 +394,7 @@ function Review({ sop }: { sop: Sop }) {
           text={text.dialogs.approve}
           dialogs={text.dialogs}
           onClose={close}
-          onConfirm={(comment) => act(() => store.approveAs(sop.id, user.id, comment), text.messages.approved)}
+          onConfirm={(comment) => act(() => store.approveAs(sop.id, user.id, comment, approvalSnapshot), text.messages.approved)}
         />
       )}
       {dialog === 'returnApprover' && (
@@ -372,7 +403,7 @@ function Review({ sop }: { sop: Sop }) {
           dialogs={text.dialogs}
           required
           onClose={close}
-          onConfirm={(comment) => act(() => store.returnAsApprover(sop.id, user.id, comment), text.messages.returned)}
+          onConfirm={(comment) => act(() => store.returnAsApprover(sop.id, user.id, comment, approvalSnapshot), text.messages.returned)}
         />
       )}
       <ConfirmDialog
@@ -381,7 +412,7 @@ function Review({ sop }: { sop: Sop }) {
         description={text.dialogs.publish.description.replace('{department}', department)}
         cancelLabel={text.dialogs.cancel}
         confirmLabel={text.dialogs.publish.confirm}
-        onConfirm={() => act(() => store.publishAs(sop.id, user.id), text.messages.published)}
+        onConfirm={() => act(() => store.publishAs(sop.id, user.id, approvalSnapshot), text.messages.published)}
         onCancel={close}
       />
     </>

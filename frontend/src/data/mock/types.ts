@@ -36,7 +36,14 @@ export interface User {
  */
 export type DepartmentId = string
 
-export interface Department {
+export interface DepartmentWorkflowConfiguration {
+  /** Explicit organization-supplied key. Equal keys identify the same division. */
+  divisionId?: string
+  /** Configured final controller for SOPs originating in this department. Must have Approver permission. */
+  qualityControllerId?: string
+}
+
+export interface Department extends DepartmentWorkflowConfiguration {
   id: DepartmentId
   name: string
   /** Short abbreviation shown in the initials circle, e.g. "QA". */
@@ -77,13 +84,22 @@ export interface Sop {
   fileUrl?: string
   /**
    * Chosen by the author on the first submission; resubmissions go to the same people.
-   * Reviewers (then approvers) work in parallel: the stage completes when ALL have
-   * decided, and ANY return sends the SOP back to the author.
+   * Reviewers act sequentially. New submissions select reviewers as the review plan progresses.
+   * Legacy records retain their existing approval assignments.
    */
+  /** Present on SOPs using the selected-reviewer workflow; absent on legacy records. */
+  reviewFlow?: ReviewFlow
+  /** Version-linked internal parallel review history; absent on legacy SOPs. */
+  internalReviewRounds?: InternalReviewRound[]
+  /** Version/round-scoped external requirement, shared with future Author-controlled routing. */
+  externalReviewGate?: ExternalReviewGate
+  /** Author-controlled approval requests and their decisions, retained across revised versions. */
+  approvalSubmissions?: ApprovalSubmission[]
   reviewers: ReviewerAssignment[]
   approvers: ApproverAssignment[]
-  /** Calendar days for each stage (1–30), set on the first submission. */
+  /** Review calendar offset (0 or greater); older records may have numeric 1–30 allocations. */
   reviewDueDays?: number
+  /** Approval calendar allocation retains the existing 1–30 day range. */
   approvalDueDays?: number
   /** Due dates (ISO date and time) of the current round, when the stage has started. */
   reviewDueAt?: string
@@ -124,20 +140,139 @@ export interface SopVersion {
 /** Who gives feedback in the workflow. */
 export type ReviewRole = 'reviewer' | 'approver'
 
-export type ReviewerDecision = 'pending' | 'completed' | 'returned'
+export type ReviewScope = 'same-division' | 'cross-division'
+export type ReviewFlowStage = 'reviewer-1' | 'reviewer-2' | 'same-division-decision' | 'same-division-representative' | 'same-division-reviewer' | 'cross-division-decision' | 'cross-division-representative' | 'cross-division-reviewer' | 'quality-routing' | 'quality-approval'
+export interface DepartmentReview {
+  departmentId: string
+  scope: ReviewScope
+  representativeId: string
+  reviewerId?: string
+  completed: boolean
+}
+export interface ReviewFlow {
+  stage: ReviewFlowStage
+  activeReviewerId: string
+  reviewer1Id: string
+  reviewer2Id?: string
+  sameDivision: 'pending' | 'skipped' | 'required'
+  crossDivision: 'pending' | 'skipped' | 'required'
+  departments: DepartmentReview[]
+  qualityControllerId?: string
+}
+
+export type ReviewerDecision = 'pending' | 'completed' | 'returned' | 'cancelled'
 export type ApproverDecision = 'pending' | 'approved' | 'returned'
+
 
 export interface ReviewerAssignment {
   userId: string
+  /** Beginning work does not submit a final decision. */
+  startedAt?: string
   decision: ReviewerDecision
+  /** Optional deadline for this reviewer (YYYY-MM-DD). */
+  dueDate?: string
+  /** Original calendar-day allocation; null explicitly means no deadline. Undefined is legacy data. */
+  assignedDueDays?: number | null
   /** ISO date and time of the decision. */
   decidedAt?: string
 }
 
+
+/**
+ * An internal review request: pending until the reviewer accepts or declines (or it is withdrawn
+ * when the response due date ends); only an accepted request can be completed or returned. The main
+ * author can remove a reviewer at any time.
+ */
+export type InternalReviewDecision = 'pending' | 'accepted' | 'declined' | 'withdrawn' | 'removed' | 'completed' | 'returned'
+
+export interface InternalReviewerAssignment extends Omit<ReviewerAssignment, 'decision' | 'startedAt'> {
+  id: string
+  decision: InternalReviewDecision
+  /** When the request was sent. */
+  assignedAt: string
+  /** Optional deadline to accept or decline (YYYY-MM-DD); it ends at the end of that local day. */
+  responseDueDate?: string
+  /** Optional review duration in calendar days (1–30), counted from acceptance. */
+  reviewDurationDays?: number
+  /** When the reviewer accepted the request. */
+  acceptedAt?: string
+  /** The review's last day (YYYY-MM-DD), fixed on acceptance when a duration was set. */
+  reviewDueDate?: string
+  /** Set when a pending request was withdrawn automatically at the end of its response due date. */
+  withdrawnAt?: string
+  /** Set when the main author removed the reviewer from the round, with the required reason. */
+  removedAt?: string
+  removedById?: string
+  removalReason?: string
+  /** Required when the reviewer declines. */
+  declineReason?: string
+  /** The comments of a return (required) or a completed review (optional). */
+  commentId?: string
+}
+
+/** Shared integration boundary: external routing can consume completed internal rounds. */
+export interface InternalReviewRound {
+  id: string
+  scope: 'internal'
+  version: string
+  /** Open while anyone taking part hasn't finished (or nobody is); then completed, or changes-requested if anyone returned it. */
+  status: 'open' | 'completed' | 'changes-requested'
+  requestedById: string
+  requestedAt: string
+  /** Shared deadline for new requests; historical rounds may have distinct task dates. */
+  dueDate?: string
+  assignedDueDays: number | null
+  closedAt?: string
+  assignments: InternalReviewerAssignment[]
+}
+
 export interface ApproverAssignment {
+  /** Present on Author-controlled approval requests; legacy assignments have no identity. */
+  id?: string
+  version?: string
+  assignedAt?: string
   userId: string
   decision: ApproverDecision
   decidedAt?: string
+}
+
+/** Completion evidence supplied by the future external review workflow, never created by approval submission. */
+export interface ExternalReviewEvidence {
+  id: string
+  departmentId: string
+  userId: string
+  version: string
+  decision: ReviewerDecision
+  decidedAt?: string
+  feedbackRequired?: boolean
+  feedbackAddressed?: boolean
+}
+
+export type ExternalReviewGate = { version: string; internalReviewRoundId: string } & (
+  | { requirement: 'not-required'; confirmedById: string; confirmedAt: string }
+  | { requirement: 'required'; departmentIds: string[]; assignments: ExternalReviewEvidence[] }
+)
+
+export interface ApprovalSubmission {
+  id: string
+  version: string
+  internalReviewRoundId: string
+  submittedById: string
+  submittedAt: string
+  approverId: string
+  status: 'pending' | 'approved' | 'returned' | 'published'
+  assignedDueDays: number | null
+  dueDate?: string
+  /** The main Author acknowledged feedback on completed internal reviews. */
+  feedbackAddressed?: boolean
+  decidedAt?: string
+  commentId?: string
+}
+
+/** Captured when opening an approval action; prevents a stale page acting on a later request. */
+export interface ApprovalDecisionSnapshot {
+  version: string
+  approvalSubmissionId: string
 }
 
 /** Actor id used for automatic workflow steps (shown as "System"). */
@@ -146,6 +281,8 @@ export const SYSTEM_ACTOR = 'system'
 /** Feedback left when an SOP is returned to its author. */
 export interface SopComment {
   id: string
+  reviewRoundId?: string
+  reviewAssignmentId?: string
   authorUserId: string
   role: ReviewRole
   text: string
@@ -173,10 +310,24 @@ export type TimelineEventType =
   | 'compliance-check-completed'
   | 'compliance-check-failed'
   | 'routed'
+  | 'review-assigned'
+  | 'review-returned'
+  | 'review-scope-decided'
+  | 'review-accepted'
+  | 'review-declined'
+  | 'review-withdrawn'
+  | 'reviewer-removed'
+  | 'review-changes-requested'
+  | 'internal-review-completed'
+  | 'external-reviews-not-required'
+  | 'submitted-for-approval'
 
 /** One action in an SOP's workflow history (PBI 24). */
 export interface TimelineEvent {
   id: string
+  approvalSubmissionId?: string
+  reviewRoundId?: string
+  reviewAssignmentId?: string
   type: TimelineEventType
   /** Who did it (User.id, or SYSTEM_ACTOR for automatic steps). */
   actorId: string
@@ -191,6 +342,9 @@ export interface TimelineEvent {
   /** For stage-due-date-set: which stage and its due date (ISO date and time). */
   stage?: 'review' | 'approval'
   dueAt?: string
+  /** Explicit same-division/cross-division decision, separate from free-text comments. */
+  reviewScope?: ReviewScope
+  reviewsRequired?: boolean
   version: string
   /** ISO date and time */
   createdAt: string

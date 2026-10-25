@@ -5,8 +5,8 @@ import type { Department, User, UserRequest } from '../data/mock/types'
  * requests. Pure functions: the requests store refuses anything they don't allow,
  * and the admin pages use them to explain why.
  *
- * Approving a Department Access request gives access at once (membership comes
- * from approved requests, see lib/departments.ts). Approving a Permission or Role
+ * Approving Department Access grants read-only published-directory access at once;
+ * membership and roles remain unchanged. Approving a Permission or Role
  * Change only marks it approved; the admin makes any change on the user's page.
  * TODO: The backend must enforce these same rules.
  */

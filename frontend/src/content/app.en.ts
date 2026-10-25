@@ -9,33 +9,29 @@ import type { AppShellContent, DashboardContent } from './types'
 export const appShellEn: AppShellContent = {
   skipLink: 'Skip to main content',
   brandName: 'Hawkim',
+  homeHref: '/dashboard',
   homeLinkLabel: 'Hawkim, go to dashboard',
+  homeLinkLabelReadOnly: 'Hawkim, go to SOP Directory',
   navAriaLabel: 'Main',
+
   nav: [
     { label: 'Dashboard', href: '/dashboard', icon: 'dashboard' },
-    { label: 'SOPs', href: '/sops', icon: 'sops', matchSubpaths: true },
-    { label: 'My Requests', href: '/requests', icon: 'requests', matchSubpaths: true },
-    { label: 'Departments', href: '/departments', icon: 'departments' },
-    // Role-specific items come after the items everyone has.
-    // Author permission only
     { label: 'My SOPs', href: '/my-sops', icon: 'mySops', matchSubpaths: true, permission: 'author' },
-    // Reviewer or Approver permission only
-    {
-      label: 'My Reviews',
-      href: '/reviews',
-      icon: 'reviews',
-      matchSubpaths: true,
-      permission: ['reviewer', 'approver'],
-    },
+    { label: 'My Reviews', href: '/reviews', icon: 'reviews', matchSubpaths: true, permission: ['reviewer', 'approver'] },
+    { label: 'My Request', href: '/requests', icon: 'requests', matchSubpaths: true },
+    { label: 'SOP Directory', href: '/sops', icon: 'sops', matchSubpaths: true },
+    { label: 'Organization Structure', href: '/departments', icon: 'departments' },
   ],
+
   signOut: { label: 'Sign Out', href: '/login', icon: 'signOut' },
   openMenu: 'Open menu',
   closeMenu: 'Close menu',
   drawerLabel: 'Navigation',
   reviewsToDoLabel: '{count} to do',
   departmentSwitcher: {
-    label: 'Department',
-    menuLabel: 'Your departments',
+    label: 'SOP Directory',
+    menuLabel: 'Available SOP directories',
+    readOnly: 'read-only',
   },
 }
 
@@ -55,15 +51,12 @@ export const dashboardEn: DashboardContent = {
   recentActivity: { title: 'Recent Activity' },
   quickActions: {
     title: 'Quick Actions',
-    // These screens are not built yet; the links show the Not Found page for now.
     primary: { label: 'Submit a Request', href: '/requests/new', icon: 'submitRequest' },
     secondary: [
       // Author permission only (placed right after "Submit a Request")
       { label: 'Upload SOP', href: '/my-sops/upload', icon: 'upload', permission: 'author' },
       // Reviewer or Approver permission only
       { label: 'My Reviews', href: '/reviews', icon: 'reviews', permission: ['reviewer', 'approver'] },
-      { label: 'View SOPs', href: '/sops', icon: 'sops' },
-      { label: 'View Departments', href: '/departments', icon: 'departments' },
     ],
   },
 }

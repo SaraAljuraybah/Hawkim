@@ -1,5 +1,5 @@
 import { createContext, useContext } from 'react'
-import type { Department, DepartmentId, User } from '../data/mock/types'
+import type { Department, DepartmentId, DepartmentWorkflowConfiguration, User } from '../data/mock/types'
 import type { DepartmentInput, DepartmentRulesData } from '../lib/departmentAdmin'
 
 /** Who is acting (must be an active admin among `users`). */
@@ -23,6 +23,7 @@ export interface DepartmentsStore {
   addDepartment: (input: DepartmentInput, actor: DepartmentActor) => Department
   /** Changes the name, initials and description; the id never changes. */
   updateDepartment: (id: DepartmentId, input: DepartmentInput, actor: DepartmentActor) => void
+  configureWorkflow: (id: DepartmentId, input: DepartmentWorkflowConfiguration, actor: DepartmentActor) => void
   /** Removes an empty department (no members, SOPs, access or pending requests). */
   removeDepartment: (id: DepartmentId, actor: DepartmentActor & DepartmentRulesData) => void
 }

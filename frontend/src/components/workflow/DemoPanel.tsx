@@ -3,9 +3,10 @@ import { flushSync } from 'react-dom'
 import { FlaskConical } from 'lucide-react'
 import { sopWorkflowEn } from '../../content/workflow.en'
 import { workflowDemoEn } from '../../content/workflowDemo.en'
-import type { ReviewRole, Sop } from '../../data/mock/types'
-import { currentDueAt } from '../../lib/workflow'
+import type { ApprovalDecisionSnapshot, ReviewRole, Sop } from '../../data/mock/types'
+import { activeApprovalSubmission, currentDueAt, currentReviewer } from '../../lib/workflow'
 import { useSops } from '../../state/sopsContext'
+import { useCurrentUser } from '../../state/sessionContext'
 import { useUsers } from '../../state/usersContext'
 import { Button } from '../ui/Button'
 import { FormDialog } from '../ui/FormDialog'
@@ -25,18 +26,20 @@ interface DemoPanelProps {
 interface Returner {
   userId: string
   role: ReviewRole
+  snapshot?: ApprovalDecisionSnapshot
 }
 
 /**
  * DEVELOPMENT ONLY: simulates each reviewer's and approver's actions until their
  * screens exist. Loaded only when import.meta.env.DEV is true (see SopWorkflowPage),
  * so it is not part of the production build. Each button uses the same store
- * actions the real screens will use, acting as that person.
+ * actions the real screens use, limited to the signed-in user's assignments.
  */
 export default function DemoPanel({ sop, announce }: DemoPanelProps) {
   const content = workflowDemoEn
   const roles = sopWorkflowEn.roles
   const store = useSops()
+  const user = useCurrentUser()
   const [returner, setReturner] = useState<Returner | null>(null)
   const [comment, setComment] = useState('')
   const [error, setError] = useState<string>()
@@ -60,10 +63,13 @@ export default function DemoPanel({ sop, announce }: DemoPanelProps) {
     })
   }
 
-  const pendingReviewers = sop.status === 'in-review' ? sop.reviewers.filter((p) => p.decision === 'pending') : []
-  const pendingApprovers = sop.status === 'in-approval' ? sop.approvers.filter((p) => p.decision === 'pending') : []
-  const publishers = sop.status === 'approved' ? sop.approvers : []
-  // The clock only matters when the open stage has a due date.
+  const activeReviewer = currentReviewer(sop)
+  const approval = activeApprovalSubmission(sop)
+  const snapshot = approval ? { version: approval.version, approvalSubmissionId: approval.id } : undefined
+  const pendingReviewers = activeReviewer && !sop.reviewFlow && activeReviewer.userId === user.id && user.permissions.includes('reviewer') ? [activeReviewer] : []
+  const pendingApprovers = !sop.reviewFlow && sop.status === 'in-approval' ? sop.approvers.filter((p) => p.userId === user.id && p.decision === 'pending' && user.permissions.includes('approver')) : []
+  const publishers = !sop.reviewFlow && sop.status === 'approved' ? sop.approvers.filter((person) => person.userId === user.id && user.permissions.includes('approver')) : []
+  // Simulation shifts individual or legacy deadlines while preserving original allocations.
   const dueDatesOpen = !!currentDueAt(sop)
 
   const buttons = [
@@ -94,7 +100,7 @@ export default function DemoPanel({ sop, announce }: DemoPanelProps) {
         size="sm"
         variant="secondary"
         onClick={() => {
-          store.approveAs(sop.id, userId)
+          store.approveAs(sop.id, userId, undefined, snapshot)
           announce(label(content.messages.approved, userId))
         }}
       >
@@ -104,7 +110,7 @@ export default function DemoPanel({ sop, announce }: DemoPanelProps) {
         key={`return-${userId}`}
         size="sm"
         variant="secondary"
-        onClick={(event) => openComment({ userId, role: 'approver' }, event.currentTarget)}
+        onClick={(event) => openComment({ userId, role: 'approver', snapshot }, event.currentTarget)}
       >
         {label(content.buttons.returnWithComment, userId)}
       </Button>,
@@ -115,7 +121,7 @@ export default function DemoPanel({ sop, announce }: DemoPanelProps) {
         size="sm"
         variant="secondary"
         onClick={() => {
-          store.publishAs(sop.id, userId)
+          store.publishAs(sop.id, userId, snapshot)
           announce(content.messages.published)
         }}
       >
@@ -177,7 +183,7 @@ export default function DemoPanel({ sop, announce }: DemoPanelProps) {
               return false
             }
             if (returner.role === 'reviewer') store.returnAsReviewer(sop.id, returner.userId, comment.trim())
-            else store.returnAsApprover(sop.id, returner.userId, comment.trim())
+            else store.returnAsApprover(sop.id, returner.userId, comment.trim(), returner.snapshot)
             announce(content.messages.returned)
           }}
         >

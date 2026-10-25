@@ -1,23 +1,41 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { ComplianceCheck, Sop, User } from '../data/mock/types'
+import { currentCheck, hasCurrentCheck } from './compliance'
 import {
+  activeVersions,
   addCoAuthor,
+  addCoAuthors,
   addResponse,
   approveAs,
+  assertCanRunCheck,
   canResubmit,
+  checkBlocker,
   commentForEvent,
   completeReview,
+  currentDueAt,
+  currentReviewer,
+  pendingPeople,
+  reviewerAssignedDays,
+  reviewerDueAt,
+  reviewerRemainingDays,
+  shiftDueDates,
+  daysFromToday,
   deleteVersion,
   deleteVersionBlocker,
+  dueAtOfDate,
+  dueDateRange,
   isOverdue,
   nextVersion,
+  parseDueDate,
   publishAs,
+  removeCoAuthor,
   resubmit,
   responseRecipients,
   returnAsApprover,
   returnAsReviewer,
   routeToReviewer,
   submitForReview,
+  timelineRecipients,
   uploadVersion,
 } from './workflow'
 
@@ -36,6 +54,8 @@ const DAY_MS = 24 * 60 * 60 * 1000
 
 /** The current GVP version. */
 const GVP = '4.0'
+
+afterEach(() => vi.useRealTimers())
 
 /** A completed compliance check of this version (it doesn't have to pass). */
 function completedCheck(version: string): ComplianceCheck {
@@ -114,7 +134,13 @@ describe('submitting for review', () => {
   })
 })
 
-describe('reviewers work in parallel', () => {
+describe('reviewers work one after another', () => {
+  it('only lets the current reviewer (the first pending one) complete their review', () => {
+    // Noura was assigned first, so it's her turn; Faisal's comes after.
+    expect(() => completeReview(inReview(), FAISAL)).toThrow(/current reviewer/)
+    expect(completeReview(inReview(), NOURA).status).toBe('in-review')
+  })
+
   it('moves to In Approval only when ALL reviewers have completed', () => {
     const one = completeReview(inReview(), NOURA)
     expect(one.status).toBe('in-review')
@@ -122,11 +148,27 @@ describe('reviewers work in parallel', () => {
     expect(both.status).toBe('in-approval')
   })
 
-  it('goes back to the author as soon as ANY reviewer returns it', () => {
-    const returned = returnAsReviewer(inReview(), FAISAL, 'Please add the retention period.')
+  it('goes back to the author as soon as the current reviewer returns it', () => {
+    const returned = returnAsReviewer(inReview(), NOURA, 'Please add the retention period.')
     expect(returned.status).toBe('returned')
-    expect(decisions(returned.reviewers)).toEqual({ [NOURA]: 'pending', [FAISAL]: 'returned' })
+    expect(decisions(returned.reviewers)).toEqual({ [NOURA]: 'returned', [FAISAL]: 'pending' })
     expect(returned.comments.map((comment) => comment.text)).toEqual(['Please add the retention period.'])
+  })
+
+  it('also returns to the author when a later reviewer reaches their turn', () => {
+    const returned = returnAsReviewer(completeReview(inReview(), NOURA), FAISAL, 'Please add the retention period.')
+    expect(returned.status).toBe('returned')
+    expect(decisions(returned.reviewers)).toEqual({ [NOURA]: 'completed', [FAISAL]: 'returned' })
+    expect(returned.comments.map((comment) => comment.text)).toEqual(['Please add the retention period.'])
+  })
+
+  it('only lets the current reviewer return it', () => {
+    // Faisal's turn hasn't come yet.
+    expect(() => returnAsReviewer(inReview(), FAISAL, 'Fix.')).toThrow(/current reviewer/)
+    // Once Noura has completed, her decision is made and it's Faisal's turn.
+    const nouraDone = completeReview(inReview(), NOURA)
+    expect(() => returnAsReviewer(nouraDone, NOURA, 'Fix.')).toThrow(/current reviewer/)
+    expect(returnAsReviewer(nouraDone, FAISAL, 'Fix.').status).toBe('returned')
   })
 })
 
@@ -155,23 +197,49 @@ describe('resubmitting', () => {
   }
 
   it('needs a new version uploaded since the return', () => {
-    const returned = returnAsReviewer(inReview(), FAISAL, 'Fix section 4.')
+    const returned = returnAsReviewer(inReview(), NOURA, 'Fix section 4.')
     expect(() => resubmit(returned, SARA, GVP)).toThrow(/new version/)
   })
 
-  it('resets every decision and keeps the same people and due days', () => {
+  it('resets every decision, keeps the same people and clears every deadline', () => {
     const before = readyToResubmit()
     const again = resubmit(before, SARA, GVP)
     expect(again.status).toBe('in-review')
     expect(again.version).toBe('2')
     expect(decisions(again.reviewers)).toEqual({ [NOURA]: 'pending', [FAISAL]: 'pending' })
     expect(decisions(again.approvers)).toEqual({ [HUDA]: 'pending', [KHALID]: 'pending' })
-    expect([again.reviewDueDays, again.approvalDueDays]).toEqual([5, 3])
-    expect(again.reviewDueAt).toBeDefined()
+    // The first submission's 5 review days and 3 approval days aren't reused.
+    expect([again.reviewDueDays, again.approvalDueDays, again.reviewDueAt, again.approvalDueAt]).toEqual([undefined, undefined, undefined, undefined])
+    expect(currentDueAt(again)).toBeUndefined()
+    expect(again.timeline.at(-1)?.type).toBe('resubmitted')
+  })
+
+  it('gives only Reviewer 1 the optional new due date, and saves the comments', () => {
+    vi.useFakeTimers({ now: new Date(2026, 9, 18, 12) })
+    const again = resubmit(readyToResubmit(), SARA, GVP, '  Fixed section 4.  ', '2026-10-23')
+    expect(again.reviewers.map((p) => [p.userId, p.dueDate, p.assignedDueDays])).toEqual([
+      [NOURA, '2026-10-23', 5],
+      [FAISAL, undefined, null],
+    ])
+    expect(again.timeline.at(-1)).toMatchObject({ type: 'resubmitted', recipientIds: [NOURA], note: 'Fixed section 4.' })
+    vi.useRealTimers()
+  })
+
+  it('accepts today and distant dates, rejects past/invalid dates and overlong comments', () => {
+    vi.useFakeTimers({ now: new Date(2026, 9, 18, 12) })
+    for (const date of ['2026-10-17', '2026-02-30', 'invalid']) {
+      expect(() => resubmit(readyToResubmit(), SARA, GVP, undefined, date)).toThrow(/deadline/)
+    }
+    for (const [date, days] of [['2026-10-18', 0], ['2026-11-18', 31]] as const) {
+      const updated = resubmit(readyToResubmit(), SARA, GVP, undefined, date)
+      expect(updated.reviewers[0]).toMatchObject({ dueDate: date, assignedDueDays: days })
+    }
+    expect(() => resubmit(readyToResubmit(), SARA, GVP, 'x'.repeat(501))).toThrow(/500/)
+    vi.useRealTimers()
   })
 
   it('needs a completed compliance check of the new version', () => {
-    const returned = returnAsReviewer(inReview(), FAISAL, 'Fix section 4.')
+    const returned = returnAsReviewer(inReview(), NOURA, 'Fix section 4.')
     const updated = uploadVersion(returned, SARA, { fileName: 'SOP-001 v2.pdf', fileType: 'pdf' })
     expect(() => resubmit(updated, SARA, GVP)).toThrow(/compliance check/)
   })
@@ -280,9 +348,13 @@ describe('deleting a version', () => {
       file,
     )
 
-  it('is only while Draft or Returned', () => {
+  /** Draft with v1 (main author Sara's) and v2 uploaded by co-author Reem; v2 current. */
+  const withReemVersion = () => uploadVersion(draft(), REEM, file)
+
+  /** The same SOP (v2 by Reem, checked) in each status. */
+  function inEachStatus() {
     const submitted = submitForReview(
-      { ...twoVersions(), complianceChecks: [completedCheck('2')] },
+      { ...withReemVersion(), complianceChecks: [completedCheck('2')] },
       SARA,
       GVP,
       [NOURA],
@@ -290,26 +362,116 @@ describe('deleting a version', () => {
       undefined,
       undefined,
     )
-    expect(deleteVersionBlocker(submitted, SARA)).toBe('status')
-    expect(() => deleteVersion(submitted, SARA, '1')).toThrow()
-    const approved = approveAs(completeReview(submitted, NOURA), HUDA)
-    expect(deleteVersionBlocker(approved, SARA)).toBe('status')
-    expect(deleteVersionBlocker(publishAs(approved, HUDA), SARA)).toBe('status')
-    const returned = returnAsReviewer(submitted, NOURA, 'Fix.')
-    expect(deleteVersionBlocker(returned, SARA)).toBeUndefined()
+    const inApprovalStage = completeReview(submitted, NOURA)
+    const approved = approveAs(inApprovalStage, HUDA)
+    return {
+      draft: withReemVersion(),
+      returnedByReviewer: returnAsReviewer(submitted, NOURA, 'Fix.'),
+      returnedByApprover: returnAsApprover(inApprovalStage, HUDA, 'Fix.'),
+      inReview: submitted,
+      inApproval: inApprovalStage,
+      approved,
+      published: publishAs(approved, HUDA),
+    }
+  }
+
+  it('lets the main author delete any eligible unsubmitted version', () => {
+    const sop = withReemVersion()
+    expect(deleteVersionBlocker(sop, SARA, '1')).toBeUndefined()
+    expect(deleteVersionBlocker(sop, SARA, '2')).toBeUndefined() // uploaded by co-author Reem
+    expect(deleteVersion(sop, SARA, '2').versions.find((item) => item.version === '2')?.deletedAt).toBeDefined()
+    expect(deleteVersion(sop, SARA, '1').versions.find((item) => item.version === '1')?.deletedAt).toBeDefined()
   })
 
-  it('is only for the main author (not a co-author)', () => {
-    expect(deleteVersionBlocker(twoVersions(), REEM)).toBe('not-main-author')
-    expect(() => deleteVersion(twoVersions(), REEM, '1')).toThrow()
-    expect(() => deleteVersion(twoVersions(), NOURA, '1')).toThrow()
+  it('lets a co-author delete only the versions they uploaded', () => {
+    const sop = withReemVersion()
+    expect(deleteVersionBlocker(sop, REEM, '2')).toBeUndefined()
+    expect(deleteVersion(sop, REEM, '2').versions.find((item) => item.version === '2')).toMatchObject({ deletedById: REEM })
+    expect(deleteVersionBlocker(sop, REEM, '1')).toBe('not-uploader')
+    expect(() => deleteVersion(sop, REEM, '1')).toThrow(/uploaded/)
+    // Someone who isn't an author can't delete anything.
+    expect(deleteVersionBlocker(sop, NOURA, '2')).toBe('not-uploader')
+    expect(() => deleteVersion(sop, NOURA, '2')).toThrow()
+  })
+
+  it('is allowed only while Draft or Returned, for the main author and a co-author alike', () => {
+    const sops = inEachStatus()
+    // Returned is its own status (shown on the step it came from), never treated as In Review or In Approval.
+    for (const sop of [sops.draft]) {
+      expect(deleteVersionBlocker(sop, SARA, '1')).toBeUndefined()
+      expect(deleteVersionBlocker(sop, REEM, '2')).toBeUndefined()
+      expect(() => deleteVersion(sop, REEM, '2')).not.toThrow()
+    }
+    for (const sop of [sops.returnedByReviewer, sops.returnedByApprover]) {
+      // v1 was never submitted; v2 was submitted and remains protected after either kind of return.
+      expect(deleteVersionBlocker(sop, SARA, '1')).toBeUndefined()
+      for (const actor of [SARA, REEM]) {
+        expect(deleteVersionBlocker(sop, actor, '2')).toBe('submitted-version')
+        expect(() => deleteVersion(sop, actor, '2')).toThrow(/previously submitted/)
+      }
+      const newer = uploadVersion(sop, REEM, file)
+      expect(deleteVersionBlocker(newer, SARA, '3')).toBeUndefined()
+      expect(deleteVersionBlocker(newer, REEM, '3')).toBeUndefined()
+      expect(() => deleteVersion(newer, REEM, '3')).not.toThrow()
+    }
+    for (const sop of [sops.inReview, sops.inApproval, sops.approved, sops.published]) {
+      expect(deleteVersionBlocker(sop, SARA, '1')).toBe('status')
+      expect(deleteVersionBlocker(sop, REEM, '2')).toBe('status')
+      expect(() => deleteVersion(sop, SARA, '1')).toThrow(sop.status)
+      expect(() => deleteVersion(sop, REEM, '2')).toThrow(sop.status)
+    }
+  })
+
+  it('protects an originally submitted version after a return and a newer upload', () => {
+    const returned = returnAsReviewer(inReview(), NOURA, 'Fix.')
+    const newer = uploadVersion(returned, SARA, file)
+    const before = structuredClone(newer)
+    expect(deleteVersionBlocker(newer, SARA, '1')).toBe('submitted-version')
+    expect(() => deleteVersion(newer, SARA, '1')).toThrow(/previously submitted/)
+    expect(() => deleteVersion(newer, REEM, '1')).toThrow()
+    expect(newer).toEqual(before)
+    // The main author's newer unsubmitted version is eligible only for the main author.
+    expect(deleteVersionBlocker(newer, REEM, '2')).toBe('not-uploader')
+    const deleted = deleteVersion(newer, SARA, '2')
+    expect(activeVersions(deleted).map((version) => version.version)).toEqual(['1'])
+    expect(deleteVersionBlocker(deleted, SARA, '1')).toBe('submitted-version')
+    expect(deleted.timeline.slice(0, -1)).toEqual(newer.timeline)
+    expect(deleted.timeline.at(-1)).toMatchObject({ type: 'version-deleted', version: '2', actorId: SARA })
+    expect(nextVersion(deleted)).toBe('3')
+  })
+
+  it('protects every submitted and resubmitted version, including a co-author upload', () => {
+    const returned = returnAsReviewer(inReview(), NOURA, 'Fix.')
+    const v2 = uploadVersion(returned, REEM, file)
+    const checked = { ...v2, complianceChecks: [...v2.complianceChecks, completedCheck('2')] }
+    const again = resubmit(checked, SARA, GVP)
+    const back = returnAsReviewer(again, NOURA, 'Another revision.')
+    const v3 = uploadVersion(back, REEM, file)
+    expect(v3.timeline.some((item) => item.type === 'resubmitted' && item.version === '2')).toBe(true)
+    for (const version of ['1', '2']) {
+      expect(deleteVersionBlocker(v3, SARA, version)).toBe('submitted-version')
+      expect(() => deleteVersion(v3, SARA, version)).toThrow(/previously submitted/)
+      expect(() => deleteVersion(v3, REEM, version)).toThrow()
+    }
+    expect(deleteVersionBlocker(v3, REEM, '2')).toBe('submitted-version')
+    // Both the uploader and the main author may delete a newer, unsubmitted co-author version.
+    for (const actor of [SARA, REEM]) {
+      const deleted = deleteVersion(v3, actor, '3')
+      expect(deleted.version).toBe('2')
+      expect(activeVersions(deleted).map((version) => version.version)).toEqual(['1', '2'])
+      expect(deleted.timeline.slice(0, -1)).toEqual(v3.timeline)
+      expect(nextVersion(deleted)).toBe('4')
+    }
   })
 
   it('keeps at least one version', () => {
-    expect(deleteVersionBlocker(draft(), SARA)).toBe('last-version')
+    expect(deleteVersionBlocker(draft(), SARA, '1')).toBe('last-version')
     expect(() => deleteVersion(draft(), SARA, '1')).toThrow(/one version/)
     const one = deleteVersion(twoVersions(), SARA, '1')
-    expect(deleteVersionBlocker(one, SARA)).toBe('last-version')
+    expect(deleteVersionBlocker(one, SARA, '2')).toBe('last-version')
+    // Also for a co-author's own last version.
+    const reemOnly = deleteVersion(withReemVersion(), SARA, '1')
+    expect(deleteVersionBlocker(reemOnly, REEM, '2')).toBe('last-version')
   })
 
   it('makes the previous version current when the latest is deleted', () => {
@@ -325,6 +487,205 @@ describe('deleting a version', () => {
     expect([kept.version, kept.fileName]).toEqual(['2', 'SOP-001 v2.docx'])
     expect(kept.timeline.at(-1)).toMatchObject({ type: 'version-deleted', version: '1' })
     expect(() => deleteVersion(kept, SARA, '1')).toThrow() // already deleted
+  })
+
+  it('lets a co-author delete the current version they uploaded (the previous one becomes current)', () => {
+    const back = deleteVersion(withReemVersion(), REEM, '2')
+    expect(back.version).toBe('1')
+  })
+})
+
+describe('running a compliance check', () => {
+  const file = { fileName: 'SOP-001 v2.pdf', fileType: 'pdf' as const }
+
+  it('lets the main author run it whoever uploaded the current version', () => {
+    expect(checkBlocker(draft(), SARA)).toBeUndefined()
+    const reemCurrent = uploadVersion(draft(), REEM, file)
+    expect(checkBlocker(reemCurrent, SARA)).toBeUndefined()
+    expect(() => assertCanRunCheck(reemCurrent, SARA)).not.toThrow()
+  })
+
+  it('lets a co-author run it only when they uploaded the current version', () => {
+    // v1 is the main author's.
+    expect(checkBlocker(draft(), REEM)).toBe('not-uploader')
+    expect(() => assertCanRunCheck(draft(), REEM)).toThrow(/uploader/)
+    const reemCurrent = uploadVersion(draft(), REEM, file)
+    expect(checkBlocker(reemCurrent, REEM)).toBeUndefined()
+    // Sara uploads v3: no longer Reem's version.
+    expect(checkBlocker(uploadVersion(reemCurrent, SARA, file), REEM)).toBe('not-uploader')
+    // Reem's v2 deleted: Sara's v1 is current again.
+    expect(checkBlocker(deleteVersion(reemCurrent, SARA, '2'), REEM)).toBe('not-uploader')
+  })
+
+  it('never lets someone who isn’t an author run it', () => {
+    expect(checkBlocker(draft(), NOURA)).toBe('not-uploader')
+  })
+
+  /** The same SOP (current v2 uploaded by co-author Reem, checked) in each status. */
+  function inEachStatus() {
+    const reemCurrent = { ...uploadVersion(draft(), REEM, file), complianceChecks: [completedCheck('2')] }
+    const submitted = submitForReview(reemCurrent, SARA, GVP, [NOURA], [HUDA], undefined, undefined)
+    const inApprovalStage = completeReview(submitted, NOURA)
+    const approved = approveAs(inApprovalStage, HUDA)
+    return {
+      allowed: [
+        reemCurrent,
+        returnAsReviewer(submitted, NOURA, 'Fix.'),
+        returnAsApprover(inApprovalStage, HUDA, 'Fix.'),
+      ],
+      blocked: [submitted, inApprovalStage, approved, publishAs(approved, HUDA)],
+    }
+  }
+
+  it('is allowed while Draft or Returned (by a reviewer or an approver)', () => {
+    for (const sop of inEachStatus().allowed) {
+      expect(checkBlocker(sop, SARA)).toBeUndefined()
+      expect(checkBlocker(sop, REEM)).toBeUndefined()
+      expect(() => assertCanRunCheck(sop, REEM)).not.toThrow()
+    }
+  })
+
+  it('is blocked In Review, In Approval, Approved and Published, for everyone', () => {
+    const blocked = inEachStatus().blocked
+    expect(blocked.map((sop) => sop.status)).toEqual(['in-review', 'in-approval', 'approved', 'published'])
+    for (const sop of blocked) {
+      expect(checkBlocker(sop, SARA)).toBe('status')
+      expect(checkBlocker(sop, REEM)).toBe('status')
+      expect(() => assertCanRunCheck(sop, SARA)).toThrow(sop.status)
+    }
+  })
+
+  it('reports the status before the co-author rule', () => {
+    // v1 is the main author's, so Reem is also not the uploader of the current version.
+    const submitted = submitForReview(draft(), SARA, GVP, [NOURA], [HUDA], undefined, undefined)
+    expect(checkBlocker(submitted, REEM)).toBe('status')
+    expect(checkBlocker(returnAsReviewer(submitted, NOURA, 'Fix.'), REEM)).toBe('not-uploader')
+  })
+})
+
+describe('uploading a version (unchanged)', () => {
+  it('lets the main author and a co-author upload while Draft or Returned', () => {
+    const file = { fileName: 'SOP-001 v2.pdf', fileType: 'pdf' as const }
+    for (const sop of [draft(), returnAsReviewer(inReview(), NOURA, 'Fix.')]) {
+      expect(uploadVersion(sop, SARA, file).version).toBe('2')
+      expect(uploadVersion(sop, REEM, file).version).toBe('2')
+    }
+  })
+
+  it("doesn't start a compliance check: Submit waits until someone runs one", () => {
+    const uploaded = uploadVersion(draft(), SARA, { fileName: 'SOP-001 v2.pdf', fileType: 'pdf' })
+    expect(uploaded.complianceChecks.filter((check) => check.version === '2')).toEqual([])
+    expect(currentCheck(uploaded)).toBeUndefined()
+    expect(hasCurrentCheck(uploaded, GVP)).toBe(false)
+    expect(() => submitForReview(uploaded, SARA, GVP, [NOURA], [HUDA], undefined, undefined)).toThrow(/compliance check/)
+  })
+})
+
+describe('review due date (Submit for review)', () => {
+  it('is due at the end of the chosen day, local time (shown as 11:59 PM)', () => {
+    const due = new Date(dueAtOfDate('2026-10-29'))
+    expect([due.getFullYear(), due.getMonth(), due.getDate(), due.getHours(), due.getMinutes()]).toEqual([2026, 9, 29, 23, 59])
+  })
+
+  // Oct 18, 2026, 3:20 PM local time.
+  const now = new Date(2026, 9, 18, 15, 20)
+
+  it('allows today and any future date without a 30-day maximum', () => {
+    expect(dueDateRange(now)).toEqual({ min: '2026-10-18' })
+    expect(parseDueDate('2026-10-18', now)).toEqual({ valid: true, days: 0 })
+    expect(parseDueDate('2026-10-19', now)).toEqual({ valid: true, days: 1 })
+    expect(parseDueDate('2026-10-23', now)).toEqual({ valid: true, days: 5 })
+    expect(parseDueDate('2026-11-18', now)).toEqual({ valid: true, days: 31 })
+    const nextYear = '2027-10-18'
+    expect(parseDueDate(nextYear, now)).toEqual({ valid: true, days: 365 })
+  })
+
+  it('rejects past dates, malformed values and nonexistent calendar days', () => {
+    for (const date of ['2026-10-17', '2026-10-01', '2026-02-30', 'not a date', '2026-13-01']) {
+      expect(parseDueDate(date, now).valid).toBe(false)
+    }
+  })
+
+  it('is optional: empty means no due date', () => {
+    expect(parseDueDate('', now)).toEqual({ valid: true })
+  })
+
+  it('counts calendar days, whatever the time of day or a daylight-saving change', () => {
+    expect(daysFromToday('2026-10-19', new Date(2026, 9, 18, 23, 59))).toBe(1)
+    expect(daysFromToday('2026-10-19', new Date(2026, 9, 18, 0, 1))).toBe(1)
+    // Late March and late October cross daylight-saving changes in many time zones.
+    expect(daysFromToday('2026-04-05', new Date(2026, 2, 20, 12))).toBe(16)
+    expect(daysFromToday('2026-11-05', new Date(2026, 9, 20, 12))).toBe(16)
+  })
+
+  it('is due at the time of day it was submitted (5 days later), with no approval due date', () => {
+    const submitted = submitForReview(draft(), SARA, GVP, [NOURA], [HUDA], 5, undefined)
+    const submittedAt = submitted.timeline.find((item) => item.type === 'submitted')!.createdAt
+    expect(new Date(submitted.reviewDueAt!).getTime() - new Date(submittedAt).getTime()).toBe(5 * DAY_MS)
+    expect(submitted.approvalDueAt).toBeUndefined()
+  })
+})
+
+describe('managing co-authors (Add co-authors, Remove)', () => {
+  const OMAR = 'omar'
+  const MAHA = 'maha'
+
+  it('lets the main author add several co-authors in one update', () => {
+    const added = addCoAuthors(draft(), SARA, [OMAR, MAHA])
+    expect(added.coAuthorIds).toEqual([REEM, OMAR, MAHA])
+    expect(added.timeline.map((item) => [item.type, item.actorId, item.subjectId])).toEqual([
+      ['co-author-added', SARA, OMAR],
+      ['co-author-added', SARA, MAHA],
+    ])
+  })
+
+  it('adds nobody if one of them can’t be added', () => {
+    // Noura reviews this SOP; Reem is already a co-author.
+    expect(() => addCoAuthors(inReview(), SARA, [OMAR, NOURA])).toThrow()
+    expect(() => addCoAuthors(draft(), SARA, [OMAR, REEM])).toThrow()
+  })
+
+  it('is only for the main author (the person being added can’t add themselves)', () => {
+    expect(() => addCoAuthors(draft(), REEM, [OMAR])).toThrow(/Only the author/)
+    expect(() => addCoAuthors(draft(), OMAR, [OMAR])).toThrow(/Only the author/)
+  })
+
+  it('lets the main author remove a co-author, but not a co-author themselves', () => {
+    const removed = removeCoAuthor(draft(), SARA, REEM)
+    expect(removed.coAuthorIds).toEqual([])
+    expect(removed.timeline.at(-1)).toMatchObject({ type: 'co-author-removed', actorId: SARA, subjectId: REEM })
+    expect(() => removeCoAuthor(draft(), REEM, REEM)).toThrow(/Only the author/)
+  })
+})
+
+describe('timeline recipients (display)', () => {
+  const returnEvent = (sop: Sop) => sop.timeline.findLast((item) => item.type === 'returned')!
+
+  it('shows a return as sent to the main author only on the author’s page', () => {
+    const byReviewer = returnAsReviewer(inReview(), NOURA, 'Fix section 4.')
+    expect(returnEvent(byReviewer).recipientIds).toEqual([SARA, REEM]) // stored recipients (notifications) unchanged
+    expect(timelineRecipients(byReviewer, returnEvent(byReviewer), true)).toEqual([SARA])
+    const byApprover = returnAsApprover(inApproval(), HUDA, 'Wrong owner listed.')
+    expect(timelineRecipients(byApprover, returnEvent(byApprover), true)).toEqual([SARA])
+  })
+
+  it('keeps every recipient without mainAuthorOnly (the review page)', () => {
+    const returned = returnAsReviewer(inReview(), NOURA, 'Fix section 4.')
+    expect(timelineRecipients(returned, returnEvent(returned))).toEqual([SARA, REEM])
+  })
+
+  it('leaves rows addressed to others unchanged', () => {
+    const submitted = inReview()
+    const submit = submitted.timeline.find((item) => item.type === 'submitted')!
+    expect(timelineRecipients(submitted, submit, true)).toEqual([NOURA])
+    const responded = addResponse(returnAsReviewer(submitted, NOURA, 'Fix.'), REEM, 'Done.')
+    expect(timelineRecipients(responded, responded.timeline.at(-1)!, true)).toEqual([NOURA])
+  })
+
+  it('doesn’t list a co-author who was removed after the return', () => {
+    const returned = returnAsReviewer(inReview(), NOURA, 'Fix section 4.')
+    const removed = removeCoAuthor(returned, SARA, REEM)
+    expect(timelineRecipients(removed, returnEvent(removed), true)).toEqual([SARA])
   })
 })
 
@@ -347,15 +708,17 @@ describe('responding to comments', () => {
     // Each step a second apart, so the rounds don't share a timestamp.
     vi.useFakeTimers({ now: new Date('2026-03-01T08:00:00Z') })
     const tick = () => vi.advanceTimersByTime(1000)
-    const returned = returnAsReviewer(inReview(), FAISAL, 'Fix section 4.')
+    // Round 1: Noura (the current reviewer) returns it.
+    const returned = returnAsReviewer(inReview(), NOURA, 'Fix section 4.')
     tick()
     const updated = uploadVersion(returned, SARA, { fileName: 'v2.pdf', fileType: 'pdf' })
     tick()
     const again = resubmit({ ...updated, complianceChecks: [...updated.complianceChecks, completedCheck('2')] }, SARA, GVP)
     tick()
-    const secondReturn = returnAsReviewer(completeReview(again, FAISAL), NOURA, 'Still missing the owner.')
+    // Round 2: Noura completes, then Faisal returns it. Noura's round-1 comment is left out.
+    const secondReturn = returnAsReviewer(completeReview(again, NOURA), FAISAL, 'Still missing the owner.')
     vi.useRealTimers()
-    expect(responseRecipients(secondReturn)).toEqual([NOURA])
+    expect(responseRecipients(secondReturn)).toEqual([FAISAL])
   })
 
   it('needs comments to respond to, a text of up to 1000 characters, and an author', () => {
@@ -433,12 +796,13 @@ describe('routing to another department (PBI 23)', () => {
 
   it('adds a pending reviewer from another department; the SOP waits for them too', () => {
     const submitted = inReview()
-    const routed = routeToReviewer(submitted, FAISAL, lama, '  Please check the PV parts.  ')
+    // Noura is the current reviewer; Lama joins at the end of the order.
+    const routed = routeToReviewer(submitted, NOURA, lama, '  Please check the PV parts.  ')
     expect(decisions(routed.reviewers)).toEqual({ [NOURA]: 'pending', [FAISAL]: 'pending', lama: 'pending' })
     expect(routed.reviewDueAt).toBe(submitted.reviewDueAt)
     expect(routed.timeline.at(-1)).toMatchObject({
       type: 'routed',
-      actorId: FAISAL,
+      actorId: NOURA,
       recipientIds: ['lama'],
       departmentId: 'pharmacovigilance',
       note: 'Please check the PV parts.',
@@ -449,36 +813,49 @@ describe('routing to another department (PBI 23)', () => {
   })
 
   it('resets the routed reviewer on resubmit, like everyone else', () => {
-    const routed = completeReview(routeToReviewer(inReview(), FAISAL, lama), 'lama')
-    const returned = returnAsReviewer(routed, NOURA, 'Fix it.')
+    // Noura routes Lama and completes; Faisal then returns it (Lama is still pending).
+    const routed = completeReview(routeToReviewer(inReview(), NOURA, lama), NOURA)
+    const returned = returnAsReviewer(routed, FAISAL, 'Fix it.')
     const updated = uploadVersion(returned, SARA, { fileName: 'v2.pdf', fileType: 'pdf' })
     const again = resubmit({ ...updated, complianceChecks: [...updated.complianceChecks, completedCheck('2')] }, SARA, GVP)
     expect(decisions(again.reviewers)).toEqual({ [NOURA]: 'pending', [FAISAL]: 'pending', lama: 'pending' })
   })
 
-  it('is allowed for a reviewer who already completed their review, while the SOP is still In Review', () => {
-    const faisalDone = completeReview(inReview(), FAISAL)
-    const routed = routeToReviewer(faisalDone, FAISAL, lama)
-    expect(decisions(routed.reviewers)).toEqual({ [NOURA]: 'pending', [FAISAL]: 'completed', lama: 'pending' })
-    expect(routed.status).toBe('in-review')
+  it('resets a routed reviewer who returned the SOP after reaching the front of the queue', () => {
+    const routed = routeToReviewer(inReview(), NOURA, lama)
+    const returned = returnAsReviewer(completeReview(completeReview(routed, NOURA), FAISAL), 'lama', 'Fix it.')
+    const updated = uploadVersion(returned, SARA, { fileName: 'v2.pdf', fileType: 'pdf' })
+    const again = resubmit({ ...updated, complianceChecks: [...updated.complianceChecks, completedCheck('2')] }, SARA, GVP)
+    expect(decisions(again.reviewers)).toEqual({ [NOURA]: 'pending', [FAISAL]: 'pending', lama: 'pending' })
   })
 
-  it('is only for an assigned reviewer, while the SOP is In Review', () => {
-    expect(() => routeToReviewer(inReview(), HUDA, lama)).toThrow(/assigned reviewer/)
-    expect(() => routeToReviewer(inReview(), SARA, lama)).toThrow(/assigned reviewer/)
+  it('rejects queued and completed reviewers, and appends without handing off', () => {
+    expect(() => routeToReviewer(inReview(), FAISAL, lama)).toThrow(/current reviewer/)
+    const nouraDone = completeReview(inReview(), NOURA)
+    expect(() => routeToReviewer(nouraDone, NOURA, lama)).toThrow(/current reviewer/)
+    const routed = routeToReviewer(nouraDone, FAISAL, lama)
+    expect(decisions(routed.reviewers)).toEqual({ [NOURA]: 'completed', [FAISAL]: 'pending', lama: 'pending' })
+    expect(routed.status).toBe('in-review')
+    expect(currentReviewer(routed)?.userId).toBe(FAISAL)
+    expect(routed.reviewers.map((person) => person.userId)).toEqual([NOURA, FAISAL, 'lama'])
+  })
+
+  it('is only for the current reviewer, while the SOP is In Review', () => {
+    expect(() => routeToReviewer(inReview(), HUDA, lama)).toThrow(/current reviewer/)
+    expect(() => routeToReviewer(inReview(), SARA, lama)).toThrow(/current reviewer/)
     expect(() => routeToReviewer(inApproval(), NOURA, lama)).toThrow()
     expect(() => routeToReviewer(draft(), NOURA, lama)).toThrow()
   })
 
   it('needs the Reviewer permission, another department and an active account', () => {
-    expect(() => routeToReviewer(inReview(), FAISAL, person('maha', { permissions: ['approver'] }))).toThrow()
-    expect(() => routeToReviewer(inReview(), FAISAL, person('reem2', { departmentId: 'information-technology' }))).toThrow()
-    expect(() => routeToReviewer(inReview(), FAISAL, person('gone', { deletedAt: '2026-01-01T00:00:00Z' }))).toThrow()
+    expect(() => routeToReviewer(inReview(), NOURA, person('maha', { permissions: ['approver'] }))).toThrow()
+    expect(() => routeToReviewer(inReview(), NOURA, person('reem2', { departmentId: 'information-technology' }))).toThrow()
+    expect(() => routeToReviewer(inReview(), NOURA, person('gone', { deletedAt: '2026-01-01T00:00:00Z' }))).toThrow()
   })
 
   it('keeps separation of duties: never the author, a co-author, a reviewer or an approver', () => {
     for (const id of [SARA, REEM, NOURA, HUDA]) {
-      expect(() => routeToReviewer(inReview(), FAISAL, person(id)), id).toThrow()
+      expect(() => routeToReviewer(inReview(), NOURA, person(id)), id).toThrow()
     }
   })
 })
@@ -492,5 +869,96 @@ describe('optional comments with a decision', () => {
     expect(completeReview(inReview(), NOURA, '   ').comments).toEqual([])
     const approved = approveAs(inApproval(), HUDA, 'Approved for release.')
     expect(approved.comments.at(-1)).toMatchObject({ authorUserId: HUDA, role: 'approver', text: 'Approved for release.' })
+  })
+})
+
+
+describe('individual reviewer deadlines and sequential handoffs', () => {
+  function submitIndividual() {
+    return submitForReview(draft(), SARA, GVP, [NOURA, FAISAL, 'lama'], [HUDA, KHALID], undefined, 3, undefined,
+      { [NOURA]: '2026-10-20', [FAISAL]: '2026-10-25' })
+  }
+  function revise(sop: Sop): Sop {
+    const updated = uploadVersion(sop, SARA, { fileName: 'revised.pdf', fileType: 'pdf' })
+    return { ...updated, complianceChecks: [...updated.complianceChecks, completedCheck(updated.version)] }
+  }
+  it('stores independent original allocations and keeps remaining time separate', () => {
+    vi.useFakeTimers({ now: new Date(2026, 9, 18, 12) })
+    const sop = submitIndividual()
+    expect(sop.reviewers.map((person) => person.assignedDueDays)).toEqual([2, 7, null])
+    vi.setSystemTime(new Date(2026, 9, 19, 18))
+    expect(reviewerAssignedDays(sop, sop.reviewers[0])).toBe(2)
+    const preciseDeadline = new Date(2026, 9, 20, 23, 59, 59, 999)
+    expect(reviewerRemainingDays(sop, sop.reviewers[0])).toBeCloseTo(
+      (preciseDeadline.getTime() - new Date(2026, 9, 19, 18).getTime()) / DAY_MS,
+      9,
+    )
+    expect(currentDueAt(sop)).toBe(preciseDeadline.toISOString())
+  })
+  it('guards every reviewer action and hands off to the next pending reviewer', () => {
+    vi.useFakeTimers({ now: new Date(2026, 9, 18, 12) })
+    const sop = submitIndividual()
+    expect(() => completeReview(sop, FAISAL)).toThrow(/current reviewer/)
+    expect(() => returnAsReviewer(sop, FAISAL, 'Fix')).toThrow(/current reviewer/)
+    expect(pendingPeople(sop)).toEqual([{ userId: NOURA, role: 'reviewer' }])
+    const next = completeReview(sop, NOURA)
+    expect(next.timeline.at(-1)).toMatchObject({ type: 'review-completed', recipientIds: [FAISAL] })
+    expect(currentReviewer(next)?.userId).toBe(FAISAL)
+    expect(currentDueAt(next)).toBe(reviewerDueAt(next, next.reviewers[1]))
+    expect(isOverdue(sop, 'review', new Date(2026, 9, 21).getTime())).toBe(true)
+    expect(isOverdue(next, 'review', new Date(2026, 9, 21).getTime())).toBe(false)
+    const last = completeReview(next, FAISAL)
+    expect(currentDueAt(last)).toBeUndefined()
+    expect(isOverdue(last, 'review', new Date(2027, 0, 1).getTime())).toBe(false)
+    const approval = completeReview(last, 'lama')
+    expect(pendingPeople(approval)).toEqual([{ userId: HUDA, role: 'approver' }, { userId: KHALID, role: 'approver' }])
+    expect(pendingPeople(approveAs(approval, KHALID))).toEqual([{ userId: HUDA, role: 'approver' }])
+  })
+  it('clears every deadline on resubmit and never brings original durations back', () => {
+    vi.useFakeTimers({ now: new Date(2026, 9, 18, 12) })
+    const shifted = shiftDueDates(submitIndividual(), 3)
+    expect(shifted.reviewers.map((person) => person.dueDate)).toEqual(['2026-10-17', '2026-10-22', undefined])
+    expect(shifted.reviewers.map((person) => person.assignedDueDays)).toEqual([2, 7, null])
+    const returned = returnAsReviewer(shifted, NOURA, 'Fix')
+    vi.setSystemTime(new Date(2026, 9, 27, 12))
+    const again = resubmit(revise(returned), SARA, GVP)
+    expect(again.reviewers.map((person) => person.dueDate)).toEqual([undefined, undefined, undefined])
+    expect(again.reviewers.map((person) => person.assignedDueDays)).toEqual([null, null, null])
+    expect(again.reviewers.every((person) => person.decision === 'pending' && person.decidedAt === undefined)).toBe(true)
+    expect(again.approvers.every((person) => person.decision === 'pending' && person.decidedAt === undefined)).toBe(true)
+    expect(again.approvalDueAt).toBeUndefined()
+    vi.setSystemTime(new Date(2026, 10, 5, 12))
+    const twice = resubmit(revise(returnAsReviewer(again, NOURA, 'Again')), SARA, GVP, undefined, '2026-11-08')
+    expect(twice.reviewers.map((person) => person.dueDate)).toEqual(['2026-11-08', undefined, undefined])
+    expect(twice.reviewers.map((person) => person.assignedDueDays)).toEqual([3, null, null])
+  })
+  it('supports legacy records and explicit blanks without inheriting shared dates', () => {
+    vi.useFakeTimers({ now: new Date(2026, 9, 18, 12) })
+    const legacy = inReview()
+    legacy.reviewers = legacy.reviewers.map(({ userId, decision }) => ({ userId, decision }))
+    expect(reviewerAssignedDays(legacy, legacy.reviewers[0])).toBe(5)
+    expect(currentDueAt(legacy)).toBe(legacy.reviewDueAt)
+    const again = resubmit(revise(returnAsReviewer(legacy, NOURA, 'Fix')), SARA, GVP)
+    expect(currentDueAt(again)).toBe(again.reviewDueAt)
+    const mixed = submitForReview(draft(), SARA, GVP, [NOURA, FAISAL], [HUDA], 5, undefined, undefined, { [FAISAL]: '2026-10-25' })
+    expect(currentDueAt(mixed)).toBeUndefined()
+    expect(reviewerAssignedDays(mixed, mixed.reviewers[0])).toBeUndefined()
+    const datedLegacy = submitIndividual()
+    datedLegacy.reviewers = datedLegacy.reviewers.map(({ assignedDueDays: _days, ...person }) => person)
+    expect(reviewerAssignedDays(datedLegacy, datedLegacy.reviewers[0])).toBe(2)
+    expect(shiftDueDates(datedLegacy, 3).reviewers[0].assignedDueDays).toBe(2)
+  })
+  it('validates dates at the workflow boundary and normalizes whitespace', () => {
+    vi.useFakeTimers({ now: new Date(2026, 9, 18, 12) })
+    const invalidDates: Record<string, string>[] = [{ [NOURA]: '2026-02-30' }, { [NOURA]: '2026-10-17' }, { unknown: '2026-10-20' }, { [NOURA]: ' ' }]
+    for (const dates of invalidDates) {
+      expect(() => submitForReview(draft(), SARA, GVP, [NOURA], [HUDA], undefined, undefined, undefined, dates)).toThrow(/due date/)
+    }
+    const sop = submitForReview(draft(), SARA, GVP, [NOURA], [HUDA], undefined, undefined, undefined, { [NOURA]: ' 2026-10-20 ' })
+    expect(sop.reviewers[0]).toMatchObject({ dueDate: '2026-10-20', assignedDueDays: 2 })
+    const today = submitForReview(draft(), SARA, GVP, [NOURA], [HUDA], undefined, undefined, undefined, { [NOURA]: '2026-10-18' })
+    expect(today.reviewers[0]).toMatchObject({ dueDate: '2026-10-18', assignedDueDays: 0 })
+    const distant = submitForReview(draft(), SARA, GVP, [NOURA], [HUDA], undefined, undefined, undefined, { [NOURA]: '2026-11-18' })
+    expect(distant.reviewers[0]).toMatchObject({ dueDate: '2026-11-18', assignedDueDays: 31 })
   })
 })

@@ -18,7 +18,7 @@ export interface MySopsLocationState {
   uploaded?: boolean
 }
 
-/** My SOPs ("/my-sops", Author permission): SOPs the user authored or co-authors in the active department. */
+/** My SOPs ("/my-sops", Author permission): SOPs the user authored or co-authors in the home department. */
 export function MySopsPage() {
   const content = mySopsEn
   const user = useCurrentUser()
@@ -27,7 +27,7 @@ export function MySopsPage() {
   useDocumentTitle(isAuthor ? content.pageTitle : undefined)
 
   const { sops } = useSops()
-  const { activeDepartment } = useActiveDepartment()
+  const { homeDepartment } = useActiveDepartment()
   const [statusMessage, setStatusMessage] = useState('')
   const location = useLocation()
   const navigate = useNavigate()
@@ -45,11 +45,11 @@ export function MySopsPage() {
 
   const visibleSops = useMemo(() => {
     const inDepartment = sops.filter(
-      (sop: Sop) => isAuthorOrCoAuthor(sop, user.id) && sop.departmentId === activeDepartment.id,
+      (sop: Sop) => isAuthorOrCoAuthor(sop, user.id) && sop.departmentId === homeDepartment.id,
     )
     // ISO dates sort correctly as strings; newest first (stable for the same day).
     return [...inDepartment].sort((a, b) => b.lastUpdated.localeCompare(a.lastUpdated))
-  }, [sops, user.id, activeDepartment.id])
+  }, [sops, user.id, homeDepartment.id])
 
   if (!isAuthor) return <NotFoundPage embedded />
 
@@ -59,7 +59,7 @@ export function MySopsPage() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h1 className="text-2xl tracking-tight sm:text-3xl">{content.title}</h1>
-          <p className="mt-2 text-text-gray">{content.subtitle.replace('{department}', activeDepartment.name)}</p>
+          <p className="mt-2 text-text-gray">{content.subtitle.replace('{department}', homeDepartment.name)}</p>
         </div>
         <Button to={content.upload.href} className="shrink-0 self-start">
           <Upload aria-hidden="true" className="size-4" strokeWidth={2} />

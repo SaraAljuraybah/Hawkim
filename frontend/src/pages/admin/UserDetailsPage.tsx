@@ -12,7 +12,7 @@ import { adminEn } from '../../content/admin.en'
 import { usersEn } from '../../content/users.en'
 import type { Permission, User } from '../../data/mock/types'
 import { useDocumentTitle } from '../../hooks/useDocumentTitle'
-import { getUserDepartments } from '../../lib/departments'
+import { getDirectoryDepartments } from '../../lib/departments'
 import { ADMIN_USERS_PATH } from '../../lib/routes'
 import { deleteBlockers, involvement, PERMISSIONS, permissionChangeBlockers } from '../../lib/userAdmin'
 import { useDepartments } from '../../state/departmentsContext'
@@ -117,7 +117,7 @@ function UserPanels({ user }: { user: User }) {
   const deleteErrorRef = useRef<HTMLDivElement>(null)
   const deleteButtonRef = useRef<HTMLButtonElement | null>(null)
 
-  const joined = getUserDepartments(user, requests, activeDepartments).filter((department) => department.id !== user.departmentId)
+  const directoryAccess = getDirectoryDepartments(user, requests, activeDepartments).filter((department) => department.id !== user.departmentId)
   const involved = involvement(user.id, sops)
 
   function savePermissions() {
@@ -157,9 +157,9 @@ function UserPanels({ user }: { user: User }) {
     { label: text.details.email, value: <span className="break-all">{user.email}</span> },
     { label: text.details.homeDepartment, value: departmentName(user.departmentId) },
     {
-      label: text.details.joinedDepartments,
-      value: joined.length > 0 ? joined.map((department) => department.name).join(', ') : text.details.none,
-      hint: text.details.joinedHint,
+      label: text.details.directoryAccess,
+      value: directoryAccess.length > 0 ? directoryAccess.map((department) => department.name).join(', ') : text.details.none,
+      hint: text.details.directoryHint,
     },
   ]
 

@@ -1,16 +1,23 @@
 import { createContext, useContext } from 'react'
-import type { Sop } from '../data/mock/types'
+import type { ApprovalDecisionSnapshot, Sop } from '../data/mock/types'
+import type { ApprovalSubmissionOptions } from '../lib/approval'
+import type { ReviewAction } from '../lib/reviewFlow'
+import type { InternalReviewOptions } from '../lib/internalReview'
 import type { UploadedFile } from '../lib/workflow'
 
-/** What the author provides when uploading; everything else is set by the store. */
-export type NewDraft = Pick<Sop, 'title' | 'departmentId' | 'description' | 'coAuthorIds'> & UploadedFile
+/**
+ * What the author provides when uploading; everything else is set by the store.
+ * A new SOP has no co-authors (they're added later from the SOP page).
+ */
+export type NewDraft = Pick<Sop, 'title' | 'departmentId' | 'description'> & UploadedFile
 
-export interface SubmitOptions {
-  reviewerIds: string[]
-  approverIds: string[]
-  /** Optional: a stage without due days has no due date. */
-  reviewDueDays?: number
-  approvalDueDays?: number
+
+export type SubmitOptions = InternalReviewOptions
+
+
+/** Legacy resubmission overrides. Internal rounds restart their saved allocations without overrides. */
+export interface ResubmitOptions {
+  dueDate?: string
   note?: string
 }
 
@@ -21,9 +28,23 @@ export interface SopsStore {
   addDraft: (draft: NewDraft) => Sop
 
   // Actions by the current user (author or co-author). Each throws if not allowed.
+  /** Main author: first submission from Draft, or a new version sent to the chosen reviewers. */
   submitForReview: (sopId: string, options: SubmitOptions) => void
-  resubmit: (sopId: string, note?: string) => void
-  /** Uploads the next version (Draft or Returned) and starts a compliance check of it. */
+  /** Main Author: submit this reviewed version to its configured Quality Document Controller. */
+  submitForApproval: (sopId: string, options: ApprovalSubmissionOptions) => void
+  reviewAction: (sopId: string, action: ReviewAction) => void
+  /** Reviewer: take the task (required before completing or returning it). */
+  acceptInternalReview: (sopId: string, roundId: string, assignmentId: string) => void
+  /** Reviewer: turn the task down with a required reason. */
+  declineInternalReview: (sopId: string, roundId: string, assignmentId: string, reason: string) => void
+  decideInternalReview: (sopId: string, roundId: string, assignmentId: string, decision: 'completed' | 'returned', text?: string) => void
+  /** Main author: send the current version to more reviewers (reopens a settled round). */
+  addInternalReviewers: (sopId: string, options: SubmitOptions) => void
+  /** Main author: remove a reviewer from the current round at any time, with a required reason. */
+  removeInternalReviewer: (sopId: string, roundId: string, assignmentId: string, reason: string) => void
+  /** Main author: legacy resubmission with an optional new date and comments (internal reviews use submitForReview). */
+  resubmit: (sopId: string, options?: ResubmitOptions) => void
+  /** Uploads the next version (Draft or Returned). It isn't checked until someone runs a compliance check. */
   uploadVersion: (sopId: string, file: UploadedFile) => void
   /** Main author: deletes a version (Draft or Returned; at least one remains). */
   deleteVersion: (sopId: string, version: string) => void
@@ -44,9 +65,9 @@ export interface SopsStore {
   returnAsReviewer: (sopId: string, reviewerId: string, text: string) => void
   /** An assigned reviewer adds a reviewer from another department (PBI 23). */
   routeToReviewer: (sopId: string, reviewerId: string, newReviewerId: string, note?: string) => void
-  approveAs: (sopId: string, approverId: string, text?: string) => void
-  returnAsApprover: (sopId: string, approverId: string, text: string) => void
-  publishAs: (sopId: string, approverId: string) => void
+  approveAs: (sopId: string, approverId: string, text?: string, snapshot?: ApprovalDecisionSnapshot) => void
+  returnAsApprover: (sopId: string, approverId: string, text: string, snapshot?: ApprovalDecisionSnapshot) => void
+  publishAs: (sopId: string, approverId: string, snapshot?: ApprovalDecisionSnapshot) => void
 
   /** DEVELOPMENT ONLY: move this SOP's due dates `days` earlier (to test Overdue). */
   shiftDueDates: (sopId: string, days: number) => void

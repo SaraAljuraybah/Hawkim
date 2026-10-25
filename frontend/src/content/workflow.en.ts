@@ -4,6 +4,7 @@
  */
 
 import type { SopWorkflowContent } from './types'
+import { approvalEn } from './approval.en'
 
 export const sopWorkflowEn: SopWorkflowContent = {
   pageTitle: '{code} | Hawkim',
@@ -11,7 +12,26 @@ export const sopWorkflowEn: SopWorkflowContent = {
   versionTemplate: 'v{version}',
   lastUpdatedTemplate: 'Last updated {date}',
   departmentLabel: 'Department',
+  descriptionTitle: 'SOP Description',
   roles: { reviewer: 'Reviewer', approver: 'Approver', author: 'Author', coAuthor: 'Co-author', system: 'System' },
+
+  reviewerDeadline: {
+    due: 'Due {date}',
+    noDeadline: 'No deadline assigned',
+    assignedOneDay: 'Time given: 1 day',
+    assignedDays: 'Time given: {count} days',
+    assignedDuration: 'Time given: {duration}',
+    remainingDuration: 'Time remaining: {duration}',
+    lessThanSecond: 'less than 1 second',
+    allocationUnknown: 'Original time given unavailable',
+    remainingOneDay: 'Time remaining: 1 day',
+    remainingDays: 'Time remaining: {count} days',
+    dueToday: 'Time remaining: due today',
+    overdue: 'Overdue',
+    current: 'Current reviewer',
+    active: 'Review pending',
+    waiting: 'Waiting in queue',
+  },
 
   tracker: {
     label: 'Workflow status',
@@ -28,6 +48,16 @@ export const sopWorkflowEn: SopWorkflowContent = {
     srReturned: 'returned to the author at this step',
     due: 'Due {date}',
     overdue: 'Overdue',
+    assignee: {
+      title: 'Current Assignee',
+      titlePlural: 'Current Assignees',
+      reviewPending: 'Review Pending',
+      approvalPending: 'Approval Pending',
+      revisionsPending: 'Changes Requested',
+      publicationPending: 'Publication Pending',
+      assignedOneDay: 'Time given: 1 day',
+      assignedDays: 'Time given: {count} days',
+    },
   },
 
   people: {
@@ -45,7 +75,7 @@ export const sopWorkflowEn: SopWorkflowContent = {
     addAuthor: 'Add author',
     remove: 'Remove',
     removeLabel: 'Remove {name} as co-author',
-    decisions: { pending: 'Pending', completed: 'Completed', approved: 'Approved', returned: 'Returned' },
+    decisions: { pending: 'Pending', completed: 'Completed', approved: 'Approved', returned: 'Returned', cancelled: 'Cancelled' },
   },
 
   file: {
@@ -66,12 +96,25 @@ export const sopWorkflowEn: SopWorkflowContent = {
       demo: 'File not available in the demo',
     },
     deleteBlocked: {
-      status: 'Versions can only be deleted while the SOP is a Draft or Returned',
-      'not-main-author': 'Only the main author, {name}, can delete versions',
+      status: {
+        'in-review': "Versions can't be deleted while the SOP is in review",
+        'in-approval': "Versions can't be deleted while the SOP is in approval",
+        approved: "Versions can't be deleted once the SOP is approved",
+        published: "Versions can't be deleted once the SOP is published",
+      },
+      'not-uploader': "Restricted to {name} (main author) or this version's uploader",
+      'submitted-version': 'Versions previously submitted or resubmitted for review cannot be deleted',
       'last-version': 'At least one version must remain',
     },
     upload: 'Upload',
-    check: 'Check',
+    check: 'Compliance Check for Current Version',
+    checkBlocked: {
+      status: {
+        'in-review': "Compliance checks can't be run while the SOP is in review",
+        'in-approval': "Compliance checks can't be run while the SOP is in approval",
+      },
+      'not-uploader': "Restricted to {name} (main author) or the current version's uploader",
+    },
     previewTitle: '{code} · v{version}',
     viewerTitle: '{code} {title}, v{version} (PDF)',
     close: 'Close preview',
@@ -84,6 +127,7 @@ export const sopWorkflowEn: SopWorkflowContent = {
 
   actions: {
     submit: 'Submit for review',
+    resubmit: 'Resubmit for review',
     response: 'Response',
     resubmitHint: 'Upload a new version with your changes before resubmitting.',
     authorOnly: 'Only the author, {name}, can submit this SOP.',
@@ -91,8 +135,6 @@ export const sopWorkflowEn: SopWorkflowContent = {
     checkNeeded: 'Run a compliance check for this version first.',
     checkCurrentNeeded: 'Run a compliance check against GVP v{version} first.',
   },
-
-  returnedNote: { text: 'Returned by {name} — see the comments in the {link}.', link: 'Review timeline' },
 
   comments: {
     title: 'Comments',
@@ -107,7 +149,15 @@ export const sopWorkflowEn: SopWorkflowContent = {
     viewMore: 'View more',
     viewLess: 'View less',
     events: {
-      'version-uploaded': 'Version uploaded',
+      'review-accepted': 'Review accepted',
+      'review-declined': 'Review declined',
+      'review-withdrawn': 'Review request withdrawn (no response)',
+      'reviewer-removed': 'Reviewer removed',
+      'review-changes-requested': 'Returned with comments',
+      'internal-review-completed': 'Internal reviews completed; awaiting Author',
+      'external-reviews-not-required': approvalEn.events['external-reviews-not-required'],
+      'submitted-for-approval': approvalEn.events['submitted-for-approval'],
+      'version-uploaded': 'New version uploaded',
       'version-deleted': 'Version deleted',
       response: 'Response',
       submitted: 'Submitted for review',
@@ -124,6 +174,9 @@ export const sopWorkflowEn: SopWorkflowContent = {
       'compliance-check-completed': 'Compliance check completed',
       'compliance-check-failed': 'Compliance check failed',
       routed: 'Routed to another department',
+      'review-assigned': 'Review assigned',
+      'review-returned': 'Review returned to Reviewer 1',
+      'review-scope-decided': 'Department review decision',
     },
     stageDue: { review: 'Review due date set', approval: 'Approval due date set' },
     due: 'Due {date}',
@@ -146,33 +199,23 @@ export const sopWorkflowEn: SopWorkflowContent = {
     fileRequired: 'Upload an SOP file.',
     submit: {
       title: 'Submit for review',
-      description: 'Choose who reviews and who approves this SOP, and how many days each stage has.',
-      reviewers: { label: 'Reviewers', hint: 'Select at least one. Every reviewer must complete their review.' },
-      approvers: {
-        label: 'Approvers',
-        hint: 'Select at least one. Reviewers can’t also be approvers.',
-        unchecked: '{names} is now a reviewer, so they were removed from approvers.',
+      reviewDate: {
+        label: 'Review due date (optional)',
+        help: 'Choose today or any future date. The review is due at the end of that day. Leave blank for no deadline.',
+        oneDay: 'Time given: 1 day · Due {date}',
+        days: 'Time given: {count} days · Due {date}',
+        duration: 'Time given: {duration} · Due {date}',
       },
-      reviewDays: {
-        label: 'Review due in (days) (optional)',
-        hint: 'From 1 to 30 days after submitting. Leave empty for no due date.',
-        dueHint: 'Due {date}',
-      },
-      approvalDays: {
-        label: 'Approval due in (days) (optional)',
-        hint: 'Counted from when the last reviewer completes. Leave empty for no due date.',
-      },
-      note: { label: 'Note (optional)', placeholder: 'Add a note for the reviewers…', counter: '{count} / {max}' },
+      note: { label: 'Comments (optional)', placeholder: 'Add a comment for the reviewers…', counter: '{count} / {max}' },
       errors: {
-        reviewersRequired: 'Select at least one reviewer.',
-        approversRequired: 'Select at least one approver.',
-        daysInvalid: 'Enter a number of days from 1 to 30.',
+        dateInvalid: 'Choose a valid date on or after {min}, or leave it blank.',
+        submitFailed: "The SOP couldn't be submitted. Refresh the page and try again.",
       },
       confirm: 'Submit for review',
     },
     newVersion: {
       title: 'Upload a new version',
-      description: 'Upload the file with your changes. It becomes v{version}, and a compliance check runs automatically.',
+      description: 'Upload the file with your changes. It becomes v{version}.',
       confirm: 'Upload',
     },
     deleteVersion: {
@@ -184,9 +227,8 @@ export const sopWorkflowEn: SopWorkflowContent = {
     },
     addCoAuthors: {
       title: 'Add co-authors',
-      description: 'Co-authors can upload new versions. Only you can submit the SOP or delete versions.',
+      description: 'Co-authors can upload versions and run compliance checks on their own uploads. Only you can submit for review.',
       label: 'Co-authors',
-      hint: 'Reviewers and approvers of this SOP can’t be co-authors.',
       required: 'Select at least one co-author.',
       confirm: 'Add co-authors',
     },
@@ -206,22 +248,14 @@ export const sopWorkflowEn: SopWorkflowContent = {
     },
     resubmit: {
       title: 'Resubmit for review',
-      description:
-        'v{version} goes to the same reviewers and approvers, and through review and approval again. Their earlier decisions are cleared.',
-      reviewersLabel: 'Reviewers',
-      approversLabel: 'Approvers',
-      reviewDaysLabel: 'Review due in',
-      approvalDaysLabel: 'Approval due in',
-      days: '{count} days',
-      oneDay: '1 day',
-      noDueDate: 'No due date',
+      failed: "The SOP couldn't be resubmitted. Refresh the page and try again.",
       confirm: 'Resubmit for review',
     },
   },
 
   messages: {
     submitted: 'Submitted for review.',
-    newVersion: 'v{version} uploaded. A compliance check is running.',
+    newVersion: 'v{version} uploaded.',
     versionDeleted: 'v{version} deleted.',
     resubmitted: 'Resubmitted for review.',
     coAuthorsAdded: 'Co-authors added.',

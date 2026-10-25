@@ -8,7 +8,7 @@ import type { WorkflowDemoContent } from './types'
 
 export const workflowDemoEn: WorkflowDemoContent = {
   title: 'Demo controls (development only)',
-  note: 'Simulates reviewer and approver actions until those screens exist.',
+  note: 'Review actions are limited to the signed-in user\'s assignments. Sign in as another assigned user to test their actions.',
   noActions: 'No reviewer or approver actions for this status.',
   buttons: {
     completeReview: '{name}: complete review',

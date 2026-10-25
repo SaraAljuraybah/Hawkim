@@ -26,6 +26,8 @@ interface PeoplePickerProps {
   id?: string
   /** The picker's own text; defaults to English. */
   text?: PeoplePickerContent
+  /** The label is read by screen readers only (see FieldShell). */
+  hideLabel?: boolean
   className?: string
 }
 
@@ -48,6 +50,7 @@ export function PeoplePicker({
   inputRef,
   id,
   text = peoplePickerEn,
+  hideLabel = false,
   className = '',
 }: PeoplePickerProps) {
   const fieldIds = useFieldIds({ id, hint, error })
@@ -151,6 +154,7 @@ export function PeoplePicker({
       hintId={fieldIds.hintId}
       error={error}
       errorId={fieldIds.errorId}
+      hideLabel={hideLabel}
       className={className}
     >
       {selected.length > 0 && (
