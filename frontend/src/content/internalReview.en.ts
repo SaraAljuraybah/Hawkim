@@ -3,8 +3,7 @@ export const internalReviewEn = {
   submit: {
     title: 'Submit for review',
     addIntro: 'Add reviewers to the review of v{version}.',
-    versionIntro: 'You are sending v{version}.', optionStatus: '{name} · {status} v{version}',
-    versionHint: 'A reviewer who already has a request will get this version instead. Their earlier request stays in the history.',
+    versionIntro: 'You are sending v{version}.',
     reviewers: 'Select reviewers',
     reviewerRequired: 'Select at least one eligible reviewer.',
     noneEligible: 'No eligible reviewers are available in this department.',

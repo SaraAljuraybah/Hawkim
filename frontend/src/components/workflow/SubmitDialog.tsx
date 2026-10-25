@@ -3,8 +3,8 @@ import { flushSync } from 'react-dom'
 import type { SopWorkflowContent } from '../../content/types'
 import { internalReviewEn } from '../../content/internalReview.en'
 import type { Sop } from '../../data/mock/types'
-import { addableReviewers, currentInternalRound } from '../../lib/internalReview'
-import { isValidReviewDuration, latestAssignmentOf, REVIEW_DURATION_MAX, REVIEW_DURATION_MIN } from '../../lib/internalReviewStatus'
+import { addableReviewers } from '../../lib/internalReview'
+import { isValidReviewDuration, REVIEW_DURATION_MAX, REVIEW_DURATION_MIN } from '../../lib/internalReviewStatus'
 import { eligibleReviewers } from '../../lib/reviewFlow'
 import { parseResponseDueDate } from '../../lib/responseTime'
 import { SUBMIT_COMMENT_MAX } from '../../lib/workflow'
@@ -39,12 +39,6 @@ export function SubmitDialog({ sop, content, onSubmit, onClose, mode = 'submit' 
   const { activeUsers } = useUsers()
   // Adding: only reviewers not yet asked, or whose latest request was declined, withdrawn or removed.
   const options = mode === 'add' ? addableReviewers(sop, activeUsers) : eligibleReviewers(sop, sop.departmentId, activeUsers)
-  // For a new version, each reviewer's latest request on the previous one, e.g. "Noura Alqahtani · Completed v1".
-  const previous = mode === 'version' ? currentInternalRound(sop) : undefined
-  function optionLabel(userId: string, name: string): string {
-    const latest = latestAssignmentOf(previous, userId)
-    return latest && previous ? text.optionStatus.replace('{name}', name).replace('{status}', internalReviewEn.panel.decisions[latest.decision]).replace('{version}', previous.version) : name
-  }
   const [reviewerIds, setReviewerIds] = useState<string[]>([])
   const [dueDate, setDueDate] = useState('')
   const [duration, setDuration] = useState('')
@@ -82,11 +76,11 @@ export function SubmitDialog({ sop, content, onSubmit, onClose, mode = 'submit' 
     <FormDialog open title={text.title} confirmLabel={text.confirm} cancelLabel={content.cancel} onConfirm={confirm} onClose={onClose}>
       {error && <p id={reviewerErrorId} role="alert" className="text-sm text-status-rejected-fg">{error}</p>}
       {mode === 'add' && <p className="text-sm text-text-gray">{text.addIntro.replace('{version}', sop.version)}</p>}
-      {mode === 'version' && <div className="space-y-1 text-sm"><p className="text-maroon">{text.versionIntro.replace('{version}', sop.version)}</p><p className="text-text-gray">{text.versionHint}</p></div>}
+      {mode === 'version' && <p className="text-sm text-maroon">{text.versionIntro.replace('{version}', sop.version)}</p>}
       {failed && <p role="alert" className="text-sm text-status-rejected-fg">{fields.errors.submitFailed}</p>}
       <MultiSelectField ref={firstRef} name="internalReviewers" label={text.reviewers} placeholder={text.reviewers}
         invalid={!!error} describedBy={error ? reviewerErrorId : undefined}
-        options={options.map((user) => ({ value: user.id, label: optionLabel(user.id, user.name) }))} value={reviewerIds}
+        options={options.map((user) => ({ value: user.id, label: user.name }))} value={reviewerIds}
         emptyText={text.noneEligible} onChange={(next) => { setReviewerIds(next); setError(''); setFailed(false) }} />
       <ReviewDueDateField ref={requestRef} name="reviewRequestDueDate" stage="response"
         text={{ ...fields.reviewDate, label: text.responseDate, help: text.responseHelp, duration: text.responseTimeGiven }}

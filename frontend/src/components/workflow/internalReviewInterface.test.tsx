@@ -43,6 +43,10 @@ function decide(source: Sop, userId: string, decision: 'completed' | 'returned',
   const round = currentInternalRound(sop)!
   return decideInternalReview(sop, userId, round.id, round.assignments.find((item) => item.userId === userId)!.id, decision, text, environment())
 }
+/** The visible text of each option in the Select reviewers list. */
+function optionNames(html: string): string[] {
+  return [...html.matchAll(/<input[^>]*name="internalReviewers"[^>]*\/><span[^>]*>([^<]*)<\/span>/g)].map((match) => match[1])
+}
 /** In every mode the dialog is titled "Submit for review" (its accessible name) and confirms with "Submit". */
 function expectSubmitTexts(html: string) {
   const titleId = html.match(/<dialog[^>]*aria-labelledby="([^"]+)"/)![1]
@@ -66,9 +70,10 @@ describe('internal parallel review across transitions and detail views', () => {
     expect(button).toContain('aria-describedby="submit-hint"')
     const html = renderToStaticMarkup(<SubmitDialog mode="version" sop={uploaded} content={sopWorkflowEn.dialogs} onSubmit={() => {}} onClose={() => {}} />)
     expect(html).toContain(internalReviewEn.submit.versionIntro.replace('{version}', '2'))
-    expect(html).toContain(internalReviewEn.submit.versionHint)
-    expect(html).toContain('Reviewer Alpha · Completed v1')
-    expect(html).toContain('Reviewer Beta · Returned with comments v1')
+    expect(html).not.toContain('A reviewer who already has a request will get this version instead.')
+    // Names only: each reviewer's earlier status stays in the Review timeline.
+    expect(optionNames(html)).toEqual(['Reviewer Alpha', 'Reviewer Beta'])
+    expect(html).not.toContain(' · ')
     expectSubmitTexts(html)
   })
   it('offers the Submit for review dialog for the same version with only reviewers who can be asked again', () => {
@@ -78,8 +83,7 @@ describe('internal parallel review across transitions and detail views', () => {
     expect(render(<SopWorkflowPage />)).toContain('>' + sopWorkflowEn.actions.submit + '<')
     const html = renderToStaticMarkup(<SubmitDialog mode="add" sop={sop} content={sopWorkflowEn.dialogs} onSubmit={() => {}} onClose={() => {}} />)
     expect(html).toContain(internalReviewEn.submit.addIntro.replace('{version}', '1'))
-    expect(html).toContain('Reviewer Alpha')
-    expect(html).not.toContain('Reviewer Beta')
+    expect(optionNames(html)).toEqual(['Reviewer Alpha'])
     expectSubmitTexts(html)
     fixture.userId = 'coauthor'
     expect(render(<SopWorkflowPage />)).not.toContain('>' + sopWorkflowEn.actions.submit + '<')
