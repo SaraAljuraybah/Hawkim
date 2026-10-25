@@ -13,9 +13,13 @@ import type { SopStatus } from '../types/status'
 import { todayIsoDate } from '../lib/format'
 import { supabase } from './supabase'
 
+/*
+ * The relationships are named: sops and sop_versions are linked twice (each version's SOP, and
+ * the SOP's current version), so the API can't tell which one is meant otherwise.
+ */
 const SOP_COLUMNS = `id, code, title, description, department_id, author_id, status, current_version, updated_at,
-  sop_versions (version, file_name, file_type, storage_path, uploaded_by, uploaded_at, deleted_at, deleted_by),
-  timeline_events (id, type, actor_id, version, recipient_ids, subject_id, note, created_at)`
+  sop_versions!sop_versions_sop_id_fkey (version, file_name, file_type, storage_path, uploaded_by, uploaded_at, deleted_at, deleted_by),
+  timeline_events!timeline_events_sop_id_fkey (id, type, actor_id, version, recipient_ids, subject_id, note, created_at)`
 
 export interface SopVersionRow {
   version: number

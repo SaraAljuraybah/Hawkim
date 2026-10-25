@@ -1,11 +1,19 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { SYSTEM_ACTOR } from '../data/mock/types'
-import { createSop, deleteSopVersion, toSop, uploadSopVersion, type SopRow } from './sops'
+import { createSop, deleteSopVersion, fetchSop, fetchSops, toSop, uploadSopVersion, type SopRow } from './sops'
 
 const rpc = vi.fn()
-vi.mock('./supabase', () => ({ supabase: () => ({ rpc }) }))
+const query = { select: vi.fn(), eq: vi.fn(), order: vi.fn(), maybeSingle: vi.fn() }
+const from = vi.fn(() => query)
+vi.mock('./supabase', () => ({ supabase: () => ({ rpc, from }) }))
 
-beforeEach(() => rpc.mockReset())
+beforeEach(() => {
+  vi.clearAllMocks()
+  query.select.mockReturnValue(query)
+  query.eq.mockReturnValue(query)
+  query.order.mockResolvedValue({ data: [], error: null })
+  query.maybeSingle.mockResolvedValue({ data: null, error: null })
+})
 
 const row: SopRow = {
   id: 'uuid-sop', code: 'SOP-001', title: 'Backup Procedure', description: '', department_id: 'information-technology',
@@ -40,6 +48,20 @@ describe('SOPs from the database', () => {
       { id: 'e1', type: 'version-uploaded', actorId: SYSTEM_ACTOR, version: '1', createdAt: '2026-10-24T09:00:00Z', recipientIds: ['uuid-noura'], note: 'Hello' },
       { id: 'e2', type: 'version-uploaded', actorId: 'uuid-sara', version: '2', createdAt: '2026-10-25T09:00:00Z' },
     ])
+  })
+})
+
+describe('reading SOPs', () => {
+  it('names the relationship of each embedded table, since sops and sop_versions are linked twice', async () => {
+    await fetchSops()
+    await fetchSop('uuid-sop')
+    expect(from).toHaveBeenCalledWith('sops')
+    for (const [columns] of query.select.mock.calls) {
+      expect(columns).toContain('sop_versions!sop_versions_sop_id_fkey (')
+      expect(columns).toContain('timeline_events!timeline_events_sop_id_fkey (')
+      // No embed without a named relationship.
+      expect(columns).not.toMatch(/(sop_versions|timeline_events) \(/)
+    }
   })
 })
 
