@@ -1,43 +1,86 @@
 /*
- * Authentication service.
- *
- * DEMO ONLY — replace with real authentication (planned: Supabase Auth,
- * e.g. supabase.auth.signInWithPassword). For now signIn() signs in as the
- * sample user with that email (any password), or as Sara for any other
- * valid-looking email, so the signed-in screens can be demonstrated.
+ * Authentication with Supabase Auth (email and password). Accounts are created by
+ * the project owner in the Supabase dashboard; a person can use Hawkim only when
+ * they also have an active profile (see services/people.ts).
  *
  * Security: credentials must never be logged, stored (localStorage,
  * sessionStorage, cookies, etc.) or sent anywhere other than the auth provider.
+ * Supabase keeps only its session tokens, in sessionStorage (see services/supabase.ts).
  */
 
+import { isAuthApiError, isAuthRetryableFetchError, type AuthError } from '@supabase/supabase-js'
 import type { User } from '../data/mock/types'
+import { fetchProfile } from './people'
+import { supabase } from './supabase'
 
 /**
  * Why a sign-in attempt did not succeed:
- * - no-access: the account was deleted by an admin.
- * Real reasons (e.g. invalid credentials) will be added with the backend.
+ * - invalid-credentials: wrong email or password;
+ * - too-many-attempts: Supabase is limiting attempts for now;
+ * - not-connected: the server couldn't be reached;
+ * - no-access: the account has no active profile (none was set up, or it was ended);
+ * - failed: anything else.
  */
-export type SignInFailureReason = 'not-connected' | 'no-access'
+export type SignInFailureReason = 'invalid-credentials' | 'too-many-attempts' | 'not-connected' | 'no-access' | 'failed'
 
 export type SignInResult = { ok: true; user: User } | { ok: false; reason: SignInFailureReason }
 
-/** Simulated network delay so the loading state can be seen and tested. */
-const STUB_DELAY_MS = 800
+/** Signs a user in with email and password, then loads their profile. Without an active profile they're signed out again. */
+export async function signIn(email: string, password: string): Promise<SignInResult> {
+  let user: User | null
+  try {
+    const { data, error } = await supabase().auth.signInWithPassword({ email, password })
+    if (error) return { ok: false, reason: failureReason(error) }
+    user = await fetchProfile(data.user.id)
+  } catch {
+    return { ok: false, reason: 'not-connected' }
+  }
+  if (!user) {
+    await signOut()
+    return { ok: false, reason: 'no-access' }
+  }
+  return { ok: true, user }
+}
 
 /**
- * Signs a user in with email and password.
- * DEMO ONLY: `accounts` are the sample users from the users store (the real auth
- * provider looks accounts up itself). The password is intentionally unused (and
- * never logged or stored). The email is matched ignoring case; a deleted account
- * is refused; any other email signs in as the first sample user (Sara).
+ * The person whose session this tab already has (after a reload), or null. A session
+ * without an active profile is ended. If the server can't be reached, the session is
+ * kept for the next reload and nobody is signed in for now.
  */
-export async function signIn(email: string, _password: string, accounts: User[]): Promise<SignInResult> {
-  await new Promise((resolve) => setTimeout(resolve, STUB_DELAY_MS))
-  const address = email.toLowerCase()
-  const matches = accounts.filter((account) => account.email.toLowerCase() === address)
-  const active = matches.find((account) => !account.deletedAt)
-  if (active) return { ok: true, user: active }
-  if (matches.length > 0) return { ok: false, reason: 'no-access' }
-  const fallback = accounts[0]
-  return fallback && !fallback.deletedAt ? { ok: true, user: fallback } : { ok: false, reason: 'no-access' }
+export async function restoreSession(): Promise<User | null> {
+  try {
+    const { data } = await supabase().auth.getSession()
+    const userId = data.session?.user.id
+    if (!userId) return null
+    const user = await fetchProfile(userId)
+    if (!user) await signOut()
+    return user
+  } catch {
+    return null
+  }
+}
+
+/** Ends the session in this browser only (other devices stay signed in). */
+export async function signOut(): Promise<void> {
+  try {
+    await supabase().auth.signOut({ scope: 'local' })
+  } catch {
+    // The local session is removed even when the server can't be reached.
+  }
+}
+
+/** Calls `callback` whenever the session ends (signed out, or it could no longer be refreshed). Returns an unsubscribe function. */
+export function onSignedOut(callback: () => void): () => void {
+  const { data } = supabase().auth.onAuthStateChange((event) => {
+    if (event === 'SIGNED_OUT') callback()
+  })
+  return () => data.subscription.unsubscribe()
+}
+
+function failureReason(error: AuthError): SignInFailureReason {
+  if (isAuthRetryableFetchError(error)) return 'not-connected'
+  if (error.code === 'invalid_credentials') return 'invalid-credentials'
+  if (error.status === 429 || error.code === 'over_request_rate_limit') return 'too-many-attempts'
+  if (isAuthApiError(error) && (error.code === 'user_banned' || error.code === 'email_not_confirmed')) return 'no-access'
+  return 'failed'
 }

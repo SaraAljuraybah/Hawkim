@@ -1,11 +1,15 @@
 import { createContext, useContext } from 'react'
 import type { User } from '../data/mock/types'
 
+/** loading: checking whether this tab already has a session (after a reload). */
+export type SessionStatus = 'loading' | 'signed-out' | 'signed-in'
+
 export interface SessionStore {
-  /** The signed-in user, or null when nobody is signed in. */
+  status: SessionStatus
+  /** The signed-in user, or null when nobody is signed in (or it isn't known yet). */
   user: User | null
   /** Starts a session for this user (after the auth service accepted the sign-in). */
-  signIn: (userId: string) => void
+  signIn: (user: User) => void
   signOut: () => void
 }
 

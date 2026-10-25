@@ -24,7 +24,9 @@ const SIGN_IN_PATH = '/login'
 
 /** Employee screens (sidebar + top bar): signed-in users without the Admin permission. */
 export function EmployeeArea() {
-  const { user } = useSession()
+  const { status, user } = useSession()
+  // After a reload, wait for this tab's session before deciding where to go.
+  if (status === 'loading') return <PageLoading fullScreen />
   if (!user) return <Navigate to={SIGN_IN_PATH} replace />
   // Admins use only the admin portal.
   if (hasPermission(user, 'admin')) return <Navigate to={ADMIN_USERS_PATH} replace />
@@ -57,7 +59,8 @@ function DepartmentRouteGuard({ children }: { children: ReactNode }) {
  * Not Found page inside their usual employee shell (the portal isn't revealed).
  */
 export function AdminArea() {
-  const { user } = useSession()
+  const { status, user } = useSession()
+  if (status === 'loading') return <PageLoading fullScreen />
   if (!user) return <Navigate to={SIGN_IN_PATH} replace />
   if (!hasPermission(user, 'admin')) {
     return (

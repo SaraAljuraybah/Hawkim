@@ -42,8 +42,11 @@ export const signInEn: SignInContent = {
   },
 
   results: {
-    notConnected: "Sign-in isn't connected yet. This will work once the backend is ready.",
-    noAccess: 'This account no longer has access to Hawkim.',
+    invalidCredentials: 'The email or password is incorrect.',
+    tooManyAttempts: 'Too many sign-in attempts. Wait a few minutes, then try again.',
+    notConnected: "Couldn't reach Hawkim. Check your internet connection and try again.",
+    noAccess: "This account doesn't have access to Hawkim. Contact the project owner.",
+    failed: "Sign-in didn't work. Please try again.",
   },
 
   // TODO: The Terms of Use and Privacy Policy documents don't exist yet.

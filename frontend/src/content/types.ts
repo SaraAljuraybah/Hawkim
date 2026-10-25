@@ -166,9 +166,12 @@ export interface SignInContent {
   }
   /** Messages for the result returned by the auth service. */
   results: {
+    invalidCredentials: string
+    tooManyAttempts: string
     notConnected: string
-    /** The account was deleted by an admin. */
+    /** The account has no active profile (none was set up, or it was ended). */
     noAccess: string
+    failed: string
   }
   /** "By signing in, you agree to our {terms} and {privacy}." */
   legal: {
