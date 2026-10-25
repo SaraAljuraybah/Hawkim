@@ -1,5 +1,5 @@
 /*
- * English content for the authentication pages (currently: Sign In).
+ * English content for the authentication pages (Sign In and Forgot password).
  * Same pattern as landing.en.ts — components never contain hard-coded text,
  * so an Arabic version (auth.ar.ts) can be added later.
  */
