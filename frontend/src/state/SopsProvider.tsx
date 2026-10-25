@@ -181,7 +181,7 @@ export function SopsProvider({ children }: { children: ReactNode }) {
       removeInternalReviewer: (id, roundId, assignmentId, reason) => update(id, (sop) => removeInternalReviewer(sop, userId, roundId, assignmentId, reason, environment)),
       resubmit: (id, options) => update(id, (sop) => {
         if (sop.internalReviewRounds?.length) {
-          throw new Error('Use Request reviews to send the new version to reviewers')
+          throw new Error('Use Submit for review to send the new version to reviewers')
         }
         if (sop.reviewFlow && !users.some((u) => u.id === userId && !u.deletedAt && u.permissions.includes('author') && !u.permissions.includes('admin'))) throw new Error('An active main Author account is required')
         return workflow.resubmit(sop, userId, guideline.version, options?.note, options?.dueDate)

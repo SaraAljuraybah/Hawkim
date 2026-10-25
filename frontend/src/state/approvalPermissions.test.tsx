@@ -271,7 +271,7 @@ describe('assigned controller decisions at the store boundary', () => {
     controller.returnAsApprover(sop.id, 'controller', 'Upload a revision', snapshot(sop))
     let returned = current()
     expect(() => capture('author', returned).submitForReview(sop.id, { reviewerIds: ['reviewer'] })).toThrow(/new version/)
-    expect(() => capture('author', returned).resubmit(sop.id)).toThrow(/Request reviews/)
+    expect(() => capture('author', returned).resubmit(sop.id)).toThrow(/Submit for review/)
     vi.advanceTimersByTime(1000)
     returned = uploadVersion(returned, 'author', { fileName: 'revised.pdf', fileType: 'pdf' })
     expect(() => capture('author', returned).submitForReview(sop.id, { reviewerIds: ['reviewer'] })).toThrow(/compliance/)

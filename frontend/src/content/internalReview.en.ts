@@ -1,8 +1,8 @@
 /** English content for internal parallel review requests and their audit history. */
 export const internalReviewEn = {
   submit: {
-    title: 'Request reviews',
-    button: 'Request reviews', addIntro: 'Add reviewers to the review of v{version}.', added: 'Review requests sent.',
+    title: 'Submit for review',
+    addIntro: 'Add reviewers to the review of v{version}.',
     versionIntro: 'You are sending v{version}.', optionStatus: '{name} · {status} v{version}',
     versionHint: 'A reviewer who already has a request will get this version instead. Their earlier request stays in the history.',
     reviewers: 'Select reviewers',
@@ -17,7 +17,7 @@ export const internalReviewEn = {
     durationHelp: 'Leave blank for no review deadline.',
     durationInvalid: 'Enter a whole number of days from 1 to 30, or leave it blank.',
     note: 'Submission note (optional)',
-    confirm: 'Send review requests',
+    confirm: 'Submit',
     cancel: 'Cancel',
   },
   actions: {

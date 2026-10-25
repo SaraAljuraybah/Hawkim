@@ -43,6 +43,12 @@ function decide(source: Sop, userId: string, decision: 'completed' | 'returned',
   const round = currentInternalRound(sop)!
   return decideInternalReview(sop, userId, round.id, round.assignments.find((item) => item.userId === userId)!.id, decision, text, environment())
 }
+/** In every mode the dialog is titled "Submit for review" (its accessible name) and confirms with "Submit". */
+function expectSubmitTexts(html: string) {
+  const titleId = html.match(/<dialog[^>]*aria-labelledby="([^"]+)"/)![1]
+  expect(html).toContain(`<h2 id="${titleId}" class="text-lg">Submit for review</h2>`)
+  expect(html).toMatch(/<button type="submit"[^>]*>Submit<\/button>/)
+}
 beforeEach(() => { vi.useFakeTimers({ now: new Date(2026, 9, 23, 12) }); fixture.userId = 'author' })
 afterEach(() => vi.useRealTimers())
 
@@ -51,11 +57,11 @@ describe('internal parallel review across transitions and detail views', () => {
     const finished = decide(decide(start(), 'reviewer-a', 'completed', 'Fine'), 'reviewer-b', 'returned', 'Revise the safety section')
     fixture.sop = finished
     expect(render(<SopWorkflowPage />)).toContain('>' + sopWorkflowEn.history.upload + '<')
-    expect(render(<SopWorkflowPage />)).not.toContain('>' + internalReviewEn.submit.button + '<')
+    expect(render(<SopWorkflowPage />)).not.toContain('>' + sopWorkflowEn.actions.submit + '<')
     vi.advanceTimersByTime(1000)
     const uploaded = uploadVersion(finished, 'author', { fileName: 'revised.pdf', fileType: 'pdf' })
     fixture.sop = uploaded
-    const button = render(<SopWorkflowPage />).match(/<button[^>]*>Request reviews<\/button>/)![0]
+    const button = render(<SopWorkflowPage />).match(/<button[^>]*>Submit for review<\/button>/)![0]
     expect(button).toContain('disabled=""')
     expect(button).toContain('aria-describedby="submit-hint"')
     const html = renderToStaticMarkup(<SubmitDialog mode="version" sop={uploaded} content={sopWorkflowEn.dialogs} onSubmit={() => {}} onClose={() => {}} />)
@@ -63,18 +69,20 @@ describe('internal parallel review across transitions and detail views', () => {
     expect(html).toContain(internalReviewEn.submit.versionHint)
     expect(html).toContain('Reviewer Alpha · Completed v1')
     expect(html).toContain('Reviewer Beta · Returned with comments v1')
+    expectSubmitTexts(html)
   })
-  it('offers the Request reviews dialog for the same version with only reviewers who can be asked again', () => {
+  it('offers the Submit for review dialog for the same version with only reviewers who can be asked again', () => {
     const started = start(), round = currentInternalRound(started)!
     const sop = declineInternalReview(started, 'reviewer-a', round.id, round.assignments[0].id, 'On leave', environment())
     fixture.sop = sop
-    expect(render(<SopWorkflowPage />)).toContain('>' + internalReviewEn.submit.button + '<')
+    expect(render(<SopWorkflowPage />)).toContain('>' + sopWorkflowEn.actions.submit + '<')
     const html = renderToStaticMarkup(<SubmitDialog mode="add" sop={sop} content={sopWorkflowEn.dialogs} onSubmit={() => {}} onClose={() => {}} />)
     expect(html).toContain(internalReviewEn.submit.addIntro.replace('{version}', '1'))
     expect(html).toContain('Reviewer Alpha')
     expect(html).not.toContain('Reviewer Beta')
+    expectSubmitTexts(html)
     fixture.userId = 'coauthor'
-    expect(render(<SopWorkflowPage />)).not.toContain('>' + internalReviewEn.submit.button + '<')
+    expect(render(<SopWorkflowPage />)).not.toContain('>' + sopWorkflowEn.actions.submit + '<')
   })
   it('keeps unassigned users outside the Author and Reviewer detail views', () => {
     fixture.sop = start()
@@ -84,7 +92,9 @@ describe('internal parallel review across transitions and detail views', () => {
   })
   it('keeps eligible reviewers in a collapsed multi-select with a response due date, review duration and comments', () => {
     const html = renderToStaticMarkup(<SubmitDialog sop={draft()} content={sopWorkflowEn.dialogs} onSubmit={() => {}} onClose={() => {}} />)
-    expect(html).toContain('Request reviews')
+    expectSubmitTexts(html)
+    expect(html).not.toContain('Request reviews')
+    expect(html).not.toContain('Send review requests')
     expect(html).not.toContain('Request internal reviews')
     expect(html).not.toContain('Internal reviewers')
     expect(html).not.toContain('Select eligible reviewers from the SOP department. All selected reviewers receive their tasks together.')
@@ -219,7 +229,7 @@ describe('historical review pages cannot reveal a later unassigned version', () 
   })
 })
 
-describe('response due date in the Request reviews dialog', () => {
+describe('response due date in the Submit for review dialog', () => {
   const text = internalReviewEn.submit
   const fieldText = { ...sopWorkflowEn.dialogs.submit.reviewDate, label: text.responseDate, help: text.responseHelp, duration: text.responseTimeGiven }
   const field = (value: string, error?: string) => renderToStaticMarkup(

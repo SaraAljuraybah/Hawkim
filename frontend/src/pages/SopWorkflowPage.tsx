@@ -176,7 +176,7 @@ export function SopWorkflowPage() {
   const internal = !!sop.internalReviewRounds?.length
   // Upload: Draft or Returned, or during internal review once every reviewer has finished the current version.
   const canUpload = sop.status === 'draft' || sop.status === 'returned' || reviewAllowsNewVersion(sop)
-  // Submit for review from Draft, or Resubmit a legacy SOP; internal reviews use Request reviews afterwards.
+  // Submit for review from Draft, or Resubmit a legacy SOP; internal reviews use Submit for review (add reviewers or a new version) afterwards.
   const canSubmit = sop.status === 'draft' || sop.status === 'returned' && !internal
 
   // Submit for review: Submit when Draft, Resubmit when Returned (main author only).
@@ -195,7 +195,7 @@ export function SopWorkflowPage() {
         : actions.checkNeeded
   const submitReason = sop.status === 'returned' && !canResubmit(sop) ? actions.resubmitHint : checkReason
   // Legacy review plans keep their existing handoff. Parallel reviews await this main-Author action.
-  // Request reviews: the current version to more reviewers, or a new version (once checked) to the reviewers chosen.
+  // Submit for review during internal review: the current version to more reviewers, or a new version (once checked) to the reviewers chosen.
   const addReviewers = isMainAuthor && canAddReviewers(sop)
   const sendVersion = isMainAuthor && internal && canSendNewVersion(sop)
   const requestReason = sendVersion ? checkReason : undefined
@@ -433,7 +433,7 @@ export function SopWorkflowPage() {
               )}
               {(addReviewers || sendVersion) && (
                 <Button size="sm" disabled={!!requestReason} aria-describedby={requestReason ? 'submit-hint' : undefined}
-                  onClick={(event) => open(sendVersion ? 'submit' : 'addReviewers', event.currentTarget)}>{internalReviewEn.submit.button}</Button>
+                  onClick={(event) => open(sendVersion ? 'submit' : 'addReviewers', event.currentTarget)}>{actions.submit}</Button>
               )}
               {showApproval && (
                 // Not available yet: grey and aria-disabled, so it stays focusable and the list below is read with it.
@@ -484,7 +484,7 @@ export function SopWorkflowPage() {
           onClose={closeDialog}
           onSubmit={(options) => {
             store.submitForReview(sop.id, options)
-            announce(sendVersion ? internalReviewEn.submit.added : content.messages.submitted)
+            announce(content.messages.submitted)
           }}
         />
       )}
@@ -496,7 +496,7 @@ export function SopWorkflowPage() {
           onClose={closeDialog}
           onSubmit={(options) => {
             store.addInternalReviewers(sop.id, options)
-            announce(internalReviewEn.submit.added)
+            announce(content.messages.submitted)
           }}
         />
       )}

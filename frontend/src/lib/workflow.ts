@@ -325,7 +325,7 @@ export function returnedFrom(sop: Sop): 'in-review' | 'in-approval' | undefined 
  */
 export function canResubmit(sop: Sop): boolean {
   if (sop.status !== 'returned') return false
-  // Internal reviews send a new version with Request reviews instead.
+  // Internal reviews send a new version with Submit for review instead.
   if (sop.internalReviewRounds?.length) return false
   const returned = latestReturn(sop)
   const current = activeVersions(sop).find((version) => version.version === sop.version)

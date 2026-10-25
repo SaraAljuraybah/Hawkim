@@ -16,7 +16,7 @@ interface ResubmitDialogProps {
   onClose: () => void
 }
 
-/** Legacy resubmission clears earlier deadlines and accepts an optional new date and comments. Internal reviews send a new version with Request reviews. */
+/** Legacy resubmission clears earlier deadlines and accepts an optional new date and comments. Internal reviews send a new version with Submit for review. */
 export function ResubmitDialog({ content, onSubmit, onClose }: ResubmitDialogProps) {
   const text = content.resubmit
   const fields = content.submit

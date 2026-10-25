@@ -126,7 +126,7 @@ describe('main Author approval interface', () => {
     expect(approvalButton(html)).toContain('aria-disabled="true"')
     expect(html).toContain('id="approval-hint"')
     // Everyone removed: still In Review, and the author can ask other reviewers.
-    expect(html).toContain('>' + internalReviewEn.submit.button + '<')
+    expect(html).toContain('>' + sopWorkflowEn.actions.submit + '<')
   })
   it('allows approval after a real completed review and an individually cancelled assignment', () => {
     const reviewed = decide(start(), 'reviewer-a')
