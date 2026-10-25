@@ -95,6 +95,16 @@ describe('internal parallel review across transitions and detail views', () => {
     fixture.userId = 'reviewer-b'
     expect(render(<ReviewPage />)).toContain(heading('Reviewer Alpha'))
   })
+  it('keeps sent, accepted and decided times and decision comments in the author page timeline, not the request cards', () => {
+    fixture.sop = decide(decide(start(), 'reviewer-a', 'completed', 'All sections are clear'), 'reviewer-b', 'returned', 'Revise the safety section')
+    const author = render(<SopWorkflowPage />)
+    const panel = author.slice(author.indexOf('id="internal-review-title"'), author.indexOf(sopWorkflowEn.timeline.title))
+    expect(panel).toContain('>Version v1<')
+    for (const text of ['Request sent ', 'Decision submitted ', 'All sections are clear', 'Revise the safety section']) expect(panel).not.toContain(text)
+    const events = sopWorkflowEn.timeline.events
+    for (const label of [events.submitted, events['review-accepted'], events['review-completed'], events['review-changes-requested']]) expect(author).toContain('>' + label + '<')
+    for (const comment of ['All sections are clear', 'Revise the safety section']) expect(author).toContain(comment)
+  })
   it('keeps unassigned users outside the Author and Reviewer detail views', () => {
     fixture.sop = start()
     fixture.userId = 'external'

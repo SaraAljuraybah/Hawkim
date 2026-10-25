@@ -317,7 +317,7 @@ export function SopWorkflowPage() {
         )}
       </Section>
 
-      <InternalReviewPanel sop={sop} canRemove={isMainAuthor} activeOnly />
+      <InternalReviewPanel sop={sop} canRemove={isMainAuthor} activeOnly compact />
 
       {/* 2. SOP history */}
       <Section

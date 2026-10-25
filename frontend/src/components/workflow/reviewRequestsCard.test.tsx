@@ -106,6 +106,32 @@ describe('review request status colours', () => {
   })
 })
 
+describe('compact request cards (author SOP page)', () => {
+  function reviewed() {
+    let sop = startInternalReview(draft(), 'author', '4.0', { reviewerIds: ['alpha', 'beta', 'gamma'], reviewDurationDays: 3 }, env())
+    const round = currentInternalRound(sop)!
+    for (const userId of ['alpha', 'beta', 'gamma']) sop = acceptInternalReview(sop, userId, round.id, request(sop, userId).id, env())
+    sop = decideInternalReview(sop, 'beta', round.id, request(sop, 'beta').id, 'completed', 'Looks fine to me', env())
+    return decideInternalReview(sop, 'gamma', round.id, request(sop, 'gamma').id, 'returned', 'Revise section 2', env())
+  }
+  it('shows the name, status, version, deadlines and Remove, without sent, accepted and decided times or comments', () => {
+    const html = render(<InternalReviewPanel sop={reviewed()} canRemove activeOnly compact />)
+    for (const name of ['Reviewer Alpha', 'Reviewer Beta', 'Reviewer Gamma']) expect(html).toContain(`<h3 class="text-base font-semibold text-maroon">${name}</h3>`)
+    for (const label of ['Accepted', 'Completed', 'Returned with comments']) expect(html).toContain(`</span>${label}</span>`)
+    expect(html.match(/>Version v1</g)).toHaveLength(3)
+    expect(html).toContain('Review due ')
+    expect(html.match(/>Remove reviewer</g)).toHaveLength(3)
+    expect(html).not.toContain('Request sent ')
+    expect(html).not.toContain('<p class="text-xs text-text-gray">Accepted ')
+    expect(html).not.toContain('Decision submitted ')
+    for (const comment of ['Looks fine to me', 'Revise section 2']) expect(html).not.toContain(comment)
+  })
+  it('keeps the full cards on the review page panel', () => {
+    const html = render(<InternalReviewPanel sop={reviewed()} canRemove={false} />)
+    for (const text of ['Request sent ', '<p class="text-xs text-text-gray">Accepted ', 'Decision submitted ', 'Looks fine to me', 'Revise section 2']) expect(html).toContain(text)
+  })
+})
+
 describe('review requests card with only active reviewers (author SOP page)', () => {
   const heading = (name: string) => `<h3 class="text-base font-semibold text-maroon">${name}</h3>`
   it('leaves out reviewers whose latest request was removed, declined or withdrawn', () => {

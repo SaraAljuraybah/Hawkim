@@ -21,6 +21,8 @@ interface Props {
    * The Review timeline keeps the full record.
    */
   activeOnly?: boolean
+  /** Shorter request cards (the author's SOP page): version and deadlines only (see ReviewRequestDetails). */
+  compact?: boolean
 }
 
 const TITLE_ID = 'internal-review-title'
@@ -30,7 +32,7 @@ const TITLE_ID = 'internal-review-title'
  * its version, its deadlines, and any reason or comments. The main author can remove a reviewer
  * from the current version's review.
  */
-export function InternalReviewPanel({ sop, canRemove, activeOnly = false }: Props) {
+export function InternalReviewPanel({ sop, canRemove, activeOnly = false, compact = false }: Props) {
   const { nameOf } = useUsers()
   const store = useSops()
   const [target, setTarget] = useState<{ roundId: string; assignment: InternalReviewerAssignment } | null>(null)
@@ -70,7 +72,7 @@ export function InternalReviewPanel({ sop, canRemove, activeOnly = false }: Prop
         <ul aria-label={text.panel.reviewerHistory.replace('{name}', name)} className="mt-2 space-y-3">{own.map(({ round, assignment }) =>
           <li key={assignment.id} className="border-t border-beige pt-3 first:border-0 first:pt-0">
             <RequestStatusBadge sop={sop} request={assignment} />
-            <ReviewRequestDetails sop={sop} request={assignment} />
+            <ReviewRequestDetails sop={sop} request={assignment} compact={compact} />
             {removable && round === current && assignment === latest && assignment.decision !== 'removed' &&
               <Button size="sm" variant="secondary" className="mt-2" aria-label={text.panel.removeFor.replace('{name}', name)}
                 onClick={(event) => { triggerRef.current = event.currentTarget; setTarget({ roundId: round.id, assignment }); setReason(''); setReasonError(''); setError('') }}>{text.panel.remove}</Button>}
