@@ -40,12 +40,6 @@ export function parseResponseDueDate(isoDate: string, now = new Date()): { valid
   return days !== undefined && days >= (isAfterResponseCutoff(now) ? 1 : 0) ? { valid: true, days } : { valid: false }
 }
 
-/** Why a response due date can't be used now: the earliest allowed day is 'today' or 'tomorrow'. Undefined when it's valid. */
-export function responseDueDateError(isoDate: string, now = new Date()): 'today' | 'tomorrow' | undefined {
-  if (parseResponseDueDate(isoDate, now).valid) return undefined
-  return isAfterResponseCutoff(now) ? 'tomorrow' : 'today'
-}
-
 /** The time to respond: from when it starts counting to the end of the response due date. */
 export function responseTimeMilliseconds(isoDate: string, sentAt = new Date()): number {
   return new Date(endOfLocalDay(isoDate)).getTime() - responseCountsFrom(sentAt).getTime()

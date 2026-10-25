@@ -244,11 +244,11 @@ describe('response due date in the Request reviews dialog', () => {
   })
   it('shows the date error in an announced pop-up with a close button instead of under the field', () => {
     vi.setSystemTime(new Date(2026, 9, 26, 16, 40))
-    const html = field('2026-10-26', text.dateInvalidLate)
+    const html = field('2026-10-26', text.dateInvalid)
     const popup = html.match(/<div[^>]*role="alert"[^>]*>/)![0]
     const popupId = popup.match(/id="([^"]+)"/)![1]
     const input = html.match(/<input[^>]*type="date"[^>]*>/)![0]
-    expect(html).toContain('Choose tomorrow or a later date, or leave it blank.')
+    expect(html).toContain('>Invalid date.<')
     expect(html).toContain(`aria-label="${text.closeAlert}"`)
     expect(input).toContain('aria-invalid="true"')
     expect(input).toContain(popupId)

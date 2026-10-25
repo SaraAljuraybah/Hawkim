@@ -6,7 +6,7 @@ import type { Sop } from '../../data/mock/types'
 import { addableReviewers, currentInternalRound } from '../../lib/internalReview'
 import { isValidReviewDuration, latestAssignmentOf, REVIEW_DURATION_MAX, REVIEW_DURATION_MIN } from '../../lib/internalReviewStatus'
 import { eligibleReviewers } from '../../lib/reviewFlow'
-import { responseDueDateError } from '../../lib/responseTime'
+import { parseResponseDueDate } from '../../lib/responseTime'
 import { SUBMIT_COMMENT_MAX } from '../../lib/workflow'
 import type { SubmitOptions } from '../../state/sopsContext'
 import { useUsers } from '../../state/usersContext'
@@ -64,9 +64,8 @@ export function SubmitDialog({ sop, content, onSubmit, onClose, mode = 'submit' 
       firstRef.current?.focus()
       return false
     }
-    const earliest = responseDueDateError(dueDate)
-    if (earliest) {
-      flushSync(() => setDateError(earliest === 'tomorrow' ? text.dateInvalidLate : text.dateInvalid))
+    if (!parseResponseDueDate(dueDate).valid) {
+      flushSync(() => setDateError(text.dateInvalid))
       requestRef.current?.focus()
       return false
     }
