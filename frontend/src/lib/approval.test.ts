@@ -283,3 +283,34 @@ describe('approval phase transitions with retained parallel review history', () 
     expect(returnAsApprover(inApproval, 'controller', 'Revise').status).toBe('returned')
   })
 })
+
+describe('approval blocker codes', () => {
+  // As on the author's page: external reviews and feedback are confirmed in the dialog later.
+  const page = { noExternalReviewsRequired: true, feedbackAddressed: true }
+  const readiness = (sop: Sop, env = environment()) => approvalReadiness(sop, 'author', env, page)
+  it('gives one code per reason, in the same order', () => {
+    for (const sop of [draft(), requested(), complete(), submit()]) {
+      const result = readiness(sop)
+      expect(result.blockers).toHaveLength(result.reasons.length)
+    }
+    expect(readiness(complete())).toMatchObject({ ready: true, blockers: [], reasons: [] })
+  })
+  it('names the reasons the author page can show', () => {
+    const noController = { ...environment(), departments: environment().departments.map((item) => ({ ...item, qualityControllerId: undefined })) }
+    expect(readiness(complete(), noController).blockers).toEqual(['no-approver'])
+    const removed = { ...environment(), departments: environment().departments.map((item) => item.id === 'home' ? { ...item, removedAt: '2026-10-22T09:00:00Z' } : item) }
+    expect(readiness(complete(), removed).blockers).toEqual(['department-unavailable', 'no-approver'])
+    expect(readiness({ ...complete(), complianceChecks: [] }).blockers).toEqual(['compliance-check'])
+    const submitted = submit()
+    expect(readiness(submitted).blockers).toEqual(['not-in-review', 'already-requested'])
+    const returned = returnAsApprover(submitted, 'controller', 'Revise the controls', snapshot(submitted))
+    expect(returned.status).toBe('returned')
+    expect(readiness(returned).blockers).toEqual(['not-in-review', 'already-requested'])
+    expect(approvalReadiness(complete(), 'coauthor', environment(), page).blockers).toEqual(['not-main-author'])
+  })
+  it('names the dialog-only reasons too', () => {
+    const sop = complete('Please tidy the wording')
+    expect(approvalReadiness(sop, 'author', environment(), { dueDate: '2026-10-23' }).blockers).toEqual(['external-confirm', 'feedback-confirm', 'due-date'])
+    expect(approvalReadiness(sop, 'author', environment(), { ...page, version: '9' }).blockers).toEqual(['version-changed'])
+  })
+})
