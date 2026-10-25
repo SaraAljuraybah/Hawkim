@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { reviewDueDateFrom } from './internalReviewStatus'
 import { formatReviewDuration } from './reviewDuration'
-import { isAfterResponseCutoff, parseResponseDueDate, RESPONSE_CUTOFF_HOUR, RESPONSE_START_HOUR, responseCountsFrom, responseDueDateRange, responseTimeMilliseconds } from './responseTime'
+import { isAfterResponseCutoff, parseResponseDueDate, RESPONSE_CUTOFF_HOUR, RESPONSE_START_HOUR, responseCountsFrom, responseDueDateError, responseDueDateRange, responseTimeMilliseconds } from './responseTime'
 
 /** Oct 26, 2026 at this local time. */
 const oct26 = (hours: number, minutes = 0) => new Date(2026, 9, 26, hours, minutes)
@@ -67,6 +67,14 @@ describe('response time working-hours rule', () => {
       expect(parseResponseDueDate('2026-10-27', sentAt)).toEqual({ valid: true, days: 1 })
     }
     expect(responseDueDateRange(new Date(2026, 9, 31, 16))).toEqual({ min: '2026-11-01' })
+  })
+
+  it('names the earliest allowed day for an unusable due date', () => {
+    expect(responseDueDateError('2026-10-25', oct26(15, 59))).toBe('today')
+    expect(responseDueDateError('2026-10-26', oct26(16))).toBe('tomorrow')
+    expect(responseDueDateError('2026-10-26', oct26(15, 59))).toBeUndefined()
+    expect(responseDueDateError('2026-10-27', oct26(16))).toBeUndefined()
+    expect(responseDueDateError('', oct26(16))).toBeUndefined()
   })
 
   it('accepts a blank due date and rejects dates that are not real', () => {

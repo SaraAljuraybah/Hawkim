@@ -8,6 +8,8 @@ export interface TextFieldProps extends Omit<InputHTMLAttributes<HTMLInputElemen
   hint?: string
   /** Error message; also marks the input as invalid for assistive technology. */
   error?: string
+  /** Marks the input as invalid without an inline error, e.g. while the error is shown in a pop-up. */
+  invalid?: boolean
   /** Element placed inside the input on the right, e.g. a visibility toggle. */
   endAdornment?: ReactNode
   /** Forwarded to the `<input>` (React 19 passes refs as regular props). */
@@ -25,6 +27,7 @@ export function TextField({
   label,
   hint,
   error,
+  invalid = false,
   endAdornment,
   ref,
   id,
@@ -48,9 +51,9 @@ export function TextField({
         <input
           ref={ref}
           id={inputId}
-          aria-invalid={error ? true : undefined}
+          aria-invalid={error || invalid ? true : undefined}
           aria-describedby={describedByIds}
-          className={`h-11 ${controlClasses(error)} ${endAdornment ? 'pr-12' : ''}`}
+          className={`h-11 ${controlClasses(error || (invalid ? 'invalid' : undefined))} ${endAdornment ? 'pr-12' : ''}`}
           {...inputProps}
         />
         {endAdornment && (

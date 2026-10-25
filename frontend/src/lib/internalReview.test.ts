@@ -88,6 +88,22 @@ describe('internal parallel review requests', () => {
       expect(() => startInternalReview(draft(), 'author', '4.0', { reviewerIds: ['a'], reviewDurationDays }, env())).toThrow(/duration/)
     }
   })
+  it('accepts today as the response due date until 4:00 PM and only tomorrow or later from then', () => {
+    vi.setSystemTime(new Date(2026, 9, 23, 15, 59))
+    expect(() => startInternalReview(draft(), 'author', '4.0', { reviewerIds: ['a'], responseDueDate: '2026-10-23' }, env())).not.toThrow()
+    vi.setSystemTime(new Date(2026, 9, 23, 16))
+    expect(() => startInternalReview(draft(), 'author', '4.0', { reviewerIds: ['a'], responseDueDate: '2026-10-23' }, env())).toThrow(/response due date/)
+    const late = startInternalReview(draft(), 'author', '4.0', { reviewerIds: ['a', 'b'], responseDueDate: '2026-10-24', reviewDurationDays: 5 }, env())
+    // The deadline stays the end of the chosen day, and the reviewer can accept at once (nothing waits for 8:00 AM).
+    expect(reviewerDueAt(late, task(late, 'a'))).toBe(new Date(2026, 9, 24, 23, 59, 59, 999).toISOString())
+    const accepted = accept(late, 'a')
+    // The review duration is not affected: it counts from acceptance.
+    expect(task(accepted, 'a')).toMatchObject({ acceptedAt: new Date(2026, 9, 23, 16).toISOString(), reviewDueDate: '2026-10-28' })
+    expect(() => decline(accepted, 'b')).not.toThrow()
+    // Adding reviewers follows the same rule.
+    expect(() => addInternalReviewers(accepted, 'author', { reviewerIds: ['c'], responseDueDate: '2026-10-23' }, env())).toThrow(/response due date/)
+    expect(() => addInternalReviewers(accepted, 'author', { reviewerIds: ['c'], responseDueDate: '2026-10-24' }, env())).not.toThrow()
+  })
   it('starts the review duration when each reviewer accepts, due at the end of the last day', () => {
     vi.setSystemTime(new Date(2026, 9, 25, 15))
     const sop = startInternalReview(draft(), 'author', '4.0', { reviewerIds: ['a', 'b', 'c'], reviewDurationDays: 5 }, env())

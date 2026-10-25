@@ -6,7 +6,8 @@ import type { Sop } from '../../data/mock/types'
 import { addableReviewers, currentInternalRound } from '../../lib/internalReview'
 import { isValidReviewDuration, latestAssignmentOf, REVIEW_DURATION_MAX, REVIEW_DURATION_MIN } from '../../lib/internalReviewStatus'
 import { eligibleReviewers } from '../../lib/reviewFlow'
-import { parseDueDate, SUBMIT_COMMENT_MAX } from '../../lib/workflow'
+import { responseDueDateError } from '../../lib/responseTime'
+import { SUBMIT_COMMENT_MAX } from '../../lib/workflow'
 import type { SubmitOptions } from '../../state/sopsContext'
 import { useUsers } from '../../state/usersContext'
 import { MultiSelectField } from '../ui/MultiSelectField'
@@ -63,8 +64,9 @@ export function SubmitDialog({ sop, content, onSubmit, onClose, mode = 'submit' 
       firstRef.current?.focus()
       return false
     }
-    if (!parseDueDate(dueDate).valid) {
-      flushSync(() => setDateError(text.dateInvalid))
+    const earliest = responseDueDateError(dueDate)
+    if (earliest) {
+      flushSync(() => setDateError(earliest === 'tomorrow' ? text.dateInvalidLate : text.dateInvalid))
       requestRef.current?.focus()
       return false
     }
@@ -87,9 +89,9 @@ export function SubmitDialog({ sop, content, onSubmit, onClose, mode = 'submit' 
         invalid={!!error} describedBy={error ? reviewerErrorId : undefined}
         options={options.map((user) => ({ value: user.id, label: optionLabel(user.id, user.name) }))} value={reviewerIds}
         emptyText={text.noneEligible} onChange={(next) => { setReviewerIds(next); setError(''); setFailed(false) }} />
-      <ReviewDueDateField ref={requestRef} name="reviewRequestDueDate"
+      <ReviewDueDateField ref={requestRef} name="reviewRequestDueDate" stage="response"
         text={{ ...fields.reviewDate, label: text.responseDate, help: text.responseHelp, duration: text.responseTimeGiven }}
-        value={dueDate} error={dateError}
+        value={dueDate} error={dateError} closeLabel={text.closeAlert} onDismissError={() => setDateError('')}
         onChange={(value) => { setDueDate(value); setDateError(''); setFailed(false) }} />
       <TextField ref={durationRef} name="reviewDurationDays" type="number" inputMode="numeric" min={REVIEW_DURATION_MIN} max={REVIEW_DURATION_MAX} step={1}
         label={text.duration} hint={text.durationHelp} value={duration} error={durationError || undefined}

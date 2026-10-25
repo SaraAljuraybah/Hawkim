@@ -9,6 +9,7 @@ import { reviewTasks } from '../../lib/reviews'
 import { deriveNotifications } from '../../lib/notifications'
 import { internalReviewEn } from '../../content/internalReview.en'
 import { sopWorkflowEn } from '../../content/workflow.en'
+import { ReviewDueDateField } from './ReviewDueDateField'
 import { SubmitDialog } from './SubmitDialog'
 import { SopWorkflowPage } from '../../pages/SopWorkflowPage'
 import { ReviewPage } from '../../pages/ReviewPage'
@@ -107,6 +108,7 @@ describe('internal parallel review across transitions and detail views', () => {
     expect(html).toContain(internalReviewEn.submit.durationHelp)
     expect(html).not.toContain('withdrawn automatically')
     expect(html).not.toContain('has to finish after they accept')
+    expect(html.match(/<input[^>]*type="date"[^>]*>/)![0]).toContain('min="2026-10-23"')
     expect(html.match(/type="date"/g)).toHaveLength(1)
     expect(html).not.toContain('name="reviewerDueDate-')
     expect(html.match(/<input[^>]*type="date"[^>]*>/)![0]).not.toContain('max="')
@@ -214,5 +216,50 @@ describe('historical review pages cannot reveal a later unassigned version', () 
     expect(render(<ReviewPage />)).toContain('>Accept review<')
     expect(render(<ReviewPage />)).toContain('/private-v2.docx')
     expect(JSON.stringify(fixture.sop.internalReviewRounds!.slice(0, -1))).toBe(history)
+  })
+})
+
+describe('response due date in the Request reviews dialog', () => {
+  const text = internalReviewEn.submit
+  const fieldText = { ...sopWorkflowEn.dialogs.submit.reviewDate, label: text.responseDate, help: text.responseHelp, duration: text.responseTimeGiven }
+  const field = (value: string, error?: string) => renderToStaticMarkup(
+    <ReviewDueDateField name="reviewRequestDueDate" stage="response" text={fieldText} value={value} error={error} closeLabel={text.closeAlert} onChange={() => {}} />)
+  it('counts the time to respond from the moment it is sent before 4:00 PM, and today is selectable', () => {
+    vi.setSystemTime(new Date(2026, 9, 26, 14))
+    const html = field('2026-10-27')
+    expect(html).toContain('min="2026-10-26"')
+    expect(html).toContain('Time to respond: 1 day 9 hours')
+  })
+  it('counts from 8:00 AM the next day from 4:00 PM, and today is no longer selectable', () => {
+    vi.setSystemTime(new Date(2026, 9, 26, 16, 40))
+    expect(field('2026-10-27')).toContain('Time to respond: 15 hours 59 minutes')
+    expect(field('2026-10-27')).toContain('min="2026-10-27"')
+    expect(renderToStaticMarkup(<SubmitDialog sop={draft()} content={sopWorkflowEn.dialogs} onSubmit={() => {}} onClose={() => {}} />)).toContain('min="2026-10-27"')
+    expect(field('2026-10-26')).not.toContain('Time to respond')
+  })
+  it('counts from 8:00 AM the same day before 8:00 AM', () => {
+    vi.setSystemTime(new Date(2026, 9, 26, 6, 30))
+    expect(field('2026-10-26')).toContain('min="2026-10-26"')
+    expect(field('2026-10-26')).toContain('Time to respond: 15 hours 59 minutes')
+  })
+  it('shows the date error in an announced pop-up with a close button instead of under the field', () => {
+    vi.setSystemTime(new Date(2026, 9, 26, 16, 40))
+    const html = field('2026-10-26', text.dateInvalidLate)
+    const popup = html.match(/<div[^>]*role="alert"[^>]*>/)![0]
+    const popupId = popup.match(/id="([^"]+)"/)![1]
+    const input = html.match(/<input[^>]*type="date"[^>]*>/)![0]
+    expect(html).toContain('Choose tomorrow or a later date, or leave it blank.')
+    expect(html).toContain(`aria-label="${text.closeAlert}"`)
+    expect(input).toContain('aria-invalid="true"')
+    expect(input).toContain(popupId)
+    // No inline error under the field; its hint stays visible.
+    expect(html).not.toContain('-error"')
+    expect(html).toContain(text.responseHelp)
+    expect(field('2026-10-27')).not.toContain('role="alert"')
+  })
+  it('keeps the inline error for other due date fields', () => {
+    const html = renderToStaticMarkup(<ReviewDueDateField name="reviewDueDate" text={sopWorkflowEn.dialogs.submit.reviewDate} value="" error="Choose a date" onChange={() => {}} />)
+    expect(html).not.toContain('role="alert"')
+    expect(html).toContain('Choose a date')
   })
 })

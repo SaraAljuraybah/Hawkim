@@ -29,7 +29,7 @@ export function responseCountsFrom(sentAt: Date): Date {
 }
 
 /** The earliest response due date: today, or tomorrow from 4:00 PM (today would leave no time). */
-export function responseDueDateRange(now = new Date()): { min: string } {
+export function responseDueDateRange(now = new Date()): { min: string; max?: string } {
   return { min: todayIsoDate(isAfterResponseCutoff(now) ? new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1) : now) }
 }
 
@@ -38,6 +38,12 @@ export function parseResponseDueDate(isoDate: string, now = new Date()): { valid
   if (!isoDate.trim()) return { valid: true }
   const days = daysFromToday(isoDate.trim(), now)
   return days !== undefined && days >= (isAfterResponseCutoff(now) ? 1 : 0) ? { valid: true, days } : { valid: false }
+}
+
+/** Why a response due date can't be used now: the earliest allowed day is 'today' or 'tomorrow'. Undefined when it's valid. */
+export function responseDueDateError(isoDate: string, now = new Date()): 'today' | 'tomorrow' | undefined {
+  if (parseResponseDueDate(isoDate, now).valid) return undefined
+  return isAfterResponseCutoff(now) ? 'tomorrow' : 'today'
 }
 
 /** The time to respond: from when it starts counting to the end of the response due date. */

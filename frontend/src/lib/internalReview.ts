@@ -3,7 +3,8 @@ import { hasCurrentCheck } from './compliance'
 import { todayIsoDate } from './format'
 import { isInactiveDecision, isOpenDecision, isUnsentVersion, isValidReviewDuration, isWithdrawalDue, latestAssignmentOf, latestAssignments, projectReviewers, reviewDueDateFrom, withdrawalDueAt } from './internalReviewStatus'
 import { eligibleReviewers, type ReviewEnvironment } from './reviewFlow'
-import { isAuthor, parseDueDate } from './workflow'
+import { parseResponseDueDate } from './responseTime'
+import { isAuthor } from './workflow'
 
 export interface InternalReviewOptions {
   reviewerIds: string[]
@@ -80,10 +81,10 @@ function save(sop: Sop, round: InternalReviewRound, events: TimelineEvent[], ext
 function update(round: InternalReviewRound, assignmentId: string, change: Partial<InternalReviewerAssignment>): InternalReviewRound {
   return { ...round, assignments: round.assignments.map((person) => person.id === assignmentId ? { ...person, ...change } : person) }
 }
-/** The deadlines each new request gets, validated: a response date today or later, and a whole-day duration. */
+/** The deadlines each new request gets, validated: a response date today or later (tomorrow or later from 4:00 PM, see lib/responseTime), and a whole-day duration. */
 function deadlines(options: InternalReviewOptions, now = new Date()): Pick<InternalReviewerAssignment, 'responseDueDate' | 'reviewDurationDays'> {
   const responseDueDate = options.responseDueDate?.trim() || undefined
-  assert(parseDueDate(responseDueDate ?? '', now).valid, 'Choose an optional response due date today or later')
+  assert(parseResponseDueDate(responseDueDate ?? '', now).valid, 'Choose an optional response due date today or later (tomorrow or later from 4:00 PM)')
   assert(isValidReviewDuration(options.reviewDurationDays), 'Choose an optional review duration of 1 to 30 whole days')
   return { ...(responseDueDate ? { responseDueDate } : {}), ...(options.reviewDurationDays !== undefined ? { reviewDurationDays: options.reviewDurationDays } : {}) }
 }

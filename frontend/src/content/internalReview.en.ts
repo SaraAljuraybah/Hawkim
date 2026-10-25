@@ -12,6 +12,9 @@ export const internalReviewEn = {
     responseHelp: 'Leave blank for no response deadline.',
     responseTimeGiven: 'Time to respond: {duration} · Due {date}',
     dateInvalid: 'Choose today or a later date, or leave it blank.',
+    /** From 4:00 PM, when today is no longer selectable. */
+    dateInvalidLate: 'Choose tomorrow or a later date, or leave it blank.',
+    closeAlert: 'Close message',
     duration: 'Review duration in days (optional)',
     durationHelp: 'Leave blank for no review deadline.',
     durationInvalid: 'Enter a whole number of days from 1 to 30, or leave it blank.',
