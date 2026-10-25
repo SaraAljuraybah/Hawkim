@@ -1,5 +1,6 @@
 import { useEffect, useId, useImperativeHandle, useRef, useState, type KeyboardEvent, type Ref } from 'react'
 import { ChevronDown } from 'lucide-react'
+import { toggleOption } from './multiSelect'
 import type { SelectOption } from './SelectField'
 import { controlClasses } from './useFieldIds'
 
@@ -17,7 +18,7 @@ interface MultiSelectFieldProps {
   ref?: Ref<HTMLButtonElement>
 }
 
-/** Disclosure of native checkboxes: Tab/Space, arrow navigation and Escape work together. */
+/** Disclosure of native checkboxes: Tab/Space/Enter, arrow navigation and Escape work together. */
 export function MultiSelectField({ name, label, placeholder, emptyText, options, value, onChange, invalid, describedBy, ref }: MultiSelectFieldProps) {
   const [open, setOpen] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -95,10 +96,23 @@ export function MultiSelectField({ name, label, placeholder, emptyText, options,
       <div id={panelId} role="group" aria-label={label} hidden={!open}
         className="absolute inset-x-0 z-20 mt-1 max-h-60 overflow-y-auto rounded-lg border border-beige bg-white p-1 shadow-lg">
         {options.length ? options.map((option, index) => (
-          <label key={option.value} className="flex cursor-pointer items-center gap-3 rounded-md px-3 py-2.5 text-[0.9375rem] text-maroon hover:bg-beige/60 focus-within:bg-beige/60">
+          <label key={option.value} className="flex cursor-pointer items-center gap-3 rounded-md px-3 py-2.5 text-[0.9375rem] text-maroon hover:bg-beige/60 focus-within:bg-beige/60"
+            // Pressing on the name would move focus out of the list (e.g. to a dialog), which closes it before the click
+            // lands. Keep focus on this row's checkbox instead; the label's click then toggles it.
+            onMouseDown={(event) => {
+              if (event.target === optionRefs.current[index]) return
+              event.preventDefault()
+              optionRefs.current[index]?.focus()
+            }}>
             <input ref={(element) => { optionRefs.current[index] = element }} type="checkbox" name={name} value={option.value}
               checked={value.includes(option.value)}
-              onChange={(event) => onChange(event.target.checked ? [...value, option.value] : value.filter((item) => item !== option.value))}
+              onChange={() => onChange(toggleOption(value, option.value))}
+              // Enter toggles the option instead of submitting the form.
+              onKeyDown={(event) => {
+                if (event.key !== 'Enter') return
+                event.preventDefault()
+                onChange(toggleOption(value, option.value))
+              }}
               className="size-4 shrink-0 cursor-pointer accent-maroon" />
             <span className="min-w-0 break-words">{option.label}</span>
           </label>
