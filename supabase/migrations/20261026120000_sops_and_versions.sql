@@ -191,6 +191,7 @@ set search_path = ''
 as $$
 declare
   name_type public.sop_file_type;
+  expected_type text;
   object_type text;
   object_size bigint;
 begin
@@ -216,9 +217,13 @@ begin
   if not found then
     raise exception 'The uploaded file was not found' using errcode = 'no_data_found';
   end if;
-  if object_type is distinct from case name_type
-       when 'pdf' then 'application/pdf'
-       else 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' end then
+  -- Worked out first: inside an IF condition, a CASE's own THEN would end the condition.
+  if name_type = 'pdf' then
+    expected_type := 'application/pdf';
+  else
+    expected_type := 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+  end if;
+  if object_type is distinct from expected_type then
     raise exception 'The file type does not match its name' using errcode = 'check_violation';
   end if;
   if exists (select 1 from public.sop_versions v where v.storage_path = p_storage_path) then
