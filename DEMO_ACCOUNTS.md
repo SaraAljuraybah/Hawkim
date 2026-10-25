@@ -20,12 +20,11 @@ URL and publishable key (see the README).
 
 ## Good to know (until the next phases)
 
-- Sign-in, people, departments, new SOPs, their versions and files come from the
-  database and survive a reload. Co-authors, compliance checks, review requests,
+- Sign-in, people, departments, new SOPs, their versions, files and co-authors come
+  from the database and survive a reload. Compliance checks, review requests,
   comments, status changes and their notifications are still kept in the browser and
   are lost on reload (the SOP is back in Draft).
-- Until co-authors and reviewers are in the database: only the main author can upload
-  a new version, and reviewers and co-authors can't open the SOP's file.
+- Until reviewers are in the database, reviewers can't open the SOP's file.
 - The sample SOPs, requests and notifications belong to the old sample accounts, so
   they don't appear in My SOPs, My Reviews or My Requests, and sample authors and
   requesters show without a name. Test with new SOPs.
