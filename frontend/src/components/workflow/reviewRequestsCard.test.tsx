@@ -4,12 +4,13 @@ import { MemoryRouter } from 'react-router-dom'
 import type { ReactNode } from 'react'
 import { internalReviewEn } from '../../content/internalReview.en'
 import type { Department, Sop, User } from '../../data/mock/types'
-import { acceptInternalReview, addInternalReviewers, currentInternalRound, declineInternalReview, removeInternalReviewer, startInternalReview, withdrawUnanswered } from '../../lib/internalReview'
+import { acceptInternalReview, addInternalReviewers, currentInternalRound, decideInternalReview, declineInternalReview, removeInternalReviewer, startInternalReview, withdrawUnanswered } from '../../lib/internalReview'
 import { latestAssignmentOf } from '../../lib/internalReviewStatus'
 import { reviewTasks } from '../../lib/reviews'
 import { ReviewsPage } from '../../pages/ReviewsPage'
 import { InternalReviewPanel } from './InternalReviewPanel'
 import { ReviewRequestDetails } from './ReviewRequestDetails'
+import { DecisionBadge } from './DecisionBadge'
 
 const fixture = vi.hoisted(() => ({
   userId: 'author', sop: null as Sop | null,
@@ -77,6 +78,25 @@ describe('review requests card', () => {
     expect(html).toContain('Review overdue')
     // Overdue only marks the request: it is still accepted.
     expect(request(sop, 'alpha').decision).toBe('accepted')
+  })
+})
+
+describe('review request status colours', () => {
+  const badge = (html: string, label: string) => html.match(new RegExp(`<span class="([^"]*)"><span aria-hidden="true"[^>]*></span>${label}</span>`))?.[1] ?? ''
+  it('shows Accepted in green and Completed in the maroon tint, other statuses unchanged', () => {
+    let sop = startInternalReview(draft(), 'author', '4.0', { reviewerIds: ['alpha', 'beta', 'gamma'] }, env())
+    const round = currentInternalRound(sop)!
+    sop = acceptInternalReview(sop, 'alpha', round.id, request(sop, 'alpha').id, env())
+    sop = acceptInternalReview(sop, 'beta', round.id, request(sop, 'beta').id, env())
+    sop = decideInternalReview(sop, 'beta', round.id, request(sop, 'beta').id, 'completed', undefined, env())
+    const html = render(<InternalReviewPanel sop={sop} canRemove />)
+    expect(badge(html, 'Accepted')).toContain('bg-status-approved-bg text-status-approved-fg')
+    expect(badge(html, 'Completed')).toContain('bg-status-published-bg text-status-published-fg')
+    expect(badge(html, 'Pending')).toContain('bg-status-pending-bg text-status-pending-fg')
+  })
+  it('keeps the shared decision colours for other badges, e.g. a legacy Completed in the people list', () => {
+    const html = renderToStaticMarkup(<DecisionBadge decision="completed" labels={{ completed: 'Completed' } as Record<'completed', string>} />)
+    expect(badge(html, 'Completed')).toContain('bg-status-approved-bg text-status-approved-fg')
   })
 })
 

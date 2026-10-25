@@ -13,7 +13,7 @@ export function RequestStatusBadge({ sop, request }: { sop: Sop; request: Intern
   const reviewDueAt = request.reviewDueDate ? endOfLocalDay(request.reviewDueDate) : undefined
   const now = useDeadlineClock(reviewDueAt, active && !!reviewDueAt)
   const overdue = active && !!reviewDueAt && new Date(reviewDueAt).getTime() <= now
-  return <DecisionBadge decision={overdue ? 'overdue' : request.decision} labels={text.panel.decisions} />
+  return <DecisionBadge decision={overdue ? 'overdue' : request.decision} labels={text.panel.decisions} request />
 }
 
 /**
