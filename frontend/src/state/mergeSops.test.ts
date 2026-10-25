@@ -25,7 +25,7 @@ describe('SOPs from the database and this tab', () => {
       complianceChecks: [{ id: 'check', sopId: 'uuid-sop', version: '1', status: 'completed', startedAt: '2026-10-24T09:30:00Z', guideline: { name: 'GVP', version: '4.0' }, findings: [] }],
     })
     const stored = sop({
-      version: '2', fileName: 'Backup v2.pdf', lastUpdated: '2026-10-26',
+      version: '2', fileName: 'Backup v2.pdf', lastUpdated: '2026-10-26', coAuthorIds: ['uuid-reem'],
       versions: [...kept.versions, { version: '2', fileName: 'Backup v2.pdf', fileType: 'pdf', uploadedAt: '2026-10-26T09:00:00Z', storagePath: 'uuid-sara/b.pdf' }],
       timeline: [...sop().timeline, { id: 'db-2', type: 'version-uploaded', actorId: 'uuid-sara', version: '2', createdAt: '2026-10-26T09:00:00Z' }],
     })
@@ -33,10 +33,19 @@ describe('SOPs from the database and this tab', () => {
     expect(merged).toMatchObject({ version: '2', fileName: 'Backup v2.pdf', lastUpdated: '2026-10-26' })
     expect(merged.versions).toHaveLength(2)
     // Kept in this tab until those parts are in the database.
-    expect(merged).toMatchObject({ status: 'in-review', coAuthorIds: ['uuid-reem'] })
+    expect(merged).toMatchObject({ status: 'in-review' })
     expect(merged.complianceChecks).toHaveLength(1)
     // The database's events replace the tab's copies; the tab's other events stay, in order.
     expect(merged.timeline.map((event) => event.id)).toEqual(['db-1', 'tab-1', 'db-2'])
+  })
+
+  it('takes the co-authors and their events from the database', () => {
+    const added = { id: 'tab-added', type: 'co-author-added' as const, actorId: 'uuid-sara', subjectId: 'uuid-reem', version: '1', createdAt: '2026-10-24T09:30:00Z' }
+    const kept = sop({ coAuthorIds: ['uuid-reem'], timeline: [...sop().timeline, added] })
+    const stored = sop({ coAuthorIds: [], timeline: [...sop().timeline, { ...added, id: 'db-added' }, { ...added, id: 'db-removed', type: 'co-author-removed', createdAt: '2026-10-25T09:00:00Z' }] })
+    const merged = mergeSop(stored, kept)
+    expect(merged.coAuthorIds).toEqual([])
+    expect(merged.timeline.map((event) => event.id)).toEqual(['db-1', 'db-added', 'db-removed'])
   })
 
   it('takes a new SOP from the database as it is', () => {

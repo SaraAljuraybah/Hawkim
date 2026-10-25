@@ -29,6 +29,8 @@ vi.mock('../services/sops', () => ({
   }),
   uploadSopVersion: vi.fn(async () => '2'),
   deleteSopVersion: vi.fn(async () => {}),
+  addCoAuthors: vi.fn(async () => {}),
+  removeCoAuthor: vi.fn(async () => {}),
 }))
 
 function person(id: string, departmentId: string, permissions: User['permissions']): User {

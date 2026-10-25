@@ -13,7 +13,8 @@ import { PeoplePicker } from '../ui/PeoplePicker'
 interface AddCoAuthorsDialogProps {
   sop: Sop
   content: SopWorkflowContent['dialogs']
-  onSubmit: (userIds: string[]) => void
+  /** Saves the co-authors; if it throws, the dialog stays open and says so. */
+  onSubmit: (userIds: string[]) => void | Promise<void>
   onClose: () => void
 }
 
@@ -39,14 +40,20 @@ export function AddCoAuthorsDialog({ sop, content, onSubmit, onClose }: AddCoAut
     )
     .map((user) => personOption(user, departmentName))
 
-  function confirm() {
+  async function confirm() {
     if (options.length === 0) return
     if (selected.length === 0) {
       flushSync(() => setError(text.required))
       inputRef.current?.focus()
       return false
     }
-    onSubmit(selected)
+    try {
+      await onSubmit(selected)
+    } catch {
+      flushSync(() => setError(text.failed))
+      inputRef.current?.focus()
+      return false
+    }
   }
 
   return (

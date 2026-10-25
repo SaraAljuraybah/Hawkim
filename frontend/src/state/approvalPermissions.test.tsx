@@ -207,7 +207,7 @@ describe('approval submission at the authenticated store boundary', () => {
     expect(fixture.commit).not.toHaveBeenCalled()
   })
 
-  it('preserves external reviewer separation of duties when consuming Task 4 completion evidence', () => {
+  it('preserves external reviewer separation of duties when consuming Task 4 completion evidence', async () => {
     const external = { ...person('external', ['author', 'reviewer']), departmentId: 'other' }
     fixture.users.push(external)
     fixture.departments.push({ id: 'other', name: 'Other', initials: 'OT', description: '' })
@@ -219,7 +219,7 @@ describe('approval submission at the authenticated store boundary', () => {
     const author = capture('author', sop)
     author.submitForApproval(sop.id, { ...options(sop), noExternalReviewsRequired: false })
     expect(current().status).toBe('in-approval')
-    expect(() => author.addCoAuthors(sop.id, [external.id])).toThrow(/Reviewers and approvers cannot be co-authors/)
+    await expect(author.addCoAuthors(sop.id, [external.id])).rejects.toThrow(/Reviewers and approvers cannot be co-authors/)
     expect(current().coAuthorIds).not.toContain(external.id)
   })
 })
@@ -285,7 +285,7 @@ describe('assigned controller decisions at the store boundary', () => {
     expect(current().internalReviewRounds?.[0]).toEqual(returned.internalReviewRounds?.[0])
   })
 
-  it('preserves separation of duties after a prior Approver assignment moves into history', () => {
+  it('preserves separation of duties after a prior Approver assignment moves into history', async () => {
     fixture.users.find((user) => user.id === 'controller')!.permissions = ['author', 'reviewer', 'approver']
     const sop = submitted()
     const returned = returnAsApprover(sop, 'controller', 'Revise this version', snapshot(sop))
@@ -300,7 +300,7 @@ describe('assigned controller decisions at the store boundary', () => {
     expect(current().approvers).toEqual([])
     // The former approver can't be added as a reviewer of the same SOP.
     expect(() => author.addInternalReviewers(sop.id, { reviewerIds: ['controller'] })).toThrow(/eligible reviewers/)
-    expect(() => author.addCoAuthors(sop.id, ['controller'])).toThrow(/approvers cannot be co-authors/)
+    await expect(author.addCoAuthors(sop.id, ['controller'])).rejects.toThrow(/approvers cannot be co-authors/)
   })
 })
 

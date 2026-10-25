@@ -4,8 +4,8 @@
  * the app's existing Sop type, so screens don't change. Row level security decides
  * which SOPs a person can read; every change goes through a database function.
  *
- * Only the fields the database owns are filled here. Co-authors, compliance checks,
- * review requests and comments are still kept in the browser (see state/SopsProvider.tsx).
+ * Only the fields the database owns are filled here. Compliance checks, review
+ * requests and comments are still kept in the browser (see state/SopsProvider.tsx).
  */
 
 import { SYSTEM_ACTOR, type Sop, type SopFileType, type SopVersion, type TimelineEvent, type TimelineEventType } from '../data/mock/types'
@@ -19,6 +19,7 @@ import { supabase } from './supabase'
  */
 const SOP_COLUMNS = `id, code, title, description, department_id, author_id, status, current_version, updated_at,
   sop_versions!sop_versions_sop_id_fkey (version, file_name, file_type, storage_path, uploaded_by, uploaded_at, deleted_at, deleted_by),
+  sop_co_authors!sop_co_authors_sop_id_fkey (user_id, added_at),
   timeline_events!timeline_events_sop_id_fkey (id, type, actor_id, version, recipient_ids, subject_id, note, created_at)`
 
 export interface SopVersionRow {
@@ -54,6 +55,7 @@ export interface SopRow {
   current_version: number
   updated_at: string
   sop_versions: SopVersionRow[]
+  sop_co_authors: { user_id: string; added_at: string }[]
   timeline_events: TimelineEventRow[]
 }
 
@@ -98,7 +100,8 @@ export function toSop(row: SopRow): Sop {
     lastUpdated: todayIsoDate(new Date(row.updated_at)),
     fileName: current?.fileName ?? '',
     fileType: current?.fileType ?? 'pdf',
-    coAuthorIds: [],
+    // In the order they were added.
+    coAuthorIds: [...row.sop_co_authors].sort((a, b) => a.added_at.localeCompare(b.added_at)).map((item) => item.user_id),
     reviewers: [],
     approvers: [],
     versions,
@@ -155,5 +158,17 @@ export async function uploadSopVersion(sopId: string, file: StoredFile): Promise
 /** Marks a version deleted (its number and file are kept). */
 export async function deleteSopVersion(sopId: string, version: string): Promise<void> {
   const { error } = await supabase().rpc('delete_sop_version', { p_sop_id: sopId, p_version: Number(version) })
+  if (error) throw new Error(error.message)
+}
+
+/** Main author: adds co-authors (all or none). */
+export async function addCoAuthors(sopId: string, userIds: string[]): Promise<void> {
+  const { error } = await supabase().rpc('add_co_authors', { p_sop_id: sopId, p_user_ids: userIds })
+  if (error) throw new Error(error.message)
+}
+
+/** Main author: removes a co-author. */
+export async function removeCoAuthor(sopId: string, userId: string): Promise<void> {
+  const { error } = await supabase().rpc('remove_co_author', { p_sop_id: sopId, p_user_id: userId })
   if (error) throw new Error(error.message)
 }

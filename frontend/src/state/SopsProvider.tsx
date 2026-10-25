@@ -9,7 +9,7 @@ import { acceptInternalReview, addInternalReviewers, decideInternalReview, decli
 import { useDepartments } from './departmentsContext'
 import * as workflow from '../lib/workflow'
 import { fileTypeOf, uploadSopFile } from '../services/files'
-import { createSop, deleteSopVersion, fetchSop, fetchSops, uploadSopVersion } from '../services/sops'
+import { addCoAuthors, createSop, deleteSopVersion, fetchSop, fetchSops, removeCoAuthor, uploadSopVersion } from '../services/sops'
 import { mergeSops } from './mergeSops'
 import { useGuidelines } from './guidelinesContext'
 import { useSession } from './sessionContext'
@@ -21,11 +21,11 @@ const DAY_MS = 24 * 60 * 60 * 1000
 
 /**
  * Store of every SOP (one list for the directory, My SOPs and the workflow).
- * The SOPs, their versions and files come from the database: they're read after each
- * sign-in (merged with what this tab already has, see mergeSops.ts), and creating an
- * SOP, uploading a version and deleting one are saved there. Everything else (status
- * changes, co-authors, compliance checks, review requests, comments) is still kept in
- * this tab only and lost on reload, like the sample SOPs it starts with.
+ * The SOPs, their versions, files and co-authors come from the database: they're read
+ * after each sign-in (merged with what this tab already has, see mergeSops.ts), and
+ * creating an SOP, uploading or deleting a version and adding or removing co-authors
+ * are saved there. Everything else (status changes, compliance checks, review requests,
+ * comments) is still kept in this tab only and lost on reload, like the sample SOPs it starts with.
  * Workflow rules live in lib/workflow.ts. Actions are by the signed-in user.
  * Must be inside <SessionProvider>.
  * TODO: Save the remaining actions in the database, phase by phase.
@@ -218,8 +218,17 @@ export function SopsProvider({ children }: { children: ReactNode }) {
       },
       addResponse: (id, text) => update(id, (sop) => workflow.addResponse(sop, userId, text)),
       // The signed-in user (`userId`) acts; the others are the co-authors added or removed.
-      addCoAuthors: (id, coAuthorIds) => update(id, (sop) => workflow.addCoAuthors(sop, userId, coAuthorIds)),
-      removeCoAuthor: (id, coAuthorId) => update(id, (sop) => workflow.removeCoAuthor(sop, userId, coAuthorId)),
+      // The browser's rules first (they also cover reviewers and approvers the database doesn't have yet).
+      addCoAuthors: async (id, coAuthorIds) => {
+        workflow.addCoAuthors(current(id), userId, coAuthorIds)
+        await addCoAuthors(id, coAuthorIds)
+        await refresh(id)
+      },
+      removeCoAuthor: async (id, coAuthorId) => {
+        workflow.removeCoAuthor(current(id), userId, coAuthorId)
+        await removeCoAuthor(id, coAuthorId)
+        await refresh(id)
+      },
       runCheck,
       completeReview: (id, reviewerId, text) => update(id, (sop) => {
         assertActor(reviewerId, 'reviewer')

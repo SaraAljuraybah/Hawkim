@@ -231,6 +231,7 @@ export const sopWorkflowEn: SopWorkflowContent = {
       description: 'Co-authors can upload versions and run compliance checks on their own uploads. Only you can submit for review.',
       label: 'Co-authors',
       required: 'Select at least one co-author.',
+      failed: "The co-authors couldn't be added. Check your connection and try again.",
       confirm: 'Add co-authors',
     },
     removeCoAuthor: {
@@ -263,6 +264,7 @@ export const sopWorkflowEn: SopWorkflowContent = {
     resubmitted: 'Resubmitted for review.',
     coAuthorsAdded: 'Co-authors added.',
     coAuthorRemoved: '{name} removed as co-author.',
+    coAuthorRemoveFailed: "{name} couldn't be removed. Check your connection and try again.",
     checkStarted: 'Compliance check started.',
     responseSent: 'Response sent.',
   },

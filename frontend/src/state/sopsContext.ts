@@ -52,9 +52,10 @@ export interface SopsStore {
   deleteVersion: (sopId: string, version: string) => Promise<void>
   /** Author or co-author: replies to the latest round's comments. */
   addResponse: (sopId: string, text: string) => void
-  /** Adds one or more co-authors in a single update. */
-  addCoAuthors: (sopId: string, userIds: string[]) => void
-  removeCoAuthor: (sopId: string, userId: string) => void
+  /** Main author: adds one or more co-authors in a single update (all or none). */
+  addCoAuthors: (sopId: string, userIds: string[]) => Promise<void>
+  /** Main author: removes a co-author. */
+  removeCoAuthor: (sopId: string, userId: string) => Promise<void>
   /**
    * Runs a compliance check of the current version (PBI 4, 29). It is "running"
    * for a moment, then saves its report. Throws if a check is already running.

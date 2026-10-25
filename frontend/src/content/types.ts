@@ -677,6 +677,8 @@ export interface SopWorkflowContent {
       /** The search field's name, for screen readers only. */
       label: string
       required: string
+      /** The co-authors couldn't be saved. */
+      failed: string
       confirm: string
     }
     /** `{name}` is replaced in the description. */
@@ -707,6 +709,8 @@ export interface SopWorkflowContent {
     coAuthorsAdded: string
     /** `{name}` is replaced. */
     coAuthorRemoved: string
+    /** `{name}` is replaced. */
+    coAuthorRemoveFailed: string
     checkStarted: string
     responseSent: string
   }

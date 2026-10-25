@@ -533,8 +533,8 @@ export function SopWorkflowPage() {
           sop={sop}
           content={dialogs}
           onClose={closeDialog}
-          onSubmit={(userIds) => {
-            store.addCoAuthors(sop.id, userIds)
+          onSubmit={async (userIds) => {
+            await store.addCoAuthors(sop.id, userIds)
             announce(content.messages.coAuthorsAdded)
           }}
         />
@@ -549,9 +549,11 @@ export function SopWorkflowPage() {
         onConfirm={() => {
           if (!removingId) return
           const name = nameOf(removingId)
-          store.removeCoAuthor(sop.id, removingId)
           closeOverlay()
-          announce(content.messages.coAuthorRemoved.replace('{name}', name))
+          store.removeCoAuthor(sop.id, removingId).then(
+            () => announce(content.messages.coAuthorRemoved.replace('{name}', name)),
+            () => announce(content.messages.coAuthorRemoveFailed.replace('{name}', name)),
+          )
         }}
       />
       <ConfirmDialog
