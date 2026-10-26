@@ -27,6 +27,20 @@ const row: SopRow = {
     { user_id: 'uuid-omar', added_at: '2026-10-26T10:00:00Z' },
     { user_id: 'uuid-reem', added_at: '2026-10-25T10:00:00Z' },
   ],
+  compliance_checks: [
+    {
+      id: 'chk-2', sop_version: 3, status: 'running', engine: 'sample', triggered_by: 'uuid-sara', started_at: '2026-10-26T09:05:00Z', completed_at: null,
+      guideline_versions: { name: 'GVP', version: '4.0' }, compliance_findings: [],
+    },
+    {
+      id: 'chk-1', sop_version: 1, status: 'completed', engine: 'sample', triggered_by: 'uuid-sara', started_at: '2026-10-24T09:05:00Z', completed_at: '2026-10-24T09:05:03Z',
+      guideline_versions: { name: 'GVP', version: '4.0' },
+      compliance_findings: [
+        { id: 'f2', result: 'partial', justification: 'Second', sop_reference: null, recommended_action: 'Fix it', position: 2, guideline_requirements: { code: 'R2' } },
+        { id: 'f1', result: 'compliant', justification: 'First', sop_reference: 'Section 4.2', recommended_action: null, position: 1, guideline_requirements: { code: 'R1' } },
+      ],
+    },
+  ],
   timeline_events: [
     { id: 'e2', type: 'version-uploaded', actor_id: 'uuid-sara', version: 2, recipient_ids: [], subject_id: null, note: null, created_at: '2026-10-25T09:00:00Z' },
     { id: 'e1', type: 'version-uploaded', actor_id: null, version: 1, recipient_ids: ['uuid-noura'], subject_id: null, note: 'Hello', created_at: '2026-10-24T09:00:00Z' },
@@ -46,8 +60,22 @@ describe('SOPs from the database', () => {
     expect(toSop(row).coAuthorIds).toEqual(['uuid-reem', 'uuid-omar'])
   })
 
+  it('keeps the compliance checks oldest first, with their findings in order and requirements by code', () => {
+    const [first, second] = toSop(row).complianceChecks
+    expect(first).toEqual({
+      id: 'chk-1', sopId: 'uuid-sop', version: '1', status: 'completed', engine: 'sample', startedAt: '2026-10-24T09:05:00Z', completedAt: '2026-10-24T09:05:03Z',
+      triggeredById: 'uuid-sara', guideline: { name: 'GVP', version: '4.0' },
+      findings: [
+        { id: 'f1', requirementId: 'R1', result: 'compliant', justification: 'First', sopReference: 'Section 4.2' },
+        { id: 'f2', requirementId: 'R2', result: 'partial', justification: 'Second', recommendedAction: 'Fix it' },
+      ],
+    })
+    expect(second).toMatchObject({ id: 'chk-2', version: '3', status: 'running', findings: [] })
+    expect(second.completedAt).toBeUndefined()
+  })
+
   it('starts with nothing that is still kept in the browser', () => {
-    expect(toSop(row)).toMatchObject({ reviewers: [], approvers: [], comments: [], complianceChecks: [] })
+    expect(toSop(row)).toMatchObject({ reviewers: [], approvers: [], comments: [] })
     expect(toSop(row).description).toBeUndefined()
   })
 
@@ -68,8 +96,10 @@ describe('reading SOPs', () => {
       expect(columns).toContain('sop_versions!sop_versions_sop_id_fkey (')
       expect(columns).toContain('timeline_events!timeline_events_sop_id_fkey (')
       expect(columns).toContain('sop_co_authors!sop_co_authors_sop_id_fkey (')
+      expect(columns).toContain('compliance_checks!compliance_checks_sop_id_fkey (')
+      expect(columns).toContain('compliance_findings!compliance_findings_check_id_fkey (')
       // No embed without a named relationship.
-      expect(columns).not.toMatch(/(sop_versions|timeline_events) \(/)
+      expect(columns).not.toMatch(/\b(sop_versions|sop_co_authors|timeline_events|compliance_checks|compliance_findings|guideline_versions|guideline_requirements) \(/)
     }
   })
 })

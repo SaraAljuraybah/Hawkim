@@ -4,11 +4,11 @@
  * the app's existing Sop type, so screens don't change. Row level security decides
  * which SOPs a person can read; every change goes through a database function.
  *
- * Only the fields the database owns are filled here. Compliance checks, review
- * requests and comments are still kept in the browser (see state/SopsProvider.tsx).
+ * Only the fields the database owns are filled here. Review requests and comments
+ * are still kept in the browser (see state/SopsProvider.tsx).
  */
 
-import { SYSTEM_ACTOR, type Sop, type SopFileType, type SopVersion, type TimelineEvent, type TimelineEventType } from '../data/mock/types'
+import { SYSTEM_ACTOR, type ComplianceCheck, type ComplianceResult, type Sop, type SopFileType, type SopVersion, type TimelineEvent, type TimelineEventType } from '../data/mock/types'
 import type { SopStatus } from '../types/status'
 import { todayIsoDate } from '../lib/format'
 import { supabase } from './supabase'
@@ -20,7 +20,11 @@ import { supabase } from './supabase'
 const SOP_COLUMNS = `id, code, title, description, department_id, author_id, status, current_version, updated_at,
   sop_versions!sop_versions_sop_id_fkey (version, file_name, file_type, storage_path, uploaded_by, uploaded_at, deleted_at, deleted_by),
   sop_co_authors!sop_co_authors_sop_id_fkey (user_id, added_at),
-  timeline_events!timeline_events_sop_id_fkey (id, type, actor_id, version, recipient_ids, subject_id, note, created_at)`
+  timeline_events!timeline_events_sop_id_fkey (id, type, actor_id, version, recipient_ids, subject_id, note, created_at),
+  compliance_checks!compliance_checks_sop_id_fkey (id, sop_version, status, engine, triggered_by, started_at, completed_at,
+    guideline_versions!compliance_checks_guideline_version_id_fkey (name, version),
+    compliance_findings!compliance_findings_check_id_fkey (id, result, justification, sop_reference, recommended_action, position,
+      guideline_requirements!compliance_findings_requirement_id_fkey (code)))`
 
 export interface SopVersionRow {
   version: number
@@ -44,6 +48,26 @@ export interface TimelineEventRow {
   created_at: string
 }
 
+export interface ComplianceCheckRow {
+  id: string
+  sop_version: number
+  status: ComplianceCheck['status']
+  engine: string
+  triggered_by: string
+  started_at: string
+  completed_at: string | null
+  guideline_versions: { name: string; version: string }
+  compliance_findings: {
+    id: string
+    result: ComplianceResult
+    justification: string
+    sop_reference: string | null
+    recommended_action: string | null
+    position: number
+    guideline_requirements: { code: string }
+  }[]
+}
+
 export interface SopRow {
   id: string
   code: string
@@ -57,6 +81,7 @@ export interface SopRow {
   sop_versions: SopVersionRow[]
   sop_co_authors: { user_id: string; added_at: string }[]
   timeline_events: TimelineEventRow[]
+  compliance_checks: ComplianceCheckRow[]
 }
 
 function toVersion(row: SopVersionRow): SopVersion {
@@ -84,6 +109,31 @@ function toEvent(row: TimelineEventRow): TimelineEvent {
   }
 }
 
+function toCheck(sopId: string, row: ComplianceCheckRow): ComplianceCheck {
+  return {
+    id: row.id,
+    sopId,
+    version: String(row.sop_version),
+    status: row.status,
+    engine: row.engine,
+    startedAt: row.started_at,
+    ...(row.completed_at ? { completedAt: row.completed_at } : {}),
+    triggeredById: row.triggered_by,
+    guideline: { name: row.guideline_versions.name, version: row.guideline_versions.version },
+    findings: [...row.compliance_findings]
+      .sort((a, b) => a.position - b.position)
+      .map((item) => ({
+        id: item.id,
+        // The report finds the requirement by its code (R1…) in the guideline version.
+        requirementId: item.guideline_requirements.code,
+        result: item.result,
+        justification: item.justification,
+        ...(item.sop_reference ? { sopReference: item.sop_reference } : {}),
+        ...(item.recommended_action ? { recommendedAction: item.recommended_action } : {}),
+      })),
+  }
+}
+
 /** An SOP row as a Sop: versions and events oldest first, the current file from the current version. */
 export function toSop(row: SopRow): Sop {
   const versions = [...row.sop_versions].sort((a, b) => a.version - b.version).map(toVersion)
@@ -107,7 +157,8 @@ export function toSop(row: SopRow): Sop {
     versions,
     comments: [],
     timeline: [...row.timeline_events].sort((a, b) => a.created_at.localeCompare(b.created_at)).map(toEvent),
-    complianceChecks: [],
+    // Oldest first: the newest check of the current version is "current".
+    complianceChecks: [...row.compliance_checks].sort((a, b) => a.started_at.localeCompare(b.started_at)).map((check) => toCheck(row.id, check)),
   }
 }
 
@@ -115,14 +166,15 @@ export function toSop(row: SopRow): Sop {
 export async function fetchSops(): Promise<Sop[]> {
   const { data, error } = await supabase().from('sops').select(SOP_COLUMNS).order('created_at', { ascending: false })
   if (error) throw new Error(error.message)
-  return (data as SopRow[]).map(toSop)
+  // Without the schema's types the client can't tell single embeds from lists, so the rows are cast.
+  return (data as unknown as SopRow[]).map(toSop)
 }
 
 /** One SOP, or null when the person may not read it (or it doesn't exist). */
 export async function fetchSop(sopId: string): Promise<Sop | null> {
   const { data, error } = await supabase().from('sops').select(SOP_COLUMNS).eq('id', sopId).maybeSingle()
   if (error) throw new Error(error.message)
-  return data ? toSop(data as SopRow) : null
+  return data ? toSop(data as unknown as SopRow) : null
 }
 
 /** A file already uploaded to the sop-files bucket (see services/files.ts). */

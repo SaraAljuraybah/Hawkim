@@ -10,6 +10,7 @@ import { NotFoundPage } from '../pages/NotFoundPage'
 import { ActiveDepartmentProvider } from '../state/ActiveDepartmentProvider'
 import { useActiveDepartment } from '../state/activeDepartmentContext'
 import { useDepartments } from '../state/departmentsContext'
+import { useGuidelines } from '../state/guidelinesContext'
 import { useCurrentUser, useSession } from '../state/sessionContext'
 import { useSops } from '../state/sopsContext'
 import type { LoadStatus } from '../state/useLoadAfterSignIn'
@@ -27,9 +28,9 @@ const SIGN_IN_PATH = '/login'
  * session and the user's permissions. Hiding screens in the browser is not security.
  */
 
-/** The people, departments and the person's SOPs every screen needs, loaded from the database after sign-in. */
+/** The people, departments, guideline and the person's SOPs every screen needs, loaded from the database after sign-in. */
 function useSharedData(): LoadStatus {
-  const statuses = [useUsers().status, useDepartments().status, useSops().status]
+  const statuses = [useUsers().status, useDepartments().status, useGuidelines().status, useSops().status]
   if (statuses.includes('error')) return 'error'
   return statuses.every((status) => status === 'ready') ? 'ready' : 'loading'
 }

@@ -58,9 +58,9 @@ export interface SopsStore {
   removeCoAuthor: (sopId: string, userId: string) => Promise<void>
   /**
    * Runs a compliance check of the current version (PBI 4, 29). It is "running"
-   * for a moment, then saves its report. Throws if a check is already running.
+   * for a moment, then saves its report. Refused if a check is already running.
    */
-  runCheck: (sopId: string) => void
+  runCheck: (sopId: string) => Promise<void>
 
   // Per-person reviewer and approver decisions (the review page, and the development-only
   // demo panel). Complete review and Approve take an optional comment.

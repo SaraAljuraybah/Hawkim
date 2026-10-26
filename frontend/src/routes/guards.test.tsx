@@ -15,6 +15,7 @@ vi.mock('../state/sessionContext', () => ({ useSession: () => ({ status: state.s
 vi.mock('../state/usersContext', () => ({ useUsers: () => ({ status: state.users }) }))
 vi.mock('../state/departmentsContext', () => ({ useDepartments: () => ({ status: state.departments }) }))
 vi.mock('../state/sopsContext', () => ({ useSops: () => ({ status: state.sops }) }))
+vi.mock('../state/guidelinesContext', () => ({ useGuidelines: () => ({ status: state.sops }) }))
 
 const sara: User = { id: 'uuid-sara', name: 'Sara Aljuraybah', email: 'sara.aljuraybah@hawkim.test', initials: 'SA', departmentId: 'information-technology', permissions: ['author'] }
 

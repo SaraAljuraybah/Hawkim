@@ -2,18 +2,24 @@ import type { Sop, TimelineEventType } from '../data/mock/types'
 
 /*
  * SOPs come from the database, but some of their parts are still kept only in this
- * tab: status changes, compliance checks, review requests, comments and the other
- * timeline events. These functions put the two together. Pure functions.
+ * tab: status changes, review requests, comments and the other timeline events. These functions put the two together. Pure functions.
  */
 
 /** Timeline events the database keeps; every other kind is still kept in the browser. */
-const DATABASE_EVENTS = new Set<TimelineEventType>(['version-uploaded', 'version-deleted', 'co-author-added', 'co-author-removed'])
+const DATABASE_EVENTS = new Set<TimelineEventType>([
+  'version-uploaded',
+  'version-deleted',
+  'co-author-added',
+  'co-author-removed',
+  'compliance-check-completed',
+  'compliance-check-failed',
+])
 
 /**
  * An SOP read from the database, with the parts this tab already keeps for it. The
  * database wins for what it owns (identity, title, department, author, co-authors,
- * versions and files, and its timeline events); the tab keeps the rest, including
- * the status once the SOP is known here.
+ * versions and files, compliance checks, and its timeline events); the tab keeps the
+ * rest, including the status once the SOP is known here.
  */
 export function mergeSop(stored: Sop, kept: Sop | undefined): Sop {
   if (!kept) return stored
@@ -31,6 +37,7 @@ export function mergeSop(stored: Sop, kept: Sop | undefined): Sop {
     fileType: stored.fileType,
     fileUrl: undefined,
     versions: stored.versions,
+    complianceChecks: stored.complianceChecks,
     lastUpdated: stored.lastUpdated > kept.lastUpdated ? stored.lastUpdated : kept.lastUpdated,
     timeline: [...stored.timeline, ...kept.timeline.filter((event) => !DATABASE_EVENTS.has(event.type))]
       .sort((a, b) => a.createdAt.localeCompare(b.createdAt)),

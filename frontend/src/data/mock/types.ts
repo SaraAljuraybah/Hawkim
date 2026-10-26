@@ -430,6 +430,8 @@ export interface ComplianceCheck {
    * upload) or who pressed Check. Its timeline events are attributed to them.
    */
   triggeredById?: string
+  /** What produced the result, for checks from the database: 'sample' until the compliance service is connected. */
+  engine?: string
   guideline: Guideline
   /** Empty until the check completes. */
   findings: Finding[]

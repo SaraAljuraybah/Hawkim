@@ -8,6 +8,7 @@ import { applyReviewAction } from '../lib/reviewFlow'
 import { acceptInternalReview, addInternalReviewers, decideInternalReview, declineInternalReview, nextWithdrawalAt, removeInternalReviewer, sendNewVersionForReview, startInternalReview, withdrawUnanswered } from '../lib/internalReview'
 import { useDepartments } from './departmentsContext'
 import * as workflow from '../lib/workflow'
+import { finishSampleCheck, startComplianceCheck } from '../services/compliance'
 import { fileTypeOf, uploadSopFile } from '../services/files'
 import { addCoAuthors, createSop, deleteSopVersion, fetchSop, fetchSops, removeCoAuthor, uploadSopVersion } from '../services/sops'
 import { mergeSops } from './mergeSops'
@@ -21,10 +22,10 @@ const DAY_MS = 24 * 60 * 60 * 1000
 
 /**
  * Store of every SOP (one list for the directory, My SOPs and the workflow).
- * The SOPs, their versions, files and co-authors come from the database: they're read
- * after each sign-in (merged with what this tab already has, see mergeSops.ts), and
- * creating an SOP, uploading or deleting a version and adding or removing co-authors
- * are saved there. Everything else (status changes, compliance checks, review requests,
+ * The SOPs, their versions, files, co-authors and compliance checks come from the
+ * database: they're read after each sign-in (merged with what this tab already has, see
+ * mergeSops.ts), and creating an SOP, uploading or deleting a version, managing co-authors
+ * and running checks are saved there. Everything else (status changes, review requests,
  * comments) is still kept in this tab only and lost on reload, like the sample SOPs it starts with.
  * Workflow rules live in lib/workflow.ts. Actions are by the signed-in user.
  * Must be inside <SessionProvider>.
@@ -48,27 +49,6 @@ export function SopsProvider({ children }: { children: ReactNode }) {
     latestRef.current = next
     setSops(next)
   }, [])
-
-  // The SOPs this person may read, after each sign-in (other SOPs already in the tab stay).
-  const [loaded, setLoaded] = useState<{ userId: string; status: LoadStatus } | null>(null)
-  useEffect(() => {
-    if (!userId) return
-    let active = true
-    fetchSops().then(
-      (stored) => {
-        if (!active) return
-        commit(mergeSops(latestRef.current, stored))
-        setLoaded({ userId, status: 'ready' })
-      },
-      () => {
-        if (active) setLoaded({ userId, status: 'error' })
-      },
-    )
-    return () => {
-      active = false
-    }
-  }, [userId, commit])
-  const status: LoadStatus = userId && loaded?.userId === userId ? loaded.status : 'loading'
 
   /** Reads one SOP again after a change saved in the database, keeping what this tab has for it. */
   const refresh = useCallback(
@@ -127,40 +107,70 @@ export function SopsProvider({ children }: { children: ReactNode }) {
   }, [])
 
   /**
-   * Completes a compliance check after the sample delay (or fails it, if the demo
-   * panel asked for the next check to fail; that switch then turns off). The check
-   * is matched by id, so nothing happens if it was replaced in the meantime.
-   * TODO: Replace the sample timer with a call to the compliance service API.
+   * SAMPLE ENGINE: finishes a running check in the database after the sample delay,
+   * as completed (the sample findings) or failed, then reads the SOP again. If that
+   * doesn't work, the check stays running; the database marks it failed after 5 minutes.
+   * TODO: The compliance service will finish its own checks.
    */
   const scheduleCompletion = useCallback(
-    (sopId: string, checkId: string) => {
-      const fail = failNextRef.current
-      if (fail) setFailNextCheck(false)
-      window.setTimeout(
-        () => update(sopId, (sop) => (fail ? compliance.failCheck(sop, checkId) : compliance.completeCheck(sop, checkId))),
-        compliance.SAMPLE_CHECK_DURATION_MS,
-      )
+    (sopId: string, checkId: string, outcome: 'completed' | 'failed', delay = compliance.SAMPLE_CHECK_DURATION_MS) => {
+      window.setTimeout(() => {
+        void finishSampleCheck(checkId, outcome)
+          .catch(() => undefined)
+          .then(() => refresh(sopId))
+          .catch(() => undefined)
+      }, delay)
     },
-    [update, setFailNextCheck],
+    [refresh],
   )
 
   /**
    * Starts a compliance check of the current version, only when the user presses
    * "Compliance Check for Current Version" (PBI 4, 29). The rules (who and when) are
-   * checked first. Uploading never starts a check.
+   * checked first, then by the database. Uploading never starts a check. When the demo
+   * panel asked for the next check to fail, this one fails (and the switch turns off).
    */
   const runCheck = useCallback(
-    (sopId: string) => {
-      let checkId = ''
-      update(sopId, (sop) => {
-        const started = compliance.startCheck(workflow.assertCanRunCheck(sop, userId), guideline, { manualBy: userId })
-        checkId = started.checkId
-        return started.sop
-      })
-      scheduleCompletion(sopId, checkId)
+    async (sopId: string) => {
+      const sop = workflow.assertCanRunCheck(current(sopId), userId)
+      if (compliance.isCheckRunning(sop)) throw new Error('A compliance check is already running')
+      const checkId = await startComplianceCheck(sopId)
+      const fail = failNextRef.current
+      if (fail) setFailNextCheck(false)
+      await refresh(sopId)
+      scheduleCompletion(sopId, checkId, fail ? 'failed' : 'completed')
     },
-    [update, scheduleCompletion, guideline, userId],
+    [current, userId, refresh, scheduleCompletion, setFailNextCheck],
   )
+
+  // The SOPs this person may read, after each sign-in (other SOPs already in the tab stay).
+  const [loaded, setLoaded] = useState<{ userId: string; status: LoadStatus } | null>(null)
+  useEffect(() => {
+    if (!userId) return
+    let active = true
+    fetchSops().then(
+      (stored) => {
+        if (!active) return
+        commit(mergeSops(latestRef.current, stored))
+        setLoaded({ userId, status: 'ready' })
+        // This person's sample checks still running (the page was reloaded meanwhile) are finished now.
+        for (const sop of stored) {
+          for (const check of sop.complianceChecks) {
+            if (check.status !== 'running' || check.engine !== 'sample' || check.triggeredById !== userId) continue
+            const left = new Date(check.startedAt).getTime() + compliance.SAMPLE_CHECK_DURATION_MS - Date.now()
+            scheduleCompletion(sop.id, check.id, 'completed', Math.max(0, left))
+          }
+        }
+      },
+      () => {
+        if (active) setLoaded({ userId, status: 'error' })
+      },
+    )
+    return () => {
+      active = false
+    }
+  }, [userId, commit, scheduleCompletion])
+  const status: LoadStatus = userId && loaded?.userId === userId ? loaded.status : 'loading'
 
   const addDraft = useCallback(
     async ({ file, ...draft }: NewDraft) => {

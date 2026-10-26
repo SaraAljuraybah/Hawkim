@@ -242,8 +242,11 @@ export function SopWorkflowPage() {
 
   const sopId = sop.id
   function runCheck() {
-    store.runCheck(sopId)
-    announce(content.messages.checkStarted)
+    setMessage('')
+    store.runCheck(sopId).then(
+      () => announce(content.messages.checkStarted),
+      () => announce(content.messages.checkStartFailed),
+    )
   }
 
 

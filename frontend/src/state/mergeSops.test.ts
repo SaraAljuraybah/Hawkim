@@ -34,7 +34,8 @@ describe('SOPs from the database and this tab', () => {
     expect(merged.versions).toHaveLength(2)
     // Kept in this tab until those parts are in the database.
     expect(merged).toMatchObject({ status: 'in-review' })
-    expect(merged.complianceChecks).toHaveLength(1)
+    // Checks come from the database: none were stored for this SOP.
+    expect(merged.complianceChecks).toEqual([])
     // The database's events replace the tab's copies; the tab's other events stay, in order.
     expect(merged.timeline.map((event) => event.id)).toEqual(['db-1', 'tab-1', 'db-2'])
   })
@@ -48,7 +49,16 @@ describe('SOPs from the database and this tab', () => {
     expect(merged.timeline.map((event) => event.id)).toEqual(['db-1', 'db-added', 'db-removed'])
   })
 
-  it('takes a new SOP from the database as it is', () => {
+  it('takes the compliance checks and their events from the database', () => {
+    const check = { id: 'chk', sopId: 'uuid-sop', version: '1', status: 'completed' as const, startedAt: '2026-10-24T09:30:00Z', completedAt: '2026-10-24T09:30:03Z', guideline: { name: 'GVP', version: '4.0' }, findings: [] }
+    const done = { id: 'db-done', type: 'compliance-check-completed' as const, actorId: 'uuid-sara', version: '1', createdAt: '2026-10-24T09:30:03Z' }
+    const kept = sop({ complianceChecks: [{ ...check, status: 'running', completedAt: undefined }], timeline: [...sop().timeline, { ...done, id: 'tab-done' }] })
+    const merged = mergeSop(sop({ complianceChecks: [check], timeline: [...sop().timeline, done] }), kept)
+    expect(merged.complianceChecks).toEqual([check])
+    expect(merged.timeline.map((event) => event.id)).toEqual(['db-1', 'db-done'])
+  })
+
+    it('takes a new SOP from the database as it is', () => {
     expect(mergeSop(sop(), undefined)).toEqual(sop())
   })
 

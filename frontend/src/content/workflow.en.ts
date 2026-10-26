@@ -266,6 +266,7 @@ export const sopWorkflowEn: SopWorkflowContent = {
     coAuthorRemoved: '{name} removed as co-author.',
     coAuthorRemoveFailed: "{name} couldn't be removed. Check your connection and try again.",
     checkStarted: 'Compliance check started.',
+    checkStartFailed: "The compliance check couldn't be started. Check your connection and try again.",
     responseSent: 'Response sent.',
   },
 }

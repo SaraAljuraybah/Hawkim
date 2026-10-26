@@ -712,6 +712,8 @@ export interface SopWorkflowContent {
     /** `{name}` is replaced. */
     coAuthorRemoveFailed: string
     checkStarted: string
+    /** The check couldn't be started. */
+    checkStartFailed: string
     responseSent: string
   }
 }
