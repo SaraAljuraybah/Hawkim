@@ -8,15 +8,18 @@ URL and publishable key (see the README).
 
 | Email | Department | Roles |
 |---|---|---|
-| sara.aljuraybah@hawkim.test | Information Technology | Author |
-| reem.alsubaie@hawkim.test | Information Technology | Author |
-| noura.alqahtani@hawkim.test | Information Technology | Reviewer |
-| lulwah.alrasheed@hawkim.test | Information Technology | Reviewer |
-| nouf.almutairi@hawkim.test | Information Technology | Admin |
+| sara.aljuraybah@hawkim.test | Pharmacovigilance | Author |
+| reem.alsubaie@hawkim.test | Pharmacovigilance | Author |
+| omar.alghamdi@hawkim.test | Pharmacovigilance | Author |
+| noura.alqahtani@hawkim.test | Pharmacovigilance | Reviewer |
+| lulwah.alrasheed@hawkim.test | Pharmacovigilance | Reviewer |
 | abeer.alhamdan@hawkim.test | Quality Assurance | Author, Reviewer |
 | faisal.alharbi@hawkim.test | Quality Assurance | Reviewer |
-| omar.alghamdi@hawkim.test | Pharmacovigilance | Author |
+| nouf.almutairi@hawkim.test | Information Technology | Admin |
 | rawan.alzahrani@hawkim.test | Research & Development | No role |
+
+The compliance check (against the SFDA GVP guideline) is only for Pharmacovigilance SOPs.
+SOPs of every other department are submitted for review without a check.
 
 ## Good to know (until the next phases)
 

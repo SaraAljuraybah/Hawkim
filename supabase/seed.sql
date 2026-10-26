@@ -13,21 +13,24 @@ begin;
 
 -- ---------- Departments ----------
 
-insert into public.departments (id, name, initials, description, is_quality) values
-  ('quality-assurance', 'Quality Assurance', 'QA', 'Responsible for quality oversight and compliance.', true),
-  ('regulatory-affairs', 'Regulatory Affairs', 'RA', 'Handles regulatory submissions and communications.', false),
-  ('pharmacovigilance', 'Pharmacovigilance', 'PV', 'Monitors and evaluates product safety.', false),
-  ('research-development', 'Research & Development', 'RD', 'Drives innovation and product development.', false),
-  ('information-technology', 'Information Technology', 'IT', 'Supports the organization''s technology infrastructure.', false),
-  ('human-resources', 'Human Resources', 'HR', 'Manages people, policies and culture.', false),
-  ('finance-administration', 'Finance & Administration', 'FA', 'Oversees financial and administrative operations.', false),
-  ('clinical-operations', 'Clinical Operations', 'CL', 'Supports clinical studies and operations.', false),
-  ('legal-governance', 'Legal & Governance', 'LG', 'Ensures legal compliance and governance.', false)
+-- is_quality: the only department with Approvers. requires_compliance_check: the GVP guideline
+-- applies to its SOPs (Pharmacovigilance only).
+insert into public.departments (id, name, initials, description, is_quality, requires_compliance_check) values
+  ('quality-assurance', 'Quality Assurance', 'QA', 'Responsible for quality oversight and compliance.', true, false),
+  ('regulatory-affairs', 'Regulatory Affairs', 'RA', 'Handles regulatory submissions and communications.', false, false),
+  ('pharmacovigilance', 'Pharmacovigilance', 'PV', 'Monitors and evaluates product safety.', false, true),
+  ('research-development', 'Research & Development', 'RD', 'Drives innovation and product development.', false, false),
+  ('information-technology', 'Information Technology', 'IT', 'Supports the organization''s technology infrastructure.', false, false),
+  ('human-resources', 'Human Resources', 'HR', 'Manages people, policies and culture.', false, false),
+  ('finance-administration', 'Finance & Administration', 'FA', 'Oversees financial and administrative operations.', false, false),
+  ('clinical-operations', 'Clinical Operations', 'CL', 'Supports clinical studies and operations.', false, false),
+  ('legal-governance', 'Legal & Governance', 'LG', 'Ensures legal compliance and governance.', false, false)
 on conflict (id) do update set
   name = excluded.name,
   initials = excluded.initials,
   description = excluded.description,
-  is_quality = excluded.is_quality;
+  is_quality = excluded.is_quality,
+  requires_compliance_check = excluded.requires_compliance_check;
 
 -- ---------- GVP guideline ----------
 
@@ -107,11 +110,14 @@ create temporary table seed_people (
 );
 
 insert into seed_people (email, full_name, initials, department_id, roles) values
+  -- Pharmacovigilance (the demo's department: its SOPs get a compliance check)
+  ('sara.aljuraybah@hawkim.test', 'Sara Aljuraybah', 'SA', 'pharmacovigilance', '{author}'),
+  ('reem.alsubaie@hawkim.test', 'Reem Alsubaie', 'RA', 'pharmacovigilance', '{author}'),
+  ('noura.alqahtani@hawkim.test', 'Noura Alqahtani', 'NA', 'pharmacovigilance', '{reviewer}'),
+  ('lulwah.alrasheed@hawkim.test', 'Lulwah Alrasheed', 'LA', 'pharmacovigilance', '{reviewer}'),
+  ('omar.alghamdi@hawkim.test', 'Omar Alghamdi', 'OA', 'pharmacovigilance', '{author}'),
+  ('lama.alshehri@hawkim.test', 'Lama Alshehri', 'LA', 'pharmacovigilance', '{reviewer}'),
   -- Information Technology
-  ('sara.aljuraybah@hawkim.test', 'Sara Aljuraybah', 'SA', 'information-technology', '{author}'),
-  ('reem.alsubaie@hawkim.test', 'Reem Alsubaie', 'RA', 'information-technology', '{author}'),
-  ('noura.alqahtani@hawkim.test', 'Noura Alqahtani', 'NA', 'information-technology', '{reviewer}'),
-  ('lulwah.alrasheed@hawkim.test', 'Lulwah Alrasheed', 'LA', 'information-technology', '{reviewer}'),
   ('nouf.almutairi@hawkim.test', 'Nouf Almutairi', 'NA', 'information-technology', '{admin}'),
   -- Quality Assurance (the only department with Approvers)
   ('faisal.alharbi@hawkim.test', 'Faisal Alharbi', 'FA', 'quality-assurance', '{reviewer}'),
@@ -121,9 +127,6 @@ insert into seed_people (email, full_name, initials, department_id, roles) value
   ('maha.alenazi@hawkim.test', 'Maha Alenazi', 'MA', 'quality-assurance', '{approver}'),
   ('sultan.aldosari@hawkim.test', 'Sultan Aldosari', 'SA', 'quality-assurance', '{approver}'),
   ('shahad.alghamdi@hawkim.test', 'Shahad Alghamdi', 'SA', 'quality-assurance', '{}'),
-  -- Pharmacovigilance
-  ('omar.alghamdi@hawkim.test', 'Omar Alghamdi', 'OA', 'pharmacovigilance', '{author}'),
-  ('lama.alshehri@hawkim.test', 'Lama Alshehri', 'LA', 'pharmacovigilance', '{reviewer}'),
   -- Regulatory Affairs
   ('abdullah.alqahtani@hawkim.test', 'Abdullah Alqahtani', 'AA', 'regulatory-affairs', '{reviewer}'),
   -- Employees without a role
