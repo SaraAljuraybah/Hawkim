@@ -20,10 +20,11 @@ URL and publishable key (see the README).
 
 ## Good to know (until the next phases)
 
-- Sign-in, people, departments, new SOPs, their versions, files and co-authors come
-  from the database and survive a reload. Compliance checks, review requests,
-  comments, status changes and their notifications are still kept in the browser and
-  are lost on reload (the SOP is back in Draft).
+- Sign-in, people, departments, the GVP guideline, new SOPs, their versions, files,
+  co-authors and compliance checks come from the database and survive a reload.
+  Compliance results are sample results until the compliance service is connected.
+  Review requests, comments, status changes and their notifications are still kept in
+  the browser and are lost on reload (the SOP is back in Draft).
 - Until reviewers are in the database, reviewers can't open the SOP's file.
 - The sample SOPs, requests and notifications belong to the old sample accounts, so
   they don't appear in My SOPs, My Reviews or My Requests, and sample authors and
