@@ -3,7 +3,9 @@ import { FileText } from 'lucide-react'
 import type { MySopsContent } from '../../content/types'
 import type { Sop } from '../../data/mock/types'
 import { formatDate } from '../../lib/format'
+import { checkRequired } from '../../lib/compliance'
 import { recheckRecommended } from '../../lib/guidelines'
+import { useDepartments } from '../../state/departmentsContext'
 import { mySopPath } from '../../lib/routes'
 import { useGuidelines } from '../../state/guidelinesContext'
 import { RecheckBadge } from '../compliance/RecheckBadge'
@@ -28,12 +30,13 @@ const focusRing =
  */
 export function AuthoredSopList({ sops, content, userId }: AuthoredSopListProps) {
   const currentGuideline = useGuidelines().current.version
+  const { departments } = useDepartments()
   return (
     <ul className="divide-y divide-beige rounded-xl border border-beige bg-white">
       {sops.map((sop) => {
         const coAuthored = sop.authorId !== userId
-        // Last checked against an older GVP version (PBI 29).
-        const recheck = recheckRecommended(sop, currentGuideline)
+        // Last checked against an older GVP version (PBI 29); only where the guideline applies.
+        const recheck = checkRequired(sop, departments) && recheckRecommended(sop, currentGuideline)
         return (
           <li
             key={sop.id}

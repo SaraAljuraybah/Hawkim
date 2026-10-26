@@ -20,7 +20,8 @@ describe('SOPs from the database and this tab', () => {
       coAuthorIds: ['uuid-reem'],
       timeline: [
         { id: 'db-1', type: 'version-uploaded', actorId: 'uuid-sara', version: '1', createdAt: '2026-10-24T09:00:00Z' },
-        { id: 'tab-1', type: 'submitted', actorId: 'uuid-sara', version: '1', createdAt: '2026-10-24T10:00:00Z' },
+        // Approval is still kept in the tab.
+        { id: 'tab-1', type: 'submitted-for-approval', actorId: 'uuid-sara', version: '1', createdAt: '2026-10-24T10:00:00Z' },
       ],
       complianceChecks: [{ id: 'check', sopId: 'uuid-sop', version: '1', status: 'completed', startedAt: '2026-10-24T09:30:00Z', guideline: { name: 'GVP', version: '4.0' }, findings: [] }],
     })
@@ -32,8 +33,8 @@ describe('SOPs from the database and this tab', () => {
     const merged = mergeSop(stored, kept)
     expect(merged).toMatchObject({ version: '2', fileName: 'Backup v2.pdf', lastUpdated: '2026-10-26' })
     expect(merged.versions).toHaveLength(2)
-    // Kept in this tab until those parts are in the database.
-    expect(merged).toMatchObject({ status: 'in-review' })
+    // The status comes from the database now (the stored SOP is a Draft).
+    expect(merged).toMatchObject({ status: 'draft' })
     // Checks come from the database: none were stored for this SOP.
     expect(merged.complianceChecks).toEqual([])
     // The database's events replace the tab's copies; the tab's other events stay, in order.
@@ -58,7 +59,27 @@ describe('SOPs from the database and this tab', () => {
     expect(merged.timeline.map((event) => event.id)).toEqual(['db-1', 'db-done'])
   })
 
-    it('takes a new SOP from the database as it is', () => {
+    it('takes the review rounds, reviewers and reviewer comments from the database, and keeps approval in the tab', () => {
+    const round = { id: 'round-1', scope: 'internal' as const, version: '1', status: 'completed' as const, requestedById: 'uuid-sara', requestedAt: '2026-10-24T10:00:00Z', assignedDueDays: null, assignments: [] }
+    const reviewerComment = { id: 'c-db', authorUserId: 'uuid-noura', role: 'reviewer' as const, text: 'Fine', version: '1', createdAt: '2026-10-24T11:00:00Z' }
+    const approverComment = { id: 'c-tab', authorUserId: 'uuid-khalid', role: 'approver' as const, text: 'Approve later', version: '1', createdAt: '2026-10-24T12:00:00Z' }
+    const kept = sop({ status: 'in-approval', internalReviewRounds: [round], approvers: [{ userId: 'uuid-khalid', decision: 'pending' }], comments: [{ ...reviewerComment, id: 'c-old' }, approverComment] })
+    const merged = mergeSop(sop({ status: 'in-review', internalReviewRounds: [round], comments: [reviewerComment] }), kept)
+    // Approval only happens in this tab: its status and approvers stay.
+    expect(merged).toMatchObject({ status: 'in-approval', approvers: [{ userId: 'uuid-khalid', decision: 'pending' }] })
+    expect(merged.comments.map((comment) => comment.id)).toEqual(['c-db', 'c-tab'])
+  })
+
+  it('ends the earlier approval stage when the database has a new round', () => {
+    const first = { id: 'round-1', scope: 'internal' as const, version: '1', status: 'completed' as const, requestedById: 'uuid-sara', requestedAt: '2026-10-24T10:00:00Z', assignedDueDays: null, assignments: [] }
+    const second = { ...first, id: 'round-2', version: '2', status: 'open' as const }
+    const kept = sop({ status: 'returned', internalReviewRounds: [first], approvers: [{ userId: 'uuid-khalid', decision: 'returned' }], approvalDueDays: 5 })
+    const merged = mergeSop(sop({ status: 'in-review', internalReviewRounds: [first, second] }), kept)
+    expect(merged).toMatchObject({ status: 'in-review', approvers: [] })
+    expect(merged.approvalDueDays).toBeUndefined()
+  })
+
+  it('takes a new SOP from the database as it is', () => {
     expect(mergeSop(sop(), undefined)).toEqual(sop())
   })
 

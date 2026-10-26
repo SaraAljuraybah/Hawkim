@@ -245,6 +245,7 @@ export const sopWorkflowEn: SopWorkflowContent = {
       description: 'Your response is added to the Review timeline and sent to {names}.',
       label: 'Response',
       required: 'Write a response.',
+      failed: "The response couldn't be sent. Check your connection and try again.",
       counter: '{count} / {max}',
       confirm: 'Send response',
     },

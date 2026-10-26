@@ -11,7 +11,7 @@ import { supabase } from './supabase'
 
 /** The columns read for a person, with their roles. */
 const PROFILE_COLUMNS = 'id, full_name, email, initials, department_id, deleted_at, user_roles(role)'
-const DEPARTMENT_COLUMNS = 'id, name, initials, description, removed_at'
+const DEPARTMENT_COLUMNS = 'id, name, initials, description, removed_at, requires_compliance_check'
 
 export interface ProfileRow {
   id: string
@@ -29,6 +29,7 @@ export interface DepartmentRow {
   initials: string
   description: string
   removed_at: string | null
+  requires_compliance_check: boolean
 }
 
 /** A profile row as a User: roles become permissions, in the usual display order. */
@@ -71,6 +72,7 @@ export function toDepartment(row: DepartmentRow): Department {
     initials: row.initials,
     description: row.description,
     ...(row.removed_at ? { removedAt: row.removed_at } : {}),
+    ...(row.requires_compliance_check ? { requiresComplianceCheck: true } : {}),
   }
 }
 

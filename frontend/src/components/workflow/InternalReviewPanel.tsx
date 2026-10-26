@@ -53,10 +53,10 @@ export function InternalReviewPanel({ sop, canRemove, activeOnly = false, compac
     .filter((userId) => !activeOnly || !isInactiveDecision(requestsOf(userId).at(-1)!.assignment.decision))
   // After a removal the Remove button may be gone: focus moves to the panel heading instead.
   function close() { setTarget(null); requestAnimationFrame(() => { if (triggerRef.current?.isConnected) triggerRef.current.focus(); else document.getElementById(TITLE_ID)?.focus() }) }
-  function remove() {
+  async function remove() {
     if (!target) return false
     if (!reason.trim()) { flushSync(() => setReasonError(text.panel.removeRequired)); reasonRef.current?.focus(); return false }
-    try { store.removeInternalReviewer(sop.id, target.roundId, target.assignment.id, reason); setMessage(text.panel.removed.replace('{name}', nameOf(target.assignment.userId))) }
+    try { await store.removeInternalReviewer(sop.id, target.roundId, target.assignment.id, reason); setMessage(text.panel.removed.replace('{name}', nameOf(target.assignment.userId))) }
     catch (failure) { setError(failure instanceof Error ? failure.message : text.status.closed); return false }
   }
   return <Card title={text.panel.title} titleId={TITLE_ID} focusableTitle className="mt-6">

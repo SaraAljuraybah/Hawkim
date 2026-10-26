@@ -26,7 +26,7 @@ import { internalReviewEn } from '../content/internalReview.en'
 import { sopWorkflowEn } from '../content/workflow.en'
 import type { Sop, SopVersion } from '../data/mock/types'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
-import { currentCheck, hasCurrentCheck, isCheckRunning } from '../lib/compliance'
+import { checkRequired, currentCheck, hasCurrentCheck, isCheckRunning } from '../lib/compliance'
 import { approvalReadiness, type ApprovalReadiness } from '../lib/approval'
 import { canAddReviewers, canSendNewVersion, type ReviewPhaseItem } from '../lib/internalReview'
 import { reviewAllowsNewVersion } from '../lib/internalReviewStatus'
@@ -158,10 +158,12 @@ export function SopWorkflowPage() {
   const canSubmit = sop.status === 'draft' || sop.status === 'returned' && !internal
 
   // Submit for review: Submit when Draft, Resubmit when Returned (main author only).
-  // A completed compliance check of the current version, against the current GVP
-  // version, is needed (it needn't pass); a resubmit also needs a version uploaded after the return.
+  // Only where the GVP guideline applies (Pharmacovigilance): a completed compliance check of the
+  // current version, against the current GVP version, is needed (it needn't pass). Other SOPs have
+  // no check. A resubmit also needs a version uploaded after the return.
+  const needsCheck = checkRequired(sop, departments.departments)
   const checkRunning = isCheckRunning(sop)
-  const checkDone = hasCurrentCheck(sop, guidelines.current.version)
+  const checkDone = !needsCheck || hasCurrentCheck(sop, guidelines.current.version)
   // A completed check of this version, but against an older GVP version: it must be rerun.
   const checkedOlder = currentCheck(sop)?.status === 'completed'
   const checkReason = checkDone
@@ -214,9 +216,9 @@ export function SopWorkflowPage() {
   // Response: to everyone who commented in the latest round; not once published.
   const recipients = sop.status === 'published' ? [] : responseRecipients(sop)
 
-  // Compliance check: hidden once Approved or Published; disabled In Review and In Approval
-  // (that reason wins); otherwise the main author, or a co-author who uploaded the current version.
-  const showCheck = sop.status !== 'approved' && sop.status !== 'published'
+  // Compliance check: only where the GVP guideline applies; hidden once Approved or Published; disabled
+  // In Review and In Approval (that reason wins); otherwise the main author, or a co-author who uploaded the current version.
+  const showCheck = needsCheck && sop.status !== 'approved' && sop.status !== 'published'
   const checkBlock = checkBlocker(sop, user.id)
   const checkBlockedReason =
     checkBlock === 'status'
@@ -400,10 +402,12 @@ export function SopWorkflowPage() {
         />
       </Section>
 
-      {/* 4. Compliance overview (says so when the current version hasn't been checked yet) */}
-      <Section id="compliance-title" title={complianceEn.card.title} className="mt-6">
-        <ComplianceCard sop={sop} content={complianceEn} />
-      </Section>
+      {/* 4. Compliance overview (says so when the current version hasn't been checked yet); only where the GVP guideline applies */}
+      {needsCheck && (
+        <Section id="compliance-title" title={complianceEn.card.title} className="mt-6">
+          <ComplianceCard sop={sop} content={complianceEn} />
+        </Section>
+      )}
 
       {/* 5. Review timeline, with Response and Submit for review */}
       <Section
@@ -477,8 +481,8 @@ export function SopWorkflowPage() {
           sop={sop}
           content={dialogs}
           onClose={closeDialog}
-          onSubmit={(options) => {
-            store.submitForReview(sop.id, options)
+          onSubmit={async (options) => {
+            await store.submitForReview(sop.id, options)
             announce(content.messages.submitted)
           }}
         />
@@ -489,8 +493,8 @@ export function SopWorkflowPage() {
           sop={sop}
           content={dialogs}
           onClose={closeDialog}
-          onSubmit={(options) => {
-            store.addInternalReviewers(sop.id, options)
+          onSubmit={async (options) => {
+            await store.addInternalReviewers(sop.id, options)
             announce(content.messages.submitted)
           }}
         />
@@ -525,8 +529,8 @@ export function SopWorkflowPage() {
           content={dialogs}
           recipients={recipients.map((recipient) => personWithRole(sop, recipient, content.roles, nameOf)).join(', ')}
           onClose={closeDialog}
-          onSubmit={(text) => {
-            store.addResponse(sop.id, text)
+          onSubmit={async (text) => {
+            await store.addResponse(sop.id, text)
             announce(content.messages.responseSent)
           }}
         />

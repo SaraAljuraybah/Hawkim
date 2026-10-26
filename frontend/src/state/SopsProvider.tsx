@@ -9,6 +9,7 @@ import { acceptInternalReview, addInternalReviewers, decideInternalReview, decli
 import { useDepartments } from './departmentsContext'
 import * as workflow from '../lib/workflow'
 import { finishSampleCheck, startComplianceCheck } from '../services/compliance'
+import { acceptReview, addReviewers, declineReview, decideReview, removeReviewer, respondToComments, submitReview, withdrawDueRequests } from '../services/review'
 import { fileTypeOf, uploadSopFile } from '../services/files'
 import { addCoAuthors, createSop, deleteSopVersion, fetchSop, fetchSops, removeCoAuthor, uploadSopVersion } from '../services/sops'
 import { mergeSops } from './mergeSops'
@@ -22,11 +23,11 @@ const DAY_MS = 24 * 60 * 60 * 1000
 
 /**
  * Store of every SOP (one list for the directory, My SOPs and the workflow).
- * The SOPs, their versions, files, co-authors and compliance checks come from the
- * database: they're read after each sign-in (merged with what this tab already has, see
- * mergeSops.ts), and creating an SOP, uploading or deleting a version, managing co-authors
- * and running checks are saved there. Everything else (status changes, review requests,
- * comments) is still kept in this tab only and lost on reload, like the sample SOPs it starts with.
+ * The SOPs and everything about them (versions, files, co-authors, compliance checks,
+ * status, review rounds and requests, comments, responses and their timeline) come from
+ * the database: they're read after each sign-in (merged with what this tab already has,
+ * see mergeSops.ts), and every action on them is saved there. Approval isn't part of this
+ * delivery: it is still kept in this tab only and lost on reload, like the sample SOPs.
  * Workflow rules live in lib/workflow.ts. Actions are by the signed-in user.
  * Must be inside <SessionProvider>.
  * TODO: Save the remaining actions in the database, phase by phase.
@@ -45,6 +46,8 @@ export function SopsProvider({ children }: { children: ReactNode }) {
    * build on each other instead of the second overwriting the first.
    */
   const latestRef = useRef<Sop[]>(seedSops)
+  /** The SOPs read from the database (the others are the sample SOPs, kept only in this tab). */
+  const storedIds = useRef(new Set<string>())
   const commit = useCallback((next: Sop[]) => {
     latestRef.current = next
     setSops(next)
@@ -55,6 +58,7 @@ export function SopsProvider({ children }: { children: ReactNode }) {
     async (sopId: string) => {
       const stored = await fetchSop(sopId)
       if (!stored) throw new Error(`Unknown SOP ${sopId}`)
+      storedIds.current.add(stored.id)
       commit(mergeSops(latestRef.current, [stored]))
       return latestRef.current.find((sop) => sop.id === sopId)!
     },
@@ -85,18 +89,32 @@ export function SopsProvider({ children }: { children: ReactNode }) {
     [commit],
   )
 
-  // The automatic withdrawal also runs on load and at the moment the next response due date ends.
+  /*
+   * The automatic withdrawal also runs on load and at the moment the next response due date
+   * ends: in the database for stored SOPs (asked once per deadline, then read again), in this
+   * tab for the sample SOPs. TODO: A scheduled job will withdraw them on the server.
+   */
+  const withdrawalsAsked = useRef(new Set<string>())
   useEffect(() => {
     const next = nextWithdrawalAt(sops)
     if (next === undefined) return
     // Long waits are re-checked daily (browser timers can't wait longer than about 24 days).
     const timer = window.setTimeout(() => {
       const now = Date.now()
-      const swept = latestRef.current.map((sop) => withdrawUnanswered(sop, now))
+      const swept = latestRef.current.map((sop) => (storedIds.current.has(sop.id) ? sop : withdrawUnanswered(sop, now)))
       if (swept.some((sop, index) => sop !== latestRef.current[index])) commit(swept)
+      for (const sop of latestRef.current) {
+        if (!storedIds.current.has(sop.id) || withdrawUnanswered(sop, now) === sop) continue
+        const key = `${sop.id}:${nextWithdrawalAt([sop])}`
+        if (withdrawalsAsked.current.has(key)) continue
+        withdrawalsAsked.current.add(key)
+        void withdrawDueRequests(sop.id)
+          .then(() => refresh(sop.id))
+          .catch(() => undefined)
+      }
     }, Math.min(Math.max(0, next - Date.now()), DAY_MS))
     return () => window.clearTimeout(timer)
-  }, [sops, commit])
+  }, [sops, commit, refresh])
 
   // DEVELOPMENT ONLY (demo panel): the next check started fails instead of completing.
   const [failNextCheck, setFailNextCheckState] = useState(false)
@@ -133,6 +151,7 @@ export function SopsProvider({ children }: { children: ReactNode }) {
   const runCheck = useCallback(
     async (sopId: string) => {
       const sop = workflow.assertCanRunCheck(current(sopId), userId)
+      if (!compliance.checkRequired(sop, departments)) throw new Error('Compliance checks are only for SOPs of departments the GVP guideline applies to')
       if (compliance.isCheckRunning(sop)) throw new Error('A compliance check is already running')
       const checkId = await startComplianceCheck(sopId)
       const fail = failNextRef.current
@@ -140,7 +159,7 @@ export function SopsProvider({ children }: { children: ReactNode }) {
       await refresh(sopId)
       scheduleCompletion(sopId, checkId, fail ? 'failed' : 'completed')
     },
-    [current, userId, refresh, scheduleCompletion, setFailNextCheck],
+    [current, userId, departments, refresh, scheduleCompletion, setFailNextCheck],
   )
 
   // The SOPs this person may read, after each sign-in (other SOPs already in the tab stay).
@@ -151,6 +170,7 @@ export function SopsProvider({ children }: { children: ReactNode }) {
     fetchSops().then(
       (stored) => {
         if (!active) return
+        for (const sop of stored) storedIds.current.add(sop.id)
         commit(mergeSops(latestRef.current, stored))
         setLoaded({ userId, status: 'ready' })
         // This person's sample checks still running (the page was reloaded meanwhile) are finished now.
@@ -197,16 +217,41 @@ export function SopsProvider({ children }: { children: ReactNode }) {
       sops,
       addDraft,
       // The first submission from Draft, or a new version sent once every reviewer has finished.
-      submitForReview: (id, o) => update(id, (sop) => sop.status === 'draft'
-        ? startInternalReview(sop, userId, guideline.version, o, environment)
-        : sendNewVersionForReview(sop, userId, guideline.version, o, environment)),
+      // Each review action checks the browser's rules first, then the database's, then reads the SOP again.
+      submitForReview: async (id, o) => {
+        const sop = current(id)
+        if (sop.status === 'draft') startInternalReview(sop, userId, guideline.version, o, environment)
+        else sendNewVersionForReview(sop, userId, guideline.version, o, environment)
+        await submitReview(id, o)
+        await refresh(id)
+      },
       submitForApproval: (id, options) => update(id, (sop) => submitForApproval(sop, userId, options, environment)),
       reviewAction: (id, action) => update(id, (sop) => applyReviewAction(sop, userId, action, environment)),
-      acceptInternalReview: (id, roundId, assignmentId) => update(id, (sop) => acceptInternalReview(sop, userId, roundId, assignmentId, environment)),
-      declineInternalReview: (id, roundId, assignmentId, reason) => update(id, (sop) => declineInternalReview(sop, userId, roundId, assignmentId, reason, environment)),
-      decideInternalReview: (id, roundId, assignmentId, decision, text) => update(id, (sop) => decideInternalReview(sop, userId, roundId, assignmentId, decision, text, environment)),
-      addInternalReviewers: (id, options) => update(id, (sop) => addInternalReviewers(sop, userId, options, environment)),
-      removeInternalReviewer: (id, roundId, assignmentId, reason) => update(id, (sop) => removeInternalReviewer(sop, userId, roundId, assignmentId, reason, environment)),
+      acceptInternalReview: async (id, roundId, assignmentId) => {
+        acceptInternalReview(current(id), userId, roundId, assignmentId, environment)
+        await acceptReview(assignmentId)
+        await refresh(id)
+      },
+      declineInternalReview: async (id, roundId, assignmentId, reason) => {
+        declineInternalReview(current(id), userId, roundId, assignmentId, reason, environment)
+        await declineReview(assignmentId, reason.trim())
+        await refresh(id)
+      },
+      decideInternalReview: async (id, roundId, assignmentId, decision, text) => {
+        decideInternalReview(current(id), userId, roundId, assignmentId, decision, text, environment)
+        await decideReview(assignmentId, decision, text)
+        await refresh(id)
+      },
+      addInternalReviewers: async (id, options) => {
+        addInternalReviewers(current(id), userId, options, environment)
+        await addReviewers(id, options)
+        await refresh(id)
+      },
+      removeInternalReviewer: async (id, roundId, assignmentId, reason) => {
+        removeInternalReviewer(current(id), userId, roundId, assignmentId, reason, environment)
+        await removeReviewer(assignmentId, reason.trim())
+        await refresh(id)
+      },
       resubmit: (id, options) => update(id, (sop) => {
         if (sop.internalReviewRounds?.length) {
           throw new Error('Use Submit for review to send the new version to reviewers')
@@ -226,7 +271,11 @@ export function SopsProvider({ children }: { children: ReactNode }) {
         await deleteSopVersion(id, version)
         await refresh(id)
       },
-      addResponse: (id, text) => update(id, (sop) => workflow.addResponse(sop, userId, text)),
+      addResponse: async (id, text) => {
+        workflow.addResponse(current(id), userId, text)
+        await respondToComments(id, text.trim())
+        await refresh(id)
+      },
       // The signed-in user (`userId`) acts; the others are the co-authors added or removed.
       // The browser's rules first (they also cover reviewers and approvers the database doesn't have yet).
       addCoAuthors: async (id, coAuthorIds) => {

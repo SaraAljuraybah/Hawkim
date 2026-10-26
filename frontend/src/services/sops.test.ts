@@ -41,9 +41,25 @@ const row: SopRow = {
       ],
     },
   ],
+  review_rounds: [
+    {
+      id: 'round-1', version: 1, status: 'open', requested_by: 'uuid-sara', requested_at: '2026-10-24T10:00:00Z', closed_at: null,
+      review_requests: [
+        { id: 'req-2', seq: 2, reviewer_id: 'uuid-lulwah', status: 'removed', assigned_at: '2026-10-24T10:00:00Z', response_due_date: null, review_duration_days: null,
+          accepted_at: '2026-10-24T11:00:00Z', review_due_date: null, decided_at: '2026-10-24T12:00:00Z', decline_reason: null, comment_id: 'c-1', withdrawn_at: null,
+          removed_at: '2026-10-25T09:00:00Z', removed_by: 'uuid-sara', removal_reason: 'Not needed', status_before_removal: 'completed' },
+        { id: 'req-1', seq: 1, reviewer_id: 'uuid-noura', status: 'accepted', assigned_at: '2026-10-24T10:00:00Z', response_due_date: '2026-10-26', review_duration_days: 5,
+          accepted_at: '2026-10-24T11:00:00Z', review_due_date: '2026-10-29', decided_at: null, decline_reason: null, comment_id: null, withdrawn_at: null,
+          removed_at: null, removed_by: null, removal_reason: null, status_before_removal: null },
+      ],
+    },
+  ],
+  sop_comments: [
+    { id: 'c-1', version: 1, author_id: 'uuid-lulwah', role: 'reviewer', text: 'Looks fine', review_round_id: 'round-1', review_request_id: 'req-2', created_at: '2026-10-24T12:00:00Z' },
+  ],
   timeline_events: [
-    { id: 'e2', type: 'version-uploaded', actor_id: 'uuid-sara', version: 2, recipient_ids: [], subject_id: null, note: null, created_at: '2026-10-25T09:00:00Z' },
-    { id: 'e1', type: 'version-uploaded', actor_id: null, version: 1, recipient_ids: ['uuid-noura'], subject_id: null, note: 'Hello', created_at: '2026-10-24T09:00:00Z' },
+    { id: 'e2', type: 'version-uploaded', actor_id: 'uuid-sara', version: 2, recipient_ids: [], subject_id: null, note: null, created_at: '2026-10-25T09:00:00Z', review_round_id: null, review_request_id: null, comment_id: null },
+    { id: 'e1', type: 'version-uploaded', actor_id: null, version: 1, recipient_ids: ['uuid-noura'], subject_id: null, note: 'Hello', created_at: '2026-10-24T09:00:00Z', review_round_id: null, review_request_id: null, comment_id: null },
   ],
 }
 
@@ -74,8 +90,26 @@ describe('SOPs from the database', () => {
     expect(second.completedAt).toBeUndefined()
   })
 
-  it('starts with nothing that is still kept in the browser', () => {
-    expect(toSop(row)).toMatchObject({ reviewers: [], approvers: [], comments: [] })
+  it('keeps the review rounds with their requests in the order they were sent, only with the fields that are set', () => {
+    const [round] = toSop(row).internalReviewRounds!
+    expect(round).toMatchObject({ id: 'round-1', scope: 'internal', version: '1', status: 'open', requestedById: 'uuid-sara', assignedDueDays: null })
+    expect(round.closedAt).toBeUndefined()
+    expect(round.assignments.map((request) => request.id)).toEqual(['req-1', 'req-2'])
+    expect(round.assignments[0]).toEqual({
+      id: 'req-1', userId: 'uuid-noura', decision: 'accepted', assignedAt: '2026-10-24T10:00:00Z', assignedDueDays: null,
+      responseDueDate: '2026-10-26', reviewDurationDays: 5, acceptedAt: '2026-10-24T11:00:00Z', reviewDueDate: '2026-10-29',
+    })
+    expect(round.assignments[1]).toMatchObject({ decision: 'removed', removedById: 'uuid-sara', removalReason: 'Not needed', decisionBeforeRemoval: 'completed', commentId: 'c-1' })
+  })
+
+  it('shows the latest round\'s reviewers in the shared views, and keeps the reviewer comments', () => {
+    const sop = toSop(row)
+    expect(sop.reviewers.map((person) => [person.userId, person.decision])).toEqual([['uuid-noura', 'pending'], ['uuid-lulwah', 'cancelled']])
+    expect(sop.comments).toEqual([{ id: 'c-1', authorUserId: 'uuid-lulwah', role: 'reviewer', text: 'Looks fine', version: '1', createdAt: '2026-10-24T12:00:00Z', reviewRoundId: 'round-1', reviewAssignmentId: 'req-2' }])
+  })
+
+  it('starts without approvers, which are still kept in the browser', () => {
+    expect(toSop(row)).toMatchObject({ approvers: [] })
     expect(toSop(row).description).toBeUndefined()
   })
 
@@ -98,8 +132,11 @@ describe('reading SOPs', () => {
       expect(columns).toContain('sop_co_authors!sop_co_authors_sop_id_fkey (')
       expect(columns).toContain('compliance_checks!compliance_checks_sop_id_fkey (')
       expect(columns).toContain('compliance_findings!compliance_findings_check_id_fkey (')
+      expect(columns).toContain('review_rounds!review_rounds_sop_id_fkey (')
+      expect(columns).toContain('review_requests!review_requests_round_id_fkey (')
+      expect(columns).toContain('sop_comments!sop_comments_sop_id_fkey (')
       // No embed without a named relationship.
-      expect(columns).not.toMatch(/\b(sop_versions|sop_co_authors|timeline_events|compliance_checks|compliance_findings|guideline_versions|guideline_requirements) \(/)
+      expect(columns).not.toMatch(/\b(sop_versions|sop_co_authors|timeline_events|compliance_checks|compliance_findings|guideline_versions|guideline_requirements|review_rounds|review_requests|sop_comments) \(/)
     }
   })
 })

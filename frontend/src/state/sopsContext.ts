@@ -31,19 +31,19 @@ export interface SopsStore {
 
   // Actions by the current user (author or co-author). Each throws if not allowed.
   /** Main author: first submission from Draft, or a new version sent to the chosen reviewers. */
-  submitForReview: (sopId: string, options: SubmitOptions) => void
+  submitForReview: (sopId: string, options: SubmitOptions) => Promise<void>
   /** Main Author: submit this reviewed version to its configured Quality Document Controller. */
   submitForApproval: (sopId: string, options: ApprovalSubmissionOptions) => void
   reviewAction: (sopId: string, action: ReviewAction) => void
   /** Reviewer: take the task (required before completing or returning it). */
-  acceptInternalReview: (sopId: string, roundId: string, assignmentId: string) => void
+  acceptInternalReview: (sopId: string, roundId: string, assignmentId: string) => Promise<void>
   /** Reviewer: turn the task down with a required reason. */
-  declineInternalReview: (sopId: string, roundId: string, assignmentId: string, reason: string) => void
-  decideInternalReview: (sopId: string, roundId: string, assignmentId: string, decision: 'completed' | 'returned', text?: string) => void
+  declineInternalReview: (sopId: string, roundId: string, assignmentId: string, reason: string) => Promise<void>
+  decideInternalReview: (sopId: string, roundId: string, assignmentId: string, decision: 'completed' | 'returned', text?: string) => Promise<void>
   /** Main author: send the current version to more reviewers (reopens a settled round). */
-  addInternalReviewers: (sopId: string, options: SubmitOptions) => void
+  addInternalReviewers: (sopId: string, options: SubmitOptions) => Promise<void>
   /** Main author: remove a reviewer from the current round at any time, with a required reason. */
-  removeInternalReviewer: (sopId: string, roundId: string, assignmentId: string, reason: string) => void
+  removeInternalReviewer: (sopId: string, roundId: string, assignmentId: string, reason: string) => Promise<void>
   /** Main author: legacy resubmission with an optional new date and comments (internal reviews use submitForReview). */
   resubmit: (sopId: string, options?: ResubmitOptions) => void
   /** Uploads the file as the next version (Draft or Returned). It isn't checked until someone runs a compliance check. */
@@ -51,7 +51,7 @@ export interface SopsStore {
   /** Main author or its uploader: deletes a version (Draft or Returned; at least one remains). */
   deleteVersion: (sopId: string, version: string) => Promise<void>
   /** Author or co-author: replies to the latest round's comments. */
-  addResponse: (sopId: string, text: string) => void
+  addResponse: (sopId: string, text: string) => Promise<void>
   /** Main author: adds one or more co-authors in a single update (all or none). */
   addCoAuthors: (sopId: string, userIds: string[]) => Promise<void>
   /** Main author: removes a co-author. */

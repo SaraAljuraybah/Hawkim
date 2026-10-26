@@ -21,7 +21,7 @@ const fixture = vi.hoisted(() => ({ sop: null as Sop | null, userId: 'author', u
   { id: 'reviewer-a', name: 'Reviewer Alpha', permissions: ['reviewer'], departmentId: 'home' },
   { id: 'reviewer-b', name: 'Reviewer Beta', permissions: ['reviewer'], departmentId: 'home' },
   { id: 'external', name: 'External reviewer', permissions: ['reviewer'], departmentId: 'other' },
-] as User[], departments: [{ id: 'home', name: 'Home', initials: 'HM', description: '' }] }))
+] as User[], departments: [{ id: 'home', name: 'Home', initials: 'HM', description: '', requiresComplianceCheck: true }] }))
 vi.mock('../../state/sessionContext', () => ({ useCurrentUser: () => fixture.users.find((user) => user.id === fixture.userId) }))
 vi.mock('../../state/usersContext', () => ({ useUsers: () => ({ users: fixture.users, activeUsers: fixture.users, nameOf: (id: string) => fixture.users.find((user) => user.id === id)?.name ?? id ?? '', getUser: (id: string) => fixture.users.find((user) => user.id === id) }) }))
 vi.mock('../../state/departmentsContext', () => ({ useDepartments: () => ({ departments: fixture.departments, nameOf: (id: string) => id }) }))

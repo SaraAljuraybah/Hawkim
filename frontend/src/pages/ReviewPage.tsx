@@ -25,7 +25,7 @@ import { sopWorkflowEn } from '../content/workflow.en'
 import type { ApprovalDecisionSnapshot, Sop } from '../data/mock/types'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { useFileUrl } from '../hooks/useFileUrl'
-import { complianceScore, currentCheck, verdictOf } from '../lib/compliance'
+import { checkRequired, complianceScore, currentCheck, verdictOf } from '../lib/compliance'
 import { formatDateTime } from '../lib/format'
 import { reviewCompliancePath } from '../lib/routes'
 import { reviewSopForUser } from '../lib/reviewAccess'
@@ -81,7 +81,7 @@ function Review({ sop, historical }: { sop: Sop; historical: boolean }) {
   const store = useSops()
   const user = useCurrentUser()
   const { nameOf, getUser } = useUsers()
-  const { nameOf: departmentName } = useDepartments()
+  const { nameOf: departmentName, departments } = useDepartments()
 
   const [dialog, setDialog] = useState<DialogName | null>(null)
   const [approvalSnapshot, setApprovalSnapshot] = useState<ApprovalDecisionSnapshot>()
@@ -285,8 +285,8 @@ function Review({ sop, historical }: { sop: Sop; historical: boolean }) {
           />
         </Section>
 
-        {/* Compliance (read-only) */}
-        <Section id="compliance-title" title={text.compliance.title}>
+        {/* Compliance (read-only), only where the GVP guideline applies */}
+        {checkRequired(sop, departments) && <Section id="compliance-title" title={text.compliance.title}>
           <SampleBanner text={complianceEn.sampleBanner} />
           <div className="mt-4">
             {check?.status === 'completed' ? (
@@ -317,7 +317,7 @@ function Review({ sop, historical }: { sop: Sop; historical: boolean }) {
               <p className="text-sm text-text-gray">{text.compliance.none}</p>
             )}
           </div>
-        </Section>
+        </Section>}
       </div>
 
       {/* Current file: the PDF inline; a download for files uploaded in this session; the name only for samples */}

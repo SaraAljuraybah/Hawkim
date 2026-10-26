@@ -19,7 +19,8 @@ import { ReviewDueDateField } from './ReviewDueDateField'
 interface SubmitDialogProps {
   sop: Sop
   content: SopWorkflowContent['dialogs']
-  onSubmit: (options: SubmitOptions) => void
+  /** Saves the request; if it throws, the dialog stays open and says so. */
+  onSubmit: (options: SubmitOptions) => void | Promise<void>
   onClose: () => void
   /** 'add': the current version to more reviewers in its open (or settled) review; 'version': a new version to the reviewers chosen. */
   mode?: 'submit' | 'add' | 'version'
@@ -52,7 +53,7 @@ export function SubmitDialog({ sop, content, onSubmit, onClose, mode = 'submit' 
   const requestRef = useRef<HTMLInputElement>(null)
   const durationRef = useRef<HTMLInputElement>(null)
 
-  function confirm() {
+  async function confirm() {
     if (!reviewerIds.length || reviewerIds.some((id) => !options.some((user) => user.id === id))) {
       flushSync(() => setError(text.reviewerRequired))
       firstRef.current?.focus()
@@ -69,8 +70,8 @@ export function SubmitDialog({ sop, content, onSubmit, onClose, mode = 'submit' 
       durationRef.current?.focus()
       return false
     }
-    try { onSubmit({ reviewerIds, responseDueDate: dueDate || undefined, reviewDurationDays: days, note: note.trim() || undefined }) }
-    catch { setFailed(true); return false }
+    try { await onSubmit({ reviewerIds, responseDueDate: dueDate || undefined, reviewDurationDays: days, note: note.trim() || undefined }) }
+    catch { flushSync(() => setFailed(true)); return false }
   }
   return (
     <FormDialog open title={text.title} confirmLabel={text.confirm} cancelLabel={content.cancel} onConfirm={confirm} onClose={onClose}>

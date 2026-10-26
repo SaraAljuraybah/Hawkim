@@ -41,6 +41,8 @@ export interface DepartmentWorkflowConfiguration {
   divisionId?: string
   /** Configured final controller for SOPs originating in this department. Must have Approver permission. */
   qualityControllerId?: string
+  /** The GVP guideline applies to this department's SOPs (Pharmacovigilance): they need a compliance check before review. */
+  requiresComplianceCheck?: boolean
 }
 
 export interface Department extends DepartmentWorkflowConfiguration {
@@ -206,6 +208,8 @@ export interface InternalReviewerAssignment extends Omit<ReviewerAssignment, 'de
   removedAt?: string
   removedById?: string
   removalReason?: string
+  /** The status the request had when its reviewer was removed (their decision stays in the history). */
+  decisionBeforeRemoval?: InternalReviewDecision
   /** Required when the reviewer declines. */
   declineReason?: string
   /** The comments of a return (required) or a completed review (optional). */

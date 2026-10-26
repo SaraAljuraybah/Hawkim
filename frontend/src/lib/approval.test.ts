@@ -13,7 +13,7 @@ function environment(): ReviewEnvironment {
   return {
     users: [person('author', ['author', 'reviewer', 'approver']), person('coauthor', ['author', 'reviewer', 'approver']),
       person('a', ['reviewer']), person('b', ['reviewer']), person('controller', ['approver']), person('external', ['reviewer'], 'other')],
-    departments: [{ id: 'home', name: 'Home', initials: 'HM', description: '', qualityControllerId: 'controller' },
+    departments: [{ id: 'home', name: 'Home', initials: 'HM', description: '', qualityControllerId: 'controller', requiresComplianceCheck: true },
       { id: 'other', name: 'Other', initials: 'OT', description: '' }],
   }
 }

@@ -1,5 +1,5 @@
 import { SYSTEM_ACTOR, type InternalReviewRound, type InternalReviewerAssignment, type Sop, type SopComment, type TimelineEvent } from '../data/mock/types'
-import { hasCurrentCheck } from './compliance'
+import { checkRequired, hasCurrentCheck } from './compliance'
 import { todayIsoDate } from './format'
 import { isInactiveDecision, isOpenDecision, isUnsentVersion, isValidReviewDuration, isWithdrawalDue, latestAssignmentOf, latestAssignments, projectReviewers, reviewDueDateFrom, withdrawalDueAt } from './internalReviewStatus'
 import { eligibleReviewers, type ReviewEnvironment } from './reviewFlow'
@@ -111,7 +111,8 @@ function validate(sop: Sop, options: InternalReviewOptions, env: ReviewEnvironme
 export function startInternalReview(sop: Sop, actorId: string, guidelineVersion: string, options: InternalReviewOptions, env: ReviewEnvironment): Sop {
   author(sop, actorId, env)
   assert(sop.status === 'draft' && !sop.internalReviewRounds?.some((round) => round.status === 'open'), 'Only a Draft without an open request can be submitted')
-  assert(hasCurrentCheck(sop, guidelineVersion), 'Run a completed compliance check against the current guideline first')
+  // Only where the GVP guideline applies (Pharmacovigilance).
+  assert(!checkRequired(sop, env.departments) || hasCurrentCheck(sop, guidelineVersion), 'Run a completed compliance check against the current guideline first')
   validate(sop, options, env)
   return create(sop, actorId, options, 'submitted')
 }
@@ -222,7 +223,7 @@ export function canSendNewVersion(sop: Sop): boolean {
 export function sendNewVersionForReview(sop: Sop, actorId: string, guidelineVersion: string, options: InternalReviewOptions, env: ReviewEnvironment): Sop {
   author(sop, actorId, env)
   assert(canSendNewVersion(sop), 'Upload a new version once every reviewer has finished before sending it for review')
-  assert(hasCurrentCheck(sop, guidelineVersion), 'Complete a compliance check of the new version against the current guideline first')
+  assert(!checkRequired(sop, env.departments) || hasCurrentCheck(sop, guidelineVersion), 'Complete a compliance check of the new version against the current guideline first')
   validate(sop, options, env)
   return create(sop, actorId, options, 'resubmitted')
 }
