@@ -1,10 +1,11 @@
--- Seed data: departments, profiles and roles.
+-- Seed data: departments, the GVP guideline with its requirements and the sample compliance
+-- results, profiles and roles.
 --
 -- Run it AFTER the migrations and AFTER the sign-in accounts were created in the Supabase
 -- dashboard (Authentication → Users). Profiles are linked to those accounts by email; a
 -- person without an account is skipped and listed by the last query, so the file can be run
--- again once more accounts exist. Running it again updates names and departments and adds
--- missing roles; it never removes a role.
+-- again once more accounts exist. Running it again updates names, departments, the guideline
+-- and the sample results, and adds missing roles; it never removes a role.
 --
 -- Emails use the reserved test domain hawkim.test, never real addresses.
 
@@ -27,6 +28,70 @@ on conflict (id) do update set
   initials = excluded.initials,
   description = excluded.description,
   is_quality = excluded.is_quality;
+
+-- ---------- GVP guideline ----------
+
+insert into public.guideline_versions (name, version, issued_date, effective_date, file_name) values
+  ('SFDA Guideline on Good Pharmacovigilance Practices (GVP)', '4.0', '2015-05-27', '2015-09-01', 'Drug-GVP4_0.pdf')
+on conflict (name, version) do update set
+  issued_date = excluded.issued_date,
+  effective_date = excluded.effective_date,
+  file_name = excluded.file_name;
+
+-- Requirements from GVP v4.0 (section numbers and pages as in the document; summaries paraphrased).
+insert into public.guideline_requirements (guideline_version_id, code, module, section, section_title, short_title, page, summary)
+select g.id, r.code, r.module, r.section, r.section_title, r.short_title, r.page, r.summary
+from public.guideline_versions g
+cross join (values
+  ('R1', 'Module I', 'I.B.10', 'Record management', 'Access to pharmacovigilance records', 22,
+   'Access to pharmacovigilance documents and databases is strictly limited to authorized personnel.'),
+  ('R2', 'Module I', 'I.B.10', 'Record management', 'Retention of records', 22,
+   'Pharmacovigilance data and records are protected from destruction during the applicable retention period.'),
+  ('R3', 'Module I', 'I.B.10', 'Record management', 'Timely access to records', 22,
+   'The record management system supports timely access to all records.'),
+  ('R4', 'Module I', 'I.C.1.4', 'Specific quality system processes of the MAH in KSA', 'Back-up and security of electronic records', 34,
+   'Documents may be retained electronically only if the system is validated, with appropriate arrangements for system security, access and back-up of data.'),
+  ('R5', 'Module I', 'I.B.7', 'Training of personnel for pharmacovigilance', 'Training of personnel', 19,
+   'Personnel receive initial and continued training, and training records are kept.')
+) as r (code, module, section, section_title, short_title, page, summary)
+where g.name = 'SFDA Guideline on Good Pharmacovigilance Practices (GVP)' and g.version = '4.0'
+on conflict (guideline_version_id, code) do update set
+  module = excluded.module,
+  section = excluded.section,
+  section_title = excluded.section_title,
+  short_title = excluded.short_title,
+  page = excluded.page,
+  summary = excluded.summary;
+
+-- The results every sample check gets (the real compliance service isn't connected yet).
+insert into public.sample_findings (guideline_version_id, requirement_id, position, result, justification, sop_reference, recommended_action)
+select g.id, q.id, f.position, f.result::public.compliance_result, f.justification, f.sop_reference, f.recommended_action
+from public.guideline_versions g
+cross join (values
+  ('R1', 1, 'compliant',
+   'Sample finding: the SOP describes role-based access approval for the system.',
+   'Section 4.2', null),
+  ('R2', 2, 'partial',
+   'Sample finding: the SOP describes regular back-ups of records but does not say how long pharmacovigilance records are kept.',
+   'Section 5.1', 'Sample recommendation: state how long pharmacovigilance records are kept and how they are protected during that period.'),
+  ('R3', 3, 'compliant',
+   'Sample finding: the SOP explains how records are indexed so they can be found and retrieved on request.',
+   'Section 5.3', null),
+  ('R4', 4, 'conflict',
+   'Sample finding: the SOP stores archived records on a system with no scheduled back-up, which conflicts with the back-up requirement.',
+   'Section 6.2', 'Sample recommendation: define a scheduled, tested back-up for the archive system.'),
+  ('R5', 5, 'not-addressed',
+   'Sample finding: the SOP does not mention training for staff who perform this procedure.',
+   null, 'Sample recommendation: describe the initial and continued training for staff who perform this procedure, and where training records are kept.')
+) as f (code, position, result, justification, sop_reference, recommended_action)
+join public.guideline_requirements q on q.guideline_version_id = g.id and q.code = f.code
+where g.name = 'SFDA Guideline on Good Pharmacovigilance Practices (GVP)' and g.version = '4.0'
+on conflict (guideline_version_id, position) do update set
+  requirement_id = excluded.requirement_id,
+  result = excluded.result,
+  justification = excluded.justification,
+  sop_reference = excluded.sop_reference,
+  recommended_action = excluded.recommended_action;
 
 -- ---------- People ----------
 -- One row per person: email, name, initials, home department, roles (empty: no role).
