@@ -17,6 +17,10 @@
 -- The automatic withdrawal runs at the start of every review action and when the browser asks
 -- (withdraw_due_requests). TODO: Run it from a scheduled job (pg_cron) instead.
 --
+-- Compliance checks apply only where the GVP guideline does (Pharmacovigilance): only SOPs of a
+-- department flagged requires_compliance_check can be checked, and only they need a completed
+-- check of the current version before review. Every other SOP is submitted without a check.
+--
 -- This migration also closes what earlier phases left to the browser: a version sent for review
 -- can't be deleted, during review a new version waits for every reviewer, only an unsent version
 -- can be checked during review, and a co-author can't be a reviewer on the SOP. Reviewers can
@@ -29,6 +33,12 @@ create type public.review_round_status as enum ('open', 'completed', 'changes-re
 create type public.review_request_status as enum ('pending', 'accepted', 'declined', 'withdrawn', 'removed', 'completed', 'returned');
 
 create type public.comment_role as enum ('reviewer', 'approver');
+
+-- ---------- Which departments need a compliance check ----------
+
+-- The GVP guideline applies to pharmacovigilance only. The seed sets the flag (no department id
+-- is written into the rules); more than one department may have it.
+alter table public.departments add column requires_compliance_check boolean not null default false;
 
 -- ---------- Tables ----------
 
@@ -382,6 +392,16 @@ as $$
   ), false);
 $$;
 
+-- The SOP's department is one the GVP guideline applies to, so its SOPs are checked.
+create function public.sop_requires_check(p_sop public.sops) returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select coalesce((select d.requires_compliance_check from public.departments d where d.id = p_sop.department_id), false);
+$$;
+
 -- ---------- Who can see an SOP: now reviewers too ----------
 
 create or replace function public.can_view_sop(p_sop_id uuid) returns boolean
@@ -457,7 +477,8 @@ begin
   if not is_first and not (sop.status in ('in-review', 'returned') and latest.id is not null and latest.version <> sop.current_version) then
     raise exception 'Upload a new version once every reviewer has finished before sending it for review' using errcode = 'check_violation';
   end if;
-  if not public.has_current_check(sop) then
+  -- Only where the guideline applies: a completed check of the current version is needed.
+  if public.sop_requires_check(sop) and not public.has_current_check(sop) then
     raise exception 'Run a completed compliance check against the current guideline first' using errcode = 'check_violation';
   end if;
   perform public.check_review_options(p_sop_id, p_reviewer_ids, p_response_due_date, p_review_duration_days, p_note);
@@ -839,7 +860,8 @@ begin
 end;
 $$;
 
--- During review, only a version that hasn't been sent to reviewers yet can be checked (the other rules are unchanged).
+-- Only SOPs of a department the guideline applies to can be checked, and during review only a
+-- version that hasn't been sent to reviewers yet (the other rules are unchanged).
 create or replace function public.start_compliance_check(p_sop_id uuid)
 returns uuid
 language plpgsql
@@ -870,6 +892,9 @@ begin
        select 1 from public.review_rounds r where r.sop_id = p_sop_id and r.version = sop.current_version
      )) then
     raise exception 'A compliance check can''t be run while the SOP is %', sop.status using errcode = 'check_violation';
+  end if;
+  if not public.sop_requires_check(sop) then
+    raise exception 'Compliance checks are only for SOPs of departments the GVP guideline applies to' using errcode = 'check_violation';
   end if;
 
   -- A sample check still running after 5 minutes was left behind (its tab was closed): it failed.
@@ -911,6 +936,7 @@ revoke execute on function public.settle_review_round(uuid) from public, anon, a
 revoke execute on function public.withdraw_due(uuid) from public, anon, authenticated;
 revoke execute on function public.open_request(uuid) from public, anon, authenticated;
 revoke execute on function public.has_current_check(public.sops) from public, anon, authenticated;
+revoke execute on function public.sop_requires_check(public.sops) from public, anon, authenticated;
 revoke execute on function public.riyadh_today() from public, anon, authenticated;
 revoke execute on function public.riyadh_end_of_day(date) from public, anon, authenticated;
 revoke execute on function public.earliest_response_date() from public, anon, authenticated;
