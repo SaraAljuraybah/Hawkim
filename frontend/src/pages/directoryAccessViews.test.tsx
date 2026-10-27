@@ -68,7 +68,7 @@ describe('directory selection never changes authoring or membership context', ()
     const html = render(<DepartmentSwitcher content={appShellEn.departmentSwitcher} variant="topbar" />)
     expect(html).toContain('SOP Directory')
     expect(html).toContain('Foreign Directory')
-    expect(html).toContain('read-only')
+    expect(html).toContain('(Read-only)')
   })
   it('lists only authorized published data, regardless of the selected context', () => {
     const html = render(<SopsPage />)

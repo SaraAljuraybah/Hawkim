@@ -64,5 +64,5 @@ export const forgotPasswordEn: ForgotPasswordContent = {
   logoAlt: 'Hawkim',
   title: 'Forgot your password?',
   text: 'Ask the project owner to reset your password.',
-  backLink: { label: 'Back to sign in', href: '/login' },
+  backLink: { label: 'Back to Sign In', href: '/login' },
 }

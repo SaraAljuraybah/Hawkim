@@ -18,7 +18,7 @@ export const appShellEn: AppShellContent = {
     { label: 'Dashboard', href: '/dashboard', icon: 'dashboard' },
     { label: 'My SOPs', href: '/my-sops', icon: 'mySops', matchSubpaths: true, permission: 'author' },
     { label: 'My Reviews', href: '/reviews', icon: 'reviews', matchSubpaths: true, permission: ['reviewer', 'approver'] },
-    { label: 'My Request', href: '/requests', icon: 'requests', matchSubpaths: true },
+    { label: 'My Requests', href: '/requests', icon: 'requests', matchSubpaths: true },
     { label: 'SOP Directory', href: '/sops', icon: 'sops', matchSubpaths: true },
     { label: 'Organization Structure', href: '/departments', icon: 'departments' },
   ],
@@ -31,7 +31,7 @@ export const appShellEn: AppShellContent = {
   departmentSwitcher: {
     label: 'SOP Directory',
     menuLabel: 'Available SOP directories',
-    readOnly: 'read-only',
+    readOnly: 'Read-only',
   },
 }
 
@@ -45,8 +45,8 @@ export const dashboardEn: DashboardContent = {
   subtitle: "Here's what's happening in {department} today.",
   stats: {
     myRequests: { label: 'My Requests', sublabel: 'In Progress', icon: 'requests' },
-    sops: { label: 'SOPs', sublabel: 'In this department', icon: 'sops' },
-    employees: { label: 'Employees', sublabel: 'In this department', icon: 'employees' },
+    sops: { label: 'SOPs', sublabel: 'In This Department', icon: 'sops' },
+    employees: { label: 'Employees', sublabel: 'In This Department', icon: 'employees' },
   },
   recentActivity: { title: 'Recent Activity' },
   quickActions: {
