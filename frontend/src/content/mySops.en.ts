@@ -37,7 +37,7 @@ export const uploadSopEn: UploadSopContent = {
       sizeError: '{name} is too large. Files must be {max} or smaller.',
     },
     description: {
-      label: 'Description (optional)',
+      label: 'Description',
       placeholder: 'Briefly describe the purpose of this SOP…',
       counter: '{count} / {max}',
     },
