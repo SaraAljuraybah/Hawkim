@@ -2,7 +2,7 @@ import type { ReviewFlowStage } from '../data/mock/types'
 
 /** Copy for the selected-reviewer workflow; organizational assignments are never sample defaults. */
 export const reviewFlowEn = {
-  stage: 'Current review step',
+  stage: 'Current Review Step',
   stages: {
     'reviewer-1': 'Initial review: Reviewer 1',
     'reviewer-2': 'Initial review: Reviewer 2',
@@ -18,16 +18,16 @@ export const reviewFlowEn = {
   reviewer1: 'Reviewer', reviewer2: 'Reviewer 2', representative: 'Reviewing Department Representative',
   assignedReviewer: 'Assigned Reviewer', choose: 'Select a reviewer', selectRequired: 'Select one eligible reviewer.',
   noneEligible: 'No eligible reviewer is available for this step. An administrator must configure eligible Reviewer accounts in this department.',
-  forward: 'Complete and forward review', complete: 'Complete review', returnReview: 'Return review to Reviewer 1',
-  returnAuthor: 'Return SOP to author', returnReviewHelp: 'Request another review from Reviewer 1. The SOP stays In Review and reviewers cannot edit the file.',
-  comment: 'Comments (optional)', requiredComment: 'Return comment (required)', commentRequired: 'Enter a return comment.',
-  selectDepartments: 'Select departments and representatives', departmentReview: 'Require department review', skip: 'No additional review required',
+  forward: 'Complete and Forward Review', complete: 'Complete Review', returnReview: 'Return Review to Reviewer 1',
+  returnAuthor: 'Return SOP to Author', returnReviewHelp: 'Request another review from Reviewer 1. The SOP stays In Review and reviewers cannot edit the file.',
+  comment: 'Comments (Optional)', requiredComment: 'Return Comment (Required)', commentRequired: 'Enter a return comment.',
+  selectDepartments: 'Select Departments and Representatives', departmentReview: 'Require Department Review', skip: 'No Additional Review Required',
   departmentsHelp: 'Select every relevant department and one eligible representative for each. Each representative selects a different reviewer in their department.',
   noDepartments: 'No departments with configured division relationships are available for this scope.',
   divisionMissing: 'The SOP department has no configured division. Configure its approved division relationship before requesting department reviews.',
   unknownDivisions: 'Departments without a division relationship are excluded until an administrator configures them.',
   selectionRequired: 'Select at least one department and a representative for each.',
-  routeQuality: 'Send for Quality approval',
+  routeQuality: 'Send for Quality Approval',
   qualityMissing: 'Final approval is blocked. An administrator must configure an eligible Quality Document Controller with Approver permission for the SOP department. Authors and assigned reviewers cannot approve their own SOP.',
   qualityAssigned: 'Configured Quality Document Controller',
   retainedDeadline: 'This reviewer keeps the deadline already set in this review round.',
@@ -36,13 +36,13 @@ export const reviewFlowEn = {
   /** Timeline detail for a department review decision; `{scope}` and `{decision}` are replaced. */
   scopeDecision: '{scope}: {decision}',
   updated: 'Review workflow updated.', cancel: 'Cancel', confirm: 'Confirm',
-  plan: 'Department review plan', pending: 'Pending', completed: 'Completed',
+  plan: 'Department Review Plan', pending: 'Pending', completed: 'Completed',
   initialPending: 'Reviewer 2 will be selected by Reviewer 1.',
   scopePending: 'The active reviewer must decide whether department reviews are required.',
   workflowConfig: {
-    title: 'Review workflow configuration', open: 'Configure review workflow',
+    title: 'Review Workflow Configuration', open: 'Configure Review Workflow',
     help: 'Enter the approved division identifier for this department and select its final Quality Document Controller. Leave unknown assignments unconfigured. Department representatives are selected dynamically during routing.',
-    division: 'Division identifier (optional)', divisionHint: 'Departments in the same division must use exactly the same identifier. No organizational structure is inferred.',
-    controller: 'Quality Document Controller (optional)', unconfigured: 'Not configured', save: 'Save configuration', saved: 'Workflow configuration saved.',
+    division: 'Division Identifier (Optional)', divisionHint: 'Departments in the same division must use exactly the same identifier. No organizational structure is inferred.',
+    controller: 'Quality Document Controller (Optional)', unconfigured: 'Not Configured', save: 'Save Configuration', saved: 'Workflow configuration saved.',
   },
 }

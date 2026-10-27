@@ -58,7 +58,7 @@ function finished(text?: string) { return decide(decide(start(), 'reviewer-a', '
 function renderPage() {
   return renderToStaticMarkup(<MemoryRouter initialEntries={['/approval-ui']}><Routes><Route path="/:id" element={<SopWorkflowPage />} /></Routes></MemoryRouter>)
 }
-function approvalButton(html: string) { return html.match(/<button[^>]*>Submit for approval<\/button>/)?.[0] }
+function approvalButton(html: string) { return html.match(/<button[^>]*>Submit for Approval<\/button>/)?.[0] }
 /** The lines of the tooltip the disabled button is described by: its heading, then each reason. */
 function approvalTooltip(html: string): string[] {
   const id = approvalButton(html)?.match(/aria-describedby="([^"]+)"/)?.[1]

@@ -15,7 +15,7 @@ export const mySopsEn: MySopsContent = {
   empty: 'No SOPs here yet.',
   uploadedMessage: 'SOP uploaded as a draft.',
   coAuthorLabel: 'Co-author',
-  recheckLabel: 'Recheck recommended',
+  recheckLabel: 'Recheck Recommended',
 }
 
 export const uploadSopEn: UploadSopContent = {
@@ -26,7 +26,7 @@ export const uploadSopEn: UploadSopContent = {
     title: { label: 'Title', placeholder: 'Enter the SOP title', counter: '{count} / {max}' },
     department: { label: 'Department' },
     file: {
-      label: 'SOP file',
+      label: 'SOP File',
       requiredTag: '(required)',
       hint: '.docx or PDF, up to 10 MB',
       dropPrompt: 'Drag and drop the file here, or',
