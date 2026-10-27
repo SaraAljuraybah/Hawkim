@@ -77,7 +77,7 @@ function Section({ id, title, children, className = '', actions }: SectionProps)
 
 /**
  * SOP workflow page ("/my-sops/:id"): the author's view of one SOP — workflow status,
- * SOP history (versions), authors, compliance overview and the review timeline
+ * authors, SOP history (versions), compliance overview, reviewers and the review timeline
  * (PBI 6, 8, 12, 22, 24). Only the SOP's author and co-authors can open it;
  * co-authors can upload versions and respond, delete the versions they uploaded and
  * run the compliance check when they uploaded the current version; only the main
@@ -303,9 +303,24 @@ export function SopWorkflowPage() {
         <StatusTracker sop={sop} content={content.tracker} stepsOnly />
       </Section>
 
-      <InternalReviewPanel sop={sop} canRemove={isMainAuthor} activeOnly compact />
+      {/* 2. Authors */}
+      <Section id="authors-title" title={content.people.authorsTitle} className="mt-6">
+        <PeopleList
+          authorsOnly
+          sop={sop}
+          content={content.people}
+          userId={user.id}
+          canManageCoAuthors={isMainAuthor && sop.status !== 'published'}
+          onAddCoAuthor={(trigger) => open('addCoAuthors', trigger)}
+          onRemoveCoAuthor={(coAuthorId, trigger) => {
+            triggerRef.current = trigger
+            setMessage('')
+            setRemovingId(coAuthorId)
+          }}
+        />
+      </Section>
 
-      {/* 2. SOP history */}
+      {/* 3. SOP history */}
       <Section
         id="history-title"
         title={content.history.title}
@@ -383,23 +398,6 @@ export function SopWorkflowPage() {
         />
       </Section>
 
-      {/* 3. Authors */}
-      <Section id="authors-title" title={content.people.authorsTitle} className="mt-6">
-        <PeopleList
-          authorsOnly
-          sop={sop}
-          content={content.people}
-          userId={user.id}
-          canManageCoAuthors={isMainAuthor && sop.status !== 'published'}
-          onAddCoAuthor={(trigger) => open('addCoAuthors', trigger)}
-          onRemoveCoAuthor={(coAuthorId, trigger) => {
-            triggerRef.current = trigger
-            setMessage('')
-            setRemovingId(coAuthorId)
-          }}
-        />
-      </Section>
-
       {/* 4. Compliance overview (says so when the current version hasn't been checked yet); only where the GVP guideline applies */}
       {needsCheck && (
         <Section id="compliance-title" title={complianceEn.card.title} className="mt-6">
@@ -407,7 +405,10 @@ export function SopWorkflowPage() {
         </Section>
       )}
 
-      {/* 5. Review timeline, with Response and Submit for review */}
+      {/* 5. Reviewers (once the SOP has been sent for internal review) */}
+      <InternalReviewPanel sop={sop} canRemove={isMainAuthor} activeOnly compact />
+
+      {/* 6. Review timeline, with Response and Submit for review */}
       <Section
         id="timeline-title"
         title={content.timeline.title}

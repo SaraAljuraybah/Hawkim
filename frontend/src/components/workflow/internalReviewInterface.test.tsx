@@ -315,4 +315,13 @@ describe("author's SOP page layout", () => {
     fixture.userId = 'reviewer-a'
     expect(header(render(<ReviewPage />))).toContain('>In Review<')
   })
+  it('orders the boxes Workflow status, Authors, SOP history, Compliance, Reviewers, Review timeline', () => {
+    fixture.sop = start()
+    const html = render(<SopWorkflowPage />)
+    const ids = ['tracker-title', 'authors-title', 'history-title', 'compliance-title', 'internal-review-title', 'timeline-title']
+    const positions = ids.map((id) => html.indexOf(`<h2 id="${id}"`))
+    expect(positions.every((position) => position > 0)).toBe(true)
+    expect([...positions].sort((a, b) => a - b)).toEqual(positions)
+    expect(html.match(/<h1[\s>]/g)).toHaveLength(1)
+  })
 })
