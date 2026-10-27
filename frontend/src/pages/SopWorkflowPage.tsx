@@ -4,7 +4,6 @@ import { ArrowLeft, ArrowUpRight, CircleCheck, MessageSquareReply, ShieldCheck, 
 import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
 import { ConfirmDialog } from '../components/ui/ConfirmDialog'
-import { StatusBadge } from '../components/ui/StatusBadge'
 import { Tooltip } from '../components/ui/Tooltip'
 import { AddCoAuthorsDialog } from '../components/workflow/AddCoAuthorsDialog'
 import { ComplianceCard } from '../components/workflow/ComplianceCard'
@@ -262,12 +261,11 @@ export function SopWorkflowPage() {
         {content.back.label}
       </Link>
 
-      {/* Header */}
+      {/* Header (no status badge: the Workflow status steps show the status) */}
       <div className="mt-5">
         <p className="text-sm font-semibold text-maroon">{sop.code}</p>
         <h1 className="mt-1 text-2xl leading-tight tracking-tight sm:text-3xl">{sop.title}</h1>
         <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-text-gray">
-          <StatusBadge status={sop.status} />
           <span>{content.versionTemplate.replace('{version}', sop.version)}</span>
           <span aria-hidden="true">·</span>
           <span>

@@ -303,3 +303,16 @@ describe('response due date in the Submit for review dialog', () => {
     expect(html).toContain('Choose a date')
   })
 })
+
+describe("author's SOP page layout", () => {
+  /** From the page title to the Workflow status box: the header (and the description). */
+  const header = (html: string) => html.slice(html.indexOf('<h1'), html.indexOf('id="tracker-title"'))
+  it('shows no status badge in the header; the review page keeps its badge', () => {
+    fixture.sop = start()
+    const author = header(render(<SopWorkflowPage />))
+    expect(author).toContain('>v1<')
+    expect(author).not.toContain('>In Review<')
+    fixture.userId = 'reviewer-a'
+    expect(header(render(<ReviewPage />))).toContain('>In Review<')
+  })
+})
