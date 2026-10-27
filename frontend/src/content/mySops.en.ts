@@ -23,7 +23,7 @@ export const uploadSopEn: UploadSopContent = {
   title: 'Upload SOP',
   subtitle: 'Add a new SOP to {department}. It will be saved as a draft.',
   fields: {
-    title: { label: 'Title', placeholder: 'Enter the SOP title' },
+    title: { label: 'Title', placeholder: 'Enter the SOP title', counter: '{count} / {max}' },
     department: { label: 'Department' },
     file: {
       label: 'SOP file',

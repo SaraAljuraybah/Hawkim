@@ -12,6 +12,11 @@ export interface TextFieldProps extends Omit<InputHTMLAttributes<HTMLInputElemen
   invalid?: boolean
   /** Shows a red asterisk after the label. Pass `required` as well so screen readers announce it. */
   requiredMark?: boolean
+  /**
+   * Character counter text shown under the field on the right (e.g. "12 / 50").
+   * It is linked with aria-describedby but not announced on every keystroke.
+   */
+  counter?: string
   /** Element placed inside the input on the right, e.g. a visibility toggle. */
   endAdornment?: ReactNode
   /** Forwarded to the `<input>` (React 19 passes refs as regular props). */
@@ -31,6 +36,7 @@ export function TextField({
   error,
   invalid = false,
   requiredMark = false,
+  counter,
   endAdornment,
   ref,
   id,
@@ -38,7 +44,10 @@ export function TextField({
   'aria-describedby': describedBy,
   ...inputProps
 }: TextFieldProps) {
-  const { inputId, hintId, errorId, describedByIds } = useFieldIds({ id, hint, error, describedBy })
+  const fieldIds = useFieldIds({ id, hint, error, describedBy })
+  const { inputId, hintId, errorId } = fieldIds
+  const counterId = `${inputId}-counter`
+  const describedByIds = [fieldIds.describedByIds, counter ? counterId : undefined].filter(Boolean).join(' ') || undefined
 
   return (
     <FieldShell
@@ -50,6 +59,13 @@ export function TextField({
       errorId={errorId}
       requiredMark={requiredMark}
       className={className}
+      aside={
+        counter && (
+          <p id={counterId} className="shrink-0 text-sm text-text-gray tabular-nums">
+            {counter}
+          </p>
+        )
+      }
     >
       <div className="relative">
         <input

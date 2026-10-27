@@ -458,7 +458,7 @@ export interface UploadSopContent {
   /** `{department}` is replaced with the active department's name. */
   subtitle: string
   fields: {
-    title: { label: string; placeholder: string }
+    title: { label: string; placeholder: string; /** `{count}` and `{max}` are replaced. */ counter: string }
     department: { label: string }
     file: {
       label: string
