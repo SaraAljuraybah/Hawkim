@@ -27,6 +27,7 @@ export const uploadSopEn: UploadSopContent = {
     department: { label: 'Department' },
     file: {
       label: 'SOP file',
+      requiredTag: '(required)',
       hint: '.docx or PDF, up to 10 MB',
       dropPrompt: 'Drag and drop the file here, or',
       browse: 'browse',

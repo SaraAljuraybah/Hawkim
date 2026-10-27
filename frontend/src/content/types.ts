@@ -462,6 +462,8 @@ export interface UploadSopContent {
     department: { label: string }
     file: {
       label: string
+      /** Read by screen readers only (a red asterisk is shown). */
+      requiredTag: string
       hint: string
       dropPrompt: string
       browse: string

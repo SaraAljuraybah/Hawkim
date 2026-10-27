@@ -10,6 +10,8 @@ export interface TextFieldProps extends Omit<InputHTMLAttributes<HTMLInputElemen
   error?: string
   /** Marks the input as invalid without an inline error, e.g. while the error is shown in a pop-up. */
   invalid?: boolean
+  /** Shows a red asterisk after the label. Pass `required` as well so screen readers announce it. */
+  requiredMark?: boolean
   /** Element placed inside the input on the right, e.g. a visibility toggle. */
   endAdornment?: ReactNode
   /** Forwarded to the `<input>` (React 19 passes refs as regular props). */
@@ -28,6 +30,7 @@ export function TextField({
   hint,
   error,
   invalid = false,
+  requiredMark = false,
   endAdornment,
   ref,
   id,
@@ -45,6 +48,7 @@ export function TextField({
       hintId={hintId}
       error={error}
       errorId={errorId}
+      requiredMark={requiredMark}
       className={className}
     >
       <div className="relative">

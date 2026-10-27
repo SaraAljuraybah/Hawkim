@@ -108,6 +108,8 @@ export function UploadSopPage() {
             name="title"
             label={content.fields.title.label}
             placeholder={content.fields.title.placeholder}
+            required
+            requiredMark
             maxLength={TITLE_MAX}
             value={title}
             error={errors.title}
