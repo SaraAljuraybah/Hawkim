@@ -87,7 +87,7 @@ describe('published directory access remains separate from internal views', () =
     const html = render(<SopDetailPage />, '/foreign-published')
     expect(html).toContain('Confidential multiline description')
     expect(html).toContain('/files/foreign-published.docx')
-    for (const label of ['Cancel review request', 'Complete Review', 'Reject SOP', 'Upload a new version']) expect(html).not.toContain(label)
+    for (const label of ['Cancel review request', 'Complete Review', 'Reject SOP', 'Upload a New Version']) expect(html).not.toContain(label)
   })
   it.each(['pending', 'rejected', 'cancelled'] as const)('does not expose document content for a %s request', (status) => {
     fixture.requests = [grant(status)]

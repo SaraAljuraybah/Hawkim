@@ -167,7 +167,7 @@ describe('internal parallel review across transitions and detail views', () => {
       expect(accepted).not.toContain('>Accept Review<')
 
       expect(html).toContain('Description retained')
-      expect(html).not.toContain('Route to another department')
+      expect(html).not.toContain('Route to Another Department')
       expect(html).not.toContain('Forward to reviewer')
       expect(html).not.toContain('>Approve<')
     }
