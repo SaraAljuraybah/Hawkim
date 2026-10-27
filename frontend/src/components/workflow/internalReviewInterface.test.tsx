@@ -324,4 +324,14 @@ describe("author's SOP page layout", () => {
     expect([...positions].sort((a, b) => a - b)).toEqual(positions)
     expect(html.match(/<h1[\s>]/g)).toHaveLength(1)
   })
+  it('titles the review requests box "Reviewers" on the author page and keeps "Internal Review Requests" on the review page', () => {
+    fixture.sop = start()
+    const heading = (title: string) => new RegExp(`<h2 id="internal-review-title" tabindex="-1"[^>]*>${title}</h2>`)
+    const author = render(<SopWorkflowPage />)
+    expect(author).toMatch(heading('Reviewers'))
+    expect(author).toContain('aria-labelledby="internal-review-title"')
+    expect(author).not.toContain('Internal Review Requests')
+    fixture.userId = 'reviewer-a'
+    expect(render(<ReviewPage />)).toMatch(heading('Internal Review Requests'))
+  })
 })

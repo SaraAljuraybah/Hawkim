@@ -23,6 +23,8 @@ interface Props {
   activeOnly?: boolean
   /** Shorter request cards (the author's SOP page): version and deadlines only (see ReviewRequestDetails). */
   compact?: boolean
+  /** Box heading (also the section's accessible name). Default: "Internal Review Requests". */
+  title?: string
 }
 
 const TITLE_ID = 'internal-review-title'
@@ -32,7 +34,7 @@ const TITLE_ID = 'internal-review-title'
  * its version, its deadlines, and any reason or comments. The main author can remove a reviewer
  * from the current version's review.
  */
-export function InternalReviewPanel({ sop, canRemove, activeOnly = false, compact = false }: Props) {
+export function InternalReviewPanel({ sop, canRemove, activeOnly = false, compact = false, title = text.panel.title }: Props) {
   const { nameOf } = useUsers()
   const store = useSops()
   const [target, setTarget] = useState<{ roundId: string; assignment: InternalReviewerAssignment } | null>(null)
@@ -59,7 +61,7 @@ export function InternalReviewPanel({ sop, canRemove, activeOnly = false, compac
     try { await store.removeInternalReviewer(sop.id, target.roundId, target.assignment.id, reason); setMessage(text.panel.removed.replace('{name}', nameOf(target.assignment.userId))) }
     catch (failure) { setError(failure instanceof Error ? failure.message : text.status.closed); return false }
   }
-  return <Card title={text.panel.title} titleId={TITLE_ID} focusableTitle className="mt-6">
+  return <Card title={title} titleId={TITLE_ID} focusableTitle className="mt-6">
     {/* Announced to screen readers only; the list itself shows the change. */}
     <div role="status" className="sr-only">{message}</div>
     {!reviewerIds.length && <p className="text-sm text-text-gray">{text.panel.noActive}</p>}

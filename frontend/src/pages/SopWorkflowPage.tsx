@@ -299,7 +299,7 @@ export function SopWorkflowPage() {
 
       {/* 1. Workflow status */}
       <Section id="tracker-title" title={content.tracker.label} className="mt-6">
-        {/* Only the steps: who returned it and why, and who's next, are in the Review timeline, the review requests and People. */}
+        {/* Only the steps: who returned it and why, and who's next, are in the Review timeline and the Reviewers box. */}
         <StatusTracker sop={sop} content={content.tracker} stepsOnly />
       </Section>
 
@@ -406,7 +406,7 @@ export function SopWorkflowPage() {
       )}
 
       {/* 5. Reviewers (once the SOP has been sent for internal review) */}
-      <InternalReviewPanel sop={sop} canRemove={isMainAuthor} activeOnly compact />
+      <InternalReviewPanel sop={sop} canRemove={isMainAuthor} activeOnly compact title={internalReviewEn.panel.authorPageTitle} />
 
       {/* 6. Review timeline, with Response and Submit for review */}
       <Section

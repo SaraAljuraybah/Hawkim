@@ -44,6 +44,8 @@ export const internalReviewEn = {
   },
   panel: {
     title: 'Internal Review Requests', noActive: 'No active reviewers.',
+    /** The same box's heading on the author's SOP page. */
+    authorPageTitle: 'Reviewers',
     sent: 'Request sent {date}', version: 'Version v{version}', reviewerHistory: 'Review requests for {name}',
     decided: 'Decision submitted {date}', accepted: 'Accepted {date}',
     declined: 'Declined {date}', declineReason: 'Reason: {reason}',
