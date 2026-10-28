@@ -8,8 +8,8 @@ import { DecisionBadge } from './DecisionBadge'
 import { ReviewerDeadline } from './ReviewerDeadline'
 
 /** The request's status; an accepted request past its review due date shows as Overdue (nothing else changes). */
-export function RequestStatusBadge({ sop, request }: { sop: Sop; request: InternalReviewerAssignment }) {
-  const active = isActiveRequest(sop, request) && request.decision === 'accepted'
+export function RequestStatusBadge({ sop, request, inactive = false }: { sop: Sop; request: InternalReviewerAssignment; inactive?: boolean }) {
+  const active = !inactive && isActiveRequest(sop, request) && request.decision === 'accepted'
   const reviewDueAt = request.reviewDueDate ? endOfLocalDay(request.reviewDueDate) : undefined
   const now = useDeadlineClock(reviewDueAt, active && !!reviewDueAt)
   const overdue = active && !!reviewDueAt && new Date(reviewDueAt).getTime() <= now
@@ -22,7 +22,7 @@ export function RequestStatusBadge({ sop, request }: { sop: Sop; request: Intern
  * `compact` (the author's SOP page) shows only the version and deadlines; when it was sent, accepted
  * and decided, and the decision comment, stay in the Review timeline.
  */
-export function ReviewRequestDetails({ sop, request, compact = false }: { sop: Sop; request: InternalReviewerAssignment; compact?: boolean }) {
+export function ReviewRequestDetails({ sop, request, compact = false, inactive = false }: { sop: Sop; request: InternalReviewerAssignment; compact?: boolean; inactive?: boolean }) {
   const version = sop.internalReviewRounds?.find((round) => round.assignments.includes(request))?.version
   const comment = compact ? undefined : sop.comments.find((item) => item.id === request.commentId)
   const line = 'text-xs text-text-gray'
@@ -32,7 +32,7 @@ export function ReviewRequestDetails({ sop, request, compact = false }: { sop: S
       {text.panel.sent.split('{date}')[0]}<time dateTime={request.assignedAt}>{formatDateTime(request.assignedAt)}</time>
       {version && <><span aria-hidden="true"> · </span><span className="sr-only">, </span>{text.panel.version.replace('{version}', version)}</>}
     </p>}
-    <ReviewerDeadline sop={sop} reviewer={request} content={sopWorkflowEn.reviewerDeadline} />
+    <ReviewerDeadline sop={sop} reviewer={request} content={sopWorkflowEn.reviewerDeadline} inactive={inactive} />
     {!compact && request.acceptedAt && <p className={line}>{text.panel.accepted.replace('{date}', formatDateTime(request.acceptedAt))}</p>}
     {request.withdrawnAt && request.responseDueDate && <p className={line}>{text.panel.withdrawn.replace('{date}', formatDate(request.responseDueDate))}</p>}
     {request.declineReason && <>

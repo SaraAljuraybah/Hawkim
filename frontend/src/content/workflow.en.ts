@@ -7,7 +7,7 @@ import type { SopWorkflowContent } from './types'
 import { approvalEn } from './approval.en'
 
 export const sopWorkflowEn: SopWorkflowContent = {
-  pageTitle: '{code} | Hawkim',
+  pageTitle: '{title} | Hawkim',
   back: { label: 'Back to My SOPs', href: '/my-sops' },
   versionTemplate: 'v{version}',
   lastUpdatedTemplate: 'Last updated {date}',
@@ -115,8 +115,8 @@ export const sopWorkflowEn: SopWorkflowContent = {
       },
       'not-uploader': "Restricted to {name} (main author) or the current version's uploader",
     },
-    previewTitle: '{code} · v{version}',
-    viewerTitle: '{code} {title}, v{version} (PDF)',
+    previewTitle: '{title} · v{version}',
+    viewerTitle: '{title}, v{version} (PDF)',
     close: 'Close preview',
     fallback: {
       text: "Your browser can't display the PDF here. Open it in a new tab instead.",
@@ -126,8 +126,8 @@ export const sopWorkflowEn: SopWorkflowContent = {
   },
 
   actions: {
-    submit: 'Submit for review',
-    resubmit: 'Resubmit for review',
+    submit: 'Add Reviewers',
+    resubmit: 'Add Reviewers',
     response: 'Response',
     resubmitHint: 'Upload a new version with your changes before resubmitting.',
     authorOnly: 'Only the author, {name}, can submit this SOP.',

@@ -1,6 +1,5 @@
 import { useCallback, useMemo, useRef, useState, type ReactNode } from 'react'
 import { usersEn } from '../content/users.en'
-import { sampleUsers } from '../data/mock/users'
 import type { Permission, User } from '../data/mock/types'
 import {
   deleteBlockers,
@@ -10,22 +9,26 @@ import {
   validateNewUser,
   type NewUser,
 } from '../lib/userAdmin'
+import { fetchPeople } from '../services/people'
+import { useLoadAfterSignIn } from './useLoadAfterSignIn'
 import { UsersContext, type AdminActionContext, type UsersStore } from './usersContext'
 
 /**
- * In-memory users store shared by the employee screens (names, people pickers),
- * sign-in and the admin portal, so admin changes show everywhere at once.
- * Starts with the sample users; changes are lost on reload.
- * TODO: Replace with API calls once the backend exists.
+ * Users store shared by the employee screens (names, people pickers) and the admin
+ * portal. The people and their roles are loaded from the database after sign-in.
+ * The admin actions only change this tab's copy (lost on reload): a user added here
+ * has no sign-in account. TODO: Save admin changes once those features are connected.
+ * Must be inside <SessionProvider>.
  */
 export function UsersProvider({ children }: { children: ReactNode }) {
-  const [users, setUsers] = useState<User[]>(sampleUsers)
+  const [users, setUsers] = useState<User[]>([])
   // The latest list (as in the SOPs store): actions check against it, not the last render.
-  const latestRef = useRef<User[]>(sampleUsers)
+  const latestRef = useRef<User[]>([])
   const commit = useCallback((next: User[]) => {
     latestRef.current = next
     setUsers(next)
   }, [])
+  const status = useLoadAfterSignIn(fetchPeople, commit)
 
   const activeUsers = useMemo(() => users.filter((user) => !user.deletedAt), [users])
   const getUser = useCallback((id: string | undefined) => users.find((user) => user.id === id), [users])
@@ -93,8 +96,8 @@ export function UsersProvider({ children }: { children: ReactNode }) {
   )
 
   const store = useMemo<UsersStore>(
-    () => ({ users, activeUsers, getUser, nameOf, addUser, updatePermissions, deleteUser }),
-    [users, activeUsers, getUser, nameOf, addUser, updatePermissions, deleteUser],
+    () => ({ status, users, activeUsers, getUser, nameOf, addUser, updatePermissions, deleteUser }),
+    [status, users, activeUsers, getUser, nameOf, addUser, updatePermissions, deleteUser],
   )
 
   return <UsersContext.Provider value={store}>{children}</UsersContext.Provider>

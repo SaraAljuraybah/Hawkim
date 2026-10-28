@@ -1,10 +1,9 @@
 import type { Department } from './types'
 
 /*
- * Sample departments (from the approved design). They seed the in-memory
- * departments store (src/state/DepartmentsProvider.tsx), which the admin portal changes.
+ * Sample departments (from the approved design). Test fixtures only: the app loads
+ * the departments from the database (src/state/DepartmentsProvider.tsx).
  * Member counts come from the users (lib/departmentAdmin.ts), not from here.
- * TODO: Replace with data from the backend API.
  */
 export const sampleDepartments: Department[] = [
   {

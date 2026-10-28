@@ -13,13 +13,13 @@ import { PeoplePicker } from '../ui/PeoplePicker'
 interface AddCoAuthorsDialogProps {
   sop: Sop
   content: SopWorkflowContent['dialogs']
-  onSubmit: (userIds: string[]) => void
+  onSubmit: (userIds: string[]) => void | Promise<void>
   onClose: () => void
 }
 
 /**
- * "Add co-authors": other users with the Author permission who aren't already on
- * the SOP. Its reviewers and approvers are never offered (separation of duties).
+ * "Add co-authors": other Authors from this SOP's department who aren't already
+ * on the SOP. Its reviewers and approvers are never offered (separation of duties).
  */
 export function AddCoAuthorsDialog({ sop, content, onSubmit, onClose }: AddCoAuthorsDialogProps) {
   const text = content.addCoAuthors
@@ -33,20 +33,27 @@ export function AddCoAuthorsDialog({ sop, content, onSubmit, onClose }: AddCoAut
     .filter(
       (user) =>
         hasPermission(user, 'author') &&
+        user.departmentId === sop.departmentId &&
         !isAuthorOrCoAuthor(sop, user.id) &&
         !isReviewer(sop, user.id) &&
         !isApprover(sop, user.id),
     )
     .map((user) => personOption(user, departmentName))
 
-  function confirm() {
+  async function confirm() {
     if (options.length === 0) return
     if (selected.length === 0) {
       flushSync(() => setError(text.required))
       inputRef.current?.focus()
       return false
     }
-    onSubmit(selected)
+    try {
+      await onSubmit(selected)
+    } catch {
+      flushSync(() => setError(text.failed))
+      inputRef.current?.focus()
+      return false
+    }
   }
 
   return (

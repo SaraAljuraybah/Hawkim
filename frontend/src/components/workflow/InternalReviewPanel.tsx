@@ -1,6 +1,7 @@
-import { useRef, useState } from 'react'
+import { useRef, useState, type ReactNode } from 'react'
 import { flushSync } from 'react-dom'
 import { internalReviewEn as text } from '../../content/internalReview.en'
+import { sopWorkflowEn } from '../../content/workflow.en'
 import type { InternalReviewerAssignment, Sop } from '../../data/mock/types'
 import { REVIEW_TEXT_MAX } from '../../lib/internalReview'
 import { isInactiveDecision, latestAssignmentOf } from '../../lib/internalReviewStatus'
@@ -11,6 +12,8 @@ import { Card } from '../ui/Card'
 import { FormDialog } from '../ui/FormDialog'
 import { TextAreaField } from '../ui/TextAreaField'
 import { RequestStatusBadge, ReviewRequestDetails } from './ReviewRequestDetails'
+import { DecisionBadge } from './DecisionBadge'
+import { ReviewerDeadline } from './ReviewerDeadline'
 
 interface Props {
   sop: Sop
@@ -23,6 +26,11 @@ interface Props {
   activeOnly?: boolean
   /** Shorter request cards (the author's SOP page): version and deadlines only (see ReviewRequestDetails). */
   compact?: boolean
+  /** Keep the author's initial review controls available before there are requests. */
+  showEmpty?: boolean
+  title?: string
+  actions?: ReactNode
+  children?: ReactNode
 }
 
 const TITLE_ID = 'internal-review-title'
@@ -32,7 +40,7 @@ const TITLE_ID = 'internal-review-title'
  * its version, its deadlines, and any reason or comments. The main author can remove a reviewer
  * from the current version's review.
  */
-export function InternalReviewPanel({ sop, canRemove, activeOnly = false, compact = false }: Props) {
+export function InternalReviewPanel({ sop, canRemove, activeOnly = false, compact = false, showEmpty = false, title = text.panel.title, actions, children }: Props) {
   const { nameOf } = useUsers()
   const store = useSops()
   const [target, setTarget] = useState<{ roundId: string; assignment: InternalReviewerAssignment } | null>(null)
@@ -43,9 +51,10 @@ export function InternalReviewPanel({ sop, canRemove, activeOnly = false, compac
   const triggerRef = useRef<HTMLButtonElement | null>(null)
   const reasonRef = useRef<HTMLTextAreaElement | null>(null)
   const rounds = sop.internalReviewRounds ?? []
-  if (!rounds.length) return null
-  const current = rounds.at(-1)!
-  const removable = canRemove && sop.status === 'in-review' && current.version === sop.version
+  if (!rounds.length && !showEmpty) return null
+  const current = rounds.at(-1)
+  const legacyReviewers = rounds.length ? [] : sop.reviewers.filter((reviewer) => !activeOnly || reviewer.decision !== 'cancelled')
+  const removable = canRemove && sop.status === 'in-review' && current?.version === sop.version
   // Reviewers in the order they were first asked; each one's requests newest first.
   const requests = rounds.flatMap((round) => round.assignments.map((assignment) => ({ round, assignment })))
   const requestsOf = (userId: string) => requests.filter((item) => item.assignment.userId === userId)
@@ -53,19 +62,25 @@ export function InternalReviewPanel({ sop, canRemove, activeOnly = false, compac
     .filter((userId) => !activeOnly || !isInactiveDecision(requestsOf(userId).at(-1)!.assignment.decision))
   // After a removal the Remove button may be gone: focus moves to the panel heading instead.
   function close() { setTarget(null); requestAnimationFrame(() => { if (triggerRef.current?.isConnected) triggerRef.current.focus(); else document.getElementById(TITLE_ID)?.focus() }) }
-  function remove() {
+  async function remove() {
     if (!target) return false
     if (!reason.trim()) { flushSync(() => setReasonError(text.panel.removeRequired)); reasonRef.current?.focus(); return false }
-    try { store.removeInternalReviewer(sop.id, target.roundId, target.assignment.id, reason); setMessage(text.panel.removed.replace('{name}', nameOf(target.assignment.userId))) }
+    try { await store.removeInternalReviewer(sop.id, target.roundId, target.assignment.id, reason); setMessage(text.panel.removed.replace('{name}', nameOf(target.assignment.userId))) }
     catch (failure) { setError(failure instanceof Error ? failure.message : text.status.closed); return false }
   }
-  return <Card title={text.panel.title} titleId={TITLE_ID} focusableTitle className="mt-6">
+  return <Card title={title} titleId={TITLE_ID} focusableTitle actions={actions} className="mt-6">
+    {children}
     {/* Announced to screen readers only; the list itself shows the change. */}
     <div role="status" className="sr-only">{message}</div>
-    {!reviewerIds.length && <p className="text-sm text-text-gray">{text.panel.noActive}</p>}
+    {!reviewerIds.length && !legacyReviewers.length && <p className="text-sm text-text-gray">{text.panel.noActive}</p>}
+    {legacyReviewers.length > 0 && <ul className="space-y-4">{legacyReviewers.map((reviewer) => <li key={reviewer.userId} className="rounded-lg border border-beige p-4">
+      <h3 className="mb-2 text-base font-semibold text-maroon">{nameOf(reviewer.userId)}</h3>
+      <DecisionBadge decision={reviewer.decision} labels={sopWorkflowEn.people.decisions} />
+      <ReviewerDeadline sop={sop} reviewer={reviewer} content={sopWorkflowEn.reviewerDeadline} showQueue />
+    </li>)}</ul>}
     {reviewerIds.length > 0 && <ul className="space-y-4">{reviewerIds.map((userId) => {
       const own = requestsOf(userId).reverse().filter(({ assignment }) => !activeOnly || !isInactiveDecision(assignment.decision))
-      const latest = latestAssignmentOf(current, userId)
+      const latest = current && latestAssignmentOf(current, userId)
       const name = nameOf(userId)
       return <li key={userId} className="rounded-lg border border-beige p-4">
         <h3 className="text-base font-semibold text-maroon">{name}</h3>

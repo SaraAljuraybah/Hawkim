@@ -50,6 +50,8 @@ export interface AppNotification {
   // Parts of the text (the wording comes from the content file).
   sopId?: string
   sopCode?: string
+  /** User-facing identifier; internal codes are retained only for existing contracts. */
+  sopTitle?: string
   /** The SOP version the event was about. */
   version?: string
   /** Who acted (submitted, routed, returned). */
@@ -87,7 +89,7 @@ function fromEvent(sop: Sop, event: TimelineEvent, userId: string): AppNotificat
     id: `${event.id}:${userId}`,
     createdAt: event.createdAt,
     sopId: sop.id,
-    sopCode: sop.code,
+    sopCode: sop.code, sopTitle: sop.title,
     version: event.version,
     actorId: event.actorId,
   }
@@ -184,7 +186,7 @@ function dueNotification(sop: Sop, userId: string, now: number): AppNotification
       ? event.type === 'submitted' || event.type === 'resubmitted'
       : event.type === 'stage-due-date-set' && event.stage === stage)?.id ??
     `${sop.id}-${stage}-${sop.version}`
-  const base = { sopId: sop.id, sopCode: sop.code, version: sop.version, stage, dueAt, link: reviewPath(sop.id) } as const
+  const base = { sopId: sop.id, sopCode: sop.code, sopTitle: sop.title, version: sop.version, stage, dueAt, link: reviewPath(sop.id) } as const
   if (now >= due) return { ...base, id: `overdue:${round}:${userId}`, type: 'overdue', createdAt: dueAt }
   if (due - now <= DUE_SOON_MS) {
     return { ...base, id: `due-soon:${round}:${userId}`, type: 'due-soon', createdAt: new Date(due - DUE_SOON_MS).toISOString() }
@@ -199,7 +201,7 @@ function dueNotification(sop: Sop, userId: string, now: number): AppNotification
 function internalDeadline(sop: Sop, requestKey: string, dueAt: string, userId: string, now: number, phase: 'response' | 'review'): AppNotification | undefined {
   const due = new Date(dueAt).getTime()
   const key = requestKey + ':' + phase + ':' + userId
-  const base = { sopId: sop.id, sopCode: sop.code, version: sop.version, stage: 'review' as const, phase, dueAt, link: reviewPath(sop.id) }
+  const base = { sopId: sop.id, sopCode: sop.code, sopTitle: sop.title, version: sop.version, stage: 'review' as const, phase, dueAt, link: reviewPath(sop.id) }
   if (now >= due) return phase === 'review' ? { ...base, id: 'overdue:' + key, type: 'overdue', createdAt: dueAt } : undefined
   if (due - now <= DUE_SOON_MS) return { ...base, id: 'due-soon:' + key, type: 'due-soon', createdAt: new Date(due - DUE_SOON_MS).toISOString() }
   return undefined
@@ -213,7 +215,7 @@ function authorOverdue(sop: Sop, userId: string, now: number): AppNotification[]
     const deadline = assignment.decision === 'accepted' ? requestDeadline(assignment) : undefined
     if (!deadline || new Date(deadline.dueAt).getTime() > now) return []
     return [{ id: `review-overdue:${assignment.id}:${userId}`, type: 'review-overdue', createdAt: deadline.dueAt, link: mySopPath(sop.id),
-      sopId: sop.id, sopCode: sop.code, version: sop.version, actorId: assignment.userId, dueAt: deadline.dueAt }]
+      sopId: sop.id, sopCode: sop.code, sopTitle: sop.title, version: sop.version, actorId: assignment.userId, dueAt: deadline.dueAt }]
   })
 }
 

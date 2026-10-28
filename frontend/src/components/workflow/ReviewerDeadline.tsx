@@ -13,6 +13,8 @@ interface ReviewerDeadlineProps {
   reviewer: ReviewerAssignment | InternalReviewerAssignment
   content: SopWorkflowContent['reviewerDeadline']
   showQueue?: boolean
+  /** A historical task can project an older SOP version; its clocks must remain stopped. */
+  inactive?: boolean
 }
 
 /** Original allocation and current deadline are intentionally independent. */
@@ -24,10 +26,10 @@ export function ReviewerDeadline(props: ReviewerDeadlineProps) {
   return request ? <RequestDeadline {...props} request={request} /> : <LegacyDeadline {...props} />
 }
 
-function LegacyDeadline({ sop, reviewer, content, showQueue = false }: ReviewerDeadlineProps) {
+function LegacyDeadline({ sop, reviewer, content, showQueue = false, inactive = false }: ReviewerDeadlineProps) {
   const allocation = reviewerAssignedMilliseconds(sop, reviewer)
   const dueAt = reviewerDueAt(sop, reviewer)
-  const active = currentReviewer(sop)?.userId === reviewer.userId
+  const active = !inactive && currentReviewer(sop)?.userId === reviewer.userId
   const now = useDeadlineClock(dueAt, active)
   const remaining = reviewerRemainingMilliseconds(sop, reviewer, now)
   const overdue = active && remaining !== undefined && remaining <= 0
@@ -59,10 +61,10 @@ function dated(template: string, dueAt: string): ReactNode {
  * An internal review request: before acceptance its response due date and review duration
  * ("starts when accepted"); after acceptance its review due date and the time remaining.
  */
-function RequestDeadline({ sop, content, showQueue = false, request }: ReviewerDeadlineProps & { request: InternalReviewerAssignment }) {
+function RequestDeadline({ sop, content, showQueue = false, inactive = false, request }: ReviewerDeadlineProps & { request: InternalReviewerAssignment }) {
   const text = internalReviewEn.panel
   const round = sop.internalReviewRounds?.find((item) => item.assignments.includes(request))
-  const active = sop.status === 'in-review' && !!round && round === sop.internalReviewRounds?.at(-1) && round.status === 'open' &&
+  const active = !inactive && sop.status === 'in-review' && !!round && round === sop.internalReviewRounds?.at(-1) && round.status === 'open' &&
     round.version === sop.version && latestAssignmentOf(round, request.userId) === request && isOpenDecision(request.decision)
   const reviewDueAt = request.reviewDueDate ? endOfLocalDay(request.reviewDueDate) : undefined
   const now = useDeadlineClock(request.acceptedAt ? reviewDueAt : undefined, active && !!request.acceptedAt)

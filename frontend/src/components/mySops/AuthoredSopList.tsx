@@ -12,7 +12,7 @@ import { StatusBadge } from '../ui/StatusBadge'
 interface AuthoredSopListProps {
   sops: Sop[]
   content: MySopsContent
-  /** The signed-in user; SOPs they co-author get a "Co-author" label. */
+  /** The signed-in user, used only to label existing SOP ownership. */
   userId: string
 }
 
@@ -21,7 +21,7 @@ const focusRing =
   'has-[a:focus-visible]:outline-2 has-[a:focus-visible]:-outline-offset-2 has-[a:focus-visible]:outline-maroon-secondary has-[a:focus-visible]:outline-solid'
 
 /**
- * The user's SOPs: icon, code (plus "Co-author" if they aren't the main author),
+ * The user's SOPs: icon, authorship badge,
  * title, status, version and last updated.
  * Every row links to its SOP workflow page (one link stretched over the row).
  * Rows stack on phones; from sm the details line up in columns.
@@ -32,6 +32,7 @@ export function AuthoredSopList({ sops, content, userId }: AuthoredSopListProps)
     <ul className="divide-y divide-beige rounded-xl border border-beige bg-white">
       {sops.map((sop) => {
         const coAuthored = sop.authorId !== userId
+        const roleLabel = coAuthored ? content.coAuthorLabel : content.mainAuthorLabel
         // Last checked against an older GVP version (PBI 29).
         const recheck = recheckRecommended(sop, currentGuideline)
         return (
@@ -48,16 +49,13 @@ export function AuthoredSopList({ sops, content, userId }: AuthoredSopListProps)
               </span>
               <div className="min-w-0">
                 <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm font-semibold text-maroon">
-                  {sop.code}
-                  {coAuthored && (
-                    <span className="rounded-full bg-beige px-2 py-0.5 text-xs font-medium text-maroon">{content.coAuthorLabel}</span>
-                  )}
+                  <span className="rounded-full bg-beige px-2 py-0.5 text-xs font-medium text-maroon">{roleLabel}</span>
                   {recheck && <RecheckBadge label={content.recheckLabel} className="px-2" />}
                 </p>
                 <p className="mt-0.5 text-[0.9375rem] leading-snug font-medium text-maroon">
                   <Link
                     to={mySopPath(sop.id)}
-                    aria-label={`${sop.code} ${sop.title}${coAuthored ? ` (${content.coAuthorLabel})` : ''}${
+                    aria-label={`${sop.title} (${roleLabel})${
                       recheck ? ` (${content.recheckLabel})` : ''
                     }`}
                     className="after:absolute after:inset-0 focus-visible:outline-none"

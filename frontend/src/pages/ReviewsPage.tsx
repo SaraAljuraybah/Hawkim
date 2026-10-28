@@ -1,148 +1,92 @@
-import { useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useEffect, useMemo, useState } from 'react'
 import { ListChecks } from 'lucide-react'
-import { ReviewerDeadline } from '../components/workflow/ReviewerDeadline'
-import { RequestStatusBadge, ReviewRequestDetails } from '../components/workflow/ReviewRequestDetails'
-import type { InternalReviewerAssignment, ReviewerAssignment } from '../data/mock/types'
-import { sopWorkflowEn } from '../content/workflow.en'
-import { StatusBadge } from '../components/ui/StatusBadge'
+import { ReviewTaskList } from '../components/reviews/ReviewTaskList'
 import { Tabs, type TabItem } from '../components/ui/Tabs'
 import { tabIds } from '../components/ui/tabIds'
+import { ViewToggle, type ViewMode } from '../components/ui/ViewToggle'
 import { reviewsEn } from '../content/reviews.en'
 import type { ReviewTabKey } from '../content/types'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
-import { formatDateTime } from '../lib/format'
-import { hasAnyPermission } from '../lib/permissions'
-import { reviewTasks, sortRecent, sortTodo, type ReviewTask } from '../lib/reviews'
-import { reviewPath } from '../lib/routes'
-import { isOverdue } from '../lib/workflow'
-import { useDepartments } from '../state/departmentsContext'
+import { hasAnyPermission, hasPermission } from '../lib/permissions'
+import { reviewTasks, reviewerTaskSection, sortRecent, sortTodo, type ReviewerTaskSection } from '../lib/reviews'
 import { useCurrentUser } from '../state/sessionContext'
 import { useSops } from '../state/sopsContext'
-import { useUsers } from '../state/usersContext'
 import { NotFoundPage } from './NotFoundPage'
 
-const TAB_ID_PREFIX = 'reviews'
-const TABS: ReviewTabKey[] = ['todo', 'waiting', 'done']
+const REVIEW_TABS: ReviewerTaskSection[] = ['incoming', 'active', 'completed']
+const APPROVAL_TABS: ReviewTabKey[] = ['todo', 'waiting', 'done']
+const VIEW_STORAGE_KEY = 'hawkim.reviews.view'
 
-/* Visible focus for the row that contains a focused link. */
-const focusRing =
-  'has-[a:focus-visible]:outline-2 has-[a:focus-visible]:-outline-offset-2 has-[a:focus-visible]:outline-maroon-secondary has-[a:focus-visible]:outline-solid'
-const pill = 'inline-flex w-fit items-center rounded-full px-2 py-0.5 text-xs font-medium whitespace-nowrap'
+function readStoredView(): ViewMode {
+  try { return window.localStorage.getItem(VIEW_STORAGE_KEY) === 'list' ? 'list' : 'grid' }
+  catch { return 'grid' }
+}
 
-/**
- * My Reviews ("/reviews", PBI 7, 10, 25): every SOP the user reviews or approves, in
- * any department, by what's needed from them: To do, Waiting and Done.
- * Reviewer or Approver permission only.
- */
+/** Reviewer requests and approval assignments share one route and one view preference. */
 export function ReviewsPage() {
   const text = reviewsEn.list
   const user = useCurrentUser()
   const allowed = hasAnyPermission(user, ['reviewer', 'approver'])
+  const canReview = hasPermission(user, 'reviewer')
+  const canApprove = hasPermission(user, 'approver')
   useDocumentTitle(allowed ? text.pageTitle : undefined)
   const { sops } = useSops()
-  const { nameOf } = useUsers()
-  const { nameOf: departmentName } = useDepartments()
-  const [tab, setTab] = useState<ReviewTabKey>('todo')
+  const [tab, setTab] = useState<ReviewerTaskSection>('incoming')
+  const [approvalTab, setApprovalTab] = useState<ReviewTabKey>('todo')
+  const [view, setView] = useState<ViewMode>(readStoredView)
+  useEffect(() => {
+    try { window.localStorage.setItem(VIEW_STORAGE_KEY, view) } catch { /* Storage is optional. */ }
+  }, [view])
 
   const tasks = useMemo(() => reviewTasks(user.id, sops), [user.id, sops])
-  const visible = useMemo(() => {
-    const inTab = tasks.filter((task) => task.group === tab)
-    return tab === 'todo' ? sortTodo(inTab) : sortRecent(inTab)
+  const reviews = useMemo(() => {
+    const selected = tasks.filter((task) => task.role === 'reviewer' && reviewerTaskSection(task) === tab)
+    return tab === 'completed' ? sortRecent(selected) : sortTodo(selected)
   }, [tasks, tab])
+  const approvals = useMemo(() => {
+    const selected = tasks.filter((task) => task.role === 'approver' && task.group === approvalTab)
+    return approvalTab === 'todo' ? sortTodo(selected) : sortRecent(selected)
+  }, [tasks, approvalTab])
 
   if (!allowed) return <NotFoundPage embedded />
+  const reviewIds = tabIds('reviews', tab)
+  const approvalIds = tabIds('review-approvals', approvalTab)
+  const tabs: TabItem<ReviewerTaskSection>[] = REVIEW_TABS.map((key) => ({ key, label: text.reviewerTabs[key] }))
+  const approvalTabs: TabItem<ReviewTabKey>[] = APPROVAL_TABS.map((key) => ({ key, label: text.tabs[key] }))
 
-  const ids = tabIds(TAB_ID_PREFIX, tab)
-  const tabItems: TabItem<ReviewTabKey>[] = TABS.map((key) => ({ key, label: text.tabs[key] }))
+  return <>
+    <h1 className="text-2xl tracking-tight sm:text-3xl">{text.title}</h1>
+    <p className="mt-2 text-text-gray">{text.subtitle}</p>
+    <div className="mt-6 flex justify-end">
+      <ViewToggle value={view} onChange={setView} labels={text.view} />
+    </div>
 
-  const due = (task: ReviewTask) => {
-    const overdue = !!task.dueAt && isOverdue(task.sop, task.sop.status === 'in-approval' ? 'approval' : 'review')
-    return (
-      <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
-        {task.dueAt ? (
-          <span className="text-sm whitespace-nowrap text-text-gray">
-            {text.due.split('{date}')[0]}
-            <time dateTime={task.dueAt}>{formatDateTime(task.dueAt)}</time>
-            {text.due.split('{date}')[1]}
-          </span>
-        ) : (
-          <span className="text-sm text-text-gray">{text.noDueDate}</span>
-        )}
-        {overdue && <span className={`${pill} bg-status-rejected-bg text-status-rejected-fg`}>{text.overdue}</span>}
-      </span>
-    )
-  }
-
-  return (
-    <>
-      <h1 className="text-2xl tracking-tight sm:text-3xl">{text.title}</h1>
-      <p className="mt-2 text-text-gray">{text.subtitle}</p>
-
-      <div className="mt-8 border-b border-beige">
-        <Tabs items={tabItems} selected={tab} onSelect={setTab} label={text.tabsLabel} idPrefix={TAB_ID_PREFIX} />
+    {canReview && <section aria-labelledby="review-requests-heading" className="mt-4">
+      <h2 id="review-requests-heading" className="sr-only">{text.reviewerListLabel}</h2>
+      <div className="overflow-x-auto border-b border-beige">
+        <Tabs items={tabs} selected={tab} onSelect={setTab} label={text.tabsLabel} idPrefix="reviews" />
       </div>
-
-      <div role="tabpanel" id={ids.panel} aria-labelledby={ids.tab} tabIndex={0} className="mt-6 rounded-xl">
-        {visible.length === 0 ? (
-          <div className="flex flex-col items-center rounded-xl border border-dashed border-beige bg-white px-6 py-14 text-center">
-            <span aria-hidden="true" className="inline-flex size-12 items-center justify-center rounded-lg bg-beige text-maroon">
-              <ListChecks className="size-6" strokeWidth={1.75} />
-            </span>
-            <p className="mt-4 text-text-gray">{text.empty[tab]}</p>
-          </div>
-        ) : (
-          <ul aria-label={text.listLabel} className="divide-y divide-beige rounded-xl border border-beige bg-white">
-            {visible.map((task) => (
-              <li
-                key={task.sop.id}
-                className={`relative flex flex-col gap-3 p-4 transition-colors first:rounded-t-xl last:rounded-b-xl hover:bg-beige/40 md:flex-row md:items-center md:gap-6 md:px-5 ${focusRing}`}
-              >
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-semibold text-maroon">{task.sop.code}</p>
-                  <p className="mt-0.5 text-[0.9375rem] leading-snug font-medium text-maroon">
-                    <Link to={reviewPath(task.sop.id)} className="after:absolute after:inset-0 focus-visible:outline-none">
-                      {task.sop.title}
-                    </Link>
-                  </p>
-                  <p className="mt-1 text-sm text-text-gray">
-                    {text.author.replace('{name}', nameOf(task.sop.authorId))}
-                    <span aria-hidden="true"> · </span>
-                    <span className="sr-only">, </span>
-                    {departmentName(task.sop.departmentId)}
-                    <span aria-hidden="true"> · </span>
-                    <span className="sr-only">, </span>
-                    {text.yourRole.replace('{role}', text.roles[task.role])}
-                  </p>
-                </div>
-                <div className="flex flex-col gap-1.5 md:w-56 md:shrink-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <StatusBadge status={task.sop.status} />
-                    {task.need && (
-                      <span className={`${pill} border border-maroon/20 bg-maroon/[0.06] text-maroon`}>{text.needs[task.need]}</span>
-                    )}
-                  </div>
-                  {/* Reviewer metadata belongs to this person; approval retains its stage deadline. */}
-                  {task.role === 'reviewer' && task.reviewer && isInternalRequest(task.reviewer) ? (
-                    // Internal review: the same request details as on the author's review requests card.
-                    <div>
-                      <RequestStatusBadge sop={task.sop} request={task.reviewer} />
-                      <ReviewRequestDetails sop={task.sop} request={task.reviewer} />
-                    </div>
-                  ) : task.role === 'reviewer' ? (
-                    <ReviewerDeadline sop={task.sop} reviewer={(task.reviewer ?? task.sop.reviewers.find((person) => person.userId === user.id))!} content={sopWorkflowEn.reviewerDeadline} showQueue />
-                  ) : task.group === 'todo' && due(task)}
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
+      <div role="tabpanel" id={reviewIds.panel} aria-labelledby={reviewIds.tab} tabIndex={0} className="mt-6 rounded-xl">
+        {reviews.length ? <ReviewTaskList tasks={reviews} view={view} label={text.reviewerListLabel} /> : <EmptyTasks message={text.reviewerEmpty[tab]} />}
       </div>
-    </>
-  )
+    </section>}
+
+    {canApprove && <section aria-labelledby="review-approvals-heading" className={canReview ? 'mt-10' : 'mt-4'}>
+      <h2 id="review-approvals-heading" className="text-xl font-medium tracking-tight">{text.approvalsTitle}</h2>
+      <p className="mt-1 text-sm text-text-gray">{text.approvalsDescription}</p>
+      <div className="mt-5 overflow-x-auto border-b border-beige">
+        <Tabs items={approvalTabs} selected={approvalTab} onSelect={setApprovalTab} label={text.approvalTabsLabel} idPrefix="review-approvals" />
+      </div>
+      <div role="tabpanel" id={approvalIds.panel} aria-labelledby={approvalIds.tab} tabIndex={0} className="mt-6 rounded-xl">
+        {approvals.length ? <ReviewTaskList tasks={approvals} view={view} label={text.approvalListLabel} /> : <EmptyTasks message={text.empty[approvalTab]} />}
+      </div>
+    </section>}
+  </>
 }
 
-/** An internal review request (with its own id and sent time), not a legacy reviewer assignment. */
-function isInternalRequest(reviewer: ReviewerAssignment | InternalReviewerAssignment): reviewer is InternalReviewerAssignment {
-  return 'id' in reviewer && 'assignedAt' in reviewer
+function EmptyTasks({ message }: { message: string }) {
+  return <div className="flex flex-col items-center rounded-xl border border-dashed border-beige bg-white px-6 py-14 text-center">
+    <span aria-hidden="true" className="inline-flex size-12 items-center justify-center rounded-lg bg-beige text-maroon"><ListChecks className="size-6" strokeWidth={1.75} /></span>
+    <p className="mt-4 text-text-gray">{message}</p>
+  </div>
 }

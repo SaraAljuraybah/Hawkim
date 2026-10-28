@@ -12,9 +12,27 @@ export const mySopsEn: MySopsContent = {
   subtitle: "SOPs you've authored or co-authored in {department}.",
   upload: { label: 'Upload SOP', href: '/my-sops/upload' },
   versionTemplate: 'v{version}',
-  empty: 'No SOPs here yet.',
+  empty: 'No SOPs in this category yet. Try another category.',
   uploadedMessage: 'SOP uploaded as a draft.',
-  coAuthorLabel: 'Co-author',
+  coAuthorLabel: 'Co-Author',
+  mainAuthorLabel: 'Main Author',
+  tabsLabel: 'My SOP categories',
+  tabs: { new: 'New SOPs', progress: 'In Progress', completed: 'Completed' },
+  viewToggle: { label: 'My SOPs view', grid: 'Grid view', list: 'List view' },
+  filters: {
+    label: 'Search and filter My SOPs',
+    searchLabel: 'Search SOPs',
+    searchPlaceholder: 'Search by SOP title',
+    nameLabel: 'SOP Name',
+    allNames: 'All SOPs',
+    dateLabel: 'Last updated',
+    roleLabel: 'My Role',
+    allRoles: 'All roles',
+    clear: 'Clear Filters',
+    oneResult: '1 SOP found',
+    results: '{count} SOPs found',
+    empty: 'No SOPs match your search and filters in this category.',
+  },
   recheckLabel: 'Recheck recommended',
 }
 
@@ -23,7 +41,7 @@ export const uploadSopEn: UploadSopContent = {
   title: 'Upload SOP',
   subtitle: 'Add a new SOP to {department}. It will be saved as a draft.',
   fields: {
-    title: { label: 'Title', placeholder: 'Enter the SOP title' },
+    title: { label: 'Title', placeholder: 'Enter the SOP title', hint: 'Required. Up to 50 characters.' },
     department: { label: 'Department' },
     file: {
       label: 'SOP file',
@@ -43,6 +61,7 @@ export const uploadSopEn: UploadSopContent = {
   },
   errors: {
     titleRequired: 'Enter a title.',
+    titleTooLong: 'Enter a title of up to 50 characters.',
     fileRequired: 'Upload an SOP file.',
   },
   cancel: { label: 'Cancel', href: '/my-sops' },

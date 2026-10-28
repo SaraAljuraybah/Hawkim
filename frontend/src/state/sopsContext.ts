@@ -3,13 +3,13 @@ import type { ApprovalDecisionSnapshot, Sop } from '../data/mock/types'
 import type { ApprovalSubmissionOptions } from '../lib/approval'
 import type { ReviewAction } from '../lib/reviewFlow'
 import type { InternalReviewOptions } from '../lib/internalReview'
-import type { UploadedFile } from '../lib/workflow'
+import type { LoadStatus } from './useLoadAfterSignIn'
 
 /**
- * What the author provides when uploading; everything else is set by the store.
- * A new SOP has no co-authors (they're added later from the SOP page).
+ * What the author provides when uploading; everything else is set by the store and
+ * the database. A new SOP has no co-authors (they're added later from the SOP page).
  */
-export type NewDraft = Pick<Sop, 'title' | 'departmentId' | 'description'> & UploadedFile
+export type NewDraft = Pick<Sop, 'title' | 'departmentId' | 'description'> & { file: File }
 
 
 export type SubmitOptions = InternalReviewOptions
@@ -22,42 +22,45 @@ export interface ResubmitOptions {
 }
 
 export interface SopsStore {
+  /** Whether the signed-in person's SOPs have been read from the database. */
+  status: LoadStatus
   /** Every SOP, at every lifecycle stage (the directory shows the published ones). */
   sops: Sop[]
-  /** Saves a new draft by the current user (next free code, version 1.0, today) and returns it. */
-  addDraft: (draft: NewDraft) => Sop
+  /** Uploads the file and saves a new draft by the current user (the database gives it its number and v1); returns it. */
+  addDraft: (draft: NewDraft) => Promise<Sop>
 
   // Actions by the current user (author or co-author). Each throws if not allowed.
   /** Main author: first submission from Draft, or a new version sent to the chosen reviewers. */
-  submitForReview: (sopId: string, options: SubmitOptions) => void
+  submitForReview: (sopId: string, options: SubmitOptions) => Promise<void>
   /** Main Author: submit this reviewed version to its configured Quality Document Controller. */
   submitForApproval: (sopId: string, options: ApprovalSubmissionOptions) => void
   reviewAction: (sopId: string, action: ReviewAction) => void
   /** Reviewer: take the task (required before completing or returning it). */
-  acceptInternalReview: (sopId: string, roundId: string, assignmentId: string) => void
+  acceptInternalReview: (sopId: string, roundId: string, assignmentId: string) => Promise<void>
   /** Reviewer: turn the task down with a required reason. */
-  declineInternalReview: (sopId: string, roundId: string, assignmentId: string, reason: string) => void
-  decideInternalReview: (sopId: string, roundId: string, assignmentId: string, decision: 'completed' | 'returned', text?: string) => void
+  declineInternalReview: (sopId: string, roundId: string, assignmentId: string, reason: string) => Promise<void>
+  decideInternalReview: (sopId: string, roundId: string, assignmentId: string, decision: 'completed' | 'returned', text?: string) => Promise<void>
   /** Main author: send the current version to more reviewers (reopens a settled round). */
-  addInternalReviewers: (sopId: string, options: SubmitOptions) => void
+  addInternalReviewers: (sopId: string, options: SubmitOptions) => Promise<void>
   /** Main author: remove a reviewer from the current round at any time, with a required reason. */
-  removeInternalReviewer: (sopId: string, roundId: string, assignmentId: string, reason: string) => void
+  removeInternalReviewer: (sopId: string, roundId: string, assignmentId: string, reason: string) => Promise<void>
   /** Main author: legacy resubmission with an optional new date and comments (internal reviews use submitForReview). */
   resubmit: (sopId: string, options?: ResubmitOptions) => void
-  /** Uploads the next version (Draft or Returned). It isn't checked until someone runs a compliance check. */
-  uploadVersion: (sopId: string, file: UploadedFile) => void
-  /** Main author: deletes a version (Draft or Returned; at least one remains). */
-  deleteVersion: (sopId: string, version: string) => void
+  /** Uploads the file as the next version (Draft or Returned). It isn't checked until someone runs a compliance check. */
+  uploadVersion: (sopId: string, file: File) => Promise<void>
+  /** Main author or its uploader: deletes a version (Draft or Returned; at least one remains). */
+  deleteVersion: (sopId: string, version: string) => Promise<void>
   /** Author or co-author: replies to the latest round's comments. */
-  addResponse: (sopId: string, text: string) => void
-  /** Adds one or more co-authors in a single update. */
-  addCoAuthors: (sopId: string, userIds: string[]) => void
-  removeCoAuthor: (sopId: string, userId: string) => void
+  addResponse: (sopId: string, text: string) => Promise<void>
+  /** Main author: adds one or more co-authors in a single update (all or none). */
+  addCoAuthors: (sopId: string, userIds: string[]) => Promise<void>
+  /** Main author: removes a co-author. */
+  removeCoAuthor: (sopId: string, userId: string) => Promise<void>
   /**
    * Runs a compliance check of the current version (PBI 4, 29). It is "running"
-   * for a moment, then saves its report. Throws if a check is already running.
+   * for a moment, then saves its report. Refused if a check is already running.
    */
-  runCheck: (sopId: string) => void
+  runCheck: (sopId: string) => Promise<void>
 
   // Per-person reviewer and approver decisions (the review page, and the development-only
   // demo panel). Complete review and Approve take an optional comment.

@@ -9,7 +9,7 @@ interface ResponseDialogProps {
   content: SopWorkflowContent['dialogs']
   /** Who receives the response, e.g. "Noura Alqahtani (Reviewer)". */
   recipients: string
-  onSubmit: (text: string) => void
+  onSubmit: (text: string) => void | Promise<void>
   onClose: () => void
 }
 
@@ -28,13 +28,19 @@ export function ResponseDialog({ content, recipients, onSubmit, onClose }: Respo
       confirmLabel={text.confirm}
       cancelLabel={content.cancel}
       onClose={onClose}
-      onConfirm={() => {
+      onConfirm={async () => {
         if (!response.trim()) {
           flushSync(() => setError(text.required))
           fieldRef.current?.focus()
           return false
         }
-        onSubmit(response.trim())
+        try {
+          await onSubmit(response.trim())
+        } catch {
+          flushSync(() => setError(text.failed))
+          fieldRef.current?.focus()
+          return false
+        }
       }}
     >
       <TextAreaField

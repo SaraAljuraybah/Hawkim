@@ -1,6 +1,5 @@
 import { useCallback, useMemo, useRef, useState, type ReactNode } from 'react'
 import { validateWorkflowConfiguration } from '../lib/reviewFlow'
-import { sampleDepartments } from '../data/mock/departments'
 import type { Department, DepartmentId } from '../data/mock/types'
 import {
   departmentIdFor,
@@ -9,7 +8,9 @@ import {
   validateDepartment,
   type DepartmentInput,
 } from '../lib/departmentAdmin'
+import { fetchDepartments } from '../services/people'
 import { DepartmentsContext, type DepartmentActor, type DepartmentsStore } from './departmentsContext'
+import { useLoadAfterSignIn } from './useLoadAfterSignIn'
 
 /** Refuses anyone who isn't an active admin. */
 function assertAdmin({ actorId, users }: DepartmentActor) {
@@ -18,19 +19,21 @@ function assertAdmin({ actorId, users }: DepartmentActor) {
 }
 
 /**
- * In-memory departments store shared by the employee screens and the admin portal,
- * so admin changes show everywhere at once. Starts with the sample departments;
- * changes are lost on reload.
- * TODO: Replace with API calls once the backend exists.
+ * Departments store shared by the employee screens and the admin portal. The
+ * departments are loaded from the database after sign-in. The admin actions only
+ * change this tab's copy (lost on reload).
+ * TODO: Save admin changes once those features are connected.
+ * Must be inside <SessionProvider>.
  */
 export function DepartmentsProvider({ children }: { children: ReactNode }) {
-  const [departments, setDepartments] = useState<Department[]>(sampleDepartments)
+  const [departments, setDepartments] = useState<Department[]>([])
   // The latest list (as in the other stores): actions check against it, not the last render.
-  const latestRef = useRef<Department[]>(sampleDepartments)
+  const latestRef = useRef<Department[]>([])
   const commit = useCallback((next: Department[]) => {
     latestRef.current = next
     setDepartments(next)
   }, [])
+  const status = useLoadAfterSignIn(fetchDepartments, commit)
 
   const activeDepartments = useMemo(() => departments.filter((department) => !department.removedAt), [departments])
   const getDepartment = useCallback(
@@ -90,8 +93,8 @@ export function DepartmentsProvider({ children }: { children: ReactNode }) {
   )
 
   const store = useMemo<DepartmentsStore>(
-    () => ({ departments, activeDepartments, getDepartment, nameOf, addDepartment, updateDepartment, configureWorkflow, removeDepartment }),
-    [departments, activeDepartments, getDepartment, nameOf, addDepartment, updateDepartment, configureWorkflow, removeDepartment],
+    () => ({ status, departments, activeDepartments, getDepartment, nameOf, addDepartment, updateDepartment, configureWorkflow, removeDepartment }),
+    [status, departments, activeDepartments, getDepartment, nameOf, addDepartment, updateDepartment, configureWorkflow, removeDepartment],
   )
 
   return <DepartmentsContext.Provider value={store}>{children}</DepartmentsContext.Provider>

@@ -297,12 +297,12 @@ export interface SopsContent {
 }
 
 export interface SopDetailContent {
-  /** `{code}` is replaced, e.g. "SOP-078 | Hawkim". */
+  /** `{title}` is replaced, e.g. "Data Integrity | Hawkim". */
   pageTitle: string
   back: LinkContent
   exportPdf: string
   descriptionTitle: string
-  /** Accessible title of the embedded viewer; `{code}` and `{title}` are replaced. */
+  /** Accessible title of the embedded viewer; `{title}` is replaced. */
   viewerTitle: string
   /** Shown when the browser can't display PDFs inline (common on phones). */
   fallback: { text: string; openPdf: string; newTabHint: string }
@@ -403,6 +403,35 @@ export interface RequestsContent {
 
 /* ---------- Searchable people picker ---------- */
 
+/** Author-facing internal review request form; backend-dependent limits remain explicit. */
+export interface InternalReviewSubmitContent {
+  title: string
+  addIntro: string
+  versionIntro: string
+  department: string
+  departmentHelp: string
+  division: string
+  divisionHelp: string
+  noDivision: string
+  reviewers: string
+  reviewerSearch: PeoplePickerContent
+  reviewerRequired: string
+  noneEligible: string
+  responseDate: string
+  responseHelp: string
+  responseTimeGiven: string
+  dateInvalid: string
+  closeAlert: string
+  duration: string
+  durationHelp: string
+  durationInvalid: string
+  note: string
+  noteHelp: string
+  noteServiceLimit: string
+  confirm: string
+  cancel: string
+}
+
 /** The picker's own text (each form gives its label, hint and errors). */
 export interface PeoplePickerContent {
   placeholder: string
@@ -434,6 +463,24 @@ export interface MySopsContent {
   uploadedMessage: string
   /** Label on SOPs the user co-authors. */
   coAuthorLabel: string
+  mainAuthorLabel: string
+  tabsLabel: string
+  tabs: { new: string; progress: string; completed: string }
+  viewToggle: { label: string; grid: string; list: string }
+  filters: {
+    label: string
+    searchLabel: string
+    searchPlaceholder: string
+    nameLabel: string
+    allNames: string
+    dateLabel: string
+    roleLabel: string
+    allRoles: string
+    clear: string
+    oneResult: string
+    results: string
+    empty: string
+  }
   /** On SOPs last checked against an older GVP version. */
   recheckLabel: string
 }
@@ -445,7 +492,7 @@ export interface UploadSopContent {
   /** `{department}` is replaced with the active department's name. */
   subtitle: string
   fields: {
-    title: { label: string; placeholder: string }
+    title: { label: string; placeholder: string; hint: string }
     department: { label: string }
     file: {
       label: string
@@ -458,7 +505,7 @@ export interface UploadSopContent {
     }
     description: { label: string; placeholder: string; /** `{count}` and `{max}` are replaced. */ counter: string }
   }
-  errors: { titleRequired: string; fileRequired: string }
+  errors: { titleRequired: string; titleTooLong: string; fileRequired: string }
   cancel: LinkContent
   submit: { label: string; loadingLabel: string }
 }
@@ -477,7 +524,7 @@ export interface SopFileFieldContent {
 }
 
 export interface SopWorkflowContent {
-  /** `{code}` is replaced, e.g. "SOP-083 | Hawkim". */
+  /** `{title}` is replaced, e.g. "Data Integrity | Hawkim". */
   pageTitle: string
   back: LinkContent
   versionTemplate: string
@@ -582,9 +629,9 @@ export interface SopWorkflowContent {
      * Approved or Published), or not the current version's uploader (`{name}` is the main author).
      */
     checkBlocked: { status: Record<'in-review' | 'in-approval', string>; 'not-uploader': string }
-    /** Preview dialog: `{code}` and `{version}` are replaced. */
+    /** Preview dialog: `{title}` and `{version}` are replaced. */
     previewTitle: string
-    /** Accessible name of the embedded viewer; `{code}`, `{title}` and `{version}` are replaced. */
+    /** Accessible name of the embedded viewer; `{title}` and `{version}` are replaced. */
     viewerTitle: string
     close: string
     fallback: { text: string; openPdf: string; newTabHint: string }
@@ -718,11 +765,11 @@ export interface ComplianceContent {
   }
   /** The compliance report page ("/my-sops/:id/compliance"), laid out as a formal report. */
   report: {
-    /** `{code}` is replaced. */
+    /** `{title}` is replaced. */
     pageTitle: string
-    /** Document title while printing (the default PDF file name); `{code}` and `{version}` are replaced. */
+    /** Document title while printing (the default PDF file name); `{title}` and `{version}` are replaced. */
     printTitle: string
-    /** `{code}` is replaced. */
+    /** `{title}` is replaced. */
     back: string
     title: string
     download: string
@@ -902,7 +949,7 @@ export interface NotificationsContent {
   unread: string
   /** Relative time under a minute. */
   justNow: string
-  /** `{name}`, `{code}`, `{version}`, `{day}`, `{reason}`, `{department}` and `{title}` are replaced. */
+  /** `{name}`, `{title}`, `{version}`, `{day}`, `{reason}` and `{department}` are replaced. */
   texts: {
     submitted: string
     resubmitted: string
@@ -943,6 +990,19 @@ export interface ReviewsContent {
     tabsLabel: string
     tabs: Record<ReviewTabKey, string>
     empty: Record<ReviewTabKey, string>
+    reviewerTabs: { incoming: string; active: string; completed: string }
+    reviewerEmpty: { incoming: string; active: string; completed: string }
+    approvalsTitle: string
+    approvalsDescription: string
+    approvalTabsLabel: string
+    approvalListLabel: string
+    reviewerListLabel: string
+    waiting: string
+    closed: string
+    decisions: Record<string, string>
+    version: string
+    updated: string
+    view: { label: string; grid: string; list: string }
     /** Accessible name of the list. */
     listLabel: string
     /** `{name}` is replaced. */
@@ -968,7 +1028,7 @@ export interface ReviewCommentDialog {
 }
 
 export interface ReviewPageContent {
-  /** `{code}` is replaced. */
+  /** `{title}` is replaced. */
   pageTitle: string
   back: LinkContent
   /** `{name}` / `{names}` are replaced. */
@@ -980,7 +1040,7 @@ export interface ReviewPageContent {
   file: {
     title: string
     download: string
-    /** `{code}` and `{title}` are replaced. */
+    /** `{title}` is replaced. */
     viewerTitle: string
     fallback: { text: string; openPdf: string; newTabHint: string }
   }
@@ -1027,7 +1087,7 @@ export interface ReviewPageContent {
       noteLabel: string
       confirm: string
     }
-    /** `{code}` and `{department}` are replaced. */
+    /** `{title}` and `{department}` are replaced. */
     publish: { title: string; description: string; confirm: string }
   }
   /** Shown after each action. `{name}` and `{department}` are replaced. */
@@ -1321,7 +1381,7 @@ export interface AdminUserDetailsContent {
     inUse: Record<'author' | 'reviewer' | 'approver', string>
     /** A permission that can't be removed; `{permission}` and `{reason}` are replaced. */
     cantRemove: string
-    /** An SOP with its status, e.g. "SOP-081 (Returned)"; `{code}` and `{status}` are replaced. */
+    /** An SOP with its status, e.g. "Data Integrity (Returned)"; `{title}` and `{status}` are replaced. */
     sopWithStatus: string
   }
 }

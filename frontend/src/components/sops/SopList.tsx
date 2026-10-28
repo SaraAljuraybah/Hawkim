@@ -33,7 +33,6 @@ export function SopList({ sops, content }: SopListProps) {
         <table className="w-full text-left text-sm">
           <thead className="bg-beige/60 text-maroon">
             <tr>
-              <th scope="col" className="px-5 py-3 font-semibold">{columns.code}</th>
               <th scope="col" className="px-5 py-3 font-semibold">{columns.title}</th>
               <th scope="col" className="px-5 py-3 font-semibold">{columns.department}</th>
               <th scope="col" className="px-5 py-3 font-semibold">{columns.version}</th>
@@ -43,14 +42,11 @@ export function SopList({ sops, content }: SopListProps) {
           <tbody className="divide-y divide-beige">
             {sops.map((sop) => (
               <tr key={sop.id} className={`relative transition-colors hover:bg-beige/40 ${focusRing}`}>
-                <th scope="row" className="px-5 py-4 font-semibold whitespace-nowrap text-maroon">
-                  {sop.code}
-                </th>
-                <td className="px-5 py-4 font-medium text-maroon">
-                  <Link to={sopPath(sop.id)} aria-label={`${sop.code} ${sop.title}`} className={stretchedLink}>
+                <th scope="row" className="px-5 py-4 font-medium text-maroon">
+                  <Link to={sopPath(sop.id)} className={stretchedLink}>
                     {sop.title}
                   </Link>
-                </td>
+                </th>
                 <td className="px-5 py-4 text-text-gray">{departmentName(sop.departmentId)}</td>
                 <td className="px-5 py-4 text-text-gray">{content.versionTemplate.replace('{version}', sop.version)}</td>
                 <td className="px-5 py-4 whitespace-nowrap text-text-gray">
@@ -67,13 +63,12 @@ export function SopList({ sops, content }: SopListProps) {
         {sops.map((sop) => (
           <li key={sop.id} className={`relative p-4 ${focusRing}`}>
             <div className="flex items-baseline justify-between gap-3">
-              <p className="text-sm font-semibold text-maroon">{sop.code}</p>
               <time dateTime={sop.lastUpdated} className="shrink-0 text-xs text-text-gray">
                 {formatDate(sop.lastUpdated)}
               </time>
             </div>
             <p className="mt-1 text-sm leading-snug font-medium text-maroon">
-              <Link to={sopPath(sop.id)} aria-label={`${sop.code} ${sop.title}`} className={stretchedLink}>
+              <Link to={sopPath(sop.id)} className={stretchedLink}>
                 {sop.title}
               </Link>
             </p>

@@ -488,6 +488,7 @@ export function submitForReview(
   // The check must have run for this version against the current guideline; it doesn't have to pass (PBI 4, 29).
   assert(hasCurrentCheck(sop, guidelineVersion), 'Run a compliance check against the current guideline first')
   assertSeparation(sop, reviewerIds, approverIds)
+  assert(!note || note.trim().length <= SUBMIT_COMMENT_MAX, 'Submission comments must be at most 1000 characters')
   assert(
     [reviewDueDays, approvalDueDays].every((days) => days === undefined || isValidDueDays(days)),
     'Due days must be from 1 to 30',
@@ -536,8 +537,8 @@ export function submitForReview(
   }
 }
 
-/** Submission and resubmission comments are limited to 500 characters. */
-export const SUBMIT_COMMENT_MAX = 500
+/** Submission and resubmission comments are limited to 1000 characters. */
+export const SUBMIT_COMMENT_MAX = 1000
 
 /**
  * Author: resubmit after a new version. It goes back to the same Reviewer 1 (and the same
@@ -552,7 +553,7 @@ export function resubmit(sop: Sop, actorId: string, guidelineVersion: string, no
   assert(canResubmit(sop), 'Upload a new version before resubmitting')
   assert(hasCurrentCheck(sop, guidelineVersion), 'Run a compliance check against the current guideline first')
   const trimmed = note?.trim()
-  assert(!trimmed || trimmed.length <= SUBMIT_COMMENT_MAX, 'Submission comments must be at most 500 characters')
+  assert(!trimmed || trimmed.length <= SUBMIT_COMMENT_MAX, 'Submission comments must be at most 1000 characters')
   const date = dueDate?.trim()
   const parsed = parseDueDate(date ?? '')
   assert(parsed.valid, 'Choose an optional review deadline today or later')

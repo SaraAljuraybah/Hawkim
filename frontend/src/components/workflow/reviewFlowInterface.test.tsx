@@ -24,21 +24,22 @@ function draft(): Sop {
   return { id: 'test', code: 'TEST', title: 'Test', departmentId: 'test-origin', version: '1', status: 'draft', authorId: 'author', coAuthorIds: [], lastUpdated: '2026-10-18', fileName: 'test.pdf', fileType: 'pdf', reviewers: [], approvers: [], versions: [], comments: [], timeline: [], complianceChecks: [] }
 }
 describe('review plan interface', () => {
-  it('offers multiple eligible internal reviewers inside a closed dropdown without external reviewers or approvers', () => {
+  it('offers searchable eligible internal reviewers without external reviewers or approvers', () => {
     const html = renderToStaticMarkup(<SubmitDialog sop={draft()} content={sopWorkflowEn.dialogs} onSubmit={() => {}} onClose={() => {}} />)
     expect(html).toContain('Select reviewers')
     expect(html).toContain('aria-expanded="false"')
-    expect(html.match(/<div[^>]*role="group"[^>]*>/)?.[0]).toContain('hidden=""')
-    expect(html).toContain('name="internalReviewers"')
-    expect(html).toContain('type="checkbox"')
+    expect(html).toContain('role="combobox"')
+    expect(html.match(/<ul[^>]*role="listbox"[^>]*>/)?.[0]).toContain('hidden=""')
+    expect(html).toContain('placeholder="Search reviewers by name…"')
     expect(html).toContain('First Test Reviewer')
     expect(html).toContain('Second Test Reviewer')
     expect(html).not.toContain('Other Department Reviewer')
     expect(html).not.toContain('Quality Test Controller')
     expect(html).not.toContain('Reviewer 1')
-    expect(html).toContain('Response due date (optional)')
+    expect(html).toContain('Request response deadline')
     expect(html.match(/type="date"/g)).toHaveLength(1)
-    expect(html).toContain('Review duration in days (optional)')
+    expect(html.match(/<input[^>]*name="reviewRequestDueDate"[^>]*>/)?.[0]).toContain('readOnly=""')
+    expect(html).toContain('Review duration in calendar days (optional)')
     expect(html).not.toContain('Individual Reviewer Task Due Date')
   })
   it('shows a clear blocked Quality state when no controller is configured', () => {

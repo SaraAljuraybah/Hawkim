@@ -24,10 +24,13 @@ import { reviewsEn } from '../content/reviews.en'
 import { sopWorkflowEn } from '../content/workflow.en'
 import type { ApprovalDecisionSnapshot, Sop } from '../data/mock/types'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
-import { complianceScore, currentCheck, verdictOf } from '../lib/compliance'
+import { currentVersionOf, useFileUrl } from '../hooks/useFileUrl'
+import { checkRequired, complianceScore, currentCheck, verdictOf } from '../lib/compliance'
+import { sopDownloadName, sopFileLabel } from '../lib/sopPresentation'
 import { formatDateTime } from '../lib/format'
 import { reviewCompliancePath } from '../lib/routes'
 import { reviewSopForUser } from '../lib/reviewAccess'
+import { fileUrlOf } from '../services/files'
 import { activeApprovalSubmission, currentDueAt, currentReviewer, isOverdue, latestReturn, pendingPeople } from '../lib/workflow'
 import { useDepartments } from '../state/departmentsContext'
 import { useCurrentUser } from '../state/sessionContext'
@@ -37,9 +40,9 @@ import { NotFoundPage } from './NotFoundPage'
 
 type DialogName = 'complete' | 'returnReviewer' | 'route' | 'approve' | 'returnApprover' | 'publish'
 
-/** Download name for the SOP file, e.g. "SOP-078_v1.2.pdf". */
+/** A title-based download name; the stored SOP identifier and uploaded file stay intact. */
 function downloadName(sop: Sop) {
-  return `${sop.code}_v${sop.version}.${sop.fileType}`
+  return sopDownloadName(sop.title, sop.version, sop.fileType)
 }
 
 function Section({ id, title, children, className = '' }: { id: string; title: string; children: ReactNode; className?: string }) {
@@ -66,7 +69,7 @@ export function ReviewPage() {
   const user = useCurrentUser()
   const sop = sops.find((item) => item.id === id)
   const access = sop ? reviewSopForUser(sop, user.id) : undefined
-  useDocumentTitle(access ? reviewsEn.page.pageTitle.replace('{code}', access.sop.code) : undefined)
+  useDocumentTitle(access ? reviewsEn.page.pageTitle.replace('{title}', access.sop.title) : undefined)
 
   if (!access) return <NotFoundPage embedded />
   // Reset dialogs when the authorized version or signed-in reviewer changes.
@@ -75,15 +78,18 @@ export function ReviewPage() {
 
 function Review({ sop, historical }: { sop: Sop; historical: boolean }) {
   const text = reviewsEn.page
+  const fileUrl = useFileUrl(sop)
   const workflow = sopWorkflowEn
   const store = useSops()
   const user = useCurrentUser()
   const { nameOf, getUser } = useUsers()
-  const { nameOf: departmentName } = useDepartments()
+  const { nameOf: departmentName, departments } = useDepartments()
 
   const [dialog, setDialog] = useState<DialogName | null>(null)
   const [approvalSnapshot, setApprovalSnapshot] = useState<ApprovalDecisionSnapshot>()
   const [message, setMessage] = useState('')
+  const [fileError, setFileError] = useState('')
+  const [downloading, setDownloading] = useState(false)
   const triggerRef = useRef<HTMLElement | null>(null)
   const statusRef = useRef<HTMLDivElement>(null)
 
@@ -120,6 +126,19 @@ function Review({ sop, historical }: { sop: Sop; historical: boolean }) {
       else statusRef.current?.focus()
     })
   }
+
+  async function download() {
+    if (downloading) return
+    setFileError('')
+    setDownloading(true)
+    try {
+      const url = await fileUrlOf(currentVersionOf(sop) ?? sop, downloadName(sop))
+      if (!url) throw new Error('Unavailable')
+      window.location.assign(url)
+    } catch { setFileError(text.fileFailed) }
+    finally { setDownloading(false) }
+  }
+  const stored = !!currentVersionOf(sop)?.storagePath
 
   /** Runs an action, says what happened, and moves focus to the message (the buttons change). */
   function act(action: () => void, done: string) {
@@ -167,7 +186,6 @@ function Review({ sop, historical }: { sop: Sop; historical: boolean }) {
 
       {/* Header */}
       <div className="mt-5">
-        <p className="text-sm font-semibold text-maroon">{sop.code}</p>
         <h1 className="mt-1 text-2xl leading-tight tracking-tight sm:text-3xl">{sop.title}</h1>
         <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-text-gray">
           <StatusBadge status={sop.status} />
@@ -284,7 +302,7 @@ function Review({ sop, historical }: { sop: Sop; historical: boolean }) {
         </Section>
 
         {/* Compliance (read-only) */}
-        <Section id="compliance-title" title={text.compliance.title}>
+        {checkRequired(sop, departments) && <Section id="compliance-title" title={text.compliance.title}>
           <SampleBanner text={complianceEn.sampleBanner} />
           <div className="mt-4">
             {check?.status === 'completed' ? (
@@ -315,7 +333,7 @@ function Review({ sop, historical }: { sop: Sop; historical: boolean }) {
               <p className="text-sm text-text-gray">{text.compliance.none}</p>
             )}
           </div>
-        </Section>
+        </Section>}
       </div>
 
       {/* Current file: the PDF inline; a download for files uploaded in this session; the name only for samples */}
@@ -326,24 +344,26 @@ function Review({ sop, historical }: { sop: Sop; historical: boolean }) {
               <FileText className="size-5" strokeWidth={1.75} />
             </span>
             <div className="min-w-0">
-              <p className="text-sm font-medium break-all text-maroon">{sop.fileName}</p>
+              <p className="text-sm font-medium break-all text-maroon">{sopFileLabel(sop)}</p>
               <p className="mt-0.5 text-sm text-text-gray">
                 {workflow.file.types[sop.fileType]} · {workflow.versionTemplate.replace('{version}', sop.version)}
               </p>
             </div>
           </div>
-          {sop.fileUrl && (
-            <Button href={sop.fileUrl} download={downloadName(sop)} size="sm" variant="secondary" className="self-start sm:self-auto">
+          {fileUrl && (
+            <Button href={stored ? undefined : fileUrl} download={stored ? undefined : downloadName(sop)}
+              onClick={stored ? download : undefined} disabled={downloading} size="sm" variant="secondary" className="self-start sm:self-auto">
               <Download aria-hidden="true" className="size-4" strokeWidth={2} />
               {text.file.download}
             </Button>
           )}
         </div>
-        {sop.fileUrl && sop.fileType === 'pdf' && (
+        {fileError && <p role="alert" className="mt-3 text-sm text-status-rejected-fg">{fileError}</p>}
+        {fileUrl && sop.fileType === 'pdf' && (
           <div className="mt-4 rounded-xl border border-beige p-3 sm:p-4">
             <PdfViewer
-              url={sop.fileUrl}
-              title={text.file.viewerTitle.replace('{code}', sop.code).replace('{title}', sop.title)}
+              url={fileUrl}
+              title={text.file.viewerTitle.replace('{title}', sop.title)}
               fallback={text.file.fallback}
             />
           </div>
@@ -408,7 +428,7 @@ function Review({ sop, historical }: { sop: Sop; historical: boolean }) {
       )}
       <ConfirmDialog
         open={dialog === 'publish'}
-        title={text.dialogs.publish.title.replace('{code}', sop.code)}
+        title={text.dialogs.publish.title.replace('{title}', sop.title)}
         description={text.dialogs.publish.description.replace('{department}', department)}
         cancelLabel={text.dialogs.cancel}
         confirmLabel={text.dialogs.publish.confirm}

@@ -20,7 +20,7 @@ subtitle: 'Browse published SOPs available to you.',
   filters: {
     label: 'Search and filter SOPs',
     searchLabel: 'Search SOPs',
-    searchPlaceholder: 'Search by SOP code or title',
+    searchPlaceholder: 'Search by SOP title',
     typeLabel: 'Document type',
     types: { all: 'All document types', pdf: 'PDF', docx: 'Word' },
     clear: 'Clear filters',
@@ -45,11 +45,11 @@ subtitle: 'Browse published SOPs available to you.',
   empty: 'No SOPs in this department yet.',
 
   detail: {
-    pageTitle: '{code} | Hawkim',
+    pageTitle: '{title} | Hawkim',
    back: { label: 'Back to SOP Directory', href: '/sops' },
     exportPdf: 'Export PDF',
     descriptionTitle: 'SOP Description',
-    viewerTitle: '{code} {title} (PDF)',
+    viewerTitle: '{title} (PDF)',
     fallback: {
       text: "Your browser can't display the PDF here. Open it in a new tab or export it instead.",
       openPdf: 'Open PDF',

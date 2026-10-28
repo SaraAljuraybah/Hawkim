@@ -2,6 +2,7 @@ import { lazy, useEffect } from 'react'
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { DashboardPage } from './pages/DashboardPage'
 import { DepartmentsPage } from './pages/DepartmentsPage'
+import { ForgotPasswordPage } from './pages/ForgotPasswordPage'
 import { MyRequestsPage } from './pages/MyRequestsPage'
 import { MySopsPage } from './pages/MySopsPage'
 import { ReviewsPage } from './pages/ReviewsPage'
@@ -9,10 +10,12 @@ import { UploadSopPage } from './pages/UploadSopPage'
 import { SopsPage } from './pages/SopsPage'
 import { SubmitRequestPage } from './pages/SubmitRequestPage'
 import { LandingPage } from './pages/LandingPage'
+import { NotConfiguredPage } from './pages/NotConfiguredPage'
 import { NotFoundPage } from './pages/NotFoundPage'
 import { SignInPage } from './pages/SignInPage'
 import { ADMIN_USERS_PATH } from './lib/routes'
 import { AdminArea, EmployeeArea } from './routes/guards'
+import { supabaseConfigProblem } from './services/supabase'
 import { DepartmentsProvider } from './state/DepartmentsProvider'
 import { GuidelinesProvider } from './state/GuidelinesProvider'
 import { NotificationsProvider } from './state/NotificationsProvider'
@@ -46,8 +49,8 @@ const UserDetailsPage = lazy(() => adminPortal().then((m) => ({ default: m.UserD
 
 /**
  * Client-side routes.
- * Any URL without its own route (including /forgot-password, /terms and
- * /privacy until those pages exist) shows the Not Found page.
+ * Any URL without its own route (including /terms and /privacy until those
+ * pages exist) shows the Not Found page.
  */
 function App() {
   const { pathname, hash } = useLocation()
@@ -58,13 +61,17 @@ function App() {
     if (!hash) window.scrollTo({ top: 0, behavior: 'instant' })
   }, [pathname, hash])
 
+  // Without frontend/.env.local (or with the wrong key) nothing can work: say so clearly.
+  if (supabaseConfigProblem) return <NotConfiguredPage problem={supabaseConfigProblem} />
+
   return (
-    // Shared in-memory state: GVP versions, departments, users, who is signed in,
-    // requests, all SOPs and which notifications were read. It lives above every route, so it survives signing out and in.
-    <GuidelinesProvider>
-      <DepartmentsProvider>
-        <UsersProvider>
-          <SessionProvider>
+    // Shared state: who is signed in, then GVP versions, departments and users (from the database,
+    // after sign-in), requests, all SOPs and which notifications were read. It lives above every
+    // route, so it survives signing out and in.
+    <SessionProvider>
+      <GuidelinesProvider>
+        <DepartmentsProvider>
+          <UsersProvider>
             <RequestsProvider>
               <SopsProvider>
                 <NotificationsProvider>
@@ -72,10 +79,10 @@ function App() {
                 </NotificationsProvider>
               </SopsProvider>
             </RequestsProvider>
-          </SessionProvider>
-        </UsersProvider>
-      </DepartmentsProvider>
-    </GuidelinesProvider>
+          </UsersProvider>
+        </DepartmentsProvider>
+      </GuidelinesProvider>
+    </SessionProvider>
   )
 }
 
@@ -84,6 +91,7 @@ function AppRoutes() {
     <Routes>
       <Route path="/" element={<LandingPage />} />
       <Route path="/login" element={<SignInPage />} />
+      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
 
       {/* Signed-in app: every screen inside shares the sidebar + top bar.
           Anyone not signed in is sent to /login. */}

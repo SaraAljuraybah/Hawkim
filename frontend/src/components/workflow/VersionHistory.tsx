@@ -2,6 +2,7 @@ import type { MouseEvent } from 'react'
 import { Download, Eye, Trash2 } from 'lucide-react'
 import type { SopWorkflowContent } from '../../content/types'
 import type { Sop, SopVersion } from '../../data/mock/types'
+import { sopDownloadName } from '../../lib/sopPresentation'
 import { formatDateTime } from '../../lib/format'
 import { activeVersions, uploaderOf } from '../../lib/workflow'
 import { useUsers } from '../../state/usersContext'
@@ -15,12 +16,14 @@ interface VersionHistoryProps {
   /** Why this version can't be deleted now (undefined: it can). */
   deleteReason: (version: SopVersion) => string | undefined
   onPreview: (version: SopVersion, trigger: HTMLElement) => void
+  /** Fetches a fresh signed link for a private stored file on each download. */
+  onDownload: (version: SopVersion, fileName: string) => void
   onDelete: (version: SopVersion, trigger: HTMLElement) => void
 }
 
-/** Download name of a version, e.g. "SOP-078_v3.docx". */
+/** Title-based download name of a version; the original stored file is unchanged. */
 function versionDownloadName(sop: Sop, version: SopVersion) {
-  return `${sop.code}_v${version.version}.${version.fileType}`
+  return sopDownloadName(sop.title, version.version, version.fileType)
 }
 
 /**
@@ -28,7 +31,7 @@ function versionDownloadName(sop: Sop, version: SopVersion) {
  * and when, and Preview, Download and Delete. A table from md up; stacked cards on
  * phones. Unavailable actions stay focusable and say why in their tooltip.
  */
-export function VersionHistory({ sop, content, userId, deleteReason, onPreview, onDelete }: VersionHistoryProps) {
+export function VersionHistory({ sop, content, userId, deleteReason, onPreview, onDownload, onDelete }: VersionHistoryProps) {
   const text = content.history
   const { nameOf } = useUsers()
   const versions = [...activeVersions(sop)].sort((a, b) => Number(b.version) - Number(a.version))
@@ -41,8 +44,9 @@ export function VersionHistory({ sop, content, userId, deleteReason, onPreview, 
   const fill = (template: string, version: SopVersion) => template.replace('{version}', version.version)
 
   function actions(version: SopVersion) {
+    const available = !!version.storagePath || !!version.fileUrl
     const previewReason =
-      version.fileType !== 'pdf' ? text.unavailable.word : !version.fileUrl ? text.unavailable.demo : undefined
+      version.fileType !== 'pdf' ? text.unavailable.word : !available ? text.unavailable.demo : undefined
     return {
       preview: (
         <IconButton
@@ -52,7 +56,13 @@ export function VersionHistory({ sop, content, userId, deleteReason, onPreview, 
           onClick={(event: MouseEvent<HTMLButtonElement>) => onPreview(version, event.currentTarget)}
         />
       ),
-      download: (
+      download: version.storagePath ? (
+        <IconButton
+          label={fill(text.downloadLabel, version)}
+          icon={Download}
+          onClick={() => onDownload(version, versionDownloadName(sop, version))}
+        />
+      ) : (
         <IconButton
           label={fill(text.downloadLabel, version)}
           icon={Download}

@@ -98,7 +98,7 @@ export function NotificationsBell() {
     const fill = (template: string) =>
       template
         .replace('{name}', nameOf(item.actorId))
-        .replace('{code}', item.sopCode ?? '')
+        .replace('{title}', item.sopTitle ?? '')
         .replace('{version}', item.version ?? '')
         .replace('{reason}', item.reason ?? '')
     switch (item.type) {

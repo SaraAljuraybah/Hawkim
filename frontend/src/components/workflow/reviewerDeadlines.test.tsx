@@ -51,7 +51,7 @@ describe('reviewer deadline displays', () => {
   })
   it('asks for a due date for Reviewer 1 and comments on resubmission, like Submit, without a reviewer summary', () => {
     const html = render(<ResubmitDialog sop={sop()} content={sopWorkflowEn.dialogs} onSubmit={() => {}} onClose={() => {}} />)
-    for (const text of ['Resubmit for review', 'Review due date (optional)', sopWorkflowEn.dialogs.submit.reviewDate.help, 'Comments (optional)', 'Add a comment for the reviewers', 'type="date"', 'maxLength="500"']) expect(html).toContain(text)
+    for (const text of ['Resubmit for review', 'Review due date (optional)', sopWorkflowEn.dialogs.submit.reviewDate.help, 'Comments (optional)', 'Add a comment for the reviewers', 'type="date"', 'maxLength="1000"']) expect(html).toContain(text)
     for (const text of ['First reviewer', 'Next reviewer', 'No deadline reviewer', 'Time given', 'No due date', 'Approval person', 'Approvers']) expect(html).not.toContain(text)
   })
   it('shows queue positions and individual deadlines in PeopleList', () => {

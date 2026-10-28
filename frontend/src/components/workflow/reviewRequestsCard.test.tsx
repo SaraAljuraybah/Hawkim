@@ -176,7 +176,7 @@ describe('review requests card with only active reviewers (author SOP page)', ()
     const sop = startInternalReview(draft(), 'author', '4.0', { reviewerIds: ['alpha'] }, env())
     const html = render(<InternalReviewPanel sop={sop} canRemove activeOnly />)
     expect(html).toContain('<div role="status" class="sr-only"></div>')
-    expect(html).toMatch(/<h2 id="internal-review-title" tabindex="-1"[^>]*>Internal review requests<\/h2>/)
+    expect(html.match(/<h2 id="internal-review-title" tabindex="-1"[^>]*>([^<]+)<\/h2>/)?.[1]).toBe(internalReviewEn.panel.title)
   })
 })
 

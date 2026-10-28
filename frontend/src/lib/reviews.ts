@@ -31,6 +31,19 @@ export interface ReviewTask {
   reviewer?: ReviewerAssignment | InternalReviewerAssignment
 }
 
+/** Presentation sections on My Reviews; legacy tasks keep their existing workflow groups. */
+export type ReviewerTaskSection = 'incoming' | 'active' | 'completed'
+
+export function isInternalReviewTask(task: ReviewTask): task is ReviewTask & { reviewer: InternalReviewerAssignment } {
+  return !!task.reviewer && 'id' in task.reviewer && 'assignedAt' in task.reviewer
+}
+
+/** Acceptance exists only on new internal requests. A legacy queued review stays Active, waiting its turn. */
+export function reviewerTaskSection(task: ReviewTask): ReviewerTaskSection {
+  if (task.group === 'done' || !['pending', 'accepted'].includes(task.decision)) return 'completed'
+  return isInternalReviewTask(task) && task.decision === 'pending' && task.group === 'todo' ? 'incoming' : 'active'
+}
+
 /** One task per SOP the user is assigned to (a person is never both reviewer and approver on one SOP). */
 export function reviewTasks(userId: string, sops: Sop[]): ReviewTask[] {
   const tasks: ReviewTask[] = []
@@ -44,7 +57,7 @@ export function reviewTasks(userId: string, sops: Sop[]): ReviewTask[] {
       const ownRound = [...sop.internalReviewRounds!].reverse().find((item) => item.assignments.some((person) => person.userId === userId))
       const assignment = latestAssignmentOf(ownRound, userId)
       if (assignment) {
-        const active = ownRound!.id === round.id && round.status === 'open' && round.version === sop.version && sop.status === 'in-review' && isOpenDecision(assignment.decision)
+        const active = !historical && ownRound!.id === round.id && round.status === 'open' && round.version === sop.version && sop.status === 'in-review' && isOpenDecision(assignment.decision)
         tasks.push({ sop, role: 'reviewer', group: active ? 'todo' : 'done', ...(active ? { need: 'review' as const } : {}), decision: assignment.decision, decidedAt: assignment.decidedAt, dueAt: reviewerDueAt(sop, assignment), reviewer: assignment })
         continue
       }
@@ -66,6 +79,7 @@ export function reviewTasks(userId: string, sops: Sop[]): ReviewTask[] {
         decision: reviewer.decision,
         decidedAt: reviewer.decidedAt,
         dueAt: reviewerDueAt(sop, reviewer),
+        reviewer,
       })
       continue
     }

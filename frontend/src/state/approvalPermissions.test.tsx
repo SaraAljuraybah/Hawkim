@@ -26,6 +26,31 @@ vi.mock('./sessionContext', () => ({ useSession: () => ({ user: fixture.users.fi
 vi.mock('./usersContext', () => ({ useUsers: () => ({ users: fixture.users, getUser: (id: string) => fixture.users.find((user) => user.id === id) }) }))
 vi.mock('./departmentsContext', () => ({ useDepartments: () => ({ departments: fixture.departments }) }))
 vi.mock('./guidelinesContext', () => ({ useGuidelines: () => ({ currentGuideline: { name: 'GVP', version: '4.0' } }) }))
+/*
+ * A stand-in for the database: each review function applies the same transition as
+ * lib/internalReview.ts to the SOP (unanswered requests withdrawn first), and fetchSop
+ * returns the result, which the store then merges and commits.
+ */
+const backend = vi.hoisted(() => ({ sop: undefined as Sop | undefined }))
+vi.mock('../services/review', async () => {
+  const lib = await import('../lib/internalReview')
+  const workflow = await import('../lib/workflow')
+  const apply = async (transition: (sop: Sop) => Sop) => { backend.sop = transition(lib.withdrawUnanswered(current())) }
+  const roundOf = (sop: Sop) => lib.currentInternalRound(sop)!.id
+  return {
+    submitReview: (_id: string, o: InternalReviewOptions) => apply((sop) => sop.status === 'draft'
+      ? lib.startInternalReview(sop, fixture.userId, '4.0', o, env())
+      : lib.sendNewVersionForReview(sop, fixture.userId, '4.0', o, env())),
+    addReviewers: (_id: string, o: InternalReviewOptions) => apply((sop) => lib.addInternalReviewers(sop, fixture.userId, o, env())),
+    acceptReview: (requestId: string) => apply((sop) => lib.acceptInternalReview(sop, fixture.userId, roundOf(sop), requestId, env())),
+    declineReview: (requestId: string, reason: string) => apply((sop) => lib.declineInternalReview(sop, fixture.userId, roundOf(sop), requestId, reason, env())),
+    decideReview: (requestId: string, decision: 'completed' | 'returned', text?: string) => apply((sop) => lib.decideInternalReview(sop, fixture.userId, roundOf(sop), requestId, decision, text, env())),
+    removeReviewer: (requestId: string, reason: string) => apply((sop) => lib.removeInternalReviewer(sop, fixture.userId, roundOf(sop), requestId, reason, env())),
+    respondToComments: (_id: string, text: string) => apply((sop) => workflow.addResponse(sop, fixture.userId, text)),
+    withdrawDueRequests: async () => {},
+  }
+})
+vi.mock('../services/sops', () => ({ fetchSops: async () => [], fetchSop: async () => backend.sop }))
 
 function person(id: string, permissions: User['permissions']): User {
   return { id, name: id, email: id + '@example.test', initials: 'TT', departmentId: 'home', permissions }
@@ -60,25 +85,25 @@ function capture(userId: string, sop: Sop): SopsStore {
   return observe.mock.calls.at(-1)![0]
 }
 function current(): Sop { return (fixture.commit.mock.lastCall?.[0] ?? fixture.sops)[0] }
-function restartedReview(): Sop {
+async function restartedReview(): Promise<Sop> {
   const sop = submitted({ responseDueDate: '2026-10-28' })
   const returned = returnAsApprover(sop, 'controller', 'Revise this SOP', snapshot(sop))
   vi.advanceTimersByTime(1000)
   const revised = uploadVersion(returned, 'author', { fileName: 'revised.pdf', fileType: 'pdf' })
   revised.complianceChecks = [...revised.complianceChecks, check(revised.version)]
-  capture('author', revised).submitForReview(sop.id, { reviewerIds: ['reviewer'], responseDueDate: '2026-10-28' })
+  await capture('author', revised).submitForReview(sop.id, { reviewerIds: ['reviewer'], responseDueDate: '2026-10-28' })
   return current()
 }
 beforeEach(() => {
   vi.useFakeTimers({ now: new Date(2026, 9, 23, 12) })
   fixture.users.splice(0, fixture.users.length, person('author', ['author']), person('coauthor', ['author']), person('reviewer', ['reviewer']), person('controller', ['approver']), person('other', ['author', 'approver']), person('admin', ['admin', 'author']))
-  fixture.departments.splice(0, fixture.departments.length, { id: 'home', name: 'Home', initials: 'HM', description: '', qualityControllerId: 'controller' })
+  fixture.departments.splice(0, fixture.departments.length, { id: 'home', name: 'Home', initials: 'HM', description: '', qualityControllerId: 'controller', requiresComplianceCheck: true })
 })
 afterEach(() => vi.useRealTimers())
 
 describe('deadline simulation requires a current assignment', () => {
-  it('denies a former v1 Approver after v2 internal reviews restart without mutating deadlines or history', () => {
-    const sop = restartedReview(), before = structuredClone(sop), store = capture('controller', sop)
+  it('denies a former v1 Approver after v2 internal reviews restart without mutating deadlines or history', async () => {
+    const sop = await restartedReview(), before = structuredClone(sop), store = capture('controller', sop)
     expect(sop.version).toBe('2')
     expect(sop.approvers).toEqual([])
     expect(isApprover(sop, 'controller')).toBe(true)
@@ -87,8 +112,8 @@ describe('deadline simulation requires a current assignment', () => {
     expect(fixture.commit).not.toHaveBeenCalled()
   })
 
-  it('does not let historical approval records authorize new approval decisions', () => {
-    const sop = restartedReview(), before = structuredClone(sop), store = capture('controller', sop)
+  it('does not let historical approval records authorize new approval decisions', async () => {
+    const sop = await restartedReview(), before = structuredClone(sop), store = capture('controller', sop)
     const old = sop.approvalSubmissions![0]
     const stale = { version: old.version, approvalSubmissionId: old.id }
     expect(isApprover(sop, 'controller')).toBe(true)
@@ -99,8 +124,8 @@ describe('deadline simulation requires a current assignment', () => {
     expect(fixture.commit).not.toHaveBeenCalled()
   })
 
-  it('allows a current v2 Approver to shift only the active approval deadline, preserving v1 history and original allocations', () => {
-    const revised = restartedReview(), round = currentInternalRound(revised)!
+  it('allows a current v2 Approver to shift only the active approval deadline, preserving v1 history and original allocations', async () => {
+    const revised = await restartedReview(), round = currentInternalRound(revised)!
     const accepted = acceptInternalReview(revised, 'reviewer', round.id, round.assignments[0].id, env())
     const completed = decideInternalReview(accepted, 'reviewer', round.id, round.assignments[0].id, 'completed', undefined, env())
     const sop = submitForApproval(completed, 'author', options(completed), env())
@@ -114,8 +139,8 @@ describe('deadline simulation requires a current assignment', () => {
     expect(current().approvalDueDays).toBe(before.approvalDueDays)
   })
 
-  it.each(['author', 'coauthor', 'reviewer'])('preserves authorized %s deadline simulation for the active internal round', (actor) => {
-    const sop = restartedReview(), before = structuredClone(sop), store = capture(actor, sop)
+  it.each(['author', 'coauthor', 'reviewer'])('preserves authorized %s deadline simulation for the active internal round', async (actor) => {
+    const sop = await restartedReview(), before = structuredClone(sop), store = capture(actor, sop)
     store.shiftDueDates(sop.id, 1)
     expect(currentInternalRound(current())).toMatchObject({ version: '2' })
     expect(currentInternalRound(current())!.assignments[0]).toMatchObject({ responseDueDate: '2026-10-27' })
@@ -140,8 +165,8 @@ describe('deadline simulation requires a current assignment', () => {
     expect(fixture.commit).not.toHaveBeenCalled()
   })
 
-  it.each(['author', 'reviewer', 'controller'])('still requires the active %s permission', (actor) => {
-    const sop = actor === 'controller' ? submitted() : restartedReview()
+  it.each(['author', 'reviewer', 'controller'])('still requires the active %s permission', async (actor) => {
+    const sop = actor === 'controller' ? submitted() : await restartedReview()
     fixture.users.find((user) => user.id === actor)!.permissions = []
     const before = structuredClone(sop), store = capture(actor, sop)
     expect(() => store.shiftDueDates(sop.id, 1)).toThrow(/assignment/)
@@ -207,7 +232,7 @@ describe('approval submission at the authenticated store boundary', () => {
     expect(fixture.commit).not.toHaveBeenCalled()
   })
 
-  it('preserves external reviewer separation of duties when consuming Task 4 completion evidence', () => {
+  it('preserves external reviewer separation of duties when consuming Task 4 completion evidence', async () => {
     const external = { ...person('external', ['author', 'reviewer']), departmentId: 'other' }
     fixture.users.push(external)
     fixture.departments.push({ id: 'other', name: 'Other', initials: 'OT', description: '' })
@@ -219,7 +244,7 @@ describe('approval submission at the authenticated store boundary', () => {
     const author = capture('author', sop)
     author.submitForApproval(sop.id, { ...options(sop), noExternalReviewsRequired: false })
     expect(current().status).toBe('in-approval')
-    expect(() => author.addCoAuthors(sop.id, [external.id])).toThrow(/Reviewers and approvers cannot be co-authors/)
+    await expect(author.addCoAuthors(sop.id, [external.id])).rejects.toThrow(/Reviewers and approvers cannot be co-authors/)
     expect(current().coAuthorIds).not.toContain(external.id)
   })
 })
@@ -266,18 +291,18 @@ describe('assigned controller decisions at the store boundary', () => {
     expect(() => store.publishAs(sop.id, 'controller', valid)).toThrow()
   })
 
-  it('sends a revised and checked version to the chosen reviewers after an Approver return', () => {
+  it('sends a revised and checked version to the chosen reviewers after an Approver return', async () => {
     const sop = submitted(), controller = capture('controller', sop)
     controller.returnAsApprover(sop.id, 'controller', 'Upload a revision', snapshot(sop))
     let returned = current()
-    expect(() => capture('author', returned).submitForReview(sop.id, { reviewerIds: ['reviewer'] })).toThrow(/new version/)
+    await expect(capture('author', returned).submitForReview(sop.id, { reviewerIds: ['reviewer'] })).rejects.toThrow(/new version/)
     expect(() => capture('author', returned).resubmit(sop.id)).toThrow(/Submit for review/)
     vi.advanceTimersByTime(1000)
     returned = uploadVersion(returned, 'author', { fileName: 'revised.pdf', fileType: 'pdf' })
-    expect(() => capture('author', returned).submitForReview(sop.id, { reviewerIds: ['reviewer'] })).toThrow(/compliance/)
+    await expect(capture('author', returned).submitForReview(sop.id, { reviewerIds: ['reviewer'] })).rejects.toThrow(/compliance/)
     returned = { ...returned, complianceChecks: [...returned.complianceChecks, check(returned.version)] }
     const author = capture('author', returned)
-    author.submitForReview(sop.id, { reviewerIds: ['reviewer'] })
+    await author.submitForReview(sop.id, { reviewerIds: ['reviewer'] })
     expect(current()).toMatchObject({ status: 'in-review', version: '2', approvers: [] })
     expect(currentInternalRound(current())).toMatchObject({ status: 'open', version: '2' })
     expect(currentInternalRound(current())!.assignments.every((assignment) => assignment.decision === 'pending')).toBe(true)
@@ -285,7 +310,7 @@ describe('assigned controller decisions at the store boundary', () => {
     expect(current().internalReviewRounds?.[0]).toEqual(returned.internalReviewRounds?.[0])
   })
 
-  it('preserves separation of duties after a prior Approver assignment moves into history', () => {
+  it('preserves separation of duties after a prior Approver assignment moves into history', async () => {
     fixture.users.find((user) => user.id === 'controller')!.permissions = ['author', 'reviewer', 'approver']
     const sop = submitted()
     const returned = returnAsApprover(sop, 'controller', 'Revise this version', snapshot(sop))
@@ -293,14 +318,14 @@ describe('assigned controller decisions at the store boundary', () => {
     const revised = uploadVersion(returned, 'author', { fileName: 'revised.pdf', fileType: 'pdf' })
     revised.complianceChecks = [...revised.complianceChecks, check(revised.version)]
     const author = capture('author', revised)
-    author.submitForReview(sop.id, { reviewerIds: ['reviewer'] })
+    await author.submitForReview(sop.id, { reviewerIds: ['reviewer'] })
     const round = currentInternalRound(current())!
-    author.removeInternalReviewer(sop.id, round.id, round.assignments[0].id, 'No longer needed')
+    await author.removeInternalReviewer(sop.id, round.id, round.assignments[0].id, 'No longer needed')
     expect(current().status).toBe('in-review')
     expect(current().approvers).toEqual([])
     // The former approver can't be added as a reviewer of the same SOP.
-    expect(() => author.addInternalReviewers(sop.id, { reviewerIds: ['controller'] })).toThrow(/eligible reviewers/)
-    expect(() => author.addCoAuthors(sop.id, ['controller'])).toThrow(/approvers cannot be co-authors/)
+    await expect(author.addInternalReviewers(sop.id, { reviewerIds: ['controller'] })).rejects.toThrow(/eligible reviewers/)
+    await expect(author.addCoAuthors(sop.id, ['controller'])).rejects.toThrow(/approvers cannot be co-authors/)
   })
 })
 
@@ -311,12 +336,12 @@ describe('automatic withdrawal at the store boundary', () => {
     const sop = startInternalReview(draft, 'author', '4.0', { reviewerIds: ['reviewer', 'second'], responseDueDate: '2026-10-24' }, env())
     return acceptInternalReview(sop, 'second', currentInternalRound(sop)!.id, currentInternalRound(sop)!.assignments[1].id, env())
   }
-  it('withdraws unanswered requests before the next action and refuses acting on them', () => {
+  it('withdraws unanswered requests before the next action and refuses acting on them', async () => {
     const sop = requested()
     vi.setSystemTime(new Date(2026, 9, 25, 9))
-    expect(() => capture('reviewer', sop).acceptInternalReview(sop.id, currentInternalRound(sop)!.id, currentInternalRound(sop)!.assignments[0].id)).toThrow(/withdrawn/)
+    await expect(capture('reviewer', sop).acceptInternalReview(sop.id, currentInternalRound(sop)!.id, currentInternalRound(sop)!.assignments[0].id)).rejects.toThrow(/withdrawn/)
     const round = currentInternalRound(sop)!
-    capture('second', sop).decideInternalReview(sop.id, round.id, round.assignments[1].id, 'completed', 'Fine')
+    await capture('second', sop).decideInternalReview(sop.id, round.id, round.assignments[1].id, 'completed', 'Fine')
     expect(currentInternalRound(current())!.assignments.map((assignment) => assignment.decision)).toEqual(['withdrawn', 'completed'])
     expect(current().timeline.find((event) => event.type === 'review-withdrawn')).toMatchObject({ createdAt: new Date(2026, 9, 24, 23, 59, 59, 999).toISOString() })
   })

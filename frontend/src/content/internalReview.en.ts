@@ -1,24 +1,37 @@
 /** English content for internal parallel review requests and their audit history. */
+import type { InternalReviewSubmitContent } from './types'
+
 export const internalReviewEn = {
   submit: {
-    title: 'Submit for review',
+    title: 'Submit for Review',
     addIntro: 'Add reviewers to the review of v{version}.',
     versionIntro: 'You are sending v{version}.',
+    department: 'Department',
+    departmentHelp: 'Reviewers must belong to the SOP\'s home department. Cross-department requests are not available in this review flow.',
+    division: 'Division',
+    divisionHelp: 'The division identifier configured for this department. Division selection is not available.',
+    noDivision: 'No division configured',
     reviewers: 'Select reviewers',
+    reviewerSearch: {
+      placeholder: 'Search reviewers by name…', noMatches: 'No matching eligible reviewers',
+      selected: 'Selected: {label}', remove: 'Remove {name}', added: '{name} added.', removed: '{name} removed.',
+    },
     reviewerRequired: 'Select at least one eligible reviewer.',
     noneEligible: 'No eligible reviewers are available in this department.',
-    responseDate: 'Response due date (optional)',
-    responseHelp: 'Leave blank for no response deadline.',
+    responseDate: 'Request response deadline',
+    responseHelp: 'Fixed at 2 working days after the request date in Riyadh. Friday and Saturday are excluded. The date is recalculated when you submit.',
     responseTimeGiven: 'Time to respond: {duration} · Due {date}',
     dateInvalid: 'Invalid date.',
     closeAlert: 'Close message',
-    duration: 'Review duration in days (optional)',
-    durationHelp: 'Leave blank for no review deadline.',
+    duration: 'Review duration in calendar days (optional)',
+    durationHelp: 'Begins when each reviewer accepts; the request response period is excluded. The current service counts calendar days, including weekends. Excluding weekends requires a service update. Leave blank for no review deadline.',
     durationInvalid: 'Enter a whole number of days from 1 to 30, or leave it blank.',
     note: 'Submission note (optional)',
+    noteHelp: 'Add comments of up to 1000 characters.',
+    noteServiceLimit: 'Comments must be at most 1000 characters. Shorten your comments before submitting; your draft has been kept.',
     confirm: 'Submit',
     cancel: 'Cancel',
-  },
+  } satisfies InternalReviewSubmitContent,
   actions: {
     title: 'Your internal review', accept: 'Accept review', decline: 'Decline review', complete: 'Complete review', returnToAuthor: 'Return to author',
     accepted: 'You accepted the review.', declined: 'Review declined.',
@@ -43,7 +56,7 @@ export const internalReviewEn = {
     awaitingAuthor: 'Internal reviews are complete. Awaiting the next Author action.',
   },
   panel: {
-    title: 'Internal review requests', noActive: 'No active reviewers.',
+    title: 'Reviewers', noActive: 'No active reviewers.',
     sent: 'Request sent {date}', version: 'Version v{version}', reviewerHistory: 'Review requests for {name}',
     decided: 'Decision submitted {date}', accepted: 'Accepted {date}',
     declined: 'Declined {date}', declineReason: 'Reason: {reason}',

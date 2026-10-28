@@ -41,6 +41,8 @@ export interface DepartmentWorkflowConfiguration {
   divisionId?: string
   /** Configured final controller for SOPs originating in this department. Must have Approver permission. */
   qualityControllerId?: string
+  /** The GVP guideline applies to this department's SOPs (Pharmacovigilance): they need a compliance check before review. */
+  requiresComplianceCheck?: boolean
 }
 
 export interface Department extends DepartmentWorkflowConfiguration {
@@ -129,6 +131,8 @@ export interface SopVersion {
   uploadedAt: string
   /** Only when the file is available (sample PDFs, or files uploaded in this session). */
   fileUrl?: string
+  /** Where the file is in the sop-files bucket, for SOPs from the database (opened through a signed link). */
+  storagePath?: string
   /**
    * Set when the main author deleted this version. It is kept so version numbers are
    * never reused, but hidden everywhere (and its compliance reports are no longer listed).
@@ -186,6 +190,12 @@ export interface ReviewerAssignment {
 export type InternalReviewDecision = 'pending' | 'accepted' | 'declined' | 'withdrawn' | 'removed' | 'completed' | 'returned'
 
 export interface InternalReviewerAssignment extends Omit<ReviewerAssignment, 'decision' | 'startedAt'> {
+  /** Server-calculated timestamps are authoritative, independent of the browser time zone. */
+  responseDueAt?: string
+  responseCountsFromAt?: string
+  reviewDueAt?: string
+  /** Missing on older in-memory requests; stored historical requests keep their original policy. */
+  deadlinePolicy?: 'calendar-v1' | 'riyadh-working-days-v1'
   id: string
   decision: InternalReviewDecision
   /** When the request was sent. */
@@ -204,6 +214,8 @@ export interface InternalReviewerAssignment extends Omit<ReviewerAssignment, 'de
   removedAt?: string
   removedById?: string
   removalReason?: string
+  /** The status the request had when its reviewer was removed (their decision stays in the history). */
+  decisionBeforeRemoval?: InternalReviewDecision
   /** Required when the reviewer declines. */
   declineReason?: string
   /** The comments of a return (required) or a completed review (optional). */
@@ -428,6 +440,8 @@ export interface ComplianceCheck {
    * upload) or who pressed Check. Its timeline events are attributed to them.
    */
   triggeredById?: string
+  /** What produced the result, for checks from the database: 'sample' until the compliance service is connected. */
+  engine?: string
   guideline: Guideline
   /** Empty until the check completes. */
   findings: Finding[]

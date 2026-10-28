@@ -22,6 +22,8 @@ export function InternalReviewActions({ sop, onComplete }: { sop: Sop; onComplet
   const [comment, setComment] = useState('')
   const [error, setError] = useState('')
   const [fieldError, setFieldError] = useState('')
+  const [accepting, setAccepting] = useState(false)
+  const acceptingRef = useRef(false)
   const triggerRef = useRef<HTMLButtonElement | null>(null)
   const commentRef = useRef<HTMLTextAreaElement | null>(null)
   if (!round || !assignment || !isInternalReviewPending(sop, user.id) || !user.permissions.includes('reviewer') || user.permissions.includes('admin')) return null
@@ -29,21 +31,25 @@ export function InternalReviewActions({ sop, onComplete }: { sop: Sop; onComplet
   function open(decision: Target['decision'], trigger: HTMLButtonElement) {
     triggerRef.current = trigger; setComment(''); setError(''); setFieldError(''); setTarget({ roundId: round!.id, assignmentId: assignment!.id, decision })
   }
-  function confirm() {
+  async function confirm() {
     if (!target) return false
     const required = target.decision === 'returned' ? text.actions.returnRequired : target.decision === 'declined' ? text.actions.declineRequired : ''
     if (required && !comment.trim()) { setFieldError(required); commentRef.current?.focus(); return false }
     try {
-      if (target.decision === 'declined') store.declineInternalReview(sop.id, target.roundId, target.assignmentId, comment)
-      else store.decideInternalReview(sop.id, target.roundId, target.assignmentId, target.decision, comment)
+      if (target.decision === 'declined') await store.declineInternalReview(sop.id, target.roundId, target.assignmentId, comment)
+      else await store.decideInternalReview(sop.id, target.roundId, target.assignmentId, target.decision, comment)
       setTarget(null)
       onComplete(target.decision === 'declined' ? text.actions.declined : target.decision === 'returned' ? text.actions.returned : text.actions.reviewCompleted)
     }
     catch (reason) { setError(reason instanceof Error ? reason.message : text.status.closed); return false }
   }
-  function accept() {
-    try { store.acceptInternalReview(sop.id, round!.id, assignment!.id); onComplete(text.actions.accepted) }
+  async function accept() {
+    if (acceptingRef.current) return
+    acceptingRef.current = true
+    setAccepting(true)
+    try { await store.acceptInternalReview(sop.id, round!.id, assignment!.id); onComplete(text.actions.accepted) }
     catch (reason) { setError(reason instanceof Error ? reason.message : text.status.closed) }
+    finally { acceptingRef.current = false; setAccepting(false) }
   }
   const pending = assignment.decision === 'pending'
   // Decline and Return need a reason or comments; Complete takes optional comments.
@@ -57,8 +63,8 @@ export function InternalReviewActions({ sop, onComplete }: { sop: Sop; onComplet
     {pending ? <>
       <p className="text-sm text-text-gray">{text.actions.acceptFirst}</p>
       <div className="flex flex-wrap gap-3">
-        <Button onClick={accept}>{text.actions.accept}</Button>
-        <Button variant="secondary" onClick={(event) => open('declined', event.currentTarget)}>{text.actions.decline}</Button>
+        <Button onClick={accept} disabled={accepting} aria-busy={accepting || undefined}>{text.actions.accept}</Button>
+        <Button variant="secondary" disabled={accepting} onClick={(event) => open('declined', event.currentTarget)}>{text.actions.decline}</Button>
       </div>
     </> : <div className="flex flex-wrap gap-3">
       <Button onClick={(event) => open('completed', event.currentTarget)}>{text.actions.complete}</Button>

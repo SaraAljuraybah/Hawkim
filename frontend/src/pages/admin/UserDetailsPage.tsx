@@ -237,7 +237,7 @@ function UserPanels({ user }: { user: User }) {
                 <li key={sop.id} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1.5 py-3 first:pt-0 last:pb-0">
                   <div className="min-w-0 text-sm">
                     <p className="font-medium text-maroon">
-                      {sop.code} · {sop.title}
+                      {sop.title}
                     </p>
                     <p className="mt-0.5 text-text-gray">
                       <span className="sr-only">{text.involvement.rolesLabel} </span>

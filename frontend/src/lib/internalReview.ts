@@ -4,7 +4,7 @@ import { todayIsoDate } from './format'
 import { isInactiveDecision, isOpenDecision, isUnsentVersion, isValidReviewDuration, isWithdrawalDue, latestAssignmentOf, latestAssignments, projectReviewers, reviewDueDateFrom, withdrawalDueAt } from './internalReviewStatus'
 import { eligibleReviewers, type ReviewEnvironment } from './reviewFlow'
 import { parseResponseDueDate } from './responseTime'
-import { isAuthor } from './workflow'
+import { isAuthor, SUBMIT_COMMENT_MAX } from './workflow'
 
 export interface InternalReviewOptions {
   reviewerIds: string[]
@@ -105,7 +105,7 @@ function validate(sop: Sop, options: InternalReviewOptions, env: ReviewEnvironme
   assert(options.reviewerIds.length > 0 && new Set(options.reviewerIds).size === options.reviewerIds.length, 'Select one or more different eligible internal reviewers')
   const eligible = eligibleReviewers(sop, sop.departmentId, env.users)
   assert(options.reviewerIds.every((userId) => eligible.some((user) => user.id === userId)), 'Select eligible reviewers from the SOP home department; Authors and co-authors cannot review')
-  assert(!options.note || options.note.trim().length <= 500, 'Submission notes must be at most 500 characters')
+  assert(!options.note || options.note.trim().length <= SUBMIT_COMMENT_MAX, 'Submission notes must be at most 1000 characters')
   deadlines(options)
 }
 export function startInternalReview(sop: Sop, actorId: string, guidelineVersion: string, options: InternalReviewOptions, env: ReviewEnvironment): Sop {

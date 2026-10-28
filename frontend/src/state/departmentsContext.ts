@@ -1,6 +1,7 @@
 import { createContext, useContext } from 'react'
 import type { Department, DepartmentId, DepartmentWorkflowConfiguration, User } from '../data/mock/types'
 import type { DepartmentInput, DepartmentRulesData } from '../lib/departmentAdmin'
+import type { LoadStatus } from './useLoadAfterSignIn'
 
 /** Who is acting (must be an active admin among `users`). */
 export interface DepartmentActor {
@@ -9,6 +10,8 @@ export interface DepartmentActor {
 }
 
 export interface DepartmentsStore {
+  /** Whether the departments have been loaded from the database (after sign-in). */
+  status: LoadStatus
   /** Every department, removed ones included (their names stay on old requests). */
   departments: Department[]
   /** Departments in use (not removed): every list, select and page. */

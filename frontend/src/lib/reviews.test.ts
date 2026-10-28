@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import type { ApproverAssignment, ReviewerAssignment, Sop } from '../data/mock/types'
+import type { ApproverAssignment, InternalReviewDecision, ReviewerAssignment, Sop } from '../data/mock/types'
 import type { SopStatus } from '../types/status'
-import { reviewTasks, sortTodo } from './reviews'
+import { reviewTasks, reviewerTaskSection, sortTodo } from './reviews'
 
 /* Noura reviews; Huda approves. Each SOP is set up directly in the state being tested. */
 function sop(
@@ -124,5 +124,69 @@ describe('sequential reviewer task deadlines', () => {
     item.reviewers[0].decision = 'completed'
     expect(group('faisal', item)).toBe('reviewer todo review')
     expect(group('noura', item)).toBe('reviewer done')
+  })
+})
+
+describe('reviewer-facing sections', () => {
+  function internal(decision: InternalReviewDecision): Sop {
+    return sop('INTERNAL', 'in-review', [], [], {
+      internalReviewRounds: [{ id: 'round', scope: 'internal', version: '1', status: 'open', requestedById: 'sara', requestedAt: '2026-10-01T09:15:23Z', assignedDueDays: null,
+        assignments: [{ id: 'request', userId: 'noura', decision, assignedAt: '2026-10-01T09:15:23Z', responseDueDate: '2026-10-03', reviewDurationDays: 5 }] }],
+    })
+  }
+
+  it('separates pending acceptance from accepted active work without changing workflow groups', () => {
+    const pending = reviewTasks('noura', [internal('pending')])[0]
+    const accepted = reviewTasks('noura', [internal('accepted')])[0]
+    expect(pending.group).toBe('todo')
+    expect(accepted.group).toBe('todo')
+    expect(reviewerTaskSection(pending)).toBe('incoming')
+    expect(reviewerTaskSection(accepted)).toBe('active')
+  })
+
+  it.each(['completed', 'returned', 'declined', 'withdrawn', 'removed'] as const)('keeps %s requests in history with their actual decision', (decision) => {
+    const task = reviewTasks('noura', [internal(decision)])[0]
+    expect(reviewerTaskSection(task)).toBe('completed')
+    expect(task.decision).toBe(decision)
+  })
+
+  it('keeps legacy pending and queued reviewers under Active, preserving their waiting group and individual deadlines', () => {
+    const item = sop('LEGACY', 'in-review', [
+      { userId: 'other', decision: 'pending', dueDate: '2026-10-10' },
+      { userId: 'noura', decision: 'pending', dueDate: '2026-10-25' },
+    ], [])
+    const task = reviewTasks('noura', [item])[0]
+    expect(task.group).toBe('waiting')
+    expect(reviewerTaskSection(task)).toBe('active')
+    expect(task.reviewer?.userId).toBe('noura')
+    expect(task.reviewer?.dueDate).toBe('2026-10-25')
+  })
+
+  it('keeps a returned legacy decision under Completed while preserving its waiting workflow group', () => {
+    const task = reviewTasks('noura', [sop('LEGACY', 'returned', reviewer('returned'), [])])[0]
+    expect(task.group).toBe('waiting')
+    expect(reviewerTaskSection(task)).toBe('completed')
+    expect(task.decision).toBe('returned')
+  })
+
+  it('shows one latest request per SOP, assigned only to the current person', () => {
+    const item = internal('declined')
+    item.internalReviewRounds![0].assignments.push({ id: 'new-request', userId: 'noura', decision: 'pending', assignedAt: '2026-10-02T13:05:02Z' })
+    const tasks = reviewTasks('noura', [item])
+    expect(tasks).toHaveLength(1)
+    expect(tasks[0].reviewer).toMatchObject({ id: 'new-request', decision: 'pending' })
+    expect(reviewTasks('unassigned', [item])).toEqual([])
+  })
+
+  it('does not reactivate an open historical request when its assigned version is projected for access', () => {
+    const item = internal('pending')
+    item.version = '2'
+    item.versions = [{ version: '1', fileName: 'old.pdf', fileType: 'pdf', uploadedAt: '2026-10-01T09:00:00Z' }, { version: '2', fileName: 'new.pdf', fileType: 'pdf', uploadedAt: '2026-10-03T09:00:00Z' }]
+    item.internalReviewRounds!.push({ ...item.internalReviewRounds![0], id: 'new-round', version: '2', assignments: [{ id: 'other-request', userId: 'other', decision: 'pending', assignedAt: '2026-10-03T09:15:23Z' }] })
+    const task = reviewTasks('noura', [item])[0]
+    expect(task.sop.version).toBe('1')
+    expect(task.group).toBe('done')
+    expect(task.need).toBeUndefined()
+    expect(reviewerTaskSection(task)).toBe('completed')
   })
 })
