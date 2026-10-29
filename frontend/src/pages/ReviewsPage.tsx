@@ -7,6 +7,8 @@ import { ViewToggle, type ViewMode } from '../components/ui/ViewToggle'
 import { reviewsEn } from '../content/reviews.en'
 import type { ReviewTabKey } from '../content/types'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
+import { useDeadlineClock } from '../hooks/useDeadlineClock'
+import { nextWithdrawalAt } from '../lib/internalReview'
 import { hasAnyPermission, hasPermission } from '../lib/permissions'
 import { reviewTasks, reviewerTaskSection, sortRecent, sortTodo, type ReviewerTaskSection } from '../lib/reviews'
 import { useCurrentUser } from '../state/sessionContext'
@@ -38,7 +40,9 @@ export function ReviewsPage() {
     try { window.localStorage.setItem(VIEW_STORAGE_KEY, view) } catch { /* Storage is optional. */ }
   }, [view])
 
-  const tasks = useMemo(() => reviewTasks(user.id, sops), [user.id, sops])
+  const nextExpiry = nextWithdrawalAt(sops)
+  const now = useDeadlineClock(nextExpiry === undefined ? undefined : new Date(nextExpiry).toISOString(), allowed)
+  const tasks = useMemo(() => reviewTasks(user.id, sops, now), [user.id, sops, now])
   const reviews = useMemo(() => {
     const selected = tasks.filter((task) => task.role === 'reviewer' && reviewerTaskSection(task) === tab)
     return tab === 'completed' ? sortRecent(selected) : sortTodo(selected)

@@ -41,9 +41,10 @@ export const uploadSopEn: UploadSopContent = {
   title: 'Upload SOP',
   subtitle: 'Add a new SOP to {department}. It will be saved as a draft.',
   fields: {
-    title: { label: 'Title', placeholder: 'Enter the SOP title', hint: 'Required. Up to 50 characters.' },
+    title: { label: 'Title', placeholder: 'Enter the SOP title', hint: 'Required. Up to 50 characters.', counter: '{count} / {max}' },
     department: { label: 'Department' },
     file: {
+      requiredTag: 'Required',
       label: 'SOP file',
       hint: '.docx or PDF, up to 10 MB',
       dropPrompt: 'Drag and drop the file here, or',
@@ -60,6 +61,7 @@ export const uploadSopEn: UploadSopContent = {
     },
   },
   errors: {
+    saveFailed: 'The SOP could not be saved. Your draft has been kept.',
     titleRequired: 'Enter a title.',
     titleTooLong: 'Enter a title of up to 50 characters.',
     fileRequired: 'Upload an SOP file.',

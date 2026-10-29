@@ -75,7 +75,8 @@ describe('Submit for Review safe frontend presentation', () => {
     expect(html).toContain('Friday and Saturday are excluded')
     expect(html).toContain(internalReviewEn.submit.durationHelp)
     expect(html.match(/<input[^>]*name="reviewDurationDays"[^>]*>/)![0]).toContain('min="1" max="30"')
-    expect(html).toContain('calendar days, including weekends')
+    expect(html).toContain('Friday and Saturday are excluded')
+    expect(html).toContain('no server deadline is configured')
   })
 
   it('allows 1000-character submission comments with a counter and the shared limit', () => {

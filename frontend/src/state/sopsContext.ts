@@ -6,8 +6,8 @@ import type { InternalReviewOptions } from '../lib/internalReview'
 import type { LoadStatus } from './useLoadAfterSignIn'
 
 /**
- * What the author provides when uploading; everything else is set by the store and
- * the database. A new SOP has no co-authors (they're added later from the SOP page).
+ * What the author provides when uploading; the local store sets everything else.
+ * A new SOP has no co-authors (they're added later from the SOP page).
  */
 export type NewDraft = Pick<Sop, 'title' | 'departmentId' | 'description'> & { file: File }
 
@@ -22,11 +22,11 @@ export interface ResubmitOptions {
 }
 
 export interface SopsStore {
-  /** Whether the signed-in person's SOPs have been read from the database. */
+  /** Ready for the local prototype; load state for the disabled experimental adapter. */
   status: LoadStatus
-  /** Every SOP, at every lifecycle stage (the directory shows the published ones). */
+  /** Only this identity's authorized SOP views (the directory further limits published access). */
   sops: Sop[]
-  /** Uploads the file and saves a new draft by the current user (the database gives it its number and v1); returns it. */
+  /** Creates a local draft and file preview by the current user; lost on reload. */
   addDraft: (draft: NewDraft) => Promise<Sop>
 
   // Actions by the current user (author or co-author). Each throws if not allowed.

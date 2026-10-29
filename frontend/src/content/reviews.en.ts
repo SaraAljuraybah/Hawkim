@@ -45,6 +45,7 @@ export const reviewsEn: ReviewsContent = {
   },
 
   page: {
+    fileFailed: 'This file is not available in the local prototype.',
     pageTitle: 'Review {title} | Hawkim',
     back: { label: 'Back to My Reviews', href: '/reviews' },
     author: 'Author: {name}',
@@ -77,6 +78,7 @@ export const reviewsEn: ReviewsContent = {
       publish: 'Publish',
     },
     status: {
+      historical: 'Historical review of v{version}. This version is read-only; no action is required.',
       reviewCompleted: 'You completed your review on {date}.',
       approved: 'You approved it on {date}.',
       waitingFor: 'Waiting for {names}.',

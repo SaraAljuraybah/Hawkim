@@ -136,12 +136,31 @@ describe('reviewer-facing sections', () => {
   }
 
   it('separates pending acceptance from accepted active work without changing workflow groups', () => {
-    const pending = reviewTasks('noura', [internal('pending')])[0]
+    const pending = reviewTasks('noura', [internal('pending')], Date.parse('2026-10-02T09:00:00Z'))[0]
     const accepted = reviewTasks('noura', [internal('accepted')])[0]
     expect(pending.group).toBe('todo')
     expect(accepted.group).toBe('todo')
     expect(reviewerTaskSection(pending)).toBe('incoming')
     expect(reviewerTaskSection(accepted)).toBe('active')
+  })
+  it('moves an expired pending request to history at its precise response timestamp without recording a decision', () => {
+    const item = internal('pending')
+    const request = item.internalReviewRounds![0].assignments[0]
+    request.responseDueAt = '2026-10-03T20:59:59.999Z'
+    request.deadlinePolicy = 'riyadh-working-days-v1'
+    const before = structuredClone(item)
+    const deadline = Date.parse(request.responseDueAt)
+    const pending = reviewTasks('noura', [item], deadline - 1)[0]
+    expect(pending.group).toBe('todo')
+    expect(reviewerTaskSection(pending)).toBe('incoming')
+    const expired = reviewTasks('noura', [item], deadline)[0]
+    expect(expired.group).toBe('done')
+    expect(reviewerTaskSection(expired)).toBe('completed')
+    expect(expired.need).toBeUndefined()
+    expect(expired.decision).toBe('pending')
+    expect(expired.dueAt).toBe('2026-10-03T20:59:59.999Z')
+    expect(expired.reviewer?.decision).toBe('pending')
+    expect(item).toEqual(before)
   })
 
   it.each(['completed', 'returned', 'declined', 'withdrawn', 'removed'] as const)('keeps %s requests in history with their actual decision', (decision) => {

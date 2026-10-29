@@ -1,11 +1,14 @@
 import { useId, useRef, useState, type DragEvent, type Ref } from 'react'
 import { CircleAlert, FileText, UploadCloud, X } from 'lucide-react'
 import { formatFileSize } from '../../lib/format'
+import { RequiredMark } from './FieldShell'
 
 export interface FileDropzoneText {
   label: string
   /** e.g. "(optional)" */
   optionalTag?: string
+  /** e.g. "(required)": read by screen readers only; a red asterisk is shown instead. */
+  requiredTag?: string
   /** e.g. "PDF, DOC, DOCX or PNG, up to 10 MB each" */
   hint: string
   dropPrompt: string
@@ -103,6 +106,12 @@ export function FileDropzone({
       <p id={labelId} className="mb-1.5 text-sm font-medium text-maroon">
         {text.label}
         {text.optionalTag && <span className="ml-1 font-normal text-text-gray">{text.optionalTag}</span>}
+        {text.requiredTag && (
+          <>
+            <RequiredMark />
+            <span className="sr-only"> {text.requiredTag}</span>
+          </>
+        )}
       </p>
 
       <div

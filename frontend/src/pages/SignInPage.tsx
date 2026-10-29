@@ -10,8 +10,8 @@ import { TextField } from '../components/ui/TextField'
 import { signInEn } from '../content/auth.en'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { hasPermission } from '../lib/permissions'
-import { signIn, type SignInFailureReason } from '../services/auth'
 import { useSession } from '../state/sessionContext'
+import { useUsers } from '../state/usersContext'
 
 type Field = 'email' | 'password'
 type FieldErrors = Partial<Record<Field, string>>
@@ -36,13 +36,14 @@ const legalLinkClasses =
 /**
  * Sign In page ("/login").
  * Split layout on large screens (brand panel + form); single column below lg.
- * Signs in with Supabase Auth (see src/services/auth.ts).
+ * Selects a local prototype identity; no authentication or backend request is made.
  */
 export function SignInPage() {
   const content = signInEn
   useDocumentTitle(content.pageTitle)
   const navigate = useNavigate()
   const session = useSession()
+  const { activeUsers } = useUsers()
 
   const [values, setValues] = useState<Record<Field, string>>({ email: '', password: '' })
   const [errors, setErrors] = useState<FieldErrors>({})
@@ -52,14 +53,6 @@ export function SignInPage() {
 
   const emailRef = useRef<HTMLInputElement>(null)
   const passwordRef = useRef<HTMLInputElement>(null)
-
-  const resultMessages: Record<SignInFailureReason, string> = {
-    'invalid-credentials': content.results.invalidCredentials,
-    'too-many-attempts': content.results.tooManyAttempts,
-    'not-connected': content.results.notConnected,
-    'no-access': content.results.noAccess,
-    failed: content.results.failed,
-  }
 
   /** Returns the error message for a field, or undefined when it is valid. */
   function validateField(field: Field, value: string): string | undefined {
@@ -106,14 +99,14 @@ export function SignInPage() {
 
     setStatusMessage('')
     setSubmitting(true)
-    const result = await signIn(values.email.trim(), values.password)
+    const selectedUser = activeUsers.find((user) => user.email.toLowerCase() === values.email.trim().toLowerCase())
     setSubmitting(false)
 
-    if (result.ok) {
-      session.signIn(result.user)
-      navigate(hasPermission(result.user, 'admin') ? ADMIN_AFTER_SIGN_IN_PATH : AFTER_SIGN_IN_PATH)
+    if (selectedUser) {
+      session.signIn(selectedUser)
+      navigate(hasPermission(selectedUser, 'admin') ? ADMIN_AFTER_SIGN_IN_PATH : AFTER_SIGN_IN_PATH)
     } else {
-      setStatusMessage(resultMessages[result.reason])
+      setStatusMessage(content.results.noAccess)
     }
   }
 
@@ -156,6 +149,7 @@ export function SignInPage() {
             <h1 className="mt-8 text-[2rem] leading-tight font-semibold tracking-tight lg:mt-0 lg:text-4xl">
               {content.title}
             </h1>
+            <p className="mt-3 text-sm leading-relaxed text-text-gray">{content.prototypeNotice}</p>
 
             <form noValidate onSubmit={handleSubmit} className="mt-6">
               <TextField

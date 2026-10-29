@@ -2,18 +2,20 @@ import { internalReviewEn as text } from '../../content/internalReview.en'
 import { sopWorkflowEn } from '../../content/workflow.en'
 import type { InternalReviewerAssignment, Sop } from '../../data/mock/types'
 import { useDeadlineClock } from '../../hooks/useDeadlineClock'
-import { formatDate, formatDateTime } from '../../lib/format'
-import { endOfLocalDay, isActiveRequest } from '../../lib/internalReviewStatus'
+import { formatDate, formatReviewDateTime as formatDateTime } from '../../lib/format'
+import { isActiveRequest, isWithdrawalDue, requestDeadline } from '../../lib/internalReviewStatus'
 import { DecisionBadge } from './DecisionBadge'
 import { ReviewerDeadline } from './ReviewerDeadline'
 
 /** The request's status; an accepted request past its review due date shows as Overdue (nothing else changes). */
 export function RequestStatusBadge({ sop, request, inactive = false }: { sop: Sop; request: InternalReviewerAssignment; inactive?: boolean }) {
-  const active = !inactive && isActiveRequest(sop, request) && request.decision === 'accepted'
-  const reviewDueAt = request.reviewDueDate ? endOfLocalDay(request.reviewDueDate) : undefined
-  const now = useDeadlineClock(reviewDueAt, active && !!reviewDueAt)
-  const overdue = active && !!reviewDueAt && new Date(reviewDueAt).getTime() <= now
-  return <DecisionBadge decision={overdue ? 'overdue' : request.decision} labels={text.panel.decisions} />
+  const active = !inactive && isActiveRequest(sop, request)
+  const reviewDueAt = request.acceptedAt ? requestDeadline(request)?.dueAt : undefined
+  const now = useDeadlineClock(requestDeadline(request)?.dueAt, active)
+  const overdue = active && request.decision === 'accepted' && !!reviewDueAt && new Date(reviewDueAt).getTime() <= now
+  // Expiry is a presentation state until the local workflow records withdrawal.
+  const expired = isWithdrawalDue(request, now)
+  return <DecisionBadge decision={overdue ? 'overdue' : expired ? 'expired' : request.decision} labels={text.panel.decisions} />
 }
 
 /**

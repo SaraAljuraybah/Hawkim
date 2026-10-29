@@ -21,7 +21,7 @@ const fixture = vi.hoisted(() => ({ sop: null as Sop | null, userId: 'author', u
   { id: 'reviewer-a', name: 'Reviewer Alpha', permissions: ['reviewer'], departmentId: 'home' },
   { id: 'reviewer-b', name: 'Reviewer Beta', permissions: ['reviewer'], departmentId: 'home' },
   { id: 'external', name: 'External reviewer', permissions: ['reviewer'], departmentId: 'other' },
-] as User[], departments: [{ id: 'home', name: 'Home', initials: 'HM', description: '' }] }))
+] as User[], departments: [{ id: 'home', name: 'Home', initials: 'HM', description: '', requiresComplianceCheck: true }] }))
 vi.mock('../../state/sessionContext', () => ({ useCurrentUser: () => fixture.users.find((user) => user.id === fixture.userId) }))
 vi.mock('../../state/usersContext', () => ({ useUsers: () => ({ users: fixture.users, activeUsers: fixture.users, nameOf: (id: string) => fixture.users.find((user) => user.id === id)?.name ?? id ?? '', getUser: (id: string) => fixture.users.find((user) => user.id === id) }) }))
 vi.mock('../../state/departmentsContext', () => ({ useDepartments: () => ({ departments: fixture.departments, nameOf: (id: string) => id }) }))
@@ -31,7 +31,7 @@ const environment = () => ({ users: fixture.users, departments: fixture.departme
 function draft(): Sop {
   return { id: 'test', code: 'SOP-TEST', title: 'Internal review fixture', description: 'Description retained', departmentId: 'home', version: '1', status: 'draft', lastUpdated: '2026-10-23', authorId: 'author', coAuthorIds: ['coauthor'], fileName: 'test.pdf', fileType: 'pdf', reviewers: [], approvers: [], comments: [], timeline: [], versions: [{ version: '1', fileName: 'test.pdf', fileType: 'pdf', uploadedAt: new Date().toISOString(), uploadedById: 'author' }], complianceChecks: [{ id: 'check', sopId: 'test', version: '1', status: 'completed', startedAt: new Date().toISOString(), guideline: { name: 'GVP', version: '4.0' }, findings: [] }] }
 }
-function start() { return startInternalReview(draft(), 'author', '4.0', { reviewerIds: ['reviewer-a', 'reviewer-b'], responseDueDate: '2026-10-28', reviewDurationDays: 5 }, environment()) }
+function start() { return startInternalReview(draft(), 'author', '4.0', { reviewerIds: ['reviewer-a', 'reviewer-b'], reviewDurationDays: 5 }, environment()) }
 function render(page: ReactNode) { return renderToStaticMarkup(<MemoryRouter initialEntries={['/test']}><Routes><Route path="/:id" element={page} /></Routes></MemoryRouter>) }
 function accept(sop: Sop, userId: string) {
   const round = currentInternalRound(sop)!
@@ -53,7 +53,7 @@ function expectSubmitTexts(html: string) {
   expect(html).toContain(`<h2 id="${titleId}" class="text-lg">Submit for Review</h2>`)
   expect(html).toMatch(/<button type="submit"[^>]*>Submit<\/button>/)
 }
-beforeEach(() => { vi.useFakeTimers({ now: new Date(2026, 9, 23, 12) }); fixture.userId = 'author' })
+beforeEach(() => { vi.useFakeTimers({ now: new Date('2026-10-23T12:00:00+03:00') }); fixture.userId = 'author' })
 afterEach(() => vi.useRealTimers())
 
 describe('internal parallel review across transitions and detail views', () => {
@@ -139,7 +139,7 @@ describe('internal parallel review across transitions and detail views', () => {
     expect(duration).toContain('min="1"')
     expect(duration).toContain('max="30"')
     expect(duration).toContain('aria-describedby=')
-    expect(html).toContain('Review duration in calendar days (optional)')
+    expect(html).toContain('Review duration in working days (optional)')
     expect(html).toContain(internalReviewEn.submit.durationHelp)
     expect(html).not.toContain('withdrawn automatically')
     expect(html).not.toContain('has to finish after they accept')

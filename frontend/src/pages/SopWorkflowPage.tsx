@@ -28,7 +28,7 @@ import type { Sop, SopVersion } from '../data/mock/types'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { checkRequired, currentCheck, hasCurrentCheck, isCheckRunning } from '../lib/compliance'
 import { approvalReadiness, type ApprovalReadiness } from '../lib/approval'
-import { canAddReviewers, canSendNewVersion, type ReviewPhaseItem } from '../lib/internalReview'
+import { canAddReviewers, canSendNewVersion, currentInternalRound, type ReviewPhaseItem } from '../lib/internalReview'
 import { reviewAllowsNewVersion } from '../lib/internalReviewStatus'
 import { formatDate } from '../lib/format'
 import { hasPermission } from '../lib/permissions'
@@ -42,7 +42,7 @@ import {
   nextVersion,
   responseRecipients,
 } from '../lib/workflow'
-import { fileUrlOf } from '../services/files'
+import { fileUrlOf } from '../lib/prototypeFiles'
 import { useDepartments } from '../state/departmentsContext'
 import { useGuidelines } from '../state/guidelinesContext'
 import { useCurrentUser } from '../state/sessionContext'
@@ -454,6 +454,9 @@ export function SopWorkflowPage() {
           )
         }
       >
+        {isMainAuthor && sop.status === 'in-review' && currentInternalRound(sop)?.status === 'completed' && (
+          <p className="mb-4 text-sm leading-relaxed text-text-gray">{internalReviewEn.panel.externalPending}</p>
+        )}
         {isMainAuthor && (canSubmit && submitReason || requestReason) && (
           <p id="submit-hint" className="mb-4 text-sm text-text-gray">
             {canSubmit ? submitReason : requestReason}

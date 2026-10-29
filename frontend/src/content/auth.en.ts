@@ -14,6 +14,7 @@ export const signInEn: SignInContent = {
   },
 
   title: 'Welcome Back',
+  prototypeNotice: 'Local frontend prototype. Use a configured demo email, such as sara.aljuraybah@hawkim.demo, with any non-empty demo password. No password is checked or sent, and changes last only in this browser tab.',
 
   email: {
     label: 'Email',
@@ -63,6 +64,6 @@ export const forgotPasswordEn: ForgotPasswordContent = {
   pageTitle: 'Forgot Password | Hawkim',
   logoAlt: 'Hawkim',
   title: 'Forgot your password?',
-  text: 'Ask the project owner to reset your password.',
+  text: 'This local prototype does not authenticate passwords. Use a configured demo email with any non-empty demo password.',
   backLink: { label: 'Back to Sign In', href: '/login' },
 }

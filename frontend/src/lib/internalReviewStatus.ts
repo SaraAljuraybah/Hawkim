@@ -6,7 +6,7 @@ import { todayIsoDate } from './format'
  * and the internal review transitions (no imports from either, so both can use them). Pure functions.
  */
 
-/** A review duration is a whole number of calendar days in this range. */
+/** New prototype requests allocate working days; historical requests retain their saved calendar policy. */
 export const REVIEW_DURATION_MIN = 1
 export const REVIEW_DURATION_MAX = 30
 
@@ -32,9 +32,13 @@ export type RequestDeadline = { phase: 'response' | 'review'; dueAt: string }
  * The deadline that applies to a request: accepting or declining until it's accepted,
  * then finishing the review. Undefined when that deadline wasn't set.
  */
-export function requestDeadline(assignment: Pick<InternalReviewerAssignment, 'acceptedAt' | 'responseDueDate' | 'reviewDueDate'>): RequestDeadline | undefined {
-  if (assignment.acceptedAt) return assignment.reviewDueDate ? { phase: 'review', dueAt: endOfLocalDay(assignment.reviewDueDate) } : undefined
-  return assignment.responseDueDate ? { phase: 'response', dueAt: endOfLocalDay(assignment.responseDueDate) } : undefined
+export function requestDeadline(assignment: Pick<InternalReviewerAssignment, 'acceptedAt' | 'responseDueDate' | 'reviewDueDate' | 'responseDueAt' | 'reviewDueAt'>): RequestDeadline | undefined {
+  if (assignment.acceptedAt) {
+    const dueAt = assignment.reviewDueAt ?? (assignment.reviewDueDate ? endOfLocalDay(assignment.reviewDueDate) : undefined)
+    return dueAt ? { phase: 'review', dueAt } : undefined
+  }
+  const dueAt = assignment.responseDueAt ?? (assignment.responseDueDate ? endOfLocalDay(assignment.responseDueDate) : undefined)
+  return dueAt ? { phase: 'response', dueAt } : undefined
 }
 
 /** Waiting for the reviewer: to accept or decline (pending), or to decide (accepted). */
@@ -77,12 +81,12 @@ export function isActiveRequest(sop: Pick<Sop, 'status' | 'version' | 'internalR
  * Returns when that happens, or undefined when it can't.
  * TODO: The real withdrawal must run on the backend (a scheduled job), not in the browser.
  */
-export function withdrawalDueAt(assignment: Pick<InternalReviewerAssignment, 'decision' | 'responseDueDate'>): string | undefined {
-  return assignment.decision === 'pending' && assignment.responseDueDate ? endOfLocalDay(assignment.responseDueDate) : undefined
+export function withdrawalDueAt(assignment: Pick<InternalReviewerAssignment, 'decision' | 'responseDueDate' | 'responseDueAt'>): string | undefined {
+  return assignment.decision === 'pending' ? assignment.responseDueAt ?? (assignment.responseDueDate ? endOfLocalDay(assignment.responseDueDate) : undefined) : undefined
 }
 
 /** Whether the request is due to be withdrawn at `now`. */
-export function isWithdrawalDue(assignment: Pick<InternalReviewerAssignment, 'decision' | 'responseDueDate'>, now: number): boolean {
+export function isWithdrawalDue(assignment: Pick<InternalReviewerAssignment, 'decision' | 'responseDueDate' | 'responseDueAt'>, now: number): boolean {
   const dueAt = withdrawalDueAt(assignment)
   return dueAt !== undefined && new Date(dueAt).getTime() <= now
 }

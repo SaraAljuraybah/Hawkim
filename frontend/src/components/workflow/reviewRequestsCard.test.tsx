@@ -6,6 +6,7 @@ import { internalReviewEn } from '../../content/internalReview.en'
 import type { Department, Sop, User } from '../../data/mock/types'
 import { acceptInternalReview, addInternalReviewers, currentInternalRound, decideInternalReview, declineInternalReview, removeInternalReviewer, startInternalReview, withdrawUnanswered } from '../../lib/internalReview'
 import { latestAssignmentOf } from '../../lib/internalReviewStatus'
+import { endOfRiyadhDay } from '../../lib/riyadhWorkingDays'
 import { reviewTasks } from '../../lib/reviews'
 import { ReviewsPage } from '../../pages/ReviewsPage'
 import { InternalReviewPanel } from './InternalReviewPanel'
@@ -35,12 +36,12 @@ function draft(): Sop {
 }
 const request = (sop: Sop, userId: string) => latestAssignmentOf(currentInternalRound(sop), userId)!
 function render(node: ReactNode) { return renderToStaticMarkup(<MemoryRouter>{node}</MemoryRouter>) }
-beforeEach(() => { vi.useFakeTimers({ now: new Date(2026, 9, 23, 12) }); fixture.userId = 'author' })
+beforeEach(() => { vi.useFakeTimers({ now: new Date('2026-10-23T12:00:00+03:00') }); fixture.userId = 'author' })
 afterEach(() => vi.useRealTimers())
 
 describe('review requests card', () => {
   it('shows each reviewer with status, sent date, version, deadlines and reasons, without a round heading', () => {
-    let sop = startInternalReview(draft(), 'author', '4.0', { reviewerIds: ['alpha', 'beta', 'gamma'], responseDueDate: '2026-10-24', reviewDurationDays: 3 }, env())
+    let sop = startInternalReview(draft(), 'author', '4.0', { reviewerIds: ['alpha', 'beta', 'gamma'], reviewDurationDays: 3 }, env())
     const round = currentInternalRound(sop)!
     sop = acceptInternalReview(sop, 'alpha', round.id, request(sop, 'alpha').id, env())
     sop = declineInternalReview(sop, 'beta', round.id, request(sop, 'beta').id, 'On leave', env())
@@ -59,12 +60,12 @@ describe('review requests card', () => {
     expect(render(<InternalReviewPanel sop={sop} canRemove={false} />)).not.toContain('>Remove reviewer<')
   })
   it('shows Pending with the response due date and duration, then Withdrawn with its date', () => {
-    const sop = startInternalReview(draft(), 'author', '4.0', { reviewerIds: ['alpha'], responseDueDate: '2026-10-24', reviewDurationDays: 3 }, env())
+    const sop = startInternalReview(draft(), 'author', '4.0', { reviewerIds: ['alpha'], reviewDurationDays: 3 }, env())
     const pending = render(<InternalReviewPanel sop={sop} canRemove />)
     expect(pending).toContain('</span>Pending</span>')
     expect(pending).toContain('If there is no response by then, the request is withdrawn.')
-    expect(pending).toContain('Review duration: 3 days, starts when accepted')
-    const withdrawn = withdrawUnanswered(sop, new Date(2026, 9, 24, 23, 59, 59, 999).getTime())
+    expect(pending).toContain('Review duration: 3 working days')
+    const withdrawn = withdrawUnanswered(sop, Date.parse(endOfRiyadhDay('2026-10-26')))
     const html = render(<InternalReviewPanel sop={withdrawn} canRemove />)
     expect(html).toContain('</span>Withdrawn</span>')
     expect(html).toContain('Withdrawn automatically: no response by')
@@ -74,7 +75,7 @@ describe('review requests card', () => {
     let sop = startInternalReview(draft(), 'author', '4.0', { reviewerIds: ['alpha'], reviewDurationDays: 1 }, env())
     sop = acceptInternalReview(sop, 'alpha', currentInternalRound(sop)!.id, request(sop, 'alpha').id, env())
     expect(render(<InternalReviewPanel sop={sop} canRemove />)).toContain('</span>Accepted</span>')
-    vi.setSystemTime(new Date(2026, 9, 24, 23, 59, 59, 999))
+    vi.setSystemTime(Date.parse(endOfRiyadhDay('2026-10-25')))
     const html = render(<InternalReviewPanel sop={sop} canRemove />)
     expect(html).toContain('</span>Overdue</span>')
     expect(html).toContain('Review overdue')
@@ -163,9 +164,9 @@ describe('review requests card with only active reviewers (author SOP page)', ()
     expect(render(<InternalReviewPanel sop={sop} canRemove />)).toContain('</span>Declined</span>')
   })
   it('shows "No active reviewers." when nobody is taking part any more', () => {
-    let sop = startInternalReview(draft(), 'author', '4.0', { reviewerIds: ['alpha', 'beta'], responseDueDate: '2026-10-24' }, env())
+    let sop = startInternalReview(draft(), 'author', '4.0', { reviewerIds: ['alpha', 'beta'] }, env())
     sop = removeInternalReviewer(sop, 'author', currentInternalRound(sop)!.id, request(sop, 'beta').id, 'Not needed', env())
-    sop = withdrawUnanswered(sop, new Date(2026, 9, 24, 23, 59, 59, 999).getTime())
+    sop = withdrawUnanswered(sop, Date.parse(endOfRiyadhDay('2026-10-26')))
     const html = render(<InternalReviewPanel sop={sop} canRemove activeOnly />)
     expect(html).toContain(`<p class="text-sm text-text-gray">${internalReviewEn.panel.noActive}</p>`)
     expect(html).toContain(internalReviewEn.panel.title)
@@ -182,16 +183,16 @@ describe('review requests card with only active reviewers (author SOP page)', ()
 
 describe('My Reviews', () => {
   it('shows the reviewer the same request details, and keeps removed and withdrawn requests in Done', () => {
-    let sop = startInternalReview(draft(), 'author', '4.0', { reviewerIds: ['alpha', 'beta'], responseDueDate: '2026-10-24', reviewDurationDays: 3 }, env())
+    let sop = startInternalReview(draft(), 'author', '4.0', { reviewerIds: ['alpha', 'beta'], reviewDurationDays: 3 }, env())
     fixture.sop = sop
     fixture.userId = 'alpha'
     const todo = render(<ReviewsPage />)
     expect(todo).toContain('</span>Pending</span>')
     expect(todo).toContain('Request sent ')
     expect(todo).toContain(internalReviewEn.panel.version.replace('{version}', '1'))
-    expect(todo).toContain('Review duration: 3 days, starts when accepted')
+    expect(todo).toContain('Review duration: 3 working days')
     sop = removeInternalReviewer(sop, 'author', currentInternalRound(sop)!.id, request(sop, 'alpha').id, 'Covered by another team', env())
-    sop = withdrawUnanswered(sop, new Date(2026, 9, 24, 23, 59, 59, 999).getTime())
+    sop = withdrawUnanswered(sop, Date.parse(endOfRiyadhDay('2026-10-26')))
     expect(reviewTasks('alpha', [sop])[0]).toMatchObject({ group: 'done', decision: 'removed' })
     expect(reviewTasks('beta', [sop])[0]).toMatchObject({ group: 'done', decision: 'withdrawn' })
     expect(render(<ReviewRequestDetails sop={sop} request={request(sop, 'alpha')} />)).toContain('Reason: Covered by another team')

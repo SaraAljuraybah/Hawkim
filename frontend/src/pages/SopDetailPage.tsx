@@ -13,7 +13,7 @@ import { sopDownloadName } from '../lib/sopPresentation'
 import { formatDate } from '../lib/format'
 import { requestDepartmentAccessPath } from '../lib/routes'
 import { getSopAccess } from '../lib/sopAccess'
-import { fileUrlOf } from '../services/files'
+import { fileUrlOf } from '../lib/prototypeFiles'
 import { useDepartments } from '../state/departmentsContext'
 import { useMyRequests } from '../state/requestsContext'
 import { useCurrentUser } from '../state/sessionContext'
@@ -64,8 +64,7 @@ export function SopDetailPage() {
   const stored = !!currentVersionOf(sop)?.storagePath
 
   const exportButton = granted && sop.fileType === 'pdf' && fileUrl && (
-    <Button href={stored ? undefined : fileUrl} download={stored ? undefined : downloadName(sop)}
-      onClick={stored ? download : undefined} disabled={downloading}>
+    <Button {...(stored ? { onClick: download, disabled: downloading } : { href: fileUrl, download: downloadName(sop) })}>
       <Download aria-hidden="true" className="size-4" strokeWidth={2} />
       {content.exportPdf}
     </Button>
@@ -133,8 +132,7 @@ export function SopDetailPage() {
         {granted && fileUrl && sop.fileType === 'docx' && (
           // TODO: Convert Word documents to PDF on the server so they can be previewed here.
           <AccessPanel icon={<FileText className="size-6" strokeWidth={1.75} />} title={content.docx.text}>
-            <Button href={stored ? undefined : fileUrl} download={stored ? undefined : downloadName(sop)}
-              onClick={stored ? download : undefined} disabled={downloading}>
+            <Button {...(stored ? { onClick: download, disabled: downloading } : { href: fileUrl, download: downloadName(sop) })}>
               <Download aria-hidden="true" className="size-4" strokeWidth={2} />
               {content.docx.download}
             </Button>

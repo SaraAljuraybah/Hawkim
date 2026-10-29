@@ -4,8 +4,13 @@ import type { ApprovalDecisionSnapshot, Department, Sop, User } from '../data/mo
 import { submitForApproval, type ApprovalSubmissionOptions } from '../lib/approval'
 import { acceptInternalReview, currentInternalRound, decideInternalReview, startInternalReview, type InternalReviewOptions } from '../lib/internalReview'
 import { activeApprovalSubmission, isApprover, returnAsApprover, uploadVersion } from '../lib/workflow'
+import { fixedResponseDueDate } from '../lib/fixedResponseDeadline'
 import { SopsProvider } from './SopsProvider'
 import { useSops, type SopsStore } from './sopsContext'
+
+// Preserve the experimental adapter's mocked regression coverage without enabling
+// a connection in the application's frontend-only prototype.
+vi.mock('../lib/frontendRuntime', () => ({ FRONTEND_PROTOTYPE: false }))
 
 const fixture = vi.hoisted(() => ({
   userId: 'author', users: [] as User[], departments: [] as Department[], sops: [] as Sop[],
@@ -86,12 +91,12 @@ function capture(userId: string, sop: Sop): SopsStore {
 }
 function current(): Sop { return (fixture.commit.mock.lastCall?.[0] ?? fixture.sops)[0] }
 async function restartedReview(): Promise<Sop> {
-  const sop = submitted({ responseDueDate: '2026-10-28' })
+  const sop = submitted({ responseDueDate: fixedResponseDueDate() })
   const returned = returnAsApprover(sop, 'controller', 'Revise this SOP', snapshot(sop))
   vi.advanceTimersByTime(1000)
   const revised = uploadVersion(returned, 'author', { fileName: 'revised.pdf', fileType: 'pdf' })
   revised.complianceChecks = [...revised.complianceChecks, check(revised.version)]
-  await capture('author', revised).submitForReview(sop.id, { reviewerIds: ['reviewer'], responseDueDate: '2026-10-28' })
+  await capture('author', revised).submitForReview(sop.id, { reviewerIds: ['reviewer'], responseDueDate: fixedResponseDueDate() })
   return current()
 }
 beforeEach(() => {
@@ -143,7 +148,9 @@ describe('deadline simulation requires a current assignment', () => {
     const sop = await restartedReview(), before = structuredClone(sop), store = capture(actor, sop)
     store.shiftDueDates(sop.id, 1)
     expect(currentInternalRound(current())).toMatchObject({ version: '2' })
-    expect(currentInternalRound(current())!.assignments[0]).toMatchObject({ responseDueDate: '2026-10-27' })
+    const previousDeadline = currentInternalRound(before)!.assignments[0].responseDueAt!
+    const expectedDeadline = new Date(new Date(previousDeadline).getTime() - 24 * 60 * 60 * 1000).toISOString()
+    expect(currentInternalRound(current())!.assignments[0]).toMatchObject({ responseDueAt: expectedDeadline, responseDueDate: expectedDeadline.slice(0, 10) })
     expect(current().internalReviewRounds![0]).toEqual(before.internalReviewRounds![0])
     expect(current().approvalSubmissions).toEqual(before.approvalSubmissions)
     expect(current().timeline).toEqual(before.timeline)
@@ -333,16 +340,17 @@ describe('automatic withdrawal at the store boundary', () => {
   function requested(): Sop {
     fixture.users.push(person('second', ['reviewer']))
     const draft: Sop = { id: 'test', code: 'TEST', title: 'Withdrawal fixture', version: '1', departmentId: 'home', authorId: 'author', coAuthorIds: [], status: 'draft', lastUpdated: '2026-10-23', fileName: 'test.pdf', fileType: 'pdf', versions: [{ version: '1', fileName: 'test.pdf', fileType: 'pdf', uploadedAt: new Date().toISOString() }], reviewers: [], approvers: [], comments: [], timeline: [], complianceChecks: [check('1')] }
-    const sop = startInternalReview(draft, 'author', '4.0', { reviewerIds: ['reviewer', 'second'], responseDueDate: '2026-10-24' }, env())
+    const sop = startInternalReview(draft, 'author', '4.0', { reviewerIds: ['reviewer', 'second'], responseDueDate: fixedResponseDueDate() }, env())
     return acceptInternalReview(sop, 'second', currentInternalRound(sop)!.id, currentInternalRound(sop)!.assignments[1].id, env())
   }
   it('withdraws unanswered requests before the next action and refuses acting on them', async () => {
     const sop = requested()
-    vi.setSystemTime(new Date(2026, 9, 25, 9))
+    const responseDueAt = currentInternalRound(sop)!.assignments[0].responseDueAt!
+    vi.setSystemTime(new Date(new Date(responseDueAt).getTime() + 1))
     await expect(capture('reviewer', sop).acceptInternalReview(sop.id, currentInternalRound(sop)!.id, currentInternalRound(sop)!.assignments[0].id)).rejects.toThrow(/withdrawn/)
     const round = currentInternalRound(sop)!
     await capture('second', sop).decideInternalReview(sop.id, round.id, round.assignments[1].id, 'completed', 'Fine')
     expect(currentInternalRound(current())!.assignments.map((assignment) => assignment.decision)).toEqual(['withdrawn', 'completed'])
-    expect(current().timeline.find((event) => event.type === 'review-withdrawn')).toMatchObject({ createdAt: new Date(2026, 9, 24, 23, 59, 59, 999).toISOString() })
+    expect(current().timeline.find((event) => event.type === 'review-withdrawn')).toMatchObject({ createdAt: responseDueAt })
   })
 })

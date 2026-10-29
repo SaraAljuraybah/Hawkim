@@ -18,6 +18,7 @@ import { ReviewerDeadline } from './ReviewerDeadline'
 interface Props {
   sop: Sop
   canRemove: boolean
+  inactive?: boolean
   /**
    * Only reviewers still taking part (the author's SOP page): a reviewer whose latest request was
    * removed, declined or withdrawn is left out, and so are such requests in the others' history.
@@ -40,7 +41,7 @@ const TITLE_ID = 'internal-review-title'
  * its version, its deadlines, and any reason or comments. The main author can remove a reviewer
  * from the current version's review.
  */
-export function InternalReviewPanel({ sop, canRemove, activeOnly = false, compact = false, showEmpty = false, title = text.panel.title, actions, children }: Props) {
+export function InternalReviewPanel({ sop, canRemove, inactive = false, activeOnly = false, compact = false, showEmpty = false, title = text.panel.title, actions, children }: Props) {
   const { nameOf } = useUsers()
   const store = useSops()
   const [target, setTarget] = useState<{ roundId: string; assignment: InternalReviewerAssignment } | null>(null)
@@ -54,7 +55,7 @@ export function InternalReviewPanel({ sop, canRemove, activeOnly = false, compac
   if (!rounds.length && !showEmpty) return null
   const current = rounds.at(-1)
   const legacyReviewers = rounds.length ? [] : sop.reviewers.filter((reviewer) => !activeOnly || reviewer.decision !== 'cancelled')
-  const removable = canRemove && sop.status === 'in-review' && current?.version === sop.version
+  const removable = !inactive && canRemove && sop.status === 'in-review' && current?.version === sop.version
   // Reviewers in the order they were first asked; each one's requests newest first.
   const requests = rounds.flatMap((round) => round.assignments.map((assignment) => ({ round, assignment })))
   const requestsOf = (userId: string) => requests.filter((item) => item.assignment.userId === userId)
@@ -76,7 +77,7 @@ export function InternalReviewPanel({ sop, canRemove, activeOnly = false, compac
     {legacyReviewers.length > 0 && <ul className="space-y-4">{legacyReviewers.map((reviewer) => <li key={reviewer.userId} className="rounded-lg border border-beige p-4">
       <h3 className="mb-2 text-base font-semibold text-maroon">{nameOf(reviewer.userId)}</h3>
       <DecisionBadge decision={reviewer.decision} labels={sopWorkflowEn.people.decisions} />
-      <ReviewerDeadline sop={sop} reviewer={reviewer} content={sopWorkflowEn.reviewerDeadline} showQueue />
+      <ReviewerDeadline sop={sop} reviewer={reviewer} content={sopWorkflowEn.reviewerDeadline} showQueue inactive={inactive} />
     </li>)}</ul>}
     {reviewerIds.length > 0 && <ul className="space-y-4">{reviewerIds.map((userId) => {
       const own = requestsOf(userId).reverse().filter(({ assignment }) => !activeOnly || !isInactiveDecision(assignment.decision))
@@ -86,8 +87,8 @@ export function InternalReviewPanel({ sop, canRemove, activeOnly = false, compac
         <h3 className="text-base font-semibold text-maroon">{name}</h3>
         <ul aria-label={text.panel.reviewerHistory.replace('{name}', name)} className="mt-2 space-y-3">{own.map(({ round, assignment }) =>
           <li key={assignment.id} className="border-t border-beige pt-3 first:border-0 first:pt-0">
-            <RequestStatusBadge sop={sop} request={assignment} />
-            <ReviewRequestDetails sop={sop} request={assignment} compact={compact} />
+            <RequestStatusBadge sop={sop} request={assignment} inactive={inactive} />
+            <ReviewRequestDetails sop={sop} request={assignment} compact={compact} inactive={inactive} />
             {removable && round === current && assignment === latest && assignment.decision !== 'removed' &&
               <Button size="sm" variant="secondary" className="mt-2" aria-label={text.panel.removeFor.replace('{name}', name)}
                 onClick={(event) => { triggerRef.current = event.currentTarget; setTarget({ roundId: round.id, assignment }); setReason(''); setReasonError(''); setError('') }}>{text.panel.remove}</Button>}

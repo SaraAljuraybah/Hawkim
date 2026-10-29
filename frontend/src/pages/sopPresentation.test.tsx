@@ -29,7 +29,7 @@ const fixture = vi.hoisted(() => ({ sop: null as Sop | null, userId: 'author', t
 vi.mock('../hooks/useDocumentTitle', () => ({ useDocumentTitle: (title: string | undefined) => fixture.titles.push(title) }))
 vi.mock('../state/sessionContext', () => ({ useCurrentUser: () => fixture.users.find((user) => user.id === fixture.userId) }))
 vi.mock('../state/usersContext', () => ({ useUsers: () => ({ users: fixture.users, activeUsers: fixture.users, nameOf: (id: string) => fixture.users.find((user) => user.id === id)?.name ?? id ?? '', getUser: (id: string) => fixture.users.find((user) => user.id === id) }) }))
-vi.mock('../state/departmentsContext', () => ({ useDepartments: () => ({ departments: [{ id: 'home', name: 'Home', initials: 'HM', description: '' }], nameOf: () => 'Home' }) }))
+vi.mock('../state/departmentsContext', () => ({ useDepartments: () => ({ departments: [{ id: 'home', name: 'Home', initials: 'HM', description: '', requiresComplianceCheck: true }], nameOf: () => 'Home' }) }))
 vi.mock('../state/guidelinesContext', () => ({ useGuidelines: () => ({ current: { version: '4.0' } }) }))
 vi.mock('../state/sopsContext', () => ({ useSops: () => ({ sops: [fixture.sop] }) }))
 vi.mock('../state/requestsContext', () => ({ useMyRequests: () => [] }))

@@ -186,6 +186,7 @@ export const sopWorkflowEn: SopWorkflowContent = {
 
   dialogs: {
     cancel: 'Cancel',
+    uploadFailed: 'The file could not be added. Your draft has been kept.',
     // Same rules as Upload SOP (.docx or PDF, up to 10 MB).
     fileField: {
       label: 'SOP file',
@@ -226,6 +227,7 @@ export const sopWorkflowEn: SopWorkflowContent = {
       confirm: 'Delete version',
     },
     addCoAuthors: {
+      failed: 'Co-authors could not be added. Review your selection and try again.',
       title: 'Add co-authors',
       description: 'Co-authors can upload versions and run compliance checks on their own uploads. Only you can submit for review.',
       label: 'Co-authors',
@@ -239,6 +241,7 @@ export const sopWorkflowEn: SopWorkflowContent = {
       confirm: 'Remove co-author',
     },
     response: {
+      failed: 'Your response could not be added. Your draft has been kept.',
       title: 'Respond to comments',
       description: 'Your response is added to the Review timeline and sent to {names}.',
       label: 'Response',
@@ -254,6 +257,10 @@ export const sopWorkflowEn: SopWorkflowContent = {
   },
 
   messages: {
+    fileFailed: 'This file is not available in the local prototype.',
+    deleteFailed: 'This version could not be deleted.',
+    coAuthorRemoveFailed: 'This co-author could not be removed.',
+    checkStartFailed: 'The sample compliance check could not be started.',
     submitted: 'Submitted for review.',
     newVersion: 'v{version} uploaded.',
     versionDeleted: 'v{version} deleted.',

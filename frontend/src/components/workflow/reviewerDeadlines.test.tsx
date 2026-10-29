@@ -9,11 +9,13 @@ import { ResubmitDialog } from './ResubmitDialog'
 import { PeopleList } from './PeopleList'
 import { StatusTracker } from './StatusTracker'
 import { InternalReviewSummary } from './InternalReviewSummary'
+import { RequestStatusBadge } from './ReviewRequestDetails'
+import { internalReviewEn } from '../../content/internalReview.en'
 import { formatReviewDuration } from '../../lib/reviewDuration'
 import type { ReactNode } from 'react'
 
 const users: UsersStore = {
-  users: [], activeUsers: [], getUser: () => undefined, nameOf: (id) => id ?? '',
+  status: 'ready', users: [], activeUsers: [], getUser: () => undefined, nameOf: (id) => id ?? '',
   addUser: () => { throw new Error('unused') }, updatePermissions: () => {}, deleteUser: () => {},
 }
 const render = (node: ReactNode) => renderToStaticMarkup(<UsersContext value={users}>{node}</UsersContext>)
@@ -146,6 +148,65 @@ describe('parallel reviewer deadline displays', () => {
     expect(html).toContain(new Date(2026, 9, 21, 23, 59, 59, 999).toISOString())
     expect(html).not.toContain('Time remaining')
     expect(html).not.toContain('Review overdue')
+  })
+  it('displays the stored Riyadh review timestamp and expires a same-day allocation at the precise millisecond', () => {
+    const dueAt = '2026-10-29T20:59:59.999Z'
+    const deadline = Date.parse(dueAt)
+    vi.useFakeTimers({ now: deadline - 1 })
+    const item = internal([request('First reviewer', {
+      decision: 'accepted', deadlinePolicy: 'riyadh-working-days-v1', acceptedAt: '2026-10-28T09:00:00Z',
+      reviewDurationDays: 1, reviewDueDate: '2026-10-28', reviewDueAt: dueAt,
+    })])
+    const own = item.internalReviewRounds![0].assignments[0]
+    const html = render(<ReviewerDeadline sop={item} reviewer={own} content={sopWorkflowEn.reviewerDeadline} />)
+    expect(html).toContain(`<time dateTime="${dueAt}">Oct 29, 2026, 11:59 PM GMT+3</time>`)
+    expect(html).toContain('Time remaining: less than 1 second')
+    expect(html).not.toContain('0 days')
+    expect(html).not.toContain('24 hours')
+    expect(html).not.toContain('Review overdue')
+    expect(render(<RequestStatusBadge sop={item} request={own} />)).toContain('>Accepted</span>')
+    vi.setSystemTime(deadline)
+    expect(render(<ReviewerDeadline sop={item} reviewer={own} content={sopWorkflowEn.reviewerDeadline} />)).toContain('Review overdue')
+    expect(render(<RequestStatusBadge sop={item} request={own} />)).toContain('>Overdue</span>')
+    expect(own.decision).toBe('accepted')
+  })
+  it('stops clocks and overdue presentation on a historical access projection despite its old accepted status', () => {
+    vi.useFakeTimers({ now: new Date('2026-11-02T09:00:00Z') })
+    const item = internal([request('First reviewer', {
+      decision: 'accepted', deadlinePolicy: 'riyadh-working-days-v1', acceptedAt: '2026-10-28T09:00:00Z',
+      reviewDurationDays: 1, reviewDueDate: '2026-10-29', reviewDueAt: '2026-10-29T20:59:59.999Z',
+    })])
+    const own = item.internalReviewRounds![0].assignments[0]
+    const before = structuredClone(item)
+    const html = render(<ReviewerDeadline sop={item} reviewer={own} content={sopWorkflowEn.reviewerDeadline} inactive />)
+    expect(html).toContain('2026-10-29T20:59:59.999Z')
+    expect(html).toContain(internalReviewEn.panel.inactiveDeadline)
+    expect(html).not.toContain('Time remaining')
+    expect(html).not.toContain('Review overdue')
+    const badge = render(<RequestStatusBadge sop={item} request={own} inactive />)
+    expect(badge).toContain('>Accepted</span>')
+    expect(badge).not.toContain('>Overdue</span>')
+    expect(item).toEqual(before)
+  })
+  it('preserves the static response deadline for a closed pending request without an active countdown or expiry warning', () => {
+    vi.useFakeTimers({ now: new Date('2026-11-02T09:00:00Z') })
+    const item = internal([request('First reviewer', {
+      responseDueDate: '2026-10-29', responseDueAt: '2026-10-29T20:59:59.999Z',
+      deadlinePolicy: 'riyadh-working-days-v1', reviewDurationDays: 3,
+    })])
+    item.internalReviewRounds![0].status = 'completed'
+    const own = item.internalReviewRounds![0].assignments[0]
+    const before = structuredClone(item)
+    const html = render(<ReviewerDeadline sop={item} reviewer={own} content={sopWorkflowEn.reviewerDeadline} showQueue />)
+    expect(html).toContain('Response due ')
+    expect(html).toContain('2026-10-29T20:59:59.999Z')
+    expect(html).toContain('Review duration: 3 working days')
+    expect(html).toContain(internalReviewEn.panel.inactiveDeadline)
+    expect(html).not.toContain('Time to respond:')
+    expect(html).not.toContain('Time remaining:')
+    expect(html).not.toContain(internalReviewEn.panel.expiredResponse)
+    expect(html).not.toContain('Review pending')
+    expect(item).toEqual(before)
   })
   it('keeps the round summary free of a shared deadline', () => {
     vi.useFakeTimers({ now: new Date(2026, 9, 19, 12) })

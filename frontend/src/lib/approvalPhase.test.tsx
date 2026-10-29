@@ -23,7 +23,7 @@ vi.mock('../state/usersContext', () => ({ useUsers: () => ({
   nameOf: (id: string) => state.users.find((user) => user.id === id)?.name ?? id,
   getUser: (id: string) => state.users.find((user) => user.id === id),
 }) }))
-vi.mock('../state/departmentsContext', () => ({ useDepartments: () => ({ nameOf: (id: string) => id }) }))
+vi.mock('../state/departmentsContext', () => ({ useDepartments: () => ({ departments: [], nameOf: (id: string) => id }) }))
 vi.mock('../state/sopsContext', () => ({ useSops: () => ({ sops: [state.sop] }) }))
 
 const requestedAt = '2026-10-23T09:00:00.000Z'

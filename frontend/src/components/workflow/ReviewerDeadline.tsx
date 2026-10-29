@@ -3,8 +3,9 @@ import { internalReviewEn } from '../../content/internalReview.en'
 import type { SopWorkflowContent } from '../../content/types'
 import type { InternalReviewerAssignment, ReviewerAssignment, Sop } from '../../data/mock/types'
 import { useDeadlineClock } from '../../hooks/useDeadlineClock'
-import { formatDateTime } from '../../lib/format'
-import { endOfLocalDay, isOpenDecision, latestAssignmentOf } from '../../lib/internalReviewStatus'
+import { formatReviewDateTime as formatDateTime } from '../../lib/format'
+import { isActiveRequest, requestDeadline } from '../../lib/internalReviewStatus'
+import { WORKING_DAY_POLICY } from '../../lib/riyadhWorkingDays'
 import { formatReviewDuration } from '../../lib/reviewDuration'
 import { currentReviewer, reviewerAssignedMilliseconds, reviewerDueAt, reviewerRemainingMilliseconds } from '../../lib/workflow'
 
@@ -63,30 +64,32 @@ function dated(template: string, dueAt: string): ReactNode {
  */
 function RequestDeadline({ sop, content, showQueue = false, inactive = false, request }: ReviewerDeadlineProps & { request: InternalReviewerAssignment }) {
   const text = internalReviewEn.panel
-  const round = sop.internalReviewRounds?.find((item) => item.assignments.includes(request))
-  const active = !inactive && sop.status === 'in-review' && !!round && round === sop.internalReviewRounds?.at(-1) && round.status === 'open' &&
-    round.version === sop.version && latestAssignmentOf(round, request.userId) === request && isOpenDecision(request.decision)
-  const reviewDueAt = request.reviewDueDate ? endOfLocalDay(request.reviewDueDate) : undefined
-  const now = useDeadlineClock(request.acceptedAt ? reviewDueAt : undefined, active && !!request.acceptedAt)
-  const remaining = reviewDueAt ? new Date(reviewDueAt).getTime() - now : undefined
+  const active = !inactive && isActiveRequest(sop, request)
+  const deadline = requestDeadline(request)
+  const now = useDeadlineClock(deadline?.dueAt, active && !!deadline)
+  const remaining = deadline ? new Date(deadline.dueAt).getTime() - now : undefined
   const overdue = active && remaining !== undefined && remaining <= 0
   const duration = request.reviewDurationDays
-  // A request that ended before acceptance (declined, withdrawn or removed) has no deadline left to show.
-  if (!active && !request.acceptedAt) return null
+  const workingDays = request.deadlinePolicy === WORKING_DAY_POLICY
+  const durationText = duration === undefined ? text.noReviewDeadline : workingDays
+    ? duration === 1 ? text.workingDurationOne : text.workingDurationDays.replace('{count}', String(duration))
+    : duration === 1 ? text.durationOne : text.durationDays.replace('{count}', String(duration))
   return (
     <span className="flex w-full flex-col gap-0.5 text-xs text-text-gray">
       {showQueue && active && <span className="font-semibold text-maroon">{content.active}</span>}
       {!request.acceptedAt ? <>
-        <span>{request.responseDueDate ? dated(text.responseDue, endOfLocalDay(request.responseDueDate)) : text.noResponseDeadline}</span>
-        <span>{duration === undefined ? text.noReviewDeadline : duration === 1 ? text.durationOne : text.durationDays.replace('{count}', String(duration))}</span>
+        <span>{deadline ? dated(text.responseDue, deadline.dueAt) : text.noResponseDeadline}</span>
+        <span>{durationText}</span>
+        {active && remaining !== undefined && <span>{overdue ? text.expiredResponse : text.responseRemaining.replace('{duration}', formatReviewDuration(remaining))}</span>}
       </> : <>
-        <span>{reviewDueAt ? dated(text.reviewDue, reviewDueAt) : text.noReviewDeadline}</span>
+        <span>{deadline ? dated(text.reviewDue, deadline.dueAt) : text.noReviewDeadline}</span>
         {active && remaining !== undefined && (
           <span className={overdue ? 'font-semibold text-status-rejected-fg' : ''}>
             {overdue ? text.reviewOverdue : text.remainingTime.replace('{duration}', formatReviewDuration(remaining))}
           </span>
         )}
       </>}
+      {!active && <span>{text.inactiveDeadline}</span>}
     </span>
   )
 }

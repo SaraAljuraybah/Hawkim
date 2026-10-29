@@ -1,6 +1,8 @@
 import { useCallback, useMemo, useRef, useState, type ReactNode } from 'react'
 import { validateWorkflowConfiguration } from '../lib/reviewFlow'
 import type { Department, DepartmentId } from '../data/mock/types'
+import { sampleDepartments } from '../data/mock/departments'
+import { FRONTEND_PROTOTYPE } from '../lib/frontendRuntime'
 import {
   departmentIdFor,
   normalizeDepartment,
@@ -8,9 +10,10 @@ import {
   validateDepartment,
   type DepartmentInput,
 } from '../lib/departmentAdmin'
-import { fetchDepartments } from '../services/people'
 import { DepartmentsContext, type DepartmentActor, type DepartmentsStore } from './departmentsContext'
 import { useLoadAfterSignIn } from './useLoadAfterSignIn'
+
+const loadDepartments = () => import('../services/people').then(({ fetchDepartments }) => fetchDepartments())
 
 /** Refuses anyone who isn't an active admin. */
 function assertAdmin({ actorId, users }: DepartmentActor) {
@@ -20,20 +23,20 @@ function assertAdmin({ actorId, users }: DepartmentActor) {
 
 /**
  * Departments store shared by the employee screens and the admin portal. The
- * departments are loaded from the database after sign-in. The admin actions only
- * change this tab's copy (lost on reload).
+ * prototype uses the existing sample departments. The experimental database loader
+ * is disabled. The admin actions change this tab's copy (lost on reload).
  * TODO: Save admin changes once those features are connected.
  * Must be inside <SessionProvider>.
  */
 export function DepartmentsProvider({ children }: { children: ReactNode }) {
-  const [departments, setDepartments] = useState<Department[]>([])
+  const [departments, setDepartments] = useState<Department[]>(FRONTEND_PROTOTYPE ? sampleDepartments : [])
   // The latest list (as in the other stores): actions check against it, not the last render.
-  const latestRef = useRef<Department[]>([])
+  const latestRef = useRef<Department[]>(departments)
   const commit = useCallback((next: Department[]) => {
     latestRef.current = next
     setDepartments(next)
   }, [])
-  const status = useLoadAfterSignIn(fetchDepartments, commit)
+  const status = useLoadAfterSignIn(loadDepartments, commit)
 
   const activeDepartments = useMemo(() => departments.filter((department) => !department.removedAt), [departments])
   const getDepartment = useCallback(

@@ -2,13 +2,21 @@ import type { Sop } from '../data/mock/types'
 import { projectReviewers } from './internalReviewStatus'
 import { isApprover, isReviewer } from './workflow'
 
+/**
+ * Frontend-only provenance, never a persisted model field. Enumerable symbols
+ * survive object spreads but are omitted from JSON/database payloads. A second
+ * projection must not make a historical version appear current again.
+ */
+const HISTORICAL_REVIEW_PROJECTION = Symbol('hawkim.historical-review-projection')
+type ReviewProjection = Sop & { [HISTORICAL_REVIEW_PROJECTION]?: true }
+
 /** A reviewer-facing view; historical membership never authorizes a newer file. */
 export function reviewSopForUser(sop: Sop, userId: string): { sop: Sop; historical: boolean } | undefined {
   const approvalHistory = sop.approvalSubmissions?.filter((submission) => submission.approverId === userId) ?? []
   if (!isReviewer(sop, userId) && !isApprover(sop, userId) && !approvalHistory.length) return undefined
   const rounds = sop.internalReviewRounds
   // Preserve existing legacy and assigned-approver access rules.
-  if (!sop.approvalSubmissions?.length && (!rounds?.length || isApprover(sop, userId))) return { sop, historical: false }
+  if (!sop.approvalSubmissions?.length && (!rounds?.length || isApprover(sop, userId))) return { sop, historical: !!(sop as ReviewProjection)[HISTORICAL_REVIEW_PROJECTION] }
 
   const allowed = new Set((rounds ?? []).filter((round) => round.assignments.some((person) => person.userId === userId)).map((round) => round.version))
   for (const submission of approvalHistory) allowed.add(submission.version)
@@ -19,13 +27,13 @@ export function reviewSopForUser(sop: Sop, userId: string): { sop: Sop; historic
   const versions = sop.versions.filter((version) => visible(version.version))
   const version = visible(sop.version) ? sop.version : versions.at(-1)?.version
   if (!version) return undefined
-  const historical = version !== sop.version
+  const historical = version !== sop.version || !!(sop as ReviewProjection)[HISTORICAL_REVIEW_PROJECTION]
   const file = versions.find((item) => item.version === version)
   if (historical && !file) return undefined
   const visibleRounds = (rounds ?? []).filter((round) => visible(round.version))
   const round = visibleRounds.filter((item) => item.version === version).at(-1)
   const approval = approvalHistory.filter((submission) => submission.version === version).at(-1)
-  return {
+  const result: { historical: boolean; sop: Sop } = {
     historical,
     sop: {
       ...sop,
@@ -52,4 +60,6 @@ export function reviewSopForUser(sop: Sop, userId: string): { sop: Sop; historic
       } : {}),
     },
   }
+  if (historical) Object.assign(result.sop, { [HISTORICAL_REVIEW_PROJECTION]: true })
+  return result
 }

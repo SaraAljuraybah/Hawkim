@@ -14,8 +14,11 @@ import {
 } from '../data/mock/types'
 import type { SopStatus } from '../types/status'
 import { hasCurrentCheck } from './compliance'
+import { fixedResponseDueDate } from './fixedResponseDeadline'
 import { todayIsoDate } from './format'
+import { FRONTEND_PROTOTYPE } from './frontendRuntime'
 import { isInactiveDecision, isOpenDecision, isUnsentVersion, latestAssignments, projectReviewers, requestDeadline, reviewAllowsNewVersion } from './internalReviewStatus'
+import { endOfRiyadhDay, responseWorkingCountsFrom, reviewWorkingDueDateFrom, riyadhDate, WORKING_DAY_POLICY } from './riyadhWorkingDays'
 
 /*
  * SOP workflow rules (Sprint 0, PBI 2 / 3 / 6 / 8 / 12 / 22 / 24) as pure functions.
@@ -71,7 +74,7 @@ function localDatePlus(now: Date, days: number): string {
 
 /** Review dates are optional, today or later, without an upper limit. */
 export function dueDateRange(now = new Date()): { min: string; max?: string } {
-  return { min: todayIsoDate(now) }
+  return { min: FRONTEND_PROTOTYPE ? riyadhDate(now) : todayIsoDate(now) }
 }
 
 /** Approval-stage restrictions are independent of the review date picker. */
@@ -84,6 +87,10 @@ export function approvalDueDateRange(now = new Date()): { min: string; max: stri
  * real date. Counted by date, not by hours, so a daylight-saving change doesn't matter.
  */
 export function daysFromToday(isoDate: string, now = new Date()): number | undefined {
+  return daysFromCalendarDate(isoDate, todayIsoDate(now))
+}
+
+function daysFromCalendarDate(isoDate: string, fromDate: string): number | undefined {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(isoDate)
   if (!match) return undefined
   const [year, month, day] = match.slice(1).map(Number)
@@ -91,16 +98,16 @@ export function daysFromToday(isoDate: string, now = new Date()): number | undef
   date.setUTCFullYear(year, month - 1, day)
   date.setUTCHours(0, 0, 0, 0)
   if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) return undefined // e.g. Feb 30
-  return Math.round((date.getTime() - Date.UTC(now.getFullYear(), now.getMonth(), now.getDate())) / DAY_MS)
+  return Math.round((date.getTime() - new Date(`${fromDate}T00:00:00.000Z`).getTime()) / DAY_MS)
 }
 
 /**
  * An optional review deadline as calendar days from submission. The deadline ends at
- * 23:59:59.999 on the selected local date. Empty is valid; past/invalid dates are not.
+ * 23:59:59.999 in Riyadh for the frontend prototype. Empty is valid; past/invalid dates are not.
  */
 export function parseDueDate(isoDate: string, now = new Date()): { valid: boolean; days?: number } {
   if (!isoDate.trim()) return { valid: true }
-  const days = daysFromToday(isoDate.trim(), now)
+  const days = daysFromCalendarDate(isoDate.trim(), FRONTEND_PROTOTYPE ? riyadhDate(now) : todayIsoDate(now))
   return days !== undefined && days >= 0 ? { valid: true, days } : { valid: false }
 }
 
@@ -198,7 +205,7 @@ export function pendingPeople(
 
 /** A legacy reviewer assignment or an internal review request: what its deadline depends on. */
 export type DeadlineHolder = Pick<ReviewerAssignment, 'userId' | 'dueDate' | 'assignedDueDays'> & { assignedAt?: string } &
-  Partial<Pick<InternalReviewerAssignment, 'id' | 'acceptedAt' | 'responseDueDate' | 'reviewDueDate'>>
+  Partial<Pick<InternalReviewerAssignment, 'id' | 'acceptedAt' | 'responseDueDate' | 'reviewDueDate' | 'responseDueAt' | 'reviewDueAt' | 'responseCountsFromAt' | 'reviewDurationDays' | 'deadlinePolicy'>>
 
 /** Original allocation, with compatibility for date-only and shared-deadline records. */
 export function reviewerAssignedDays(sop: Sop, reviewer: DeadlineHolder): number | undefined {
@@ -216,6 +223,11 @@ export function dueAtOfDate(isoDate: string): string {
   return new Date(`${isoDate}T23:59:59.999`).toISOString()
 }
 
+/** New review date allocations use Riyadh; saved date-only legacy deadlines retain dueAtOfDate. */
+export function reviewDateDueAt(isoDate: string): string {
+  return FRONTEND_PROTOTYPE ? endOfRiyadhDay(isoDate) : dueAtOfDate(isoDate)
+}
+
 /**
  * This person's deadline, including legacy shared deadlines. An explicit blank never inherits one.
  * An internal review request has its own: the response due date until accepted, then the review due date.
@@ -223,13 +235,23 @@ export function dueAtOfDate(isoDate: string): string {
 export function reviewerDueAt(sop: Sop, reviewer: DeadlineHolder): string | undefined {
   if (sop.internalReviewRounds?.length && reviewer.id) return requestDeadline(reviewer)?.dueAt
   if (reviewer.assignedDueDays === null) return undefined
-  return reviewer.dueDate ? dueAtOfDate(reviewer.dueDate) : sop.reviewDueAt
+  return reviewer.reviewDueAt ?? (reviewer.dueDate ? dueAtOfDate(reviewer.dueDate) : sop.reviewDueAt)
 }
 
 /** Whether this task date has passed; callers also check that the assignment is active. */
 export function reviewerDeadlinePassed(sop: Sop, reviewer: DeadlineHolder, now = Date.now()): boolean {
+  if (!hasActiveRequestDeadline(sop, reviewer)) return false
   const dueAt = reviewerDueAt(sop, reviewer)
   return !!dueAt && new Date(dueAt).getTime() <= now
+}
+
+/** Historical, closed and superseded internal requests keep their dates without active clocks. */
+function hasActiveRequestDeadline(sop: Sop, reviewer: DeadlineHolder): boolean {
+  if (!sop.internalReviewRounds?.length || !reviewer.id) return true
+  const round = sop.internalReviewRounds.at(-1)!
+  const assignment = round.assignments.find((person) => person.id === reviewer.id)
+  return sop.status === 'in-review' && round.version === sop.version && round.status === 'open' && !!assignment &&
+    latestAssignments(round).some((person) => person.id === assignment.id) && isOpenDecision(assignment.decision)
 }
 
 /** The nearest open internal request deadline, active legacy reviewer deadline, or approval deadline. */
@@ -250,6 +272,7 @@ export function currentDueAt(sop: Sop): string | undefined {
 
 /** Real elapsed time remaining, separate from the original calendar allocation. */
 export function reviewerRemainingMilliseconds(sop: Sop, reviewer: DeadlineHolder, now = Date.now()): number | undefined {
+  if (!hasActiveRequestDeadline(sop, reviewer)) return undefined
   const dueAt = reviewerDueAt(sop, reviewer)
   return dueAt ? new Date(dueAt).getTime() - now : undefined
 }
@@ -267,9 +290,18 @@ function allocationMilliseconds(assignedAt: string, days: number): number {
 
 /** Original real time given; simulating an overdue date does not rewrite this allocation. */
 export function reviewerAssignedMilliseconds(sop: Sop, reviewer: DeadlineHolder): number | undefined {
+  if (sop.internalReviewRounds?.length && reviewer.id && reviewer.deadlinePolicy === WORKING_DAY_POLICY && reviewer.assignedAt) {
+    if (reviewer.acceptedAt) return reviewer.reviewDurationDays === undefined ? undefined
+      : new Date(endOfRiyadhDay(reviewWorkingDueDateFrom(reviewer.acceptedAt, reviewer.reviewDurationDays))).getTime() - new Date(reviewer.acceptedAt).getTime()
+    const starts = reviewer.responseCountsFromAt ?? responseWorkingCountsFrom(new Date(reviewer.assignedAt)).toISOString()
+    return new Date(endOfRiyadhDay(fixedResponseDueDate(new Date(reviewer.assignedAt)))).getTime() - new Date(starts).getTime()
+  }
   const days = reviewerAssignedDays(sop, reviewer)
   if (days === undefined) return undefined
-  if ('assignedAt' in reviewer && typeof reviewer.assignedAt === 'string') return allocationMilliseconds(reviewer.assignedAt, days)
+  if (typeof reviewer.assignedAt === 'string') {
+    if (FRONTEND_PROTOTYPE && reviewer.reviewDueAt) return new Date(addDays(endOfRiyadhDay(riyadhDate(new Date(reviewer.assignedAt))), days)).getTime() - new Date(reviewer.assignedAt).getTime()
+    return allocationMilliseconds(reviewer.assignedAt, days)
+  }
   // Older records only kept a calendar-day allocation, so retain that original meaning.
   return days * DAY_MS
 }
@@ -517,7 +549,7 @@ export function submitForReview(
     reviewers: reviewerIds.map((userId): ReviewerAssignment => ({
       userId,
       decision: 'pending',
-      ...(dates[userId] ? { dueDate: dates[userId].trim() } : {}),
+      ...(dates[userId] ? { dueDate: dates[userId].trim(), reviewDueAt: reviewDateDueAt(dates[userId].trim()), assignedAt: createdAt } : {}),
       assignedDueDays: reviewerDueDates !== undefined
         ? (dates[userId] ? parseDueDate(dates[userId], submittedAt).days! : null)
         : reviewDueDays ?? null,
@@ -555,9 +587,10 @@ export function resubmit(sop: Sop, actorId: string, guidelineVersion: string, no
   const trimmed = note?.trim()
   assert(!trimmed || trimmed.length <= SUBMIT_COMMENT_MAX, 'Submission comments must be at most 1000 characters')
   const date = dueDate?.trim()
-  const parsed = parseDueDate(date ?? '')
+  const submittedAt = new Date()
+  const parsed = parseDueDate(date ?? '', submittedAt)
   assert(parsed.valid, 'Choose an optional review deadline today or later')
-  const createdAt = new Date().toISOString()
+  const createdAt = submittedAt.toISOString()
 
   const reviewerIds = sop.reviewers.map((p) => p.userId)
   // Reviewer 1: the saved one in the review flow, or the first reviewer on older SOPs.
@@ -567,7 +600,7 @@ export function resubmit(sop: Sop, actorId: string, guidelineVersion: string, no
     userId: person.userId,
     decision: 'pending',
     ...(person.userId === firstReviewerId && date
-      ? { dueDate: date, assignedDueDays: parsed.days }
+      ? { dueDate: date, reviewDueAt: reviewDateDueAt(date), assignedAt: createdAt, assignedDueDays: parsed.days }
       : { assignedDueDays: null }),
   }))
 
@@ -1008,7 +1041,8 @@ export function shiftDueDates(sop: Sop, days: number): Sop {
     const shifted = {
       ...round,
       assignments: round.assignments.map((person) => isOpenDecision(person.decision)
-        ? { ...person, ...(person.responseDueDate ? { responseDueDate: earlier(person.responseDueDate) } : {}), ...(person.reviewDueDate ? { reviewDueDate: earlier(person.reviewDueDate) } : {}) }
+        ? { ...person, ...(person.responseDueDate ? { responseDueDate: earlier(person.responseDueDate) } : {}), ...(person.reviewDueDate ? { reviewDueDate: earlier(person.reviewDueDate) } : {}),
+          ...(person.responseDueAt ? { responseDueAt: addDays(person.responseDueAt, -days) } : {}), ...(person.reviewDueAt ? { reviewDueAt: addDays(person.reviewDueAt, -days) } : {}) }
         : person),
     }
     return { ...sop, internalReviewRounds: [...sop.internalReviewRounds!.slice(0, -1), shifted], reviewers: projectReviewers(shifted) }
@@ -1019,6 +1053,7 @@ export function shiftDueDates(sop: Sop, days: number): Sop {
       ...reviewer,
       assignedDueDays: reviewerAssignedDays(sop, reviewer) ?? null,
       ...(reviewer.dueDate ? { dueDate: localDatePlus(new Date(`${reviewer.dueDate}T12:00:00`), -days) } : {}),
+      ...(reviewer.reviewDueAt ? { reviewDueAt: addDays(reviewer.reviewDueAt, -days) } : {}),
     })),
     reviewDueAt: sop.reviewDueAt ? addDays(sop.reviewDueAt, -days) : undefined,
     approvalDueAt: sop.approvalDueAt ? addDays(sop.approvalDueAt, -days) : undefined,

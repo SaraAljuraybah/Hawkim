@@ -39,14 +39,15 @@ describe('review plan interface', () => {
     expect(html).toContain('Request response deadline')
     expect(html.match(/type="date"/g)).toHaveLength(1)
     expect(html.match(/<input[^>]*name="reviewRequestDueDate"[^>]*>/)?.[0]).toContain('readOnly=""')
-    expect(html).toContain('Review duration in calendar days (optional)')
+    expect(html).toContain('Review duration in working days (optional)')
     expect(html).not.toContain('Individual Reviewer Task Due Date')
   })
   it('shows a clear blocked Quality state when no controller is configured', () => {
     const sop: Sop = { ...draft(), status: 'in-review', reviewers: [{ userId: 'r1', decision: 'completed' }, { userId: 'r2', decision: 'completed' }], reviewFlow: { stage: 'quality-routing', activeReviewerId: 'r2', reviewer1Id: 'r1', reviewer2Id: 'r2', sameDivision: 'skipped', crossDivision: 'skipped', departments: [] } }
     const html = renderToStaticMarkup(<ReviewFlowActions sop={sop} onComplete={() => {}} />)
     expect(html).toContain(reviewFlowEn.qualityMissing)
-    expect(html).toContain('disabled=""')
+    expect(html).toContain(reviewFlowEn.authorRoutingPending)
+    expect(html).not.toContain('>' + reviewFlowEn.routeQuality + '</button>')
     expect(html).not.toContain('Take this task')
   })
   it('displays required department assignments and their completion state', () => {

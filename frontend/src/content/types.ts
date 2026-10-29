@@ -155,6 +155,7 @@ export interface SignInContent {
     logoAlt: string
   }
   title: string
+  prototypeNotice: string
   email: { label: string; placeholder: string }
   password: { label: string; placeholder: string; showLabel: string; hideLabel: string }
   forgotPassword: LinkContent
@@ -166,6 +167,9 @@ export interface SignInContent {
   }
   /** Messages for the result returned by the auth service. */
   results: {
+    invalidCredentials: string
+    tooManyAttempts: string
+    failed: string
     notConnected: string
     /** The account was deleted by an admin. */
     noAccess: string
@@ -178,6 +182,20 @@ export interface SignInContent {
     privacy: LinkContent
     suffix: string
   }
+}
+
+export interface ForgotPasswordContent {
+  pageTitle: string
+  logoAlt: string
+  title: string
+  text: string
+  backLink: LinkContent
+}
+
+export interface SystemContent {
+  logoAlt: string
+  notConfigured: { pageTitle: string; title: string; missing: string; urlFormat: string; secretKey: string }
+  loadFailed: { pageTitle: string; title: string; text: string; retry: string }
 }
 
 /* ---------- Not Found page ---------- */
@@ -297,6 +315,7 @@ export interface SopsContent {
 }
 
 export interface SopDetailContent {
+  fileFailed: string
   /** `{title}` is replaced, e.g. "Data Integrity | Hawkim". */
   pageTitle: string
   back: LinkContent
@@ -492,9 +511,10 @@ export interface UploadSopContent {
   /** `{department}` is replaced with the active department's name. */
   subtitle: string
   fields: {
-    title: { label: string; placeholder: string; hint: string }
+    title: { label: string; placeholder: string; hint: string; counter: string }
     department: { label: string }
     file: {
+      requiredTag: string
       label: string
       hint: string
       dropPrompt: string
@@ -505,7 +525,7 @@ export interface UploadSopContent {
     }
     description: { label: string; placeholder: string; /** `{count}` and `{max}` are replaced. */ counter: string }
   }
-  errors: { titleRequired: string; titleTooLong: string; fileRequired: string }
+  errors: { titleRequired: string; titleTooLong: string; fileRequired: string; saveFailed: string }
   cancel: LinkContent
   submit: { label: string; loadingLabel: string }
 }
@@ -676,6 +696,7 @@ export interface SopWorkflowContent {
   }
   dialogs: {
     cancel: string
+    uploadFailed: string
     fileField: SopFileFieldContent
     fileRequired: string
     submit: {
@@ -699,6 +720,7 @@ export interface SopWorkflowContent {
     /** `{version}` is replaced; `currentNote` (deleting the current version) also has `{previous}`. */
     deleteVersion: { title: string; description: string; currentNote: string; keep: string; confirm: string }
     addCoAuthors: {
+      failed: string
       title: string
       description: string
       /** The search field's name, for screen readers only. */
@@ -709,7 +731,7 @@ export interface SopWorkflowContent {
     /** `{name}` is replaced in the description. */
     removeCoAuthor: { title: string; description: string; keep: string; confirm: string }
     /** `{names}` (the recipients) is replaced in the description; `{count}` and `{max}` in the counter. */
-    response: { title: string; description: string; label: string; required: string; counter: string; confirm: string }
+    response: { title: string; description: string; label: string; required: string; counter: string; confirm: string; failed: string }
     /**
      * Resubmit for review. Its date and comments fields use the `submit` texts.
      * `failed`: the store refused the resubmission.
@@ -723,6 +745,10 @@ export interface SopWorkflowContent {
   /** Announced after each action. */
   messages: {
     submitted: string
+    fileFailed: string
+    deleteFailed: string
+    coAuthorRemoveFailed: string
+    checkStartFailed: string
     newVersion: string
     /** `{version}` is replaced. */
     versionDeleted: string
@@ -1028,6 +1054,7 @@ export interface ReviewCommentDialog {
 }
 
 export interface ReviewPageContent {
+  fileFailed: string
   /** `{title}` is replaced. */
   pageTitle: string
   back: LinkContent
@@ -1063,6 +1090,7 @@ export interface ReviewPageContent {
   /** When there's nothing for the user to do now. `{date}`, `{names}` are replaced. */
   status: {
     reviewCompleted: string
+    historical: string
     approved: string
     waitingFor: string
     waitingForReviews: string

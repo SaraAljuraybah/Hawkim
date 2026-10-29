@@ -44,6 +44,14 @@ export function formatDateTime(isoDateTime: string, locale = 'en-US'): string {
   }).format(new Date(isoDateTime))
 }
 
+/** Review timestamps always use the prototype's Riyadh time zone, including saved older deadlines. */
+export function formatReviewDateTime(isoDateTime: string, locale = 'en-US'): string {
+  return new Intl.DateTimeFormat(locale, {
+    month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit',
+    timeZone: 'Asia/Riyadh', timeZoneName: 'short',
+  }).format(new Date(isoDateTime))
+}
+
 const RELATIVE_UNITS: [Intl.RelativeTimeFormatUnit, number][] = [
   ['year', 365 * 24 * 60 * 60],
   ['month', 30 * 24 * 60 * 60],

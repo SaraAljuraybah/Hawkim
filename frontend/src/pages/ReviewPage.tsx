@@ -8,7 +8,7 @@ import { InternalReviewPanel } from '../components/workflow/InternalReviewPanel'
 import { internalReviewEn } from '../content/internalReview.en'
 import { currentInternalRound, isInternalReviewPending } from '../lib/internalReview'
 import { ReviewFlowActions } from '../components/reviews/ReviewFlowActions'
-import { CommentDialog, RouteDialog } from '../components/reviews/ReviewDialogs'
+import { CommentDialog } from '../components/reviews/ReviewDialogs'
 import { PdfViewer } from '../components/sops/PdfViewer'
 import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
@@ -27,10 +27,10 @@ import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { currentVersionOf, useFileUrl } from '../hooks/useFileUrl'
 import { checkRequired, complianceScore, currentCheck, verdictOf } from '../lib/compliance'
 import { sopDownloadName, sopFileLabel } from '../lib/sopPresentation'
-import { formatDateTime } from '../lib/format'
+import { formatReviewDateTime as formatDateTime } from '../lib/format'
 import { reviewCompliancePath } from '../lib/routes'
 import { reviewSopForUser } from '../lib/reviewAccess'
-import { fileUrlOf } from '../services/files'
+import { fileUrlOf } from '../lib/prototypeFiles'
 import { activeApprovalSubmission, currentDueAt, currentReviewer, isOverdue, latestReturn, pendingPeople } from '../lib/workflow'
 import { useDepartments } from '../state/departmentsContext'
 import { useCurrentUser } from '../state/sessionContext'
@@ -38,7 +38,7 @@ import { useSops } from '../state/sopsContext'
 import { useUsers } from '../state/usersContext'
 import { NotFoundPage } from './NotFoundPage'
 
-type DialogName = 'complete' | 'returnReviewer' | 'route' | 'approve' | 'returnApprover' | 'publish'
+type DialogName = 'complete' | 'returnReviewer' | 'approve' | 'returnApprover' | 'publish'
 
 /** A title-based download name; the stored SOP identifier and uploaded file stay intact. */
 function downloadName(sop: Sop) {
@@ -82,7 +82,7 @@ function Review({ sop, historical }: { sop: Sop; historical: boolean }) {
   const workflow = sopWorkflowEn
   const store = useSops()
   const user = useCurrentUser()
-  const { nameOf, getUser } = useUsers()
+  const { nameOf } = useUsers()
   const { nameOf: departmentName, departments } = useDepartments()
 
   const [dialog, setDialog] = useState<DialogName | null>(null)
@@ -103,11 +103,9 @@ function Review({ sop, historical }: { sop: Sop; historical: boolean }) {
   const canReview = !historical && (internalRound ? isInternalReviewPending(sop, user.id) : sop.status === 'in-review' && currentReviewer(sop)?.userId === user.id)
   const canApprove = !historical && approvalPhase && approvalPermission && sop.status === 'in-approval' && approver?.decision === 'pending'
   const canPublish = !historical && approvalPhase && approvalPermission && sop.status === 'approved' && !!approver
-  // Only the current reviewer can complete, return or append a reviewer to the queue.
-  const canRoute = !internalRound && canReview
 
   const dueAt = currentDueAt(sop)
-  const overdue = !!dueAt && isOverdue(sop, sop.status === 'in-approval' ? 'approval' : 'review')
+  const overdue = !historical && !!dueAt && isOverdue(sop, sop.status === 'in-approval' ? 'approval' : 'review')
   const coAuthors = sop.coAuthorIds.map((coAuthorId) => nameOf(coAuthorId)).join(', ')
   const check = currentCheck(sop)
 
@@ -151,6 +149,7 @@ function Review({ sop, historical }: { sop: Sop; historical: boolean }) {
   /** What the user sees when there's nothing for them to do now. */
   function statusLines(): string[] {
     const date = (iso?: string) => (iso ? formatDateTime(iso) : '')
+    if (historical) return [text.status.historical.replace('{version}', sop.version)]
     if (sop.status === 'published') {
       const published = [...sop.timeline].reverse().find((event) => event.type === 'published')
       return [text.status.published.replace('{date}', date(published?.createdAt))]
@@ -224,7 +223,7 @@ function Review({ sop, historical }: { sop: Sop; historical: boolean }) {
 
       {sop.status === 'in-review' && (reviewer ?? currentReviewer(sop)) && (
         <div className="mt-3">
-          <ReviewerDeadline sop={sop} reviewer={(reviewer ?? currentReviewer(sop))!} content={workflow.reviewerDeadline} showQueue />
+          <ReviewerDeadline sop={sop} reviewer={(reviewer ?? currentReviewer(sop))!} content={workflow.reviewerDeadline} showQueue inactive={historical} />
         </div>
       )}
 
@@ -255,7 +254,7 @@ function Review({ sop, historical }: { sop: Sop; historical: boolean }) {
             ))}
           </ul>
         )}
-        {!(internalRound && canReview) && (decisionNeeded || canRoute) && !(sop.reviewFlow && canReview) && (
+        {!(internalRound && canReview) && decisionNeeded && !(sop.reviewFlow && canReview) && (
           <div className={`flex flex-col gap-3 sm:flex-row sm:flex-wrap ${decisionNeeded ? '' : 'mt-4'}`}>
             {canReview && !sop.reviewFlow && (
               <>
@@ -264,11 +263,6 @@ function Review({ sop, historical }: { sop: Sop; historical: boolean }) {
                   {text.actions.returnToAuthor}
                 </Button>
               </>
-            )}
-            {canRoute && !sop.reviewFlow && (
-              <Button variant="secondary" className="sm:self-start" onClick={(event) => open('route', event.currentTarget)}>
-                {text.actions.route}
-              </Button>
             )}
             {canApprove && (
               <>
@@ -284,10 +278,10 @@ function Review({ sop, historical }: { sop: Sop; historical: boolean }) {
       </Section>
 
       <Section id="tracker-title" title={workflow.tracker.label} className="mt-6">
-        <StatusTracker sop={sop} content={workflow.tracker} />
+        <StatusTracker sop={sop} content={workflow.tracker} inactive={historical} stepsOnly={historical} />
       </Section>
 
-      {internalRound && <InternalReviewPanel sop={sop} canRemove={false} />}
+      {internalRound && <InternalReviewPanel sop={sop} canRemove={false} inactive={historical} />}
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
         <Section id="people-title" title={workflow.people.title}>
@@ -351,8 +345,7 @@ function Review({ sop, historical }: { sop: Sop; historical: boolean }) {
             </div>
           </div>
           {fileUrl && (
-            <Button href={stored ? undefined : fileUrl} download={stored ? undefined : downloadName(sop)}
-              onClick={stored ? download : undefined} disabled={downloading} size="sm" variant="secondary" className="self-start sm:self-auto">
+            <Button {...(stored ? { onClick: download, disabled: downloading } : { href: fileUrl, download: downloadName(sop) })} size="sm" variant="secondary" className="self-start sm:self-auto">
               <Download aria-hidden="true" className="size-4" strokeWidth={2} />
               {text.file.download}
             </Button>
@@ -394,19 +387,6 @@ function Review({ sop, historical }: { sop: Sop; historical: boolean }) {
           required
           onClose={close}
           onConfirm={(comment) => act(() => store.returnAsReviewer(sop.id, user.id, comment), text.messages.returned)}
-        />
-      )}
-      {dialog === 'route' && (
-        <RouteDialog
-          sop={sop}
-          dialogs={text.dialogs}
-          onClose={close}
-          onConfirm={(reviewerId, note) =>
-            act(
-              () => store.routeToReviewer(sop.id, user.id, reviewerId, note),
-              text.messages.routed.replace('{name}', nameOf(reviewerId)).replace('{department}', departmentName(getUser(reviewerId)?.departmentId)),
-            )
-          }
         />
       )}
       {dialog === 'approve' && (

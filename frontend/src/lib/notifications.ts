@@ -1,6 +1,7 @@
 import type { Sop, TimelineEvent, UserRequest } from '../data/mock/types'
 import { isOpenDecision, latestAssignmentOf, latestAssignments, requestDeadline } from './internalReviewStatus'
 import { mySopPath, reviewPath } from './routes'
+import { reviewSopForUser } from './reviewAccess'
 import { activeApprovalSubmission, currentDueAt, currentReviewer, isAuthorOrCoAuthor, reviewerDueAt } from './workflow'
 
 /*
@@ -230,6 +231,9 @@ export function deriveNotifications(
       const notification = fromEvent(sop, event, userId)
       if (notification) notifications.push(notification)
     }
+    // A version-scoped frontend projection may look open at its historical
+    // version. Keep its audit notifications, but never restart active reminders.
+    if (reviewSopForUser(sop, userId)?.historical) continue
     const due = dueNotification(sop, userId, now)
     if (due) notifications.push(due)
     notifications.push(...authorOverdue(sop, userId, now))

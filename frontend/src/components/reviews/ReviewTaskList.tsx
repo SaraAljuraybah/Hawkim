@@ -7,7 +7,7 @@ import { RequestStatusBadge, ReviewRequestDetails } from '../workflow/ReviewRequ
 import { reviewsEn } from '../../content/reviews.en'
 import { sopWorkflowEn } from '../../content/workflow.en'
 import { useDeadlineClock } from '../../hooks/useDeadlineClock'
-import { formatDate, formatDateTime } from '../../lib/format'
+import { formatDate, formatReviewDateTime as formatDateTime } from '../../lib/format'
 import { isInternalReviewTask, type ReviewTask } from '../../lib/reviews'
 import { reviewPath } from '../../lib/routes'
 import { useDepartments } from '../../state/departmentsContext'

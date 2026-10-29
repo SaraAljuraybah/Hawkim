@@ -1,10 +1,11 @@
 import { useId, useRef, type KeyboardEvent, type Ref } from 'react'
 import { useDeadlineClock } from '../../hooks/useDeadlineClock'
 import type { SopWorkflowContent } from '../../content/types'
-import { formatDateTime } from '../../lib/format'
+import { formatDateTime, formatReviewDateTime } from '../../lib/format'
+import { endOfRiyadhDay } from '../../lib/riyadhWorkingDays'
 import { formatReviewDuration } from '../../lib/reviewDuration'
 import { parseResponseDueDate, responseDueDateRange, responseTimeMilliseconds } from '../../lib/responseTime'
-import { approvalDueDateRange, dueAtOfDate, dueDateRange, parseApprovalDueDate, parseDueDate } from '../../lib/workflow'
+import { approvalDueDateRange, dueAtOfDate, dueDateRange, parseApprovalDueDate, parseDueDate, reviewDateDueAt } from '../../lib/workflow'
 import { AlertPopup } from '../ui/AlertPopup'
 import { TextField } from '../ui/TextField'
 
@@ -29,7 +30,7 @@ interface ReviewDueDateFieldProps {
 }
 
 /**
- * Optional deadline with an accessible allocation and local end-of-day preview.
+ * Optional deadline with an accessible allocation and a Riyadh review end-of-day preview.
  * Review accepts today and future dates; approval retains its existing range.
  */
 export function ReviewDueDateField({ name, value, onChange, text, error, disabled, stage = 'review', closeLabel = '', onDismissError, ref }: ReviewDueDateFieldProps) {
@@ -47,10 +48,10 @@ export function ReviewDueDateField({ name, value, onChange, text, error, disable
           ? days === 1 ? text.oneDay : text.days.replace('{count}', String(days))
           : text.duration.replace('{duration}', formatReviewDuration(stage === 'response'
             ? responseTimeMilliseconds(value, now)
-            : new Date(dueAtOfDate(value)).getTime() - now.getTime()))
+            : new Date(reviewDateDueAt(value)).getTime() - now.getTime()))
         ).replace(
           '{date}',
-          formatDateTime(dueAtOfDate(value)),
+          stage === 'response' ? formatReviewDateTime(endOfRiyadhDay(value)) : stage === 'review' ? formatReviewDateTime(reviewDateDueAt(value)) : formatDateTime(dueAtOfDate(value)),
         )
   // The response due date's error is shown in a pop-up instead of under the field.
   const popup = stage === 'response' && !!error

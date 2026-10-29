@@ -1,7 +1,7 @@
 import type { Department, DepartmentReview, DepartmentWorkflowConfiguration, ReviewFlow, ReviewScope, Sop, TimelineEvent, User } from '../data/mock/types'
 import { hasCurrentCheck } from './compliance'
 import { todayIsoDate } from './format'
-import { currentReviewer, isApprover, isAuthor, isAuthorOrCoAuthor, parseDueDate, requiredReviewsComplete, returnAsReviewer, SUBMIT_COMMENT_MAX } from './workflow'
+import { currentReviewer, isApprover, isAuthor, isAuthorOrCoAuthor, parseDueDate, requiredReviewsComplete, returnAsReviewer, reviewDateDueAt, SUBMIT_COMMENT_MAX } from './workflow'
 
 export interface ReviewEnvironment { users: User[]; departments: Department[] }
 export type ReviewAction =
@@ -45,11 +45,13 @@ export function keepsRoundDeadline(sop: Sop, userId: string): boolean {
 function assign(sop: Sop, userId: string, dueDate?: string): Sop {
   const existing = sop.reviewers.find((p) => p.userId === userId)
   const date = dueDate?.trim()
-  const parsed = parseDueDate(date ?? '')
-  assert(!keepsRoundDeadline(sop, userId) || !date || date === existing?.dueDate, 'A reviewer keeps the deadline already set in this review round')
+  const keepsDeadline = keepsRoundDeadline(sop, userId)
+  const assignedAt = new Date()
+  const parsed = parseDueDate(keepsDeadline ? '' : date ?? '', assignedAt)
+  assert(!keepsDeadline || !date || date === existing?.dueDate, 'A reviewer keeps the deadline already set in this review round')
   assert(parsed.valid, 'Choose an optional review deadline of today or a future date')
   const assignment = { ...existing, userId, decision: 'pending' as const, decidedAt: undefined,
-    ...(date ? { dueDate: date, assignedDueDays: parsed.days } : existing ? {} : { assignedDueDays: null }) }
+    ...(date && !keepsDeadline ? { dueDate: date, reviewDueAt: reviewDateDueAt(date), assignedAt: assignedAt.toISOString(), assignedDueDays: parsed.days } : existing ? {} : { assignedDueDays: null }) }
   return { ...sop, reviewers: existing ? sop.reviewers.map((p) => p.userId === userId ? assignment : p) : [...sop.reviewers, assignment] }
 }
 function handoff(sop: Sop, flow: ReviewFlow, actorId: string, userId: string, departmentId?: string): Sop {

@@ -5,6 +5,8 @@ import { getDirectoryDepartments } from '../lib/departments'
 import { SopsProvider } from './SopsProvider'
 import { useSops, type NewDraft, type SopsStore } from './sopsContext'
 
+vi.mock('../lib/frontendRuntime', () => ({ FRONTEND_PROTOTYPE: false }))
+
 const fixture = vi.hoisted(() => ({ userId: 'visitor', users: [] as User[], departments: [] as Department[], sops: [] as Sop[] }))
 vi.mock('../data/mock/sops', () => ({ sops: fixture.sops }))
 vi.mock('./sessionContext', () => ({ useSession: () => ({ user: fixture.users.find((user) => user.id === fixture.userId) ?? null }) }))
