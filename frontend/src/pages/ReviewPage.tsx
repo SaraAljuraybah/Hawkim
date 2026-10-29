@@ -289,6 +289,7 @@ function Review({ sop, historical }: { sop: Sop; historical: boolean }) {
             sop={sop}
             content={workflow.people}
             userId={user.id}
+            inactive={historical}
             canManageCoAuthors={false}
             onAddCoAuthor={() => {}}
             onRemoveCoAuthor={() => {}}

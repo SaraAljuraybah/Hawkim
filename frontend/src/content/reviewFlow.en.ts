@@ -39,7 +39,7 @@ export const reviewFlowEn = {
   scopeDecision: '{scope}: {decision}',
   updated: 'Review workflow updated.', cancel: 'Cancel', confirm: 'Confirm',
   plan: 'Department review plan', pending: 'Pending', completed: 'Completed',
-  initialPending: 'Reviewer 2 will be selected by Reviewer 1.',
+  initialPending: 'The main Author controls the next reviewer assignment. New assignments are pending in this legacy view.',
   scopePending: 'The active reviewer must decide whether department reviews are required.',
   workflowConfig: {
     title: 'Review workflow configuration', open: 'Configure review workflow',

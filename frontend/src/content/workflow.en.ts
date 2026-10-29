@@ -202,7 +202,7 @@ export const sopWorkflowEn: SopWorkflowContent = {
       title: 'Submit for review',
       reviewDate: {
         label: 'Review due date (optional)',
-        help: 'Choose today or any future date. The review is due at the end of that day. Leave blank for no deadline.',
+        help: 'Choose today or any future date in Riyadh. The review is due at the end of that day in Asia/Riyadh. Leave blank for no deadline.',
         oneDay: 'Time given: 1 day · Due {date}',
         days: 'Time given: {count} days · Due {date}',
         duration: 'Time given: {duration} · Due {date}',

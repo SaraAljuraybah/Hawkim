@@ -65,7 +65,8 @@ describe('selected initial reviewers', () => {
   })
   it('assigns only the selected first reviewer, optional deadline and comments; no approvers', () => {
     const sop = start()
-    expect(sop.reviewers).toEqual([{ userId: 'r1', decision: 'pending', decidedAt: undefined, dueDate: '2026-10-20', assignedDueDays: 2 }])
+    expect(sop.reviewers).toEqual([{ userId: 'r1', decision: 'pending', decidedAt: undefined, dueDate: '2026-10-20',
+      assignedAt: new Date().toISOString(), reviewDueAt: '2026-10-20T20:59:59.999Z', assignedDueDays: 2 }])
     expect(sop.approvers).toEqual([])
     expect(sop.timeline.at(-1)).toMatchObject({ type: 'submitted', recipientIds: ['r1'], note: 'Submission note' })
     expect(deriveNotifications('r2', { sops: [sop], requests: [], now: Date.now() })).toEqual([])

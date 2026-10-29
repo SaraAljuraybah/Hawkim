@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { Sop, User } from '../data/mock/types'
+import type { Department, Sop, User } from '../data/mock/types'
 import { currentInternalRound } from '../lib/internalReview'
 import { SopsProvider } from './SopsProvider'
 import type { SopsStore } from './sopsContext'
@@ -9,6 +9,7 @@ const fixture = vi.hoisted(() => ({
   prototype: true,
   user: null as User | null,
   people: [] as User[],
+  departments: [] as Department[],
   sops: [] as Sop[],
   slots: [] as Slot[],
   index: 0,
@@ -68,7 +69,7 @@ vi.mock('../lib/frontendRuntime', () => ({ get FRONTEND_PROTOTYPE() { return fix
 vi.mock('../data/mock/sops', () => ({ sops: fixture.sops }))
 vi.mock('./sessionContext', () => ({ useSession: () => ({ user: fixture.user }) }))
 vi.mock('./usersContext', () => ({ useUsers: () => ({ users: fixture.people, getUser: (id: string) => fixture.people.find((user) => user.id === id) }) }))
-vi.mock('./departmentsContext', () => ({ useDepartments: () => ({ departments: [{ id: 'home', name: 'Home', initials: 'HM', description: '', requiresComplianceCheck: true }] }) }))
+vi.mock('./departmentsContext', () => ({ useDepartments: () => ({ departments: fixture.departments }) }))
 vi.mock('./guidelinesContext', () => ({ useGuidelines: () => ({ currentGuideline: { name: 'GVP', version: '4.0' } }) }))
 vi.mock('../services/sops', () => { fixture.serviceLoaded(); return { fetchSops: fixture.fetchSops, fetchSop: fixture.fetchSop } })
 vi.mock('../services/review', () => { throw new Error('Prototype must not import experimental review services') })
@@ -102,6 +103,7 @@ beforeEach(() => {
   vi.stubGlobal('window', globalThis)
   fixture.prototype = true
   fixture.people.splice(0, fixture.people.length, person('author', ['author']), person('reviewer', ['reviewer']), person('other', ['author']))
+  fixture.departments.splice(0, fixture.departments.length, { id: 'home', name: 'Home', initials: 'HM', description: '', requiresComplianceCheck: true })
   fixture.user = fixture.people[0]
   fixture.sops.splice(0)
   fixture.slots = []
@@ -165,6 +167,139 @@ describe('local prototype identity isolation', () => {
     expect(result.timeline.map((event) => event.type)).toEqual(['submitted', 'review-accepted', 'review-completed', 'internal-review-completed'])
     expect(fixture.serviceLoaded).not.toHaveBeenCalled()
     expect(fixture.fetchSops).not.toHaveBeenCalled()
+  })
+
+  it('runs parallel review, the separate Author approval handoff, and Approver publication in one isolated local workspace', async () => {
+    const second = person('second', ['reviewer'])
+    const controller = person('controller', ['approver'])
+    fixture.people.push(second, controller)
+    fixture.departments[0].qualityControllerId = controller.id
+    fixture.sops.push(draft('shared', 'author'), draft('author-private', 'author'), draft('other-private', 'other'))
+    const author = render()
+    expect(author.sops.map((sop) => sop.id)).toEqual(['shared', 'author-private'])
+    await author.submitForReview('shared', { reviewerIds: ['reviewer', second.id], reviewDurationDays: 2 })
+    const requested = render().sops.find((sop) => sop.id === 'shared')!
+    const round = currentInternalRound(requested)!
+    expect(round.assignments.map((assignment) => ({ userId: assignment.userId, decision: assignment.decision }))).toEqual([
+      { userId: 'reviewer', decision: 'pending' }, { userId: second.id, decision: 'pending' },
+    ])
+    expect(requested.approvers).toEqual([])
+    const options = { version: requested.version, internalReviewRoundId: round.id, noExternalReviewsRequired: true, feedbackAddressed: true }
+    expect(() => render().submitForApproval('shared', options)).toThrow(/review/i)
+
+    // Department configuration alone gives the controller no access or ability to act.
+    fixture.user = controller
+    expect(render().sops).toEqual([])
+    expect(() => author.submitForApproval('shared', options)).toThrow(/user changed/)
+
+    // The second Reviewer can finish first: these are independent parallel requests.
+    fixture.user = second
+    let reviewer = render()
+    expect(reviewer.sops.map((sop) => sop.id)).toEqual(['shared'])
+    await expect(reviewer.acceptInternalReview('shared', round.id, round.assignments[0].id)).rejects.toThrow(/assigned internal Reviewer/)
+    await reviewer.acceptInternalReview('shared', round.id, round.assignments[1].id)
+    reviewer = render()
+    await reviewer.decideInternalReview('shared', round.id, round.assignments[1].id, 'completed', 'Second reviewer feedback')
+    expect(currentInternalRound(render().sops[0])!.status).toBe('open')
+
+    fixture.user = fixture.people[1]
+    reviewer = render()
+    expect(reviewer.sops.map((sop) => sop.id)).toEqual(['shared'])
+    await expect(reviewer.decideInternalReview('shared', round.id, round.assignments[0].id, 'completed')).rejects.toThrow(/Accept the review/)
+    await reviewer.acceptInternalReview('shared', round.id, round.assignments[0].id)
+    reviewer = render()
+    await reviewer.decideInternalReview('shared', round.id, round.assignments[0].id, 'completed', 'First reviewer feedback')
+    const completed = render().sops[0]
+    expect(completed.status).toBe('in-review')
+    expect(currentInternalRound(completed)!.status).toBe('completed')
+    expect(completed.approvers).toEqual([])
+    expect(completed.approvalSubmissions).toBeUndefined()
+    expect(() => render().submitForApproval('shared', options)).toThrow(/main Author/)
+
+    fixture.user = fixture.people[0]
+    let store = render()
+    const reviewed = store.sops.find((sop) => sop.id === 'shared')!
+    const history = { rounds: structuredClone(reviewed.internalReviewRounds), comments: structuredClone(reviewed.comments), timeline: structuredClone(reviewed.timeline), versions: structuredClone(reviewed.versions) }
+    expect(() => store.submitForApproval('shared', { ...options, feedbackAddressed: false })).toThrow(/feedback/)
+    store.submitForApproval('shared', options)
+    store = render()
+    const submitted = store.sops.find((sop) => sop.id === 'shared')!
+    const submission = submitted.approvalSubmissions!.at(-1)!
+    const snapshot = { version: submitted.version, approvalSubmissionId: submission.id }
+    expect(submitted.status).toBe('in-approval')
+    expect(submitted.approvers).toEqual([expect.objectContaining({ userId: controller.id, decision: 'pending' })])
+    expect(submission).toMatchObject({ submittedById: 'author', approverId: controller.id, internalReviewRoundId: round.id, status: 'pending' })
+    expect(() => store.approveAs('shared', controller.id, undefined, snapshot)).toThrow(/signed-in assigned approver/)
+
+    fixture.user = fixture.people[1]
+    store = render()
+    expect(() => store.approveAs('shared', controller.id, undefined, snapshot)).toThrow(/signed-in assigned approver/)
+    fixture.user = controller
+    store = render()
+    expect(store.sops.map((sop) => sop.id)).toEqual(['shared'])
+    expect(store.sops[0].internalReviewRounds).toEqual(history.rounds)
+    expect(() => store.approveAs('shared', controller.id, undefined, { ...snapshot, approvalSubmissionId: 'former-request' })).toThrow(/stale/)
+    store.approveAs('shared', controller.id, 'Ready to publish', snapshot)
+    store = render()
+    expect(store.sops[0].status).toBe('approved')
+    expect(store.sops[0].approvalSubmissions).toEqual([expect.objectContaining({ id: submission.id, status: 'approved' })])
+    store.publishAs('shared', controller.id, snapshot)
+
+    fixture.user = null
+    expect(render().sops).toEqual([])
+    fixture.user = fixture.people[0]
+    const published = render().sops.find((sop) => sop.id === 'shared')!
+    expect(published.status).toBe('published')
+    expect(published.internalReviewRounds).toEqual(history.rounds)
+    expect(published.versions).toEqual(history.versions)
+    expect(published.comments.slice(0, history.comments.length)).toEqual(history.comments)
+    expect(published.timeline.slice(0, history.timeline.length)).toEqual(history.timeline)
+    expect(published.approvalSubmissions).toEqual([expect.objectContaining({ id: submission.id, status: 'published' })])
+    expect(published.timeline.slice(-5).map((event) => event.type)).toEqual(['external-reviews-not-required', 'submitted-for-approval', 'approved-by', 'approved', 'published'])
+    expect(fixture.serviceLoaded).not.toHaveBeenCalled()
+    expect(fixture.fetchSops).not.toHaveBeenCalled()
+    expect(fixture.fetchSop).not.toHaveBeenCalled()
+  })
+
+  it('updates visible local state exactly at response expiry without an action, leaving an accepted overdue review active', async () => {
+    const second = person('second', ['reviewer'])
+    fixture.people.push(second)
+    fixture.sops.push(draft('expiring', 'author'))
+    await render().submitForReview('expiring', { reviewerIds: ['reviewer', second.id], reviewDurationDays: 1 })
+    fixture.user = second
+    let store = render()
+    const round = currentInternalRound(store.sops[0])!
+    await store.acceptInternalReview('expiring', round.id, round.assignments[1].id)
+    const deadline = round.assignments[0].responseDueAt!
+    expect(deadline).toBe('2026-11-02T20:59:59.999Z')
+    fixture.user = fixture.people[0]
+    // Resume the tab just before the saved expiry so the provider installs its final timer.
+    vi.setSystemTime(Date.parse(deadline) - 1000)
+    store = render()
+    flushEffects()
+    const accepted = currentInternalRound(store.sops[0])!.assignments[1]
+    expect(Date.parse(accepted.reviewDueAt!)).toBeLessThan(Date.now())
+    await vi.advanceTimersByTimeAsync(999)
+    expect(currentInternalRound(render().sops[0])!.assignments.map((assignment) => assignment.decision)).toEqual(['pending', 'accepted'])
+    await vi.advanceTimersByTimeAsync(1)
+    const expired = render().sops[0]
+    expect(expired.status).toBe('in-review')
+    expect(currentInternalRound(expired)!.status).toBe('open')
+    expect(currentInternalRound(expired)!.assignments).toEqual([
+      expect.objectContaining({ id: round.assignments[0].id, decision: 'withdrawn', withdrawnAt: deadline }), accepted,
+    ])
+    expect(expired.reviewers.map((assignment) => assignment.decision)).toEqual(['cancelled', 'pending'])
+    expect(expired.timeline.filter((event) => event.type === 'review-withdrawn')).toEqual([
+      expect.objectContaining({ actorId: 'system', reviewAssignmentId: round.assignments[0].id, createdAt: deadline, recipientIds: ['author', 'reviewer'] }),
+    ])
+    expect(expired.approvers).toEqual([])
+    fixture.user = fixture.people[1]
+    store = render()
+    expect(currentInternalRound(store.sops[0])!.assignments[0].decision).toBe('withdrawn')
+    await expect(store.acceptInternalReview('expiring', round.id, round.assignments[0].id)).rejects.toThrow(/withdrawn/)
+    expect(fixture.serviceLoaded).not.toHaveBeenCalled()
+    expect(fixture.fetchSops).not.toHaveBeenCalled()
+    expect(fixture.fetchSop).not.toHaveBeenCalled()
   })
 
   it('does not permit a Reviewer to independently add or route reviewers', async () => {
