@@ -66,7 +66,7 @@ export interface SopsStore {
   // demo panel). Complete review and Approve take an optional comment.
   completeReview: (sopId: string, reviewerId: string, text?: string) => void
   returnAsReviewer: (sopId: string, reviewerId: string, text: string) => void
-  /** An assigned reviewer adds a reviewer from another department (PBI 23). */
+  /** Experimental cross-department routing (PBI 23); disabled in the local prototype. */
   routeToReviewer: (sopId: string, reviewerId: string, newReviewerId: string, note?: string) => void
   approveAs: (sopId: string, approverId: string, text?: string, snapshot?: ApprovalDecisionSnapshot) => void
   returnAsApprover: (sopId: string, approverId: string, text: string, snapshot?: ApprovalDecisionSnapshot) => void

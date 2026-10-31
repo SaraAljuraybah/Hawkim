@@ -5,6 +5,9 @@ import type { Sop, User } from '../data/mock/types'
 import { projectReviewers } from '../lib/internalReviewStatus'
 import { visibleSops } from '../state/visibleSops'
 import { ReviewPage } from './ReviewPage'
+import { internalReviewEn } from '../content/internalReview.en'
+import { sopWorkflowEn } from '../content/workflow.en'
+import { reviewsEn } from '../content/reviews.en'
 
 const fixture = vi.hoisted(() => ({ sops: [] as Sop[], user: {
   id: 'reviewer', name: 'Reviewer', email: 'reviewer@demo.test', initials: 'RR', departmentId: 'home', permissions: ['reviewer'],
@@ -37,7 +40,12 @@ describe('historical review page as a complete authorized view', () => {
     expect(html).toContain('Preserved description')
     expect(html).toContain('/old.pdf')
     expect(html).not.toContain('private-v2')
-    for (const text of ['Time remaining:', 'Review overdue', '>Overdue<', '>In progress<', '>Review pending<', '>Complete review<', '>Accept review<', '>Approve<']) expect(html).not.toContain(text)
+    for (const text of [
+      internalReviewEn.panel.remainingTime.split('{duration}')[0], internalReviewEn.panel.reviewOverdue,
+      '>' + internalReviewEn.panel.decisions.overdue + '<', '>' + internalReviewEn.actions.inProgress + '<',
+      '>' + sopWorkflowEn.reviewerDeadline.active + '<', '>' + internalReviewEn.actions.complete + '<',
+      '>' + internalReviewEn.actions.accept + '<', '>' + reviewsEn.page.actions.approve + '<',
+    ]) expect(html).not.toContain(text)
   })
 
   it('preserves current reviewer actions and clocks through the same context projection', () => {
@@ -48,8 +56,8 @@ describe('historical review page as a complete authorized view', () => {
     fixture.sops = visibleSops([current], fixture.user, [])
     const html = render()
     expect(html).toContain('Review overdue')
-    expect(html).toContain('>Complete review<')
+    expect(html).toContain('>' + internalReviewEn.actions.complete + '<')
     expect(html).not.toContain('Historical review of v1')
-    expect(html).not.toContain('>Approve<')
+    expect(html).not.toContain('>' + reviewsEn.page.actions.approve + '<')
   })
 })

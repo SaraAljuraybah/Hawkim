@@ -7,6 +7,7 @@ import { sops } from '../data/mock/sops'
 import { sopsEn } from '../content/sops.en'
 import { internalReviewEn } from '../content/internalReview.en'
 import { sopWorkflowEn } from '../content/workflow.en'
+import { approvalEn } from '../content/approval.en'
 import { notificationsEn } from '../content/notifications.en'
 import { adminEn } from '../content/admin.en'
 import { SopGrid } from '../components/sops/SopGrid'
@@ -110,13 +111,13 @@ describe('author workflow section layout', () => {
     expect(positions.every((position) => position >= 0)).toBe(true)
     expect(positions).toEqual([...positions].sort((a, b) => a - b))
     const reviewers = html.slice(positions[3], html.indexOf('</section>', positions[3]))
-    expect(reviewers).toContain(internalReviewEn.panel.title)
+    expect(reviewers).toContain(internalReviewEn.panel.authorPageTitle)
     expect(reviewers).toContain('>Add Reviewers</button>')
     expect(reviewers).toContain(sopWorkflowEn.actions.checkNeeded)
     expect(reviewers).toContain('aria-disabled="true"')
     const timeline = html.slice(positions[4], html.indexOf('</section>', positions[4]))
     expect(timeline).not.toContain('>Add Reviewers</button>')
-    expect(timeline).not.toContain('>Submit for approval</button>')
+    expect(timeline).not.toContain('>' + approvalEn.action + '</button>')
   })
 
   it('preserves co-author restrictions and displays legacy assigned reviewers accurately', () => {

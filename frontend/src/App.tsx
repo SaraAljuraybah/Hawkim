@@ -1,4 +1,4 @@
-import { lazy, useEffect } from 'react'
+import { lazy, Suspense, useEffect } from 'react'
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { DashboardPage } from './pages/DashboardPage'
 import { DepartmentsPage } from './pages/DepartmentsPage'
@@ -13,6 +13,7 @@ import { LandingPage } from './pages/LandingPage'
 import { NotFoundPage } from './pages/NotFoundPage'
 import { SignInPage } from './pages/SignInPage'
 import { ADMIN_USERS_PATH } from './lib/routes'
+import { FRONTEND_PROTOTYPE } from './lib/frontendRuntime'
 import { AdminArea, EmployeeArea } from './routes/guards'
 import { DepartmentsProvider } from './state/DepartmentsProvider'
 import { GuidelinesProvider } from './state/GuidelinesProvider'
@@ -45,6 +46,20 @@ const RegulationFormPage = lazy(() => adminPortal().then((m) => ({ default: m.Re
 const RequestDetailsPage = lazy(() => adminPortal().then((m) => ({ default: m.RequestDetailsPage })))
 const UserDetailsPage = lazy(() => adminPortal().then((m) => ({ default: m.UserDetailsPage })))
 
+// Retain the integration's configuration screen without importing a backend or
+// requiring environment keys in the local prototype.
+const ConfiguredIntegration = lazy(async () => {
+  const [{ supabaseConfigProblem }, { NotConfiguredPage }] = await Promise.all([
+    import('./services/supabase'),
+    import('./pages/NotConfiguredPage'),
+  ])
+  return {
+    default: function IntegrationWorkspace() {
+      return supabaseConfigProblem ? <NotConfiguredPage problem={supabaseConfigProblem} /> : <Workspace />
+    },
+  }
+})
+
 /**
  * Client-side routes.
  * Any URL without its own route (including /terms and /privacy until those
@@ -59,6 +74,12 @@ function App() {
     if (!hash) window.scrollTo({ top: 0, behavior: 'instant' })
   }, [pathname, hash])
 
+  if (!FRONTEND_PROTOTYPE) return <Suspense fallback={null}><ConfiguredIntegration /></Suspense>
+
+  return <Workspace />
+}
+
+function Workspace() {
   return (
     // Local prototype data lives above the routes. Every session receives only its
     // authorized SOP view; the experimental backend is not connected here.

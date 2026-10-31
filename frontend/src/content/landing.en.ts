@@ -102,7 +102,7 @@ export const landingEn: LandingContent = {
 
   about: {
     eyebrow: 'About Hawkim',
-    title: 'What is Hawkim?',
+    title: 'What Is Hawkim?',
     description:
       'Hawkim is a centralized SOP workflow management and governance platform designed for pharmaceutical organizations regulated by the Saudi Food and Drug Authority (SFDA). It brings SOP review, approval, traceability, and AI-assisted regulatory compliance verification into one integrated environment.',
     pillars: [
@@ -161,7 +161,7 @@ export const landingEn: LandingContent = {
 
   finalCta: {
     eyebrow: 'Get Started',
-    title: 'Bring Hawkim to your organization',
+    title: 'Bring Hawkim to Your Organization',
     text: 'Request Hawkim and our team will contact you to arrange a demo and setup.',
   },
 

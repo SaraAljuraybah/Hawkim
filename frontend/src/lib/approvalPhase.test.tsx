@@ -110,12 +110,12 @@ describe('explicit approval phase with retained internal review history', () => 
 describe('approval and prior-version detail access', () => {
   it('shows approval actions, preserved descriptions, and approval status without an awaiting-Author prompt', () => {
     const detail = render('detail')
-    expect(detail).toContain('>Approve<')
-    expect(detail).toContain('>Return to author<')
+    expect(detail).toContain(`>${reviewsEn.page.actions.approve}</button>`)
+    expect(detail).toContain(`>${reviewsEn.page.actions.returnToAuthor}</button>`)
     expect(detail).toContain('Description preserved\nSecond line')
     expect(detail).not.toContain(internalReviewEn.status.awaitingAuthor)
-    expect(detail).not.toContain('Awaiting Author')
-    expect(detail).not.toContain('>Complete review<')
+    expect(detail).not.toContain(internalReviewEn.panel.states.completed)
+    expect(detail).not.toContain(`>${reviewsEn.page.actions.completeReview}</button>`)
     const list = render('list')
     expect(list).toContain('Approval phase fixture')
     expect(list).toContain(reviewsEn.list.needs.approval)
@@ -124,20 +124,20 @@ describe('approval and prior-version detail access', () => {
 
   it('shows Publish after approval and publication status after publishing', () => {
     state.sop = approveAs(state.sop!, 'controller', undefined, snapshot)
-    expect(render('detail')).toContain('>Publish<')
+    expect(render('detail')).toContain(`>${reviewsEn.page.actions.publish}</button>`)
     state.sop = publishAs(state.sop, 'controller', snapshot)
     const html = render('detail')
-    expect(html).not.toContain('>Publish<')
+    expect(html).not.toContain(`>${reviewsEn.page.actions.publish}</button>`)
     expect(html).toContain('Published on')
     expect(html).not.toContain(internalReviewEn.status.awaitingAuthor)
   })
 
   it('hides modern approval and publication controls if the assigned user loses Approver permission', () => {
     state.users[0].permissions = ['reviewer']
-    expect(render('detail')).not.toContain('>Approve<')
-    expect(render('detail')).not.toContain('>Return to author<')
+    expect(render('detail')).not.toContain(`>${reviewsEn.page.actions.approve}</button>`)
+    expect(render('detail')).not.toContain(`>${reviewsEn.page.actions.returnToAuthor}</button>`)
     state.sop = approveAs(state.sop!, 'controller', undefined, snapshot)
-    expect(render('detail')).not.toContain('>Publish<')
+    expect(render('detail')).not.toContain(`>${reviewsEn.page.actions.publish}</button>`)
   })
 
   it('keeps a former approver on their assigned version after an Author revision, even when current approvers are cleared', () => {
@@ -157,8 +157,8 @@ describe('approval and prior-version detail access', () => {
     const html = render('detail')
     expect(html).toContain('Please revise')
     expect(html).not.toContain('private-version-two')
-    expect(html).not.toContain('>Approve<')
-    expect(html).not.toContain('>Publish<')
+    expect(html).not.toContain(`>${reviewsEn.page.actions.approve}</button>`)
+    expect(html).not.toContain(`>${reviewsEn.page.actions.publish}</button>`)
   })
 
   it('keeps historical internal reviewers from seeing later approval documents or their review reports', () => {

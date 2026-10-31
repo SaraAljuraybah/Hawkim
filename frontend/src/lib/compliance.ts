@@ -31,8 +31,8 @@ function newId(prefix: string) {
 
 // ---------- Reading checks ----------
 
-/** Preserve the prototype's existing compliance requirement for every SOP.
- * Experimental department configuration belongs to the disabled integration path.
+/** Keep local prototype compliance requirements. The disabled integration path uses the
+ * department's configured GVP applicability (Pharmacovigilance).
  */
 export function checkRequired(sop: Pick<Sop, 'departmentId'>, departments: Pick<Department, 'id' | 'requiresComplianceCheck'>[]): boolean {
   return FRONTEND_PROTOTYPE || !!departments.find((department) => department.id === sop.departmentId)?.requiresComplianceCheck

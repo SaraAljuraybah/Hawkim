@@ -9,10 +9,14 @@ import { reviewTasks } from './reviews'
 import { deleteBlockers, permissionChangeBlockers, sopsUsing } from './userAdmin'
 import { checkBlocker, currentDueAt, deleteVersionBlocker, isOverdue, pendingPeople, requiredReviewsComplete, reviewerAssignedMilliseconds, reviewerDeadlinePassed, reviewerDueAt, reviewerRemainingMilliseconds, shiftDueDates, uploadVersion } from './workflow'
 
+// Exercise the preserved department policy without enabling services or authentication.
+const runtime = vi.hoisted(() => ({ prototype: true }))
+vi.mock('./frontendRuntime', () => ({ get FRONTEND_PROTOTYPE() { return runtime.prototype } }))
+
 function person(id: string, permissions: User['permissions'] = ['reviewer'], departmentId = 'home'): User {
   return { id, name: id, email: id + '@example.test', initials: 'TT', permissions, departmentId }
 }
-const env = () => ({ users: [person('author', ['author', 'reviewer']), person('coauthor', ['author', 'reviewer']), person('a'), person('b'), person('c'), person('other', ['reviewer'], 'other'), person('admin', ['admin', 'reviewer'])], departments: [{ id: 'home', name: 'Home', initials: 'HM', description: '' }] })
+const env = () => ({ users: [person('author', ['author', 'reviewer']), person('coauthor', ['author', 'reviewer']), person('a'), person('b'), person('c'), person('other', ['reviewer'], 'other'), person('admin', ['admin', 'reviewer'])], departments: [{ id: 'home', name: 'Home', initials: 'HM', description: '', requiresComplianceCheck: true }] })
 const check = (version: string) => ({ id: 'check-' + version, sopId: 'test', version, status: 'completed' as const, startedAt: new Date().toISOString(), guideline: { name: 'GVP', version: '4.0' }, findings: [] })
 function draft(): Sop {
   return { id: 'test', code: 'TEST', title: 'Test SOP', version: '1', departmentId: 'home', authorId: 'author', coAuthorIds: ['coauthor'], status: 'draft', lastUpdated: '2026-10-23', fileName: 'test.pdf', fileType: 'pdf', versions: [{ version: '1', fileName: 'test.pdf', fileType: 'pdf', uploadedAt: new Date().toISOString() }], reviewers: [], approvers: [], comments: [], timeline: [], complianceChecks: [check('1')] }
@@ -29,7 +33,7 @@ function decide(sop: Sop, userId: string, decision: 'completed' | 'returned' = '
 }
 function cancel(sop: Sop, userId: string, actor = 'author', reason = 'No longer needed') { return removeInternalReviewer(sop, actor, currentInternalRound(sop)!.id, task(sop, userId).id, reason, env()) }
 function revise(sop: Sop) { vi.advanceTimersByTime(1000); const updated = uploadVersion(sop, 'author', { fileName: 'revised.pdf', fileType: 'pdf' }); return { ...updated, complianceChecks: [...updated.complianceChecks, check(updated.version)] } }
-beforeEach(() => vi.useFakeTimers({ now: new Date('2026-10-23T12:00:00+03:00') }))
+beforeEach(() => { runtime.prototype = true; vi.useFakeTimers({ now: new Date('2026-10-23T12:00:00+03:00') }) })
 afterEach(() => vi.useRealTimers())
 
 describe('internal parallel review requests', () => {
@@ -79,6 +83,16 @@ describe('internal parallel review requests', () => {
     expect(sop.timeline.some((event) => event.type === 'forwarded-to-approver')).toBe(false)
     expect(deriveNotifications('author', { sops: [sop], requests: [], now: Date.now() }).some((item) => item.type === 'internal-review-completed')).toBe(true)
   })
+  it('preserves prototype checks and the disabled integration department applicability policy', () => {
+    const unchecked = { ...draft(), complianceChecks: [] }
+    expect(() => startInternalReview(unchecked, 'author', '4.0', { reviewerIds: ['a'] }, env())).toThrow(/compliance check/)
+    const elsewhere = { ...env(), departments: [{ id: 'home', name: 'Home', initials: 'HM', description: '' }] }
+    expect(() => startInternalReview(unchecked, 'author', '4.0', { reviewerIds: ['a'] }, elsewhere)).toThrow(/compliance check/)
+    runtime.prototype = false
+    expect(() => startInternalReview(unchecked, 'author', '4.0', { reviewerIds: ['a'] }, env())).toThrow(/compliance check/)
+    expect(startInternalReview(unchecked, 'author', '4.0', { reviewerIds: ['a'] }, elsewhere)).toMatchObject({ status: 'in-review' })
+  })
+
   it('requires the main Author and excludes all writers, admins, inactive and other-department reviewers', () => {
     for (const actor of ['coauthor', 'a', 'admin', 'missing']) expect(() => startInternalReview(draft(), actor, '4.0', { reviewerIds: ['a'] }, env())).toThrow()
     for (const selected of ['author', 'coauthor', 'other', 'admin', 'missing']) expect(() => startInternalReview(draft(), 'author', '4.0', { reviewerIds: [selected] }, env())).toThrow()

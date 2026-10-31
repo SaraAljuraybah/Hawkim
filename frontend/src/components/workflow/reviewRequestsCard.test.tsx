@@ -56,8 +56,8 @@ describe('review requests card', () => {
     expect(html).toContain('Reason: On leave')
     expect(html).toContain('Reason: Asked the wrong person')
     // Remove is offered for everyone not already removed, whatever their status.
-    expect(html.match(/>Remove reviewer</g)).toHaveLength(2)
-    expect(render(<InternalReviewPanel sop={sop} canRemove={false} />)).not.toContain('>Remove reviewer<')
+    expect(html.match(/>Remove Reviewer</g)).toHaveLength(2)
+    expect(render(<InternalReviewPanel sop={sop} canRemove={false} />)).not.toContain('>Remove Reviewer<')
   })
   it('shows Pending with the response due date and duration, then Withdrawn with its date', () => {
     const sop = startInternalReview(draft(), 'author', '4.0', { reviewerIds: ['alpha'], reviewDurationDays: 3 }, env())
@@ -118,10 +118,10 @@ describe('compact request cards (author SOP page)', () => {
   it('shows the name, status, version, deadlines and Remove, without sent, accepted and decided times or comments', () => {
     const html = render(<InternalReviewPanel sop={reviewed()} canRemove activeOnly compact />)
     for (const name of ['Reviewer Alpha', 'Reviewer Beta', 'Reviewer Gamma']) expect(html).toContain(`<h3 class="text-base font-semibold text-maroon">${name}</h3>`)
-    for (const label of ['Accepted', 'Completed', 'Returned with comments']) expect(html).toContain(`</span>${label}</span>`)
+    for (const label of ['Accepted', 'Completed', 'Returned with Comments']) expect(html).toContain(`</span>${label}</span>`)
     expect(html.match(/>Version v1</g)).toHaveLength(3)
     expect(html).toContain('Review due ')
-    expect(html.match(/>Remove reviewer</g)).toHaveLength(3)
+    expect(html.match(/>Remove Reviewer</g)).toHaveLength(3)
     expect(html).not.toContain('Request sent ')
     expect(html).not.toContain('<p class="text-xs text-text-gray">Accepted ')
     expect(html).not.toContain('Decision submitted ')
@@ -148,7 +148,7 @@ describe('review requests card with only active reviewers (author SOP page)', ()
     for (const label of ['Declined', 'Removed']) expect(html).not.toContain(`</span>${label}</span>`)
     expect(html).not.toContain('Reason: On leave')
     expect(html).not.toContain(internalReviewEn.panel.noActive)
-    expect(html.match(/>Remove reviewer</g)).toHaveLength(1)
+    expect(html.match(/>Remove Reviewer</g)).toHaveLength(1)
     // The data is unchanged, and the review page (without activeOnly) still lists everyone.
     expect(request(sop, 'beta').decision).toBe('declined')
     for (const name of ['Reviewer Alpha', 'Reviewer Beta', 'Reviewer Gamma']) expect(render(<InternalReviewPanel sop={sop} canRemove={false} />)).toContain(heading(name))

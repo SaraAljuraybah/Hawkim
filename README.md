@@ -83,7 +83,7 @@ Draft ? In Review ? In Approval ? Approved ? Published
 
 New SOP submissions use internal parallel review. Each SOP version is one review round, and each reviewer has their own review request in it:
 
-1. The main Author sends review requests for the current version, after a current compliance check, to eligible reviewers from the SOP's home department. Authors and co-authors cannot review their own SOP. Each request can have an optional response due date and an optional review duration (1–30 calendar days).
+1. The main Author sends review requests for the current version, after a current compliance check, to eligible reviewers from the SOP's home department. Authors and co-authors cannot review their own SOP. Every new request has a fixed response due date two working dates after sending, and an optional review duration (1–30 working days).
 2. A reviewer must respond first: **Accept** (the review duration starts) or **Decline** with a required reason.
 3. After accepting, the reviewer either **Returns to author** (comments required) or **Completes the review** (optional comments). A return affects only that reviewer; the SOP stays In Review.
 4. A request still pending when its response due date has ended is **withdrawn automatically**. This is the only automatic action (the rule is `withdrawalDueAt` in `src/lib/internalReviewStatus.ts`; the real withdrawal must run on the backend). A passed review duration only marks the request Overdue.
@@ -91,11 +91,15 @@ New SOP submissions use internal parallel review. Each SOP version is one review
 6. Once every reviewer taking part has finished the current version (returned or completed it), or nobody is taking part, the Author can upload, check and send a **new version** to the reviewers they choose, as a new round. A version never sent to a reviewer can be deleted while In Review.
 7. The review phase is done when the latest round is on the current version and every reviewer taking part completed it. **Submit for approval** stays visible and lists what is still missing until then.
 
-Deadlines: the response due date ends at the end of that local day. The time to respond follows working hours (`src/lib/responseTime.ts`): a request sent before 8:00 AM counts from 8:00 AM that day, one sent from 8:00 AM to 3:59 PM counts from the moment it is sent, and one sent at 4:00 PM or later counts from 8:00 AM the next calendar day, so from 4:00 PM the earliest response due date is tomorrow. Only the time to respond shown when sending changes: the deadline, the automatic withdrawal and the review duration stay the same, and the reviewer can accept or decline at any time. The review is due at the end of the last day of the duration, counted from that reviewer's acceptance (accepted Oct 25 at 3 PM + 5 days = due Oct 30, 11:59 PM). Reviewers get 24-hour reminders to respond and to finish. The main Author is notified of declines, returns, each completed review, the phase being done, withdrawals and overdue reviews; co-authors of declines and returns; reviewers of removals and withdrawals.
+New prototype deadlines use Asia/Riyadh and exclude Friday and Saturday. The sending date does not count toward the fixed two-working-day response period; the response is due at the end of the second working date. An optional review duration starts after acceptance and counts future working dates, with the review due at the end of its last working date. Before 8:00 AM, the displayed time to respond counts from 8:00 AM; at 4:00 PM or later and on weekends, it counts from the next working day's 8:00 AM. Precise saved timestamps and the request's deadline policy keep these dates stable across browser time zones. Reviewers can respond while a request is pending; passing a review deadline marks it Overdue without closing it.
+
+Existing saved deadlines retain their calendar policy and are never recalculated. For those requests, the response due date ends at the end of its saved local date. The original working-hours display (`src/lib/responseTime.ts`) counts from 8:00 AM when sent earlier, from the sending time between 8:00 AM and 3:59 PM, or from the next calendar day's 8:00 AM when sent at 4:00 PM or later. The review duration uses calendar days from acceptance (accepted Oct 25 at 3 PM + 5 days = due Oct 30, 11:59 PM).
+
+Reviewers get 24-hour reminders to respond and to finish. The main Author is notified of declines, returns, each completed review, the phase being done, withdrawals and overdue reviews; co-authors of declines and returns; reviewers of removals and withdrawals.
 
 Shared workflow contract: `Sop.internalReviewRounds` stores one round per version. Each request (assignment) has its own ID; a reviewer's latest request in a round is the one that counts, and earlier ones stay in the history. The round status is recalculated after every change: open (someone taking part hasn't finished, or nobody is taking part), completed, or changes-requested. `Sop.reviewers` projects each reviewer's latest request for existing views. A completed round on the current version is the boundary for approval (`ApprovalSubmission.internalReviewRoundId`) and for the external-routing teammate (`ExternalReviewGate.internalReviewRoundId`); it does not represent approval. Reviewer-facing document and compliance views expose only versions sent to that reviewer; historical links cannot reveal a later unassigned version. Removing a reviewer never changes their global Reviewer permission or another SOP's requests; declined, withdrawn and removed requests do not block user administration.
 
-Existing SOPs without internal rounds keep their legacy sequential review and approval behavior, including previously configured department routing. No in-flight record is silently migrated. Department workflow configuration and all SOP changes remain in memory and reset on reload. Submitted versions remain protected from deletion.
+Existing SOPs without internal rounds keep their legacy sequential review and approval behavior. Reviewers can repeat a saved handoff to an already assigned eligible reviewer with the original deadline. New reviewer assignments remain Author-controlled; new cross-department routing is pending. No in-flight record is silently migrated. Department workflow configuration and all SOP changes remain in memory and reset on reload. Submitted versions remain protected from deletion.
 
 The workflow maintains the history of actions, feedback, revisions, and decisions to provide clear traceability throughout the SOP lifecycle.
 
@@ -172,6 +176,8 @@ The web frontend lives in the [`frontend/`](frontend/) folder and is built with 
 
 ### Run locally
 
+The active app is a local frontend prototype. Install and start it without Supabase configuration:
+
 ```bash
 cd frontend
 npm install
@@ -180,7 +186,17 @@ npm run dev
 
 Then open the local URL printed in the terminal (usually http://localhost:5173).
 
-To sign in, use one of the sample accounts in [DEMO_ACCOUNTS.md](DEMO_ACCOUNTS.md) (any password works).
+To sign in, use a `.demo` email in [DEMO_ACCOUNTS.md](DEMO_ACCOUNTS.md) with any non-empty demo password. No password is checked or sent. Identity and changes stay in this browser tab's memory and reset on reload. Sign out and switch accounts in the same tab to exercise the shared local workflow; each account sees its authorized documents and versions. Tabs do not synchronize.
+
+Compliance checks use sample results and remain required for every SOP in this prototype. The retained experimental services are disabled by `FRONTEND_PROTOTYPE = true`; adding environment keys does not enable them.
+
+### Experimental Supabase integration (disabled)
+
+The repository retains the integration implementation for a separate architecture review. Enabling it requires an explicitly approved code change. Its setup instructions and real `.test` account details are preserved here and in the experimental section of [DEMO_ACCOUNTS.md](DEMO_ACCOUNTS.md).
+
+For that integration, copy `frontend/.env.example` to `frontend/.env.local` and fill in the Supabase project URL and **publishable** key (Supabase dashboard → Project Settings → Data API and API Keys). Never use the secret (`service_role`) key. The disabled integration entry point has a "not configured" screen for missing or invalid configuration. The project owner supplies the shared test password; passwords are never stored in this repository.
+
+The integration loads sign-in, people, departments, guideline versions, SOPs, files, co-authors, compliance checks and internal review from Supabase. Its compliance requirement applies only to Pharmacovigilance SOPs; approval and the remaining administration/request changes stay local. These persistence and configuration behaviors belong to the disabled integration implementation.
 
 ### Other commands
 

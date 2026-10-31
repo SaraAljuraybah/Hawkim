@@ -9,6 +9,7 @@ interface ResponseDialogProps {
   content: SopWorkflowContent['dialogs']
   /** Who receives the response, e.g. "Noura Alqahtani (Reviewer)". */
   recipients: string
+  /** Saves the response; if it throws, the dialog stays open and says so. */
   onSubmit: (text: string) => void | Promise<void>
   onClose: () => void
 }

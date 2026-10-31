@@ -26,7 +26,7 @@ function draft(): Sop {
 describe('review plan interface', () => {
   it('offers searchable eligible internal reviewers without external reviewers or approvers', () => {
     const html = renderToStaticMarkup(<SubmitDialog sop={draft()} content={sopWorkflowEn.dialogs} onSubmit={() => {}} onClose={() => {}} />)
-    expect(html).toContain('Select reviewers')
+    expect(html).toContain('Select Reviewers')
     expect(html).toContain('aria-expanded="false"')
     expect(html).toContain('role="combobox"')
     expect(html.match(/<ul[^>]*role="listbox"[^>]*>/)?.[0]).toContain('hidden=""')
@@ -36,10 +36,10 @@ describe('review plan interface', () => {
     expect(html).not.toContain('Other Department Reviewer')
     expect(html).not.toContain('Quality Test Controller')
     expect(html).not.toContain('Reviewer 1')
-    expect(html).toContain('Request response deadline')
+    expect(html).toContain('Request Response Deadline')
     expect(html.match(/type="date"/g)).toHaveLength(1)
     expect(html.match(/<input[^>]*name="reviewRequestDueDate"[^>]*>/)?.[0]).toContain('readOnly=""')
-    expect(html).toContain('Review duration in working days (optional)')
+    expect(html).toContain('Review Duration in Working Days (Optional)')
     expect(html).not.toContain('Individual Reviewer Task Due Date')
   })
   it('shows a clear blocked Quality state when no controller is configured', () => {

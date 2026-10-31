@@ -29,6 +29,7 @@ interface Props {
   compact?: boolean
   /** Keep the author's initial review controls available before there are requests. */
   showEmpty?: boolean
+  /** Box heading (also the section's accessible name). */
   title?: string
   actions?: ReactNode
   children?: ReactNode

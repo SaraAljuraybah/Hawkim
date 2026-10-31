@@ -9,7 +9,7 @@ export const notificationsEn: NotificationsContent = {
   bellLabel: 'Notifications',
   bellLabelUnread: 'Notifications, {count} unread',
   title: 'Notifications',
-  markAllRead: 'Mark all as read',
+  markAllRead: 'Mark All as Read',
   empty: 'You’re all caught up.',
   unread: 'Unread',
   justNow: 'Just now',

@@ -15,6 +15,7 @@ vi.mock('../state/sessionContext', () => ({ useCurrentUser: () => fixture.user }
 vi.mock('../state/activeDepartmentContext', () => ({ useActiveDepartment: () => ({ homeDepartment: { id: 'home', name: 'Home department' }, activeDepartment: { id: 'foreign', name: 'Foreign directory' } }) }))
 vi.mock('../state/sopsContext', () => ({ useSops: () => ({ sops: fixture.sops }) }))
 vi.mock('../state/guidelinesContext', () => ({ useGuidelines: () => ({ current: { version: '4.0' } }) }))
+vi.mock('../state/departmentsContext', () => ({ useDepartments: () => ({ departments: [{ id: 'home', name: 'Home department', requiresComplianceCheck: true }] }) }))
 
 function sop(id: string, authorId: string, coAuthorIds: string[] = [], departmentId = 'home'): Sop {
   return { id, code: `SOP-HIDDEN-${id}`, title: `${id} procedure`, authorId, coAuthorIds, departmentId, status: 'draft', version: '2', lastUpdated: '2026-10-29', fileName: 'procedure.pdf', fileType: 'pdf', versions: [], reviewers: [], approvers: [], timeline: [], comments: [], complianceChecks: [] }

@@ -16,10 +16,10 @@ describe('active department', () => {
 
 describe('sidebar items', () => {
   it('shows every tab the roles allow in the home department', () => {
-    expect(labels([], false)).toEqual(['Dashboard', 'My Request', 'SOP Directory', 'Organization Structure'])
-    expect(labels(['author'], false)).toEqual(['Dashboard', 'My SOPs', 'My Request', 'SOP Directory', 'Organization Structure'])
-    expect(labels(['reviewer', 'approver'], false)).toEqual(['Dashboard', 'My Reviews', 'My Request', 'SOP Directory', 'Organization Structure'])
-    expect(labels(['author', 'reviewer'], false)).toEqual(['Dashboard', 'My SOPs', 'My Reviews', 'My Request', 'SOP Directory', 'Organization Structure'])
+    expect(labels([], false)).toEqual(['Dashboard', 'My Requests', 'SOP Directory', 'Organization Structure'])
+    expect(labels(['author'], false)).toEqual(['Dashboard', 'My SOPs', 'My Requests', 'SOP Directory', 'Organization Structure'])
+    expect(labels(['reviewer', 'approver'], false)).toEqual(['Dashboard', 'My Reviews', 'My Requests', 'SOP Directory', 'Organization Structure'])
+    expect(labels(['author', 'reviewer'], false)).toEqual(['Dashboard', 'My SOPs', 'My Reviews', 'My Requests', 'SOP Directory', 'Organization Structure'])
   })
 
   it('shows only SOP Directory and Organization Structure in a read-only department', () => {

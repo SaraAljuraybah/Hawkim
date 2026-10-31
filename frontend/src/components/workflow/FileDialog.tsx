@@ -13,6 +13,7 @@ interface FileDialogProps {
   title: string
   description: string
   confirmLabel: string
+  /** Saves the file; if it throws, the dialog stays open and says so. */
   onSubmit: (file: File) => void | Promise<void>
   onClose: () => void
 }

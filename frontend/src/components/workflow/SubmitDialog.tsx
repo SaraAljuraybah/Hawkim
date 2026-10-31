@@ -20,7 +20,7 @@ import { TextField } from '../ui/TextField'
 interface SubmitDialogProps {
   sop: Sop
   content: SopWorkflowContent['dialogs']
-  /** Keep the dialog open until the request is saved, including server validation. */
+  /** Saves the request; if it throws, the dialog stays open and says so. */
   onSubmit: (options: SubmitOptions) => void | Promise<void>
   onClose: () => void
   /** 'add': the current version to more reviewers in its open (or settled) review; 'version': a new version to the reviewers chosen. */
@@ -68,7 +68,7 @@ export function SubmitDialog({ sop, content, onSubmit, onClose, mode = 'submit' 
       return false
     }
     try { await onSubmit(result.options) }
-    catch { setFailed(true); return false }
+    catch { flushSync(() => setFailed(true)); return false }
   }
   return (
     <FormDialog open title={text.title} confirmLabel={text.confirm} cancelLabel={content.cancel} onConfirm={confirm} onClose={onClose}>

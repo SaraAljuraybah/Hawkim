@@ -296,7 +296,7 @@ function Review({ sop, historical }: { sop: Sop; historical: boolean }) {
           />
         </Section>
 
-        {/* Compliance (read-only) */}
+        {/* Compliance (read-only), only where the GVP guideline applies */}
         {checkRequired(sop, departments) && <Section id="compliance-title" title={text.compliance.title}>
           <SampleBanner text={complianceEn.sampleBanner} />
           <div className="mt-4">

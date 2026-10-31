@@ -1,10 +1,12 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { complianceEn } from '../../content/compliance.en'
 import type { ComplianceCheck, Sop } from '../../data/mock/types'
-import { SessionProvider } from '../../state/SessionProvider'
 import { GuidelinesProvider } from '../../state/GuidelinesProvider'
 import { ComplianceCard } from './ComplianceCard'
+
+// Nobody is signed in, so the guidelines store keeps the sample GVP v4.0.
+vi.mock('../../state/sessionContext', () => ({ useSession: () => ({ status: 'signed-out', user: null }) }))
 
 function sop(complianceChecks: ComplianceCheck[]): Sop {
   return {
@@ -16,9 +18,9 @@ function sop(complianceChecks: ComplianceCheck[]): Sop {
 }
 const render = (item: Sop) =>
   renderToStaticMarkup(
-    <SessionProvider><GuidelinesProvider>
+    <GuidelinesProvider>
       <ComplianceCard sop={item} content={complianceEn} />
-    </GuidelinesProvider></SessionProvider>,
+    </GuidelinesProvider>,
   )
 
 describe('Compliance overview', () => {

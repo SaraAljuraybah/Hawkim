@@ -27,7 +27,7 @@ export const signInEn: SignInContent = {
     hideLabel: 'Hide password',
   },
 
-  // Leads to a short page: passwords are reset by the project owner for now.
+  // Explains how demo passwords work in the local prototype.
   forgotPassword: { label: 'Forgot password?', href: '/forgot-password' },
 
   submit: {

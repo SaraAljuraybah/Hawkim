@@ -4,7 +4,6 @@ import { ArrowLeft, ArrowUpRight, CircleCheck, MessageSquareReply, ShieldCheck, 
 import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
 import { FormDialog } from '../components/ui/FormDialog'
-import { StatusBadge } from '../components/ui/StatusBadge'
 import { Tooltip } from '../components/ui/Tooltip'
 import { AddCoAuthorsDialog } from '../components/workflow/AddCoAuthorsDialog'
 import { ComplianceCard } from '../components/workflow/ComplianceCard'
@@ -78,7 +77,7 @@ function Section({ id, title, children, className = '', actions }: SectionProps)
 
 /**
  * SOP workflow page ("/my-sops/:id"): the author's view of one SOP — workflow status,
- * SOP history (versions), authors, compliance overview and the review timeline
+ * authors, SOP history (versions), compliance overview, reviewers and the review timeline
  * (PBI 6, 8, 12, 22, 24). Only the SOP's author and co-authors can open it;
  * co-authors can upload versions and respond, delete the versions they uploaded and
  * run the compliance check when they uploaded the current version; only the main
@@ -216,8 +215,8 @@ export function SopWorkflowPage() {
   // Response: to everyone who commented in the latest round; not once published.
   const recipients = sop.status === 'published' ? [] : responseRecipients(sop)
 
-  // Compliance check: hidden once Approved or Published; disabled In Review and In Approval
-  // (that reason wins); otherwise the main author, or a co-author who uploaded the current version.
+  // Compliance check: only where the GVP guideline applies; hidden once Approved or Published; disabled
+  // In Review and In Approval (that reason wins); otherwise the main author, or a co-author who uploaded the current version.
   const showCheck = needsCheck && sop.status !== 'approved' && sop.status !== 'published'
   const checkBlock = checkBlocker(sop, user.id)
   const checkBlockedReason =
@@ -262,11 +261,10 @@ export function SopWorkflowPage() {
         {content.back.label}
       </Link>
 
-      {/* Header */}
+      {/* Header (no status badge: the Workflow status steps show the status) */}
       <div className="mt-5">
         <h1 className="mt-1 text-2xl leading-tight tracking-tight sm:text-3xl">{sop.title}</h1>
         <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-text-gray">
-          <StatusBadge status={sop.status} />
           <span>{content.versionTemplate.replace('{version}', sop.version)}</span>
           <span aria-hidden="true">·</span>
           <span>
@@ -300,11 +298,11 @@ export function SopWorkflowPage() {
 
       {/* 1. Workflow status */}
       <Section id="tracker-title" title={content.tracker.label} className="mt-6">
-        {/* Only the steps: who returned it and why, and who's next, are in the Review timeline, the review requests and People. */}
+        {/* Only the steps: who returned it and why, and who's next, are in the Review timeline and the Reviewers box. */}
         <StatusTracker sop={sop} content={content.tracker} stepsOnly />
       </Section>
 
-      {/* Authors */}
+      {/* 2. Authors */}
       <Section id="authors-title" title={content.people.authorsTitle} className="mt-6">
         <PeopleList
           authorsOnly
@@ -322,7 +320,7 @@ export function SopWorkflowPage() {
         />
       </Section>
 
-      {/* 2. SOP history */}
+      {/* 3. SOP history */}
       <Section
         id="history-title"
         title={content.history.title}

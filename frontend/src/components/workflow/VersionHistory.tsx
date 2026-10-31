@@ -16,7 +16,7 @@ interface VersionHistoryProps {
   /** Why this version can't be deleted now (undefined: it can). */
   deleteReason: (version: SopVersion) => string | undefined
   onPreview: (version: SopVersion, trigger: HTMLElement) => void
-  /** Fetches a fresh signed link for a private stored file on each download. */
+  /** Downloads a stored file under `fileName` (sample files are plain links). */
   onDownload: (version: SopVersion, fileName: string) => void
   onDelete: (version: SopVersion, trigger: HTMLElement) => void
 }
@@ -44,6 +44,7 @@ export function VersionHistory({ sop, content, userId, deleteReason, onPreview, 
   const fill = (template: string, version: SopVersion) => template.replace('{version}', version.version)
 
   function actions(version: SopVersion) {
+    // The download adapter resolves stored files; sample files may use a plain URL.
     const available = !!version.storagePath || !!version.fileUrl
     const previewReason =
       version.fileType !== 'pdf' ? text.unavailable.word : !available ? text.unavailable.demo : undefined

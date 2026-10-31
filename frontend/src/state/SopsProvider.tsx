@@ -144,9 +144,9 @@ export function SopsProvider({ children }: { children: ReactNode }) {
   }, [])
 
   /**
-   * SAMPLE ENGINE: finishes a running check in the database after the sample delay,
-   * as completed (the sample findings) or failed, then reads the SOP again. If that
-   * doesn't work, the check stays running; the database marks it failed after 5 minutes.
+   * SAMPLE ENGINE: finishes a running local check after the sample delay, even
+   * after sign-out. The disabled integration branch finishes it in the database
+   * and reads the SOP again; the database times out unfinished checks after 5 minutes.
    * TODO: The compliance service will finish its own checks.
    */
   const scheduleCompletion = useCallback(
@@ -176,7 +176,8 @@ export function SopsProvider({ children }: { children: ReactNode }) {
   /**
    * Starts a compliance check of the current version, only when the user presses
    * "Compliance Check for Current Version" (PBI 4, 29). The rules (who and when) are
-   * checked first, then by the database. Uploading never starts a check. When the demo
+   * checked locally, and again by the database in the disabled integration branch.
+   * Uploading never starts a check. When the demo
    * panel asked for the next check to fail, this one fails (and the switch turns off).
    */
   const runCheck = useCallback(

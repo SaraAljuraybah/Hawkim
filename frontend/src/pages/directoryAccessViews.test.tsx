@@ -12,6 +12,10 @@ import { ReviewPage } from './ReviewPage'
 import { DashboardPage } from './DashboardPage'
 import { DepartmentSwitcher } from '../components/layout/DepartmentSwitcher'
 import { appShellEn } from '../content/app.en'
+import { approvalEn } from '../content/approval.en'
+import { internalReviewEn } from '../content/internalReview.en'
+import { reviewsEn } from '../content/reviews.en'
+import { sopWorkflowEn } from '../content/workflow.en'
 
 const fixture = vi.hoisted(() => ({
   user: { id: 'visitor', name: 'Visitor', initials: 'VV', email: 'v@example.test', departmentId: 'home', permissions: ['author', 'reviewer', 'approver'] } as User,
@@ -68,7 +72,7 @@ describe('directory selection never changes authoring or membership context', ()
     const html = render(<DepartmentSwitcher content={appShellEn.departmentSwitcher} variant="topbar" />)
     expect(html).toContain('SOP Directory')
     expect(html).toContain('Foreign Directory')
-    expect(html).toContain('read-only')
+    expect(html).toContain('(Read-only)')
   })
   it('lists only authorized published data, regardless of the selected context', () => {
     const html = render(<SopsPage />)
@@ -87,7 +91,13 @@ describe('published directory access remains separate from internal views', () =
     const html = render(<SopDetailPage />, '/foreign-published')
     expect(html).toContain('Confidential multiline description')
     expect(html).toContain('/files/foreign-published.docx')
-    for (const label of ['Cancel review request', 'Complete review', 'Reject SOP', 'Upload a new version']) expect(html).not.toContain(label)
+    for (const label of [
+      internalReviewEn.actions.accept, internalReviewEn.actions.decline,
+      internalReviewEn.actions.complete, internalReviewEn.actions.returnToAuthor,
+      reviewsEn.page.actions.approve, reviewsEn.page.actions.publish,
+      sopWorkflowEn.actions.submit, sopWorkflowEn.history.upload,
+      sopWorkflowEn.people.addAuthor, approvalEn.action,
+    ]) expect(html).not.toContain(`>${label}</button>`)
   })
   it.each(['pending', 'rejected', 'cancelled'] as const)('does not expose document content for a %s request', (status) => {
     fixture.requests = [grant(status)]

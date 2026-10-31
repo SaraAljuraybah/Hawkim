@@ -13,13 +13,15 @@ import { PeoplePicker } from '../ui/PeoplePicker'
 interface AddCoAuthorsDialogProps {
   sop: Sop
   content: SopWorkflowContent['dialogs']
+  /** Saves the co-authors; if it throws, the dialog stays open and says so. */
   onSubmit: (userIds: string[]) => void | Promise<void>
   onClose: () => void
 }
 
 /**
- * "Add co-authors": other Authors from this SOP's department who aren't already
- * on the SOP. Its reviewers and approvers are never offered (separation of duties).
+ * "Add co-authors": other users with the Author permission from the SOP's department
+ * who aren't already on the SOP. Its reviewers and approvers are never offered
+ * (separation of duties).
  */
 export function AddCoAuthorsDialog({ sop, content, onSubmit, onClose }: AddCoAuthorsDialogProps) {
   const text = content.addCoAuthors

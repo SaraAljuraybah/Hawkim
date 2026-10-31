@@ -33,7 +33,7 @@ export const mySopsEn: MySopsContent = {
     results: '{count} SOPs found',
     empty: 'No SOPs match your search and filters in this category.',
   },
-  recheckLabel: 'Recheck recommended',
+  recheckLabel: 'Recheck Recommended',
 }
 
 export const uploadSopEn: UploadSopContent = {
@@ -44,8 +44,8 @@ export const uploadSopEn: UploadSopContent = {
     title: { label: 'Title', placeholder: 'Enter the SOP title', hint: 'Required. Up to 50 characters.', counter: '{count} / {max}' },
     department: { label: 'Department' },
     file: {
-      requiredTag: 'Required',
-      label: 'SOP file',
+      label: 'SOP File',
+      requiredTag: '(required)',
       hint: '.docx or PDF, up to 10 MB',
       dropPrompt: 'Drag and drop the file here, or',
       browse: 'browse',
@@ -55,7 +55,7 @@ export const uploadSopEn: UploadSopContent = {
       sizeError: '{name} is too large. Files must be {max} or smaller.',
     },
     description: {
-      label: 'Description (optional)',
+      label: 'Description',
       placeholder: 'Briefly describe the purpose of this SOP…',
       counter: '{count} / {max}',
     },

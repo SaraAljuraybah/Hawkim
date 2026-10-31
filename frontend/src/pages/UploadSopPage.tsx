@@ -152,7 +152,11 @@ export function UploadSopPage() {
             onChange={(e) => setDescription(e.target.value)}
           />
 
-          {saveError && <p role="alert" className="text-sm text-status-rejected-fg">{saveError}</p>}
+          {saveError && (
+            <p role="alert" className="text-sm text-status-rejected-fg">
+              {saveError}
+            </p>
+          )}
 
           <div className="flex flex-col-reverse gap-3 border-t border-beige pt-6 sm:flex-row sm:justify-end">
             <Button to={content.cancel.href} variant="secondary">
