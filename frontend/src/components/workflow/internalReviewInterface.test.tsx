@@ -135,7 +135,6 @@ describe('internal parallel review across transitions and detail views', () => {
     expect(html).toContain('Reviewer Beta')
     for (const name of ['Main writer', 'Contributing writer', 'External reviewer', 'Reviewer 1']) expect(html).not.toContain(name)
     expect(html).toContain('Request Response Deadline')
-    expect(html).toContain(internalReviewEn.submit.responseHelpWorkingDays)
     expect(html).not.toContain('23:59:59.999')
     const duration = html.match(/<input[^>]*name="reviewDurationDays"[^>]*>/)![0]
     expect(duration).toContain('type="number"')
@@ -143,7 +142,7 @@ describe('internal parallel review across transitions and detail views', () => {
     expect(duration).toContain('max="30"')
     expect(duration).toContain('aria-describedby=')
     expect(html).toContain('Review Duration in Working Days (Optional)')
-    expect(html).toContain(internalReviewEn.submit.durationHelpWorkingDays)
+    expect(html).toContain(internalReviewEn.submit.durationHelp)
     expect(html).not.toContain('withdrawn automatically')
     expect(html).not.toContain('has to finish after they accept')
     expect(html.match(/<input[^>]*type="date"[^>]*>/)![0]).toContain('readOnly=""')
@@ -265,7 +264,7 @@ describe('historical review pages cannot reveal a later unassigned version', () 
 
 describe('response due date in the Submit for review dialog', () => {
   const text = internalReviewEn.submit
-  const fieldText = { ...sopWorkflowEn.dialogs.submit.reviewDate, label: text.responseDate, help: text.responseHelp, duration: text.responseTimeGiven }
+  const fieldText = { ...sopWorkflowEn.dialogs.submit.reviewDate, label: text.responseDate, help: undefined, duration: text.responseTimeGiven }
   const field = (value: string, error?: string) => renderToStaticMarkup(
     <ReviewDueDateField name="reviewRequestDueDate" stage="response" text={fieldText} value={value} error={error} closeLabel={text.closeAlert} onChange={() => {}} />)
   it('counts the time to respond from the moment it is sent before 4:00 PM, and today is selectable', () => {
@@ -296,9 +295,8 @@ describe('response due date in the Submit for review dialog', () => {
     expect(html).toContain(`aria-label="${text.closeAlert}"`)
     expect(input).toContain('aria-invalid="true"')
     expect(input).toContain(popupId)
-    // No inline error under the field; its hint stays visible.
+    // No inline error under the field.
     expect(html).not.toContain('-error"')
-    expect(html).toContain(text.responseHelp)
     expect(field('2026-10-27')).not.toContain('role="alert"')
   })
   it('keeps the inline error for other due date fields', () => {

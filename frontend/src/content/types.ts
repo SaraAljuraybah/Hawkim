@@ -423,9 +423,7 @@ export interface InternalReviewSubmitContent {
   addIntro: string
   versionIntro: string
   department: string
-  departmentHelp: string
   division: string
-  divisionHelp: string
   noDivision: string
   reviewers: string
   reviewerSearch: PeoplePickerContent
@@ -433,19 +431,14 @@ export interface InternalReviewSubmitContent {
   noneEligible: string
   responseDate: string
   responseDateOptional: string
-  responseHelp: string
-  responseHelpWorkingDays: string
   responseTimeGiven: string
   dateInvalid: string
   closeAlert: string
   duration: string
   durationHelp: string
   durationWorkingDays: string
-  durationHelpWorkingDays: string
   durationInvalid: string
-  workingDaysPending: string
   note: string
-  noteHelp: string
   noteServiceLimit: string
   confirm: string
   cancel: string

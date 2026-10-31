@@ -67,7 +67,7 @@ describe('working-day deadlines are pending activation', () => {
     expect(request.reviewDueDate).toBe('2026-10-31')
   })
 
-  it('shows the optional response date picker, calendar-day duration and a pending-activation notice in Submit for Review', () => {
+  it('shows the optional response date picker and calendar-day duration, without help text on the date or a pending-activation notice, in Submit for Review', () => {
     const html = renderToStaticMarkup(<SubmitDialog sop={draft()} content={sopWorkflowEn.dialogs} onClose={() => {}} onSubmit={() => {}} />)
     const date = html.match(/<input[^>]*name="reviewRequestDueDate"[^>]*>/)![0]
     expect(date).toContain('type="date"')
@@ -76,7 +76,9 @@ describe('working-day deadlines are pending activation', () => {
     expect(html).toContain(internalReviewEn.submit.responseDateOptional)
     expect(html).toContain(internalReviewEn.submit.duration)
     expect(html).not.toContain(internalReviewEn.submit.durationWorkingDays)
-    expect(html).toContain('Pending activation')
+    expect(html).toContain(internalReviewEn.submit.durationHelp)
+    expect(html).not.toContain('The last day each reviewer can accept or decline.')
+    expect(html).not.toContain('Pending activation')
     expect(html).toContain('maxLength="500"')
   })
 })

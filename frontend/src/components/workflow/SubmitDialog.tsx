@@ -90,30 +90,29 @@ export function SubmitDialog({ sop, content, onSubmit, onClose, mode = 'submit' 
       {mode === 'add' && <p className="text-sm text-text-gray">{text.addIntro.replace('{version}', sop.version)}</p>}
       {mode === 'version' && <p className="text-sm text-maroon">{text.versionIntro.replace('{version}', sop.version)}</p>}
       {failed && <p role="alert" className="text-sm text-status-rejected-fg">{fields.errors.submitFailed}</p>}
-      <TextField name="reviewDepartment" label={text.department} hint={text.departmentHelp}
+      <TextField name="reviewDepartment" label={text.department}
         value={department?.name ?? sop.departmentId} readOnly />
-      <TextField name="reviewDivision" label={text.division} hint={text.divisionHelp}
+      <TextField name="reviewDivision" label={text.division}
         value={department?.divisionId || text.noDivision} readOnly />
       <PeoplePicker inputRef={firstRef} label={text.reviewers} hideLabel text={text.reviewerSearch}
         options={options.map((user) => ({ id: user.id, name: user.name }))} value={reviewerIds}
         error={error || undefined} hint={options.length ? undefined : text.noneEligible}
         onChange={(next) => { setReviewerIds(next); setError(''); setFailed(false) }} />
       {WORKING_DAY_DEADLINES_ACTIVE
-        ? <TextField name="reviewRequestDueDate" type="date" label={text.responseDate} hint={text.responseHelpWorkingDays}
+        ? <TextField name="reviewRequestDueDate" type="date" label={text.responseDate}
             value={fixedDueDate} readOnly />
         : <ReviewDueDateField ref={requestRef} name="reviewRequestDueDate" stage="response"
-            text={{ ...fields.reviewDate, label: text.responseDateOptional, help: text.responseHelp, duration: text.responseTimeGiven }}
+            text={{ ...fields.reviewDate, label: text.responseDateOptional, help: undefined, duration: text.responseTimeGiven }}
             value={chosenDate} error={dateError} closeLabel={text.closeAlert} onDismissError={() => setDateError('')}
             onChange={(value) => { setChosenDate(value); setDateError(''); setFailed(false) }} />}
       <TextField ref={durationRef} name="reviewDurationDays" type="number" inputMode="numeric" min={REVIEW_DURATION_MIN} max={REVIEW_DURATION_MAX} step={1}
         label={WORKING_DAY_DEADLINES_ACTIVE ? text.durationWorkingDays : text.duration}
-        hint={WORKING_DAY_DEADLINES_ACTIVE ? text.durationHelpWorkingDays : text.durationHelp} value={duration} error={durationError || undefined}
+        hint={text.durationHelp} value={duration} error={durationError || undefined}
         onChange={(event) => { setDuration(event.target.value); setDurationError(''); setFailed(false) }} />
-      <TextAreaField ref={noteRef} name="note" rows={3} label={fields.note.label} hint={text.noteHelp}
+      <TextAreaField ref={noteRef} name="note" rows={3} label={fields.note.label}
         error={noteError || undefined} placeholder={fields.note.placeholder} maxLength={REVIEW_NOTE_EDITOR_MAX} resizable={false}
         counter={fields.note.counter.replace('{count}', String(note.length)).replace('{max}', String(REVIEW_NOTE_EDITOR_MAX))}
         value={note} onChange={(event) => { setNote(event.target.value); setNoteError(''); setFailed(false) }} />
-      {!WORKING_DAY_DEADLINES_ACTIVE && <p className="text-xs text-text-gray">{text.workingDaysPending}</p>}
     </FormDialog>
   )
 }

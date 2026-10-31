@@ -31,7 +31,7 @@ function draft(): Sop {
     complianceChecks: [{ id: 'c', sopId: 'sop', version: '1', status: 'completed', startedAt: '2026-10-01T00:00:00Z', guideline: { name: 'GVP', version: '4.0' }, findings: [] }] }
 }
 const field = (value: string) => renderToStaticMarkup(<ReviewDueDateField name="reviewRequestDueDate" stage="response"
-  text={{ ...sopWorkflowEn.dialogs.submit.reviewDate, label: internalReviewEn.submit.responseDateOptional, help: internalReviewEn.submit.responseHelp, duration: internalReviewEn.submit.responseTimeGiven }}
+  text={{ ...sopWorkflowEn.dialogs.submit.reviewDate, label: internalReviewEn.submit.responseDateOptional, help: undefined, duration: internalReviewEn.submit.responseTimeGiven }}
   value={value} closeLabel="Close" onChange={() => {}} />)
 
 // Device time zones: UTC, Riyadh itself, far west (UTC−7/−8) and far east (UTC+13).

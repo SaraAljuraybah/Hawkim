@@ -14,8 +14,8 @@ interface ReviewDueDateFieldProps {
   /** A date input value ("2026-10-29"), or '' for no due date. */
   value: string
   onChange: (value: string) => void
-  /** Label, help text and the "Time given…" templates. */
-  text: SopWorkflowContent['dialogs']['submit']['reviewDate']
+  /** Label, optional help text and the "Time given…" templates. */
+  text: Omit<SopWorkflowContent['dialogs']['submit']['reviewDate'], 'help'> & { help?: string }
   error?: string
   disabled?: boolean
   /**
