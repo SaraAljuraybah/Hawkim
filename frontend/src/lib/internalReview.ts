@@ -1,16 +1,23 @@
 import { SYSTEM_ACTOR, type InternalReviewRound, type InternalReviewerAssignment, type Sop, type SopComment, type TimelineEvent } from '../data/mock/types'
 import { checkRequired, hasCurrentCheck } from './compliance'
+import { fixedResponseDueDate } from './fixedResponseDeadline'
 import { todayIsoDate } from './format'
 import { isInactiveDecision, isOpenDecision, isUnsentVersion, isValidReviewDuration, isWithdrawalDue, latestAssignmentOf, latestAssignments, projectReviewers, reviewDueDateFrom, withdrawalDueAt } from './internalReviewStatus'
 import { eligibleReviewers, type ReviewEnvironment } from './reviewFlow'
+import { WORKING_DAY_DEADLINES_ACTIVE } from './deadlinePolicy'
 import { parseResponseDueDate } from './responseTime'
-import { isAuthor } from './workflow'
+import { endOfRiyadhDay, responseWorkingCountsFrom, reviewWorkingDueDateFrom, WORKING_DAY_POLICY } from './riyadhWorkingDays'
+import { isAuthor, SUBMIT_COMMENT_MAX } from './workflow'
 
 export interface InternalReviewOptions {
   reviewerIds: string[]
-  /** Optional deadline to accept or decline (YYYY-MM-DD, today or later), the same for every request sent. */
+  /**
+   * Optional deadline to accept or decline (YYYY-MM-DD, today or later; tomorrow or later from 4:00 PM),
+   * the same for every request sent. Once working-day deadlines are active (lib/deadlinePolicy.ts) the
+   * date is fixed at two working days and the server sets it; this is then only the preview.
+   */
   responseDueDate?: string
-  /** Optional review duration (whole calendar days, 1–30), counted from each reviewer's acceptance. */
+  /** Optional review duration (whole days, 1–30: calendar days now, working days once active), counted from each reviewer's acceptance. */
   reviewDurationDays?: number
   note?: string
 }
@@ -81,12 +88,25 @@ function save(sop: Sop, round: InternalReviewRound, events: TimelineEvent[], ext
 function update(round: InternalReviewRound, assignmentId: string, change: Partial<InternalReviewerAssignment>): InternalReviewRound {
   return { ...round, assignments: round.assignments.map((person) => person.id === assignmentId ? { ...person, ...change } : person) }
 }
-/** The deadlines each new request gets, validated: a response date today or later (tomorrow or later from 4:00 PM, see lib/responseTime), and a whole-day duration. */
-function deadlines(options: InternalReviewOptions, now = new Date()): Pick<InternalReviewerAssignment, 'responseDueDate' | 'reviewDurationDays'> {
-  const responseDueDate = options.responseDueDate?.trim() || undefined
-  assert(parseResponseDueDate(responseDueDate ?? '', now).valid, 'Choose an optional response due date today or later (tomorrow or later from 4:00 PM)')
-  assert(isValidReviewDuration(options.reviewDurationDays), 'Choose an optional review duration of 1 to 30 whole days')
-  return { ...(responseDueDate ? { responseDueDate } : {}), ...(options.reviewDurationDays !== undefined ? { reviewDurationDays: options.reviewDurationDays } : {}) }
+/**
+ * The deadlines each new request gets, validated. Until working-day deadlines are activated
+ * (lib/deadlinePolicy.ts), as the approved backend: an optional response date today or later
+ * (tomorrow or later from 4:00 PM, see lib/responseTime) and a whole-day duration.
+ * Existing records are never rewritten.
+ */
+function deadlines(options: InternalReviewOptions, now = new Date()): Pick<InternalReviewerAssignment, 'responseDueDate' | 'responseDueAt' | 'responseCountsFromAt' | 'reviewDurationDays' | 'deadlinePolicy'> {
+  if (!WORKING_DAY_DEADLINES_ACTIVE) {
+    const chosen = options.responseDueDate?.trim() || undefined
+    assert(parseResponseDueDate(chosen ?? '', now).valid, 'Choose an optional response due date today or later (tomorrow or later from 4:00 PM)')
+    assert(isValidReviewDuration(options.reviewDurationDays), 'Choose an optional review duration of 1 to 30 whole days')
+    // The end of the chosen day in Riyadh, as send_review_requests saves it (riyadh_end_of_day).
+    return { ...(chosen ? { responseDueDate: chosen, responseDueAt: endOfRiyadhDay(chosen) } : {}), ...(options.reviewDurationDays !== undefined ? { reviewDurationDays: options.reviewDurationDays } : {}) }
+  }
+  const responseDueDate = fixedResponseDueDate(now)
+  assert(!options.responseDueDate?.trim() || options.responseDueDate.trim() === responseDueDate, 'The response due date is fixed at two working days in Riyadh; refresh the request preview')
+  assert(isValidReviewDuration(options.reviewDurationDays), 'Choose an optional review duration of 1 to 30 whole working days')
+  return { responseDueDate, responseDueAt: endOfRiyadhDay(responseDueDate), responseCountsFromAt: responseWorkingCountsFrom(now).toISOString(), deadlinePolicy: WORKING_DAY_POLICY,
+    ...(options.reviewDurationDays !== undefined ? { reviewDurationDays: options.reviewDurationDays } : {}) }
 }
 function create(sop: Sop, actorId: string, options: InternalReviewOptions, kind: 'submitted' | 'resubmitted'): Sop {
   const requestedAt = new Date()
@@ -105,7 +125,7 @@ function validate(sop: Sop, options: InternalReviewOptions, env: ReviewEnvironme
   assert(options.reviewerIds.length > 0 && new Set(options.reviewerIds).size === options.reviewerIds.length, 'Select one or more different eligible internal reviewers')
   const eligible = eligibleReviewers(sop, sop.departmentId, env.users)
   assert(options.reviewerIds.every((userId) => eligible.some((user) => user.id === userId)), 'Select eligible reviewers from the SOP home department; Authors and co-authors cannot review')
-  assert(!options.note || options.note.trim().length <= 500, 'Submission notes must be at most 500 characters')
+  assert(!options.note || options.note.trim().length <= SUBMIT_COMMENT_MAX, 'Submission notes must be at most 500 characters')
   deadlines(options)
 }
 export function startInternalReview(sop: Sop, actorId: string, guidelineVersion: string, options: InternalReviewOptions, env: ReviewEnvironment): Sop {
@@ -140,8 +160,9 @@ export function addInternalReviewers(sop: Sop, actorId: string, options: Interna
   const addable = addableReviewers(sop, env.users)
   assert(options.reviewerIds.every((userId) => addable.some((user) => user.id === userId)), 'These reviewers already have a request for this version')
   const round = currentInternalRound(sop)!
-  const now = new Date().toISOString()
-  const timing = deadlines(options)
+  const requestedAt = new Date()
+  const now = requestedAt.toISOString()
+  const timing = deadlines(options, requestedAt)
   const updated: InternalReviewRound = { ...round, assignments: [...round.assignments,
     ...options.reviewerIds.map((userId) => ({ id: id('internal-task'), userId, decision: 'pending' as const, assignedAt: now, assignedDueDays: null, ...timing }))] }
   return settleRound(sop, updated, [event(round, 'submitted', actorId, { createdAt: now, recipientIds: options.reviewerIds, ...(options.note?.trim() ? { note: options.note.trim() } : {}) })])
@@ -153,8 +174,11 @@ export function acceptInternalReview(sop: Sop, actorId: string, roundId: string,
   assert(assignment.decision === 'pending', 'This review has already been accepted')
   const acceptedAt = new Date().toISOString()
   // The review duration starts now; its last day is fixed so history and the demo clock stay consistent.
-  const reviewDueDate = assignment.reviewDurationDays !== undefined ? reviewDueDateFrom(acceptedAt, assignment.reviewDurationDays) : undefined
-  const updated = update(round, assignmentId, { decision: 'accepted', acceptedAt, ...(reviewDueDate ? { reviewDueDate } : {}) })
+  const workingDays = assignment.deadlinePolicy === WORKING_DAY_POLICY
+  const reviewDueDate = assignment.reviewDurationDays !== undefined
+    ? (workingDays ? reviewWorkingDueDateFrom : reviewDueDateFrom)(acceptedAt, assignment.reviewDurationDays) : undefined
+  const updated = update(round, assignmentId, { decision: 'accepted', acceptedAt,
+    ...(reviewDueDate ? { reviewDueDate, ...(workingDays ? { reviewDueAt: endOfRiyadhDay(reviewDueDate) } : {}) } : {}) })
   return save(sop, updated, [event(round, 'review-accepted', actorId, { reviewAssignmentId: assignmentId })])
 }
 /** The reviewer turns the task down with a required reason; the author can ask someone else. */

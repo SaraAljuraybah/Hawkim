@@ -5,6 +5,7 @@ import { getDirectoryDepartments } from '../lib/departments'
 import { SopsProvider } from './SopsProvider'
 import { useSops, type NewDraft, type SopsStore } from './sopsContext'
 
+
 const fixture = vi.hoisted(() => ({ userId: 'visitor', users: [] as User[], departments: [] as Department[], sops: [] as Sop[] }))
 vi.mock('../data/mock/sops', () => ({ sops: fixture.sops }))
 vi.mock('./sessionContext', () => ({ useSession: () => ({ user: fixture.users.find((user) => user.id === fixture.userId) ?? null }) }))
@@ -60,6 +61,16 @@ beforeEach(() => {
 })
 
 describe('directory access never authorizes authoring', () => {
+  it('enforces the required 50-character title limit before uploading or saving a direct draft mutation', async () => {
+    const store = storeFor('visitor')
+    for (const title of ['', '   ', 'x'.repeat(51)]) {
+      await expect(store.addDraft({ ...draft(), title })).rejects.toThrow(/1 to 50/)
+      expect(database.created).toEqual([])
+    }
+    const title = 'x'.repeat(50)
+    await expect(store.addDraft({ ...draft(), title })).resolves.toMatchObject({ title, authorId: 'visitor', departmentId: 'home' })
+    await expect(store.addDraft({ ...draft(), title: '  Trimmed title  ' })).resolves.toMatchObject({ title: 'Trimmed title' })
+  })
   it('preserves home-department authoring, descriptions and permissions', async () => {
     const user = fixture.users[0], before = structuredClone(user)
     expect(getDirectoryDepartments(user, [grant()], fixture.departments).map((department) => department.id)).toEqual(['home', 'other'])

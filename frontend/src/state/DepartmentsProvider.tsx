@@ -8,9 +8,9 @@ import {
   validateDepartment,
   type DepartmentInput,
 } from '../lib/departmentAdmin'
-import { fetchDepartments } from '../services/people'
 import { DepartmentsContext, type DepartmentActor, type DepartmentsStore } from './departmentsContext'
 import { useLoadAfterSignIn } from './useLoadAfterSignIn'
+import { fetchDepartments } from '../services/people'
 
 /** Refuses anyone who isn't an active admin. */
 function assertAdmin({ actorId, users }: DepartmentActor) {
@@ -28,7 +28,7 @@ function assertAdmin({ actorId, users }: DepartmentActor) {
 export function DepartmentsProvider({ children }: { children: ReactNode }) {
   const [departments, setDepartments] = useState<Department[]>([])
   // The latest list (as in the other stores): actions check against it, not the last render.
-  const latestRef = useRef<Department[]>([])
+  const latestRef = useRef<Department[]>(departments)
   const commit = useCallback((next: Department[]) => {
     latestRef.current = next
     setDepartments(next)

@@ -102,6 +102,35 @@ describe('SOPs from the database', () => {
     expect(round.assignments[1]).toMatchObject({ decision: 'removed', removedById: 'uuid-sara', removalReason: 'Not needed', decisionBeforeRemoval: 'completed', commentId: 'c-1' })
   })
 
+  it('preserves the authoritative server deadlines and the per-request policy without recalculating history', () => {
+    const stored = structuredClone(row)
+    const request = stored.review_rounds[0].review_requests[1]
+    request.response_due_at = '2026-10-26T20:59:59.999Z'
+    request.review_due_at = '2026-10-29T20:59:59.999Z'
+    request.deadline_policy = 'riyadh-working-days-v1'
+    expect(toSop(stored).internalReviewRounds![0].assignments[0]).toMatchObject({
+      responseDueDate: '2026-10-26', responseDueAt: '2026-10-26T20:59:59.999Z',
+      reviewDueDate: '2026-10-29', reviewDueAt: '2026-10-29T20:59:59.999Z', deadlinePolicy: 'riyadh-working-days-v1',
+    })
+    request.deadline_policy = 'calendar-v1'
+    expect(toSop(stored).internalReviewRounds![0].assignments[0]).toMatchObject({
+      responseDueAt: request.response_due_at,
+      reviewDueAt: request.review_due_at, deadlinePolicy: 'calendar-v1',
+    })
+  })
+
+  it('leaves missing legacy allocation metadata unset instead of deriving new working-day values', () => {
+    const stored = structuredClone(row)
+    const request = stored.review_rounds[0].review_requests[1]
+    request.deadline_policy = null
+    const assignment = toSop(stored).internalReviewRounds![0].assignments[0]
+    expect(assignment.responseCountsFromAt).toBeUndefined()
+    expect(assignment.deadlinePolicy).toBeUndefined()
+    expect(assignment.responseDueDate).toBe('2026-10-26')
+    expect(assignment.reviewDueDate).toBe('2026-10-29')
+    expect(toSop(row).internalReviewRounds![0].assignments[0].responseCountsFromAt).toBeUndefined()
+  })
+
   it('shows the latest round\'s reviewers in the shared views, and keeps the reviewer comments', () => {
     const sop = toSop(row)
     expect(sop.reviewers.map((person) => [person.userId, person.decision])).toEqual([['uuid-noura', 'pending'], ['uuid-lulwah', 'cancelled']])
@@ -122,6 +151,27 @@ describe('SOPs from the database', () => {
 })
 
 describe('reading SOPs', () => {
+  it('selects the saved deadlines but no column that exists only in the unapplied working-day proposal', async () => {
+    await fetchSops()
+    await fetchSop('uuid-sop')
+    expect(query.select).toHaveBeenCalledTimes(2)
+    for (const [columns] of query.select.mock.calls) {
+      expect(columns).toContain('response_due_at')
+      expect(columns).toContain('review_due_at')
+      expect(columns).not.toContain('deadline_policy')
+      expect(columns).not.toContain('response_counts_from')
+    }
+  })
+
+  it('reports a failed read instead of retrying with different columns', async () => {
+    const error = { message: 'column review_requests.example does not exist', code: '42703' }
+    query.order.mockResolvedValueOnce({ data: null, error })
+    query.maybeSingle.mockResolvedValueOnce({ data: null, error })
+    await expect(fetchSops()).rejects.toThrow(error.message)
+    await expect(fetchSop('uuid-sop')).rejects.toThrow(error.message)
+    expect(query.select).toHaveBeenCalledTimes(2)
+  })
+
   it('names the relationship of each embedded table, since sops and sop_versions are linked twice', async () => {
     await fetchSops()
     await fetchSop('uuid-sop')
@@ -150,6 +200,26 @@ describe('saving SOPs and versions', () => {
     expect(rpc).toHaveBeenCalledWith('create_sop', {
       p_title: 'Backup', p_description: '', p_department_id: 'information-technology', p_storage_path: 'uuid-sara/a.pdf', p_file_name: 'Backup.pdf',
     })
+  })
+
+  it('refuses blank or overlong titles before calling the database and trims accepted titles', async () => {
+    for (const title of ['', '  ', 'x'.repeat(51)]) {
+      await expect(createSop({ title, departmentId: 'information-technology', file })).rejects.toThrow(/1 to 50/)
+    }
+    expect(rpc).not.toHaveBeenCalled()
+    rpc.mockResolvedValue({ data: 'uuid-new', error: null })
+    await createSop({ title: '  Backup  ', departmentId: 'information-technology', file })
+    expect(rpc).toHaveBeenLastCalledWith('create_sop', expect.objectContaining({ p_title: 'Backup' }))
+  })
+
+  it('uses the existing 50 UTF-16-unit title limit for supplementary Unicode characters', async () => {
+    const title = '😀'.repeat(25)
+    rpc.mockResolvedValue({ data: 'uuid-new', error: null })
+    await createSop({ title, departmentId: 'information-technology', file })
+    expect(rpc).toHaveBeenLastCalledWith('create_sop', expect.objectContaining({ p_title: title }))
+    rpc.mockClear()
+    await expect(createSop({ title: title + 'x', departmentId: 'information-technology', file })).rejects.toThrow(/1 to 50/)
+    expect(rpc).not.toHaveBeenCalled()
   })
 
   it('uploads and deletes versions through the database functions', async () => {

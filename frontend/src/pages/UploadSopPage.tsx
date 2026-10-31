@@ -9,13 +9,13 @@ import { TextField } from '../components/ui/TextField'
 import { uploadSopEn } from '../content/mySops.en'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { hasPermission } from '../lib/permissions'
+import { SOP_TITLE_MAX, sopTitleProblem } from '../lib/sopTitle'
 import { useActiveDepartment } from '../state/activeDepartmentContext'
 import { useCurrentUser } from '../state/sessionContext'
 import { useSops } from '../state/sopsContext'
 import { NotFoundPage } from './NotFoundPage'
 import type { MySopsLocationState } from './MySopsPage'
 
-const TITLE_MAX = 50
 const DESCRIPTION_MAX = 1000
 /** Authors can upload Word (.docx) and PDF files (PBI 1). */
 const FILE_EXTENSIONS = ['.docx', '.pdf']
@@ -49,7 +49,10 @@ export function UploadSopPage() {
   if (!isAuthor) return <NotFoundPage embedded />
 
   function validate(field: Field, values = { title, files }): string | undefined {
-    if (field === 'title') return values.title.trim() ? undefined : content.errors.titleRequired
+    if (field === 'title') {
+      const problem = sopTitleProblem(values.title)
+      return problem === 'required' ? content.errors.titleRequired : problem === 'too-long' ? content.errors.titleTooLong : undefined
+    }
     return values.files.length === 1 ? undefined : content.errors.fileRequired
   }
 
@@ -79,7 +82,6 @@ export function UploadSopPage() {
     setSaveError('')
     setSubmitting(true)
     try {
-      // Uploads the file, then saves the SOP (the database gives it its number).
       await addDraft({
         title: title.trim(),
         description: description.trim() || undefined,
@@ -108,12 +110,11 @@ export function UploadSopPage() {
             name="title"
             label={content.fields.title.label}
             placeholder={content.fields.title.placeholder}
+            hint={content.fields.title.hint}
             required
             requiredMark
-            maxLength={TITLE_MAX}
-            counter={content.fields.title.counter
-              .replace('{count}', String(title.length))
-              .replace('{max}', String(TITLE_MAX))}
+            maxLength={SOP_TITLE_MAX}
+            counter={content.fields.title.counter.replace('{count}', String(title.length)).replace('{max}', String(SOP_TITLE_MAX))}
             value={title}
             error={errors.title}
             onChange={(e) => setTitle(e.target.value)}

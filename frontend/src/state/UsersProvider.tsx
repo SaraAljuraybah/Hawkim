@@ -9,9 +9,9 @@ import {
   validateNewUser,
   type NewUser,
 } from '../lib/userAdmin'
-import { fetchPeople } from '../services/people'
 import { useLoadAfterSignIn } from './useLoadAfterSignIn'
 import { UsersContext, type AdminActionContext, type UsersStore } from './usersContext'
+import { fetchPeople } from '../services/people'
 
 /**
  * Users store shared by the employee screens (names, people pickers) and the admin
@@ -23,7 +23,7 @@ import { UsersContext, type AdminActionContext, type UsersStore } from './usersC
 export function UsersProvider({ children }: { children: ReactNode }) {
   const [users, setUsers] = useState<User[]>([])
   // The latest list (as in the SOPs store): actions check against it, not the last render.
-  const latestRef = useRef<User[]>([])
+  const latestRef = useRef<User[]>(users)
   const commit = useCallback((next: User[]) => {
     latestRef.current = next
     setUsers(next)

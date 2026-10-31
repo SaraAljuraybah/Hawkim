@@ -6,8 +6,8 @@ import type { InternalReviewOptions } from '../lib/internalReview'
 import type { LoadStatus } from './useLoadAfterSignIn'
 
 /**
- * What the author provides when uploading; everything else is set by the store and
- * the database. A new SOP has no co-authors (they're added later from the SOP page).
+ * What the author provides when uploading; the local store sets everything else.
+ * A new SOP has no co-authors (they're added later from the SOP page).
  */
 export type NewDraft = Pick<Sop, 'title' | 'departmentId' | 'description'> & { file: File }
 
@@ -22,11 +22,11 @@ export interface ResubmitOptions {
 }
 
 export interface SopsStore {
-  /** Whether the signed-in person's SOPs have been read from the database. */
+  /** Whether the SOPs have been read from the database for the signed-in user. */
   status: LoadStatus
-  /** Every SOP, at every lifecycle stage (the directory shows the published ones). */
+  /** Only this identity's authorized SOP views (the directory further limits published access). */
   sops: Sop[]
-  /** Uploads the file and saves a new draft by the current user (the database gives it its number and v1); returns it. */
+  /** Creates a local draft and file preview by the current user; lost on reload. */
   addDraft: (draft: NewDraft) => Promise<Sop>
 
   // Actions by the current user (author or co-author). Each throws if not allowed.
@@ -66,7 +66,7 @@ export interface SopsStore {
   // demo panel). Complete review and Approve take an optional comment.
   completeReview: (sopId: string, reviewerId: string, text?: string) => void
   returnAsReviewer: (sopId: string, reviewerId: string, text: string) => void
-  /** An assigned reviewer adds a reviewer from another department (PBI 23). */
+  /** Cross-department routing (PBI 23); pending: reviewer assignment is Author-controlled, so this always refuses. */
   routeToReviewer: (sopId: string, reviewerId: string, newReviewerId: string, note?: string) => void
   approveAs: (sopId: string, approverId: string, text?: string, snapshot?: ApprovalDecisionSnapshot) => void
   returnAsApprover: (sopId: string, approverId: string, text: string, snapshot?: ApprovalDecisionSnapshot) => void

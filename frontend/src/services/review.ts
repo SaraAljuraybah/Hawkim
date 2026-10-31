@@ -5,6 +5,8 @@
  */
 
 import type { InternalReviewOptions } from '../lib/internalReview'
+import { isValidReviewDuration } from '../lib/internalReviewStatus'
+import { SUBMIT_COMMENT_MAX } from '../lib/workflow'
 import { supabase } from './supabase'
 
 async function call(name: string, args: Record<string, unknown>): Promise<unknown> {
@@ -15,6 +17,8 @@ async function call(name: string, args: Record<string, unknown>): Promise<unknow
 
 /** The options as the database functions take them (blank ones as null). */
 function options(o: InternalReviewOptions) {
+  if (!isValidReviewDuration(o.reviewDurationDays)) throw new Error('The review duration must be from 1 to 30 working days')
+  if ((o.note?.trim().length ?? 0) > SUBMIT_COMMENT_MAX) throw new Error('The review request comments are too long')
   return {
     p_reviewer_ids: o.reviewerIds,
     p_response_due_date: o.responseDueDate || null,

@@ -36,9 +36,9 @@ export const complianceEn: ComplianceContent = {
     },
   },
   report: {
-    pageTitle: 'Compliance Report · {code} | Hawkim',
-    printTitle: 'Compliance Report {code} v{version}',
-    back: 'Back to {code}',
+    pageTitle: 'Compliance Report · {title} | Hawkim',
+    printTitle: 'Compliance Report {title} v{version}',
+    back: 'Back to {title}',
     title: 'Compliance Report',
     download: 'Download PDF',
     versionSelect: { label: 'Report for', option: 'v{version}', current: 'v{version} (Current)' },

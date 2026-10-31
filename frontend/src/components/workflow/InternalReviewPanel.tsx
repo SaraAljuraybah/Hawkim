@@ -1,6 +1,7 @@
-import { useRef, useState } from 'react'
+import { useRef, useState, type ReactNode } from 'react'
 import { flushSync } from 'react-dom'
 import { internalReviewEn as text } from '../../content/internalReview.en'
+import { sopWorkflowEn } from '../../content/workflow.en'
 import type { InternalReviewerAssignment, Sop } from '../../data/mock/types'
 import { REVIEW_TEXT_MAX } from '../../lib/internalReview'
 import { isInactiveDecision, latestAssignmentOf } from '../../lib/internalReviewStatus'
@@ -11,10 +12,13 @@ import { Card } from '../ui/Card'
 import { FormDialog } from '../ui/FormDialog'
 import { TextAreaField } from '../ui/TextAreaField'
 import { RequestStatusBadge, ReviewRequestDetails } from './ReviewRequestDetails'
+import { DecisionBadge } from './DecisionBadge'
+import { ReviewerDeadline } from './ReviewerDeadline'
 
 interface Props {
   sop: Sop
   canRemove: boolean
+  inactive?: boolean
   /**
    * Only reviewers still taking part (the author's SOP page): a reviewer whose latest request was
    * removed, declined or withdrawn is left out, and so are such requests in the others' history.
@@ -23,8 +27,12 @@ interface Props {
   activeOnly?: boolean
   /** Shorter request cards (the author's SOP page): version and deadlines only (see ReviewRequestDetails). */
   compact?: boolean
-  /** Box heading (also the section's accessible name). Default: "Internal Review Requests". */
+  /** Keep the author's initial review controls available before there are requests. */
+  showEmpty?: boolean
+  /** Box heading (also the section's accessible name). */
   title?: string
+  actions?: ReactNode
+  children?: ReactNode
 }
 
 const TITLE_ID = 'internal-review-title'
@@ -34,7 +42,7 @@ const TITLE_ID = 'internal-review-title'
  * its version, its deadlines, and any reason or comments. The main author can remove a reviewer
  * from the current version's review.
  */
-export function InternalReviewPanel({ sop, canRemove, activeOnly = false, compact = false, title = text.panel.title }: Props) {
+export function InternalReviewPanel({ sop, canRemove, inactive = false, activeOnly = false, compact = false, showEmpty = false, title = text.panel.title, actions, children }: Props) {
   const { nameOf } = useUsers()
   const store = useSops()
   const [target, setTarget] = useState<{ roundId: string; assignment: InternalReviewerAssignment } | null>(null)
@@ -45,9 +53,10 @@ export function InternalReviewPanel({ sop, canRemove, activeOnly = false, compac
   const triggerRef = useRef<HTMLButtonElement | null>(null)
   const reasonRef = useRef<HTMLTextAreaElement | null>(null)
   const rounds = sop.internalReviewRounds ?? []
-  if (!rounds.length) return null
-  const current = rounds.at(-1)!
-  const removable = canRemove && sop.status === 'in-review' && current.version === sop.version
+  if (!rounds.length && !showEmpty) return null
+  const current = rounds.at(-1)
+  const legacyReviewers = rounds.length ? [] : sop.reviewers.filter((reviewer) => !activeOnly || reviewer.decision !== 'cancelled')
+  const removable = !inactive && canRemove && sop.status === 'in-review' && current?.version === sop.version
   // Reviewers in the order they were first asked; each one's requests newest first.
   const requests = rounds.flatMap((round) => round.assignments.map((assignment) => ({ round, assignment })))
   const requestsOf = (userId: string) => requests.filter((item) => item.assignment.userId === userId)
@@ -61,20 +70,26 @@ export function InternalReviewPanel({ sop, canRemove, activeOnly = false, compac
     try { await store.removeInternalReviewer(sop.id, target.roundId, target.assignment.id, reason); setMessage(text.panel.removed.replace('{name}', nameOf(target.assignment.userId))) }
     catch (failure) { setError(failure instanceof Error ? failure.message : text.status.closed); return false }
   }
-  return <Card title={title} titleId={TITLE_ID} focusableTitle className="mt-6">
+  return <Card title={title} titleId={TITLE_ID} focusableTitle actions={actions} className="mt-6">
+    {children}
     {/* Announced to screen readers only; the list itself shows the change. */}
     <div role="status" className="sr-only">{message}</div>
-    {!reviewerIds.length && <p className="text-sm text-text-gray">{text.panel.noActive}</p>}
+    {!reviewerIds.length && !legacyReviewers.length && <p className="text-sm text-text-gray">{text.panel.noActive}</p>}
+    {legacyReviewers.length > 0 && <ul className="space-y-4">{legacyReviewers.map((reviewer) => <li key={reviewer.userId} className="rounded-lg border border-beige p-4">
+      <h3 className="mb-2 text-base font-semibold text-maroon">{nameOf(reviewer.userId)}</h3>
+      <DecisionBadge decision={reviewer.decision} labels={sopWorkflowEn.people.decisions} />
+      <ReviewerDeadline sop={sop} reviewer={reviewer} content={sopWorkflowEn.reviewerDeadline} showQueue inactive={inactive} />
+    </li>)}</ul>}
     {reviewerIds.length > 0 && <ul className="space-y-4">{reviewerIds.map((userId) => {
       const own = requestsOf(userId).reverse().filter(({ assignment }) => !activeOnly || !isInactiveDecision(assignment.decision))
-      const latest = latestAssignmentOf(current, userId)
+      const latest = current && latestAssignmentOf(current, userId)
       const name = nameOf(userId)
       return <li key={userId} className="rounded-lg border border-beige p-4">
         <h3 className="text-base font-semibold text-maroon">{name}</h3>
         <ul aria-label={text.panel.reviewerHistory.replace('{name}', name)} className="mt-2 space-y-3">{own.map(({ round, assignment }) =>
           <li key={assignment.id} className="border-t border-beige pt-3 first:border-0 first:pt-0">
-            <RequestStatusBadge sop={sop} request={assignment} />
-            <ReviewRequestDetails sop={sop} request={assignment} compact={compact} />
+            <RequestStatusBadge sop={sop} request={assignment} inactive={inactive} />
+            <ReviewRequestDetails sop={sop} request={assignment} compact={compact} inactive={inactive} />
             {removable && round === current && assignment === latest && assignment.decision !== 'removed' &&
               <Button size="sm" variant="secondary" className="mt-2" aria-label={text.panel.removeFor.replace('{name}', name)}
                 onClick={(event) => { triggerRef.current = event.currentTarget; setTarget({ roundId: round.id, assignment }); setReason(''); setReasonError(''); setError('') }}>{text.panel.remove}</Button>}

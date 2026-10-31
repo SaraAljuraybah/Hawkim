@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { mockRequests } from '../data/mock/requests'
 import type { UserRequest } from '../data/mock/types'
 import { todayIsoDate } from '../lib/format'
@@ -26,12 +26,17 @@ export function RequestsProvider({ children }: { children: ReactNode }) {
 
   const user = useSession().user
   const userId = user?.id
+  const activeIdentity = useRef(userId)
+  useLayoutEffect(() => {
+    activeIdentity.current = userId
+    return () => { activeIdentity.current = undefined }
+  }, [userId])
   const { users } = useUsers()
   const { departments } = useDepartments()
 
   const addRequest = useCallback(
     (request: NewRequest) => {
-      if (!userId) throw new Error('Sign in to send a request')
+      if (!userId || activeIdentity.current !== userId) throw new Error('Sign in to send a request')
       const now = new Date()
       const created: UserRequest = {
         ...request,
@@ -51,7 +56,7 @@ export function RequestsProvider({ children }: { children: ReactNode }) {
   const cancelRequest = useCallback(
     (id: string) => {
       const request = latestRef.current.find((item) => item.id === id)
-      if (!userId || !request || request.requesterId !== userId || request.status !== 'pending') return
+      if (!userId || activeIdentity.current !== userId || !request || request.requesterId !== userId || request.status !== 'pending') return
       commit(
         latestRef.current.map((item) =>
           item.id === id ? { ...item, status: 'cancelled' } : item,
@@ -64,7 +69,7 @@ export function RequestsProvider({ children }: { children: ReactNode }) {
   /** Applies the signed-in admin's decision to a request the rules allow (throws otherwise). */
   const decide = useCallback(
     (id: string, decision: 'approved' | 'rejected') => {
-      if (!user?.permissions.includes('admin')) throw new Error('Only an admin can respond to requests')
+      if (activeIdentity.current !== userId || !user?.permissions.includes('admin')) throw new Error('Only an admin can respond to requests')
       const request = latestRef.current.find((item) => item.id === id)
       if (!request) throw new Error(`Unknown request ${id}`)
       const blockers =
@@ -72,7 +77,7 @@ export function RequestsProvider({ children }: { children: ReactNode }) {
       if (blockers.length > 0) throw new Error(`This request can't be ${decision} (${blockers.join(', ')})`)
       commit(latestRef.current.map((item) => (item.id === id ? decideRequest(item, decision, user.id) : item)))
     },
-    [commit, user, users, departments],
+    [commit, user, userId, users, departments],
   )
   const approveRequest = useCallback((id: string) => decide(id, 'approved'), [decide])
   const rejectRequest = useCallback((id: string) => decide(id, 'rejected'), [decide])

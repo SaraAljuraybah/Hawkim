@@ -7,7 +7,7 @@ import type { SopWorkflowContent } from './types'
 import { approvalEn } from './approval.en'
 
 export const sopWorkflowEn: SopWorkflowContent = {
-  pageTitle: '{code} | Hawkim',
+  pageTitle: '{title} | Hawkim',
   back: { label: 'Back to My SOPs', href: '/my-sops' },
   versionTemplate: 'v{version}',
   lastUpdatedTemplate: 'Last updated {date}',
@@ -115,8 +115,8 @@ export const sopWorkflowEn: SopWorkflowContent = {
       },
       'not-uploader': "Restricted to {name} (main author) or the current version's uploader",
     },
-    previewTitle: '{code} · v{version}',
-    viewerTitle: '{code} {title}, v{version} (PDF)',
+    previewTitle: '{title} · v{version}',
+    viewerTitle: '{title}, v{version} (PDF)',
     close: 'Close preview',
     fallback: {
       text: "Your browser can't display the PDF here. Open it in a new tab instead.",
@@ -126,8 +126,8 @@ export const sopWorkflowEn: SopWorkflowContent = {
   },
 
   actions: {
-    submit: 'Submit for Review',
-    resubmit: 'Resubmit for Review',
+    submit: 'Add Reviewers',
+    resubmit: 'Add Reviewers',
     response: 'Response',
     resubmitHint: 'Upload a new version with your changes before resubmitting.',
     authorOnly: 'Only the author, {name}, can submit this SOP.',
@@ -197,12 +197,12 @@ export const sopWorkflowEn: SopWorkflowContent = {
       sizeError: '{name} is too large. Files must be {max} or smaller.',
     },
     fileRequired: 'Upload an SOP file.',
-    uploadFailed: "The new version couldn't be saved. Check your connection and try again.",
+    uploadFailed: 'The file could not be added. Your draft has been kept.',
     submit: {
       title: 'Submit for Review',
       reviewDate: {
         label: 'Review Due Date (Optional)',
-        help: 'Choose today or any future date. The review is due at the end of that day. Leave blank for no deadline.',
+        help: 'Choose today or any future date in Riyadh. The review is due at the end of that day in Asia/Riyadh. Leave blank for no deadline.',
         oneDay: 'Time given: 1 day · Due {date}',
         days: 'Time given: {count} days · Due {date}',
         duration: 'Time given: {duration} · Due {date}',
@@ -231,7 +231,7 @@ export const sopWorkflowEn: SopWorkflowContent = {
       description: 'Co-authors can upload versions and run compliance checks on their own uploads. Only you can submit for review.',
       label: 'Co-authors',
       required: 'Select at least one co-author.',
-      failed: "The co-authors couldn't be added. Check your connection and try again.",
+      failed: 'Co-authors could not be added. Review your selection and try again.',
       confirm: 'Add Co-authors',
     },
     removeCoAuthor: {
@@ -245,7 +245,7 @@ export const sopWorkflowEn: SopWorkflowContent = {
       description: 'Your response is added to the Review timeline and sent to {names}.',
       label: 'Response',
       required: 'Write a response.',
-      failed: "The response couldn't be sent. Check your connection and try again.",
+      failed: 'Your response could not be added. Your draft has been kept.',
       counter: '{count} / {max}',
       confirm: 'Send Response',
     },
@@ -260,14 +260,14 @@ export const sopWorkflowEn: SopWorkflowContent = {
     submitted: 'Submitted for review.',
     newVersion: 'v{version} uploaded.',
     versionDeleted: 'v{version} deleted.',
-    deleteFailed: "v{version} couldn't be deleted. Check your connection and try again.",
+    deleteFailed: 'v{version} could not be deleted.',
     fileFailed: "The file couldn't be opened. Try again.",
     resubmitted: 'Resubmitted for review.',
     coAuthorsAdded: 'Co-authors added.',
     coAuthorRemoved: '{name} removed as co-author.',
-    coAuthorRemoveFailed: "{name} couldn't be removed. Check your connection and try again.",
+    coAuthorRemoveFailed: '{name} could not be removed as co-author.',
     checkStarted: 'Compliance check started.',
-    checkStartFailed: "The compliance check couldn't be started. Check your connection and try again.",
+    checkStartFailed: 'The sample compliance check could not be started.',
     responseSent: 'Response sent.',
   },
 }

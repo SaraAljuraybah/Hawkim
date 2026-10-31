@@ -7,6 +7,9 @@ import { SubmitDialog } from './SubmitDialog'
 import { ReviewFlowSummary } from './ReviewFlowSummary'
 import { ReviewFlowActions } from '../reviews/ReviewFlowActions'
 import { ReviewDueDateField } from './ReviewDueDateField'
+// The Submit dialog assertions below cover the working-day policy as it behaves once activated
+// (lib/deadlinePolicy.ts); the pending behaviour is covered in lib/deadlinePolicy.test.tsx.
+vi.mock('../../lib/deadlinePolicy', () => ({ WORKING_DAY_DEADLINES_ACTIVE: true }))
 
 const fixtures = vi.hoisted(() => ({
   users: [
@@ -24,28 +27,30 @@ function draft(): Sop {
   return { id: 'test', code: 'TEST', title: 'Test', departmentId: 'test-origin', version: '1', status: 'draft', authorId: 'author', coAuthorIds: [], lastUpdated: '2026-10-18', fileName: 'test.pdf', fileType: 'pdf', reviewers: [], approvers: [], versions: [], comments: [], timeline: [], complianceChecks: [] }
 }
 describe('review plan interface', () => {
-  it('offers multiple eligible internal reviewers inside a closed dropdown without external reviewers or approvers', () => {
+  it('offers searchable eligible internal reviewers without external reviewers or approvers', () => {
     const html = renderToStaticMarkup(<SubmitDialog sop={draft()} content={sopWorkflowEn.dialogs} onSubmit={() => {}} onClose={() => {}} />)
     expect(html).toContain('Select Reviewers')
     expect(html).toContain('aria-expanded="false"')
-    expect(html.match(/<div[^>]*role="group"[^>]*>/)?.[0]).toContain('hidden=""')
-    expect(html).toContain('name="internalReviewers"')
-    expect(html).toContain('type="checkbox"')
+    expect(html).toContain('role="combobox"')
+    expect(html.match(/<ul[^>]*role="listbox"[^>]*>/)?.[0]).toContain('hidden=""')
+    expect(html).toContain('placeholder="Search reviewers by name…"')
     expect(html).toContain('First Test Reviewer')
     expect(html).toContain('Second Test Reviewer')
     expect(html).not.toContain('Other Department Reviewer')
     expect(html).not.toContain('Quality Test Controller')
     expect(html).not.toContain('Reviewer 1')
-    expect(html).toContain('Response Due Date (Optional)')
+    expect(html).toContain('Request Response Deadline')
     expect(html.match(/type="date"/g)).toHaveLength(1)
-    expect(html).toContain('Review Duration in Days (Optional)')
+    expect(html.match(/<input[^>]*name="reviewRequestDueDate"[^>]*>/)?.[0]).toContain('readOnly=""')
+    expect(html).toContain('Review Duration in Working Days (Optional)')
     expect(html).not.toContain('Individual Reviewer Task Due Date')
   })
   it('shows a clear blocked Quality state when no controller is configured', () => {
     const sop: Sop = { ...draft(), status: 'in-review', reviewers: [{ userId: 'r1', decision: 'completed' }, { userId: 'r2', decision: 'completed' }], reviewFlow: { stage: 'quality-routing', activeReviewerId: 'r2', reviewer1Id: 'r1', reviewer2Id: 'r2', sameDivision: 'skipped', crossDivision: 'skipped', departments: [] } }
     const html = renderToStaticMarkup(<ReviewFlowActions sop={sop} onComplete={() => {}} />)
     expect(html).toContain(reviewFlowEn.qualityMissing)
-    expect(html).toContain('disabled=""')
+    expect(html).toContain(reviewFlowEn.authorRoutingPending)
+    expect(html).not.toContain('>' + reviewFlowEn.routeQuality + '</button>')
     expect(html).not.toContain('Take this task')
   })
   it('displays required department assignments and their completion state', () => {
@@ -66,7 +71,7 @@ describe('review date field policy and accessible allocation preview', () => {
   }
 
   it('allows today with a precise partial-day allocation and no maximum', () => {
-    vi.useFakeTimers({ now: new Date(2026, 9, 24, 12, 34, 56, 789) })
+    vi.useFakeTimers({ now: new Date('2026-10-24T12:34:56.789+03:00') })
     const html = field('2026-10-24')
     const input = html.match(/<input[^>]*>/)![0]
     expect(input).toContain('min="2026-10-24"')
@@ -81,7 +86,7 @@ describe('review date field policy and accessible allocation preview', () => {
   })
 
   it('previews dates beyond 30 days without adding a maximum', () => {
-    vi.useFakeTimers({ now: new Date(2026, 9, 24, 12) })
+    vi.useFakeTimers({ now: new Date('2026-10-24T12:00:00.000+03:00') })
     const html = field('2026-12-25')
     expect(html).toContain('Time given: 62 days 11 hours')
     expect(html.match(/<input[^>]*>/)![0]).not.toContain('max=')

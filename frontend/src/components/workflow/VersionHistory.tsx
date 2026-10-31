@@ -2,6 +2,7 @@ import type { MouseEvent } from 'react'
 import { Download, Eye, Trash2 } from 'lucide-react'
 import type { SopWorkflowContent } from '../../content/types'
 import type { Sop, SopVersion } from '../../data/mock/types'
+import { sopDownloadName } from '../../lib/sopPresentation'
 import { formatDateTime } from '../../lib/format'
 import { activeVersions, uploaderOf } from '../../lib/workflow'
 import { useUsers } from '../../state/usersContext'
@@ -20,9 +21,9 @@ interface VersionHistoryProps {
   onDelete: (version: SopVersion, trigger: HTMLElement) => void
 }
 
-/** Download name of a version, e.g. "SOP-078_v3.docx". */
+/** Title-based download name of a version; the original stored file is unchanged. */
 function versionDownloadName(sop: Sop, version: SopVersion) {
-  return `${sop.code}_v${version.version}.${version.fileType}`
+  return sopDownloadName(sop.title, version.version, version.fileType)
 }
 
 /**
@@ -43,7 +44,7 @@ export function VersionHistory({ sop, content, userId, deleteReason, onPreview, 
   const fill = (template: string, version: SopVersion) => template.replace('{version}', version.version)
 
   function actions(version: SopVersion) {
-    // A stored file opens through a signed link made on click; a sample file may have a plain URL.
+    // The download adapter resolves stored files; sample files may use a plain URL.
     const available = !!version.storagePath || !!version.fileUrl
     const previewReason =
       version.fileType !== 'pdf' ? text.unavailable.word : !available ? text.unavailable.demo : undefined

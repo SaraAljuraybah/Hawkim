@@ -20,6 +20,8 @@ interface PeopleListProps {
   onRemoveCoAuthor: (userId: string, trigger: HTMLElement) => void
   /** Only the main author and co-authors (the author's Authors section). */
   authorsOnly?: boolean
+  /** Historical version views keep their decisions but never run active task clocks. */
+  inactive?: boolean
 }
 
 function Group({ title, children, action }: { title: string; children: ReactNode; action?: ReactNode }) {
@@ -47,6 +49,7 @@ export function PeopleList({
   onAddCoAuthor,
   onRemoveCoAuthor,
   authorsOnly = false,
+  inactive = false,
 }: PeopleListProps) {
   const { nameOf } = useUsers()
   const name = (id: string) => {
@@ -111,9 +114,9 @@ export function PeopleList({
                   <li key={person.userId} className={rowClasses}>
                     <span className="text-[0.9375rem] text-maroon">{name(person.userId)}</span>
                     <DecisionBadge decision={person.decision} labels={content.decisions} />
-                    {!!sop.internalReviewRounds?.length && person.decision === 'pending' && 'acceptedAt' in person && typeof person.acceptedAt === 'string' && <span className="text-xs text-text-gray">{internalReviewEn.actions.inProgress}</span>}
+                    {!inactive && !!sop.internalReviewRounds?.length && person.decision === 'pending' && 'acceptedAt' in person && typeof person.acceptedAt === 'string' && <span className="text-xs text-text-gray">{internalReviewEn.actions.inProgress}</span>}
                     {people === sop.reviewers && (
-                      <ReviewerDeadline sop={sop} reviewer={sop.reviewers.find((reviewer) => reviewer.userId === person.userId)!} content={sopWorkflowEn.reviewerDeadline} showQueue />
+                      <ReviewerDeadline sop={sop} reviewer={sop.reviewers.find((reviewer) => reviewer.userId === person.userId)!} content={sopWorkflowEn.reviewerDeadline} showQueue inactive={inactive} />
                     )}
                   </li>
                 ))}

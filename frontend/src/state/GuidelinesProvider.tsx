@@ -2,9 +2,9 @@ import { useCallback, useMemo, useRef, useState, type ReactNode } from 'react'
 import { GVP_NAME, sampleGuidelineVersions } from '../data/mock/compliance'
 import type { GuidelineVersion } from '../data/mock/types'
 import { currentVersion, newGuidelineVersion, validateGuidelineVersion } from '../lib/guidelines'
-import { fetchGuidelineVersions } from '../services/compliance'
 import { GuidelinesContext, type GuidelinesStore } from './guidelinesContext'
 import { useLoadAfterSignIn } from './useLoadAfterSignIn'
+import { fetchGuidelineVersions } from '../services/compliance'
 
 /**
  * Store of the GVP versions (shared, like departments): compliance checks use the

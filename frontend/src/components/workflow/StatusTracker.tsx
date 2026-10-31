@@ -21,6 +21,7 @@ interface StatusTrackerProps {
   content: SopWorkflowContent['tracker']
   /** Only the steps (the author's SOP page): no review summary and no current assignee below them. */
   stepsOnly?: boolean
+  inactive?: boolean
 }
 
 const STEPS = ['draft', 'in-review', 'in-approval', 'approved', 'published'] as const
@@ -35,7 +36,7 @@ type StepState = 'done' | 'current' | 'returned' | 'upcoming'
  * once it has passed, an "Overdue" label. Every state is also given as text (never colour alone).
  * Horizontal from sm, vertical on phones.
  */
-export function StatusTracker({ sop, content, stepsOnly = false }: StatusTrackerProps) {
+export function StatusTracker({ sop, content, stepsOnly = false, inactive = false }: StatusTrackerProps) {
   const returnedStep = sop.status === 'returned' ? (returnedFrom(sop) ?? 'in-review') : undefined
   const currentIndex = STEPS.indexOf((returnedStep ?? sop.status) as (typeof STEPS)[number])
 
@@ -85,7 +86,7 @@ export function StatusTracker({ sop, content, stepsOnly = false }: StatusTracker
           // Due date of the open stage (review or approval).
           const stage = step === 'in-review' ? 'review' : step === 'in-approval' ? 'approval' : undefined
           const dueAt = stage && state === 'current' ? currentDueAt(sop) : undefined
-          const overdue = !!stage && isOverdue(sop, stage)
+          const overdue = !inactive && !!stage && isOverdue(sop, stage)
           return (
             <li
               key={step}
@@ -138,7 +139,7 @@ export function StatusTracker({ sop, content, stepsOnly = false }: StatusTracker
                 )}
 
                 {stage === 'review' && state === 'current' && activeReviewer && (
-                  <ReviewerDeadline sop={sop} reviewer={activeReviewer} content={sopWorkflowEn.reviewerDeadline} />
+                  <ReviewerDeadline sop={sop} reviewer={activeReviewer} content={sopWorkflowEn.reviewerDeadline} inactive={inactive} />
                 )}
                 {overdue && stage !== 'review' && (
                   <span className="mt-1 inline-flex w-fit rounded-full bg-status-rejected-bg px-2 py-0.5 text-xs font-medium text-status-rejected-fg">

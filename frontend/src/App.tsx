@@ -64,10 +64,14 @@ function App() {
   // Without frontend/.env.local (or with the wrong key) nothing can work: say so clearly.
   if (supabaseConfigProblem) return <NotConfiguredPage problem={supabaseConfigProblem} />
 
+  return <Workspace />
+}
+
+function Workspace() {
   return (
     // Shared state: who is signed in, then GVP versions, departments and users (from the database,
     // after sign-in), requests, all SOPs and which notifications were read. It lives above every
-    // route, so it survives signing out and in.
+    // route, so it survives signing out and in. Every session receives only its authorized SOP view.
     <SessionProvider>
       <GuidelinesProvider>
         <DepartmentsProvider>

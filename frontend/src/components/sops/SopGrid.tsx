@@ -30,12 +30,10 @@ export function SopGrid({ sops, content }: SopGridProps) {
               <FileText className="size-5" strokeWidth={1.75} />
             </span>
 
-            <p className="mt-4 text-sm font-semibold text-maroon">{sop.code}</p>
-            <h2 className="mt-1 text-base leading-snug font-medium">
+            <h2 className="mt-4 text-base leading-snug font-medium">
               {/* The ::after overlay makes the whole card clickable with one link. */}
               <Link
                 to={sopPath(sop.id)}
-                aria-label={`${sop.code} ${sop.title}`}
                 className="after:absolute after:inset-0 after:rounded-xl focus-visible:outline-none"
               >
                 {sop.title}

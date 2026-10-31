@@ -175,6 +175,10 @@ export interface ReviewerAssignment {
   decision: ReviewerDecision
   /** Optional deadline for this reviewer (YYYY-MM-DD). */
   dueDate?: string
+  /** Precise saved deadline for new date allocations; date-only historical assignments keep their old interpretation. */
+  reviewDueAt?: string
+  /** When a new deadline allocation began, retained separately from the current due date. */
+  assignedAt?: string
   /** Original calendar-day allocation; null explicitly means no deadline. Undefined is legacy data. */
   assignedDueDays?: number | null
   /** ISO date and time of the decision. */
@@ -190,13 +194,18 @@ export interface ReviewerAssignment {
 export type InternalReviewDecision = 'pending' | 'accepted' | 'declined' | 'withdrawn' | 'removed' | 'completed' | 'returned'
 
 export interface InternalReviewerAssignment extends Omit<ReviewerAssignment, 'decision' | 'startedAt'> {
+  /** Saved precise deadlines; new prototype requests calculate them in Riyadh, without server enforcement. */
+  responseDueAt?: string
+  responseCountsFromAt?: string
+  /** Missing on older in-memory requests; stored historical requests keep their original policy. */
+  deadlinePolicy?: 'calendar-v1' | 'riyadh-working-days-v1'
   id: string
   decision: InternalReviewDecision
   /** When the request was sent. */
   assignedAt: string
-  /** Optional deadline to accept or decline (YYYY-MM-DD); it ends at the end of that local day. */
+  /** Deadline date to accept or decline; use responseDueAt when present and retain legacy date semantics otherwise. */
   responseDueDate?: string
-  /** Optional review duration in calendar days (1–30), counted from acceptance. */
+  /** Optional duration (1–30): working days for tagged new requests, calendar days for historical requests. */
   reviewDurationDays?: number
   /** When the reviewer accepted the request. */
   acceptedAt?: string

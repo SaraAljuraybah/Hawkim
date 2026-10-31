@@ -31,13 +31,15 @@ export const reviewFlowEn = {
   qualityMissing: 'Final approval is blocked. An administrator must configure an eligible Quality Document Controller with Approver permission for the SOP department. Authors and assigned reviewers cannot approve their own SOP.',
   qualityAssigned: 'Configured Quality Document Controller',
   retainedDeadline: 'This reviewer keeps the deadline already set in this review round.',
+  savedHandoff: 'Continue to the reviewer already assigned to this step. Their saved deadline stays unchanged.',
+  authorRoutingPending: 'Only the main Author can add reviewers or choose optional department reviews. This assignment step is awaiting Author-controlled routing.',
   scopes: { 'same-division': 'Same-division review', 'cross-division': 'Cross-division review' },
   required: 'Required', notRequired: 'Not required',
   /** Timeline detail for a department review decision; `{scope}` and `{decision}` are replaced. */
   scopeDecision: '{scope}: {decision}',
   updated: 'Review workflow updated.', cancel: 'Cancel', confirm: 'Confirm',
   plan: 'Department Review Plan', pending: 'Pending', completed: 'Completed',
-  initialPending: 'Reviewer 2 will be selected by Reviewer 1.',
+  initialPending: 'The main Author controls the next reviewer assignment. New assignments are pending in this legacy view.',
   scopePending: 'The active reviewer must decide whether department reviews are required.',
   workflowConfig: {
     title: 'Review Workflow Configuration', open: 'Configure Review Workflow',

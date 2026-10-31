@@ -34,6 +34,35 @@ describe('the internal review in the database', () => {
     expect(rpc).toHaveBeenLastCalledWith('remove_reviewer', { p_request_id: 'req-1', p_reason: 'Not needed' })
   })
 
+  it('sends the entire supported 500-character comment and rejects longer text before an RPC', async () => {
+    await submitReview('uuid-sop', { reviewerIds: ['uuid-noura'], reviewDurationDays: 30, note: 'x'.repeat(500) })
+    expect(rpc).toHaveBeenLastCalledWith('submit_for_review', expect.objectContaining({ p_note: 'x'.repeat(500), p_review_duration_days: 30 }))
+    rpc.mockClear()
+    await expect(addReviewers('uuid-sop', { reviewerIds: ['uuid-noura'], note: 'x'.repeat(501) })).rejects.toThrow(/too long/)
+    expect(rpc).not.toHaveBeenCalled()
+  })
+
+  it.each([0, -1, 31, 1.5, NaN])('rejects an invalid working-day allocation %s without an RPC', async (reviewDurationDays) => {
+    await expect(submitReview('uuid-sop', { reviewerIds: ['uuid-noura'], reviewDurationDays })).rejects.toThrow(/1 to 30/)
+    expect(rpc).not.toHaveBeenCalled()
+  })
+
+  it.each([undefined, 1, 30])('preserves the optional duration and its boundaries (%s) in the RPC contract', async (reviewDurationDays) => {
+    await submitReview('uuid-sop', { reviewerIds: ['uuid-noura'], reviewDurationDays })
+    expect(rpc).toHaveBeenLastCalledWith('submit_for_review', expect.objectContaining({
+      p_review_duration_days: reviewDurationDays ?? null, p_response_due_date: null,
+    }))
+  })
+
+  it('preserves a full Unicode submission comment and rejects excess UTF-16 units before calling the server', async () => {
+    const note = '😀'.repeat(250) // 500 UTF-16 units: the agreed limit
+    await submitReview('uuid-sop', { reviewerIds: ['uuid-noura'], note: `  ${note}  ` })
+    expect(rpc).toHaveBeenLastCalledWith('submit_for_review', expect.objectContaining({ p_note: note }))
+    rpc.mockClear()
+    await expect(addReviewers('uuid-sop', { reviewerIds: ['uuid-noura'], note: note + 'x' })).rejects.toThrow(/too long/)
+    expect(rpc).not.toHaveBeenCalled()
+  })
+
   it('sends responses and asks for due withdrawals', async () => {
     await respondToComments('uuid-sop', 'Done')
     expect(rpc).toHaveBeenLastCalledWith('respond_to_comments', { p_sop_id: 'uuid-sop', p_text: 'Done' })

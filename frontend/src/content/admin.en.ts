@@ -117,7 +117,7 @@ export const adminEn: AdminContent = {
         approver: '{name} is assigned as an approver on {sops}.',
       },
       cantRemove: "{permission} can't be removed: {reason}",
-      sopWithStatus: '{code} ({status})',
+      sopWithStatus: '{title} ({status})',
     },
   },
 

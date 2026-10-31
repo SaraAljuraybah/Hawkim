@@ -40,6 +40,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   const signOut = useCallback(() => {
     setState(SIGNED_OUT)
+    clearStoredActiveDepartment()
     void endSession()
   }, [])
 

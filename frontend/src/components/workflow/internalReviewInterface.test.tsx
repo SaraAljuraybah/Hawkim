@@ -14,6 +14,9 @@ import { SubmitDialog } from './SubmitDialog'
 import { SopWorkflowPage } from '../../pages/SopWorkflowPage'
 import { ReviewPage } from '../../pages/ReviewPage'
 import { ComplianceReportPage } from '../../pages/ComplianceReportPage'
+// These tests cover the Riyadh working-day policy as it behaves once activated (lib/deadlinePolicy.ts).
+// The pending (currently active) backend-compatible behaviour is covered in lib/deadlinePolicy.test.tsx.
+vi.mock('../../lib/deadlinePolicy', () => ({ WORKING_DAY_DEADLINES_ACTIVE: true }))
 
 const fixture = vi.hoisted(() => ({ sop: null as Sop | null, userId: 'author', users: [
   { id: 'author', name: 'Main writer', permissions: ['author', 'reviewer'], departmentId: 'home' },
@@ -22,7 +25,7 @@ const fixture = vi.hoisted(() => ({ sop: null as Sop | null, userId: 'author', u
   { id: 'reviewer-b', name: 'Reviewer Beta', permissions: ['reviewer'], departmentId: 'home' },
   { id: 'external', name: 'External reviewer', permissions: ['reviewer'], departmentId: 'other' },
 ] as User[], departments: [{ id: 'home', name: 'Home', initials: 'HM', description: '', requiresComplianceCheck: true }] }))
-vi.mock('../../state/sessionContext', () => ({ useCurrentUser: () => fixture.users.find((user) => user.id === fixture.userId) }))
+vi.mock('../../state/sessionContext', () => ({ useCurrentUser: () => fixture.users.find((user) => user.id === fixture.userId), useSession: () => ({ status: 'signed-in', user: fixture.users.find((user) => user.id === fixture.userId) }) }))
 vi.mock('../../state/usersContext', () => ({ useUsers: () => ({ users: fixture.users, activeUsers: fixture.users, nameOf: (id: string) => fixture.users.find((user) => user.id === id)?.name ?? id ?? '', getUser: (id: string) => fixture.users.find((user) => user.id === id) }) }))
 vi.mock('../../state/departmentsContext', () => ({ useDepartments: () => ({ departments: fixture.departments, nameOf: (id: string) => id }) }))
 vi.mock('../../state/guidelinesContext', () => ({ useGuidelines: () => ({ current: { version: '4.0' } }) }))
@@ -31,7 +34,7 @@ const environment = () => ({ users: fixture.users, departments: fixture.departme
 function draft(): Sop {
   return { id: 'test', code: 'SOP-TEST', title: 'Internal review fixture', description: 'Description retained', departmentId: 'home', version: '1', status: 'draft', lastUpdated: '2026-10-23', authorId: 'author', coAuthorIds: ['coauthor'], fileName: 'test.pdf', fileType: 'pdf', reviewers: [], approvers: [], comments: [], timeline: [], versions: [{ version: '1', fileName: 'test.pdf', fileType: 'pdf', uploadedAt: new Date().toISOString(), uploadedById: 'author' }], complianceChecks: [{ id: 'check', sopId: 'test', version: '1', status: 'completed', startedAt: new Date().toISOString(), guideline: { name: 'GVP', version: '4.0' }, findings: [] }] }
 }
-function start() { return startInternalReview(draft(), 'author', '4.0', { reviewerIds: ['reviewer-a', 'reviewer-b'], responseDueDate: '2026-10-28', reviewDurationDays: 5 }, environment()) }
+function start() { return startInternalReview(draft(), 'author', '4.0', { reviewerIds: ['reviewer-a', 'reviewer-b'], reviewDurationDays: 5 }, environment()) }
 function render(page: ReactNode) { return renderToStaticMarkup(<MemoryRouter initialEntries={['/test']}><Routes><Route path="/:id" element={page} /></Routes></MemoryRouter>) }
 function accept(sop: Sop, userId: string) {
   const round = currentInternalRound(sop)!
@@ -45,7 +48,7 @@ function decide(source: Sop, userId: string, decision: 'completed' | 'returned',
 }
 /** The visible text of each option in the Select reviewers list. */
 function optionNames(html: string): string[] {
-  return [...html.matchAll(/<input[^>]*name="internalReviewers"[^>]*\/><span[^>]*>([^<]*)<\/span>/g)].map((match) => match[1])
+  return [...html.matchAll(/<li[^>]*role="option"[^>]*><span[^>]*>([^<]*)<\/span>/g)].map((match) => match[1])
 }
 /** In every mode the dialog is titled "Submit for Review" (its accessible name) and confirms with "Submit". */
 function expectSubmitTexts(html: string) {
@@ -53,7 +56,7 @@ function expectSubmitTexts(html: string) {
   expect(html).toContain(`<h2 id="${titleId}" class="text-lg">Submit for Review</h2>`)
   expect(html).toMatch(/<button type="submit"[^>]*>Submit<\/button>/)
 }
-beforeEach(() => { vi.useFakeTimers({ now: new Date(2026, 9, 23, 12) }); fixture.userId = 'author' })
+beforeEach(() => { vi.useFakeTimers({ now: new Date('2026-10-23T12:00:00+03:00') }); fixture.userId = 'author' })
 afterEach(() => vi.useRealTimers())
 
 describe('internal parallel review across transitions and detail views', () => {
@@ -65,7 +68,7 @@ describe('internal parallel review across transitions and detail views', () => {
     vi.advanceTimersByTime(1000)
     const uploaded = uploadVersion(finished, 'author', { fileName: 'revised.pdf', fileType: 'pdf' })
     fixture.sop = uploaded
-    const button = render(<SopWorkflowPage />).match(/<button[^>]*>Submit for Review<\/button>/)![0]
+    const button = render(<SopWorkflowPage />).match(/<button[^>]*>Add Reviewers<\/button>/)![0]
     expect(button).toContain('disabled=""')
     expect(button).toContain('aria-describedby="submit-hint"')
     const html = renderToStaticMarkup(<SubmitDialog mode="version" sop={uploaded} content={sopWorkflowEn.dialogs} onSubmit={() => {}} onClose={() => {}} />)
@@ -115,7 +118,7 @@ describe('internal parallel review across transitions and detail views', () => {
     expect(render(<SopWorkflowPage />)).not.toContain('Description retained')
     expect(render(<ReviewPage />)).not.toContain('Description retained')
   })
-  it('keeps eligible reviewers in a collapsed multi-select with a response due date, review duration and comments', () => {
+  it('keeps searchable eligible reviewers with a fixed response date, review duration and comments', () => {
     const html = renderToStaticMarkup(<SubmitDialog sop={draft()} content={sopWorkflowEn.dialogs} onSubmit={() => {}} onClose={() => {}} />)
     expectSubmitTexts(html)
     expect(html).not.toContain('Request reviews')
@@ -123,27 +126,28 @@ describe('internal parallel review across transitions and detail views', () => {
     expect(html).not.toContain('Request internal reviews')
     expect(html).not.toContain('Internal reviewers')
     expect(html).not.toContain('Select eligible reviewers from the SOP department. All selected reviewers receive their tasks together.')
-    const trigger = html.match(/<button[^>]*aria-label="Select Reviewers"[^>]*>/)?.[0]
+    const trigger = html.match(/<input[^>]*role="combobox"[^>]*>/)?.[0]
     expect(trigger).toContain('aria-expanded="false"')
-    const reviewerPanel = html.match(/<div[^>]*role="group"[^>]*>/)?.[0]
+    const reviewerPanel = html.match(/<ul[^>]*role="listbox"[^>]*>/)?.[0]
     expect(reviewerPanel).toContain('aria-label="Select Reviewers"')
     expect(reviewerPanel).toContain('hidden=""')
     expect(html).toContain('Reviewer Alpha')
     expect(html).toContain('Reviewer Beta')
     for (const name of ['Main writer', 'Contributing writer', 'External reviewer', 'Reviewer 1']) expect(html).not.toContain(name)
-    expect(html).toContain('Response Due Date (Optional)')
-    expect(html).toContain(internalReviewEn.submit.responseHelp)
+    expect(html).toContain('Request Response Deadline')
+    expect(html).toContain(internalReviewEn.submit.responseHelpWorkingDays)
     expect(html).not.toContain('23:59:59.999')
     const duration = html.match(/<input[^>]*name="reviewDurationDays"[^>]*>/)![0]
     expect(duration).toContain('type="number"')
     expect(duration).toContain('min="1"')
     expect(duration).toContain('max="30"')
     expect(duration).toContain('aria-describedby=')
-    expect(html).toContain('Review Duration in Days (Optional)')
-    expect(html).toContain(internalReviewEn.submit.durationHelp)
+    expect(html).toContain('Review Duration in Working Days (Optional)')
+    expect(html).toContain(internalReviewEn.submit.durationHelpWorkingDays)
     expect(html).not.toContain('withdrawn automatically')
     expect(html).not.toContain('has to finish after they accept')
-    expect(html.match(/<input[^>]*type="date"[^>]*>/)![0]).toContain('min="2026-10-23"')
+    expect(html.match(/<input[^>]*type="date"[^>]*>/)![0]).toContain('readOnly=""')
+    expect(html.match(/<input[^>]*type="date"[^>]*>/)![0]).toContain('value="2026-10-26"')
     expect(html.match(/type="date"/g)).toHaveLength(1)
     expect(html).not.toContain('name="reviewerDueDate-')
     expect(html.match(/<input[^>]*type="date"[^>]*>/)![0]).not.toContain('max="')
@@ -265,25 +269,25 @@ describe('response due date in the Submit for review dialog', () => {
   const field = (value: string, error?: string) => renderToStaticMarkup(
     <ReviewDueDateField name="reviewRequestDueDate" stage="response" text={fieldText} value={value} error={error} closeLabel={text.closeAlert} onChange={() => {}} />)
   it('counts the time to respond from the moment it is sent before 4:00 PM, and today is selectable', () => {
-    vi.setSystemTime(new Date(2026, 9, 26, 14))
+    vi.setSystemTime(new Date('2026-10-26T14:00:00.000+03:00'))
     const html = field('2026-10-27')
     expect(html).toContain('min="2026-10-26"')
     expect(html).toContain('Time to respond: 1 day 9 hours')
   })
   it('counts from 8:00 AM the next day from 4:00 PM, and today is no longer selectable', () => {
-    vi.setSystemTime(new Date(2026, 9, 26, 16, 40))
+    vi.setSystemTime(new Date('2026-10-26T16:40:00.000+03:00'))
     expect(field('2026-10-27')).toContain('Time to respond: 15 hours 59 minutes')
     expect(field('2026-10-27')).toContain('min="2026-10-27"')
-    expect(renderToStaticMarkup(<SubmitDialog sop={draft()} content={sopWorkflowEn.dialogs} onSubmit={() => {}} onClose={() => {}} />)).toContain('min="2026-10-27"')
+    expect(renderToStaticMarkup(<SubmitDialog sop={draft()} content={sopWorkflowEn.dialogs} onSubmit={() => {}} onClose={() => {}} />)).toContain('value="2026-10-28"')
     expect(field('2026-10-26')).not.toContain('Time to respond')
   })
   it('counts from 8:00 AM the same day before 8:00 AM', () => {
-    vi.setSystemTime(new Date(2026, 9, 26, 6, 30))
+    vi.setSystemTime(new Date('2026-10-26T06:30:00.000+03:00'))
     expect(field('2026-10-26')).toContain('min="2026-10-26"')
     expect(field('2026-10-26')).toContain('Time to respond: 15 hours 59 minutes')
   })
   it('shows the date error in an announced pop-up with a close button instead of under the field', () => {
-    vi.setSystemTime(new Date(2026, 9, 26, 16, 40))
+    vi.setSystemTime(new Date('2026-10-26T16:40:00.000+03:00'))
     const html = field('2026-10-26', text.dateInvalid)
     const popup = html.match(/<div[^>]*role="alert"[^>]*>/)![0]
     const popupId = popup.match(/id="([^"]+)"/)![1]

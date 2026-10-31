@@ -64,7 +64,7 @@ function ComplianceReport({ id, audience }: { id: string | undefined; audience: 
   const source = sops.find((item) => item.id === id)
   const sop = audience === 'reviewer' && source ? reviewSopForUser(source, user.id)?.sop : source
   const allowed = !!sop && (audience === 'reviewer' || hasPermission(user, 'author') && isAuthorOrCoAuthor(sop, user.id))
-  useDocumentTitle(allowed ? text.pageTitle.replace('{code}', sop.code) : undefined)
+  useDocumentTitle(allowed ? text.pageTitle.replace('{title}', sop.title) : undefined)
 
   if (!allowed) return <NotFoundPage embedded />
   return <Report key={`${sop.version}:${user.id}`} sop={sop} backPath={audience === 'author' ? mySopPath(sop.id) : reviewPath(sop.id)} />
@@ -98,7 +98,7 @@ function Report({ sop, backPath }: { sop: Sop; backPath: string }) {
    * Printing (Download PDF or Ctrl+P): every finding is shown (the filter is set to
    * All) and the document title becomes the PDF's default name; both are restored after.
    */
-  const printTitle = text.printTitle.replace('{code}', sop.code).replace('{version}', version)
+  const printTitle = text.printTitle.replace('{title}', sop.title).replace('{version}', version)
   const tabRef = useRef<TabKey>(tab)
   useEffect(() => {
     tabRef.current = tab
@@ -148,7 +148,7 @@ function Report({ sop, backPath }: { sop: Sop; backPath: string }) {
 
   const details = report
     ? [
-        { label: text.header.sop, value: `${sop.code} · ${sop.title}` },
+        { label: text.header.sop, value: sop.title },
         { label: text.header.version, value: content.versionLabel.replace('{version}', report.version) },
         { label: text.header.author, value: author },
         ...(coAuthors ? [{ label: text.header.coAuthors, value: coAuthors }] : []),
@@ -173,7 +173,7 @@ function Report({ sop, backPath }: { sop: Sop; backPath: string }) {
         className="inline-flex items-center gap-1.5 rounded-sm text-sm font-medium text-text-gray transition-colors hover:text-maroon print:hidden"
       >
         <ArrowLeft aria-hidden="true" className="size-4" strokeWidth={1.75} />
-        {text.back.replace('{code}', sop.code)}
+        {text.back.replace('{title}', sop.title)}
       </Link>
 
       {/* Title and export */}

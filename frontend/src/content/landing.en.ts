@@ -89,7 +89,7 @@ export const landingEn: LandingContent = {
             status: 'Pending',
           },
           { title: 'Your access request to Pharmacovigilance was approved', meta: '1 day ago' },
-          { title: 'Your request to access SOP-045 is under review', meta: '2 days ago', status: 'Pending' },
+          { title: 'Your request to access the SOP Directory is under review', meta: '2 days ago', status: 'Pending' },
         ],
       },
       quickActions: {
