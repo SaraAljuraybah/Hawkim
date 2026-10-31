@@ -2,7 +2,7 @@ import { useRef, useState, type ReactNode } from 'react'
 import { flushSync } from 'react-dom'
 import { internalReviewEn as text } from '../../content/internalReview.en'
 import { sopWorkflowEn } from '../../content/workflow.en'
-import type { InternalReviewerAssignment, Sop } from '../../data/mock/types'
+import type { InternalReviewerAssignment, InternalReviewRound, Sop } from '../../data/mock/types'
 import { REVIEW_TEXT_MAX } from '../../lib/internalReview'
 import { isInactiveDecision, latestAssignmentOf } from '../../lib/internalReviewStatus'
 import { useSops } from '../../state/sopsContext'
@@ -12,6 +12,7 @@ import { Card } from '../ui/Card'
 import { FormDialog } from '../ui/FormDialog'
 import { TextAreaField } from '../ui/TextAreaField'
 import { RequestStatusBadge, ReviewRequestDetails } from './ReviewRequestDetails'
+import { ReviewRequestsTable } from './ReviewRequestsTable'
 import { DecisionBadge } from './DecisionBadge'
 import { ReviewerDeadline } from './ReviewerDeadline'
 
@@ -27,6 +28,8 @@ interface Props {
   activeOnly?: boolean
   /** Shorter request cards (the author's SOP page): version and deadlines only (see ReviewRequestDetails). */
   compact?: boolean
+  /** Every request in a table per version (the author's SOP page), instead of the cards per reviewer. */
+  table?: boolean
   /** Keep the author's initial review controls available before there are requests. */
   showEmpty?: boolean
   /** Box heading (also the section's accessible name). */
@@ -42,7 +45,7 @@ const TITLE_ID = 'internal-review-title'
  * its version, its deadlines, and any reason or comments. The main author can remove a reviewer
  * from the current version's review.
  */
-export function InternalReviewPanel({ sop, canRemove, inactive = false, activeOnly = false, compact = false, showEmpty = false, title = text.panel.title, actions, children }: Props) {
+export function InternalReviewPanel({ sop, canRemove, inactive = false, activeOnly = false, compact = false, table = false, showEmpty = false, title = text.panel.title, actions, children }: Props) {
   const { nameOf } = useUsers()
   const store = useSops()
   const [target, setTarget] = useState<{ roundId: string; assignment: InternalReviewerAssignment } | null>(null)
@@ -62,6 +65,14 @@ export function InternalReviewPanel({ sop, canRemove, inactive = false, activeOn
   const requestsOf = (userId: string) => requests.filter((item) => item.assignment.userId === userId)
   const reviewerIds = [...new Set(requests.map((item) => item.assignment.userId))]
     .filter((userId) => !activeOnly || !isInactiveDecision(requestsOf(userId).at(-1)!.assignment.decision))
+  function askToRemove(round: InternalReviewRound, assignment: InternalReviewerAssignment, trigger: HTMLButtonElement) {
+    triggerRef.current = trigger
+    setTarget({ roundId: round.id, assignment })
+    setReason('')
+    setReasonError('')
+    setError('')
+  }
+  const isLatestRequest = (round: InternalReviewRound, assignment: InternalReviewerAssignment) => round === current && assignment === latestAssignmentOf(current, assignment.userId)
   // After a removal the Remove button may be gone: focus moves to the panel heading instead.
   function close() { setTarget(null); requestAnimationFrame(() => { if (triggerRef.current?.isConnected) triggerRef.current.focus(); else document.getElementById(TITLE_ID)?.focus() }) }
   async function remove() {
@@ -80,9 +91,11 @@ export function InternalReviewPanel({ sop, canRemove, inactive = false, activeOn
       <DecisionBadge decision={reviewer.decision} labels={sopWorkflowEn.people.decisions} />
       <ReviewerDeadline sop={sop} reviewer={reviewer} content={sopWorkflowEn.reviewerDeadline} showQueue inactive={inactive} />
     </li>)}</ul>}
-    {reviewerIds.length > 0 && <ul className="space-y-4">{reviewerIds.map((userId) => {
+    {table && requests.length > 0 && <ReviewRequestsTable sop={sop} onRemove={askToRemove}
+      canRemove={(round, assignment) => removable && isLatestRequest(round, assignment) && !isInactiveDecision(assignment.decision)}
+      canEditDeadline={(round, assignment) => canRemove && round.version === sop.version && assignment.decision === 'accepted'} />}
+    {!table && reviewerIds.length > 0 && <ul className="space-y-4">{reviewerIds.map((userId) => {
       const own = requestsOf(userId).reverse().filter(({ assignment }) => !activeOnly || !isInactiveDecision(assignment.decision))
-      const latest = current && latestAssignmentOf(current, userId)
       const name = nameOf(userId)
       return <li key={userId} className="rounded-lg border border-beige p-4">
         <h3 className="text-base font-semibold text-maroon">{name}</h3>
@@ -90,9 +103,9 @@ export function InternalReviewPanel({ sop, canRemove, inactive = false, activeOn
           <li key={assignment.id} className="border-t border-beige pt-3 first:border-0 first:pt-0">
             <RequestStatusBadge sop={sop} request={assignment} inactive={inactive} />
             <ReviewRequestDetails sop={sop} request={assignment} compact={compact} inactive={inactive} />
-            {removable && round === current && assignment === latest && assignment.decision !== 'removed' &&
+            {removable && isLatestRequest(round, assignment) && assignment.decision !== 'removed' &&
               <Button size="sm" variant="secondary" className="mt-2" aria-label={text.panel.removeFor.replace('{name}', name)}
-                onClick={(event) => { triggerRef.current = event.currentTarget; setTarget({ roundId: round.id, assignment }); setReason(''); setReasonError(''); setError('') }}>{text.panel.remove}</Button>}
+                onClick={(event) => askToRemove(round, assignment, event.currentTarget)}>{text.panel.remove}</Button>}
           </li>)}</ul>
       </li>
     })}</ul>}

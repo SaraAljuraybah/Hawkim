@@ -77,5 +77,14 @@ export const internalReviewEn = {
     durationOne: 'Review duration: 1 day, starts when accepted', durationDays: 'Review duration: {count} days, starts when accepted',
     reviewDue: 'Review due {date}', noReviewDeadline: 'No review deadline', reviewOverdue: 'Review overdue',
     remainingTime: 'Time remaining: {duration}',
+    /** The Reviewers table on the author's SOP page. */
+    table: {
+      version: 'Version {version}', versionCurrent: 'Version {version} (Current)', caption: 'Review requests for version {version}',
+      columns: { reviewer: 'Reviewer', department: 'Department', division: 'Division', sent: 'Request Sent', status: 'Status', decision: 'Decision Date', deadline: 'Review Deadline', actions: 'Actions' },
+      none: '—', noNotes: 'No Comments',
+      viewNotes: 'View Comments from {name}', notesTitle: 'Comments from {name}', close: 'Close',
+      notes: { comment: 'Comments', decline: 'Reason for Declining', removal: 'Reason for Removing' },
+      editDeadline: 'Edit Review Deadline for {name}', editDeadlineSoon: 'Editing review deadlines will be available soon.',
+    },
   },
 } as const

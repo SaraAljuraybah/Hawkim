@@ -44,6 +44,12 @@ export function requestDeadline(assignment: Pick<InternalReviewerAssignment, 'ac
   return dueAt ? { phase: 'response', dueAt } : undefined
 }
 
+/**
+ * Editing a saved review deadline. Off: the database has no function for it yet, so the author's
+ * Reviewers table shows the action disabled. Switch it on in the same change that adds that function.
+ */
+export const REVIEW_DEADLINE_EDITING_ACTIVE: boolean = false
+
 /** Waiting for the reviewer: to accept or decline (pending), or to decide (accepted). */
 export function isOpenDecision(decision: InternalReviewDecision): boolean {
   return decision === 'pending' || decision === 'accepted'

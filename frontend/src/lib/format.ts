@@ -52,6 +52,13 @@ export function formatReviewDateTime(isoDateTime: string, locale = 'en-US'): str
   }).format(new Date(isoDateTime))
 }
 
+/** A review timestamp's date in Riyadh, e.g. "Nov 1, 2026" (formatDate is for date-only values). */
+export function formatReviewDate(isoDateTime: string, locale = 'en-US'): string {
+  return new Intl.DateTimeFormat(locale, {
+    month: 'short', day: 'numeric', year: 'numeric', timeZone: 'Asia/Riyadh',
+  }).format(new Date(isoDateTime))
+}
+
 const RELATIVE_UNITS: [Intl.RelativeTimeFormatUnit, number][] = [
   ['year', 365 * 24 * 60 * 60],
   ['month', 30 * 24 * 60 * 60],
