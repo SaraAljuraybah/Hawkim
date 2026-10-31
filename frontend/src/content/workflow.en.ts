@@ -115,6 +115,7 @@ export const sopWorkflowEn: SopWorkflowContent = {
       },
       'not-uploader': "Restricted to {name} (main author) or the current version's uploader",
     },
+    checkCompleted: 'Upload a new version to run another check.',
     previewTitle: '{title} · v{version}',
     viewerTitle: '{title}, v{version} (PDF)',
     close: 'Close preview',

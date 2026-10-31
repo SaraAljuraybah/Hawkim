@@ -69,6 +69,38 @@ describe('SOP title presentation without exposing generated serial numbers', () 
     expect(fixture.titles).toContain('Review Visible Procedure | Hawkim')
   })
 
+  describe('compliance check once per version', () => {
+    const check = (status: 'completed' | 'failed', guideline: string, version = '1') => ({ id: `check-${status}`, sopId: 'test', version, status, startedAt: '2026-10-29T08:00:00Z', guideline: { name: 'GVP', version: guideline }, findings: [] })
+    const button = () => render(<SopWorkflowPage />).match(/<button[^>]*>(?:(?!<\/button>).)*Compliance Check for Current Version<\/button>/)![0]
+
+    it('keeps it focusable but unavailable, with the tooltip, after a completed check of this version and GVP version', () => {
+      fixture.sop = { ...fixture.sop!, complianceChecks: [check('completed', '4.0')] }
+      expect(button()).toContain('aria-disabled="true"')
+      expect(button()).not.toMatch(/ disabled=""/)
+      expect(button()).toContain('aria-describedby')
+      expect(render(<SopWorkflowPage />)).toContain(sopWorkflowEn.history.checkCompleted)
+    })
+
+    it.each([
+      ['no check yet', []],
+      ['the last check failed', [check('completed', '4.0'), check('failed', '4.0')]],
+      ['the GVP version is newer', [check('completed', '3.0')]],
+      ['a new version was uploaded', [check('completed', '4.0', '0')]],
+    ])('stays available when %s', (_, complianceChecks) => {
+      fixture.sop = { ...fixture.sop!, complianceChecks }
+      expect(button()).not.toContain('aria-disabled="true"')
+      expect(render(<SopWorkflowPage />)).not.toContain(sopWorkflowEn.history.checkCompleted)
+    })
+
+    it('shows the existing reason first when the user may not run a check', () => {
+      fixture.sop = { ...fixture.sop!, complianceChecks: [check('completed', '4.0')], versions: [{ ...fixture.sop!.versions[0], uploadedById: 'author' }] }
+      fixture.userId = 'coauthor'
+      const html = render(<SopWorkflowPage />)
+      expect(html).toContain('or the current version&#x27;s uploader')
+      expect(html).not.toContain(sopWorkflowEn.history.checkCompleted)
+    })
+  })
+
   it('uses title-based download names while retaining stored identity, file metadata and routes', () => {
     const before = structuredClone(fixture.sop)
     const html = render(<SopWorkflowPage />)

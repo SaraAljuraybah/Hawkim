@@ -223,6 +223,9 @@ export function SopWorkflowPage() {
     checkBlock === 'status'
       ? content.history.checkBlocked.status[sop.status as keyof typeof content.history.checkBlocked.status]
       : checkBlock && content.history.checkBlocked['not-uploader'].replace('{name}', authorName)
+  // One completed check per version and GVP version: a failed check or a newer GVP version can be run again.
+  const checkCompleted = hasCurrentCheck(sop, guidelines.current.version)
+  const checkUnavailableReason = checkBlockedReason || (checkCompleted ? content.history.checkCompleted : undefined)
 
   // Delete version: Draft or Returned, main author (any version) or its uploader, at least one version left.
   const { deleteBlocked } = content.history
@@ -333,9 +336,9 @@ export function SopWorkflowPage() {
                 {content.history.upload}
               </Button>
             )}
-            {!showCheck ? null : checkBlockedReason ? (
+            {!showCheck ? null : checkUnavailableReason ? (
               // Not allowed now: stays focusable (aria-disabled) so the tooltip's reason can be read.
-              <Tooltip text={checkBlockedReason}>
+              <Tooltip text={checkUnavailableReason} openOnTap={!checkBlockedReason}>
                 {(tooltipId) => (
                   <Button size="sm" grayWhenDisabled aria-disabled aria-describedby={tooltipId}>
                     <ShieldCheck aria-hidden="true" className="size-4" strokeWidth={2} />

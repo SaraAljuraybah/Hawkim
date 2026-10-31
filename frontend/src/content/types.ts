@@ -649,6 +649,8 @@ export interface SopWorkflowContent {
      * Approved or Published), or not the current version's uploader (`{name}` is the main author).
      */
     checkBlocked: { status: Record<'in-review' | 'in-approval', string>; 'not-uploader': string }
+    /** Why the check isn't available once it has completed for this version and the current GVP version. */
+    checkCompleted: string
     /** Preview dialog: `{title}` and `{version}` are replaced. */
     previewTitle: string
     /** Accessible name of the embedded viewer; `{title}` and `{version}` are replaced. */
