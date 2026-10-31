@@ -7,7 +7,6 @@ import { FileDropzone } from '../components/ui/FileDropzone'
 import { TextAreaField } from '../components/ui/TextAreaField'
 import { TextField } from '../components/ui/TextField'
 import { uploadSopEn } from '../content/mySops.en'
-import type { SopFileType } from '../data/mock/types'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { hasPermission } from '../lib/permissions'
 import { useActiveDepartment } from '../state/activeDepartmentContext'
@@ -16,20 +15,14 @@ import { useSops } from '../state/sopsContext'
 import { NotFoundPage } from './NotFoundPage'
 import type { MySopsLocationState } from './MySopsPage'
 
-const TITLE_MAX = 150
+const TITLE_MAX = 50
 const DESCRIPTION_MAX = 1000
 /** Authors can upload Word (.docx) and PDF files (PBI 1). */
 const FILE_EXTENSIONS = ['.docx', '.pdf']
 const FILE_MAX_BYTES = 10 * 1024 * 1024 // 10 MB
-/** Simulated delay so the loading state can be seen (no backend yet). */
-const UPLOAD_DELAY_MS = 600
 
 type Field = 'title' | 'file'
 type FieldErrors = Partial<Record<Field, string>>
-
-function fileTypeOf(file: File): SopFileType {
-  return file.name.toLowerCase().endsWith('.pdf') ? 'pdf' : 'docx'
-}
 
 /** Upload SOP ("/my-sops/upload", Author permission): saves a new draft in the home department. */
 export function UploadSopPage() {
@@ -48,6 +41,7 @@ export function UploadSopPage() {
   const [errors, setErrors] = useState<FieldErrors>({})
   const [submitAttempted, setSubmitAttempted] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const [saveError, setSaveError] = useState('')
 
   const titleRef = useRef<HTMLInputElement>(null)
   const browseRef = useRef<HTMLButtonElement>(null)
@@ -82,19 +76,21 @@ export function UploadSopPage() {
       return
     }
 
+    setSaveError('')
     setSubmitting(true)
-    // TODO: Upload the file to the backend. For now only its name and type are saved,
-    // plus an in-memory URL so it can be downloaded during this session.
-    await new Promise((resolve) => setTimeout(resolve, UPLOAD_DELAY_MS))
-    const file = files[0]
-    addDraft({
-      title: title.trim(),
-      description: description.trim() || undefined,
-      departmentId: homeDepartment.id,
-      fileName: file.name,
-      fileType: fileTypeOf(file),
-      fileUrl: URL.createObjectURL(file),
-    })
+    try {
+      // Uploads the file, then saves the SOP (the database gives it its number).
+      await addDraft({
+        title: title.trim(),
+        description: description.trim() || undefined,
+        departmentId: homeDepartment.id,
+        file: files[0],
+      })
+    } catch {
+      setSubmitting(false)
+      setSaveError(content.errors.saveFailed)
+      return
+    }
     // Back to My SOPs, which announces the success message.
     const state: MySopsLocationState = { uploaded: true }
     navigate(content.cancel.href, { state })
@@ -112,7 +108,12 @@ export function UploadSopPage() {
             name="title"
             label={content.fields.title.label}
             placeholder={content.fields.title.placeholder}
+            required
+            requiredMark
             maxLength={TITLE_MAX}
+            counter={content.fields.title.counter
+              .replace('{count}', String(title.length))
+              .replace('{max}', String(TITLE_MAX))}
             value={title}
             error={errors.title}
             onChange={(e) => setTitle(e.target.value)}
@@ -149,6 +150,12 @@ export function UploadSopPage() {
             value={description}
             onChange={(e) => setDescription(e.target.value)}
           />
+
+          {saveError && (
+            <p role="alert" className="text-sm text-status-rejected-fg">
+              {saveError}
+            </p>
+          )}
 
           <div className="flex flex-col-reverse gap-3 border-t border-beige pt-6 sm:flex-row sm:justify-end">
             <Button to={content.cancel.href} variant="secondary">

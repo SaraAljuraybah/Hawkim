@@ -4,7 +4,6 @@ import { ArrowLeft, ArrowUpRight, CircleCheck, MessageSquareReply, ShieldCheck, 
 import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
 import { ConfirmDialog } from '../components/ui/ConfirmDialog'
-import { StatusBadge } from '../components/ui/StatusBadge'
 import { Tooltip } from '../components/ui/Tooltip'
 import { AddCoAuthorsDialog } from '../components/workflow/AddCoAuthorsDialog'
 import { ComplianceCard } from '../components/workflow/ComplianceCard'
@@ -26,7 +25,7 @@ import { internalReviewEn } from '../content/internalReview.en'
 import { sopWorkflowEn } from '../content/workflow.en'
 import type { Sop, SopVersion } from '../data/mock/types'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
-import { currentCheck, hasCurrentCheck, isCheckRunning } from '../lib/compliance'
+import { checkRequired, currentCheck, hasCurrentCheck, isCheckRunning } from '../lib/compliance'
 import { approvalReadiness, type ApprovalReadiness } from '../lib/approval'
 import { canAddReviewers, canSendNewVersion, type ReviewPhaseItem } from '../lib/internalReview'
 import { reviewAllowsNewVersion } from '../lib/internalReviewStatus'
@@ -41,26 +40,16 @@ import {
   isAuthorOrCoAuthor,
   nextVersion,
   responseRecipients,
-  type UploadedFile,
 } from '../lib/workflow'
 import { useDepartments } from '../state/departmentsContext'
 import { useGuidelines } from '../state/guidelinesContext'
 import { useCurrentUser } from '../state/sessionContext'
 import { useSops } from '../state/sopsContext'
+import { fileUrlOf } from '../services/files'
 import { useUsers } from '../state/usersContext'
 import { NotFoundPage } from './NotFoundPage'
 
 type DialogName = 'submit' | 'addReviewers' | 'approval' | 'newVersion' | 'resubmit' | 'addCoAuthors' | 'response'
-
-/** Keeps the uploaded file in memory (object URL) so it can be downloaded in this session. */
-function toUploadedFile(file: File): UploadedFile {
-  // TODO: Upload the file to the backend instead of keeping it in browser memory.
-  return {
-    fileName: file.name,
-    fileType: file.name.toLowerCase().endsWith('.pdf') ? 'pdf' : 'docx',
-    fileUrl: URL.createObjectURL(file),
-  }
-}
 
 interface SectionProps {
   id: string
@@ -88,7 +77,7 @@ function Section({ id, title, children, className = '', actions }: SectionProps)
 
 /**
  * SOP workflow page ("/my-sops/:id"): the author's view of one SOP — workflow status,
- * SOP history (versions), authors, compliance overview and the review timeline
+ * authors, SOP history (versions), compliance overview, reviewers and the review timeline
  * (PBI 6, 8, 12, 22, 24). Only the SOP's author and co-authors can open it;
  * co-authors can upload versions and respond, delete the versions they uploaded and
  * run the compliance check when they uploaded the current version; only the main
@@ -111,7 +100,7 @@ export function SopWorkflowPage() {
   const [removingId, setRemovingId] = useState<string | null>(null)
   // Version waiting for the delete confirmation, and the version being previewed.
   const [deleting, setDeleting] = useState<SopVersion | null>(null)
-  const [previewing, setPreviewing] = useState<SopVersion | null>(null)
+  const [previewing, setPreviewing] = useState<{ version: SopVersion; url: string } | null>(null)
   const [message, setMessage] = useState('')
   const triggerRef = useRef<HTMLElement | null>(null)
   const statusRef = useRef<HTMLDivElement>(null)
@@ -168,10 +157,12 @@ export function SopWorkflowPage() {
   const canSubmit = sop.status === 'draft' || sop.status === 'returned' && !internal
 
   // Submit for review: Submit when Draft, Resubmit when Returned (main author only).
-  // A completed compliance check of the current version, against the current GVP
-  // version, is needed (it needn't pass); a resubmit also needs a version uploaded after the return.
+  // Only where the GVP guideline applies (Pharmacovigilance): a completed compliance check of the
+  // current version, against the current GVP version, is needed (it needn't pass). Other SOPs have
+  // no check. A resubmit also needs a version uploaded after the return.
+  const needsCheck = checkRequired(sop, departments.departments)
   const checkRunning = isCheckRunning(sop)
-  const checkDone = hasCurrentCheck(sop, guidelines.current.version)
+  const checkDone = !needsCheck || hasCurrentCheck(sop, guidelines.current.version)
   // A completed check of this version, but against an older GVP version: it must be rerun.
   const checkedOlder = currentCheck(sop)?.status === 'completed'
   const checkReason = checkDone
@@ -224,9 +215,9 @@ export function SopWorkflowPage() {
   // Response: to everyone who commented in the latest round; not once published.
   const recipients = sop.status === 'published' ? [] : responseRecipients(sop)
 
-  // Compliance check: hidden once Approved or Published; disabled In Review and In Approval
-  // (that reason wins); otherwise the main author, or a co-author who uploaded the current version.
-  const showCheck = sop.status !== 'approved' && sop.status !== 'published'
+  // Compliance check: only where the GVP guideline applies; hidden once Approved or Published; disabled
+  // In Review and In Approval (that reason wins); otherwise the main author, or a co-author who uploaded the current version.
+  const showCheck = needsCheck && sop.status !== 'approved' && sop.status !== 'published'
   const checkBlock = checkBlocker(sop, user.id)
   const checkBlockedReason =
     checkBlock === 'status'
@@ -252,8 +243,11 @@ export function SopWorkflowPage() {
 
   const sopId = sop.id
   function runCheck() {
-    store.runCheck(sopId)
-    announce(content.messages.checkStarted)
+    setMessage('')
+    store.runCheck(sopId).then(
+      () => announce(content.messages.checkStarted),
+      () => announce(content.messages.checkStartFailed),
+    )
   }
 
 
@@ -267,12 +261,11 @@ export function SopWorkflowPage() {
         {content.back.label}
       </Link>
 
-      {/* Header */}
+      {/* Header (no status badge: the Workflow status steps show the status) */}
       <div className="mt-5">
         <p className="text-sm font-semibold text-maroon">{sop.code}</p>
         <h1 className="mt-1 text-2xl leading-tight tracking-tight sm:text-3xl">{sop.title}</h1>
         <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-text-gray">
-          <StatusBadge status={sop.status} />
           <span>{content.versionTemplate.replace('{version}', sop.version)}</span>
           <span aria-hidden="true">·</span>
           <span>
@@ -306,13 +299,28 @@ export function SopWorkflowPage() {
 
       {/* 1. Workflow status */}
       <Section id="tracker-title" title={content.tracker.label} className="mt-6">
-        {/* Only the steps: who returned it and why, and who's next, are in the Review timeline, the review requests and People. */}
+        {/* Only the steps: who returned it and why, and who's next, are in the Review timeline and the Reviewers box. */}
         <StatusTracker sop={sop} content={content.tracker} stepsOnly />
       </Section>
 
-      <InternalReviewPanel sop={sop} canRemove={isMainAuthor} activeOnly compact />
+      {/* 2. Authors */}
+      <Section id="authors-title" title={content.people.authorsTitle} className="mt-6">
+        <PeopleList
+          authorsOnly
+          sop={sop}
+          content={content.people}
+          userId={user.id}
+          canManageCoAuthors={isMainAuthor && sop.status !== 'published'}
+          onAddCoAuthor={(trigger) => open('addCoAuthors', trigger)}
+          onRemoveCoAuthor={(coAuthorId, trigger) => {
+            triggerRef.current = trigger
+            setMessage('')
+            setRemovingId(coAuthorId)
+          }}
+        />
+      </Section>
 
-      {/* 2. SOP history */}
+      {/* 3. SOP history */}
       <Section
         id="history-title"
         title={content.history.title}
@@ -368,7 +376,19 @@ export function SopWorkflowPage() {
           deleteReason={deleteReason}
           onPreview={(version, trigger) => {
             triggerRef.current = trigger
-            setPreviewing(version)
+            setMessage('')
+            // A signed link that works for 10 minutes, made each time.
+            fileUrlOf(version).then(
+              (url) => (url ? setPreviewing({ version, url }) : announce(content.messages.fileFailed)),
+              () => announce(content.messages.fileFailed),
+            )
+          }}
+          onDownload={(version, fileName) => {
+            setMessage('')
+            fileUrlOf(version, fileName).then(
+              (url) => (url ? window.location.assign(url) : announce(content.messages.fileFailed)),
+              () => announce(content.messages.fileFailed),
+            )
           }}
           onDelete={(version, trigger) => {
             triggerRef.current = trigger
@@ -378,29 +398,17 @@ export function SopWorkflowPage() {
         />
       </Section>
 
-      {/* 3. Authors */}
-      <Section id="authors-title" title={content.people.authorsTitle} className="mt-6">
-        <PeopleList
-          authorsOnly
-          sop={sop}
-          content={content.people}
-          userId={user.id}
-          canManageCoAuthors={isMainAuthor && sop.status !== 'published'}
-          onAddCoAuthor={(trigger) => open('addCoAuthors', trigger)}
-          onRemoveCoAuthor={(coAuthorId, trigger) => {
-            triggerRef.current = trigger
-            setMessage('')
-            setRemovingId(coAuthorId)
-          }}
-        />
-      </Section>
+      {/* 4. Compliance overview (says so when the current version hasn't been checked yet); only where the GVP guideline applies */}
+      {needsCheck && (
+        <Section id="compliance-title" title={complianceEn.card.title} className="mt-6">
+          <ComplianceCard sop={sop} content={complianceEn} />
+        </Section>
+      )}
 
-      {/* 4. Compliance overview (says so when the current version hasn't been checked yet) */}
-      <Section id="compliance-title" title={complianceEn.card.title} className="mt-6">
-        <ComplianceCard sop={sop} content={complianceEn} />
-      </Section>
+      {/* 5. Reviewers (once the SOP has been sent for internal review) */}
+      <InternalReviewPanel sop={sop} canRemove={isMainAuthor} activeOnly compact title={internalReviewEn.panel.authorPageTitle} />
 
-      {/* 5. Review timeline, with Response and Submit for review */}
+      {/* 6. Review timeline, with Response and Submit for review */}
       <Section
         id="timeline-title"
         title={content.timeline.title}
@@ -472,8 +480,8 @@ export function SopWorkflowPage() {
           sop={sop}
           content={dialogs}
           onClose={closeDialog}
-          onSubmit={(options) => {
-            store.submitForReview(sop.id, options)
+          onSubmit={async (options) => {
+            await store.submitForReview(sop.id, options)
             announce(content.messages.submitted)
           }}
         />
@@ -484,8 +492,8 @@ export function SopWorkflowPage() {
           sop={sop}
           content={dialogs}
           onClose={closeDialog}
-          onSubmit={(options) => {
-            store.addInternalReviewers(sop.id, options)
+          onSubmit={async (options) => {
+            await store.addInternalReviewers(sop.id, options)
             announce(content.messages.submitted)
           }}
         />
@@ -508,9 +516,9 @@ export function SopWorkflowPage() {
           description={dialogs.newVersion.description.replace('{version}', nextVersion(sop))}
           confirmLabel={dialogs.newVersion.confirm}
           onClose={closeDialog}
-          onSubmit={(file) => {
+          onSubmit={async (file) => {
             const version = nextVersion(sop)
-            store.uploadVersion(sop.id, toUploadedFile(file))
+            await store.uploadVersion(sop.id, file)
             announce(content.messages.newVersion.replace('{version}', version))
           }}
         />
@@ -520,8 +528,8 @@ export function SopWorkflowPage() {
           content={dialogs}
           recipients={recipients.map((recipient) => personWithRole(sop, recipient, content.roles, nameOf)).join(', ')}
           onClose={closeDialog}
-          onSubmit={(text) => {
-            store.addResponse(sop.id, text)
+          onSubmit={async (text) => {
+            await store.addResponse(sop.id, text)
             announce(content.messages.responseSent)
           }}
         />
@@ -531,8 +539,8 @@ export function SopWorkflowPage() {
           sop={sop}
           content={dialogs}
           onClose={closeDialog}
-          onSubmit={(userIds) => {
-            store.addCoAuthors(sop.id, userIds)
+          onSubmit={async (userIds) => {
+            await store.addCoAuthors(sop.id, userIds)
             announce(content.messages.coAuthorsAdded)
           }}
         />
@@ -547,9 +555,11 @@ export function SopWorkflowPage() {
         onConfirm={() => {
           if (!removingId) return
           const name = nameOf(removingId)
-          store.removeCoAuthor(sop.id, removingId)
           closeOverlay()
-          announce(content.messages.coAuthorRemoved.replace('{name}', name))
+          store.removeCoAuthor(sop.id, removingId).then(
+            () => announce(content.messages.coAuthorRemoved.replace('{name}', name)),
+            () => announce(content.messages.coAuthorRemoveFailed.replace('{name}', name)),
+          )
         }}
       />
       <ConfirmDialog
@@ -567,19 +577,21 @@ export function SopWorkflowPage() {
         onConfirm={() => {
           if (!deleting) return
           const version = deleting.version
-          store.deleteVersion(sop.id, version)
           closeOverlay()
-          announce(content.messages.versionDeleted.replace('{version}', version))
+          store.deleteVersion(sop.id, version).then(
+            () => announce(content.messages.versionDeleted.replace('{version}', version)),
+            () => announce(content.messages.deleteFailed.replace('{version}', version)),
+          )
         }}
       />
-      {previewing?.fileUrl && (
+      {previewing && (
         <PreviewDialog
-          title={content.history.previewTitle.replace('{code}', sop.code).replace('{version}', previewing.version)}
-          url={previewing.fileUrl}
+          title={content.history.previewTitle.replace('{code}', sop.code).replace('{version}', previewing.version.version)}
+          url={previewing.url}
           viewerTitle={content.history.viewerTitle
             .replace('{code}', sop.code)
             .replace('{title}', sop.title)
-            .replace('{version}', previewing.version)}
+            .replace('{version}', previewing.version.version)}
           closeLabel={content.history.close}
           fallback={content.history.fallback}
           onClose={closeOverlay}

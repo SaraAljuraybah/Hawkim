@@ -29,20 +29,20 @@ export function InternalReviewActions({ sop, onComplete }: { sop: Sop; onComplet
   function open(decision: Target['decision'], trigger: HTMLButtonElement) {
     triggerRef.current = trigger; setComment(''); setError(''); setFieldError(''); setTarget({ roundId: round!.id, assignmentId: assignment!.id, decision })
   }
-  function confirm() {
+  async function confirm() {
     if (!target) return false
     const required = target.decision === 'returned' ? text.actions.returnRequired : target.decision === 'declined' ? text.actions.declineRequired : ''
     if (required && !comment.trim()) { setFieldError(required); commentRef.current?.focus(); return false }
     try {
-      if (target.decision === 'declined') store.declineInternalReview(sop.id, target.roundId, target.assignmentId, comment)
-      else store.decideInternalReview(sop.id, target.roundId, target.assignmentId, target.decision, comment)
+      if (target.decision === 'declined') await store.declineInternalReview(sop.id, target.roundId, target.assignmentId, comment)
+      else await store.decideInternalReview(sop.id, target.roundId, target.assignmentId, target.decision, comment)
       setTarget(null)
       onComplete(target.decision === 'declined' ? text.actions.declined : target.decision === 'returned' ? text.actions.returned : text.actions.reviewCompleted)
     }
     catch (reason) { setError(reason instanceof Error ? reason.message : text.status.closed); return false }
   }
-  function accept() {
-    try { store.acceptInternalReview(sop.id, round!.id, assignment!.id); onComplete(text.actions.accepted) }
+  async function accept() {
+    try { await store.acceptInternalReview(sop.id, round!.id, assignment!.id); onComplete(text.actions.accepted) }
     catch (reason) { setError(reason instanceof Error ? reason.message : text.status.closed) }
   }
   const pending = assignment.decision === 'pending'

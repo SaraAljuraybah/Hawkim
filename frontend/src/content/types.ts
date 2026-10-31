@@ -166,9 +166,12 @@ export interface SignInContent {
   }
   /** Messages for the result returned by the auth service. */
   results: {
+    invalidCredentials: string
+    tooManyAttempts: string
     notConnected: string
-    /** The account was deleted by an admin. */
+    /** The account has no active profile (none was set up, or it was ended). */
     noAccess: string
+    failed: string
   }
   /** "By signing in, you agree to our {terms} and {privacy}." */
   legal: {
@@ -178,6 +181,16 @@ export interface SignInContent {
     privacy: LinkContent
     suffix: string
   }
+}
+
+/** The page behind "Forgot password?": passwords are reset by the project owner for now. */
+export interface ForgotPasswordContent {
+  /** Browser tab title. */
+  pageTitle: string
+  logoAlt: string
+  title: string
+  text: string
+  backLink: LinkContent
 }
 
 /* ---------- Not Found page ---------- */
@@ -445,10 +458,12 @@ export interface UploadSopContent {
   /** `{department}` is replaced with the active department's name. */
   subtitle: string
   fields: {
-    title: { label: string; placeholder: string }
+    title: { label: string; placeholder: string; /** `{count}` and `{max}` are replaced. */ counter: string }
     department: { label: string }
     file: {
       label: string
+      /** Read by screen readers only (a red asterisk is shown). */
+      requiredTag: string
       hint: string
       dropPrompt: string
       browse: string
@@ -458,7 +473,12 @@ export interface UploadSopContent {
     }
     description: { label: string; placeholder: string; /** `{count}` and `{max}` are replaced. */ counter: string }
   }
-  errors: { titleRequired: string; fileRequired: string }
+  errors: {
+    titleRequired: string
+    fileRequired: string
+    /** The file couldn't be uploaded or the SOP couldn't be saved. */
+    saveFailed: string
+  }
   cancel: LinkContent
   submit: { label: string; loadingLabel: string }
 }
@@ -563,7 +583,7 @@ export interface SopWorkflowContent {
     previewLabel: string
     downloadLabel: string
     deleteLabel: string
-    /** Why Preview / Download aren't available. */
+    /** Why Preview / Download aren't available: a Word file can't be previewed; the file isn't available (a sample, or no access). */
     unavailable: { word: string; demo: string }
     /**
      * Why Delete isn't available: by the SOP's status (only Draft and Returned allow it),
@@ -631,6 +651,8 @@ export interface SopWorkflowContent {
     cancel: string
     fileField: SopFileFieldContent
     fileRequired: string
+    /** The new version's file couldn't be uploaded or saved. */
+    uploadFailed: string
     submit: {
       title: string
       /**
@@ -657,12 +679,15 @@ export interface SopWorkflowContent {
       /** The search field's name, for screen readers only. */
       label: string
       required: string
+      /** The co-authors couldn't be saved. */
+      failed: string
       confirm: string
     }
     /** `{name}` is replaced in the description. */
     removeCoAuthor: { title: string; description: string; keep: string; confirm: string }
     /** `{names}` (the recipients) is replaced in the description; `{count}` and `{max}` in the counter. */
-    response: { title: string; description: string; label: string; required: string; counter: string; confirm: string }
+    /** `failed`: the response couldn't be saved. */
+    response: { title: string; description: string; label: string; required: string; failed: string; counter: string; confirm: string }
     /**
      * Resubmit for review. Its date and comments fields use the `submit` texts.
      * `failed`: the store refused the resubmission.
@@ -679,11 +704,19 @@ export interface SopWorkflowContent {
     newVersion: string
     /** `{version}` is replaced. */
     versionDeleted: string
+    /** `{version}` is replaced. */
+    deleteFailed: string
+    /** A file couldn't be opened or downloaded. */
+    fileFailed: string
     resubmitted: string
     coAuthorsAdded: string
     /** `{name}` is replaced. */
     coAuthorRemoved: string
+    /** `{name}` is replaced. */
+    coAuthorRemoveFailed: string
     checkStarted: string
+    /** The check couldn't be started. */
+    checkStartFailed: string
     responseSent: string
   }
 }
@@ -887,6 +920,28 @@ export interface UsersContent {
 
 export interface LoadingContent {
   label: string
+}
+
+/* ---------- App-wide screens (connection to the backend) ---------- */
+
+export interface SystemContent {
+  logoAlt: string
+  /** frontend/.env.local is missing, incomplete, or uses the secret key. */
+  notConfigured: {
+    pageTitle: string
+    title: string
+    missing: string
+    /** The URL has a path (e.g. /rest/v1/) or isn't a valid address. */
+    urlFormat: string
+    secretKey: string
+  }
+  /** The people or departments couldn't be loaded after sign-in. */
+  loadFailed: {
+    pageTitle: string
+    title: string
+    text: string
+    retry: string
+  }
 }
 
 /* ---------- Notifications (bell in the employee top bar) ---------- */

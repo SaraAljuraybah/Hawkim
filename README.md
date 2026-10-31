@@ -172,6 +172,11 @@ The web frontend lives in the [`frontend/`](frontend/) folder and is built with 
 
 ### Run locally
 
+1. Copy `frontend/.env.example` to `frontend/.env.local` and fill in the Supabase project URL
+   and **publishable** key (Supabase dashboard → Project Settings → Data API and API Keys).
+   Never use the secret (service_role) key. Without this file the app shows a "not configured" screen.
+2. Install and start:
+
 ```bash
 cd frontend
 npm install
@@ -180,7 +185,7 @@ npm run dev
 
 Then open the local URL printed in the terminal (usually http://localhost:5173).
 
-To sign in, use one of the sample accounts in [DEMO_ACCOUNTS.md](DEMO_ACCOUNTS.md) (any password works).
+To sign in, use one of the test accounts in [DEMO_ACCOUNTS.md](DEMO_ACCOUNTS.md). Ask the project owner for the test password.
 
 ### Other commands
 

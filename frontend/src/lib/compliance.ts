@@ -2,6 +2,7 @@ import { SAMPLE_FINDINGS } from '../data/mock/compliance'
 import {
   SYSTEM_ACTOR,
   type ComplianceCheck,
+  type Department,
   type ComplianceResult,
   type Finding,
   type Guideline,
@@ -28,6 +29,14 @@ function newId(prefix: string) {
 }
 
 // ---------- Reading checks ----------
+
+/**
+ * The GVP guideline applies to the SOP's department (Pharmacovigilance): only then can it
+ * be checked, and it needs a completed check before review. Other SOPs have no check.
+ */
+export function checkRequired(sop: Pick<Sop, 'departmentId'>, departments: Pick<Department, 'id' | 'requiresComplianceCheck'>[]): boolean {
+  return !!departments.find((department) => department.id === sop.departmentId)?.requiresComplianceCheck
+}
 
 /** The newest check for the SOP's current version (running, completed or failed), if any. */
 export function currentCheck(sop: Sop): ComplianceCheck | undefined {

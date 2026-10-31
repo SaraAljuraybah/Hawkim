@@ -15,6 +15,8 @@ interface VersionHistoryProps {
   /** Why this version can't be deleted now (undefined: it can). */
   deleteReason: (version: SopVersion) => string | undefined
   onPreview: (version: SopVersion, trigger: HTMLElement) => void
+  /** Downloads a stored file under `fileName` (sample files are plain links). */
+  onDownload: (version: SopVersion, fileName: string) => void
   onDelete: (version: SopVersion, trigger: HTMLElement) => void
 }
 
@@ -28,7 +30,7 @@ function versionDownloadName(sop: Sop, version: SopVersion) {
  * and when, and Preview, Download and Delete. A table from md up; stacked cards on
  * phones. Unavailable actions stay focusable and say why in their tooltip.
  */
-export function VersionHistory({ sop, content, userId, deleteReason, onPreview, onDelete }: VersionHistoryProps) {
+export function VersionHistory({ sop, content, userId, deleteReason, onPreview, onDownload, onDelete }: VersionHistoryProps) {
   const text = content.history
   const { nameOf } = useUsers()
   const versions = [...activeVersions(sop)].sort((a, b) => Number(b.version) - Number(a.version))
@@ -41,8 +43,10 @@ export function VersionHistory({ sop, content, userId, deleteReason, onPreview, 
   const fill = (template: string, version: SopVersion) => template.replace('{version}', version.version)
 
   function actions(version: SopVersion) {
+    // A stored file opens through a signed link made on click; a sample file may have a plain URL.
+    const available = !!version.storagePath || !!version.fileUrl
     const previewReason =
-      version.fileType !== 'pdf' ? text.unavailable.word : !version.fileUrl ? text.unavailable.demo : undefined
+      version.fileType !== 'pdf' ? text.unavailable.word : !available ? text.unavailable.demo : undefined
     return {
       preview: (
         <IconButton
@@ -52,7 +56,13 @@ export function VersionHistory({ sop, content, userId, deleteReason, onPreview, 
           onClick={(event: MouseEvent<HTMLButtonElement>) => onPreview(version, event.currentTarget)}
         />
       ),
-      download: (
+      download: version.storagePath ? (
+        <IconButton
+          label={fill(text.downloadLabel, version)}
+          icon={Download}
+          onClick={() => onDownload(version, versionDownloadName(sop, version))}
+        />
+      ) : (
         <IconButton
           label={fill(text.downloadLabel, version)}
           icon={Download}

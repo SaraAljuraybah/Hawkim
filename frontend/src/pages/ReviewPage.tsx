@@ -24,7 +24,8 @@ import { reviewsEn } from '../content/reviews.en'
 import { sopWorkflowEn } from '../content/workflow.en'
 import type { ApprovalDecisionSnapshot, Sop } from '../data/mock/types'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
-import { complianceScore, currentCheck, verdictOf } from '../lib/compliance'
+import { useFileUrl } from '../hooks/useFileUrl'
+import { checkRequired, complianceScore, currentCheck, verdictOf } from '../lib/compliance'
 import { formatDateTime } from '../lib/format'
 import { reviewCompliancePath } from '../lib/routes'
 import { reviewSopForUser } from '../lib/reviewAccess'
@@ -75,11 +76,12 @@ export function ReviewPage() {
 
 function Review({ sop, historical }: { sop: Sop; historical: boolean }) {
   const text = reviewsEn.page
+  const fileUrl = useFileUrl(sop)
   const workflow = sopWorkflowEn
   const store = useSops()
   const user = useCurrentUser()
   const { nameOf, getUser } = useUsers()
-  const { nameOf: departmentName } = useDepartments()
+  const { nameOf: departmentName, departments } = useDepartments()
 
   const [dialog, setDialog] = useState<DialogName | null>(null)
   const [approvalSnapshot, setApprovalSnapshot] = useState<ApprovalDecisionSnapshot>()
@@ -283,8 +285,8 @@ function Review({ sop, historical }: { sop: Sop; historical: boolean }) {
           />
         </Section>
 
-        {/* Compliance (read-only) */}
-        <Section id="compliance-title" title={text.compliance.title}>
+        {/* Compliance (read-only), only where the GVP guideline applies */}
+        {checkRequired(sop, departments) && <Section id="compliance-title" title={text.compliance.title}>
           <SampleBanner text={complianceEn.sampleBanner} />
           <div className="mt-4">
             {check?.status === 'completed' ? (
@@ -315,7 +317,7 @@ function Review({ sop, historical }: { sop: Sop; historical: boolean }) {
               <p className="text-sm text-text-gray">{text.compliance.none}</p>
             )}
           </div>
-        </Section>
+        </Section>}
       </div>
 
       {/* Current file: the PDF inline; a download for files uploaded in this session; the name only for samples */}
@@ -332,17 +334,17 @@ function Review({ sop, historical }: { sop: Sop; historical: boolean }) {
               </p>
             </div>
           </div>
-          {sop.fileUrl && (
-            <Button href={sop.fileUrl} download={downloadName(sop)} size="sm" variant="secondary" className="self-start sm:self-auto">
+          {fileUrl && (
+            <Button href={fileUrl} download={downloadName(sop)} size="sm" variant="secondary" className="self-start sm:self-auto">
               <Download aria-hidden="true" className="size-4" strokeWidth={2} />
               {text.file.download}
             </Button>
           )}
         </div>
-        {sop.fileUrl && sop.fileType === 'pdf' && (
+        {fileUrl && sop.fileType === 'pdf' && (
           <div className="mt-4 rounded-xl border border-beige p-3 sm:p-4">
             <PdfViewer
-              url={sop.fileUrl}
+              url={fileUrl}
               title={text.file.viewerTitle.replace('{code}', sop.code).replace('{title}', sop.title)}
               fallback={text.file.fallback}
             />

@@ -13,6 +13,7 @@
     "generate:sample-sops": "node scripts/generate-sample-sops.mjs"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.118.0",
     "lucide-react": "^1.50.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",

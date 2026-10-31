@@ -13,7 +13,7 @@ import { formatReviewDuration } from '../../lib/reviewDuration'
 import type { ReactNode } from 'react'
 
 const users: UsersStore = {
-  users: [], activeUsers: [], getUser: () => undefined, nameOf: (id) => id ?? '',
+  status: 'ready', users: [], activeUsers: [], getUser: () => undefined, nameOf: (id) => id ?? '',
   addUser: () => { throw new Error('unused') }, updatePermissions: () => {}, deleteUser: () => {},
 }
 const render = (node: ReactNode) => renderToStaticMarkup(<UsersContext value={users}>{node}</UsersContext>)
@@ -40,10 +40,10 @@ describe('reviewer deadline displays', () => {
     const active = render(<ReviewerDeadline sop={item} reviewer={item.reviewers[0]} content={sopWorkflowEn.reviewerDeadline} showQueue />)
     expect(active).toContain('Time given: 2 days')
     expect(active).toContain('Time remaining: 1 day 11 hours')
-    expect(active).toContain('Current reviewer')
+    expect(active).toContain('Current Reviewer')
     const waiting = render(<ReviewerDeadline sop={item} reviewer={item.reviewers[1]} content={sopWorkflowEn.reviewerDeadline} showQueue />)
     expect(waiting).toContain('Time given: 7 days')
-    expect(waiting).toContain('Waiting in queue')
+    expect(waiting).toContain('Waiting in Queue')
     expect(waiting).not.toContain('Time remaining')
     const blank = render(<ReviewerDeadline sop={item} reviewer={item.reviewers[2]} content={sopWorkflowEn.reviewerDeadline} />)
     expect(blank).toContain('No deadline assigned')
@@ -51,13 +51,13 @@ describe('reviewer deadline displays', () => {
   })
   it('asks for a due date for Reviewer 1 and comments on resubmission, like Submit, without a reviewer summary', () => {
     const html = render(<ResubmitDialog sop={sop()} content={sopWorkflowEn.dialogs} onSubmit={() => {}} onClose={() => {}} />)
-    for (const text of ['Resubmit for review', 'Review due date (optional)', sopWorkflowEn.dialogs.submit.reviewDate.help, 'Comments (optional)', 'Add a comment for the reviewers', 'type="date"', 'maxLength="500"']) expect(html).toContain(text)
+    for (const text of ['Resubmit for Review', 'Review Due Date (Optional)', sopWorkflowEn.dialogs.submit.reviewDate.help, 'Comments (Optional)', 'Add a comment for the reviewers', 'type="date"', 'maxLength="500"']) expect(html).toContain(text)
     for (const text of ['First reviewer', 'Next reviewer', 'No deadline reviewer', 'Time given', 'No due date', 'Approval person', 'Approvers']) expect(html).not.toContain(text)
   })
   it('shows queue positions and individual deadlines in PeopleList', () => {
     const html = render(<PeopleList sop={sop()} content={sopWorkflowEn.people} userId="Author" canManageCoAuthors={false} onAddCoAuthor={() => {}} onRemoveCoAuthor={() => {}} />)
-    expect(html).toContain('Current reviewer')
-    expect(html).toContain('Waiting in queue')
+    expect(html).toContain('Current Reviewer')
+    expect(html).toContain('Waiting in Queue')
     expect(html).toContain('Time given: 2 days')
     expect(html).toContain('Time given: 7 days')
     expect(html).toContain('No deadline assigned')
@@ -92,7 +92,7 @@ describe('parallel reviewer deadline displays', () => {
     const item = internal([request('First reviewer', { responseDueDate: '2026-10-21', reviewDurationDays: 5 }), request('Next reviewer', { reviewDurationDays: 1 }), request('No deadline reviewer')])
     const [first, next, none] = item.internalReviewRounds![0].assignments
     const html = render(<ReviewerDeadline sop={item} reviewer={first} content={sopWorkflowEn.reviewerDeadline} showQueue />)
-    expect(html).toContain('Review pending')
+    expect(html).toContain('Review Pending')
     expect(html).toContain('Response due ')
     expect(html).toContain(new Date(2026, 9, 21, 23, 59, 59, 999).toISOString())
     expect(html).toContain('Review duration: 5 days, starts when accepted')
@@ -130,7 +130,7 @@ describe('parallel reviewer deadline displays', () => {
       const html = render(<ReviewerDeadline sop={item} reviewer={item.internalReviewRounds![0].assignments[0]} content={sopWorkflowEn.reviewerDeadline} />)
       expect(html).not.toContain('Time remaining')
       expect(html).not.toContain('Review overdue')
-      expect(html).not.toContain('Review pending')
+      expect(html).not.toContain('Review Pending')
     }
   })
   it('retains historical requests without active countdowns', () => {
@@ -150,7 +150,7 @@ describe('parallel reviewer deadline displays', () => {
   it('keeps the round summary free of a shared deadline', () => {
     vi.useFakeTimers({ now: new Date(2026, 9, 19, 12) })
     const summary = render(<InternalReviewSummary sop={internal([request('First reviewer', { responseDueDate: '2026-10-21' })])} />)
-    expect(summary).toContain('Reviews in progress')
+    expect(summary).toContain('Reviews in Progress')
     expect(summary).not.toContain('Time given')
     expect(summary).not.toContain('Due ')
   })

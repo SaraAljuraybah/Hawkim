@@ -58,7 +58,7 @@ function finished(text?: string) { return decide(decide(start(), 'reviewer-a', '
 function renderPage() {
   return renderToStaticMarkup(<MemoryRouter initialEntries={['/approval-ui']}><Routes><Route path="/:id" element={<SopWorkflowPage />} /></Routes></MemoryRouter>)
 }
-function approvalButton(html: string) { return html.match(/<button[^>]*>Submit for approval<\/button>/)?.[0] }
+function approvalButton(html: string) { return html.match(/<button[^>]*>Submit for Approval<\/button>/)?.[0] }
 /** The lines of the tooltip the disabled button is described by: its heading, then each reason. */
 function approvalTooltip(html: string): string[] {
   const id = approvalButton(html)?.match(/aria-describedby="([^"]+)"/)?.[1]
@@ -116,7 +116,7 @@ describe('main Author approval interface', () => {
     const approval = submitted.approvalSubmissions!.at(-1)!
     fixture.sop = returnAsApprover(submitted, 'controller', 'Revise the controls', { version: approval.version, approvalSubmissionId: approval.id })
     const html = renderPage()
-    const box = html.slice(html.indexOf('id="tracker-title"'), html.indexOf('id="internal-review-title"'))
+    const box = html.slice(html.indexOf('id="tracker-title"'), html.indexOf('id="authors-title"'))
     expect(box).toContain('aria-label="' + sopWorkflowEn.tracker.label + '"')
     expect(box).toContain('>' + sopWorkflowEn.tracker.returned + '<')
     for (const text of [sopWorkflowEn.tracker.assignee.title, sopWorkflowEn.tracker.assignee.revisionsPending, 'Returned by ', internalReviewEn.panel.decisions.completed, 'border-t']) expect(box).not.toContain(text)

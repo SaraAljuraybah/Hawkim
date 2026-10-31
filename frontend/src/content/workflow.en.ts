@@ -28,9 +28,9 @@ export const sopWorkflowEn: SopWorkflowContent = {
     remainingDays: 'Time remaining: {count} days',
     dueToday: 'Time remaining: due today',
     overdue: 'Overdue',
-    current: 'Current reviewer',
-    active: 'Review pending',
-    waiting: 'Waiting in queue',
+    current: 'Current Reviewer',
+    active: 'Review Pending',
+    waiting: 'Waiting in Queue',
   },
 
   tracker: {
@@ -69,10 +69,10 @@ export const sopWorkflowEn: SopWorkflowContent = {
     you: '(you)',
     noCoAuthors: 'No co-authors.',
     notAssigned: 'Chosen when the SOP is submitted.',
-    addCoAuthor: 'Add co-author',
+    addCoAuthor: 'Add Co-author',
     authorsTitle: 'Authors',
-    mainAuthor: 'Main author',
-    addAuthor: 'Add author',
+    mainAuthor: 'Main Author',
+    addAuthor: 'Add Co-authors',
     remove: 'Remove',
     removeLabel: 'Remove {name} as co-author',
     decisions: { pending: 'Pending', completed: 'Completed', approved: 'Approved', returned: 'Returned', cancelled: 'Cancelled' },
@@ -80,11 +80,11 @@ export const sopWorkflowEn: SopWorkflowContent = {
 
   file: {
     types: { pdf: 'PDF', docx: 'Word document (.docx)' },
-    viewInDirectory: 'View in SOPs directory',
+    viewInDirectory: 'View in SOPs Directory',
   },
 
   history: {
-    title: 'SOP history',
+    title: 'SOP History',
     columns: { version: 'Version', author: 'Author', date: 'Date', preview: 'Preview', download: 'Download', delete: 'Delete' },
     current: 'Current',
     you: 'You',
@@ -93,7 +93,7 @@ export const sopWorkflowEn: SopWorkflowContent = {
     deleteLabel: 'Delete v{version}',
     unavailable: {
       word: 'Preview isn’t available for Word files',
-      demo: 'File not available in the demo',
+      demo: 'File not available',
     },
     deleteBlocked: {
       status: {
@@ -126,8 +126,8 @@ export const sopWorkflowEn: SopWorkflowContent = {
   },
 
   actions: {
-    submit: 'Submit for review',
-    resubmit: 'Resubmit for review',
+    submit: 'Submit for Review',
+    resubmit: 'Resubmit for Review',
     response: 'Response',
     resubmitHint: 'Upload a new version with your changes before resubmitting.',
     authorOnly: 'Only the author, {name}, can submit this SOP.',
@@ -143,11 +143,11 @@ export const sopWorkflowEn: SopWorkflowContent = {
   },
 
   timeline: {
-    title: 'Review timeline',
+    title: 'Review Timeline',
     columns: { action: 'Action', by: 'By', to: 'To', date: 'Date', version: 'Version', comment: 'Comment' },
     none: 'None',
-    viewMore: 'View more',
-    viewLess: 'View less',
+    viewMore: 'View More',
+    viewLess: 'View Less',
     events: {
       'review-accepted': 'Review accepted',
       'review-declined': 'Review declined',
@@ -188,7 +188,7 @@ export const sopWorkflowEn: SopWorkflowContent = {
     cancel: 'Cancel',
     // Same rules as Upload SOP (.docx or PDF, up to 10 MB).
     fileField: {
-      label: 'SOP file',
+      label: 'SOP File',
       hint: '.docx or PDF, up to 10 MB',
       dropPrompt: 'Drag and drop the file here, or',
       browse: 'browse',
@@ -197,24 +197,25 @@ export const sopWorkflowEn: SopWorkflowContent = {
       sizeError: '{name} is too large. Files must be {max} or smaller.',
     },
     fileRequired: 'Upload an SOP file.',
+    uploadFailed: "The new version couldn't be saved. Check your connection and try again.",
     submit: {
-      title: 'Submit for review',
+      title: 'Submit for Review',
       reviewDate: {
-        label: 'Review due date (optional)',
+        label: 'Review Due Date (Optional)',
         help: 'Choose today or any future date. The review is due at the end of that day. Leave blank for no deadline.',
         oneDay: 'Time given: 1 day · Due {date}',
         days: 'Time given: {count} days · Due {date}',
         duration: 'Time given: {duration} · Due {date}',
       },
-      note: { label: 'Comments (optional)', placeholder: 'Add a comment for the reviewers…', counter: '{count} / {max}' },
+      note: { label: 'Comments (Optional)', placeholder: 'Add a comment for the reviewers…', counter: '{count} / {max}' },
       errors: {
         dateInvalid: 'Choose a valid date on or after {min}, or leave it blank.',
         submitFailed: "The SOP couldn't be submitted. Refresh the page and try again.",
       },
-      confirm: 'Submit for review',
+      confirm: 'Submit for Review',
     },
     newVersion: {
-      title: 'Upload a new version',
+      title: 'Upload a New Version',
       description: 'Upload the file with your changes. It becomes v{version}.',
       confirm: 'Upload',
     },
@@ -223,33 +224,35 @@ export const sopWorkflowEn: SopWorkflowContent = {
       description: 'v{version} will be removed from the SOP history, and its compliance reports will no longer be listed.',
       currentNote: 'v{previous} becomes the current version.',
       keep: 'Cancel',
-      confirm: 'Delete version',
+      confirm: 'Delete Version',
     },
     addCoAuthors: {
-      title: 'Add co-authors',
+      title: 'Add Co-authors',
       description: 'Co-authors can upload versions and run compliance checks on their own uploads. Only you can submit for review.',
       label: 'Co-authors',
       required: 'Select at least one co-author.',
-      confirm: 'Add co-authors',
+      failed: "The co-authors couldn't be added. Check your connection and try again.",
+      confirm: 'Add Co-authors',
     },
     removeCoAuthor: {
-      title: 'Remove co-author?',
+      title: 'Remove Co-author?',
       description: '{name} will no longer be able to open this SOP or upload new versions.',
       keep: 'Cancel',
-      confirm: 'Remove co-author',
+      confirm: 'Remove Co-author',
     },
     response: {
-      title: 'Respond to comments',
+      title: 'Respond to Comments',
       description: 'Your response is added to the Review timeline and sent to {names}.',
       label: 'Response',
       required: 'Write a response.',
+      failed: "The response couldn't be sent. Check your connection and try again.",
       counter: '{count} / {max}',
-      confirm: 'Send response',
+      confirm: 'Send Response',
     },
     resubmit: {
-      title: 'Resubmit for review',
+      title: 'Resubmit for Review',
       failed: "The SOP couldn't be resubmitted. Refresh the page and try again.",
-      confirm: 'Resubmit for review',
+      confirm: 'Resubmit for Review',
     },
   },
 
@@ -257,10 +260,14 @@ export const sopWorkflowEn: SopWorkflowContent = {
     submitted: 'Submitted for review.',
     newVersion: 'v{version} uploaded.',
     versionDeleted: 'v{version} deleted.',
+    deleteFailed: "v{version} couldn't be deleted. Check your connection and try again.",
+    fileFailed: "The file couldn't be opened. Try again.",
     resubmitted: 'Resubmitted for review.',
     coAuthorsAdded: 'Co-authors added.',
     coAuthorRemoved: '{name} removed as co-author.',
+    coAuthorRemoveFailed: "{name} couldn't be removed. Check your connection and try again.",
     checkStarted: 'Compliance check started.',
+    checkStartFailed: "The compliance check couldn't be started. Check your connection and try again.",
     responseSent: 'Response sent.',
   },
 }

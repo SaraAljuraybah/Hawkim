@@ -13,7 +13,8 @@ interface FileDialogProps {
   title: string
   description: string
   confirmLabel: string
-  onSubmit: (file: File) => void
+  /** Saves the file; if it throws, the dialog stays open and says so. */
+  onSubmit: (file: File) => void | Promise<void>
   onClose: () => void
 }
 
@@ -23,13 +24,19 @@ export function FileDialog({ content, title, description, confirmLabel, onSubmit
   const [error, setError] = useState<string>()
   const browseRef = useRef<HTMLButtonElement>(null)
 
-  function confirm() {
+  async function confirm() {
     if (files.length !== 1) {
       flushSync(() => setError(content.fileRequired))
       browseRef.current?.focus()
       return false
     }
-    onSubmit(files[0])
+    try {
+      await onSubmit(files[0])
+    } catch {
+      flushSync(() => setError(content.uploadFailed))
+      browseRef.current?.focus()
+      return false
+    }
   }
 
   return (

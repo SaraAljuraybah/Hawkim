@@ -23,7 +23,7 @@ vi.mock('../state/usersContext', () => ({ useUsers: () => ({
   nameOf: (id: string) => state.users.find((user) => user.id === id)?.name ?? id,
   getUser: (id: string) => state.users.find((user) => user.id === id),
 }) }))
-vi.mock('../state/departmentsContext', () => ({ useDepartments: () => ({ nameOf: (id: string) => id }) }))
+vi.mock('../state/departmentsContext', () => ({ useDepartments: () => ({ departments: [], nameOf: (id: string) => id }) }))
 vi.mock('../state/sopsContext', () => ({ useSops: () => ({ sops: [state.sop] }) }))
 
 const requestedAt = '2026-10-23T09:00:00.000Z'
@@ -111,11 +111,11 @@ describe('approval and prior-version detail access', () => {
   it('shows approval actions, preserved descriptions, and approval status without an awaiting-Author prompt', () => {
     const detail = render('detail')
     expect(detail).toContain('>Approve<')
-    expect(detail).toContain('>Return to author<')
+    expect(detail).toContain('>Return to Author<')
     expect(detail).toContain('Description preserved\nSecond line')
     expect(detail).not.toContain(internalReviewEn.status.awaitingAuthor)
     expect(detail).not.toContain('Awaiting Author')
-    expect(detail).not.toContain('>Complete review<')
+    expect(detail).not.toContain('>Complete Review<')
     const list = render('list')
     expect(list).toContain('Approval phase fixture')
     expect(list).toContain(reviewsEn.list.needs.approval)
@@ -135,7 +135,7 @@ describe('approval and prior-version detail access', () => {
   it('hides modern approval and publication controls if the assigned user loses Approver permission', () => {
     state.users[0].permissions = ['reviewer']
     expect(render('detail')).not.toContain('>Approve<')
-    expect(render('detail')).not.toContain('>Return to author<')
+    expect(render('detail')).not.toContain('>Return to Author<')
     state.sop = approveAs(state.sop!, 'controller', undefined, snapshot)
     expect(render('detail')).not.toContain('>Publish<')
   })

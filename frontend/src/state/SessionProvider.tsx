@@ -1,52 +1,49 @@
-import { useCallback, useMemo, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
+import type { User } from '../data/mock/types'
+import { onSignedOut, restoreSession, signOut as endSession } from '../services/auth'
 import { clearStoredActiveDepartment } from './activeDepartmentStorage'
-import { SessionContext, type SessionStore } from './sessionContext'
-import { useUsers } from './usersContext'
+import { SessionContext, type SessionStatus, type SessionStore } from './sessionContext'
 
-const STORAGE_KEY = 'hawkim.session'
+type SessionState = { status: SessionStatus; user: User | null }
 
-function readStored(): string | null {
-  try {
-    return sessionStorage.getItem(STORAGE_KEY)
-  } catch {
-    return null // storage unavailable (private mode, blocked): nobody is signed in
-  }
-}
+const SIGNED_OUT: SessionState = { status: 'signed-out', user: null }
 
 /**
- * Who is signed in. DEMO ONLY: the session is just the user's id, kept in
- * sessionStorage so a reload keeps the person (until the tab is closed or they
- * sign out). Never store the password or any other credential here.
- * A deleted (or unknown) user's session ends at once: they are signed out.
- * TODO: Replace with the auth provider's session (e.g. Supabase Auth) once the backend exists.
- * Must be inside <UsersProvider>.
+ * Who is signed in, from the Supabase Auth session (kept per browser tab, see
+ * services/supabase.ts). On load it restores this tab's session, if any; the session
+ * ends when the person signs out or Supabase can no longer refresh it.
  */
 export function SessionProvider({ children }: { children: ReactNode }) {
-  const { activeUsers } = useUsers()
-  const [userId, setUserId] = useState<string | null>(readStored)
-  const user = activeUsers.find((item) => item.id === userId) ?? null
+  const [state, setState] = useState<SessionState>({ status: 'loading', user: null })
 
-  const signIn = useCallback((id: string) => {
+  useEffect(() => {
+    let active = true
+    // Only the first answer counts: a sign-in finished in the meantime wins.
+    const settle = (next: SessionState) => {
+      if (active) setState((current) => (current.status === 'loading' ? next : current))
+    }
+    restoreSession().then((user) => settle(user ? { status: 'signed-in', user } : SIGNED_OUT))
+    const unsubscribe = onSignedOut(() => {
+      if (active) setState(SIGNED_OUT)
+    })
+    return () => {
+      active = false
+      unsubscribe()
+    }
+  }, [])
+
+  const signIn = useCallback((user: User) => {
     // Every sign-in starts in the user's home department (not one remembered from before).
     clearStoredActiveDepartment()
-    setUserId(id)
-    try {
-      sessionStorage.setItem(STORAGE_KEY, id)
-    } catch {
-      // Without storage the session only lasts until reload.
-    }
+    setState({ status: 'signed-in', user })
   }, [])
 
   const signOut = useCallback(() => {
-    setUserId(null)
-    try {
-      sessionStorage.removeItem(STORAGE_KEY)
-    } catch {
-      // Nothing was stored.
-    }
+    setState(SIGNED_OUT)
+    void endSession()
   }, [])
 
-  const store = useMemo<SessionStore>(() => ({ user, signIn, signOut }), [user, signIn, signOut])
+  const store = useMemo<SessionStore>(() => ({ ...state, signIn, signOut }), [state, signIn, signOut])
 
   return <SessionContext.Provider value={store}>{children}</SessionContext.Provider>
 }

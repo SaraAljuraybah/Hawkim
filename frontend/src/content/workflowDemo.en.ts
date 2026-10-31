@@ -7,24 +7,24 @@
 import type { WorkflowDemoContent } from './types'
 
 export const workflowDemoEn: WorkflowDemoContent = {
-  title: 'Demo controls (development only)',
+  title: 'Demo Controls (Development Only)',
   note: 'Review actions are limited to the signed-in user\'s assignments. Sign in as another assigned user to test their actions.',
   noActions: 'No reviewer or approver actions for this status.',
   buttons: {
-    completeReview: '{name}: complete review',
-    returnWithComment: '{name}: return with comment',
-    approve: '{name}: approve',
-    publish: '{name}: publish',
-    clockForward: 'Move the clock forward 3 days',
+    completeReview: '{name}: Complete Review',
+    returnWithComment: '{name}: Return with Comment',
+    approve: '{name}: Approve',
+    publish: '{name}: Publish',
+    clockForward: 'Move the Clock Forward 3 Days',
   },
-  failNextCheck: 'Make the next compliance check fail',
+  failNextCheck: 'Make the Next Compliance Check Fail',
   commentDialog: {
-    title: 'Return with comment',
+    title: 'Return with Comment',
     description: 'Acting as {name} ({role}).',
     label: 'Comment',
     placeholder: 'Explain what the author should change…',
     required: 'Enter a comment.',
-    confirm: 'Return to author',
+    confirm: 'Return to Author',
     cancel: 'Cancel',
   },
   messages: {

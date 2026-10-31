@@ -12,7 +12,6 @@ import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { hasPermission } from '../lib/permissions'
 import { signIn, type SignInFailureReason } from '../services/auth'
 import { useSession } from '../state/sessionContext'
-import { useUsers } from '../state/usersContext'
 
 type Field = 'email' | 'password'
 type FieldErrors = Partial<Record<Field, string>>
@@ -37,13 +36,12 @@ const legalLinkClasses =
 /**
  * Sign In page ("/login").
  * Split layout on large screens (brand panel + form); single column below lg.
- * Authentication is a temporary demo for now — see src/services/auth.ts.
+ * Signs in with Supabase Auth (see src/services/auth.ts).
  */
 export function SignInPage() {
   const content = signInEn
   useDocumentTitle(content.pageTitle)
   const navigate = useNavigate()
-  const { users } = useUsers()
   const session = useSession()
 
   const [values, setValues] = useState<Record<Field, string>>({ email: '', password: '' })
@@ -56,8 +54,11 @@ export function SignInPage() {
   const passwordRef = useRef<HTMLInputElement>(null)
 
   const resultMessages: Record<SignInFailureReason, string> = {
+    'invalid-credentials': content.results.invalidCredentials,
+    'too-many-attempts': content.results.tooManyAttempts,
     'not-connected': content.results.notConnected,
     'no-access': content.results.noAccess,
+    failed: content.results.failed,
   }
 
   /** Returns the error message for a field, or undefined when it is valid. */
@@ -105,12 +106,11 @@ export function SignInPage() {
 
     setStatusMessage('')
     setSubmitting(true)
-    const result = await signIn(values.email.trim(), values.password, users)
+    const result = await signIn(values.email.trim(), values.password)
     setSubmitting(false)
 
-    // DEMO ONLY: the stub signs in as a sample user (see services/auth.ts).
     if (result.ok) {
-      session.signIn(result.user.id)
+      session.signIn(result.user)
       navigate(hasPermission(result.user, 'admin') ? ADMIN_AFTER_SIGN_IN_PATH : AFTER_SIGN_IN_PATH)
     } else {
       setStatusMessage(resultMessages[result.reason])

@@ -1,8 +1,11 @@
 import { createContext, useContext } from 'react'
 import type { Guideline, GuidelineVersion, Requirement, User } from '../data/mock/types'
 import type { GuidelineVersionInput } from '../lib/guidelines'
+import type { LoadStatus } from './useLoadAfterSignIn'
 
 export interface GuidelinesStore {
+  /** Whether the versions have been loaded from the database (after sign-in). */
+  status: LoadStatus
   /** Every version, oldest first (the last one is current). */
   versions: GuidelineVersion[]
   /** The current version: the latest added. */

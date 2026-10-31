@@ -15,7 +15,7 @@ export const mySopsEn: MySopsContent = {
   empty: 'No SOPs here yet.',
   uploadedMessage: 'SOP uploaded as a draft.',
   coAuthorLabel: 'Co-author',
-  recheckLabel: 'Recheck recommended',
+  recheckLabel: 'Recheck Recommended',
 }
 
 export const uploadSopEn: UploadSopContent = {
@@ -23,10 +23,11 @@ export const uploadSopEn: UploadSopContent = {
   title: 'Upload SOP',
   subtitle: 'Add a new SOP to {department}. It will be saved as a draft.',
   fields: {
-    title: { label: 'Title', placeholder: 'Enter the SOP title' },
+    title: { label: 'Title', placeholder: 'Enter the SOP title', counter: '{count} / {max}' },
     department: { label: 'Department' },
     file: {
-      label: 'SOP file',
+      label: 'SOP File',
+      requiredTag: '(required)',
       hint: '.docx or PDF, up to 10 MB',
       dropPrompt: 'Drag and drop the file here, or',
       browse: 'browse',
@@ -36,7 +37,7 @@ export const uploadSopEn: UploadSopContent = {
       sizeError: '{name} is too large. Files must be {max} or smaller.',
     },
     description: {
-      label: 'Description (optional)',
+      label: 'Description',
       placeholder: 'Briefly describe the purpose of this SOP…',
       counter: '{count} / {max}',
     },
@@ -44,6 +45,7 @@ export const uploadSopEn: UploadSopContent = {
   errors: {
     titleRequired: 'Enter a title.',
     fileRequired: 'Upload an SOP file.',
+    saveFailed: "The SOP couldn't be saved. Check your connection and try again.",
   },
   cancel: { label: 'Cancel', href: '/my-sops' },
   submit: { label: 'Upload SOP', loadingLabel: 'Uploading…' },

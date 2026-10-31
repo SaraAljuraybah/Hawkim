@@ -21,7 +21,7 @@ const fixture = vi.hoisted(() => ({ sop: null as Sop | null, userId: 'author', u
   { id: 'reviewer-a', name: 'Reviewer Alpha', permissions: ['reviewer'], departmentId: 'home' },
   { id: 'reviewer-b', name: 'Reviewer Beta', permissions: ['reviewer'], departmentId: 'home' },
   { id: 'external', name: 'External reviewer', permissions: ['reviewer'], departmentId: 'other' },
-] as User[], departments: [{ id: 'home', name: 'Home', initials: 'HM', description: '' }] }))
+] as User[], departments: [{ id: 'home', name: 'Home', initials: 'HM', description: '', requiresComplianceCheck: true }] }))
 vi.mock('../../state/sessionContext', () => ({ useCurrentUser: () => fixture.users.find((user) => user.id === fixture.userId) }))
 vi.mock('../../state/usersContext', () => ({ useUsers: () => ({ users: fixture.users, activeUsers: fixture.users, nameOf: (id: string) => fixture.users.find((user) => user.id === id)?.name ?? id ?? '', getUser: (id: string) => fixture.users.find((user) => user.id === id) }) }))
 vi.mock('../../state/departmentsContext', () => ({ useDepartments: () => ({ departments: fixture.departments, nameOf: (id: string) => id }) }))
@@ -47,10 +47,10 @@ function decide(source: Sop, userId: string, decision: 'completed' | 'returned',
 function optionNames(html: string): string[] {
   return [...html.matchAll(/<input[^>]*name="internalReviewers"[^>]*\/><span[^>]*>([^<]*)<\/span>/g)].map((match) => match[1])
 }
-/** In every mode the dialog is titled "Submit for review" (its accessible name) and confirms with "Submit". */
+/** In every mode the dialog is titled "Submit for Review" (its accessible name) and confirms with "Submit". */
 function expectSubmitTexts(html: string) {
   const titleId = html.match(/<dialog[^>]*aria-labelledby="([^"]+)"/)![1]
-  expect(html).toContain(`<h2 id="${titleId}" class="text-lg">Submit for review</h2>`)
+  expect(html).toContain(`<h2 id="${titleId}" class="text-lg">Submit for Review</h2>`)
   expect(html).toMatch(/<button type="submit"[^>]*>Submit<\/button>/)
 }
 beforeEach(() => { vi.useFakeTimers({ now: new Date(2026, 9, 23, 12) }); fixture.userId = 'author' })
@@ -65,7 +65,7 @@ describe('internal parallel review across transitions and detail views', () => {
     vi.advanceTimersByTime(1000)
     const uploaded = uploadVersion(finished, 'author', { fileName: 'revised.pdf', fileType: 'pdf' })
     fixture.sop = uploaded
-    const button = render(<SopWorkflowPage />).match(/<button[^>]*>Submit for review<\/button>/)![0]
+    const button = render(<SopWorkflowPage />).match(/<button[^>]*>Submit for Review<\/button>/)![0]
     expect(button).toContain('disabled=""')
     expect(button).toContain('aria-describedby="submit-hint"')
     const html = renderToStaticMarkup(<SubmitDialog mode="version" sop={uploaded} content={sopWorkflowEn.dialogs} onSubmit={() => {}} onClose={() => {}} />)
@@ -123,15 +123,15 @@ describe('internal parallel review across transitions and detail views', () => {
     expect(html).not.toContain('Request internal reviews')
     expect(html).not.toContain('Internal reviewers')
     expect(html).not.toContain('Select eligible reviewers from the SOP department. All selected reviewers receive their tasks together.')
-    const trigger = html.match(/<button[^>]*aria-label="Select reviewers"[^>]*>/)?.[0]
+    const trigger = html.match(/<button[^>]*aria-label="Select Reviewers"[^>]*>/)?.[0]
     expect(trigger).toContain('aria-expanded="false"')
     const reviewerPanel = html.match(/<div[^>]*role="group"[^>]*>/)?.[0]
-    expect(reviewerPanel).toContain('aria-label="Select reviewers"')
+    expect(reviewerPanel).toContain('aria-label="Select Reviewers"')
     expect(reviewerPanel).toContain('hidden=""')
     expect(html).toContain('Reviewer Alpha')
     expect(html).toContain('Reviewer Beta')
     for (const name of ['Main writer', 'Contributing writer', 'External reviewer', 'Reviewer 1']) expect(html).not.toContain(name)
-    expect(html).toContain('Response due date (optional)')
+    expect(html).toContain('Response Due Date (Optional)')
     expect(html).toContain(internalReviewEn.submit.responseHelp)
     expect(html).not.toContain('23:59:59.999')
     const duration = html.match(/<input[^>]*name="reviewDurationDays"[^>]*>/)![0]
@@ -139,7 +139,7 @@ describe('internal parallel review across transitions and detail views', () => {
     expect(duration).toContain('min="1"')
     expect(duration).toContain('max="30"')
     expect(duration).toContain('aria-describedby=')
-    expect(html).toContain('Review duration in days (optional)')
+    expect(html).toContain('Review Duration in Days (Optional)')
     expect(html).toContain(internalReviewEn.submit.durationHelp)
     expect(html).not.toContain('withdrawn automatically')
     expect(html).not.toContain('has to finish after they accept')
@@ -157,17 +157,17 @@ describe('internal parallel review across transitions and detail views', () => {
       fixture.userId = userId
       expect(reviewTasks(userId, [fixture.sop])[0].group).toBe('todo')
       const html = render(<ReviewPage />)
-      expect(html).toContain('>Accept review<')
-      expect(html).toContain('>Decline review<')
-      expect(html).not.toContain('>Complete review<')
+      expect(html).toContain('>Accept Review<')
+      expect(html).toContain('>Decline Review<')
+      expect(html).not.toContain('>Complete Review<')
       fixture.sop = accept(fixture.sop, userId)
       const accepted = render(<ReviewPage />)
-      expect(accepted).toContain('>Complete review<')
-      expect(accepted).toContain('>Return to author<')
-      expect(accepted).not.toContain('>Accept review<')
+      expect(accepted).toContain('>Complete Review<')
+      expect(accepted).toContain('>Return to Author<')
+      expect(accepted).not.toContain('>Accept Review<')
 
       expect(html).toContain('Description retained')
-      expect(html).not.toContain('Route to another department')
+      expect(html).not.toContain('Route to Another Department')
       expect(html).not.toContain('Forward to reviewer')
       expect(html).not.toContain('>Approve<')
     }
@@ -175,11 +175,11 @@ describe('internal parallel review across transitions and detail views', () => {
   it('allows only the main author to see Remove reviewer controls and keeps return history after a new version', () => {
     const original = start()
     fixture.sop = original
-    expect(render(<SopWorkflowPage />)).toContain('>Remove reviewer<')
+    expect(render(<SopWorkflowPage />)).toContain('>Remove Reviewer<')
     expect(render(<SopWorkflowPage />)).toContain('aria-label="Remove Reviewer Alpha from this review"')
     expect(render(<SopWorkflowPage />)).not.toContain('Cancel review request')
     fixture.userId = 'coauthor'
-    expect(render(<SopWorkflowPage />)).not.toContain('>Remove reviewer<')
+    expect(render(<SopWorkflowPage />)).not.toContain('>Remove Reviewer<')
     fixture.userId = 'author'
     const returned = decide(decide(original, 'reviewer-a', 'completed', 'Checked version one'), 'reviewer-b', 'returned', 'Revise the safety section')
     const history = JSON.stringify(returned.internalReviewRounds)
@@ -207,8 +207,8 @@ describe('internal parallel review across transitions and detail views', () => {
       expect(deriveNotifications(userId, { sops: [sop], requests: [], now: Date.now() }).some((item) => item.type === 'due-soon' || item.type === 'overdue')).toBe(false)
       fixture.userId = userId
       const html = render(<ReviewPage />)
-      expect(html).not.toContain('>Complete review<')
-      expect(html).not.toContain('>Return to author<')
+      expect(html).not.toContain('>Complete Review<')
+      expect(html).not.toContain('>Return to Author<')
     }
   })
   it('shows the main Author as next actor after all successful reviews without an approval task', () => {
@@ -245,15 +245,15 @@ describe('historical review pages cannot reveal a later unassigned version', () 
     expect(detail).not.toContain('private-revision')
     expect(detail).not.toContain('/private-v2')
     expect(detail).not.toContain('Private v2 guideline')
-    expect(detail).not.toContain('>Complete review<')
-    expect(detail).not.toContain('>Return to author<')
+    expect(detail).not.toContain('>Complete Review<')
+    expect(detail).not.toContain('>Return to Author<')
     const report = render(<ComplianceReportPage audience="reviewer" />)
     expect(report).toContain('>v1</dd>')
     expect(report).not.toContain('>v2</dd>')
     expect(report).not.toContain('value="2"')
     expect(report).not.toContain('Private v2 guideline')
     fixture.userId = 'reviewer-b'
-    expect(render(<ReviewPage />)).toContain('>Accept review<')
+    expect(render(<ReviewPage />)).toContain('>Accept Review<')
     expect(render(<ReviewPage />)).toContain('/private-v2.docx')
     expect(JSON.stringify(fixture.sop.internalReviewRounds!.slice(0, -1))).toBe(history)
   })
@@ -301,5 +301,37 @@ describe('response due date in the Submit for review dialog', () => {
     const html = renderToStaticMarkup(<ReviewDueDateField name="reviewDueDate" text={sopWorkflowEn.dialogs.submit.reviewDate} value="" error="Choose a date" onChange={() => {}} />)
     expect(html).not.toContain('role="alert"')
     expect(html).toContain('Choose a date')
+  })
+})
+
+describe("author's SOP page layout", () => {
+  /** From the page title to the Workflow status box: the header (and the description). */
+  const header = (html: string) => html.slice(html.indexOf('<h1'), html.indexOf('id="tracker-title"'))
+  it('shows no status badge in the header; the review page keeps its badge', () => {
+    fixture.sop = start()
+    const author = header(render(<SopWorkflowPage />))
+    expect(author).toContain('>v1<')
+    expect(author).not.toContain('>In Review<')
+    fixture.userId = 'reviewer-a'
+    expect(header(render(<ReviewPage />))).toContain('>In Review<')
+  })
+  it('orders the boxes Workflow status, Authors, SOP history, Compliance, Reviewers, Review timeline', () => {
+    fixture.sop = start()
+    const html = render(<SopWorkflowPage />)
+    const ids = ['tracker-title', 'authors-title', 'history-title', 'compliance-title', 'internal-review-title', 'timeline-title']
+    const positions = ids.map((id) => html.indexOf(`<h2 id="${id}"`))
+    expect(positions.every((position) => position > 0)).toBe(true)
+    expect([...positions].sort((a, b) => a - b)).toEqual(positions)
+    expect(html.match(/<h1[\s>]/g)).toHaveLength(1)
+  })
+  it('titles the review requests box "Reviewers" on the author page and keeps "Internal Review Requests" on the review page', () => {
+    fixture.sop = start()
+    const heading = (title: string) => new RegExp(`<h2 id="internal-review-title" tabindex="-1"[^>]*>${title}</h2>`)
+    const author = render(<SopWorkflowPage />)
+    expect(author).toMatch(heading('Reviewers'))
+    expect(author).toContain('aria-labelledby="internal-review-title"')
+    expect(author).not.toContain('Internal Review Requests')
+    fixture.userId = 'reviewer-a'
+    expect(render(<ReviewPage />)).toMatch(heading('Internal Review Requests'))
   })
 })
