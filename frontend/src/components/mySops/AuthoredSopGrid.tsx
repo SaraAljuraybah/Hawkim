@@ -30,13 +30,17 @@ export function AuthoredSopGrid({ sops, content, userId }: AuthoredSopGridProps)
                 <span aria-hidden="true" className="inline-flex size-11 shrink-0 items-center justify-center rounded-lg bg-maroon/[0.07] text-maroon">
                   <FileText className="size-5" strokeWidth={1.75} />
                 </span>
-                <StatusBadge status={sop.status} />
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="rounded-full bg-beige px-2 py-0.5 text-xs font-medium text-maroon">{role}</span>
+                  <StatusBadge status={sop.status} />
+                </div>
               </div>
-              <div className="mt-4 flex flex-wrap items-center gap-2">
-                <span className="rounded-full bg-beige px-2 py-0.5 text-xs font-medium text-maroon">{role}</span>
-                {recheck && <RecheckBadge label={content.recheckLabel} className="px-2" />}
-              </div>
-              <h2 className="mt-2 mb-5 text-base leading-snug font-medium">
+              {recheck && (
+                <div className="mt-4">
+                  <RecheckBadge label={content.recheckLabel} className="px-2" />
+                </div>
+              )}
+              <h2 className={`${recheck ? 'mt-2' : 'mt-4'} mb-5 text-base leading-snug font-medium`}>
                 <Link to={mySopPath(sop.id)} aria-label={`${sop.title} (${role})${recheck ? ` (${content.recheckLabel})` : ''}`} className="after:absolute after:inset-0 after:rounded-xl focus-visible:outline-none">
                   {sop.title}
                 </Link>
