@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import sopsMigration from '../../../supabase/migrations/20261026120000_sops_and_versions.sql?raw'
 import reviewMigration from '../../../supabase/migrations/20261026150000_internal_review.sql?raw'
-import calendarMigration from '../../../supabase/migrations/20261029000000_review_deadline_helpers.sql?raw'
+import calendarMigration from '../../../supabase/proposals/20261029000000_review_deadline_helpers.sql?raw'
 import workingDaysMigration from '../../../supabase/migrations/20261029010000_internal_review_working_days.sql?raw'
 import { acceptReview, addReviewers, declineReview, decideReview, removeReviewer, respondToComments, submitReview, withdrawDueRequests } from './review'
 import { fetchSops } from './sops'
