@@ -483,9 +483,13 @@ export interface MySopsContent {
     label: string
     searchLabel: string
     searchPlaceholder: string
-    nameLabel: string
-    allNames: string
-    dateLabel: string
+    /** Accessible name of the button that opens the list of SOP titles. */
+    showTitles: string
+    /** Shown in that list when no title matches the search. */
+    noTitles: string
+    sortLabel: string
+    sortNewest: string
+    sortOldest: string
     roleLabel: string
     allRoles: string
     clear: string

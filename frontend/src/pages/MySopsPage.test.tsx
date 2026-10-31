@@ -33,9 +33,24 @@ describe('My SOPs presentation and permissions', () => {
   it('renders one view toggle, search, combined filter controls and the three categories', () => {
     const html = renderPage()
     expect(html.match(/aria-label="My SOPs view"/g)).toHaveLength(1)
-    for (const text of ['Search SOPs', 'SOP Name', 'Last updated', 'My Role', 'New SOPs', 'In Progress', 'Completed']) expect(html).toContain(text)
+    for (const text of ['Search SOPs', 'Sort By', 'My Role', 'New SOPs', 'In Progress', 'Completed']) expect(html).toContain(text)
+    for (const text of ['SOP Name', 'Last updated', 'type="date"']) expect(html).not.toContain(text)
     expect(html).toContain('role="tabpanel"')
     expect(html).toContain('aria-labelledby="my-sops-tab-new"')
+  })
+
+  it('searches with a combobox of the titles in the current tab only', () => {
+    fixture.sops = [...fixture.sops, { ...sop('Reviewing', 'me'), status: 'in-review' }]
+    const html = renderPage()
+    const options = [...html.matchAll(/role="option"[^>]*>([^<]*)</g)].map((match) => match[1])
+    expect(html.match(/<input[^>]*name="mySopSearch"[^>]*>/)![0]).toContain('role="combobox"')
+    expect(options).toEqual(['Coauthored procedure', 'Owned procedure'])
+  })
+
+  it('sorts Newest to Oldest by default', () => {
+    const sort = renderPage().match(/<select[^>]*name="mySopSort"[^>]*>.*?<\/select>/)![0]
+    expect(sort.match(/>([^<]+)<\/option>/g)).toEqual(['>Newest to Oldest</option>', '>Oldest to Newest</option>'])
+    expect(sort).toMatch(/<option[^>]*selected=""[^>]*>Newest to Oldest/)
   })
 
   it('defaults to cards and honors its own remembered List view without using the directory preference', () => {

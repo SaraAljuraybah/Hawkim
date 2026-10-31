@@ -4,6 +4,7 @@ import { isAuthorOrCoAuthor } from './workflow'
 
 export type MySopCategory = 'new' | 'progress' | 'completed'
 export type MySopRole = 'all' | 'main' | 'coauthor'
+export type MySopSort = 'newest' | 'oldest'
 
 const categories: Record<MySopCategory, readonly SopStatus[]> = {
   new: ['draft'],
@@ -14,8 +15,6 @@ const categories: Record<MySopCategory, readonly SopStatus[]> = {
 export interface MySopFilters {
   category: MySopCategory
   query?: string
-  sopId?: string
-  updatedDate?: string
   role?: MySopRole
 }
 
@@ -32,8 +31,16 @@ export function filterMySops(sops: Sop[], userId: string, filters: MySopFilters)
   return sops.filter((sop) =>
     categories[filters.category].includes(sop.status) &&
     (!query || sop.title.toLocaleLowerCase().includes(query)) &&
-    (!filters.sopId || sop.id === filters.sopId) &&
-    (!filters.updatedDate || sop.lastUpdated.slice(0, 10) === filters.updatedDate) &&
     (!filters.role || filters.role === 'all' || (filters.role === 'main' ? sop.authorId === userId : sop.authorId !== userId)),
   )
+}
+
+/** Sorts by last updated date; `sops` are newest first (authoredSopsFor), so oldest first is the exact reverse. */
+export function sortMySops(sops: Sop[], sort: MySopSort): Sop[] {
+  return sort === 'oldest' ? [...sops].reverse() : sops
+}
+
+/** The distinct SOP titles to suggest in the search, A to Z. */
+export function mySopTitles(sops: Sop[]): string[] {
+  return [...new Set(sops.map((sop) => sop.title))].sort((a, b) => a.localeCompare(b))
 }

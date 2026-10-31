@@ -1,18 +1,18 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { CircleCheck, FileText, Search, Upload } from 'lucide-react'
+import { CircleCheck, FileText, Upload } from 'lucide-react'
 import { AuthoredSopGrid } from '../components/mySops/AuthoredSopGrid'
 import { AuthoredSopList } from '../components/mySops/AuthoredSopList'
 import { Button } from '../components/ui/Button'
+import { SearchCombobox } from '../components/ui/SearchCombobox'
 import { SelectField } from '../components/ui/SelectField'
 import { Tabs } from '../components/ui/Tabs'
 import { tabIds } from '../components/ui/tabIds'
-import { TextField } from '../components/ui/TextField'
 import { ViewToggle, type ViewMode } from '../components/ui/ViewToggle'
 import { mySopsEn } from '../content/mySops.en'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { hasPermission } from '../lib/permissions'
-import { authoredSopsFor, filterMySops, type MySopCategory, type MySopRole } from '../lib/mySops'
+import { authoredSopsFor, filterMySops, mySopTitles, sortMySops, type MySopCategory, type MySopRole, type MySopSort } from '../lib/mySops'
 import { useActiveDepartment } from '../state/activeDepartmentContext'
 import { useCurrentUser } from '../state/sessionContext'
 import { useSops } from '../state/sopsContext'
@@ -47,8 +47,7 @@ export function MySopsPage() {
   const [statusMessage, setStatusMessage] = useState('')
   const [category, setCategory] = useState<MySopCategory>('new')
   const [query, setQuery] = useState('')
-  const [sopId, setSopId] = useState('')
-  const [updatedDate, setUpdatedDate] = useState('')
+  const [sort, setSort] = useState<MySopSort>('newest')
   const [role, setRole] = useState<MySopRole>('all')
   const [view, setView] = useState<ViewMode>(readStoredView)
   const searchRef = useRef<HTMLInputElement>(null)
@@ -79,20 +78,20 @@ export function MySopsPage() {
     [sops, user.id, homeDepartment.id],
   )
   const visibleSops = useMemo(
-    () => filterMySops(authoredSops, user.id, { category, query, sopId, updatedDate, role }),
-    [authoredSops, user.id, category, query, sopId, updatedDate, role],
+    () => sortMySops(filterMySops(authoredSops, user.id, { category, query, role }), sort),
+    [authoredSops, user.id, category, query, role, sort],
   )
-  const nameOptions = useMemo(
-    () => [...authoredSops].sort((a, b) => a.title.localeCompare(b.title)).map((sop) => ({ value: sop.id, label: sop.title })),
-    [authoredSops],
+  // Only titles in the current tab and role, so every suggestion gives a result.
+  const titleOptions = useMemo(
+    () => mySopTitles(filterMySops(authoredSops, user.id, { category, role })),
+    [authoredSops, user.id, category, role],
   )
-  const hasFilters = query.length > 0 || sopId !== '' || updatedDate !== '' || role !== 'all'
+  // The sort order isn't a filter: it doesn't show Clear Filters and isn't reset by it.
+  const hasFilters = query.length > 0 || role !== 'all'
   const ids = tabIds(TAB_ID_PREFIX, category)
 
   function clearFilters() {
     setQuery('')
-    setSopId('')
-    setUpdatedDate('')
     setRole('all')
     searchRef.current?.focus()
   }
@@ -124,19 +123,26 @@ export function MySopsPage() {
       </div>
 
       <div role="search" aria-label={content.filters.label} className="mt-6 rounded-xl border border-beige bg-white p-4 sm:p-5">
-        <div className="grid items-end gap-4 sm:grid-cols-2 xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_11rem_11rem]">
-          <TextField
-            ref={searchRef}
+        <div className="grid items-end gap-4 sm:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_13rem_11rem]">
+          <SearchCombobox
+            inputRef={searchRef}
             name="mySopSearch"
-            type="search"
             label={content.filters.searchLabel}
             placeholder={content.filters.searchPlaceholder}
             value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            endAdornment={<Search aria-hidden="true" className="mr-2 size-4 text-text-gray" />}
+            onChange={setQuery}
+            options={titleOptions}
+            noMatchesText={content.filters.noTitles}
+            toggleLabel={content.filters.showTitles}
+            className="sm:col-span-2 xl:col-span-1"
           />
-          <SelectField name="mySopName" label={content.filters.nameLabel} value={sopId} onChange={(event) => setSopId(event.target.value)} options={[{ value: '', label: content.filters.allNames }, ...nameOptions]} />
-          <TextField name="mySopUpdatedDate" type="date" label={content.filters.dateLabel} value={updatedDate} onChange={(event) => setUpdatedDate(event.target.value)} />
+          <SelectField
+            name="mySopSort"
+            label={content.filters.sortLabel}
+            value={sort}
+            onChange={(event) => setSort(event.target.value as MySopSort)}
+            options={[{ value: 'newest', label: content.filters.sortNewest }, { value: 'oldest', label: content.filters.sortOldest }]}
+          />
           <SelectField
             name="mySopRole"
             label={content.filters.roleLabel}

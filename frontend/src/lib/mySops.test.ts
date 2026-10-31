@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { Sop } from '../data/mock/types'
 import { sops } from '../data/mock/sops'
-import { authoredSopsFor, filterMySops, type MySopCategory } from './mySops'
+import { authoredSopsFor, filterMySops, mySopTitles, sortMySops, type MySopCategory } from './mySops'
 
 const items: Sop[] = [
   { ...sops[0], id: 'draft', code: 'SOP-SECRET', title: 'Document Control', authorId: 'me', coAuthorIds: [], departmentId: 'home', status: 'draft', lastUpdated: '2026-10-20' },
@@ -35,16 +35,27 @@ describe('My SOPs presentation filters', () => {
     expect(filterMySops(owned(), 'me', { category: 'new', query: 'SOP-SECRET' })).toEqual([])
   })
 
-  it('combines title, exact name, date and ownership filters and supports clearing them', () => {
-    expect(ids(filterMySops(owned(), 'me', { category: 'new', query: 'control', sopId: 'co-draft', updatedDate: '2026-10-21', role: 'coauthor' }))).toEqual(['co-draft'])
-    expect(filterMySops(owned(), 'me', { category: 'new', sopId: 'co-draft', role: 'main' })).toEqual([])
-    expect(filterMySops(owned(), 'me', { category: 'new', updatedDate: '2026-10-22' })).toEqual([])
+  it('combines title and ownership filters and supports clearing them', () => {
+    expect(ids(filterMySops(owned(), 'me', { category: 'new', query: 'control', role: 'coauthor' }))).toEqual(['co-draft'])
+    expect(filterMySops(owned(), 'me', { category: 'new', query: 'access', role: 'main' })).toEqual([])
     expect(ids(filterMySops(owned(), 'me', { category: 'new', role: 'main' }))).toEqual(['draft'])
-    expect(ids(filterMySops(owned(), 'me', { category: 'new', query: '', sopId: '', updatedDate: '', role: 'all' }))).toEqual(['co-draft', 'draft'])
+    expect(ids(filterMySops(owned(), 'me', { category: 'new', query: '', role: 'all' }))).toEqual(['co-draft', 'draft'])
   })
 
   it('keeps filters meaningful across categories', () => {
-    expect(ids(filterMySops(owned(), 'me', { category: 'progress', query: 'control', role: 'main', updatedDate: '2026-10-22' }))).toEqual(['in-review', 'returned', 'in-approval'])
-    expect(ids(filterMySops(owned(), 'me', { category: 'completed', query: 'control', role: 'main', updatedDate: '2026-10-22' }))).toEqual(['approved', 'published'])
+    expect(ids(filterMySops(owned(), 'me', { category: 'progress', query: 'control', role: 'main' }))).toEqual(['in-review', 'returned', 'in-approval'])
+    expect(ids(filterMySops(owned(), 'me', { category: 'completed', query: 'control', role: 'main' }))).toEqual(['approved', 'published'])
+  })
+
+  it('sorts by last updated date both ways without changing the input', () => {
+    const newest = filterMySops(owned(), 'me', { category: 'new' })
+    expect(ids(sortMySops(newest, 'newest'))).toEqual(['co-draft', 'draft'])
+    expect(ids(sortMySops(newest, 'oldest'))).toEqual(['draft', 'co-draft'])
+    expect(ids(newest)).toEqual(['co-draft', 'draft'])
+  })
+
+  it('suggests each title once, A to Z', () => {
+    const duplicated = [...owned().slice(-2), { ...items[0], id: 'same-title' }]
+    expect(mySopTitles(duplicated)).toEqual(['Access Control', 'Document Control'])
   })
 })
