@@ -3,7 +3,7 @@ import { X } from 'lucide-react'
 import { PdfViewer } from '../sops/PdfViewer'
 
 interface PreviewDialogProps {
-  /** Heading, e.g. "SOP-081 · v2". */
+  /** Accessible name of the dialog (for screen readers only), e.g. "SOP-081 · v2". */
   title: string
   url: string
   /** Accessible name of the embedded viewer. */
@@ -40,8 +40,8 @@ export function PreviewDialog({ title, url, viewerTitle, closeLabel, fallback, o
       onClick={(event) => event.target === dialogRef.current && dialogRef.current?.close()}
       className="m-auto max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-5xl overflow-y-auto rounded-xl border border-beige bg-white p-0 shadow-xl backdrop:bg-maroon/40"
     >
-      <div className="flex items-center justify-between gap-3 border-b border-beige px-5 py-3">
-        <h2 id={titleId} className="min-w-0 text-lg break-words">
+      <div className="flex items-center justify-end gap-3 border-b border-beige px-5 py-3">
+        <h2 id={titleId} className="sr-only">
           {title}
         </h2>
         <button
