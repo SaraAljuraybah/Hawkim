@@ -31,6 +31,10 @@ import { supabase } from './supabase'
 /*
  * The relationships are named: sops and sop_versions are linked twice (each version's SOP, and
  * the SOP's current version), so the API can't tell which one is meant otherwise.
+ * The experimental integration also requires 20261029010000_internal_review_working_days.sql
+ * (after its calendar helpers). It supplies deadline_policy and response_counts_from; optional
+ * DTO properties support older fixtures, not a database without these selected columns.
+ * Do not retry without policy metadata: doing so could reinterpret a saved deadline.
  */
 const SOP_COLUMNS = `id, code, title, description, department_id, author_id, status, current_version, updated_at,
   sop_versions!sop_versions_sop_id_fkey (version, file_name, file_type, storage_path, uploaded_by, uploaded_at, deleted_at, deleted_by),

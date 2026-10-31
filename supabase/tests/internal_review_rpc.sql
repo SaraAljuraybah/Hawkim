@@ -154,10 +154,23 @@ begin
 
   -- A new version is sent through the original upload/round RPCs. Old decisions,
   -- timestamps, comments, and their version association must remain untouched.
+  -- now() is fixed for this whole test transaction. Give the first round an
+  -- explicitly earlier fixture time so latest_round never falls back to UUID
+  -- ordering when the second round is created. No request timestamps change.
+  reset role;
+  update public.review_rounds set requested_at = now() - interval '1 millisecond'
+  where id = round1;
+  set local role authenticated;
   perform set_config('request.jwt.claim.sub', author::text, true);
   assert public.upload_sop_version(sop, author || '/91000000-0000-4000-8000-000000000002.pdf', 'Revised procedure.pdf') = 2, 'The existing upload workflow must remain usable';
   round2 := public.submit_for_review(sop, array[reviewer, reviewer2], null, 5, repeat('r', 500));
   assert round2 <> round1, 'Resubmission must create a distinct version-scoped round';
+  reset role;
+  assert (select newer.requested_at > older.requested_at
+    from public.review_rounds newer join public.review_rounds older on older.id = round1
+    where newer.id = round2), 'Round chronology must not depend on random UUID ordering';
+  assert (public.latest_round(sop)).id = round2, 'Resubmission must select the new version as the latest round';
+  set local role authenticated;
   assert (select r.version = 2 from public.review_rounds r where r.id = round2), 'The resubmitted round must target the new version';
   assert (select q.status = 'completed' and q.decided_at = old_decision_at and q.comment_id = old_comment_id from public.review_requests q where q.id = request1.id), 'Resubmission must preserve historical decisions';
   assert (select c.version = 1 and c.text = 'Version one feedback' from public.sop_comments c where c.id = old_comment_id), 'Historical feedback must stay linked to v1';

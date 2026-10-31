@@ -1,4 +1,4 @@
-import { addRiyadhWorkingDays, riyadhDate } from './riyadhWorkingDays'
+import { addRiyadhWorkingDays, riyadhDate } from './riyadhWorkingDays.ts'
 
 /** The new request dialog's response policy. Existing saved deadlines are never recalculated. */
 export const RESPONSE_WORKING_DAYS = 2

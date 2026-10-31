@@ -8,6 +8,7 @@
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "test": "vitest run",
+    "test:calendar": "node --test ../supabase/tests/calendar_parity.test.mjs",
     "test:watch": "vitest",
     "preview": "vite preview",
     "generate:sample-sops": "node scripts/generate-sample-sops.mjs"
