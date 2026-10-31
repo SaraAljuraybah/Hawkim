@@ -158,7 +158,7 @@ export const sopWorkflowEn: SopWorkflowContent = {
       'internal-review-completed': 'Internal reviews completed; awaiting Author',
       'external-reviews-not-required': approvalEn.events['external-reviews-not-required'],
       'submitted-for-approval': approvalEn.events['submitted-for-approval'],
-      'version-uploaded': 'New version uploaded',
+      'version-uploaded': 'SOP uploaded',
       'version-deleted': 'Version deleted',
       response: 'Response',
       submitted: 'Submitted for review',

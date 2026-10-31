@@ -19,7 +19,7 @@ export const complianceEn: ComplianceContent = {
   versionLabel: 'v{version}',
   guideline: '{name} v{version}',
   details: {
-    checked: 'Checked',
+    checked: 'Check Date',
     version: 'Version Checked',
     guideline: 'Guideline',
   },
@@ -49,7 +49,7 @@ export const complianceEn: ComplianceContent = {
       author: 'Author',
       coAuthors: 'Co-authors',
       department: 'Department',
-      checked: 'Checked',
+      checked: 'Check Date',
       guideline: 'Guideline',
       checkedBy: 'Checked By',
       checker: 'Hawkim compliance checker',
