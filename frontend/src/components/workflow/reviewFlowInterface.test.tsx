@@ -71,7 +71,7 @@ describe('review date field policy and accessible allocation preview', () => {
   }
 
   it('allows today with a precise partial-day allocation and no maximum', () => {
-    vi.useFakeTimers({ now: new Date(2026, 9, 24, 12, 34, 56, 789) })
+    vi.useFakeTimers({ now: new Date('2026-10-24T12:34:56.789+03:00') })
     const html = field('2026-10-24')
     const input = html.match(/<input[^>]*>/)![0]
     expect(input).toContain('min="2026-10-24"')
@@ -86,7 +86,7 @@ describe('review date field policy and accessible allocation preview', () => {
   })
 
   it('previews dates beyond 30 days without adding a maximum', () => {
-    vi.useFakeTimers({ now: new Date(2026, 9, 24, 12) })
+    vi.useFakeTimers({ now: new Date('2026-10-24T12:00:00.000+03:00') })
     const html = field('2026-12-25')
     expect(html).toContain('Time given: 62 days 11 hours')
     expect(html.match(/<input[^>]*>/)![0]).not.toContain('max=')

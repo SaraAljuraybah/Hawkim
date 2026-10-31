@@ -49,7 +49,8 @@ function revised(sop: Sop): Sop {
 function departmentDone(sop: Sop, reviewer: string, env = environment()): Sop {
   return action(action(sop, { type: 'forward', reviewerId: reviewer }, env), { type: 'complete' }, env)
 }
-beforeEach(() => vi.useFakeTimers({ now: new Date(2026, 9, 18, 12) }))
+// Noon in Riyadh, after the fixture's 08:00 UTC upload in every device time zone.
+beforeEach(() => vi.useFakeTimers({ now: new Date('2026-10-18T12:00:00+03:00') }))
 afterEach(() => vi.useRealTimers())
 
 describe('selected initial reviewers', () => {
@@ -222,7 +223,7 @@ describe('resubmission and configuration', () => {
     const uploaded = uploadVersion(returned, 'coauthor', { fileName: 'v2.pdf', fileType: 'pdf' })
     expect(() => resubmit(uploaded, 'author', '4')).toThrow(/compliance/)
     expect(() => deleteVersion(uploaded, 'author', '1')).toThrow(/previously submitted/)
-    vi.setSystemTime(new Date(2026, 9, 28, 12))
+    vi.setSystemTime(new Date('2026-10-28T12:00:00+03:00'))
     const again = resubmit({ ...uploaded, complianceChecks: [...uploaded.complianceChecks, check('2')] }, 'author', '4', undefined, '2026-10-30')
     expect(again.reviewFlow?.stage).toBe('reviewer-1')
     expect(currentReviewer(again)?.userId).toBe('r1')
@@ -235,7 +236,7 @@ describe('resubmission and configuration', () => {
   })
   it('lets Reviewer 1 give the saved Reviewer 2 a new deadline after a resubmit, but keeps it within a round', () => {
     const returned = action(initialReviews(), { type: 'return-author', text: 'Change content' })
-    vi.setSystemTime(new Date(2026, 9, 28, 12))
+    vi.setSystemTime(new Date('2026-10-28T12:00:00+03:00'))
     const again = resubmit(revised(returned), 'author', '4')
     expect(again.reviewers.every((p) => p.dueDate === undefined && p.assignedDueDays === null)).toBe(true)
     expect(keepsRoundDeadline(again, 'r2')).toBe(false) // the Forward dialog's date field is enabled

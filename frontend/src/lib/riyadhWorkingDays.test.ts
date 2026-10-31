@@ -55,7 +55,7 @@ describe('frontend Riyadh working-day allocations', () => {
   })
 
   it('retains the legacy calendar helper for existing records without a policy marker', () => {
-    const accepted = new Date(2026, 9, 25, 15).toISOString()
+    const accepted = new Date('2026-10-25T15:00:00+03:00').toISOString()
     expect(reviewDueDateFrom(accepted, 5)).toBe('2026-10-30')
     expect(requestDeadline({ responseDueDate: '2026-10-30' })?.dueAt).toBe(new Date('2026-10-30T23:59:59.999').toISOString())
   })

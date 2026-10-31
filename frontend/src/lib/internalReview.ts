@@ -99,7 +99,8 @@ function deadlines(options: InternalReviewOptions, now = new Date()): Pick<Inter
     const chosen = options.responseDueDate?.trim() || undefined
     assert(parseResponseDueDate(chosen ?? '', now).valid, 'Choose an optional response due date today or later (tomorrow or later from 4:00 PM)')
     assert(isValidReviewDuration(options.reviewDurationDays), 'Choose an optional review duration of 1 to 30 whole days')
-    return { ...(chosen ? { responseDueDate: chosen } : {}), ...(options.reviewDurationDays !== undefined ? { reviewDurationDays: options.reviewDurationDays } : {}) }
+    // The end of the chosen day in Riyadh, as send_review_requests saves it (riyadh_end_of_day).
+    return { ...(chosen ? { responseDueDate: chosen, responseDueAt: endOfRiyadhDay(chosen) } : {}), ...(options.reviewDurationDays !== undefined ? { reviewDurationDays: options.reviewDurationDays } : {}) }
   }
   const responseDueDate = fixedResponseDueDate(now)
   assert(!options.responseDueDate?.trim() || options.responseDueDate.trim() === responseDueDate, 'The response due date is fixed at two working days in Riyadh; refresh the request preview')

@@ -1,5 +1,5 @@
 import type { InternalReviewDecision, InternalReviewRound, InternalReviewerAssignment, ReviewerAssignment, ReviewerDecision, Sop } from '../data/mock/types'
-import { todayIsoDate } from './format'
+import { addRiyadhCalendarDays, riyadhDate } from './riyadhWorkingDays'
 
 /*
  * Status and deadline rules for internal review requests, shared by the workflow helpers
@@ -20,10 +20,13 @@ export function endOfLocalDay(isoDate: string): string {
   return new Date(`${isoDate}T23:59:59.999`).toISOString()
 }
 
-/** The last day of the review: the local date of acceptance plus the duration (accepted Oct 25 at 3 PM + 5 days → "Oct 30"). */
+/**
+ * The last day of the review: the Riyadh date of acceptance plus the duration in calendar days
+ * (accepted Oct 25 at 3 PM + 5 days → "Oct 30"), as the approved accept_review does
+ * (riyadh_today() + review_duration_days). Independent of the device's time zone.
+ */
 export function reviewDueDateFrom(acceptedAt: string, days: number): string {
-  const accepted = new Date(acceptedAt)
-  return todayIsoDate(new Date(accepted.getFullYear(), accepted.getMonth(), accepted.getDate() + days))
+  return addRiyadhCalendarDays(riyadhDate(new Date(acceptedAt)), days)
 }
 
 export type RequestDeadline = { phase: 'response' | 'review'; dueAt: string }

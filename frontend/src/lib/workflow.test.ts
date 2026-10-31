@@ -227,7 +227,7 @@ describe('resubmitting', () => {
   })
 
   it('gives only Reviewer 1 the optional new due date, and saves the comments', () => {
-    vi.useFakeTimers({ now: new Date(2026, 9, 18, 12) })
+    vi.useFakeTimers({ now: new Date('2026-10-18T12:00:00+03:00') })
     const again = resubmit(readyToResubmit(), SARA, GVP, '  Fixed section 4.  ', '2026-10-23')
     expect(again.reviewers.map((p) => [p.userId, p.dueDate, p.assignedDueDays])).toEqual([
       [NOURA, '2026-10-23', 5],
@@ -238,7 +238,7 @@ describe('resubmitting', () => {
   })
 
   it('accepts today and distant dates, rejects past/invalid dates and overlong comments', () => {
-    vi.useFakeTimers({ now: new Date(2026, 9, 18, 12) })
+    vi.useFakeTimers({ now: new Date('2026-10-18T12:00:00+03:00') })
     for (const date of ['2026-10-17', '2026-02-30', 'invalid']) {
       expect(() => resubmit(readyToResubmit(), SARA, GVP, undefined, date)).toThrow(/deadline/)
     }
@@ -607,8 +607,8 @@ describe('review due date (Submit for review)', () => {
     expect([due.getFullYear(), due.getMonth(), due.getDate(), due.getHours(), due.getMinutes()]).toEqual([2026, 9, 29, 23, 59])
   })
 
-  // Oct 18, 2026, 3:20 PM local time.
-  const now = new Date(2026, 9, 18, 15, 20)
+  // Oct 18, 2026, 3:20 PM in Riyadh (review dates use Riyadh, whatever the device's time zone).
+  const now = new Date('2026-10-18T15:20:00+03:00')
 
   it('allows today and any future date without a 30-day maximum', () => {
     expect(dueDateRange(now)).toEqual({ min: '2026-10-18' })
@@ -903,20 +903,20 @@ describe('individual reviewer deadlines and sequential handoffs', () => {
     return { ...updated, complianceChecks: [...updated.complianceChecks, completedCheck(updated.version)] }
   }
   it('stores independent original allocations and keeps remaining time separate', () => {
-    vi.useFakeTimers({ now: new Date(2026, 9, 18, 12) })
+    vi.useFakeTimers({ now: new Date('2026-10-18T12:00:00.000+03:00') })
     const sop = submitIndividual()
     expect(sop.reviewers.map((person) => person.assignedDueDays)).toEqual([2, 7, null])
-    vi.setSystemTime(new Date(2026, 9, 19, 18))
+    vi.setSystemTime(new Date('2026-10-19T18:00:00.000+03:00'))
     expect(reviewerAssignedDays(sop, sop.reviewers[0])).toBe(2)
-    const preciseDeadline = new Date(2026, 9, 20, 23, 59, 59, 999)
+    const preciseDeadline = new Date('2026-10-20T23:59:59.999+03:00')
     expect(reviewerRemainingDays(sop, sop.reviewers[0])).toBeCloseTo(
-      (preciseDeadline.getTime() - new Date(2026, 9, 19, 18).getTime()) / DAY_MS,
+      (preciseDeadline.getTime() - new Date('2026-10-19T18:00:00.000+03:00').getTime()) / DAY_MS,
       9,
     )
     expect(currentDueAt(sop)).toBe(preciseDeadline.toISOString())
   })
   it('guards every reviewer action and hands off to the next pending reviewer', () => {
-    vi.useFakeTimers({ now: new Date(2026, 9, 18, 12) })
+    vi.useFakeTimers({ now: new Date('2026-10-18T12:00:00.000+03:00') })
     const sop = submitIndividual()
     expect(() => completeReview(sop, FAISAL)).toThrow(/current reviewer/)
     expect(() => returnAsReviewer(sop, FAISAL, 'Fix')).toThrow(/current reviewer/)
@@ -925,35 +925,35 @@ describe('individual reviewer deadlines and sequential handoffs', () => {
     expect(next.timeline.at(-1)).toMatchObject({ type: 'review-completed', recipientIds: [FAISAL] })
     expect(currentReviewer(next)?.userId).toBe(FAISAL)
     expect(currentDueAt(next)).toBe(reviewerDueAt(next, next.reviewers[1]))
-    expect(isOverdue(sop, 'review', new Date(2026, 9, 21).getTime())).toBe(true)
-    expect(isOverdue(next, 'review', new Date(2026, 9, 21).getTime())).toBe(false)
+    expect(isOverdue(sop, 'review', new Date('2026-10-21T00:00:00.000+03:00').getTime())).toBe(true)
+    expect(isOverdue(next, 'review', new Date('2026-10-21T00:00:00.000+03:00').getTime())).toBe(false)
     const last = completeReview(next, FAISAL)
     expect(currentDueAt(last)).toBeUndefined()
-    expect(isOverdue(last, 'review', new Date(2027, 0, 1).getTime())).toBe(false)
+    expect(isOverdue(last, 'review', new Date('2027-01-01T00:00:00.000+03:00').getTime())).toBe(false)
     const approval = completeReview(last, 'lama')
     expect(pendingPeople(approval)).toEqual([{ userId: HUDA, role: 'approver' }, { userId: KHALID, role: 'approver' }])
     expect(pendingPeople(approveAs(approval, KHALID))).toEqual([{ userId: HUDA, role: 'approver' }])
   })
   it('clears every deadline on resubmit and never brings original durations back', () => {
-    vi.useFakeTimers({ now: new Date(2026, 9, 18, 12) })
+    vi.useFakeTimers({ now: new Date('2026-10-18T12:00:00.000+03:00') })
     const shifted = shiftDueDates(submitIndividual(), 3)
     expect(shifted.reviewers.map((person) => person.dueDate)).toEqual(['2026-10-17', '2026-10-22', undefined])
     expect(shifted.reviewers.map((person) => person.assignedDueDays)).toEqual([2, 7, null])
     const returned = returnAsReviewer(shifted, NOURA, 'Fix')
-    vi.setSystemTime(new Date(2026, 9, 27, 12))
+    vi.setSystemTime(new Date('2026-10-27T12:00:00.000+03:00'))
     const again = resubmit(revise(returned), SARA, GVP)
     expect(again.reviewers.map((person) => person.dueDate)).toEqual([undefined, undefined, undefined])
     expect(again.reviewers.map((person) => person.assignedDueDays)).toEqual([null, null, null])
     expect(again.reviewers.every((person) => person.decision === 'pending' && person.decidedAt === undefined)).toBe(true)
     expect(again.approvers.every((person) => person.decision === 'pending' && person.decidedAt === undefined)).toBe(true)
     expect(again.approvalDueAt).toBeUndefined()
-    vi.setSystemTime(new Date(2026, 10, 5, 12))
+    vi.setSystemTime(new Date('2026-11-05T12:00:00.000+03:00'))
     const twice = resubmit(revise(returnAsReviewer(again, NOURA, 'Again')), SARA, GVP, undefined, '2026-11-08')
     expect(twice.reviewers.map((person) => person.dueDate)).toEqual(['2026-11-08', undefined, undefined])
     expect(twice.reviewers.map((person) => person.assignedDueDays)).toEqual([3, null, null])
   })
   it('supports legacy records and explicit blanks without inheriting shared dates', () => {
-    vi.useFakeTimers({ now: new Date(2026, 9, 18, 12) })
+    vi.useFakeTimers({ now: new Date('2026-10-18T12:00:00.000+03:00') })
     const legacy = inReview()
     legacy.reviewers = legacy.reviewers.map(({ userId, decision }) => ({ userId, decision }))
     expect(reviewerAssignedDays(legacy, legacy.reviewers[0])).toBe(5)
@@ -969,7 +969,7 @@ describe('individual reviewer deadlines and sequential handoffs', () => {
     expect(shiftDueDates(datedLegacy, 3).reviewers[0].assignedDueDays).toBe(2)
   })
   it('validates dates at the workflow boundary and normalizes whitespace', () => {
-    vi.useFakeTimers({ now: new Date(2026, 9, 18, 12) })
+    vi.useFakeTimers({ now: new Date('2026-10-18T12:00:00+03:00') })
     const invalidDates: Record<string, string>[] = [{ [NOURA]: '2026-02-30' }, { [NOURA]: '2026-10-17' }, { unknown: '2026-10-20' }, { [NOURA]: ' ' }]
     for (const dates of invalidDates) {
       expect(() => submitForReview(draft(), SARA, GVP, [NOURA], [HUDA], undefined, undefined, undefined, dates)).toThrow(/due date/)

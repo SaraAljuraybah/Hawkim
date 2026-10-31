@@ -211,7 +211,8 @@ export function reviewerAssignedDays(sop: Sop, reviewer: DeadlineHolder): number
   if (reviewer.assignedDueDays !== undefined) return reviewer.assignedDueDays ?? undefined
   if (reviewer.dueDate) {
     const submitted = [...sop.timeline].reverse().find((item) => item.type === 'submitted' || item.type === 'resubmitted')
-    const days = submitted ? daysFromToday(reviewer.dueDate, new Date(submitted.createdAt)) : undefined
+    // Counted in Riyadh, as the date was chosen (parseDueDate), whatever the device's time zone.
+    const days = submitted ? daysFromCalendarDate(reviewer.dueDate, riyadhDate(new Date(submitted.createdAt))) : undefined
     return days !== undefined && days >= 0 ? days : undefined
   }
   return sop.reviewDueDays

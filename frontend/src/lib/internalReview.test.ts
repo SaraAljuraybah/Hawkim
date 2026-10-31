@@ -419,7 +419,7 @@ describe('returns, removals, new versions and immutable history', () => {
   })
   it('reminds each reviewer of their own response, then review, deadline and stops once they finish', () => {
     const sop = start()
-    const taskSoon = new Date(2026, 9, 25, 12).getTime()
+    const taskSoon = new Date('2026-10-25T12:00:00+03:00').getTime()
     expect(deriveNotifications('a', { sops: [sop], requests: [], now: taskSoon }).some((item) => item.type === 'due-soon')).toBe(false)
     expect(deriveNotifications('b', { sops: [sop], requests: [], now: taskSoon }).some((item) => item.type === 'due-soon')).toBe(false)
     expect(deriveNotifications('c', { sops: [sop], requests: [], now: taskSoon }).some((item) => item.type === 'due-soon')).toBe(false)

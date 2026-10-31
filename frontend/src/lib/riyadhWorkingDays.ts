@@ -25,6 +25,40 @@ function dateOnly(isoDate: string): Date {
   return date
 }
 
+/*
+ * Riyadh calendar helpers shared by the live (approved) deadline rules and the pending working-day
+ * policy. They never depend on the device's time zone (Saudi Arabia has no daylight saving, but the
+ * named zone is used anyway).
+ */
+const hourFormatter = new Intl.DateTimeFormat('en-GB', { timeZone: REVIEW_TIME_ZONE, hour: '2-digit', hourCycle: 'h23' })
+
+/** The hour of the day (0–23) in Riyadh. */
+export function riyadhHour(at: Date): number {
+  if (!Number.isFinite(at.getTime())) throw new Error('A valid timestamp is required')
+  return Number(hourFormatter.format(at))
+}
+
+/** A Riyadh calendar date plus whole calendar days (Friday and Saturday count). */
+export function addRiyadhCalendarDays(isoDate: string, days: number): string {
+  if (!Number.isInteger(days)) throw new Error('A whole number of days is required')
+  return new Date(dateOnly(isoDate).getTime() + days * DAY_MS).toISOString().slice(0, 10)
+}
+
+/** Whole calendar days from one date to another ("2026-10-26" → "2026-10-28" is 2), or undefined for an invalid date. */
+export function calendarDaysBetween(fromIsoDate: string, toIsoDate: string): number | undefined {
+  try {
+    return Math.round((dateOnly(toIsoDate).getTime() - dateOnly(fromIsoDate).getTime()) / DAY_MS)
+  } catch {
+    return undefined
+  }
+}
+
+/** A moment at a given hour of a Riyadh date (UTC+03:00 all year). */
+export function riyadhDateAt(isoDate: string, hour: number): Date {
+  dateOnly(isoDate)
+  return new Date(`${isoDate}T${String(hour).padStart(2, '0')}:00:00.000+03:00`)
+}
+
 /** Friday and Saturday are weekends. The starting date itself is never counted. */
 export function addRiyadhWorkingDays(isoDate: string, days: number): string {
   if (!Number.isInteger(days) || days < 0) throw new Error('A non-negative whole working-day duration is required')
@@ -55,7 +89,7 @@ export function reviewWorkingDueDateFrom(acceptedAt: string, days: number): stri
 export function responseWorkingCountsFrom(sentAt: Date): Date {
   const date = riyadhDate(sentAt)
   const weekday = dateOnly(date).getUTCDay()
-  const hour = Number(new Intl.DateTimeFormat('en-GB', { timeZone: REVIEW_TIME_ZONE, hour: '2-digit', hourCycle: 'h23' }).format(sentAt))
+  const hour = riyadhHour(sentAt)
   if (weekday === 5 || weekday === 6 || hour >= 16) return new Date(`${addRiyadhWorkingDays(date, 1)}T08:00:00.000+03:00`)
   return hour < 8 ? new Date(`${date}T08:00:00.000+03:00`) : sentAt
 }
