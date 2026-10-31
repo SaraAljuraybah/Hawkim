@@ -25,7 +25,7 @@ const fixture = vi.hoisted(() => ({ sop: null as Sop | null, userId: 'author', u
   { id: 'reviewer-b', name: 'Reviewer Beta', permissions: ['reviewer'], departmentId: 'home' },
   { id: 'external', name: 'External reviewer', permissions: ['reviewer'], departmentId: 'other' },
 ] as User[], departments: [{ id: 'home', name: 'Home', initials: 'HM', description: '', requiresComplianceCheck: true }] }))
-vi.mock('../../state/sessionContext', () => ({ useCurrentUser: () => fixture.users.find((user) => user.id === fixture.userId) }))
+vi.mock('../../state/sessionContext', () => ({ useCurrentUser: () => fixture.users.find((user) => user.id === fixture.userId), useSession: () => ({ status: 'signed-in', user: fixture.users.find((user) => user.id === fixture.userId) }) }))
 vi.mock('../../state/usersContext', () => ({ useUsers: () => ({ users: fixture.users, activeUsers: fixture.users, nameOf: (id: string) => fixture.users.find((user) => user.id === id)?.name ?? id ?? '', getUser: (id: string) => fixture.users.find((user) => user.id === id) }) }))
 vi.mock('../../state/departmentsContext', () => ({ useDepartments: () => ({ departments: fixture.departments, nameOf: (id: string) => id }) }))
 vi.mock('../../state/guidelinesContext', () => ({ useGuidelines: () => ({ current: { version: '4.0' } }) }))
@@ -269,25 +269,25 @@ describe('response due date in the Submit for review dialog', () => {
   const field = (value: string, error?: string) => renderToStaticMarkup(
     <ReviewDueDateField name="reviewRequestDueDate" stage="response" text={fieldText} value={value} error={error} closeLabel={text.closeAlert} onChange={() => {}} />)
   it('counts the time to respond from the moment it is sent before 4:00 PM, and today is selectable', () => {
-    vi.setSystemTime(new Date(2026, 9, 26, 14))
+    vi.setSystemTime(new Date('2026-10-26T14:00:00.000+03:00'))
     const html = field('2026-10-27')
     expect(html).toContain('min="2026-10-26"')
     expect(html).toContain('Time to respond: 1 day 9 hours')
   })
   it('counts from 8:00 AM the next day from 4:00 PM, and today is no longer selectable', () => {
-    vi.setSystemTime(new Date(2026, 9, 26, 16, 40))
+    vi.setSystemTime(new Date('2026-10-26T16:40:00.000+03:00'))
     expect(field('2026-10-27')).toContain('Time to respond: 15 hours 59 minutes')
     expect(field('2026-10-27')).toContain('min="2026-10-27"')
     expect(renderToStaticMarkup(<SubmitDialog sop={draft()} content={sopWorkflowEn.dialogs} onSubmit={() => {}} onClose={() => {}} />)).toContain('value="2026-10-28"')
     expect(field('2026-10-26')).not.toContain('Time to respond')
   })
   it('counts from 8:00 AM the same day before 8:00 AM', () => {
-    vi.setSystemTime(new Date(2026, 9, 26, 6, 30))
+    vi.setSystemTime(new Date('2026-10-26T06:30:00.000+03:00'))
     expect(field('2026-10-26')).toContain('min="2026-10-26"')
     expect(field('2026-10-26')).toContain('Time to respond: 15 hours 59 minutes')
   })
   it('shows the date error in an announced pop-up with a close button instead of under the field', () => {
-    vi.setSystemTime(new Date(2026, 9, 26, 16, 40))
+    vi.setSystemTime(new Date('2026-10-26T16:40:00.000+03:00'))
     const html = field('2026-10-26', text.dateInvalid)
     const popup = html.match(/<div[^>]*role="alert"[^>]*>/)![0]
     const popupId = popup.match(/id="([^"]+)"/)![1]

@@ -7,6 +7,7 @@
 
 import type { SopFileType } from '../data/mock/types'
 import type { StoredFile } from './sops'
+import { localFileUrl } from '../lib/prototypeFiles'
 import { supabase } from './supabase'
 
 const BUCKET = 'sop-files'
@@ -52,8 +53,12 @@ export async function signedFileUrl(storagePath: string, downloadName?: string):
   return data.signedUrl
 }
 
-/** The file of a version: a signed link for stored files, the existing URL for sample files, or undefined. */
+/**
+ * The file of a version, made when it is opened or downloaded: a new signed link for stored files
+ * (so an earlier, expired link is never reused), the URL of a sample file (only object URLs and
+ * same-origin paths), or undefined.
+ */
 export async function fileUrlOf(file: { storagePath?: string; fileUrl?: string }, downloadName?: string): Promise<string | undefined> {
   if (file.storagePath) return signedFileUrl(file.storagePath, downloadName)
-  return file.fileUrl
+  return localFileUrl(file.fileUrl)
 }

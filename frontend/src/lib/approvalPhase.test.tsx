@@ -17,7 +17,7 @@ const state = vi.hoisted(() => ({ sop: null as Sop | null, userId: 'controller',
   { id: 'author', name: 'Main Author', permissions: ['author'], departmentId: 'home' },
   { id: 'outsider', name: 'Other Employee', permissions: ['reviewer', 'approver'], departmentId: 'other' },
 ] as User[] }))
-vi.mock('../state/sessionContext', () => ({ useCurrentUser: () => state.users.find((user) => user.id === state.userId) }))
+vi.mock('../state/sessionContext', () => ({ useCurrentUser: () => state.users.find((user) => user.id === state.userId), useSession: () => ({ status: 'signed-in', user: state.users.find((user) => user.id === state.userId) }) }))
 vi.mock('../state/usersContext', () => ({ useUsers: () => ({
   users: state.users, activeUsers: state.users,
   nameOf: (id: string) => state.users.find((user) => user.id === id)?.name ?? id,

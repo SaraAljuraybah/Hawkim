@@ -23,7 +23,7 @@ const fixture = vi.hoisted(() => ({
   other: { id: 'other', name: 'Foreign Directory', initials: 'OT', description: '' } as Department,
   requests: [] as UserRequest[], sops: [] as Sop[],
 }))
-vi.mock('../state/sessionContext', () => ({ useCurrentUser: () => fixture.user }))
+vi.mock('../state/sessionContext', () => ({ useCurrentUser: () => fixture.user, useSession: () => ({ status: 'signed-in', user: fixture.user }) }))
 vi.mock('../state/activeDepartmentContext', () => ({ useActiveDepartment: () => ({
   activeDepartment: fixture.other, homeDepartment: fixture.home, directoryDepartments: [fixture.home, fixture.other], setActiveDepartment: vi.fn(),
 }) }))

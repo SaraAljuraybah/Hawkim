@@ -5,7 +5,8 @@ import { useFileUrl } from '../hooks/useFileUrl'
 import type { Sop } from '../data/mock/types'
 
 const signedFileUrl = vi.hoisted(() => vi.fn(async () => 'https://signed.example.test/file'))
-vi.mock('../services/files', () => ({ signedFileUrl }))
+vi.mock('../services/files', () => ({ signedFileUrl, SIGNED_URL_SECONDS: 600 }))
+vi.mock('../state/sessionContext', () => ({ useSession: () => ({ status: 'signed-in', user: { id: 'sara' } }) }))
 
 /** The hook's first rendered value (no effects run in static rendering). */
 function firstUrl(sop: Sop | undefined): string | undefined {

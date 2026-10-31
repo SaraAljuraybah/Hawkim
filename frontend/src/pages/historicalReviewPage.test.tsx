@@ -12,7 +12,7 @@ import { reviewsEn } from '../content/reviews.en'
 const fixture = vi.hoisted(() => ({ sops: [] as Sop[], user: {
   id: 'reviewer', name: 'Reviewer', email: 'reviewer@demo.test', initials: 'RR', departmentId: 'home', permissions: ['reviewer'],
 } as User }))
-vi.mock('../state/sessionContext', () => ({ useCurrentUser: () => fixture.user }))
+vi.mock('../state/sessionContext', () => ({ useCurrentUser: () => fixture.user, useSession: () => ({ status: 'signed-in', user: fixture.user }) }))
 vi.mock('../state/sopsContext', () => ({ useSops: () => ({ sops: fixture.sops }) }))
 vi.mock('../state/usersContext', () => ({ useUsers: () => ({ nameOf: (id: string) => id, getUser: () => fixture.user }) }))
 vi.mock('../state/departmentsContext', () => ({ useDepartments: () => ({ departments: [{ id: 'home', name: 'Home' }], nameOf: () => 'Home' }) }))
