@@ -1,9 +1,17 @@
--- Run on a disposable LOCAL Supabase/PostgreSQL database after ALL migrations.
+-- NOT EXECUTED. Static companion to the two files in supabase/proposals/.
+-- Only for a disposable LOCAL Supabase/PostgreSQL database with all migrations plus the approved
+-- proposals, and only with explicit permission. Never run it against the shared Supabase project.
 -- Uses the real RPCs, auth.uid(), role ACLs, tables, RLS, and workflow helpers.
--- All fixtures and workflow changes are rolled back. Never run on production.
+-- All fixtures and workflow changes are rolled back.
 begin;
 set local plpgsql.check_asserts = on;
 set local time zone 'Pacific/Auckland';
+
+-- The deadline helpers are internal (not executable by browser roles). This test calls them
+-- directly to compute expected values while acting as authenticated, so it grants them for this
+-- transaction only; the grant is rolled back with everything else.
+grant execute on function public.hawkim_riyadh_date(timestamptz), public.hawkim_riyadh_end_of_day(date),
+  public.hawkim_review_due_at(timestamptz, integer), public.hawkim_review_response_due_at(timestamptz) to authenticated;
 
 create function pg_temp.expect_error(p_sql text, p_state text) returns void
 language plpgsql as $$
@@ -74,8 +82,6 @@ begin
   set local role authenticated;
   sop := public.create_sop(repeat('t', 50), 'Existing description', 'rpc-test-home', author || '/91000000-0000-4000-8000-000000000001.pdf', 'Procedure.pdf');
   assert (select s.title = repeat('t', 50) from public.sops s where s.id = sop), '50-character title must save through the real RPC';
-  perform pg_temp.expect_error(format('select public.create_sop(%L, null, %L, null, null)', repeat('t', 51), 'rpc-test-home'), '22023');
-  perform pg_temp.expect_error(format('select public.create_sop(%L, null, %L, null, null)', E' \t\n', 'rpc-test-home'), '22023');
   perform pg_temp.expect_error(format('select public.create_sop(%L, null, %L, null, null)', 'Foreign attempt', 'rpc-test-foreign'), '23514');
   perform public.add_co_authors(sop, array[coauthor]);
 
@@ -89,9 +95,7 @@ begin
   foreach note_length in array array[0, 31] loop
     perform pg_temp.expect_error(format('select public.submit_for_review(%L, array[%L]::uuid[], null, %s, null)', sop, reviewer, note_length), '23514');
   end loop;
-  perform pg_temp.expect_error(format('select public.submit_for_review(%L, array[%L]::uuid[], %L::date, 2, null)', sop, reviewer, expected_response + 1), '23514');
-  perform pg_temp.expect_error(format('select public.submit_for_review(%L, array[%L]::uuid[], %L::date, 2, null)', sop, reviewer, 'infinity'), '23514');
-  perform pg_temp.expect_error(format('select public.submit_for_review(%L, array[%L]::uuid[], null, 2, %L)', sop, reviewer, repeat('x', 1001)), '22023');
+  perform pg_temp.expect_error(format('select public.submit_for_review(%L, array[%L]::uuid[], null, 2, %L)', sop, reviewer, repeat('x', 501)), '23514');
   assert not exists (select 1 from public.review_rounds r where r.sop_id = sop), 'Invalid submissions must not create a round';
   assert (select s.status = 'draft' from public.sops s where s.id = sop), 'Invalid submissions must not change the SOP';
   foreach i in array array[2, 4, 6] loop
@@ -100,17 +104,17 @@ begin
   end loop;
   perform set_config('request.jwt.claim.sub', author::text, true);
 
-  round1 := public.submit_for_review(sop, array[reviewer, reviewer2], expected_response, 2, repeat('n', 1000));
+  -- A browser date that differs from the server's (e.g. a preview made before midnight) is ignored, not rejected.
+  round1 := public.submit_for_review(sop, array[reviewer, reviewer2], expected_response + 1, 2, repeat('n', 500));
   select * into request1 from public.review_requests q where q.round_id = round1 and q.reviewer_id = reviewer;
   select * into request2 from public.review_requests q where q.round_id = round1 and q.reviewer_id = reviewer2;
   assert request1.status = 'pending' and request2.status = 'pending', 'All selected reviewers must receive requests together';
   assert request1.assigned_at = now() and request2.assigned_at = request1.assigned_at, 'Requests must share the precise server submission time';
   assert request1.response_due_at = public.hawkim_review_response_due_at(request1.assigned_at)
      and request2.response_due_at = request1.response_due_at, 'Every selected reviewer must get the authoritative fixed response window';
-  assert request1.response_due_date = expected_response and request1.deadline_policy = 'riyadh-working-days-v1', 'New requests must record the working-day policy';
-  assert request1.response_counts_from = public.hawkim_review_response_counts_from(request1.assigned_at), 'The server must save the Riyadh response allocation start separately from its precise send time';
+  assert request1.response_due_date = expected_response and request1.deadline_policy = 'riyadh-working-days-v1', 'The server deadline wins over the browser date, and new requests record the working-day policy';
   assert request1.review_due_at is null and request1.accepted_at is null, 'Review duration must not start before acceptance';
-  assert (select e.note = repeat('n', 1000) from public.timeline_events e where e.review_round_id = round1 and e.type = 'submitted'), '1000-character comments must persist in the actual timeline';
+  assert (select e.note = repeat('n', 500) from public.timeline_events e where e.review_round_id = round1 and e.type = 'submitted'), '500-character comments must persist in the actual timeline';
   perform pg_temp.expect_error(format('select public.add_reviewers(%L, array[%L]::uuid[], null, 2, null)', sop, reviewer), '23514');
   perform pg_temp.expect_error(format('select public.accept_review(%L)', request1.id), '42501');
   perform set_config('request.jwt.claim.sub', coauthor::text, true);
@@ -133,10 +137,10 @@ begin
   assert request1.status = 'completed' and old_comment_id is not null, 'Independent review decisions and comments must persist';
 
   perform set_config('request.jwt.claim.sub', author::text, true);
-  perform public.add_reviewers(sop, array[reviewer3], null, 3, repeat('a', 501));
+  perform public.add_reviewers(sop, array[reviewer3], null, 3, repeat('a', 500));
   select * into removed_request from public.review_requests q where q.round_id = round1 and q.reviewer_id = reviewer3;
   assert removed_request.response_due_at = public.hawkim_review_response_due_at(removed_request.assigned_at), 'Older clients omitting a response date still receive the fixed server allocation';
-  assert exists (select 1 from public.timeline_events e where e.review_round_id = round1 and e.note = repeat('a', 501)), '501-character add-reviewer comments must persist';
+  assert exists (select 1 from public.timeline_events e where e.review_round_id = round1 and e.note = repeat('a', 500)), '500-character add-reviewer comments must persist';
   perform set_config('request.jwt.claim.sub', reviewer2::text, true);
   perform pg_temp.expect_error(format('select public.remove_reviewer(%L, %L)', removed_request.id, 'Unauthorized removal'), '42501');
   perform public.accept_review(request2.id);
@@ -180,10 +184,10 @@ begin
   perform pg_temp.expect_error(format('select public.decide_review(%L, %L, null)', request1.id, 'completed'), '23514');
 
   -- Boundary lengths all save unchanged through the real submit RPC. Invalid
-  -- 1001-character input was already proved to make no partial submission.
+  -- 501-character input was already proved to make no partial submission.
   perform set_config('request.jwt.claim.sub', author::text, true);
   i := 2;
-  foreach note_length in array array[500, 501, 1000] loop
+  foreach note_length in array array[1, 499, 500] loop
     i := i + 1;
     another_sop := public.create_sop('Comment boundary ' || note_length, null, 'rpc-test-home', author || '/91000000-0000-4000-8000-' || lpad(i::text, 12, '0') || '.pdf', 'Procedure.pdf');
     perform public.submit_for_review(another_sop, array[reviewer], null, null, repeat('x', note_length));

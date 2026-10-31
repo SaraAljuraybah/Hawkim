@@ -1,5 +1,5 @@
 /**
- * LOCAL-only helper parity check (Node 24+, Docker, and a disposable database).
+ * NOT EXECUTED in this project setup. LOCAL-only helper parity check (Node 24+, Docker, and a disposable database).
  * Load the migration and calendar_helpers.sql first, then run:
  * node supabase/tests/calendar_parity.mjs <local-test-container-name>
  * This checks actual PostgreSQL output, not a mocked database implementation.
@@ -12,7 +12,7 @@ import { resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { fixedResponseDueDate } from '../../frontend/src/lib/fixedResponseDeadline.ts'
 
-// Every hour covers a different boundary relative to the Riyadh/UTC date and 08:00/16:00 cutoff.
+// Every hour covers a different boundary relative to the Riyadh/UTC date (and the old 16:00 cutoff, which no longer applies).
 const query = `
   select json_agg(json_build_object(
     'requestedAt', to_char(sent_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),

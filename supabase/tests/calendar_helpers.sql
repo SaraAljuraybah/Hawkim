@@ -1,6 +1,6 @@
--- Run against a disposable LOCAL database after loading the helper migration:
--- psql -v ON_ERROR_STOP=1 -f supabase/tests/calendar_helpers.sql
--- No canonical workflow schema or pgTAP extension is required. No rows change.
+-- NOT EXECUTED. Static companion to supabase/proposals/20261029000000_review_deadline_helpers.sql.
+-- Only for a disposable LOCAL database, after the proposal is approved, and only with explicit
+-- permission. Never run it against the shared Supabase project. No rows change.
 begin;
 set local plpgsql.check_asserts = on;
 set local time zone 'America/Los_Angeles';
@@ -15,7 +15,6 @@ declare
   counted_days integer;
   day_offset integer;
   rejected boolean;
-  emoji text := U&'\+01F600';
 begin
   -- Agreed examples plus acceptance during Friday/Saturday and year rollover.
   for example in select * from (values
@@ -56,14 +55,6 @@ begin
     = timestamptz '2026-11-02 23:59:59.999+03', 'A weekend response request must skip Friday and Saturday';
   assert public.hawkim_review_response_due_at(timestamptz '2026-10-25 07:00:00+03')
     = public.hawkim_review_response_due_at(timestamptz '2026-10-25 17:00:00+03'), 'Cutoff must not move the fixed last response date';
-  assert public.hawkim_review_response_counts_from(timestamptz '2026-10-29 16:00:00+03')
-    = timestamptz '2026-11-01 08:00:00+03', 'After-cutoff Thursday starts counting Sunday morning';
-  assert public.hawkim_review_response_counts_from(timestamptz '2026-10-30 12:00:00+03')
-    = timestamptz '2026-11-01 08:00:00+03', 'Weekend request starts counting Sunday morning';
-  assert public.hawkim_review_response_counts_from(timestamptz '2026-10-25 07:59:59+03')
-    = timestamptz '2026-10-25 08:00:00+03', 'Before opening starts counting at 08:00';
-  assert public.hawkim_review_response_counts_from(timestamptz '2026-10-25 15:59:59.123+03')
-    = timestamptz '2026-10-25 15:59:59.123+03', 'During working hours preserve the precise request timestamp';
   assert public.hawkim_review_due_at(timestamptz '2026-11-01 12:00:00+03', 5)
     > public.hawkim_review_response_due_at(timestamptz '2026-10-29 12:00:00+03'), 'Review duration starts from acceptance separately from the request';
   assert public.hawkim_review_due_at(timestamptz '2026-10-29 12:00:00+03', 2)
@@ -77,30 +68,7 @@ begin
   perform set_config('TimeZone', 'Pacific/Auckland', true);
   assert public.hawkim_review_due_at(timestamptz '2026-10-29 21:30:00+00', 2)
     = timestamptz '2026-11-02 23:59:59.999+03', 'Session timezone must not affect deadlines';
-  assert public.hawkim_review_response_counts_from(timestamptz '2026-10-29 13:00:00+00')
-    = timestamptz '2026-11-01 08:00:00+03', 'Cutoff must use Riyadh, not session time';
 
-  foreach duration in array array[500, 501, 1000] loop
-    assert public.hawkim_validate_review_note(repeat('x', duration)) = repeat('x', duration), 'Valid comments must be preserved in full';
-  end loop;
-  assert public.hawkim_validate_review_note(null) is null, 'Comments remain optional';
-  assert public.hawkim_validate_review_note(E' \t\n') is null, 'Whitespace-only comments normalize to no comment';
-  assert public.hawkim_validate_review_note(U&'\00A0hello\FEFF') = 'hello', 'Whitespace normalization must match JavaScript trim';
-  assert public.hawkim_validate_review_note(repeat(emoji, 500)) = repeat(emoji, 500), '1000 UTF-16 units must be accepted';
-  assert public.hawkim_utf16_length('') = 0, 'Empty text has zero UTF-16 units';
-  assert public.hawkim_utf16_length(emoji) = 2, 'Astral characters match HTML maxlength';
-  assert public.hawkim_validate_sop_title(repeat('x', 50)) = repeat('x', 50), 'A 50-character title must be accepted';
-  assert public.hawkim_validate_sop_title(repeat(emoji, 25)) = repeat(emoji, 25), 'Title limits must match JavaScript for astral characters';
-  assert public.hawkim_validate_sop_title('  Procedure  ') = 'Procedure', 'Valid titles are normalized before storage';
-
-  rejected := false;
-  begin perform public.hawkim_validate_review_note(repeat('x', 1001));
-  exception when invalid_parameter_value then rejected := true; end;
-  assert rejected, '1001-character comments must be rejected';
-  rejected := false;
-  begin perform public.hawkim_validate_review_note(repeat(emoji, 500) || 'x');
-  exception when invalid_parameter_value then rejected := true; end;
-  assert rejected, '1001 UTF-16 units must be rejected';
   foreach duration in array array[0, 31] loop
     rejected := false;
     begin perform public.hawkim_review_due_at(now(), duration);
@@ -119,22 +87,10 @@ begin
   begin perform public.hawkim_review_due_at(now(), null);
   exception when invalid_parameter_value then rejected := true; end;
   assert rejected, 'Missing duration must be rejected by the deadline calculator';
-  rejected := false;
-  begin perform public.hawkim_validate_sop_title(repeat('x', 51));
-  exception when invalid_parameter_value then rejected := true; end;
-  assert rejected, 'A title over 50 units must be rejected';
-  rejected := false;
-  begin perform public.hawkim_validate_sop_title(' ' || repeat('x', 50) || ' ');
-  exception when invalid_parameter_value then rejected := true; end;
-  assert rejected, 'Title limits count the original input like HTML maxlength and the draft guard';
-  rejected := false;
-  begin perform public.hawkim_validate_sop_title(E' \t\n');
-  exception when invalid_parameter_value then rejected := true; end;
-  assert rejected, 'A blank title must be rejected';
-  rejected := false;
-  begin perform public.hawkim_validate_sop_title(null);
-  exception when invalid_parameter_value then rejected := true; end;
-  assert rejected, 'A missing title must be rejected';
+  assert public.hawkim_review_response_due_at(timestamptz '2026-10-29 17:00:00+03')
+    = timestamptz '2026-11-02 23:59:59.999+03', 'There is no 16:00 rule: Thursday after 16:00 is still due Monday';
+  assert public.hawkim_review_response_due_at(timestamptz '2026-11-01 23:59:00+03')
+    = timestamptz '2026-11-03 23:59:59.999+03', 'Sunday 23:59 counts Monday and Tuesday';
 
   -- These are pure calculation helpers, not assignment/mutation authority.
   assert not exists (
@@ -145,40 +101,34 @@ begin
       and privilege.grantee = 0 and privilege.privilege_type = 'EXECUTE'
   ), 'Anonymous PUBLIC execution must not be implicitly granted';
   if exists (select 1 from pg_roles where rolname = 'authenticated') then
-    assert has_function_privilege('authenticated', 'public.hawkim_review_due_at(timestamptz,integer)', 'EXECUTE'), 'Authenticated calls must receive the explicit calculation grant';
+    assert not has_function_privilege('authenticated', 'public.hawkim_review_due_at(timestamptz,integer)', 'EXECUTE'), 'Internal helpers must not be callable from the browser';
   end if;
 end;
 $$;
 
 rollback;
 
--- Exercise actual invoker permissions when Supabase-style roles exist locally.
+-- Browser roles cannot call the internal helpers directly (the review RPCs call them as definer).
 begin;
 set local plpgsql.check_asserts = on;
 do $$
 declare
   test_role text;
-  denied boolean := false;
+  denied boolean;
 begin
-  foreach test_role in array array['authenticated', 'service_role'] loop
+  foreach test_role in array array['anon', 'authenticated'] loop
     if exists (select 1 from pg_roles where rolname = test_role) then
+      denied := false;
       execute format('set local role %I', test_role);
-      assert public.hawkim_review_response_due_at(timestamptz '2026-10-29 12:00:00+03')
-        = timestamptz '2026-11-02 23:59:59.999+03', 'Explicitly granted invoker must execute nested helpers';
-      assert public.hawkim_validate_review_note(repeat('x', 1000)) = repeat('x', 1000), 'Granted invoker must execute note validation';
+      begin
+        perform public.hawkim_review_response_due_at(now());
+      exception when insufficient_privilege then
+        denied := true;
+      end;
       perform set_config('role', 'none', true);
+      assert denied, format('%s must not execute internal deadline helpers', test_role);
     end if;
   end loop;
-  if exists (select 1 from pg_roles where rolname = 'anon') then
-    set local role anon;
-    begin
-      perform public.hawkim_review_response_due_at(now());
-    exception when insufficient_privilege then
-      denied := true;
-    end;
-    perform set_config('role', 'none', true);
-    assert denied, 'Anonymous execution must be denied';
-  end if;
 end;
 $$;
 rollback;

@@ -1,21 +1,38 @@
--- Extend the existing internal-review RPCs; do not replace the application schema.
--- Existing requests keep their original calendar-day allocation and saved deadlines.
--- Only requests sent after this migration use the Riyadh working-day policy.
+-- PROPOSAL — NOT APPROVED, NOT APPLIED.
+-- Lives in supabase/proposals/ so that `supabase db push` never picks it up. Requires
+-- 20261029000000_review_deadline_helpers.sql first. See supabase/proposals/REVIEW_NOTES.md.
+--
+-- Switches NEW internal review requests to the Riyadh working-day policy:
+-- - Response deadline: fixed, the end (23:59:59.999 Riyadh) of the second working date after the
+--   date the request is sent. Calculated only by the server, from one server timestamp, so a
+--   browser preview made before midnight can never cause a rejection after midnight.
+-- - Review duration: optional, 1 to 30 working days, counted from the Riyadh date of acceptance
+--   (that date not counted).
+--
+-- Existing records are preserved:
+-- - Existing requests are labelled calendar-v1 and keep their saved deadlines; nothing is recalculated.
+-- - A calendar-v1 request that is still pending and is accepted later keeps its calendar-day duration.
+-- - withdraw_due() is not changed: it compares against the saved response_due_at.
+--
+-- Deliberately NOT changed here: SOP title limits (the table keeps 1–150; the 50-character limit is
+-- frontend only), the 500-character submission-note limit, RLS, grants of the public RPCs, triggers,
+-- and every other function.
 
+-- Which policy a request's deadlines follow, fixed when it is sent. Adding the column with the
+-- default calendar-v1 labels every existing request; new requests then default to the new policy.
 alter table public.review_requests
   add column deadline_policy text not null default 'calendar-v1'
     check (deadline_policy in ('calendar-v1', 'riyadh-working-days-v1'));
 alter table public.review_requests
   alter column deadline_policy set default 'riyadh-working-days-v1';
-alter table public.review_requests
-  add column response_counts_from timestamptz;
 
 comment on column public.review_requests.deadline_policy is
-  'Allocation policy fixed when sent. calendar-v1 preserves existing records; riyadh-working-days-v1 excludes Friday/Saturday and the origin date.';
+  'Deadline policy fixed when the request was sent. calendar-v1: requests sent before the working-day policy (calendar-day review duration). riyadh-working-days-v1: Sunday to Thursday in Asia/Riyadh, the starting date not counted.';
 
--- Keep the existing reviewer and separation-of-duties validation. A caller's date
--- is a preview to validate, never authority to shorten/extend the response window.
--- NULL remains accepted for older clients, but the server always assigns a date.
+-- Same checks as 20261026150000_internal_review.sql, except the response due date: the server now
+-- sets it, so the value sent by the browser is ignored (the parameter stays, so the signature and
+-- every existing call keep working). Earlier, a browser date that differed from the server's
+-- calculation was rejected, which failed around midnight; it is no longer compared at all.
 create or replace function public.check_review_options(p_sop_id uuid, p_reviewer_ids uuid[], p_response_due_date date, p_review_duration_days integer, p_note text)
 returns void
 language plpgsql
@@ -25,7 +42,6 @@ set search_path = ''
 as $$
 declare
   person uuid;
-  expected_date date := public.hawkim_riyadh_date(public.hawkim_review_response_due_at(now()));
 begin
   if coalesce(cardinality(p_reviewer_ids), 0) = 0
      or cardinality(p_reviewer_ids) <> (select count(distinct u) from unnest(p_reviewer_ids) as u) then
@@ -36,20 +52,17 @@ begin
       raise exception 'Select eligible reviewers from the SOP home department; Authors and co-authors cannot review' using errcode = 'check_violation';
     end if;
   end loop;
-  perform public.hawkim_validate_review_note(p_note);
-  if p_response_due_date is not null and p_response_due_date is distinct from expected_date then
-    raise exception 'The response deadline is fixed at two working days from the request date in Riyadh; refresh the request preview'
-      using errcode = 'check_violation';
+  if p_note is not null and length(btrim(p_note)) > 500 then
+    raise exception 'Submission notes must be at most 500 characters' using errcode = 'check_violation';
   end if;
   if p_review_duration_days is not null and p_review_duration_days not between 1 and 30 then
-    raise exception 'Choose an optional review duration of 1 to 30 whole working days' using errcode = 'check_violation';
+    raise exception 'Choose an optional review duration of 1 to 30 working days' using errcode = 'check_violation';
   end if;
 end;
 $$;
 
--- submit_for_review and add_reviewers still perform their existing main-Author,
--- current-version, compliance, duplicate-request, and round-state checks. Their
--- shared sender fixes one precise server timestamp and deadline for the batch.
+-- Sends a request to each reviewer in the round. One server timestamp sets the send time and the
+-- fixed response deadline for the whole batch. p_response_due_date is ignored (see above).
 create or replace function public.send_review_requests(p_sop public.sops, p_round_id uuid, p_type public.timeline_event_type, p_reviewer_ids uuid[], p_response_due_date date, p_review_duration_days integer, p_note text)
 returns void
 language plpgsql
@@ -62,20 +75,18 @@ declare
   round_version integer;
 begin
   select r.version into round_version from public.review_rounds r where r.id = p_round_id;
-  insert into public.review_requests (round_id, sop_id, reviewer_id, assigned_at, response_due_date, response_due_at, review_duration_days, deadline_policy, response_counts_from)
+  insert into public.review_requests (round_id, sop_id, reviewer_id, assigned_at, response_due_date, response_due_at, review_duration_days, deadline_policy)
   select p_round_id, p_sop.id, person, sent_at, public.hawkim_riyadh_date(response_at),
-         response_at, p_review_duration_days, 'riyadh-working-days-v1', public.hawkim_review_response_counts_from(sent_at)
+         response_at, p_review_duration_days, 'riyadh-working-days-v1'
   from unnest(p_reviewer_ids) with ordinality as list (person, n)
   order by list.n;
   insert into public.timeline_events (sop_id, type, actor_id, version, recipient_ids, note, review_round_id, created_at)
-  values (p_sop.id, p_type, (select auth.uid()), round_version, p_reviewer_ids,
-          public.hawkim_validate_review_note(p_note), p_round_id, sent_at);
+  values (p_sop.id, p_type, (select auth.uid()), round_version, p_reviewer_ids, nullif(btrim(coalesce(p_note, '')), ''), p_round_id, sent_at);
 end;
 $$;
 
--- open_request retains the existing authenticated, eligible assigned-reviewer,
--- withdrawal, current-version, latest-request, cancellation, and locking checks.
--- Acceptance fixes the review allocation separately from the response deadline.
+-- The reviewer takes the task. With a review duration, the review's last day is fixed now, by the
+-- request's own policy: working days for new requests, calendar days (as before) for calendar-v1.
 create or replace function public.accept_review(p_request_id uuid) returns void
 language plpgsql
 security definer
@@ -109,62 +120,7 @@ begin
 end;
 $$;
 
--- Apply the title rule to real creation and any privileged future title update.
--- Do not truncate existing titles or block unrelated updates to older long titles.
-create function public.check_sop_title_limit() returns trigger
-language plpgsql
-set search_path = ''
-as $$
-begin
-  new.title := public.hawkim_validate_sop_title(new.title);
-  return new;
-end;
-$$;
-
-create trigger sops_title_limit
-before insert or update of title on public.sops
-for each row execute function public.check_sop_title_limit();
-
-create or replace function public.create_sop(p_title text, p_description text, p_department_id text, p_storage_path text, p_file_name text)
-returns uuid
-language plpgsql
-security definer
-set search_path = ''
-as $$
-declare
-  actor uuid := (select auth.uid());
-  upload record;
-  new_id uuid;
-  validated_title text;
-begin
-  if not public.has_role('author') then
-    raise exception 'An active Author account is required to create an SOP' using errcode = 'insufficient_privilege';
-  end if;
-  if p_department_id is distinct from (select p.department_id from public.profiles p where p.id = actor) then
-    raise exception 'SOPs can only be created in your home department' using errcode = 'check_violation';
-  end if;
-  if not exists (select 1 from public.departments d where d.id = p_department_id and d.removed_at is null) then
-    raise exception 'The home department is unavailable' using errcode = 'check_violation';
-  end if;
-  validated_title := public.hawkim_validate_sop_title(p_title);
-  if length(btrim(coalesce(p_description, ''))) > 1000 then
-    raise exception 'The description must be at most 1000 characters' using errcode = 'check_violation';
-  end if;
-
-  select * into upload from public.check_sop_file(p_storage_path, p_file_name);
-  insert into public.sops (title, description, department_id, author_id, current_version)
-  values (validated_title, btrim(coalesce(p_description, '')), p_department_id, actor, 1)
-  returning id into new_id;
-  insert into public.sop_versions (sop_id, version, file_name, file_type, storage_path, file_size, uploaded_by)
-  values (new_id, 1, btrim(p_file_name), upload.file_type, p_storage_path, upload.file_size, actor);
-  insert into public.timeline_events (sop_id, type, actor_id, version)
-  values (new_id, 'version-uploaded', actor, 1);
-  return new_id;
-end;
-$$;
-
--- CREATE OR REPLACE retains existing RPC ACLs. Explicitly keep the replaced
--- helpers and the new trigger unavailable as browser-callable mutation shortcuts.
+-- CREATE OR REPLACE keeps the existing privileges; restated for the internal helpers so they stay
+-- unavailable from the browser. accept_review keeps its existing grant to authenticated.
 revoke execute on function public.check_review_options(uuid, uuid[], date, integer, text) from public, anon, authenticated;
 revoke execute on function public.send_review_requests(public.sops, uuid, public.timeline_event_type, uuid[], date, integer, text) from public, anon, authenticated;
-revoke execute on function public.check_sop_title_limit() from public, anon, authenticated;
