@@ -1,4 +1,6 @@
-﻿# Frontend integration status — local prototype
+﻿> **Historical record (superseded on 31 October 2026).** This describes the branch while `FRONTEND_PROTOTYPE` was `true`. Prototype mode has since been removed: the app runs on the real Supabase backend from `develop`, working-day deadlines are pending activation (`frontend/src/lib/deadlinePolicy.ts`), the submission-note limit is 500, and the deadline SQL is a proposal in `supabase/proposals/`. See `supabase/INTEGRATION_REVIEW.md` for the current state.
+
+# Frontend integration status — local prototype
 
 Updated for `feat/frontend-ui-enhancements`, continuing saved commit `a11246b`.
 This report replaces earlier integration assumptions. The current delivery is frontend-only and works without Supabase credentials.

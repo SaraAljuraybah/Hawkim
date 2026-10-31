@@ -1,105 +1,80 @@
 # Full-stack integration review
 
-This document records the dependencies and unresolved decisions for the merged
-frontend and retained Supabase implementation. It does not approve deployment,
-execute SQL, or enable the integration. `FRONTEND_PROTOTYPE` remains `true`.
+Current state of `feat/frontend-ui-enhancements` after removing prototype mode (31 October 2026).
+The earlier version of this review (with `FRONTEND_PROTOTYPE = true`) is in the Git history.
 
-## Schema and migration dependencies
+**Database integration is unverified.** No SQL was executed, no migration was applied, and the
+shared Supabase project was not contacted. All tests below run locally against stand-ins.
 
-The approved context-only schema export contains the existing SOP, version,
-compliance, review-round and review-request tables. It does **not** contain
-`review_requests.deadline_policy` or `review_requests.response_counts_from`.
+## What runs on the real backend (from `develop`)
 
-The proposed integration requires these files in order, after the existing
-internal-review migration and its dependencies:
+The prototype switch `FRONTEND_PROTOTYPE` and its file were removed. The app uses `develop`'s
+Supabase paths again, with Dalal's new UI on top:
 
-1. `migrations/20261029000000_review_deadline_helpers.sql`: pure calculation and
-   input-validation functions.
-2. `migrations/20261029010000_internal_review_working_days.sql`: additive request
-   metadata, replacement review RPC helpers/acceptance, and SOP title validation.
+- **Sign-in:** Supabase Auth (`services/auth.ts`), sessions per browser tab (`sessionStorage`). The
+  local "select a demo identity by email" sign-in and the `.demo` accounts were removed.
+- **People, departments, guideline versions:** loaded from the database after sign-in.
+- **SOPs, versions, files, co-authors:** through the existing RPCs and Storage; files open through
+  10-minute signed links again (`services/files.ts`), not prototype-only URLs.
+- **Compliance check:** only where `departments.requires_compliance_check` is true
+  (Pharmacovigilance), as the database enforces. The prototype "required for every SOP" rule was removed.
+- **Internal parallel review:** submit, add/remove reviewers, accept, decline, decide, respond,
+  withdraw — each checks the browser rules first, then calls the RPC and reads the SOP again.
+- **Identity isolation (Dalal's):** rows are reloaded per signed-in user; a previous user's database
+  rows are cleared before the next user's load; late replies and stale callbacks are rejected.
 
-`frontend/src/services/sops.ts` explicitly selects both new columns. Making the
-TypeScript DTO properties optional does not make that SQL query compatible with
-an unextended database. Do not deploy the dependent service until the extensions
-and their policies have been approved and applied through the team's process.
-Do not silently retry without the fields or recompute old deadlines: that loses
-the distinction between historical calendar requests and new working-day ones.
+`services/sops.ts` reads only columns that exist in the approved schema
+(`response_due_at` and `review_due_at` are now read and shown as saved).
 
-The additions label existing requests `calendar-v1` before changing the default
-for future requests to `riyadh-working-days-v1`. Saved response/review instants,
-decisions, comments and version-scoped history are not rewritten. Pending legacy
-requests still get a calendar-based duration if later accepted.
+## Still in this browser tab only (not in the database)
 
-The approved export omits RPC bodies, RLS, triggers, grants, enum definitions and
-some composite-constraint details. Repository definitions can be compared
-statically, but this does not certify the deployed definitions or migration ledger.
+Approval (submission, Approver decisions, publication), the admin portal, user requests and access
+to other departments, and notification read state. They work on top of the real SOPs and reset on
+reload, as in `develop`. Note:
 
-## Decisions requiring team approval
+- The database gives an assigned Approver **no read access** to an SOP (no approval tables or RLS
+  basis yet), so the approval flow cannot be completed end to end on database SOPs.
+- No Approver account currently exists in Supabase Auth (the seed lists approvers, but none can sign
+  in). Treat Approver availability as unverified.
 
-| Area | Approved schema / existing behavior | Proposed behavior |
+## Deadlines: working-day policy pending activation
+
+- Live now (matches the approved `20261026150000_internal_review.sql`): optional author-chosen
+  response date (today or later; tomorrow or later from 16:00), optional 1–30 **calendar** days of
+  review, deadlines shown exactly as saved. The Submit for Review dialog says the working-day policy
+  is pending activation.
+- Ready but switched off: `WORKING_DAY_DEADLINES_ACTIVE = false` in `frontend/src/lib/deadlinePolicy.ts`.
+  The working-day code (`lib/riyadhWorkingDays.ts`, `lib/fixedResponseDeadline.ts`) and its tests
+  are kept; those tests run with the switch mocked on.
+- Database proposal: `supabase/proposals/` (corrected; see `REVIEW_NOTES.md`). Never in
+  `supabase/migrations/` until approved.
+
+## Agreed validation limits
+
+| Field | Limit | Where |
 | --- | --- | --- |
-| SOP title | Table CHECK allows 1–150 PostgreSQL characters; current UI limits input to 50 UTF-16 units | A new trigger and replacement `create_sop` enforce the UI's 50-unit limit on the server |
-| Review duration | Nullable integer 1–30; earlier RPC counts calendar dates | Same optional numeric range, counting future Sunday–Thursday dates from acceptance |
-| Response deadline | Existing RPC accepts an optional date with a minimum | Server fixes two future working dates after sending; NULL from an older client still gets a deadline |
-| Submission comments | Timeline allows 1,000 characters; earlier RPC permits 500 | Up to 1,000 trimmed UTF-16 units, matching the current frontend |
-| Request metadata | Neither new column appears in the approved export | Add `deadline_policy` and nullable `response_counts_from` |
-| Calculation permissions | Effective grants/default privileges are not in the export | Helpers revoke PUBLIC and grant authenticated/service_role; explicit or inherited anon grants still require review |
+| SOP title | 50 characters (required) | Frontend only; the database keeps 1–150 |
+| Submission note | 500 characters | Frontend and the approved database check (the branch's 1000 was set back) |
+| Reviewer decision comments, reasons | 1,000 characters | Frontend and database |
+| SOP file | PDF or DOCX, 10 MB, required | Frontend and Storage/RPC |
 
-The title trigger is stricter than the existing table CHECK. It does not truncate
-old titles or fire on unrelated column updates, but an explicit future title
-update must satisfy the proposed limit. JavaScript UTF-16 length also differs
-from PostgreSQL character length for supplementary Unicode characters; the same
-distinction applies to descriptions and review comments.
+## Local verification (no database)
 
-New calculations use `Asia/Riyadh`, exclude the origin date and Friday/Saturday,
-and end at `23:59:59.999` Riyadh time. There is no public-holiday calendar. Review
-duration starts at acceptance; the response period starts from the sending date.
-The 08:00/16:00 rule controls the displayed allocation start, not the final fixed
-response date or the hours in which a reviewer may respond.
+From `frontend/`: `npm test`, `npm run test:calendar`, `npm run lint`, `npx tsc -b`, `npm run build`.
+Service and provider tests use mocked services (a stand-in database in
+`state/SopsProvider.isolation.test.tsx`); `services/reviewSchemaContract.test.ts` checks SQL text
+statically. None of this proves RPC behaviour, RLS, grants or deployed compatibility.
 
-## Local verification without a database
+`supabase/tests/*.sql` and the CLI mode of `supabase/tests/calendar_parity.mjs` execute SQL; they
+were updated to match the corrected proposal but were **not executed**, and may only run against a
+disposable local database with explicit permission. Never run them against the shared project.
 
-From `frontend/`:
+## Remaining boundaries
 
-```sh
-npm test
-npm run test:calendar
-npm run lint
-npx tsc -b
-npm run build
-```
-
-`test:calendar` requires Node 24+ and imports the real frontend calendar using
-native TypeScript support. It tests independently specified result fixtures and
-the parity comparator; it does not invoke Docker, psql or PostgreSQL. Frontend
-service tests mock Supabase. Static migration-contract tests inspect SQL text;
-none of these proves actual SQL execution, RLS or deployed compatibility.
-
-`tests/calendar_helpers.sql`, `tests/internal_review_rpc.sql`, and the explicit
-CLI invocation of `tests/calendar_parity.mjs` execute SQL. They must only run
-later against an explicitly authorized disposable local database. They were not
-executed during this review. The RPC fixture now sets deterministic round
-chronology inside its rollback-only test transaction; production ordering is
-unchanged.
-
-## Remaining integration boundaries
-
-- Approval submission/decisions/publishing and some administration/request state
-  remain local; the SOP mapper initializes `approvers: []`.
-- Existing repository access functions do not provide a persisted access basis
-  for an assigned Approver or an approved foreign-department directory grant.
-- Current-version compliance is mandatory for every SOP in the prototype, but
-  the retained backend gates it by `departments.requires_compliance_check`.
-- Unattended withdrawal of expired pending requests still needs an approved
-  scheduling arrangement; current calls occur during actions/browser activity.
-- Real RPC, RLS, Storage authorization, migrations and cross-timezone SQL parity
-  still require execution in an authorized disposable environment.
-
-Before any deployment, reconcile the target's migration history with the approved
-schema. Do not reset the database or replay the whole history: the preexisting
-`20261025110000_drop_prototype_tables.sql` removes legacy tables. It is preserved
-unchanged, and no permission to run it is implied by this review.
-
-The branch can be reviewed as a full-stack proposal, with these decisions and
-boundaries explicit. It is not yet a verified, fully persisted integration ready
-for deployment.
+- Approval, administration and cross-department access need tables, RPCs and RLS.
+- Unattended withdrawal of expired pending requests still needs a scheduled job; today it runs when
+  review functions are called or a SOP loads.
+- Frontend date handling outside review deadlines still uses the device's time zone for some legacy
+  (sample-only) flows; devices in Saudi Arabia give the same results.
+- Do not reset the database or replay the whole migration history:
+  `20261025110000_drop_prototype_tables.sql` removes legacy tables.

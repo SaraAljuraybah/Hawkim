@@ -1,33 +1,10 @@
-# Hawkim — Demo and Experimental Test Accounts
+# Hawkim — Test Accounts
 
-## Active local prototype
+Sign-in uses real Supabase accounts. Passwords are never stored in this repository;
+ask the project owner for the shared test password.
 
-Use one of these `.demo` emails with any non-empty demo password. No password is checked or sent. Supabase configuration is unnecessary; environment keys do not enable integration.
-
-| Name | Email | Department | Role |
-|---|---|---|---|
-| Nouf Almutairi | nouf.almutairi@hawkim.demo | Information Technology | Admin |
-| Sara Aljuraybah | sara.aljuraybah@hawkim.demo | Information Technology | Author |
-| Reem Alsubaie | reem.alsubaie@hawkim.demo | Information Technology | Author |
-| Noura Alqahtani | noura.alqahtani@hawkim.demo | Information Technology | Reviewer |
-| Huda Alotaibi | huda.alotaibi@hawkim.demo | Information Technology | Approver |
-| Rawan Alzahrani | rawan.alzahrani@hawkim.demo | Research & Development | Employee (no additional role) |
-
-Additional local identities are defined in `frontend/src/data/mock/users.ts`.
-
-- Identity, SOPs, files, review/approval decisions, requests and admin changes stay in this browser tab's memory and reset on reload.
-- Sign out and sign in as another demo user in the same tab to continue the shared workflow. Each user sees only authorized SOPs and versions. Tabs do not synchronize.
-- Compliance checks produce sample results and are required for every SOP in the active prototype.
-- New review requests use a fixed two-working-day response deadline and an optional 1–30 working-day review duration, in Asia/Riyadh with Friday/Saturday weekends. Saved legacy deadlines retain their original policy.
-- The main Author controls new reviewer assignments and the separate approval handoff. Existing saved reviewer handoffs retain their assignments and deadlines; new cross-department routing is pending.
-
-## Experimental Supabase integration (disabled)
-
-The following accounts and behavior document the retained integration implementation. It remains disabled by `FRONTEND_PROTOTYPE = true` and requires a separately approved code change before use.
-
-The integration signs in with real Supabase accounts. Passwords are never stored in this repository; ask the project owner for the shared test password.
-
-Its setup uses `frontend/.env.example`, copied to `frontend/.env.local` with the Supabase URL and publishable key (see the README). Never use a secret (`service_role`) key.
+Setup: copy `frontend/.env.example` to `frontend/.env.local` and fill in the Supabase
+URL and publishable key (see the README).
 
 | Email | Department | Roles |
 |---|---|---|
@@ -44,7 +21,7 @@ Its setup uses `frontend/.env.example`, copied to `frontend/.env.local` with the
 The compliance check (against the SFDA GVP guideline) is only for Pharmacovigilance SOPs.
 SOPs of every other department are submitted for review without a check.
 
-### Integration behavior retained for review
+## Good to know
 
 - Sign-in, people, departments, the GVP guideline, SOPs, their versions and files,
   co-authors, compliance checks, the internal review (requests, decisions, comments,

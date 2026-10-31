@@ -1,4 +1,8 @@
-﻿# حالة ملفات Backend التجريبية — محفوظة وغير مفعّلة
+﻿> **سجل تاريخي (تم تجاوزه في 31 أكتوبر 2026).** يصف هذا التقرير الفرع عندما كانت قيمة `FRONTEND_PROTOTYPE` تساوي `true`. أُزيل وضع النموذج الأولي: يعمل التطبيق الآن على Supabase الحقيقي من `develop`، ومواعيد أيام العمل بانتظار التفعيل، وحد ملاحظة الإرسال 500 حرف، وملفات SQL الخاصة بالمواعيد مقترحة في `supabase/proposals/`. الحالة الحالية في `supabase/INTEGRATION_REVIEW.md`.
+>
+> **Historical record (superseded on 31 October 2026).** This describes the branch while `FRONTEND_PROTOTYPE` was `true`. Prototype mode has since been removed: the app runs on the real Supabase backend from `develop`, working-day deadlines are pending activation (`frontend/src/lib/deadlinePolicy.ts`), the submission-note limit is 500, and the deadline SQL is a proposal in `supabase/proposals/`. See `supabase/INTEGRATION_REVIEW.md` for the current state.
+
+# حالة ملفات Backend التجريبية — محفوظة وغير مفعّلة
 
 هذا التقرير يصف الحالة الحالية على `feat/frontend-ui-enhancements` بعد commit المحفوظ `a11246b`، ويحل محل افتراضات وتقارير التكامل السابقة. مخطط قاعدة البيانات وSupabase غير معتمدين من الفريق. المتابعة الحالية للواجهة فقط؛ لم تُعدّل ملفات SQL أو الخدمات أو FastAPI، ولم تُشغّل migrations أو اختبارات قاعدة بيانات أو اتصالات Supabase حقيقية.
 
