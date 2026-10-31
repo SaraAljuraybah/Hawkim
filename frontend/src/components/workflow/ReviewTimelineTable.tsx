@@ -60,7 +60,7 @@ function Comment({ text, content }: { text: string | undefined; content: SopWork
 }
 
 /**
- * Review timeline (PBI 24) as a table: every action, newest first, with who did it,
+ * Review timeline (PBI 24) as a table: every action, oldest first, with who did it,
  * to whom, when, the version and the comment (a return's or decision's comment, a
  * note or a response). Stacked cards on phones. Used on the author's workflow page
  * (where a return's "To" shows only the main author) and on the review page.
@@ -69,7 +69,7 @@ export function ReviewTimelineTable({ sop, content, mainAuthorOnly = false }: Re
   const { timeline, versionTemplate, roles } = content
   const { nameOf } = useUsers()
   const { nameOf: departmentName } = useDepartments()
-  const events = [...sop.timeline].reverse()
+  const events = sop.timeline
 
   const action = (event: TimelineEvent) =>
     event.type === 'stage-due-date-set' && event.stage ? timeline.stageDue[event.stage] : timeline.events[event.type]
