@@ -91,22 +91,23 @@ describe('internal parallel review across transitions and detail views', () => {
     fixture.userId = 'coauthor'
     expect(render(<SopWorkflowPage />)).not.toContain('>' + sopWorkflowEn.actions.submit + '<')
   })
-  it('shows only active reviewers in the author page panel, while the review page and the timeline keep the declined request', () => {
+  it('shows every request in the author page table, while the review page and the timeline keep the declined request', () => {
     const started = start(), round = currentInternalRound(started)!
     fixture.sop = declineInternalReview(started, 'reviewer-a', round.id, round.assignments[0].id, 'On leave', environment())
     const heading = (name: string) => `<h3 class="text-base font-semibold text-maroon">${name}</h3>`
     const author = render(<SopWorkflowPage />)
-    expect(author).not.toContain(heading('Reviewer Alpha'))
-    expect(author).toContain(heading('Reviewer Beta'))
+    const panel = author.slice(author.indexOf('id="internal-review-title"'), author.indexOf(sopWorkflowEn.timeline.title))
+    for (const name of ['Reviewer Alpha', 'Reviewer Beta']) expect(panel).toMatch(new RegExp(`<th scope="row"[^>]*>${name}<`))
+    expect(panel).toContain('</span>Declined</span>')
     expect(author).toContain('>' + sopWorkflowEn.timeline.events['review-declined'] + '<')
     fixture.userId = 'reviewer-b'
     expect(render(<ReviewPage />)).toContain(heading('Reviewer Alpha'))
   })
-  it('keeps sent, accepted and decided times and decision comments in the author page timeline, not the request cards', () => {
+  it('keeps decision comments behind the table actions and in the author page timeline', () => {
     fixture.sop = decide(decide(start(), 'reviewer-a', 'completed', 'All sections are clear'), 'reviewer-b', 'returned', 'Revise the safety section')
     const author = render(<SopWorkflowPage />)
     const panel = author.slice(author.indexOf('id="internal-review-title"'), author.indexOf(sopWorkflowEn.timeline.title))
-    expect(panel).toContain('>Version v1<')
+    expect(panel).toContain('Version 1 (Current)')
     for (const text of ['Request sent ', 'Decision submitted ', 'All sections are clear', 'Revise the safety section']) expect(panel).not.toContain(text)
     const events = sopWorkflowEn.timeline.events
     for (const label of [events.submitted, events['review-accepted'], events['review-completed'], events['review-changes-requested']]) expect(author).toContain('>' + label + '<')
@@ -178,11 +179,10 @@ describe('internal parallel review across transitions and detail views', () => {
   it('allows only the main author to see Remove reviewer controls and keeps return history after a new version', () => {
     const original = start()
     fixture.sop = original
-    expect(render(<SopWorkflowPage />)).toContain('>Remove Reviewer<')
     expect(render(<SopWorkflowPage />)).toContain('aria-label="Remove Reviewer Alpha from this review"')
     expect(render(<SopWorkflowPage />)).not.toContain('Cancel review request')
     fixture.userId = 'coauthor'
-    expect(render(<SopWorkflowPage />)).not.toContain('>Remove Reviewer<')
+    expect(render(<SopWorkflowPage />)).not.toContain('aria-label="Remove Reviewer Alpha from this review"')
     fixture.userId = 'author'
     const returned = decide(decide(original, 'reviewer-a', 'completed', 'Checked version one'), 'reviewer-b', 'returned', 'Revise the safety section')
     const history = JSON.stringify(returned.internalReviewRounds)

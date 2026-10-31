@@ -410,8 +410,7 @@ export function SopWorkflowPage() {
       <InternalReviewPanel
         sop={sop}
         canRemove={isMainAuthor}
-        activeOnly
-        compact
+        table
         showEmpty
         title={internalReviewEn.panel.authorPageTitle}
         actions={
