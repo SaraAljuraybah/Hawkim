@@ -53,14 +53,14 @@ beforeEach(() => vi.useFakeTimers({ now: new Date(2026, 9, 18, 12) }))
 afterEach(() => vi.useRealTimers())
 
 describe('selected initial reviewers', () => {
-  it.each([500, 501, 1000])('preserves %i-character submission comments in the legacy review flow', (length) => {
+  it.each([1, 499, 500])('preserves %i-character submission comments in the legacy review flow', (length) => {
     const note = 'x'.repeat(length)
     const sop = startReview(draft(), 'author', '4', 'r1', undefined, note, environment())
     expect(sop.timeline.at(-1)?.note).toBe(note)
   })
   it('rejects overlong legacy submission comments without changing the SOP', () => {
     const sop = draft(), before = structuredClone(sop)
-    expect(() => startReview(sop, 'author', '4', 'r1', undefined, 'x'.repeat(1001), environment())).toThrow(/1000/)
+    expect(() => startReview(sop, 'author', '4', 'r1', undefined, 'x'.repeat(501), environment())).toThrow(/500/)
     expect(sop).toEqual(before)
   })
   it('assigns only the selected first reviewer, optional deadline and comments; no approvers', () => {

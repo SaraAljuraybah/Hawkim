@@ -5,6 +5,7 @@ import { internalReviewEn } from '../../content/internalReview.en'
 import type { Sop } from '../../data/mock/types'
 import { useDeadlineClock } from '../../hooks/useDeadlineClock'
 import { addableReviewers } from '../../lib/internalReview'
+import { WORKING_DAY_DEADLINES_ACTIVE } from '../../lib/deadlinePolicy'
 import { fixedResponseDueDate } from '../../lib/fixedResponseDeadline'
 import { REVIEW_DURATION_MAX, REVIEW_DURATION_MIN } from '../../lib/internalReviewStatus'
 import { eligibleReviewers } from '../../lib/reviewFlow'
@@ -16,6 +17,7 @@ import { FormDialog } from '../ui/FormDialog'
 import { PeoplePicker } from '../ui/PeoplePicker'
 import { TextAreaField } from '../ui/TextAreaField'
 import { TextField } from '../ui/TextField'
+import { ReviewDueDateField } from './ReviewDueDateField'
 
 interface SubmitDialogProps {
   sop: Sop
@@ -27,7 +29,12 @@ interface SubmitDialogProps {
   mode?: 'submit' | 'add' | 'version'
 }
 
-/** Sends eligible home-department reviewers a calculated response date and the chosen review duration. */
+/**
+ * Sends eligible home-department reviewers the same optional response due date and review duration.
+ * Until working-day deadlines are activated (lib/deadlinePolicy.ts) the author picks the response date
+ * and the duration is in calendar days, as the approved backend expects; once active, the response
+ * date is fixed at two working days (the server sets it) and the duration is in working days.
+ */
 export function SubmitDialog({ sop, content, onSubmit, onClose, mode = 'submit' }: SubmitDialogProps) {
   const text = internalReviewEn.submit
   const fields = content.submit
@@ -37,8 +44,10 @@ export function SubmitDialog({ sop, content, onSubmit, onClose, mode = 'submit' 
   // Adding: only reviewers not yet asked, or whose latest request was declined, withdrawn or removed.
   const options = mode === 'add' ? addableReviewers(sop, activeUsers) : eligibleReviewers(sop, sop.departmentId, activeUsers)
   const [reviewerIds, setReviewerIds] = useState<string[]>([])
-  const now = useDeadlineClock(undefined, true)
-  const dueDate = fixedResponseDueDate(new Date(now))
+  const now = useDeadlineClock(undefined, WORKING_DAY_DEADLINES_ACTIVE)
+  const fixedDueDate = fixedResponseDueDate(new Date(now))
+  const [chosenDate, setChosenDate] = useState('')
+  const [dateError, setDateError] = useState('')
   const [duration, setDuration] = useState('')
   const [note, setNote] = useState('')
   const [error, setError] = useState('')
@@ -46,15 +55,21 @@ export function SubmitDialog({ sop, content, onSubmit, onClose, mode = 'submit' 
   const [noteError, setNoteError] = useState('')
   const [failed, setFailed] = useState(false)
   const firstRef = useRef<HTMLInputElement>(null)
+  const requestRef = useRef<HTMLInputElement>(null)
   const durationRef = useRef<HTMLInputElement>(null)
   const noteRef = useRef<HTMLTextAreaElement>(null)
 
   async function confirm() {
     // This also calculates the date at confirmation, rather than trusting a potentially older preview.
-    const result = prepareReviewSubmission(reviewerIds, options.map((user) => user.id), duration, note)
+    const result = prepareReviewSubmission(reviewerIds, options.map((user) => user.id), duration, note, undefined, chosenDate)
     if ('error' in result && result.error === 'reviewers') {
       flushSync(() => setError(text.reviewerRequired))
       firstRef.current?.focus()
+      return false
+    }
+    if ('error' in result && result.error === 'responseDate') {
+      flushSync(() => setDateError(text.dateInvalid))
+      requestRef.current?.focus()
       return false
     }
     if ('error' in result && result.error === 'duration') {
@@ -83,15 +98,22 @@ export function SubmitDialog({ sop, content, onSubmit, onClose, mode = 'submit' 
         options={options.map((user) => ({ id: user.id, name: user.name }))} value={reviewerIds}
         error={error || undefined} hint={options.length ? undefined : text.noneEligible}
         onChange={(next) => { setReviewerIds(next); setError(''); setFailed(false) }} />
-      <TextField name="reviewRequestDueDate" type="date" label={text.responseDate} hint={text.responseHelp}
-        value={dueDate} readOnly />
+      {WORKING_DAY_DEADLINES_ACTIVE
+        ? <TextField name="reviewRequestDueDate" type="date" label={text.responseDate} hint={text.responseHelpWorkingDays}
+            value={fixedDueDate} readOnly />
+        : <ReviewDueDateField ref={requestRef} name="reviewRequestDueDate" stage="response"
+            text={{ ...fields.reviewDate, label: text.responseDateOptional, help: text.responseHelp, duration: text.responseTimeGiven }}
+            value={chosenDate} error={dateError} closeLabel={text.closeAlert} onDismissError={() => setDateError('')}
+            onChange={(value) => { setChosenDate(value); setDateError(''); setFailed(false) }} />}
       <TextField ref={durationRef} name="reviewDurationDays" type="number" inputMode="numeric" min={REVIEW_DURATION_MIN} max={REVIEW_DURATION_MAX} step={1}
-        label={text.duration} hint={text.durationHelp} value={duration} error={durationError || undefined}
+        label={WORKING_DAY_DEADLINES_ACTIVE ? text.durationWorkingDays : text.duration}
+        hint={WORKING_DAY_DEADLINES_ACTIVE ? text.durationHelpWorkingDays : text.durationHelp} value={duration} error={durationError || undefined}
         onChange={(event) => { setDuration(event.target.value); setDurationError(''); setFailed(false) }} />
       <TextAreaField ref={noteRef} name="note" rows={3} label={fields.note.label} hint={text.noteHelp}
         error={noteError || undefined} placeholder={fields.note.placeholder} maxLength={REVIEW_NOTE_EDITOR_MAX} resizable={false}
         counter={fields.note.counter.replace('{count}', String(note.length)).replace('{max}', String(REVIEW_NOTE_EDITOR_MAX))}
         value={note} onChange={(event) => { setNote(event.target.value); setNoteError(''); setFailed(false) }} />
+      {!WORKING_DAY_DEADLINES_ACTIVE && <p className="text-xs text-text-gray">{text.workingDaysPending}</p>}
     </FormDialog>
   )
 }

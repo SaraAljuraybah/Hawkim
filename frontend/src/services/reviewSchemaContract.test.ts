@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import sopsMigration from '../../../supabase/migrations/20261026120000_sops_and_versions.sql?raw'
 import reviewMigration from '../../../supabase/migrations/20261026150000_internal_review.sql?raw'
 import calendarMigration from '../../../supabase/proposals/20261029000000_review_deadline_helpers.sql?raw'
-import workingDaysMigration from '../../../supabase/migrations/20261029010000_internal_review_working_days.sql?raw'
+import workingDaysMigration from '../../../supabase/proposals/20261029010000_internal_review_working_days.sql?raw'
 import { acceptReview, addReviewers, declineReview, decideReview, removeReviewer, respondToComments, submitReview, withdrawDueRequests } from './review'
 import { fetchSops } from './sops'
 
@@ -59,7 +59,7 @@ function functionSignatures(sql: string): Map<string, string[]> {
 }
 
 describe('the static review service and migration contract (no SQL execution)', () => {
-  it('supplies every selected review-request column and makes the working-days migration dependency explicit', async () => {
+  it('selects only review-request columns of the approved schema; the proposal adds only deadline_policy', async () => {
     await fetchSops()
     const selected: string = query.select.mock.calls[0][0]
     const embedded = /\breview_requests![\w]+\s*\(/.exec(selected)
@@ -77,10 +77,9 @@ describe('the static review service and migration contract (no SQL execution)', 
     const allColumns = new Set([...baseColumns, ...additions.map((match) => match[1])])
 
     expect(requestedColumns.filter((column) => !allColumns.has(column))).toEqual([])
-    expect(requestedColumns.filter((column) => !baseColumns.includes(column)).sort()).toEqual(['deadline_policy', 'response_counts_from'])
-    expect(Object.fromEntries(additions.map((match) => [match[1], match[2]]))).toEqual({
-      deadline_policy: 'text', response_counts_from: 'timestamptz',
-    })
+    // While working-day deadlines are pending activation, nothing outside the approved schema is read.
+    expect(requestedColumns.filter((column) => !baseColumns.includes(column))).toEqual([])
+    expect(Object.fromEntries(additions.map((match) => [match[1], match[2]]))).toEqual({ deadline_policy: 'text' })
   })
 
   it('matches actual review RPC calls and their parameter names to the migration signatures', async () => {
@@ -107,7 +106,9 @@ describe('the static review service and migration contract (no SQL execution)', 
     const original = functionSignatures(`${sopsMigration}\n${reviewMigration}`)
     const replacements = functionSignatures(workingDaysMigration)
     const changedExisting = [...replacements.keys()].filter((name) => original.has(name))
-    expect(changedExisting.sort()).toEqual(['accept_review', 'check_review_options', 'create_sop', 'send_review_requests'])
+    // Only the deadline-setting functions are replaced; create_sop and the title limit are not touched.
+    expect(changedExisting.sort()).toEqual(['accept_review', 'check_review_options', 'send_review_requests'])
+    expect([...replacements.keys()].filter((name) => !original.has(name))).toEqual([])
     for (const name of changedExisting) {
       expect(replacements.get(name), `Retained signature of ${name}`).toEqual(original.get(name))
     }

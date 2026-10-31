@@ -106,17 +106,15 @@ describe('SOPs from the database', () => {
     const stored = structuredClone(row)
     const request = stored.review_rounds[0].review_requests[1]
     request.response_due_at = '2026-10-26T20:59:59.999Z'
-    request.response_counts_from = '2026-10-25T05:00:00.000Z'
     request.review_due_at = '2026-10-29T20:59:59.999Z'
     request.deadline_policy = 'riyadh-working-days-v1'
     expect(toSop(stored).internalReviewRounds![0].assignments[0]).toMatchObject({
       responseDueDate: '2026-10-26', responseDueAt: '2026-10-26T20:59:59.999Z',
-      responseCountsFromAt: '2026-10-25T05:00:00.000Z',
       reviewDueDate: '2026-10-29', reviewDueAt: '2026-10-29T20:59:59.999Z', deadlinePolicy: 'riyadh-working-days-v1',
     })
     request.deadline_policy = 'calendar-v1'
     expect(toSop(stored).internalReviewRounds![0].assignments[0]).toMatchObject({
-      responseDueAt: request.response_due_at, responseCountsFromAt: request.response_counts_from,
+      responseDueAt: request.response_due_at,
       reviewDueAt: request.review_due_at, deadlinePolicy: 'calendar-v1',
     })
   })
@@ -124,7 +122,6 @@ describe('SOPs from the database', () => {
   it('leaves missing legacy allocation metadata unset instead of deriving new working-day values', () => {
     const stored = structuredClone(row)
     const request = stored.review_rounds[0].review_requests[1]
-    request.response_counts_from = null
     request.deadline_policy = null
     const assignment = toSop(stored).internalReviewRounds![0].assignments[0]
     expect(assignment.responseCountsFromAt).toBeUndefined()
@@ -154,16 +151,25 @@ describe('SOPs from the database', () => {
 })
 
 describe('reading SOPs', () => {
-  it.each(['response_counts_from', 'deadline_policy'])('reports a missing %s column instead of retrying without deadline metadata', async (column) => {
-    const error = { message: `column review_requests.${column} does not exist`, code: '42703' }
+  it('selects the saved deadlines but no column that exists only in the unapplied working-day proposal', async () => {
+    await fetchSops()
+    await fetchSop('uuid-sop')
+    expect(query.select).toHaveBeenCalledTimes(2)
+    for (const [columns] of query.select.mock.calls) {
+      expect(columns).toContain('response_due_at')
+      expect(columns).toContain('review_due_at')
+      expect(columns).not.toContain('deadline_policy')
+      expect(columns).not.toContain('response_counts_from')
+    }
+  })
+
+  it('reports a failed read instead of retrying with different columns', async () => {
+    const error = { message: 'column review_requests.example does not exist', code: '42703' }
     query.order.mockResolvedValueOnce({ data: null, error })
     query.maybeSingle.mockResolvedValueOnce({ data: null, error })
     await expect(fetchSops()).rejects.toThrow(error.message)
     await expect(fetchSop('uuid-sop')).rejects.toThrow(error.message)
     expect(query.select).toHaveBeenCalledTimes(2)
-    for (const [columns] of query.select.mock.calls) {
-      expect(columns).toContain(column)
-    }
   })
 
   it('names the relationship of each embedded table, since sops and sop_versions are linked twice', async () => {

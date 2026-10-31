@@ -7,10 +7,11 @@ import { activeApprovalSubmission, isApprover, returnAsApprover, uploadVersion }
 import { fixedResponseDueDate } from '../lib/fixedResponseDeadline'
 import { SopsProvider } from './SopsProvider'
 import { useSops, type SopsStore } from './sopsContext'
+// These store tests use working-day request deadlines as they behave once activated (lib/deadlinePolicy.ts).
+vi.mock('../lib/deadlinePolicy', () => ({ WORKING_DAY_DEADLINES_ACTIVE: true }))
 
 // Preserve the experimental adapter's mocked regression coverage without enabling
 // a connection in the application's frontend-only prototype.
-vi.mock('../lib/frontendRuntime', () => ({ FRONTEND_PROTOTYPE: false }))
 
 const fixture = vi.hoisted(() => ({
   userId: 'author', users: [] as User[], departments: [] as Department[], sops: [] as Sop[],

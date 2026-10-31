@@ -41,7 +41,7 @@ import {
   nextVersion,
   responseRecipients,
 } from '../lib/workflow'
-import { fileUrlOf } from '../lib/prototypeFiles'
+import { fileUrlOf } from '../services/files'
 import { useDepartments } from '../state/departmentsContext'
 import { useGuidelines } from '../state/guidelinesContext'
 import { useCurrentUser } from '../state/sessionContext'

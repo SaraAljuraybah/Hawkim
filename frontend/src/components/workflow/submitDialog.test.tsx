@@ -4,6 +4,9 @@ import { internalReviewEn } from '../../content/internalReview.en'
 import { sopWorkflowEn } from '../../content/workflow.en'
 import type { Department, Sop, User } from '../../data/mock/types'
 import { SubmitDialog } from './SubmitDialog'
+// These tests cover the Riyadh working-day policy as it behaves once activated (lib/deadlinePolicy.ts).
+// The pending (currently active) backend-compatible behaviour is covered in lib/deadlinePolicy.test.tsx.
+vi.mock('../../lib/deadlinePolicy', () => ({ WORKING_DAY_DEADLINES_ACTIVE: true }))
 
 const fixture = vi.hoisted(() => ({
   departments: [{ id: 'home', name: 'Home Department', initials: 'HD', description: '', divisionId: 'configured-division' },
@@ -71,20 +74,20 @@ describe('Submit for Review safe frontend presentation', () => {
     expect(date).toContain('readOnly=""')
     expect(date).not.toContain('disabled=')
     expect(date).toContain('value="2026-11-02"')
-    expect(html).toContain(internalReviewEn.submit.responseHelp)
+    expect(html).toContain(internalReviewEn.submit.responseHelpWorkingDays)
     expect(html).toContain('Friday and Saturday are excluded')
-    expect(html).toContain(internalReviewEn.submit.durationHelp)
+    expect(html).toContain(internalReviewEn.submit.durationHelpWorkingDays)
     expect(html.match(/<input[^>]*name="reviewDurationDays"[^>]*>/)![0]).toContain('min="1" max="30"')
     expect(html).toContain('Friday and Saturday are excluded')
-    expect(html).toContain('no server deadline is configured')
+    expect(html).toContain('The server sets the final date when you submit')
   })
 
-  it('allows 1000-character submission comments with a counter and the shared limit', () => {
+  it('allows 500-character submission comments with a counter and the shared limit', () => {
     const html = render()
-    expect(html.match(/<textarea[^>]*name="note"[^>]*>/)![0]).toContain('maxLength="1000"')
-    expect(html).toContain('0 / 1000')
+    expect(html.match(/<textarea[^>]*name="note"[^>]*>/)![0]).toContain('maxLength="500"')
+    expect(html).toContain('0 / 500')
     expect(html).toContain(internalReviewEn.submit.noteHelp)
-    expect(html).not.toContain('500 characters')
+    expect(html).not.toContain('1000 characters')
     expect(html).toContain('Submit for Review')
     expect(html).not.toContain('SOP-PRIVATE')
   })

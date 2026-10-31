@@ -8,10 +8,11 @@ import { deriveNotifications } from './notifications'
 import { reviewTasks } from './reviews'
 import { deleteBlockers, permissionChangeBlockers, sopsUsing } from './userAdmin'
 import { checkBlocker, currentDueAt, deleteVersionBlocker, isOverdue, pendingPeople, requiredReviewsComplete, reviewerAssignedMilliseconds, reviewerDeadlinePassed, reviewerDueAt, reviewerRemainingMilliseconds, shiftDueDates, uploadVersion } from './workflow'
+// These tests cover the Riyadh working-day policy as it behaves once activated (lib/deadlinePolicy.ts).
+// The pending (currently active) backend-compatible behaviour is covered in lib/deadlinePolicy.test.tsx.
+vi.mock('./deadlinePolicy', () => ({ WORKING_DAY_DEADLINES_ACTIVE: true }))
 
 // Exercise the preserved department policy without enabling services or authentication.
-const runtime = vi.hoisted(() => ({ prototype: true }))
-vi.mock('./frontendRuntime', () => ({ get FRONTEND_PROTOTYPE() { return runtime.prototype } }))
 
 function person(id: string, permissions: User['permissions'] = ['reviewer'], departmentId = 'home'): User {
   return { id, name: id, email: id + '@example.test', initials: 'TT', permissions, departmentId }
@@ -33,11 +34,11 @@ function decide(sop: Sop, userId: string, decision: 'completed' | 'returned' = '
 }
 function cancel(sop: Sop, userId: string, actor = 'author', reason = 'No longer needed') { return removeInternalReviewer(sop, actor, currentInternalRound(sop)!.id, task(sop, userId).id, reason, env()) }
 function revise(sop: Sop) { vi.advanceTimersByTime(1000); const updated = uploadVersion(sop, 'author', { fileName: 'revised.pdf', fileType: 'pdf' }); return { ...updated, complianceChecks: [...updated.complianceChecks, check(updated.version)] } }
-beforeEach(() => { runtime.prototype = true; vi.useFakeTimers({ now: new Date('2026-10-23T12:00:00+03:00') }) })
+beforeEach(() => { vi.useFakeTimers({ now: new Date('2026-10-23T12:00:00+03:00') }) })
 afterEach(() => vi.useRealTimers())
 
 describe('internal parallel review requests', () => {
-  it.each([500, 501, 1000])('preserves %i-character notes when submitting, adding reviewers and sending a revised version', (length) => {
+  it.each([1, 499, 500])('preserves %i-character notes when submitting, adding reviewers and sending a revised version', (length) => {
     const note = 'x'.repeat(length)
     const first = startInternalReview(draft(), 'author', '4.0', { reviewerIds: ['a'], note }, env())
     expect(first.timeline.at(-1)?.note).toBe(note)
@@ -49,15 +50,15 @@ describe('internal parallel review requests', () => {
     expect(sent.timeline.at(-1)?.note).toBe(note)
     expect(sent.internalReviewRounds![0]).toEqual(previousRound)
   })
-  it('rejects 1001-character notes on every internal submission path without mutation', () => {
-    const source = draft(), before = structuredClone(source), note = 'x'.repeat(1001)
-    expect(() => startInternalReview(source, 'author', '4.0', { reviewerIds: ['a'], note }, env())).toThrow(/1000/)
+  it('rejects 501-character notes on every internal submission path without mutation', () => {
+    const source = draft(), before = structuredClone(source), note = 'x'.repeat(501)
+    expect(() => startInternalReview(source, 'author', '4.0', { reviewerIds: ['a'], note }, env())).toThrow(/500/)
     expect(source).toEqual(before)
     const first = startInternalReview(source, 'author', '4.0', { reviewerIds: ['a'] }, env()), submittedBefore = structuredClone(first)
-    expect(() => addInternalReviewers(first, 'author', { reviewerIds: ['b'], note }, env())).toThrow(/1000/)
+    expect(() => addInternalReviewers(first, 'author', { reviewerIds: ['b'], note }, env())).toThrow(/500/)
     expect(first).toEqual(submittedBefore)
     const revised = revise(decide(first, 'a')), revisedBefore = structuredClone(revised)
-    expect(() => sendNewVersionForReview(revised, 'author', '4.0', { reviewerIds: ['a'], note }, env())).toThrow(/1000/)
+    expect(() => sendNewVersionForReview(revised, 'author', '4.0', { reviewerIds: ['a'], note }, env())).toThrow(/500/)
     expect(revised).toEqual(revisedBefore)
   })
   it('activates every selected reviewer and notifies each simultaneously', () => {
@@ -83,12 +84,9 @@ describe('internal parallel review requests', () => {
     expect(sop.timeline.some((event) => event.type === 'forwarded-to-approver')).toBe(false)
     expect(deriveNotifications('author', { sops: [sop], requests: [], now: Date.now() }).some((item) => item.type === 'internal-review-completed')).toBe(true)
   })
-  it('preserves prototype checks and the disabled integration department applicability policy', () => {
+  it('requires a current compliance check only where the department applies the GVP guideline (as the database does)', () => {
     const unchecked = { ...draft(), complianceChecks: [] }
-    expect(() => startInternalReview(unchecked, 'author', '4.0', { reviewerIds: ['a'] }, env())).toThrow(/compliance check/)
     const elsewhere = { ...env(), departments: [{ id: 'home', name: 'Home', initials: 'HM', description: '' }] }
-    expect(() => startInternalReview(unchecked, 'author', '4.0', { reviewerIds: ['a'] }, elsewhere)).toThrow(/compliance check/)
-    runtime.prototype = false
     expect(() => startInternalReview(unchecked, 'author', '4.0', { reviewerIds: ['a'] }, env())).toThrow(/compliance check/)
     expect(startInternalReview(unchecked, 'author', '4.0', { reviewerIds: ['a'] }, elsewhere)).toMatchObject({ status: 'in-review' })
   })

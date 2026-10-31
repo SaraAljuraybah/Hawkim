@@ -22,8 +22,9 @@ function capture(): SessionStore {
 }
 
 describe('sign-in', () => {
-  it('starts signed out without restoring an experimental backend session', () => {
-    expect(capture()).toMatchObject({ status: 'signed-out', user: null })
+  it('waits for the tab\'s Supabase session before anyone counts as signed in or out', () => {
+    // The session is restored in an effect (services/auth.ts); until then nobody is signed in or out.
+    expect(capture()).toMatchObject({ status: 'loading', user: null })
   })
 
   it('forgets the department remembered from a previous session', () => {
@@ -33,14 +34,12 @@ describe('sign-in', () => {
     expect(local.removeItem).toHaveBeenCalledWith('hawkim.activeDepartment')
   })
 
-  it('signs out locally without contacting experimental authentication', async () => {
+  it('signs out of Supabase Auth and forgets the remembered department', async () => {
     const local = { getItem: vi.fn(), setItem: vi.fn(), removeItem: vi.fn() }
     vi.stubGlobal('localStorage', local)
     capture().signOut()
     await Promise.resolve()
-    expect(service.signOut).not.toHaveBeenCalled()
-    expect(service.restoreSession).not.toHaveBeenCalled()
-    expect(service.onSignedOut).not.toHaveBeenCalled()
+    expect(service.signOut).toHaveBeenCalled()
     expect(local.removeItem).toHaveBeenCalledWith('hawkim.activeDepartment')
   })
 })

@@ -6,7 +6,7 @@ import { todayIsoDate } from './format'
  * and the internal review transitions (no imports from either, so both can use them). Pure functions.
  */
 
-/** New prototype requests allocate working days; historical requests retain their saved calendar policy. */
+/** A review duration is a whole number of days in this range (calendar days now; working days once activated). */
 export const REVIEW_DURATION_MIN = 1
 export const REVIEW_DURATION_MAX = 30
 

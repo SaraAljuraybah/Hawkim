@@ -14,6 +14,9 @@ import { SubmitDialog } from './SubmitDialog'
 import { SopWorkflowPage } from '../../pages/SopWorkflowPage'
 import { ReviewPage } from '../../pages/ReviewPage'
 import { ComplianceReportPage } from '../../pages/ComplianceReportPage'
+// These tests cover the Riyadh working-day policy as it behaves once activated (lib/deadlinePolicy.ts).
+// The pending (currently active) backend-compatible behaviour is covered in lib/deadlinePolicy.test.tsx.
+vi.mock('../../lib/deadlinePolicy', () => ({ WORKING_DAY_DEADLINES_ACTIVE: true }))
 
 const fixture = vi.hoisted(() => ({ sop: null as Sop | null, userId: 'author', users: [
   { id: 'author', name: 'Main writer', permissions: ['author', 'reviewer'], departmentId: 'home' },
@@ -132,7 +135,7 @@ describe('internal parallel review across transitions and detail views', () => {
     expect(html).toContain('Reviewer Beta')
     for (const name of ['Main writer', 'Contributing writer', 'External reviewer', 'Reviewer 1']) expect(html).not.toContain(name)
     expect(html).toContain('Request Response Deadline')
-    expect(html).toContain(internalReviewEn.submit.responseHelp)
+    expect(html).toContain(internalReviewEn.submit.responseHelpWorkingDays)
     expect(html).not.toContain('23:59:59.999')
     const duration = html.match(/<input[^>]*name="reviewDurationDays"[^>]*>/)![0]
     expect(duration).toContain('type="number"')
@@ -140,7 +143,7 @@ describe('internal parallel review across transitions and detail views', () => {
     expect(duration).toContain('max="30"')
     expect(duration).toContain('aria-describedby=')
     expect(html).toContain('Review Duration in Working Days (Optional)')
-    expect(html).toContain(internalReviewEn.submit.durationHelp)
+    expect(html).toContain(internalReviewEn.submit.durationHelpWorkingDays)
     expect(html).not.toContain('withdrawn automatically')
     expect(html).not.toContain('has to finish after they accept')
     expect(html.match(/<input[^>]*type="date"[^>]*>/)![0]).toContain('readOnly=""')

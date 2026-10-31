@@ -1,5 +1,4 @@
 import { SAMPLE_FINDINGS } from '../data/mock/compliance'
-import { FRONTEND_PROTOTYPE } from './frontendRuntime'
 import {
   SYSTEM_ACTOR,
   type ComplianceCheck,
@@ -31,11 +30,12 @@ function newId(prefix: string) {
 
 // ---------- Reading checks ----------
 
-/** Keep local prototype compliance requirements. The disabled integration path uses the
- * department's configured GVP applicability (Pharmacovigilance).
+/**
+ * The GVP guideline applies to the SOP's department (Pharmacovigilance): only then can it
+ * be checked, and it needs a completed check before review. Other SOPs have no check.
  */
 export function checkRequired(sop: Pick<Sop, 'departmentId'>, departments: Pick<Department, 'id' | 'requiresComplianceCheck'>[]): boolean {
-  return FRONTEND_PROTOTYPE || !!departments.find((department) => department.id === sop.departmentId)?.requiresComplianceCheck
+  return !!departments.find((department) => department.id === sop.departmentId)?.requiresComplianceCheck
 }
 
 /** The newest check for the SOP's current version (running, completed or failed), if any. */

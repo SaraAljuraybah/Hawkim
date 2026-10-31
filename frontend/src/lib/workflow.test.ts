@@ -109,15 +109,15 @@ const decisions = (people: { userId: string; decision: string }[]) =>
   Object.fromEntries(people.map((person) => [person.userId, person.decision]))
 
 describe('submitting for review', () => {
-  it.each([500, 501, 1000])('preserves %i-character comments in legacy submission records', (length) => {
+  it.each([1, 499, 500])('preserves %i-character comments in legacy submission records', (length) => {
     const note = 'x'.repeat(length)
     const submitted = submitForReview(draft(), SARA, GVP, [NOURA], [HUDA], undefined, undefined, note)
     expect(submitted.timeline.at(-1)?.note).toBe(note)
   })
 
-  it('rejects 1001-character legacy submission comments without changing the SOP', () => {
+  it('rejects 501-character legacy submission comments without changing the SOP', () => {
     const source = draft(), before = structuredClone(source)
-    expect(() => submitForReview(source, SARA, GVP, [NOURA], [HUDA], undefined, undefined, 'x'.repeat(1001))).toThrow(/1000/)
+    expect(() => submitForReview(source, SARA, GVP, [NOURA], [HUDA], undefined, undefined, 'x'.repeat(501))).toThrow(/500/)
     expect(source).toEqual(before)
   })
 
@@ -246,11 +246,11 @@ describe('resubmitting', () => {
       const updated = resubmit(readyToResubmit(), SARA, GVP, undefined, date)
       expect(updated.reviewers[0]).toMatchObject({ dueDate: date, assignedDueDays: days })
     }
-    expect(() => resubmit(readyToResubmit(), SARA, GVP, 'x'.repeat(1001))).toThrow(/1000/)
+    expect(() => resubmit(readyToResubmit(), SARA, GVP, 'x'.repeat(501))).toThrow(/500/)
     vi.useRealTimers()
   })
 
-  it.each([500, 501, 1000])('preserves all %i characters of legacy resubmission comments', (length) => {
+  it.each([1, 499, 500])('preserves all %i characters of legacy resubmission comments', (length) => {
     const note = 'x'.repeat(length)
     const source = readyToResubmit(), before = structuredClone(source)
     const submitted = resubmit(source, SARA, GVP, note)

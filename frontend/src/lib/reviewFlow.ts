@@ -64,7 +64,7 @@ export function startReview(sop: Sop, actorId: string, guidelineVersion: string,
   assert(hasCurrentCheck(sop, guidelineVersion), 'Run a compliance check against the current guideline first')
   assert(env.departments.some((d) => d.id === sop.departmentId && !d.removedAt), 'The SOP department is unavailable')
   assert(eligibleReviewers(sop, sop.departmentId, env.users).some((u) => u.id === reviewerId), 'Select exactly one eligible reviewer from the SOP department')
-  assert(!note || note.trim().length <= SUBMIT_COMMENT_MAX, 'Submission comments must be at most 1000 characters')
+  assert(!note || note.trim().length <= SUBMIT_COMMENT_MAX, `Submission comments must be at most ${SUBMIT_COMMENT_MAX} characters`)
   const flow: ReviewFlow = { stage: 'reviewer-1', reviewer1Id: reviewerId, activeReviewerId: reviewerId, sameDivision: 'pending', crossDivision: 'pending', departments: [] }
   const submitted = assign({ ...sop, status: 'in-review', reviewFlow: flow, reviewers: [], approvers: [], reviewDueDays: undefined, approvalDueDays: undefined, reviewDueAt: undefined, approvalDueAt: undefined }, reviewerId, dueDate)
   return record(submitted, 'submitted', actorId, { recipientIds: [reviewerId], ...(note?.trim() ? { note: note.trim() } : {}) })

@@ -4,14 +4,20 @@ import { fixedResponseDueDate } from './fixedResponseDeadline'
 import { todayIsoDate } from './format'
 import { isInactiveDecision, isOpenDecision, isUnsentVersion, isValidReviewDuration, isWithdrawalDue, latestAssignmentOf, latestAssignments, projectReviewers, reviewDueDateFrom, withdrawalDueAt } from './internalReviewStatus'
 import { eligibleReviewers, type ReviewEnvironment } from './reviewFlow'
+import { WORKING_DAY_DEADLINES_ACTIVE } from './deadlinePolicy'
+import { parseResponseDueDate } from './responseTime'
 import { endOfRiyadhDay, responseWorkingCountsFrom, reviewWorkingDueDateFrom, WORKING_DAY_POLICY } from './riyadhWorkingDays'
 import { isAuthor, SUBMIT_COMMENT_MAX } from './workflow'
 
 export interface InternalReviewOptions {
   reviewerIds: string[]
-  /** Optional confirmation of the fixed two-working-day response date; never an author-selected deadline. */
+  /**
+   * Optional deadline to accept or decline (YYYY-MM-DD, today or later; tomorrow or later from 4:00 PM),
+   * the same for every request sent. Once working-day deadlines are active (lib/deadlinePolicy.ts) the
+   * date is fixed at two working days and the server sets it; this is then only the preview.
+   */
   responseDueDate?: string
-  /** Optional review duration (whole working days, 1–30), counted after each reviewer's acceptance date. */
+  /** Optional review duration (whole days, 1–30: calendar days now, working days once active), counted from each reviewer's acceptance. */
   reviewDurationDays?: number
   note?: string
 }
@@ -82,8 +88,19 @@ function save(sop: Sop, round: InternalReviewRound, events: TimelineEvent[], ext
 function update(round: InternalReviewRound, assignmentId: string, change: Partial<InternalReviewerAssignment>): InternalReviewRound {
   return { ...round, assignments: round.assignments.map((person) => person.id === assignmentId ? { ...person, ...change } : person) }
 }
-/** New local requests use the Riyadh working-day policy; existing records are never rewritten. */
+/**
+ * The deadlines each new request gets, validated. Until working-day deadlines are activated
+ * (lib/deadlinePolicy.ts), as the approved backend: an optional response date today or later
+ * (tomorrow or later from 4:00 PM, see lib/responseTime) and a whole-day duration.
+ * Existing records are never rewritten.
+ */
 function deadlines(options: InternalReviewOptions, now = new Date()): Pick<InternalReviewerAssignment, 'responseDueDate' | 'responseDueAt' | 'responseCountsFromAt' | 'reviewDurationDays' | 'deadlinePolicy'> {
+  if (!WORKING_DAY_DEADLINES_ACTIVE) {
+    const chosen = options.responseDueDate?.trim() || undefined
+    assert(parseResponseDueDate(chosen ?? '', now).valid, 'Choose an optional response due date today or later (tomorrow or later from 4:00 PM)')
+    assert(isValidReviewDuration(options.reviewDurationDays), 'Choose an optional review duration of 1 to 30 whole days')
+    return { ...(chosen ? { responseDueDate: chosen } : {}), ...(options.reviewDurationDays !== undefined ? { reviewDurationDays: options.reviewDurationDays } : {}) }
+  }
   const responseDueDate = fixedResponseDueDate(now)
   assert(!options.responseDueDate?.trim() || options.responseDueDate.trim() === responseDueDate, 'The response due date is fixed at two working days in Riyadh; refresh the request preview')
   assert(isValidReviewDuration(options.reviewDurationDays), 'Choose an optional review duration of 1 to 30 whole working days')
@@ -107,7 +124,7 @@ function validate(sop: Sop, options: InternalReviewOptions, env: ReviewEnvironme
   assert(options.reviewerIds.length > 0 && new Set(options.reviewerIds).size === options.reviewerIds.length, 'Select one or more different eligible internal reviewers')
   const eligible = eligibleReviewers(sop, sop.departmentId, env.users)
   assert(options.reviewerIds.every((userId) => eligible.some((user) => user.id === userId)), 'Select eligible reviewers from the SOP home department; Authors and co-authors cannot review')
-  assert(!options.note || options.note.trim().length <= SUBMIT_COMMENT_MAX, 'Submission notes must be at most 1000 characters')
+  assert(!options.note || options.note.trim().length <= SUBMIT_COMMENT_MAX, 'Submission notes must be at most 500 characters')
   deadlines(options)
 }
 export function startInternalReview(sop: Sop, actorId: string, guidelineVersion: string, options: InternalReviewOptions, env: ReviewEnvironment): Sop {

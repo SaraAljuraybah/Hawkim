@@ -45,7 +45,7 @@ subtitle: 'Browse published SOPs available to you.',
   empty: 'No SOPs in this department yet.',
 
   detail: {
-    fileFailed: 'This file is not available in the local prototype.',
+    fileFailed: "The file couldn't be opened. Try again.",
     pageTitle: '{title} | Hawkim',
    back: { label: 'Back to SOP Directory', href: '/sops' },
     exportPdf: 'Export PDF',

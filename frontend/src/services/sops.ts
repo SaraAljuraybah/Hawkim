@@ -25,25 +25,27 @@ import {
 import type { SopStatus } from '../types/status'
 import { todayIsoDate } from '../lib/format'
 import { projectReviewers } from '../lib/internalReviewStatus'
+import { WORKING_DAY_DEADLINES_ACTIVE } from '../lib/deadlinePolicy'
 import { sopTitleProblem } from '../lib/sopTitle'
 import { supabase } from './supabase'
 
 /*
  * The relationships are named: sops and sop_versions are linked twice (each version's SOP, and
  * the SOP's current version), so the API can't tell which one is meant otherwise.
- * The experimental integration also requires 20261029010000_internal_review_working_days.sql
- * (after its calendar helpers). It supplies deadline_policy and response_counts_from; optional
- * DTO properties support older fixtures, not a database without these selected columns.
- * Do not retry without policy metadata: doing so could reinterpret a saved deadline.
+ * Every selected column exists in the approved schema (supabase/migrations/). The saved
+ * deadlines (response_due_at, review_due_at) are authoritative and shown as saved.
+ * deadline_policy exists only after the proposed working-day migration (supabase/proposals/),
+ * so it is selected only once WORKING_DAY_DEADLINES_ACTIVE is switched on in the same change.
  */
+const REQUEST_POLICY_COLUMN = WORKING_DAY_DEADLINES_ACTIVE ? ' deadline_policy,' : ''
 const SOP_COLUMNS = `id, code, title, description, department_id, author_id, status, current_version, updated_at,
   sop_versions!sop_versions_sop_id_fkey (version, file_name, file_type, storage_path, uploaded_by, uploaded_at, deleted_at, deleted_by),
   sop_co_authors!sop_co_authors_sop_id_fkey (user_id, added_at),
   timeline_events!timeline_events_sop_id_fkey (id, type, actor_id, version, recipient_ids, subject_id, note, created_at,
     review_round_id, review_request_id, comment_id),
   review_rounds!review_rounds_sop_id_fkey (id, version, status, requested_by, requested_at, closed_at,
-    review_requests!review_requests_round_id_fkey (id, seq, reviewer_id, status, assigned_at, response_due_date, response_due_at, response_counts_from,
-      review_duration_days, accepted_at, review_due_date, review_due_at, deadline_policy, decided_at, decline_reason, comment_id, withdrawn_at,
+    review_requests!review_requests_round_id_fkey (id, seq, reviewer_id, status, assigned_at, response_due_date, response_due_at,
+      review_duration_days, accepted_at, review_due_date, review_due_at,${REQUEST_POLICY_COLUMN} decided_at, decline_reason, comment_id, withdrawn_at,
       removed_at, removed_by, removal_reason, status_before_removal)),
   sop_comments!sop_comments_sop_id_fkey (id, version, author_id, role, text, review_round_id, review_request_id, created_at),
   compliance_checks!compliance_checks_sop_id_fkey (id, sop_version, status, engine, triggered_by, started_at, completed_at,
@@ -84,7 +86,6 @@ export interface ReviewRequestRow {
   assigned_at: string
   response_due_date: string | null
   response_due_at?: string | null
-  response_counts_from?: string | null
   review_duration_days: number | null
   accepted_at: string | null
   review_due_date: string | null
@@ -192,7 +193,6 @@ function toRequest(row: ReviewRequestRow): InternalReviewerAssignment {
   const optional = {
     responseDueDate: row.response_due_date,
     responseDueAt: row.response_due_at,
-    responseCountsFromAt: row.response_counts_from,
     reviewDurationDays: row.review_duration_days,
     acceptedAt: row.accepted_at,
     reviewDueDate: row.review_due_date,

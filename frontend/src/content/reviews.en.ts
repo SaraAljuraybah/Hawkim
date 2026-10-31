@@ -45,7 +45,7 @@ export const reviewsEn: ReviewsContent = {
   },
 
   page: {
-    fileFailed: 'This file is not available in the local prototype.',
+    fileFailed: "The file couldn't be opened. Try again.",
     pageTitle: 'Review {title} | Hawkim',
     back: { label: 'Back to My Reviews', href: '/reviews' },
     author: 'Author: {name}',

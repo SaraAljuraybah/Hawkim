@@ -1,5 +1,8 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { REVIEW_NOTE_EDITOR_MAX, prepareReviewSubmission } from './reviewSubmission'
+// These tests cover the Riyadh working-day policy as it behaves once activated (lib/deadlinePolicy.ts).
+// The pending (currently active) backend-compatible behaviour is covered in lib/deadlinePolicy.test.tsx.
+vi.mock('./deadlinePolicy', () => ({ WORKING_DAY_DEADLINES_ACTIVE: true }))
 
 describe('review request form validation', () => {
   const eligible = ['first', 'second']
@@ -18,17 +21,17 @@ describe('review request form validation', () => {
     expect(prepare(['first'], days, '')).toEqual({ error: 'duration' })
   })
 
-  it('uses the same 1000-character limit for the editor and submission validation', () => {
-    expect(REVIEW_NOTE_EDITOR_MAX).toBe(1000)
-    for (const length of [500, 501, 1000]) {
+  it('uses the same 500-character limit for the editor and submission validation', () => {
+    expect(REVIEW_NOTE_EDITOR_MAX).toBe(500)
+    for (const length of [1, 499, 500]) {
       const note = 'x'.repeat(length)
       expect(prepare(['first'], '5', note)).toHaveProperty('options.note', note)
     }
-    const tooLong = 'x'.repeat(1001)
+    const tooLong = 'x'.repeat(501)
     expect(prepare(['first'], '5', tooLong)).toEqual({ error: 'note' })
-    expect(tooLong).toHaveLength(1001)
+    expect(tooLong).toHaveLength(501)
     // Trim surrounding whitespace without truncating the submitted comment.
-    expect(prepare(['first'], '', ` ${'x'.repeat(1000)} `)).toHaveProperty('options.note', 'x'.repeat(1000))
+    expect(prepare(['first'], '', ` ${'x'.repeat(500)} `)).toHaveProperty('options.note', 'x'.repeat(500))
   })
 
   it('always supplies the fixed shared response date, recalculated from confirmation time', () => {

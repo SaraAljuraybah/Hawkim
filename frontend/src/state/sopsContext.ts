@@ -22,7 +22,7 @@ export interface ResubmitOptions {
 }
 
 export interface SopsStore {
-  /** Ready for the local prototype; load state for the disabled experimental adapter. */
+  /** Whether the SOPs have been read from the database for the signed-in user. */
   status: LoadStatus
   /** Only this identity's authorized SOP views (the directory further limits published access). */
   sops: Sop[]
@@ -66,7 +66,7 @@ export interface SopsStore {
   // demo panel). Complete review and Approve take an optional comment.
   completeReview: (sopId: string, reviewerId: string, text?: string) => void
   returnAsReviewer: (sopId: string, reviewerId: string, text: string) => void
-  /** Experimental cross-department routing (PBI 23); disabled in the local prototype. */
+  /** Cross-department routing (PBI 23); pending: reviewer assignment is Author-controlled, so this always refuses. */
   routeToReviewer: (sopId: string, reviewerId: string, newReviewerId: string, note?: string) => void
   approveAs: (sopId: string, approverId: string, text?: string, snapshot?: ApprovalDecisionSnapshot) => void
   returnAsApprover: (sopId: string, approverId: string, text: string, snapshot?: ApprovalDecisionSnapshot) => void

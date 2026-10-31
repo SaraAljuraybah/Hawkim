@@ -1,4 +1,7 @@
-/** Frontend-prototype calendar policy; this does not enforce or persist server deadlines. */
+/**
+ * Riyadh working-day calendar (Sunday to Thursday). Pending activation (lib/deadlinePolicy.ts):
+ * the server enforces and saves deadlines; this calculates the same dates for previews and tests.
+ */
 export const REVIEW_TIME_ZONE = 'Asia/Riyadh'
 export const WORKING_DAY_POLICY = 'riyadh-working-days-v1' as const
 const DAY_MS = 24 * 60 * 60 * 1000
@@ -46,7 +49,7 @@ export function reviewWorkingDueDateFrom(acceptedAt: string, days: number): stri
 }
 
 /**
- * Preserve the response working-hours rule for new prototype requests, using Riyadh consistently.
+ * The response working-hours display rule for local (sample) working-day requests, in Riyadh.
  * Before 08:00 starts at 08:00; from 16:00 and on weekends starts at the next working day's 08:00.
  */
 export function responseWorkingCountsFrom(sentAt: Date): Date {

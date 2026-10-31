@@ -5,7 +5,6 @@ import { SAMPLE_CHECK_DURATION_MS } from '../lib/compliance'
 import { SopsProvider } from './SopsProvider'
 import { useSops, type SopsStore } from './sopsContext'
 
-vi.mock('../lib/frontendRuntime', () => ({ FRONTEND_PROTOTYPE: false }))
 
 const { sara, own } = vi.hoisted(() => {
   const sara: User = { id: 'uuid-sara', name: 'Sara', email: 'sara@hawkim.test', initials: 'SA', departmentId: 'it', permissions: ['author'] }

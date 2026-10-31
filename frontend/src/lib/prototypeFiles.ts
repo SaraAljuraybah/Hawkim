@@ -6,7 +6,7 @@ export function localFileUrl(url: string | undefined): string | undefined {
   return url.startsWith('blob:') || /^\/(?!\/)/.test(url) ? url : undefined
 }
 
-/** Local prototype assets only. Experimental storage paths never initiate a backend request. */
+/** Sample (in-memory) SOP files only: object URLs and same-origin paths. Stored files use services/files.ts. */
 export function fileUrlOf(version: Pick<SopVersion, 'fileUrl' | 'storagePath'>, _downloadName?: string): Promise<string | undefined> {
   return Promise.resolve(localFileUrl(version.fileUrl))
 }

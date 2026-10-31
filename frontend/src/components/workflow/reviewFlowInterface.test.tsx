@@ -7,6 +7,9 @@ import { SubmitDialog } from './SubmitDialog'
 import { ReviewFlowSummary } from './ReviewFlowSummary'
 import { ReviewFlowActions } from '../reviews/ReviewFlowActions'
 import { ReviewDueDateField } from './ReviewDueDateField'
+// The Submit dialog assertions below cover the working-day policy as it behaves once activated
+// (lib/deadlinePolicy.ts); the pending behaviour is covered in lib/deadlinePolicy.test.tsx.
+vi.mock('../../lib/deadlinePolicy', () => ({ WORKING_DAY_DEADLINES_ACTIVE: true }))
 
 const fixtures = vi.hoisted(() => ({
   users: [

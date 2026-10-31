@@ -34,11 +34,11 @@ describe('the internal review in the database', () => {
     expect(rpc).toHaveBeenLastCalledWith('remove_reviewer', { p_request_id: 'req-1', p_reason: 'Not needed' })
   })
 
-  it('sends the entire supported 1000-character comment and rejects longer text before an RPC', async () => {
-    await submitReview('uuid-sop', { reviewerIds: ['uuid-noura'], reviewDurationDays: 30, note: 'x'.repeat(1000) })
-    expect(rpc).toHaveBeenLastCalledWith('submit_for_review', expect.objectContaining({ p_note: 'x'.repeat(1000), p_review_duration_days: 30 }))
+  it('sends the entire supported 500-character comment and rejects longer text before an RPC', async () => {
+    await submitReview('uuid-sop', { reviewerIds: ['uuid-noura'], reviewDurationDays: 30, note: 'x'.repeat(500) })
+    expect(rpc).toHaveBeenLastCalledWith('submit_for_review', expect.objectContaining({ p_note: 'x'.repeat(500), p_review_duration_days: 30 }))
     rpc.mockClear()
-    await expect(addReviewers('uuid-sop', { reviewerIds: ['uuid-noura'], note: 'x'.repeat(1001) })).rejects.toThrow(/too long/)
+    await expect(addReviewers('uuid-sop', { reviewerIds: ['uuid-noura'], note: 'x'.repeat(501) })).rejects.toThrow(/too long/)
     expect(rpc).not.toHaveBeenCalled()
   })
 
@@ -55,7 +55,7 @@ describe('the internal review in the database', () => {
   })
 
   it('preserves a full Unicode submission comment and rejects excess UTF-16 units before calling the server', async () => {
-    const note = '😀'.repeat(500)
+    const note = '😀'.repeat(250) // 500 UTF-16 units: the agreed limit
     await submitReview('uuid-sop', { reviewerIds: ['uuid-noura'], note: `  ${note}  ` })
     expect(rpc).toHaveBeenLastCalledWith('submit_for_review', expect.objectContaining({ p_note: note }))
     rpc.mockClear()

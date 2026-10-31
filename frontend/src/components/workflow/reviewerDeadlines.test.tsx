@@ -13,6 +13,9 @@ import { RequestStatusBadge } from './ReviewRequestDetails'
 import { internalReviewEn } from '../../content/internalReview.en'
 import { formatReviewDuration } from '../../lib/reviewDuration'
 import type { ReactNode } from 'react'
+// These tests cover the Riyadh working-day policy as it behaves once activated (lib/deadlinePolicy.ts).
+// The pending (currently active) backend-compatible behaviour is covered in lib/deadlinePolicy.test.tsx.
+vi.mock('../../lib/deadlinePolicy', () => ({ WORKING_DAY_DEADLINES_ACTIVE: true }))
 
 const users: UsersStore = {
   status: 'ready', users: [], activeUsers: [], getUser: () => undefined, nameOf: (id) => id ?? '',
@@ -53,7 +56,7 @@ describe('reviewer deadline displays', () => {
   })
   it('asks for a due date for Reviewer 1 and comments on resubmission, like Submit, without a reviewer summary', () => {
     const html = render(<ResubmitDialog sop={sop()} content={sopWorkflowEn.dialogs} onSubmit={() => {}} onClose={() => {}} />)
-    for (const text of ['Resubmit for Review', 'Review Due Date (Optional)', sopWorkflowEn.dialogs.submit.reviewDate.help, 'Comments (Optional)', 'Add a comment for the reviewers', 'type="date"', 'maxLength="1000"']) expect(html).toContain(text)
+    for (const text of ['Resubmit for Review', 'Review Due Date (Optional)', sopWorkflowEn.dialogs.submit.reviewDate.help, 'Comments (Optional)', 'Add a comment for the reviewers', 'type="date"', 'maxLength="500"']) expect(html).toContain(text)
     for (const text of ['First reviewer', 'Next reviewer', 'No deadline reviewer', 'Time given', 'No due date', 'Approval person', 'Approvers']) expect(html).not.toContain(text)
   })
   it('shows queue positions and individual deadlines in PeopleList', () => {

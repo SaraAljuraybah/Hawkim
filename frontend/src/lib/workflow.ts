@@ -16,7 +16,6 @@ import type { SopStatus } from '../types/status'
 import { hasCurrentCheck } from './compliance'
 import { fixedResponseDueDate } from './fixedResponseDeadline'
 import { todayIsoDate } from './format'
-import { FRONTEND_PROTOTYPE } from './frontendRuntime'
 import { isInactiveDecision, isOpenDecision, isUnsentVersion, latestAssignments, projectReviewers, requestDeadline, reviewAllowsNewVersion } from './internalReviewStatus'
 import { endOfRiyadhDay, responseWorkingCountsFrom, reviewWorkingDueDateFrom, riyadhDate, WORKING_DAY_POLICY } from './riyadhWorkingDays'
 
@@ -74,7 +73,7 @@ function localDatePlus(now: Date, days: number): string {
 
 /** Review dates are optional, today or later, without an upper limit. */
 export function dueDateRange(now = new Date()): { min: string; max?: string } {
-  return { min: FRONTEND_PROTOTYPE ? riyadhDate(now) : todayIsoDate(now) }
+  return { min: riyadhDate(now) }
 }
 
 /** Approval-stage restrictions are independent of the review date picker. */
@@ -103,11 +102,11 @@ function daysFromCalendarDate(isoDate: string, fromDate: string): number | undef
 
 /**
  * An optional review deadline as calendar days from submission. The deadline ends at
- * 23:59:59.999 in Riyadh for the frontend prototype. Empty is valid; past/invalid dates are not.
+ * 23:59:59.999 in Riyadh. Empty is valid; past/invalid dates are not.
  */
 export function parseDueDate(isoDate: string, now = new Date()): { valid: boolean; days?: number } {
   if (!isoDate.trim()) return { valid: true }
-  const days = daysFromCalendarDate(isoDate.trim(), FRONTEND_PROTOTYPE ? riyadhDate(now) : todayIsoDate(now))
+  const days = daysFromCalendarDate(isoDate.trim(), riyadhDate(now))
   return days !== undefined && days >= 0 ? { valid: true, days } : { valid: false }
 }
 
@@ -225,7 +224,7 @@ export function dueAtOfDate(isoDate: string): string {
 
 /** New review date allocations use Riyadh; saved date-only legacy deadlines retain dueAtOfDate. */
 export function reviewDateDueAt(isoDate: string): string {
-  return FRONTEND_PROTOTYPE ? endOfRiyadhDay(isoDate) : dueAtOfDate(isoDate)
+  return endOfRiyadhDay(isoDate)
 }
 
 /**
@@ -299,7 +298,7 @@ export function reviewerAssignedMilliseconds(sop: Sop, reviewer: DeadlineHolder)
   const days = reviewerAssignedDays(sop, reviewer)
   if (days === undefined) return undefined
   if (typeof reviewer.assignedAt === 'string') {
-    if (FRONTEND_PROTOTYPE && reviewer.reviewDueAt) return new Date(addDays(endOfRiyadhDay(riyadhDate(new Date(reviewer.assignedAt))), days)).getTime() - new Date(reviewer.assignedAt).getTime()
+    if (reviewer.reviewDueAt) return new Date(addDays(endOfRiyadhDay(riyadhDate(new Date(reviewer.assignedAt))), days)).getTime() - new Date(reviewer.assignedAt).getTime()
     return allocationMilliseconds(reviewer.assignedAt, days)
   }
   // Older records only kept a calendar-day allocation, so retain that original meaning.
@@ -520,7 +519,7 @@ export function submitForReview(
   // The check must have run for this version against the current guideline; it doesn't have to pass (PBI 4, 29).
   assert(hasCurrentCheck(sop, guidelineVersion), 'Run a compliance check against the current guideline first')
   assertSeparation(sop, reviewerIds, approverIds)
-  assert(!note || note.trim().length <= SUBMIT_COMMENT_MAX, 'Submission comments must be at most 1000 characters')
+  assert(!note || note.trim().length <= SUBMIT_COMMENT_MAX, 'Submission comments must be at most 500 characters')
   assert(
     [reviewDueDays, approvalDueDays].every((days) => days === undefined || isValidDueDays(days)),
     'Due days must be from 1 to 30',
@@ -569,8 +568,8 @@ export function submitForReview(
   }
 }
 
-/** Submission and resubmission comments are limited to 1000 characters. */
-export const SUBMIT_COMMENT_MAX = 1000
+/** Submission and resubmission comments are limited to 500 characters (the approved database limit). */
+export const SUBMIT_COMMENT_MAX = 500
 
 /**
  * Author: resubmit after a new version. It goes back to the same Reviewer 1 (and the same
@@ -585,7 +584,7 @@ export function resubmit(sop: Sop, actorId: string, guidelineVersion: string, no
   assert(canResubmit(sop), 'Upload a new version before resubmitting')
   assert(hasCurrentCheck(sop, guidelineVersion), 'Run a compliance check against the current guideline first')
   const trimmed = note?.trim()
-  assert(!trimmed || trimmed.length <= SUBMIT_COMMENT_MAX, 'Submission comments must be at most 1000 characters')
+  assert(!trimmed || trimmed.length <= SUBMIT_COMMENT_MAX, 'Submission comments must be at most 500 characters')
   const date = dueDate?.trim()
   const submittedAt = new Date()
   const parsed = parseDueDate(date ?? '', submittedAt)

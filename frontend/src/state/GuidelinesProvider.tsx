@@ -4,14 +4,15 @@ import type { GuidelineVersion } from '../data/mock/types'
 import { currentVersion, newGuidelineVersion, validateGuidelineVersion } from '../lib/guidelines'
 import { GuidelinesContext, type GuidelinesStore } from './guidelinesContext'
 import { useLoadAfterSignIn } from './useLoadAfterSignIn'
-
-const loadGuidelines = () => import('../services/compliance').then(({ fetchGuidelineVersions }) => fetchGuidelineVersions())
+import { fetchGuidelineVersions } from '../services/compliance'
 
 /**
  * Store of the GVP versions (shared, like departments): compliance checks use the
  * current one, and reports look up requirements in the version they were checked
- * against. The prototype uses existing sample guidelines and in-memory admin changes.
- * The experimental database loader is disabled.
+ * against. The versions and their requirements are loaded from the database after
+ * sign-in (until then the sample v4.0 stands in, but no page shows before they load).
+ * Adding a version (admin portal) only changes this tab's copy, and checks in the
+ * database always use the database's current version.
  * TODO: Save new versions once guideline upload is connected.
  * Must be inside <SessionProvider>.
  */
@@ -23,7 +24,7 @@ export function GuidelinesProvider({ children }: { children: ReactNode }) {
     latestRef.current = next
     setVersions(next)
   }, [])
-  const status = useLoadAfterSignIn(loadGuidelines, commit)
+  const status = useLoadAfterSignIn(fetchGuidelineVersions, commit)
 
   const current = currentVersion(versions)
   const currentGuideline = useMemo(() => ({ name: GVP_NAME, version: current.version }), [current.version])

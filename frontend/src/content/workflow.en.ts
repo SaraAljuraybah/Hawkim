@@ -261,7 +261,7 @@ export const sopWorkflowEn: SopWorkflowContent = {
     newVersion: 'v{version} uploaded.',
     versionDeleted: 'v{version} deleted.',
     deleteFailed: 'v{version} could not be deleted.',
-    fileFailed: 'This file is not available in the local prototype.',
+    fileFailed: "The file couldn't be opened. Try again.",
     resubmitted: 'Resubmitted for review.',
     coAuthorsAdded: 'Co-authors added.',
     coAuthorRemoved: '{name} removed as co-author.',

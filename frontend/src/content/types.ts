@@ -155,7 +155,6 @@ export interface SignInContent {
     logoAlt: string
   }
   title: string
-  prototypeNotice: string
   email: { label: string; placeholder: string }
   password: { label: string; placeholder: string; showLabel: string; hideLabel: string }
   forgotPassword: LinkContent
@@ -184,7 +183,7 @@ export interface SignInContent {
   }
 }
 
-/** The page behind "Forgot password?": explains demo passwords in the local prototype. */
+/** The page behind "Forgot password?": passwords are reset by the project owner for now. */
 export interface ForgotPasswordContent {
   /** Browser tab title. */
   pageTitle: string
@@ -433,13 +432,18 @@ export interface InternalReviewSubmitContent {
   reviewerRequired: string
   noneEligible: string
   responseDate: string
+  responseDateOptional: string
   responseHelp: string
+  responseHelpWorkingDays: string
   responseTimeGiven: string
   dateInvalid: string
   closeAlert: string
   duration: string
   durationHelp: string
+  durationWorkingDays: string
+  durationHelpWorkingDays: string
   durationInvalid: string
+  workingDaysPending: string
   note: string
   noteHelp: string
   noteServiceLimit: string

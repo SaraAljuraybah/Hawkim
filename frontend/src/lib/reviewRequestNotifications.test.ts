@@ -4,6 +4,9 @@ import { acceptInternalReview, currentInternalRound, decideInternalReview, decli
 import { latestAssignmentOf } from './internalReviewStatus'
 import { endOfRiyadhDay } from './riyadhWorkingDays'
 import { deriveNotifications, isDueNotification, type AppNotification } from './notifications'
+// These tests cover the Riyadh working-day policy as it behaves once activated (lib/deadlinePolicy.ts).
+// The pending (currently active) backend-compatible behaviour is covered in lib/deadlinePolicy.test.tsx.
+vi.mock('./deadlinePolicy', () => ({ WORKING_DAY_DEADLINES_ACTIVE: true }))
 
 function person(id: string, permissions: User['permissions']): User {
   return { id, name: id, email: id + '@example.test', initials: 'TT', permissions, departmentId: 'home' }

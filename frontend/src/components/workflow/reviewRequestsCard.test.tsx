@@ -14,6 +14,9 @@ import { ReviewRequestDetails } from './ReviewRequestDetails'
 import { DecisionBadge } from './DecisionBadge'
 import { PeopleList } from './PeopleList'
 import { sopWorkflowEn } from '../../content/workflow.en'
+// These tests cover the Riyadh working-day policy as it behaves once activated (lib/deadlinePolicy.ts).
+// The pending (currently active) backend-compatible behaviour is covered in lib/deadlinePolicy.test.tsx.
+vi.mock('../../lib/deadlinePolicy', () => ({ WORKING_DAY_DEADLINES_ACTIVE: true }))
 
 const fixture = vi.hoisted(() => ({
   userId: 'author', sop: null as Sop | null,

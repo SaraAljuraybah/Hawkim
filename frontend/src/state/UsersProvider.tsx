@@ -1,8 +1,6 @@
 import { useCallback, useMemo, useRef, useState, type ReactNode } from 'react'
 import { usersEn } from '../content/users.en'
 import type { Permission, User } from '../data/mock/types'
-import { sampleUsers } from '../data/mock/users'
-import { FRONTEND_PROTOTYPE } from '../lib/frontendRuntime'
 import {
   deleteBlockers,
   initialsOf,
@@ -13,25 +11,24 @@ import {
 } from '../lib/userAdmin'
 import { useLoadAfterSignIn } from './useLoadAfterSignIn'
 import { UsersContext, type AdminActionContext, type UsersStore } from './usersContext'
-
-const loadPeople = () => import('../services/people').then(({ fetchPeople }) => fetchPeople())
+import { fetchPeople } from '../services/people'
 
 /**
  * Users store shared by the employee screens (names, people pickers) and the admin
- * portal. The prototype uses existing sample people and roles; the experimental
- * database loader is disabled. Admin actions change this tab's copy (lost on reload): a user added here
+ * portal. The people and their roles are loaded from the database after sign-in.
+ * The admin actions only change this tab's copy (lost on reload): a user added here
  * has no sign-in account. TODO: Save admin changes once those features are connected.
  * Must be inside <SessionProvider>.
  */
 export function UsersProvider({ children }: { children: ReactNode }) {
-  const [users, setUsers] = useState<User[]>(FRONTEND_PROTOTYPE ? sampleUsers : [])
+  const [users, setUsers] = useState<User[]>([])
   // The latest list (as in the SOPs store): actions check against it, not the last render.
   const latestRef = useRef<User[]>(users)
   const commit = useCallback((next: User[]) => {
     latestRef.current = next
     setUsers(next)
   }, [])
-  const status = useLoadAfterSignIn(loadPeople, commit)
+  const status = useLoadAfterSignIn(fetchPeople, commit)
 
   const activeUsers = useMemo(() => users.filter((user) => !user.deletedAt), [users])
   const getUser = useCallback((id: string | undefined) => users.find((user) => user.id === id), [users])
