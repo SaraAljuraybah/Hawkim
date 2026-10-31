@@ -28,7 +28,7 @@ export const requestsEn: RequestsContent = {
       },
       attachments: {
         label: 'Attachments',
-        optionalTag: '(optional)',
+        optionalTag: '(Optional)',
         hint: 'PDF, DOC, DOCX or PNG, up to 10 MB each',
         dropPrompt: 'Drag and drop files here, or',
         browse: 'browse',
@@ -47,10 +47,10 @@ export const requestsEn: RequestsContent = {
     readOnlyCancelHref: '/departments',
     submit: { label: 'Submit Request', loadingLabel: 'Submitting…' },
     confirmation: {
-      title: 'Request submitted',
+      title: 'Request Submitted',
       text: 'Your request has been sent to the admin team. You can track its status in My Requests.',
       viewRequests: { label: 'View My Requests', href: '/requests' },
-      submitAnother: 'Submit another request',
+      submitAnother: 'Submit Another Request',
     },
   },
 
@@ -67,12 +67,12 @@ export const requestsEn: RequestsContent = {
       approved: 'Approved',
       rejected: 'Rejected',
     },
-    cancelButton: 'Cancel request',
+    cancelButton: 'Cancel Request',
     cancelDialog: {
-      title: 'Cancel this request?',
+      title: 'Cancel This Request?',
       text: "This can't be undone.",
-      keep: 'Keep request',
-      confirm: 'Cancel request',
+      keep: 'Keep Request',
+      confirm: 'Cancel Request',
     },
     cancelledAnnouncement: 'Request cancelled.',
     empty: 'No requests here yet.',

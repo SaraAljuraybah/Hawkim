@@ -68,7 +68,7 @@ describe('directory selection never changes authoring or membership context', ()
     const html = render(<DepartmentSwitcher content={appShellEn.departmentSwitcher} variant="topbar" />)
     expect(html).toContain('SOP Directory')
     expect(html).toContain('Foreign Directory')
-    expect(html).toContain('read-only')
+    expect(html).toContain('(Read-only)')
   })
   it('lists only authorized published data, regardless of the selected context', () => {
     const html = render(<SopsPage />)
@@ -87,7 +87,7 @@ describe('published directory access remains separate from internal views', () =
     const html = render(<SopDetailPage />, '/foreign-published')
     expect(html).toContain('Confidential multiline description')
     expect(html).toContain('/files/foreign-published.docx')
-    for (const label of ['Cancel review request', 'Complete review', 'Reject SOP', 'Upload a new version']) expect(html).not.toContain(label)
+    for (const label of ['Cancel review request', 'Complete Review', 'Reject SOP', 'Upload a New Version']) expect(html).not.toContain(label)
   })
   it.each(['pending', 'rejected', 'cancelled'] as const)('does not expose document content for a %s request', (status) => {
     fixture.requests = [grant(status)]

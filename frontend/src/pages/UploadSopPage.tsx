@@ -15,7 +15,7 @@ import { useSops } from '../state/sopsContext'
 import { NotFoundPage } from './NotFoundPage'
 import type { MySopsLocationState } from './MySopsPage'
 
-const TITLE_MAX = 150
+const TITLE_MAX = 50
 const DESCRIPTION_MAX = 1000
 /** Authors can upload Word (.docx) and PDF files (PBI 1). */
 const FILE_EXTENSIONS = ['.docx', '.pdf']
@@ -108,7 +108,12 @@ export function UploadSopPage() {
             name="title"
             label={content.fields.title.label}
             placeholder={content.fields.title.placeholder}
+            required
+            requiredMark
             maxLength={TITLE_MAX}
+            counter={content.fields.title.counter
+              .replace('{count}', String(title.length))
+              .replace('{max}', String(TITLE_MAX))}
             value={title}
             error={errors.title}
             onChange={(e) => setTitle(e.target.value)}

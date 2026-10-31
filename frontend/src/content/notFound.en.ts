@@ -8,7 +8,7 @@ import type { NotFoundContent } from './types'
 export const notFoundEn: NotFoundContent = {
   pageTitle: 'Page Not Found | Hawkim',
   logoAlt: 'Hawkim',
-  title: 'Page not found',
+  title: 'Page Not Found',
   text: "The page you're looking for doesn't exist or isn't available yet.",
-  homeLink: { label: 'Back to home', href: '/' },
+  homeLink: { label: 'Back to Home', href: '/' },
 }

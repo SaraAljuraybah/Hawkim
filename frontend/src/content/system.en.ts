@@ -20,6 +20,6 @@ export const systemEn: SystemContent = {
     pageTitle: "Couldn't Load | Hawkim",
     title: "Couldn't load Hawkim",
     text: 'Check your internet connection and try again.',
-    retry: 'Try again',
+    retry: 'Try Again',
   },
 }
