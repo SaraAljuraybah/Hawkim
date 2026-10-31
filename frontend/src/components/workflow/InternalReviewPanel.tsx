@@ -20,14 +20,6 @@ interface Props {
   sop: Sop
   canRemove: boolean
   inactive?: boolean
-  /**
-   * Only reviewers still taking part (the author's SOP page): a reviewer whose latest request was
-   * removed, declined or withdrawn is left out, and so are such requests in the others' history.
-   * The Review timeline keeps the full record.
-   */
-  activeOnly?: boolean
-  /** Shorter request cards (the author's SOP page): version and deadlines only (see ReviewRequestDetails). */
-  compact?: boolean
   /** Every request in a table per version (the author's SOP page), instead of the cards per reviewer. */
   table?: boolean
   /** Keep the author's initial review controls available before there are requests. */
@@ -45,7 +37,7 @@ const TITLE_ID = 'internal-review-title'
  * its version, its deadlines, and any reason or comments. The main author can remove a reviewer
  * from the current version's review.
  */
-export function InternalReviewPanel({ sop, canRemove, inactive = false, activeOnly = false, compact = false, table = false, showEmpty = false, title = text.panel.title, actions, children }: Props) {
+export function InternalReviewPanel({ sop, canRemove, inactive = false, table = false, showEmpty = false, title = text.panel.title, actions, children }: Props) {
   const { nameOf } = useUsers()
   const store = useSops()
   const [target, setTarget] = useState<{ roundId: string; assignment: InternalReviewerAssignment } | null>(null)
@@ -58,13 +50,12 @@ export function InternalReviewPanel({ sop, canRemove, inactive = false, activeOn
   const rounds = sop.internalReviewRounds ?? []
   if (!rounds.length && !showEmpty) return null
   const current = rounds.at(-1)
-  const legacyReviewers = rounds.length ? [] : sop.reviewers.filter((reviewer) => !activeOnly || reviewer.decision !== 'cancelled')
+  const legacyReviewers = rounds.length ? [] : sop.reviewers
   const removable = !inactive && canRemove && sop.status === 'in-review' && current?.version === sop.version
   // Reviewers in the order they were first asked; each one's requests newest first.
   const requests = rounds.flatMap((round) => round.assignments.map((assignment) => ({ round, assignment })))
   const requestsOf = (userId: string) => requests.filter((item) => item.assignment.userId === userId)
   const reviewerIds = [...new Set(requests.map((item) => item.assignment.userId))]
-    .filter((userId) => !activeOnly || !isInactiveDecision(requestsOf(userId).at(-1)!.assignment.decision))
   function askToRemove(round: InternalReviewRound, assignment: InternalReviewerAssignment, trigger: HTMLButtonElement) {
     triggerRef.current = trigger
     setTarget({ roundId: round.id, assignment })
@@ -95,14 +86,14 @@ export function InternalReviewPanel({ sop, canRemove, inactive = false, activeOn
       canRemove={(round, assignment) => removable && isLatestRequest(round, assignment) && !isInactiveDecision(assignment.decision)}
       canEditDeadline={(round, assignment) => canRemove && round.version === sop.version && assignment.decision === 'accepted'} />}
     {!table && reviewerIds.length > 0 && <ul className="space-y-4">{reviewerIds.map((userId) => {
-      const own = requestsOf(userId).reverse().filter(({ assignment }) => !activeOnly || !isInactiveDecision(assignment.decision))
+      const own = requestsOf(userId).reverse()
       const name = nameOf(userId)
       return <li key={userId} className="rounded-lg border border-beige p-4">
         <h3 className="text-base font-semibold text-maroon">{name}</h3>
         <ul aria-label={text.panel.reviewerHistory.replace('{name}', name)} className="mt-2 space-y-3">{own.map(({ round, assignment }) =>
           <li key={assignment.id} className="border-t border-beige pt-3 first:border-0 first:pt-0">
             <RequestStatusBadge sop={sop} request={assignment} inactive={inactive} />
-            <ReviewRequestDetails sop={sop} request={assignment} compact={compact} inactive={inactive} />
+            <ReviewRequestDetails sop={sop} request={assignment} inactive={inactive} />
             {removable && isLatestRequest(round, assignment) && assignment.decision !== 'removed' &&
               <Button size="sm" variant="secondary" className="mt-2" aria-label={text.panel.removeFor.replace('{name}', name)}
                 onClick={(event) => askToRemove(round, assignment, event.currentTarget)}>{text.panel.remove}</Button>}

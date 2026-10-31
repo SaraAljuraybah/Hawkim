@@ -4,7 +4,7 @@ import { MemoryRouter } from 'react-router-dom'
 import type { ReactNode } from 'react'
 import { internalReviewEn } from '../../content/internalReview.en'
 import type { Department, Sop, User } from '../../data/mock/types'
-import { acceptInternalReview, addInternalReviewers, currentInternalRound, decideInternalReview, declineInternalReview, removeInternalReviewer, startInternalReview, withdrawUnanswered } from '../../lib/internalReview'
+import { acceptInternalReview, currentInternalRound, decideInternalReview, declineInternalReview, removeInternalReviewer, startInternalReview, withdrawUnanswered } from '../../lib/internalReview'
 import { latestAssignmentOf } from '../../lib/internalReviewStatus'
 import { endOfRiyadhDay } from '../../lib/riyadhWorkingDays'
 import { reviewTasks } from '../../lib/reviews'
@@ -110,75 +110,20 @@ describe('review request status colours', () => {
   })
 })
 
-describe('compact request cards (author SOP page)', () => {
-  function reviewed() {
-    let sop = startInternalReview(draft(), 'author', '4.0', { reviewerIds: ['alpha', 'beta', 'gamma'], reviewDurationDays: 3 }, env())
-    const round = currentInternalRound(sop)!
-    for (const userId of ['alpha', 'beta', 'gamma']) sop = acceptInternalReview(sop, userId, round.id, request(sop, userId).id, env())
-    sop = decideInternalReview(sop, 'beta', round.id, request(sop, 'beta').id, 'completed', 'Looks fine to me', env())
-    return decideInternalReview(sop, 'gamma', round.id, request(sop, 'gamma').id, 'returned', 'Revise section 2', env())
-  }
-  it('shows the name, status, version, deadlines and Remove, without sent, accepted and decided times or comments', () => {
-    const html = render(<InternalReviewPanel sop={reviewed()} canRemove activeOnly compact />)
-    for (const name of ['Reviewer Alpha', 'Reviewer Beta', 'Reviewer Gamma']) expect(html).toContain(`<h3 class="text-base font-semibold text-maroon">${name}</h3>`)
-    for (const label of ['Accepted', 'Completed', 'Returned with Comments']) expect(html).toContain(`</span>${label}</span>`)
-    expect(html.match(/>Version v1</g)).toHaveLength(3)
-    expect(html).toContain('Review due ')
-    expect(html.match(/>Remove Reviewer</g)).toHaveLength(3)
-    expect(html).not.toContain('Request sent ')
-    expect(html).not.toContain('<p class="text-xs text-text-gray">Accepted ')
-    expect(html).not.toContain('Decision submitted ')
-    for (const comment of ['Looks fine to me', 'Revise section 2']) expect(html).not.toContain(comment)
-  })
+describe('review requests card', () => {
   it('keeps the full cards on the review page panel', () => {
-    const html = render(<InternalReviewPanel sop={reviewed()} canRemove={false} />)
-    for (const text of ['Request sent ', '<p class="text-xs text-text-gray">Accepted ', 'Decision submitted ', 'Looks fine to me', 'Revise section 2']) expect(html).toContain(text)
-  })
-})
-
-describe('review requests card with only active reviewers (author SOP page)', () => {
-  const heading = (name: string) => `<h3 class="text-base font-semibold text-maroon">${name}</h3>`
-  it('leaves out reviewers whose latest request was removed, declined or withdrawn', () => {
-    let sop = startInternalReview(draft(), 'author', '4.0', { reviewerIds: ['alpha', 'beta', 'gamma'], reviewDurationDays: 3 }, env())
+    let sop = startInternalReview(draft(), 'author', '4.0', { reviewerIds: ['alpha', 'beta'], reviewDurationDays: 3 }, env())
     const round = currentInternalRound(sop)!
-    sop = acceptInternalReview(sop, 'alpha', round.id, request(sop, 'alpha').id, env())
-    sop = declineInternalReview(sop, 'beta', round.id, request(sop, 'beta').id, 'On leave', env())
-    sop = removeInternalReviewer(sop, 'author', round.id, request(sop, 'gamma').id, 'Asked the wrong person', env())
-    const html = render(<InternalReviewPanel sop={sop} canRemove activeOnly />)
-    expect(html).toContain(heading('Reviewer Alpha'))
-    expect(html).toContain('</span>Accepted</span>')
-    for (const name of ['Reviewer Beta', 'Reviewer Gamma']) expect(html).not.toContain(heading(name))
-    for (const label of ['Declined', 'Removed']) expect(html).not.toContain(`</span>${label}</span>`)
-    expect(html).not.toContain('Reason: On leave')
-    expect(html).not.toContain(internalReviewEn.panel.noActive)
-    expect(html.match(/>Remove Reviewer</g)).toHaveLength(1)
-    // The data is unchanged, and the review page (without activeOnly) still lists everyone.
-    expect(request(sop, 'beta').decision).toBe('declined')
-    for (const name of ['Reviewer Alpha', 'Reviewer Beta', 'Reviewer Gamma']) expect(render(<InternalReviewPanel sop={sop} canRemove={false} />)).toContain(heading(name))
-  })
-  it('hides earlier inactive requests of a reviewer who was asked again', () => {
-    let sop = startInternalReview(draft(), 'author', '4.0', { reviewerIds: ['alpha', 'beta'] }, env())
-    sop = declineInternalReview(sop, 'alpha', currentInternalRound(sop)!.id, request(sop, 'alpha').id, 'On leave', env())
-    sop = addInternalReviewers(sop, 'author', { reviewerIds: ['alpha'] }, env())
-    const html = render(<InternalReviewPanel sop={sop} canRemove activeOnly />)
-    expect(html).toContain(heading('Reviewer Alpha'))
-    expect(html).toContain('</span>Pending</span>')
-    expect(html).not.toContain('</span>Declined</span>')
-    expect(render(<InternalReviewPanel sop={sop} canRemove />)).toContain('</span>Declined</span>')
-  })
-  it('shows "No active reviewers." when nobody is taking part any more', () => {
-    let sop = startInternalReview(draft(), 'author', '4.0', { reviewerIds: ['alpha', 'beta'] }, env())
-    sop = removeInternalReviewer(sop, 'author', currentInternalRound(sop)!.id, request(sop, 'beta').id, 'Not needed', env())
-    sop = withdrawUnanswered(sop, Date.parse(endOfRiyadhDay('2026-10-26')))
-    const html = render(<InternalReviewPanel sop={sop} canRemove activeOnly />)
-    expect(html).toContain(`<p class="text-sm text-text-gray">${internalReviewEn.panel.noActive}</p>`)
-    expect(html).toContain(internalReviewEn.panel.title)
-    expect(html).not.toContain('<h3')
-    expect(html).not.toContain('</span>Withdrawn</span>')
+    for (const userId of ['alpha', 'beta']) sop = acceptInternalReview(sop, userId, round.id, request(sop, userId).id, env())
+    sop = decideInternalReview(sop, 'alpha', round.id, request(sop, 'alpha').id, 'completed', 'Looks fine to me', env())
+    sop = decideInternalReview(sop, 'beta', round.id, request(sop, 'beta').id, 'returned', 'Revise section 2', env())
+    const html = render(<InternalReviewPanel sop={sop} canRemove={false} />)
+    for (const text of ['Request sent ', '<p class="text-xs text-text-gray">Accepted ', 'Decision submitted ', 'Looks fine to me', 'Revise section 2']) expect(html).toContain(text)
+    expect(html).not.toContain('<table')
   })
   it('announces a removal to screen readers only, and can focus the panel heading', () => {
     const sop = startInternalReview(draft(), 'author', '4.0', { reviewerIds: ['alpha'] }, env())
-    const html = render(<InternalReviewPanel sop={sop} canRemove activeOnly />)
+    const html = render(<InternalReviewPanel sop={sop} canRemove />)
     expect(html).toContain('<div role="status" class="sr-only"></div>')
     expect(html.match(/<h2 id="internal-review-title" tabindex="-1"[^>]*>([^<]+)<\/h2>/)?.[1]).toBe(internalReviewEn.panel.title)
   })
