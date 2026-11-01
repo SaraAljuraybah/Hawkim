@@ -20,6 +20,12 @@ describe('review timeline', () => {
     expect(dates).toEqual([...once, ...once])
   })
 
+  it('shows the date and time in Riyadh without a time zone label, keeping the exact datetime', () => {
+    const texts = [...html.matchAll(/<time dateTime="2026-10-01T08:00:00Z">([^<]+)<\/time>/g)].map((match) => match[1].replace(/\s/g, ' '))
+    expect(texts).toEqual(['Oct 1, 2026, 11:00 AM', 'Oct 1, 2026, 11:00 AM'])
+    expect(html).not.toContain('GMT')
+  })
+
   it('calls every version upload "SOP uploaded"', () => {
     expect(sopWorkflowEn.timeline.events['version-uploaded']).toBe('SOP uploaded')
     expect(html.match(/SOP uploaded/g)).toHaveLength(4)

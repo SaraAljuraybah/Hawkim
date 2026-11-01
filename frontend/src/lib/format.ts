@@ -52,6 +52,13 @@ export function formatReviewDateTime(isoDateTime: string, locale = 'en-US'): str
   }).format(new Date(isoDateTime))
 }
 
+/** The same Riyadh date and time without the time zone label, e.g. "Nov 1, 2026, 12:46 AM". */
+export function formatReviewDateTimeNoZone(isoDateTime: string, locale = 'en-US'): string {
+  return new Intl.DateTimeFormat(locale, {
+    month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Riyadh',
+  }).format(new Date(isoDateTime))
+}
+
 /** A review timestamp's date in Riyadh, e.g. "Nov 1, 2026" (formatDate is for date-only values). */
 export function formatReviewDate(isoDateTime: string, locale = 'en-US'): string {
   return new Intl.DateTimeFormat(locale, {
