@@ -52,7 +52,7 @@ export function ReviewNotesDialog({ title, notes, labels, closeLabel, onClose }:
         ))}
       </dl>
       <div className="mt-5 flex justify-end">
-        <Button size="sm" variant="secondary" onClick={() => dialogRef.current?.close()}>
+        <Button size="sm" onClick={() => dialogRef.current?.close()}>
           {closeLabel}
         </Button>
       </div>
