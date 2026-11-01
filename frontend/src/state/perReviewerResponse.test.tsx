@@ -1,7 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { renderToStaticMarkup } from 'react-dom/server'
 import type { InternalReviewerAssignment, Sop, User } from '../data/mock/types'
-import { canRespondToRequest, hasResponseOutsideReviewers, requestResponseRecipients } from '../lib/reviewRequestRows'
+import { sopWorkflowEn } from '../content/workflow.en'
+import { canRespondToRequest, hasResponseOutsideReviewers, requestResponseRecipients, ResponseNotAvailableError, responseFailure } from '../lib/reviewRequestRows'
+import { fetchSop } from '../services/sops'
 import { addResponse, timelineRecipients } from '../lib/workflow'
 import { SopsProvider } from './SopsProvider'
 import { useSops, type SopsStore } from './sopsContext'
@@ -48,7 +50,8 @@ function store(): SopsStore {
   return observe.mock.calls.at(-1)![0]
 }
 
-beforeEach(() => respondToComments.mockReset().mockResolvedValue(undefined))
+// In braces: a function returned from beforeEach would run as its cleanup.
+beforeEach(() => { respondToComments.mockReset().mockResolvedValue(undefined) })
 
 describe('with PER_REVIEWER_RESPONSE_ACTIVE off (today)', () => {
   beforeEach(() => { flag.active = false })
@@ -89,6 +92,42 @@ describe('with PER_REVIEWER_RESPONSE_ACTIVE on (after the database change)', () 
     const event = addResponse(sop, 'author', 'Thanks', 'req-alpha').timeline.at(-1)!
     expect(event).toMatchObject({ type: 'response', version: '1', recipientIds: ['alpha'], reviewAssignmentId: 'req-alpha', note: 'Thanks' })
     expect(timelineRecipients(sop, event, true)).toEqual(['alpha'])
+  })
+
+  it('refuses a removed reviewer and a request without a comment in the browser too, before asking the database', async () => {
+    expect(() => addResponse(sop, 'author', 'Thanks', 'req-gone')).toThrow(/removed/)
+    expect(() => addResponse(sop, 'author', 'Thanks', 'req-quiet')).toThrow(/no comments/)
+    await expect(store().addResponse('sop', 'Thanks', 'req-quiet')).rejects.toThrow(/no comments/)
+    expect(respondToComments).not.toHaveBeenCalled()
+  })
+
+  it('reads the SOP again when the database refuses, and passes the refusal on', async () => {
+    const sops = store()
+    vi.mocked(fetchSop).mockClear()
+    respondToComments.mockRejectedValue(new ResponseNotAvailableError('Removed'))
+    await expect(sops.addResponse('sop', 'Thanks', 'req-beta')).rejects.toBeInstanceOf(ResponseNotAvailableError)
+    expect(fetchSop).toHaveBeenCalledWith('sop')
+  })
+
+  it('still reports the refusal if reading the SOP again fails', async () => {
+    const sops = store()
+    vi.mocked(fetchSop).mockRejectedValueOnce(new Error('Offline'))
+    respondToComments.mockRejectedValue(new ResponseNotAvailableError('Removed'))
+    await expect(sops.addResponse('sop', 'Thanks', 'req-beta')).rejects.toBeInstanceOf(ResponseNotAvailableError)
+  })
+
+  it('does not read the SOP again after any other failure', async () => {
+    const sops = store()
+    vi.mocked(fetchSop).mockClear()
+    respondToComments.mockRejectedValue(new Error('Connection lost'))
+    await expect(sops.addResponse('sop', 'Thanks', 'req-beta')).rejects.toThrow('Connection lost')
+    expect(fetchSop).not.toHaveBeenCalled()
+  })
+
+  it('explains a refused response, and keeps the general message otherwise', () => {
+    const text = sopWorkflowEn.dialogs.response
+    expect(text[responseFailure(new ResponseNotAvailableError('Removed'))]).toBe(text.unavailable)
+    expect(text[responseFailure(new Error('Connection lost'))]).toBe(text.failed)
   })
 
   it('still answers everyone from the header fallback, which passes no request id', async () => {

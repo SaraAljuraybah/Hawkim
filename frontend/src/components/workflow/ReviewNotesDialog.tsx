@@ -3,7 +3,7 @@ import { flushSync } from 'react-dom'
 import { LoaderCircle } from 'lucide-react'
 import { sopWorkflowEn } from '../../content/workflow.en'
 import { formatReviewDate } from '../../lib/format'
-import type { ReviewNote } from '../../lib/reviewRequestRows'
+import { responseFailure, type ReviewNote } from '../../lib/reviewRequestRows'
 import { RESPONSE_MAX } from '../../lib/workflow'
 import { Button } from '../ui/Button'
 import { TextAreaField } from '../ui/TextAreaField'
@@ -61,8 +61,8 @@ export function ReviewNotesDialog({ title, notes, labels, closeLabel, response, 
     try {
       await response.onSend(reply.trim())
       dialogRef.current?.close()
-    } catch {
-      flushSync(() => setError(text.failed))
+    } catch (caught) {
+      flushSync(() => setError(text[responseFailure(caught)]))
       fieldRef.current?.focus()
     } finally {
       setBusy(false)
@@ -134,6 +134,8 @@ export function ReviewNotesDialog({ title, notes, labels, closeLabel, response, 
             />
           </div>
         )}
+        {/* A refused response can reload the SOP and take the form away: the reason stays. */}
+        {error && !response && <p role="alert" className="mt-4 text-sm text-status-rejected-fg">{error}</p>}
         <div className="mt-5 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
           <Button size="sm" onClick={() => dialogRef.current?.close()}>
             {closeLabel}

@@ -785,7 +785,7 @@ export interface SopWorkflowContent {
     removeCoAuthor: { title: string; description: string; keep: string; confirm: string }
     /** `{names}` (the recipients) is replaced in the description; `{count}` and `{max}` in the counter. */
     /** `failed`: the response couldn't be saved. */
-    response: { title: string; description: string; label: string; required: string; failed: string; counter: string; confirm: string }
+    response: { title: string; description: string; label: string; required: string; failed: string; unavailable: string; counter: string; confirm: string }
     /**
      * Resubmit for review. Its date and comments fields use the `submit` texts.
      * `failed`: the store refused the resubmission.

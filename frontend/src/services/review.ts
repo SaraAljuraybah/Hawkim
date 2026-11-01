@@ -6,8 +6,12 @@
 
 import type { InternalReviewOptions } from '../lib/internalReview'
 import { isValidReviewDuration } from '../lib/internalReviewStatus'
+import { ResponseNotAvailableError } from '../lib/reviewRequestRows'
 import { SUBMIT_COMMENT_MAX } from '../lib/workflow'
 import { supabase } from './supabase'
+
+/** The hint respond_to_comments raises when a request can't receive a response. */
+export const RESPONSE_NOT_AVAILABLE_HINT = 'response-not-available'
 
 async function call(name: string, args: Record<string, unknown>): Promise<unknown> {
   const { data, error } = await supabase().rpc(name, args)
@@ -59,7 +63,9 @@ export async function decideReview(requestId: string, decision: 'completed' | 'r
 
 /** Author or co-author: replies to the latest comments, or only to the reviewer of `requestId`. */
 export async function respondToComments(sopId: string, text: string, requestId?: string): Promise<void> {
-  await call('respond_to_comments', { p_sop_id: sopId, p_text: text, ...(requestId ? { p_request_id: requestId } : {}) })
+  const { error } = await supabase().rpc('respond_to_comments', { p_sop_id: sopId, p_text: text, ...(requestId ? { p_request_id: requestId } : {}) })
+  if (error?.hint === RESPONSE_NOT_AVAILABLE_HINT) throw new ResponseNotAvailableError(error.message)
+  if (error) throw new Error(error.message)
 }
 
 /** Withdraws the SOP's requests whose response due date has ended (nothing happens when none are due). */

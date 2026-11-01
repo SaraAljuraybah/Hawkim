@@ -691,6 +691,8 @@ export function addResponse(sop: Sop, actorId: string, text: string, requestId?:
   const round = sop.internalReviewRounds?.find((item) => item.assignments.some((request) => request.id === requestId))
   const request = round?.assignments.find((item) => item.id === requestId)
   assert(!requestId || !!request, 'There are no comments to respond to')
+  assert(!request || request.decision !== 'removed', "This reviewer was removed from the review, so they can't receive a response")
+  assert(!request || !!request.commentId, 'This reviewer left no comments to respond to')
   const recipientIds = request ? [request.userId] : responseRecipients(sop)
   assert(recipientIds.length > 0, 'There are no comments to respond to')
   const response = event(sop, 'response', actorId, { recipientIds, note: trimmed, ...(request ? { reviewAssignmentId: request.id } : {}) })

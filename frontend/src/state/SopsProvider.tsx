@@ -7,6 +7,7 @@ import { sopTitleProblem } from '../lib/sopTitle'
 import { submitForApproval } from '../lib/approval'
 import { applyReviewAction } from '../lib/reviewFlow'
 import { PER_REVIEWER_RESPONSE_ACTIVE } from '../lib/internalReviewStatus'
+import { ResponseNotAvailableError } from '../lib/reviewRequestRows'
 import { acceptInternalReview, addInternalReviewers, decideInternalReview, declineInternalReview, nextWithdrawalAt, removeInternalReviewer, sendNewVersionForReview, startInternalReview, withdrawUnanswered } from '../lib/internalReview'
 import { useDepartments } from './departmentsContext'
 import * as workflow from '../lib/workflow'
@@ -335,7 +336,13 @@ export function SopsProvider({ children }: { children: ReactNode }) {
       addResponse: async (id, text, requestId) => {
         const target = PER_REVIEWER_RESPONSE_ACTIVE ? requestId : undefined
         workflow.addResponse(current(id), userId, text, target)
-        await (await reviewService()).respondToComments(id, text.trim(), target)
+        try {
+          await (await reviewService()).respondToComments(id, text.trim(), target)
+        } catch (error) {
+          // This tab was behind: read the SOP again, so the page shows what changed.
+          if (error instanceof ResponseNotAvailableError) await refresh(id).catch(() => undefined)
+          throw error
+        }
         await refresh(id)
       },
       // The signed-in user (`userId`) acts; the others are the co-authors added or removed.

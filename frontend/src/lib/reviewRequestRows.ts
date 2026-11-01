@@ -2,6 +2,14 @@ import type { InternalReviewerAssignment, Sop } from '../data/mock/types'
 import { PER_REVIEWER_RESPONSE_ACTIVE } from './internalReviewStatus'
 import { responseRecipients } from './workflow'
 
+/** The database refused a response to this request: another tab removed the reviewer, say (this tab didn't know yet). */
+export class ResponseNotAvailableError extends Error {}
+
+/** Which message explains why a response wasn't sent. */
+export function responseFailure(error: unknown): 'unavailable' | 'failed' {
+  return error instanceof ResponseNotAvailableError ? 'unavailable' : 'failed'
+}
+
 /** What a reviewer or the main author wrote on a request, with its date. */
 export interface ReviewNote {
   kind: 'comment' | 'decline' | 'removal'
@@ -30,8 +38,8 @@ export function reviewNotes(sop: Pick<Sop, 'comments'>, request: InternalReviewe
 }
 
 /**
- * Who a response from this request's comments dialog goes to: only its reviewer once
- * PER_REVIEWER_RESPONSE_ACTIVE is on; until then everyone respond_to_comments reaches.
+ * Who a response from this request's comments dialog goes to: only its reviewer. With
+ * PER_REVIEWER_RESPONSE_ACTIVE off, everyone respond_to_comments reaches without a request.
  */
 export function requestResponseRecipients(sop: Sop, request: InternalReviewerAssignment): string[] {
   return PER_REVIEWER_RESPONSE_ACTIVE ? [request.userId] : responseRecipients(sop)

@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { acceptReview, addReviewers, declineReview, decideReview, removeReviewer, respondToComments, submitReview, withdrawDueRequests } from './review'
+import { ResponseNotAvailableError } from '../lib/reviewRequestRows'
+import { acceptReview, addReviewers, declineReview, decideReview, removeReviewer, respondToComments, RESPONSE_NOT_AVAILABLE_HINT, submitReview, withdrawDueRequests } from './review'
 
 const rpc = vi.fn()
 vi.mock('./supabase', () => ({ supabase: () => ({ rpc }) }))
@@ -61,6 +62,13 @@ describe('the internal review in the database', () => {
     rpc.mockClear()
     await expect(addReviewers('uuid-sop', { reviewerIds: ['uuid-noura'], note: note + 'x' })).rejects.toThrow(/too long/)
     expect(rpc).not.toHaveBeenCalled()
+  })
+
+  it('recognises a response the database refused by its hint, and only by that', async () => {
+    rpc.mockResolvedValueOnce({ data: null, error: { message: 'Any wording', code: '23514', hint: RESPONSE_NOT_AVAILABLE_HINT } })
+    await expect(respondToComments('uuid-sop', 'Done', 'uuid-request')).rejects.toBeInstanceOf(ResponseNotAvailableError)
+    rpc.mockResolvedValueOnce({ data: null, error: { message: 'Another refusal', code: '23514', hint: null } })
+    await expect(respondToComments('uuid-sop', 'Done', 'uuid-request')).rejects.not.toBeInstanceOf(ResponseNotAvailableError)
   })
 
   it('sends responses and asks for due withdrawals', async () => {

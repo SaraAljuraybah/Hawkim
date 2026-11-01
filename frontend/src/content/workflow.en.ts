@@ -247,6 +247,7 @@ export const sopWorkflowEn: SopWorkflowContent = {
       label: 'Response',
       required: 'Write a response.',
       failed: 'Your response could not be added. Your draft has been kept.',
+      unavailable: 'This reviewer can no longer receive a response.',
       counter: '{count} / {max}',
       confirm: 'Send Response',
     },
