@@ -5,7 +5,7 @@
  */
 
 import type { InternalReviewOptions } from '../lib/internalReview'
-import { isValidReviewDuration, RequestExpiredError, RequestNotResendableError } from '../lib/internalReviewStatus'
+import { isValidReviewDuration, RequestExpiredError, RequestNotResendableError, ReviewerOrderError } from '../lib/internalReviewStatus'
 import { ReviewDeadlineUnavailableError } from '../lib/reviewDeadline'
 import { ResponseNotAvailableError } from '../lib/reviewRequestRows'
 import { SUBMIT_COMMENT_MAX } from '../lib/workflow'
@@ -23,10 +23,16 @@ export const REQUEST_EXPIRED_HINT = 'request-expired'
 /** The hint resend_review_request raises when the request can't be sent again. */
 export const REQUEST_NOT_RESENDABLE_HINT = 'request-not-resendable'
 
+/** The hints when the department of a reviewer isn't allowed yet. */
+export const HOME_REVIEWERS_FIRST_HINT = 'home-reviewers-first'
+export const HOME_REVIEWER_MUST_FINISH_HINT = 'home-reviewer-must-finish'
+
 async function call(name: string, args: Record<string, unknown>): Promise<unknown> {
   const { data, error } = await supabase().rpc(name, args)
   if (error?.hint === REQUEST_EXPIRED_HINT) throw new RequestExpiredError(error.message)
   if (error?.hint === REQUEST_NOT_RESENDABLE_HINT) throw new RequestNotResendableError(error.message)
+  if (error?.hint === HOME_REVIEWERS_FIRST_HINT) throw new ReviewerOrderError('first-send', error.message)
+  if (error?.hint === HOME_REVIEWER_MUST_FINISH_HINT) throw new ReviewerOrderError('must-finish', error.message)
   if (error) throw new Error(error.message)
   return data
 }

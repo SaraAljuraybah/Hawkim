@@ -478,6 +478,12 @@ export interface InternalReviewSubmitContent {
   reviewers: string
   reviewerSearch: PeoplePickerContent
   reviewerRequired: string
+  reviewerDepartment: string
+  allDepartments: string
+  /** `{department}` is the SOP's department. */
+  homeFirst: string
+  firstSendHome: string
+  mustFinish: string
   noneEligible: string
   duration: string
   durationHelp: string

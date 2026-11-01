@@ -3,10 +3,11 @@ import { flushSync } from 'react-dom'
 import { internalReviewEn as text } from '../../content/internalReview.en'
 import { sopWorkflowEn } from '../../content/workflow.en'
 import type { InternalReviewerAssignment, InternalReviewRound, Sop } from '../../data/mock/types'
-import { canChangeReviewDeadline, canResendRequest, REVIEW_TEXT_MAX } from '../../lib/internalReview'
-import { isInactiveDecision, latestAssignmentOf, RequestNotResendableError } from '../../lib/internalReviewStatus'
+import { canChangeReviewDeadline, canResendRequest, resendIsTooEarly, REVIEW_TEXT_MAX } from '../../lib/internalReview'
+import { isInactiveDecision, latestAssignmentOf, RequestNotResendableError, ReviewerOrderError } from '../../lib/internalReviewStatus'
 import { fixedResponseDueDate } from '../../lib/fixedResponseDeadline'
 import { formatDate } from '../../lib/format'
+import { useDepartments } from '../../state/departmentsContext'
 import { useSops } from '../../state/sopsContext'
 import { useUsers } from '../../state/usersContext'
 import { Button } from '../ui/Button'
@@ -43,7 +44,8 @@ const TITLE_ID = 'internal-review-title'
  * from the current version's review.
  */
 export function InternalReviewPanel({ sop, canRemove, inactive = false, table = false, response, showEmpty = false, title = text.panel.title, actions, children }: Props) {
-  const { nameOf } = useUsers()
+  const { nameOf, users } = useUsers()
+  const { nameOf: departmentName } = useDepartments()
   const store = useSops()
   const [target, setTarget] = useState<{ roundId: string; assignment: InternalReviewerAssignment } | null>(null)
   const [editing, setEditing] = useState<{ roundId: string; assignment: InternalReviewerAssignment } | null>(null)
@@ -75,6 +77,7 @@ export function InternalReviewPanel({ sop, canRemove, inactive = false, table = 
     setEditing(null)
     requestAnimationFrame(() => { if (triggerRef.current?.isConnected) triggerRef.current.focus(); else document.getElementById(TITLE_ID)?.focus() })
   }
+  const mustFinish = () => text.submit.mustFinish.replace('{department}', departmentName(sop.departmentId))
   function closeResending() {
     setResending(null)
     setResendError('')
@@ -87,7 +90,7 @@ export function InternalReviewPanel({ sop, canRemove, inactive = false, table = 
       await store.resendInternalReview(sop.id, resending.id)
       setMessage(text.panel.sendAgain.sent.replace('{name}', nameOf(resending.userId)))
     } catch (failure) {
-      setResendError(failure instanceof RequestNotResendableError ? text.panel.sendAgain.unavailable : text.panel.sendAgain.failed)
+      setResendError(failure instanceof ReviewerOrderError ? mustFinish() : failure instanceof RequestNotResendableError ? text.panel.sendAgain.unavailable : text.panel.sendAgain.failed)
       return false
     }
   }
@@ -115,6 +118,7 @@ export function InternalReviewPanel({ sop, canRemove, inactive = false, table = 
       canEditDeadline={(round, assignment) => canRemove && canChangeReviewDeadline(sop, round, assignment)}
       onEditDeadline={(round, assignment, trigger) => { triggerRef.current = trigger; setEditing({ roundId: round.id, assignment }) }}
       canResend={(round, assignment) => !inactive && canRemove && canResendRequest(sop, round, assignment)}
+      resendBlocked={(assignment) => resendIsTooEarly(sop, assignment, users) ? mustFinish() : undefined}
       onResend={(_, assignment, trigger) => { triggerRef.current = trigger; setResendError(''); setResending(assignment) }} />}
     {!table && reviewerIds.length > 0 && <ul className="space-y-4">{reviewerIds.map((userId) => {
       const own = requestsOf(userId).reverse()

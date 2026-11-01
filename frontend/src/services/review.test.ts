@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { RequestExpiredError, RequestNotResendableError } from '../lib/internalReviewStatus'
+import { RequestExpiredError, RequestNotResendableError, ReviewerOrderError } from '../lib/internalReviewStatus'
 import { ReviewDeadlineUnavailableError } from '../lib/reviewDeadline'
 import { ResponseNotAvailableError } from '../lib/reviewRequestRows'
-import { REQUEST_EXPIRED_HINT, REQUEST_NOT_RESENDABLE_HINT, resendReviewRequest, acceptReview, addReviewers, changeReviewDeadline, declineReview, decideReview, removeReviewer, respondToComments, RESPONSE_NOT_AVAILABLE_HINT, REVIEW_DEADLINE_UNAVAILABLE_HINT, submitReview, expireDueRequests } from './review'
+import { HOME_REVIEWER_MUST_FINISH_HINT, HOME_REVIEWERS_FIRST_HINT, REQUEST_EXPIRED_HINT, REQUEST_NOT_RESENDABLE_HINT, resendReviewRequest, acceptReview, addReviewers, changeReviewDeadline, declineReview, decideReview, removeReviewer, respondToComments, RESPONSE_NOT_AVAILABLE_HINT, REVIEW_DEADLINE_UNAVAILABLE_HINT, submitReview, expireDueRequests } from './review'
 
 const rpc = vi.fn()
 vi.mock('./supabase', () => ({ supabase: () => ({ rpc }) }))
@@ -97,6 +97,13 @@ describe('the internal review in the database', () => {
     expect(rpc).toHaveBeenLastCalledWith('resend_review_request', { p_request_id: 'uuid-request' })
     rpc.mockResolvedValueOnce({ data: null, error: { message: 'Any wording', code: '23514', hint: REQUEST_NOT_RESENDABLE_HINT } })
     await expect(resendReviewRequest('uuid-request')).rejects.toBeInstanceOf(RequestNotResendableError)
+  })
+
+  it('recognises a reviewer refused for their department by its hint', async () => {
+    rpc.mockResolvedValueOnce({ data: null, error: { message: 'Any wording', code: '23514', hint: HOME_REVIEWERS_FIRST_HINT } })
+    await expect(submitReview('uuid-sop', { reviewerIds: ['uuid-reviewer'] })).rejects.toMatchObject({ reason: 'first-send' })
+    rpc.mockResolvedValueOnce({ data: null, error: { message: 'Any wording', code: '23514', hint: HOME_REVIEWER_MUST_FINISH_HINT } })
+    await expect(addReviewers('uuid-sop', { reviewerIds: ['uuid-reviewer'] })).rejects.toBeInstanceOf(ReviewerOrderError)
   })
 
   it('recognises an expired request by its hint, and only by that', async () => {

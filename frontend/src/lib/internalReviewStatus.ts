@@ -82,6 +82,15 @@ export class RequestExpiredError extends Error {}
 /** The database refused Send Again: this tab was behind (the request isn't the latest any more, say). */
 export class RequestNotResendableError extends Error {}
 
+/** Why the database refused the department of a reviewer: this tab was behind. */
+export class ReviewerOrderError extends Error {
+  readonly reason: 'first-send' | 'must-finish'
+  constructor(reason: 'first-send' | 'must-finish', message: string) {
+    super(message)
+    this.reason = reason
+  }
+}
+
 /**
  * During internal review the author can upload a new version only once everyone taking part has
  * finished reviewing the current one (returned it or completed it), or when nobody is taking part.

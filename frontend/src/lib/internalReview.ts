@@ -4,7 +4,7 @@ import { fixedResponseDueDate } from './fixedResponseDeadline'
 import { todayIsoDate } from './format'
 import { isInactiveDecision, isOpenDecision, isUnsentVersion, isValidReviewDuration, isExpiryDue, latestAssignmentOf, latestAssignments, projectReviewers, requestDeadline, reviewDueDateFrom, expiryDueAt } from './internalReviewStatus'
 import { previewReviewDeadline } from './reviewDeadline'
-import { eligibleReviewers, type ReviewEnvironment } from './reviewFlow'
+import { assignableReviewers, eligibleReviewers, type ReviewEnvironment } from './reviewFlow'
 import { WORKING_DAY_DEADLINES_ACTIVE } from './deadlinePolicy'
 import { parseResponseDueDate } from './responseTime'
 import { endOfRiyadhDay, reviewWorkingDueDateFrom, WORKING_DAY_POLICY } from './riyadhWorkingDays'
@@ -22,6 +22,7 @@ export interface InternalReviewOptions {
   reviewDurationDays?: number
   note?: string
 }
+const HOME_MUST_FINISH = 'A reviewer from the SOP\'s department must finish this version first'
 const REQUEST_EXPIRED = 'This review request expired because it was not accepted or declined by its response due date'
 /** Decline reasons and review comments are limited like other comments. */
 export const REVIEW_TEXT_MAX = 1000
@@ -79,7 +80,8 @@ export function nextExpiryAt(sops: Sop[]): number | undefined {
   return times.length ? Math.min(...times) : undefined
 }
 function reviewer(sop: Sop, actorId: string, assignment: InternalReviewerAssignment, env: ReviewEnvironment) {
-  assert(assignment.userId === actorId && eligibleReviewers(sop, sop.departmentId, env.users).some((person) => person.id === actorId), 'Only the active assigned internal Reviewer can decide')
+  const actor = env.users.find((user) => user.id === actorId)
+  assert(assignment.userId === actorId && !!actor && eligibleReviewers(sop, actor.departmentId, env.users).some((person) => person.id === actorId), 'Only the active assigned internal Reviewer can decide')
   assert(env.departments.some((department) => department.id === sop.departmentId && !department.removedAt), 'The SOP department is unavailable')
 }
 function event(round: InternalReviewRound, type: TimelineEvent['type'], actorId: string, extra: Partial<TimelineEvent> = {}): TimelineEvent {
@@ -123,9 +125,8 @@ function create(sop: Sop, actorId: string, options: InternalReviewOptions, kind:
     reviewDueDays: undefined, reviewDueAt: undefined,
     approvalDueDays: undefined, approvalDueAt: undefined, lastUpdated: todayIsoDate(), timeline: [...sop.timeline, ...events] }
 }
-function validate(sop: Sop, options: InternalReviewOptions, env: ReviewEnvironment) {
+function validate(sop: Sop, options: InternalReviewOptions, env: ReviewEnvironment, eligible = homeReviewers(sop, env)) {
   assert(options.reviewerIds.length > 0 && new Set(options.reviewerIds).size === options.reviewerIds.length, 'Select one or more different eligible internal reviewers')
-  const eligible = eligibleReviewers(sop, sop.departmentId, env.users)
   assert(options.reviewerIds.every((userId) => eligible.some((user) => user.id === userId)), 'Select eligible reviewers from the SOP home department; Authors and co-authors cannot review')
   assert(!options.note || options.note.trim().length <= SUBMIT_COMMENT_MAX, 'Submission notes must be at most 500 characters')
   deadlines(options)
@@ -138,10 +139,25 @@ export function startInternalReview(sop: Sop, actorId: string, guidelineVersion:
   validate(sop, options, env)
   return create(sop, actorId, options, 'submitted')
 }
-/** Reviewers who can be added now: not yet asked, or their latest request was declined, withdrawn or removed. An expired request is sent again instead. */
-export function addableReviewers(sop: Sop, users: ReviewEnvironment['users']) {
+/** Who the first send of a version can go to: reviewers from the SOP's department. */
+export function homeReviewers(sop: Sop, env: ReviewEnvironment) {
+  return assignableReviewers(sop, env).filter((user) => user.departmentId === sop.departmentId)
+}
+/** A reviewer from the SOP's department has finished the current version (completed or returned), by their current department. */
+export function hasHomeFinished(sop: Sop, users: ReviewEnvironment['users']): boolean {
   const round = currentInternalRound(sop)
-  return eligibleReviewers(sop, sop.departmentId, users).filter((user) => {
+  if (round?.version !== sop.version) return false
+  return latestAssignments(round).some((request) => (request.decision === 'completed' || request.decision === 'returned') &&
+    users.find((user) => user.id === request.userId)?.departmentId === sop.departmentId)
+}
+/** Reviewers from the SOP's department now; from any department once one of them has finished the current version. */
+function reviewersForNow(sop: Sop, env: ReviewEnvironment) {
+  return hasHomeFinished(sop, env.users) ? assignableReviewers(sop, env) : homeReviewers(sop, env)
+}
+/** Reviewers who can be added now: not yet asked, or their latest request was declined, withdrawn or removed. An expired request is sent again instead. */
+export function addableReviewers(sop: Sop, env: ReviewEnvironment) {
+  const round = currentInternalRound(sop)
+  return reviewersForNow(sop, env).filter((user) => {
     const latest = latestAssignmentOf(round?.version === sop.version ? round : undefined, user.id)
     return !latest || (isInactiveDecision(latest.decision) && latest.decision !== 'expired')
   })
@@ -158,8 +174,10 @@ export function canAddReviewers(sop: Sop): boolean {
 export function addInternalReviewers(sop: Sop, actorId: string, options: InternalReviewOptions, env: ReviewEnvironment): Sop {
   author(sop, actorId, env)
   assert(canAddReviewers(sop), 'Reviewers can only be added to the review of the current version')
-  validate(sop, options, env)
-  const addable = addableReviewers(sop, env.users)
+  const candidates = assignableReviewers(sop, env)
+  validate(sop, options, env, candidates)
+  assert(hasHomeFinished(sop, env.users) || options.reviewerIds.every((userId) => candidates.find((user) => user.id === userId)?.departmentId === sop.departmentId), HOME_MUST_FINISH)
+  const addable = addableReviewers(sop, env)
   assert(options.reviewerIds.every((userId) => addable.some((user) => user.id === userId)), 'These reviewers already have a request for this version')
   const round = currentInternalRound(sop)!
   const requestedAt = new Date()
@@ -173,6 +191,10 @@ export function addInternalReviewers(sop: Sop, actorId: string, options: Interna
 export function canResendRequest(sop: Sop, round: InternalReviewRound, request: InternalReviewerAssignment): boolean {
   return canAddReviewers(sop) && round === currentInternalRound(sop) && request.decision === 'expired' && latestAssignmentOf(round, request.userId) === request
 }
+/** An other-department reviewer can only be sent it again once a same-department reviewer has finished this version. */
+export function resendIsTooEarly(sop: Sop, request: InternalReviewerAssignment, users: ReviewEnvironment['users']): boolean {
+  return users.find((user) => user.id === request.userId)?.departmentId !== sop.departmentId && !hasHomeFinished(sop, users)
+}
 /**
  * The main author sends an expired request to the same reviewer again, with the same review
  * duration and a new response deadline. It is a new request: the expired one stays in the
@@ -184,7 +206,8 @@ export function resendInternalReview(sop: Sop, actorId: string, assignmentId: st
   const request = round?.assignments.find((person) => person.id === assignmentId)
   assert(round && request && canResendRequest(sop, round, request), 'This review request can\'t be sent again')
   const options = { reviewerIds: [request.userId], reviewDurationDays: request.reviewDurationDays }
-  validate(sop, options, env)
+  validate(sop, options, env, assignableReviewers(sop, env))
+  assert(!resendIsTooEarly(sop, request, env.users), HOME_MUST_FINISH)
   const requestedAt = new Date()
   const now = requestedAt.toISOString()
   const updated: InternalReviewRound = { ...round, assignments: [...round.assignments,

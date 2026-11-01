@@ -21,6 +21,8 @@ interface ReviewRequestsTableProps {
   onEditDeadline?: (round: InternalReviewRound, request: InternalReviewerAssignment, trigger: HTMLButtonElement) => void
   /** Whether this expired request can be sent again (it shares the deadline action's place: a row never has both). */
   canResend: (round: InternalReviewRound, request: InternalReviewerAssignment) => boolean
+  /** Why it can't be sent again yet: the action stays visible, disabled, with this tooltip. */
+  resendBlocked: (request: InternalReviewerAssignment) => string | undefined
   onResend: (round: InternalReviewRound, request: InternalReviewerAssignment, trigger: HTMLButtonElement) => void
   /** Responding from the comments dialog (the author's SOP page). */
   response?: ReviewRequestResponse
@@ -47,7 +49,7 @@ function Timestamp({ value, format }: { value?: string; format: (value: string) 
  * part use lighter text. A table from xl up (eight columns don't fit beside the sidebar
  * earlier); stacked cards below.
  */
-export function ReviewRequestsTable({ sop, canRemove, onRemove, canEditDeadline, onEditDeadline, canResend, onResend, response }: ReviewRequestsTableProps) {
+export function ReviewRequestsTable({ sop, canRemove, onRemove, canEditDeadline, onEditDeadline, canResend, resendBlocked, onResend, response }: ReviewRequestsTableProps) {
   const { nameOf, getUser } = useUsers()
   const { departments } = useDepartments()
   const [toggled, setToggled] = useState<Record<string, boolean>>({})
@@ -86,7 +88,7 @@ export function ReviewRequestsTable({ sop, canRemove, onRemove, canEditDeadline,
           )}
           <span>
             {canResend(round, request) && (
-              <IconButton label={internalReviewEn.panel.sendAgain.label.replace('{name}', name)} icon={RotateCw}
+              <IconButton label={internalReviewEn.panel.sendAgain.label.replace('{name}', name)} icon={RotateCw} disabledReason={resendBlocked(request)}
                 onClick={(event: MouseEvent<HTMLButtonElement>) => onResend(round, request, event.currentTarget)} />
             )}
             {REVIEW_DEADLINE_EDITING_ACTIVE && canEditDeadline(round, request) && (

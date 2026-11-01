@@ -35,6 +35,15 @@ export function eligibleReviewers(sop: Sop, departmentId: string, users: User[],
     !isAuthorOrCoAuthor(sop, user.id) && !isApprover(sop, user.id) && !excluded.includes(user.id))
 }
 /**
+ * Who can be sent an SOP in internal review: eligible reviewers of any department that still
+ * exists, without the Quality Document Controller of its department, who approves it.
+ */
+export function assignableReviewers(sop: Sop, { users, departments }: ReviewEnvironment): User[] {
+  const controllerId = departments.find((department) => department.id === sop.departmentId)?.qualityControllerId
+  const open = departments.filter((department) => !department.removedAt).map((department) => department.id)
+  return users.filter((user) => user.id !== controllerId && open.includes(user.departmentId) && eligibleReviewers(sop, user.departmentId, [user]).length > 0)
+}
+/**
  * Within a review round, a reviewer keeps the deadline already set (e.g. when Reviewer 2
  * returns it to Reviewer 1 and it's forwarded again). Resubmit clears every deadline, so
  * in a new round the next reviewer can be given a new one.
