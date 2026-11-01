@@ -294,12 +294,8 @@ export interface AppShellContent extends SidebarContent {
   drawerLabel: string
   /** Accessible text of the My Reviews to-do count; `{count}` is replaced. */
   reviewsToDoLabel: string
-  userMenu: {
-    /** Accessible name of the avatar button; `{name}` is the signed-in user. */
-    button: string
-    menuLabel: string
-    profile: LinkContent
-  }
+  /** The avatar's link; `label` is its accessible name and `{name}` is the signed-in user. */
+  profileLink: LinkContent
   departmentSwitcher: {
     /** Label before the department name (visible in the drawer, screen-reader only in the top bar). */
     label: string

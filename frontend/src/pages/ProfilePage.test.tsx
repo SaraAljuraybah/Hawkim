@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { MemoryRouter } from 'react-router-dom'
-import { UserMenu } from '../components/layout/UserMenu'
+import { TopBar } from '../components/layout/TopBar'
 import { appShellEn } from '../content/app.en'
 import type { Department, User } from '../data/mock/types'
 import { isPathAllowed } from '../lib/departmentNavigation'
@@ -15,6 +15,8 @@ const fixture = vi.hoisted(() => ({
 vi.mock('../state/sessionContext', () => ({ useCurrentUser: () => fixture.user }))
 vi.mock('../state/activeDepartmentContext', () => ({ useActiveDepartment: () => ({ homeDepartment: fixture.home, activeDepartment: { id: 'other', name: 'Another Directory' } }) }))
 vi.mock('../services/auth', () => ({ sendPasswordResetEmail: vi.fn() }))
+vi.mock('../components/layout/NotificationsBell', () => ({ NotificationsBell: () => null }))
+vi.mock('../components/layout/DepartmentSwitcher', () => ({ DepartmentSwitcher: () => <button type="button">Department Switcher</button> }))
 
 const render = () => renderToStaticMarkup(<MemoryRouter><ProfilePage /></MemoryRouter>)
 
@@ -48,14 +50,26 @@ describe('My Profile', () => {
   })
 })
 
-describe('avatar menu', () => {
-  it('is a labelled menu button showing the initials, closed until used', () => {
-    const html = renderToStaticMarkup(<MemoryRouter><UserMenu content={appShellEn.userMenu} user={fixture.user} /></MemoryRouter>)
-    const button = html.match(/<button[^>]*>/)![0]
-    expect(button).toContain('aria-label="User Menu for Sara Aljuraybah"')
-    expect(button).toContain('aria-haspopup="menu"')
-    expect(button).toContain('aria-expanded="false"')
-    expect(html).toContain('>SA<')
-    expect(html).not.toContain('role="menu"')
+describe('top bar links to My Profile', () => {
+  const html = () => renderToStaticMarkup(<MemoryRouter><TopBar content={appShellEn} user={fixture.user} menuOpen={false} onOpenMenu={() => {}} menuButtonRef={{ current: null }} /></MemoryRouter>)
+  const links = () => html().match(/<a[^>]*href="\/profile"[^>]*>.*?<\/a>/g)!
+
+  it('makes the avatar the one real link, named for assistive technology', () => {
+    expect(links()).toHaveLength(2)
+    expect(links()[0]).toContain('aria-label="My Profile, Sara Aljuraybah"')
+    expect(links()[0]).not.toContain('tabindex')
+    expect(links()[0]).toContain('>SA<')
+  })
+
+  it('adds the name as a pointer-only link, hidden from keyboard and screen reader users', () => {
+    expect(links()[1]).toContain('tabindex="-1"')
+    expect(links()[1]).toContain('aria-hidden="true"')
+    expect(links()[1]).toContain('>Sara Aljuraybah<')
+  })
+
+  it('keeps the department switcher outside the links, with no menu on the avatar', () => {
+    expect(html()).toContain('>Department Switcher<')
+    for (const link of links()) expect(link).not.toContain('<button')
+    expect(html()).not.toContain('aria-haspopup="menu"')
   })
 })

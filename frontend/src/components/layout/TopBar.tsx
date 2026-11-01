@@ -1,10 +1,10 @@
 import type { Ref } from 'react'
+import { Link } from 'react-router-dom'
 import { Menu } from 'lucide-react'
 import type { AppShellContent } from '../../content/types'
 import type { User } from '../../data/mock/types'
 import { DepartmentSwitcher } from './DepartmentSwitcher'
 import { NotificationsBell } from './NotificationsBell'
-import { UserMenu } from './UserMenu'
 
 interface TopBarProps {
   content: AppShellContent
@@ -41,13 +41,27 @@ export function TopBar({ content, user, menuOpen, onOpenMenu, menuButtonRef }: T
 
           <span aria-hidden="true" className="h-8 w-px bg-beige" />
 
-          {/* Current user: the avatar opens their menu; the department switcher stays separate */}
+          {/* Current user: the avatar is the link to their profile; the department switcher stays separate */}
           <div className="flex items-center gap-3">
-            <UserMenu content={content.userMenu} user={user} />
+            <Link
+              to={content.profileLink.href}
+              aria-label={content.profileLink.label.replace('{name}', user.name)}
+              className="inline-flex size-10 shrink-0 items-center justify-center rounded-full bg-maroon text-sm font-semibold text-offwhite transition-colors hover:bg-maroon-secondary"
+            >
+              <span aria-hidden="true">{user.initials}</span>
+            </Link>
             <div className="leading-tight">
-              {/* On phones the name stays available to screen readers only; the
-                  department switcher moves into the mobile drawer. */}
-              <p className="sr-only text-sm font-medium text-maroon sm:not-sr-only">{user.name}</p>
+              {/* The same link for the mouse and touch, hidden on phones. Screen readers and the
+                  keyboard use the avatar's link, so they don't meet it twice. The department
+                  switcher moves into the mobile drawer on phones. */}
+              <Link
+                to={content.profileLink.href}
+                tabIndex={-1}
+                aria-hidden="true"
+                className="hidden text-sm font-medium text-maroon underline-offset-2 hover:underline sm:block"
+              >
+                {user.name}
+              </Link>
               <div className="hidden sm:block">
                 <DepartmentSwitcher content={content.departmentSwitcher} variant="topbar" />
               </div>
