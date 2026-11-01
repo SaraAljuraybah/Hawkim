@@ -1,20 +1,22 @@
-# Proposal: Riyadh working-day review deadlines
+# Riyadh working-day review deadlines
 
-**Status: NOT APPROVED. NOT APPLIED. NOT EXECUTED.** Nothing in this folder has been run against
-any database. Database integration of this proposal is unverified.
-
-This folder is deliberately outside `supabase/migrations/`, so `npx supabase db push` never
-applies these files. Only the database owner decides whether and when they are applied.
+**Status: APPROVED by the database owner on 1 November 2026. NOT APPLIED YET.** The two files are in
+`supabase/migrations/`, so the next `npx supabase db push` applies them. Neither they nor their SQL
+tests have been run against any database, so database integration is still unverified. The local
+SQL tests were skipped for this delivery. The frontend reads `deadline_policy`, so **apply these
+migrations before the frontend change reaches any running app**.
 
 ## Files
 
 | File | What it does |
 | --- | --- |
-| `20261029000000_review_deadline_helpers.sql` | Five pure calendar helpers (no table access, no `now()` inside): Riyadh date, add 1–30 working days, Riyadh end of day (23:59:59.999), review due moment, response due moment. Execute is revoked from `public`, `anon` and `authenticated`, like `riyadh_today()` / `riyadh_end_of_day()`. |
-| `20261029010000_internal_review_working_days.sql` | Adds `review_requests.deadline_policy`, and replaces three internal-review functions (`check_review_options`, `send_review_requests`, `accept_review`) so new requests use working days. |
+| `20261101120000_review_deadline_helpers.sql` | Five pure calendar helpers (no table access, no `now()` inside): Riyadh date, add 1–30 working days, Riyadh end of day (23:59:59.999), review due moment, response due moment. Execute is revoked from `public`, `anon` and `authenticated`, like `riyadh_today()` / `riyadh_end_of_day()`. |
+| `20261101120100_internal_review_working_days.sql` | Adds `review_requests.deadline_policy`, and replaces three internal-review functions (`check_review_options`, `send_review_requests`, `accept_review`) so new requests use working days. |
 
-Both files were first moved here unchanged (commit "move unapproved deadline migrations"), then
-corrected in a separate commit, so the original versions stay in the Git history.
+Both files were first moved to `supabase/proposals/` unchanged (commit "move unapproved deadline
+migrations"), then corrected in a separate commit, so the original versions stay in the Git history.
+After approval they moved to `supabase/migrations/` with new timestamps; only their header comments
+changed. `supabase/scripts/rollback_working_day_deadlines.sql` undoes them.
 
 ## The policy
 
@@ -24,7 +26,10 @@ corrected in a separate commit, so the original versions stay in the Git history
 - Review duration: optional, **1–30 working days**, counted after the Riyadh date of acceptance
   (that date not counted).
 - Every deadline ends at **23:59:59.999** Riyadh time (millisecond precision, matching JavaScript).
-- No public-holiday calendar.
+- Every new request gets a response deadline, so an unanswered request is always withdrawn in the end.
+
+**Known limitation: public holidays are not covered.** There is no holiday calendar, and that is out
+of scope for this delivery: a public holiday from Sunday to Thursday counts as a working day.
 
 ## What changes for existing data
 
@@ -34,6 +39,7 @@ corrected in a separate commit, so the original versions stay in the Git history
   never recalculated.
 - A `calendar-v1` request that is still pending and is accepted after the migration keeps its
   original calendar-day duration (this is why `deadline_policy` is needed).
+- A reviewer added to a round that was already open gets the new policy, so one round can hold both.
 - `withdraw_due()` / `withdraw_due_requests()` are unchanged: they compare against the saved
   `response_due_at`.
 
@@ -54,20 +60,22 @@ RLS policies, table grants, triggers, the public RPC grants, `create_sop`, title
 `withdraw_due`, every other function, and every existing row except the new column's default value.
 Function signatures and return values are unchanged, so current frontend calls keep working.
 
-## Before approving, the database owner should check
+## Before applying, the database owner should check
 
-1. The ordering: the helpers file first, then the working-days file, each with a new timestamp
-   later than the latest applied migration (currently `20261026150000_internal_review.sql`).
-2. That `create or replace` of the three functions matches the deployed versions apart from the
-   deadline lines (compare with `20261026150000_internal_review.sql`).
-3. The static companion tests `supabase/tests/calendar_helpers.sql` and
-   `supabase/tests/internal_review_rpc.sql` (updated to match; never executed). They are only for a
-   disposable local database, and only with explicit permission.
+1. That the latest applied migration is still `20261026150000_internal_review.sql`
+   (`npx supabase migration list`), and that the dry run lists exactly these two files.
+2. That the three deployed functions match `20261026150000_internal_review.sql`, so nothing changed
+   by hand is overwritten.
 
-## Activation (one approved change)
+The companion tests `supabase/tests/calendar_helpers.sql` and `supabase/tests/internal_review_rpc.sql`
+were never executed. They are only for a disposable local database, and only with explicit permission.
 
-1. Apply the two files (database owner, after approval).
-2. In the same change, set `WORKING_DAY_DEADLINES_ACTIVE = true` in
-   `frontend/src/lib/deadlinePolicy.ts`. That switches the Submit for Review dialog to the fixed
-   two-working-day date and working-day duration, and makes the app read `deadline_policy`.
-3. Until both are done, the app follows the approved backend and shows "pending activation".
+## Activation
+
+`WORKING_DAY_DEADLINES_ACTIVE` in `frontend/src/lib/deadlinePolicy.ts` is `true`, so the app reads
+`deadline_policy` and the Submit for Review dialog has no response date field.
+
+1. The database owner applies the two migrations first.
+2. The frontend change is pushed and deployed only after that.
+
+To roll back, set the switch to `false` first, then run the rollback script.

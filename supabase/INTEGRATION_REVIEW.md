@@ -5,6 +5,7 @@ The earlier version of this review (with `FRONTEND_PROTOTYPE = true`) is in the 
 
 **Database integration is unverified.** No SQL was executed, no migration was applied, and the
 shared Supabase project was not contacted. All tests below run locally against stand-ins.
+The working-day section was updated on 1 November 2026, when that change was approved.
 
 ## What runs on the real backend (from `develop`)
 
@@ -37,17 +38,18 @@ reload, as in `develop`. Note:
 - No Approver account currently exists in Supabase Auth (the seed lists approvers, but none can sign
   in). Treat Approver availability as unverified.
 
-## Deadlines: working-day policy pending activation
+## Deadlines: working-day policy approved, migrations not applied yet
 
-- Live now (matches the approved `20261026150000_internal_review.sql`): optional author-chosen
-  response date (today or later; tomorrow or later from 16:00), optional 1–30 **calendar** days of
-  review, deadlines shown exactly as saved. The Submit for Review dialog says the working-day policy
-  is pending activation.
-- Ready but switched off: `WORKING_DAY_DEADLINES_ACTIVE = false` in `frontend/src/lib/deadlinePolicy.ts`.
-  The working-day code (`lib/riyadhWorkingDays.ts`, `lib/fixedResponseDeadline.ts`) and its tests
-  are kept; those tests run with the switch mocked on.
-- Database proposal: `supabase/proposals/` (corrected; see `REVIEW_NOTES.md`). Never in
-  `supabase/migrations/` until approved.
+- `WORKING_DAY_DEADLINES_ACTIVE = true` in `frontend/src/lib/deadlinePolicy.ts`: a fixed response
+  deadline two working days after sending, set by the server, and an optional 1–30 **working** days
+  of review. The Submit for Review dialog has no response date field. Deadlines are shown as saved.
+- The app reads `review_requests.deadline_policy`, so `20261101120000` and `20261101120100` in
+  `supabase/migrations/` must be applied **before** this frontend runs anywhere; without the column
+  SOPs can't load. See `supabase/proposals/REVIEW_NOTES.md`.
+- Requests sent earlier stay `calendar-v1` with their saved deadlines and calendar-day duration.
+- Public holidays are not covered (a known limitation).
+- With the switch off, the app works without that column: no response date and calendar-day durations.
+  `supabase/scripts/rollback_working_day_deadlines.sql` is the matching database rollback.
 
 ## Agreed validation limits
 
@@ -66,7 +68,7 @@ Service and provider tests use mocked services (a stand-in database in
 statically. None of this proves RPC behaviour, RLS, grants or deployed compatibility.
 
 `supabase/tests/*.sql` and the CLI mode of `supabase/tests/calendar_parity.mjs` execute SQL; they
-were updated to match the corrected proposal but were **not executed**, and may only run against a
+were updated to match the migrations but were **not executed**, and may only run against a
 disposable local database with explicit permission. Never run them against the shared project.
 
 ## Remaining boundaries
