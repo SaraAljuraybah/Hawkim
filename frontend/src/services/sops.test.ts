@@ -124,11 +124,9 @@ describe('SOPs from the database', () => {
     const request = stored.review_rounds[0].review_requests[1]
     request.deadline_policy = null
     const assignment = toSop(stored).internalReviewRounds![0].assignments[0]
-    expect(assignment.responseCountsFromAt).toBeUndefined()
     expect(assignment.deadlinePolicy).toBeUndefined()
     expect(assignment.responseDueDate).toBe('2026-10-26')
     expect(assignment.reviewDueDate).toBe('2026-10-29')
-    expect(toSop(row).internalReviewRounds![0].assignments[0].responseCountsFromAt).toBeUndefined()
   })
 
   it('shows the latest round\'s reviewers in the shared views, and keeps the reviewer comments', () => {

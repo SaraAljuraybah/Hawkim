@@ -105,7 +105,7 @@ describe('internal parallel review requests', () => {
     expect(currentInternalRound(sop)).toMatchObject({ assignedDueDays: null })
     expect(currentInternalRound(sop)!.dueDate).toBeUndefined()
     expect(currentInternalRound(sop)!.assignments.every((assignment) => assignment.responseDueDate === '2026-10-26' && assignment.reviewDurationDays === 5 && !assignment.reviewDueDate)).toBe(true)
-    expect(currentInternalRound(sop)!.assignments.every((assignment) => assignment.deadlinePolicy === 'riyadh-working-days-v1' && assignment.responseCountsFromAt === '2026-10-25T05:00:00.000Z')).toBe(true)
+    expect(currentInternalRound(sop)!.assignments.every((assignment) => assignment.deadlinePolicy === 'riyadh-working-days-v1')).toBe(true)
     // Before acceptance the response due date applies, at the exact end of that Riyadh day.
     expect(reviewerDueAt(sop, task(sop, 'a'))).toBe(endOfRiyadhDay('2026-10-26'))
     expect(reviewTasks('a', [sop])[0].dueAt).toBe(endOfRiyadhDay('2026-10-26'))
@@ -128,10 +128,10 @@ describe('internal parallel review requests', () => {
   it('keeps the response date fixed across the working-hours cutoff and permits immediate acceptance', () => {
     vi.setSystemTime(new Date('2026-10-29T15:59:00+03:00'))
     const before = startInternalReview(draft(), 'author', '4.0', { reviewerIds: ['a'] }, env())
-    expect(task(before, 'a')).toMatchObject({ responseDueDate: '2026-11-02', responseCountsFromAt: '2026-10-29T12:59:00.000Z' })
+    expect(task(before, 'a')).toMatchObject({ responseDueDate: '2026-11-02' })
     vi.setSystemTime(new Date('2026-10-29T16:00:00+03:00'))
     const late = startInternalReview(draft(), 'author', '4.0', { reviewerIds: ['a', 'b'], reviewDurationDays: 5 }, env())
-    expect(task(late, 'a')).toMatchObject({ responseDueDate: '2026-11-02', responseCountsFromAt: '2026-11-01T05:00:00.000Z' })
+    expect(task(late, 'a')).toMatchObject({ responseDueDate: '2026-11-02' })
     expect(reviewerDueAt(late, task(late, 'a'))).toBe(endOfRiyadhDay('2026-11-02'))
     const accepted = accept(late, 'a')
     // The review duration is not affected: it counts from acceptance.
@@ -216,7 +216,8 @@ describe('internal parallel review requests', () => {
   it('keeps original time given separate from the running clock and explicit deadline simulation', () => {
     const source = start()
     const request = task(source, 'a')
-    const originalResponseTime = Date.parse(endOfRiyadhDay('2026-10-26')) - Date.parse('2026-10-25T05:00:00Z')
+    // Counted from the moment it was sent: there are no working hours in the policy.
+    const originalResponseTime = Date.parse(endOfRiyadhDay('2026-10-26')) - Date.parse(request.assignedAt!)
     expect(reviewerAssignedMilliseconds(source, request)).toBe(originalResponseTime)
     const shiftedResponse = shiftDueDates(source, 1)
     expect(reviewerDueAt(shiftedResponse, task(shiftedResponse, 'a'))).toBe(endOfRiyadhDay('2026-10-25'))
@@ -499,7 +500,7 @@ describe('automatic withdrawal of unanswered requests', () => {
     const blank = startInternalReview(draft(), 'author', '4.0', { reviewerIds: ['a', 'b'], reviewDurationDays: 1 }, env())
     // Simulate pre-policy saved requests that never had a response deadline.
     for (const request of currentInternalRound(blank)!.assignments) {
-      delete request.responseDueDate; delete request.responseDueAt; delete request.responseCountsFromAt; delete request.deadlinePolicy
+      delete request.responseDueDate; delete request.responseDueAt; delete request.deadlinePolicy
     }
     expect(withdrawUnanswered(blank, endOfDay(31) * 2)).toBe(blank)
     const accepted = accept(start(), 'a')

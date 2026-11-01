@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { fixedResponseDueDate } from './fixedResponseDeadline'
 import { isWithdrawalDue, requestDeadline, reviewDueDateFrom } from './internalReviewStatus'
-import { addRiyadhWorkingDays, endOfRiyadhDay, responseWorkingCountsFrom, reviewWorkingDueDateFrom, riyadhDate } from './riyadhWorkingDays'
+import { addRiyadhWorkingDays, endOfRiyadhDay, reviewWorkingDueDateFrom, riyadhDate } from './riyadhWorkingDays'
 
 describe('frontend Riyadh working-day allocations', () => {
   it.each([
@@ -23,18 +23,6 @@ describe('frontend Riyadh working-day allocations', () => {
     expect(riyadhDate(new Date('2026-10-28T21:00:00.000Z'))).toBe('2026-10-29')
     expect(reviewWorkingDueDateFrom('2026-10-28T20:59:59.999Z', 1)).toBe('2026-10-29')
     expect(reviewWorkingDueDateFrom('2026-10-28T21:00:00.000Z', 1)).toBe('2026-11-01')
-  })
-
-  it.each([
-    ['2026-10-25T06:30:00+03:00', '2026-10-25T08:00:00+03:00'],
-    ['2026-10-25T08:00:00+03:00', '2026-10-25T08:00:00+03:00'],
-    ['2026-10-25T15:59:59.999+03:00', '2026-10-25T15:59:59.999+03:00'],
-    ['2026-10-25T16:00:00+03:00', '2026-10-26T08:00:00+03:00'],
-    ['2026-10-29T16:00:00+03:00', '2026-11-01T08:00:00+03:00'],
-    ['2026-10-30T09:00:00+03:00', '2026-11-01T08:00:00+03:00'],
-    ['2026-10-31T09:00:00+03:00', '2026-11-01T08:00:00+03:00'],
-  ])('starts the original response allocation from working hours for %s', (sent, from) => {
-    expect(responseWorkingCountsFrom(new Date(sent)).toISOString()).toBe(new Date(from).toISOString())
   })
 
   it('keeps the fixed response allocation separate from the acceptance-based duration', () => {

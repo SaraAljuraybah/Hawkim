@@ -196,7 +196,6 @@ export type InternalReviewDecision = 'pending' | 'accepted' | 'declined' | 'with
 export interface InternalReviewerAssignment extends Omit<ReviewerAssignment, 'decision' | 'startedAt'> {
   /** Saved precise deadlines; new prototype requests calculate them in Riyadh, without server enforcement. */
   responseDueAt?: string
-  responseCountsFromAt?: string
   /** Missing on older in-memory requests; stored historical requests keep their original policy. */
   deadlinePolicy?: 'calendar-v1' | 'riyadh-working-days-v1'
   id: string

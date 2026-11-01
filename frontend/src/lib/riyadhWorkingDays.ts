@@ -81,15 +81,3 @@ export function endOfRiyadhDay(isoDate: string): string {
 export function reviewWorkingDueDateFrom(acceptedAt: string, days: number): string {
   return addRiyadhWorkingDays(riyadhDate(new Date(acceptedAt)), days)
 }
-
-/**
- * The response working-hours display rule for local (sample) working-day requests, in Riyadh.
- * Before 08:00 starts at 08:00; from 16:00 and on weekends starts at the next working day's 08:00.
- */
-export function responseWorkingCountsFrom(sentAt: Date): Date {
-  const date = riyadhDate(sentAt)
-  const weekday = dateOnly(date).getUTCDay()
-  const hour = riyadhHour(sentAt)
-  if (weekday === 5 || weekday === 6 || hour >= 16) return new Date(`${addRiyadhWorkingDays(date, 1)}T08:00:00.000+03:00`)
-  return hour < 8 ? new Date(`${date}T08:00:00.000+03:00`) : sentAt
-}

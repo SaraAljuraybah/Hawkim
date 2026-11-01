@@ -6,7 +6,7 @@ import { isInactiveDecision, isOpenDecision, isUnsentVersion, isValidReviewDurat
 import { eligibleReviewers, type ReviewEnvironment } from './reviewFlow'
 import { WORKING_DAY_DEADLINES_ACTIVE } from './deadlinePolicy'
 import { parseResponseDueDate } from './responseTime'
-import { endOfRiyadhDay, responseWorkingCountsFrom, reviewWorkingDueDateFrom, WORKING_DAY_POLICY } from './riyadhWorkingDays'
+import { endOfRiyadhDay, reviewWorkingDueDateFrom, WORKING_DAY_POLICY } from './riyadhWorkingDays'
 import { isAuthor, SUBMIT_COMMENT_MAX } from './workflow'
 
 export interface InternalReviewOptions {
@@ -94,7 +94,7 @@ function update(round: InternalReviewRound, assignmentId: string, change: Partia
  * optional response date today or later (tomorrow or later from 4:00 PM, see lib/responseTime)
  * and a whole-day duration. Existing records are never rewritten.
  */
-function deadlines(options: InternalReviewOptions, now = new Date()): Pick<InternalReviewerAssignment, 'responseDueDate' | 'responseDueAt' | 'responseCountsFromAt' | 'reviewDurationDays' | 'deadlinePolicy'> {
+function deadlines(options: InternalReviewOptions, now = new Date()): Pick<InternalReviewerAssignment, 'responseDueDate' | 'responseDueAt' | 'reviewDurationDays' | 'deadlinePolicy'> {
   if (!WORKING_DAY_DEADLINES_ACTIVE) {
     const chosen = options.responseDueDate?.trim() || undefined
     assert(parseResponseDueDate(chosen ?? '', now).valid, 'Choose an optional response due date today or later (tomorrow or later from 4:00 PM)')
@@ -104,7 +104,7 @@ function deadlines(options: InternalReviewOptions, now = new Date()): Pick<Inter
   }
   const responseDueDate = fixedResponseDueDate(now)
   assert(isValidReviewDuration(options.reviewDurationDays), 'Choose an optional review duration of 1 to 30 whole working days')
-  return { responseDueDate, responseDueAt: endOfRiyadhDay(responseDueDate), responseCountsFromAt: responseWorkingCountsFrom(now).toISOString(), deadlinePolicy: WORKING_DAY_POLICY,
+  return { responseDueDate, responseDueAt: endOfRiyadhDay(responseDueDate), deadlinePolicy: WORKING_DAY_POLICY,
     ...(options.reviewDurationDays !== undefined ? { reviewDurationDays: options.reviewDurationDays } : {}) }
 }
 function create(sop: Sop, actorId: string, options: InternalReviewOptions, kind: 'submitted' | 'resubmitted'): Sop {

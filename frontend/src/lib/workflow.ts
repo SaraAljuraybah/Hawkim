@@ -17,7 +17,7 @@ import { hasCurrentCheck } from './compliance'
 import { fixedResponseDueDate } from './fixedResponseDeadline'
 import { todayIsoDate } from './format'
 import { isInactiveDecision, isOpenDecision, isUnsentVersion, latestAssignments, projectReviewers, requestDeadline, reviewAllowsNewVersion } from './internalReviewStatus'
-import { endOfRiyadhDay, responseWorkingCountsFrom, reviewWorkingDueDateFrom, riyadhDate, WORKING_DAY_POLICY } from './riyadhWorkingDays'
+import { endOfRiyadhDay, reviewWorkingDueDateFrom, riyadhDate, WORKING_DAY_POLICY } from './riyadhWorkingDays'
 
 /*
  * SOP workflow rules (Sprint 0, PBI 2 / 3 / 6 / 8 / 12 / 22 / 24) as pure functions.
@@ -204,7 +204,7 @@ export function pendingPeople(
 
 /** A legacy reviewer assignment or an internal review request: what its deadline depends on. */
 export type DeadlineHolder = Pick<ReviewerAssignment, 'userId' | 'dueDate' | 'assignedDueDays'> & { assignedAt?: string } &
-  Partial<Pick<InternalReviewerAssignment, 'id' | 'acceptedAt' | 'responseDueDate' | 'reviewDueDate' | 'responseDueAt' | 'reviewDueAt' | 'responseCountsFromAt' | 'reviewDurationDays' | 'deadlinePolicy'>>
+  Partial<Pick<InternalReviewerAssignment, 'id' | 'acceptedAt' | 'responseDueDate' | 'reviewDueDate' | 'responseDueAt' | 'reviewDueAt' | 'reviewDurationDays' | 'deadlinePolicy'>>
 
 /** Original allocation, with compatibility for date-only and shared-deadline records. */
 export function reviewerAssignedDays(sop: Sop, reviewer: DeadlineHolder): number | undefined {
@@ -293,8 +293,7 @@ export function reviewerAssignedMilliseconds(sop: Sop, reviewer: DeadlineHolder)
   if (sop.internalReviewRounds?.length && reviewer.id && reviewer.deadlinePolicy === WORKING_DAY_POLICY && reviewer.assignedAt) {
     if (reviewer.acceptedAt) return reviewer.reviewDurationDays === undefined ? undefined
       : new Date(endOfRiyadhDay(reviewWorkingDueDateFrom(reviewer.acceptedAt, reviewer.reviewDurationDays))).getTime() - new Date(reviewer.acceptedAt).getTime()
-    const starts = reviewer.responseCountsFromAt ?? responseWorkingCountsFrom(new Date(reviewer.assignedAt)).toISOString()
-    return new Date(endOfRiyadhDay(fixedResponseDueDate(new Date(reviewer.assignedAt)))).getTime() - new Date(starts).getTime()
+    return new Date(endOfRiyadhDay(fixedResponseDueDate(new Date(reviewer.assignedAt)))).getTime() - new Date(reviewer.assignedAt).getTime()
   }
   const days = reviewerAssignedDays(sop, reviewer)
   if (days === undefined) return undefined
