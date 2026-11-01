@@ -1,6 +1,6 @@
--- NOT EXECUTED. Static companion to supabase/proposals/20261029000000_review_deadline_helpers.sql.
--- Only for a disposable LOCAL database, after the proposal is approved, and only with explicit
--- permission. Never run it against the shared Supabase project. No rows change.
+-- NOT EXECUTED. Static companion to supabase/migrations/20261101120000_review_deadline_helpers.sql.
+-- Only for a disposable LOCAL database, and only with explicit permission. Never run it against
+-- the shared Supabase project. No rows change.
 begin;
 set local plpgsql.check_asserts = on;
 set local time zone 'America/Los_Angeles';

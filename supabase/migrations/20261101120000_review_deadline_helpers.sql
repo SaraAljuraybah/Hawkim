@@ -1,7 +1,4 @@
--- PROPOSAL — NOT APPROVED, NOT APPLIED.
--- Lives in supabase/proposals/ so that `supabase db push` never picks it up. When the database
--- owner approves it, it moves to supabase/migrations/ with a timestamp later than the latest
--- applied migration, together with 20261029010000_internal_review_working_days.sql (this file first).
+-- Runs before 20261101120100_internal_review_working_days.sql. See supabase/proposals/REVIEW_NOTES.md.
 --
 -- Working-day calendar helpers for review deadlines (Riyadh working-day policy):
 -- - Time zone Asia/Riyadh; working days Sunday to Thursday; Friday and Saturday never count.

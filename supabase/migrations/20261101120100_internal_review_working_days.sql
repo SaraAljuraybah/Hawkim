@@ -1,6 +1,4 @@
--- PROPOSAL — NOT APPROVED, NOT APPLIED.
--- Lives in supabase/proposals/ so that `supabase db push` never picks it up. Requires
--- 20261029000000_review_deadline_helpers.sql first. See supabase/proposals/REVIEW_NOTES.md.
+-- Requires 20261101120000_review_deadline_helpers.sql first. See supabase/proposals/REVIEW_NOTES.md.
 --
 -- Switches NEW internal review requests to the Riyadh working-day policy:
 -- - Response deadline: fixed, the end (23:59:59.999 Riyadh) of the second working date after the
