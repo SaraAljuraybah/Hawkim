@@ -3,10 +3,10 @@
 Current state of `feat/frontend-ui-enhancements` after removing prototype mode (31 October 2026).
 The earlier version of this review (with `FRONTEND_PROTOTYPE = true`) is in the Git history.
 
-**Database integration is unverified, except the working-day deadlines.** This review executed no
-SQL, applied no migration and did not contact the shared Supabase project; all tests below run
-locally against stand-ins. The database owner applied the working-day migrations to the live project
-on 1 November 2026 and checked them there, see "Deadlines" below.
+**Database integration is unverified, except the working-day deadlines and the compliance check rule.**
+This review executed no SQL, applied no migration and did not contact the shared Supabase project;
+all tests below run locally against stand-ins. The database owner applied those two changes to the
+live project on 1 November 2026 and checked them there, see "Compliance check" and "Deadlines" below.
 
 ## What runs on the real backend (from `develop`)
 
@@ -21,8 +21,8 @@ Supabase paths again, with Dalal's new UI on top:
 - **Compliance check:** only where `departments.requires_compliance_check` is true
   (Pharmacovigilance), as the database enforces. The prototype "required for every SOP" rule was removed.
   One completed check per SOP version and GVP version: the page blocks the button, and
-  `20261101140000_compliance_check_once_per_version.sql` makes `start_compliance_check` refuse too
-  (not applied yet). A failed check or a newer GVP version can still run. It covers that function
+  `20261101140000_compliance_check_once_per_version.sql`, applied to the live project on 1 November
+  2026, makes `start_compliance_check` refuse too. A failed check or a newer GVP version can still run. It covers that function
   only, so a future service that writes `compliance_checks` directly with the secret key bypasses it.
   `supabase/scripts/rollback_compliance_check_once_per_version.sql` undoes it.
 - **Internal parallel review:** submit, add/remove reviewers, accept, decline, decide, respond,
