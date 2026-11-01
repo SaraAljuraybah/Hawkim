@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState, type FormEvent, type KeyboardEvent, type ReactNode } from 'react'
-import { LoaderCircle } from 'lucide-react'
+import { LoaderCircle, X } from 'lucide-react'
 import { Button } from './Button'
 
 interface FormDialogProps {
@@ -7,7 +7,10 @@ interface FormDialogProps {
   title: string
   description?: ReactNode
   confirmLabel: string
-  cancelLabel: string
+  /** The cancel button's text. Leave it out for a dialog closed with × (see closeLabel). */
+  cancelLabel?: string
+  /** Accessible name of a × close button in the top-right corner, in place of the cancel button. */
+  closeLabel?: string
   /**
    * Called when the form is submitted. Return false to keep the dialog open
    * (e.g. when a field is invalid); it may also be async (shows a busy state).
@@ -29,6 +32,7 @@ export function FormDialog({
   description,
   confirmLabel,
   cancelLabel,
+  closeLabel,
   onConfirm,
   onClose,
   children,
@@ -88,7 +92,7 @@ export function FormDialog({
     >
       {open && (
         <form noValidate onSubmit={handleSubmit} className="p-6">
-          <h2 id={titleId} className="text-lg">
+          <h2 id={titleId} className={closeLabel ? 'pr-10 text-lg' : 'text-lg'}>
             {title}
           </h2>
           {description && (
@@ -98,15 +102,28 @@ export function FormDialog({
           )}
           {children && <div className="mt-5 space-y-5">{children}</div>}
           <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-            <Button variant="secondary" onClick={() => dialogRef.current?.close()}>
-              {cancelLabel}
-            </Button>
+            {cancelLabel && (
+              <Button variant="secondary" onClick={() => dialogRef.current?.close()}>
+                {cancelLabel}
+              </Button>
+            )}
             <Button type="submit" aria-disabled={busy || undefined}>
               {busy && <LoaderCircle aria-hidden="true" className="size-4 motion-safe:animate-spin" strokeWidth={1.75} />}
               {confirmLabel}
             </Button>
           </div>
         </form>
+      )}
+      {/* After the form, so focus still starts on the first field. */}
+      {open && closeLabel && (
+        <button
+          type="button"
+          aria-label={closeLabel}
+          onClick={() => dialogRef.current?.close()}
+          className="absolute top-4 right-4 inline-flex size-9 items-center justify-center rounded-lg border border-beige text-maroon transition-colors hover:bg-beige"
+        >
+          <X aria-hidden="true" className="size-4" strokeWidth={2} />
+        </button>
       )}
     </dialog>
   )

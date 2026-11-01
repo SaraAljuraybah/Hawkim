@@ -101,7 +101,7 @@ export function InternalReviewPanel({ sop, canRemove, inactive = false, table = 
       </li>
     })}</ul>}
     {target && <FormDialog open title={text.panel.removeTitle.replace('{name}', nameOf(target.assignment.userId))}
-      description={text.panel.removeHelp} confirmLabel={text.panel.remove} cancelLabel={text.panel.removeKeep} onConfirm={remove} onClose={close}>
+      confirmLabel={text.panel.remove} closeLabel={text.panel.table.close} onConfirm={remove} onClose={close}>
       {error && <p role="alert" className="text-sm text-status-rejected-fg">{error}</p>}
       <TextAreaField ref={reasonRef} name="removalReason" label={text.panel.removeReason} required rows={4} maxLength={REVIEW_TEXT_MAX}
         error={reasonError || undefined} value={reason} onChange={(event) => { setReason(event.target.value); setReasonError(''); setError('') }} />

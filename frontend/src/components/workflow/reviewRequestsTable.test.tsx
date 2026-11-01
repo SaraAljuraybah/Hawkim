@@ -3,6 +3,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import type { Department, Sop, User } from '../../data/mock/types'
 import { acceptInternalReview, addInternalReviewers, currentInternalRound, decideInternalReview, declineInternalReview, removeInternalReviewer, startInternalReview } from '../../lib/internalReview'
 import { latestAssignmentOf } from '../../lib/internalReviewStatus'
+import { FormDialog } from '../ui/FormDialog'
 import { InternalReviewPanel } from './InternalReviewPanel'
 import { ReviewNotesDialog } from './ReviewNotesDialog'
 
@@ -134,5 +135,16 @@ describe('ReviewNotesDialog', () => {
     const heading = html.match(/<h2 id="([^"]+)"[^>]*>Comments from Reviewer Alpha<\/h2>/)!
     expect(html.match(/<dialog[^>]*>/)![0]).toContain(`aria-labelledby="${heading[1]}"`)
     for (const text of ['>Comments<', 'Revise section 2', 'Oct 4, 2026', '>Reason for Removing<', 'Not needed', 'Oct 5, 2026', '>Close<']) expect(html).toContain(text)
+  })
+})
+
+describe('Remove Reviewer dialog', () => {
+  it('offers the reason and a × close button, without the description or Keep Reviewer', () => {
+    const html = renderToStaticMarkup(<FormDialog open title="Remove Reviewer Alpha from This Review?" confirmLabel="Remove Reviewer" closeLabel="Close" onConfirm={() => {}} onClose={() => {}}><textarea name="removalReason" /></FormDialog>)
+    expect(html).toContain('aria-label="Close"')
+    expect(html.indexOf('removalReason')).toBeLessThan(html.indexOf('aria-label="Close"'))
+    expect(html.match(/<button/g)).toHaveLength(2)
+    expect(html).not.toContain('Keep Reviewer')
+    expect(html).not.toContain('aria-describedby')
   })
 })
