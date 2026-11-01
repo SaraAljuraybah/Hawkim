@@ -1,6 +1,6 @@
--- NOT EXECUTED. Static companion to the two files in supabase/proposals/.
--- Only for a disposable LOCAL Supabase/PostgreSQL database with all migrations plus the approved
--- proposals, and only with explicit permission. Never run it against the shared Supabase project.
+-- NOT EXECUTED. Static companion to the working-day deadline migrations (20261101120000, 20261101120100).
+-- Only for a disposable LOCAL Supabase/PostgreSQL database with all migrations, and only with
+-- explicit permission. Never run it against the shared Supabase project.
 -- Uses the real RPCs, auth.uid(), role ACLs, tables, RLS, and workflow helpers.
 -- All fixtures and workflow changes are rolled back.
 begin;
@@ -10,8 +10,9 @@ set local time zone 'Pacific/Auckland';
 -- The deadline helpers are internal (not executable by browser roles). This test calls them
 -- directly to compute expected values while acting as authenticated, so it grants them for this
 -- transaction only; the grant is rolled back with everything else.
-grant execute on function public.hawkim_riyadh_date(timestamptz), public.hawkim_riyadh_end_of_day(date),
-  public.hawkim_review_due_at(timestamptz, integer), public.hawkim_review_response_due_at(timestamptz) to authenticated;
+grant execute on function public.hawkim_riyadh_date(timestamptz), public.hawkim_add_working_days(date, integer),
+  public.hawkim_riyadh_end_of_day(date), public.hawkim_review_due_at(timestamptz, integer),
+  public.hawkim_review_response_due_at(timestamptz) to authenticated;
 
 create function pg_temp.expect_error(p_sql text, p_state text) returns void
 language plpgsql as $$
