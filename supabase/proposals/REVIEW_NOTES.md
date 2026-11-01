@@ -78,8 +78,8 @@ To roll back, set the switch to `false` first, then run the rollback script.
 
 # Reviewers from other departments
 
-**Status: not applied yet.** `20261102130000_other_department_reviewers.sql`, undone by
-`supabase/scripts/rollback_other_department_reviewers.sql`.
+**Status: APPLIED to the live project on 2 November 2026.** `20261102130000_other_department_reviewers.sql`,
+undone by `supabase/scripts/rollback_other_department_reviewers.sql`.
 
 - **Who can be asked:** the first send of each version goes only to the SOP's department. Other
   departments can be added, or sent an expired request again, once a reviewer from the SOP's department

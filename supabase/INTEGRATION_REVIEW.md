@@ -35,8 +35,8 @@ Supabase paths again, with Dalal's new UI on top:
   (`20261101150000_respond_to_one_reviewer.sql`, applied to the live project on 1 November 2026, with
   `PER_REVIEWER_RESPONSE_ACTIVE` on). `supabase/scripts/rollback_respond_to_one_reviewer.sql` undoes it.
 - **Changing a review deadline:** `20261101170000_review_deadline_event.sql` and
-  `20261101170100_change_review_deadline.sql` (not applied yet; `REVIEW_DEADLINE_EDITING_ACTIVE` is on,
-  and the app reads the new timeline columns, so apply them first). The main author can change or
+  `20261101170100_change_review_deadline.sql`, both applied to the live project on 1 November 2026,
+  with `REVIEW_DEADLINE_EDITING_ACTIVE` on. The main author can change or
   set the deadline of a request being reviewed, as working days from acceptance. The change is
   private like a response, but anyone who can view the version can still read the current deadline in
   `review_requests`. A calendar-v1 request moves to the working-day policy when edited. Review
@@ -107,7 +107,7 @@ disposable local database with explicit permission. Never run them against the s
 ## Remaining boundaries
 
 - Approval, administration and department access requests need tables, RPCs and RLS.
-- Reviewers from other departments: `20261102130000_other_department_reviewers.sql` (not applied yet).
+- Reviewers from other departments: `20261102130000_other_department_reviewers.sql`, applied to the live project on 2 November 2026.
   The Quality Document Controller is hidden from the reviewer list in the browser only, because that
   setting isn't in the database.
 - Unanswered requests expire when review functions are called or an SOP loads, not at a scheduled
