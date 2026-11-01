@@ -8,8 +8,7 @@ import type { ProfileContent, ResetPasswordContent } from './types'
 export const profileEn: ProfileContent = {
   pageTitle: 'My Profile | Hawkim',
   title: 'My Profile',
-  detailsTitle: 'Your Information',
-  fields: { name: 'Name', email: 'Email', department: 'Department', division: 'Division', roles: 'Roles' },
+  fields: { name: 'Name', email: 'Email', department: 'Department', division: 'Division', roles: 'Role' },
   none: '—',
   roles: { author: 'Author', reviewer: 'Reviewer', approver: 'Approver' },
   password: {

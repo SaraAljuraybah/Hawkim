@@ -188,7 +188,6 @@ export interface ProfileContent {
   /** Browser tab title. */
   pageTitle: string
   title: string
-  detailsTitle: string
   fields: { name: string; email: string; department: string; division: string; roles: string }
   /** Shown when a value isn't set. */
   none: string

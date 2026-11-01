@@ -45,7 +45,7 @@ export function ProfilePage() {
   return (
     <>
       <h1 className="text-2xl tracking-tight sm:text-3xl">{content.title}</h1>
-      <Card title={content.detailsTitle} titleId="profile-details-title" className="mt-6 max-w-2xl">
+      <Card className="mt-6 max-w-2xl">
         <dl className="grid gap-x-6 gap-y-3 text-sm sm:grid-cols-[10rem_minmax(0,1fr)]">
           {details.map(([label, value]) => (
             <div key={label} className="contents">

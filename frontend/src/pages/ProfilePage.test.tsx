@@ -25,7 +25,9 @@ beforeEach(() => { fixture.home.divisionId = undefined })
 describe('My Profile', () => {
   it('shows the user\'s own information from their home department, in one h1 page', () => {
     const html = render()
-    for (const text of ['Name', 'Sara Aljuraybah', 'Email', 'sara@example.test', 'Department', 'Pharmacovigilance', 'Division', 'Roles', 'Author, Reviewer']) expect(html).toContain(`>${text}<`)
+    for (const text of ['Name', 'Sara Aljuraybah', 'Email', 'sara@example.test', 'Department', 'Pharmacovigilance', 'Division', 'Role', 'Author, Reviewer']) expect(html).toContain(`>${text}<`)
+    expect(html).not.toContain('Your Information')
+    expect(html).not.toContain('>Roles<')
     expect(html.match(/<h1/g)).toHaveLength(1)
     expect(html).not.toContain('Another Directory')
     expect(html).not.toContain('<input')
