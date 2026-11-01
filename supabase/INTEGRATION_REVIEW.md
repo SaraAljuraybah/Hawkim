@@ -30,9 +30,15 @@ Supabase paths again, with Dalal's new UI on top:
   withdraw — each checks the browser rules first, then calls the RPC and reads the SOP again.
   A response from a reviewer's comments dialog goes only to that reviewer
   (`20261101150000_respond_to_one_reviewer.sql`, applied to the live project on 1 November 2026, with
-  `PER_REVIEWER_RESPONSE_ACTIVE` on). That is about the recipient and the notification: anyone who
-  can view that version can still read it in the timeline.
-  `supabase/scripts/rollback_respond_to_one_reviewer.sql` undoes it.
+  `PER_REVIEWER_RESPONSE_ACTIVE` on). `supabase/scripts/rollback_respond_to_one_reviewer.sql` undoes it.
+- **Private comments and responses:** `20261101160000_private_review_comments_and_responses.sql`
+  (not applied yet) limits reviewer comments (`sop_comments`, `role = 'reviewer'`) and responses
+  (`timeline_events`, `type = 'response'`) to the SOP's author, its co-authors and that reviewer, with
+  `can_read_review_note`. Until it is applied, anyone who can view a version can read them.
+  `supabase/scripts/rollback_private_review_comments_and_responses.sql` undoes it. Sample SOPs live
+  in the browser, so this doesn't cover them.
+  Other reviewers can still read decline reasons, removal reasons, each other's decisions and names
+  (`review_requests` and the other timeline events). Those are decided with the reviewer view rework.
 - **Identity isolation (Dalal's):** rows are reloaded per signed-in user; a previous user's database
   rows are cleared before the next user's load; late replies and stale callbacks are rejected.
 
@@ -49,6 +55,9 @@ reload, as in `develop`. Note:
   basis yet), so the approval flow cannot be completed end to end on database SOPs.
 - No Approver account currently exists in Supabase Auth (the seed lists approvers, but none can sign
   in). Treat Approver availability as unverified.
+- Decided for when approval moves to the database: an Approver may read a response addressed to their
+  own comment (`can_read_review_note` already allows anyone in `recipient_ids`), and Approvers don't
+  read reviewer comments.
 
 ## Deadlines: working-day policy live since 1 November 2026
 
@@ -76,8 +85,8 @@ reload, as in `develop`. Note:
 From `frontend/`: `npm test`, `npm run test:calendar`, `npm run lint`, `npx tsc -b`, `npm run build`.
 Service and provider tests use mocked services (a stand-in database in
 `state/SopsProvider.isolation.test.tsx`); `services/reviewSchemaContract.test.ts`,
-`services/complianceSchemaContract.test.ts` and `services/responseSchemaContract.test.ts` check SQL
-text statically. None of this proves RPC behaviour, RLS, grants or deployed compatibility.
+`services/complianceSchemaContract.test.ts`, `services/responseSchemaContract.test.ts` and
+`services/reviewPrivacyContract.test.ts` check SQL text statically. None of this proves RPC behaviour, RLS, grants or deployed compatibility.
 
 `supabase/tests/*.sql` and the CLI mode of `supabase/tests/calendar_parity.mjs` execute SQL; they
 were updated to match the migrations but were **not executed**, and may only run against a
