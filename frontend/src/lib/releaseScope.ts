@@ -16,6 +16,7 @@ const RELEASE_1_TIMELINE_TYPES: readonly TimelineEventType[] = [
   'compliance-check-failed',
   'submitted',
   'resubmitted',
+  'response',
 ]
 
 /** The events a release-scoped timeline shows (see RELEASE_1_TIMELINE_ONLY). */

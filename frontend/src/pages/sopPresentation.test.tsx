@@ -57,6 +57,23 @@ beforeEach(() => {
   fixture.sop = { ...sops[0], id: 'test', code: 'SOP-SECRET', title: 'Visible Procedure', departmentId: 'home', authorId: 'author', coAuthorIds: ['coauthor'], status: 'draft', version: '1', fileName: 'SOP-SECRET.pdf', fileUrl: 'blob:document', fileType: 'pdf', description: 'Line one\nLine two', versions: [{ version: '1', fileName: 'SOP-SECRET.pdf', fileType: 'pdf', uploadedAt: '2026-10-29T08:00:00Z', uploadedById: 'author', fileUrl: 'blob:document' }], reviewers: [], approvers: [], internalReviewRounds: undefined, reviewFlow: undefined, comments: [], timeline: [], complianceChecks: [] }
 })
 
+describe('the review page when the database hides another reviewer\'s comment', () => {
+  it('renders the request and its timeline event without the comment, and the empty comments message', () => {
+    const version = fixture.sop!.version
+    const request = (id: string, userId: string) => ({ id, userId, decision: 'returned' as const, assignedAt: '2026-10-29T08:00:00Z', assignedDueDays: null, commentId: 'hidden-' + id })
+    const source = reviewSop()
+    fixture.sop = {
+      ...source, version, comments: [],
+      internalReviewRounds: [{ id: 'round', scope: 'internal', version, status: 'changes-requested', requestedById: 'author', requestedAt: '2026-10-29T08:00:00Z', assignedDueDays: null, assignments: [request('own', 'reviewer'), request('other', 'coauthor')] }],
+      timeline: [...source.timeline, { id: 'returned', type: 'review-changes-requested', actorId: 'coauthor', version, commentId: 'hidden-other', createdAt: '2026-10-29T09:00:00Z' }],
+    }
+    fixture.userId = 'reviewer'
+    const html = render(<ReviewPage />)
+    expect(html).toContain('Visible Procedure')
+    expect(html).toContain(sopWorkflowEn.comments.empty)
+  })
+})
+
 describe('SOP title presentation without exposing generated serial numbers', () => {
   it('uses titles in directory cards, rows, workflow/details, review metadata, reports and page titles', () => {
     for (const component of [<SopGrid key="grid" sops={[fixture.sop!]} content={sopsEn} />, <SopList key="list" sops={[fixture.sop!]} content={sopsEn} />, <SopWorkflowPage key="workflow" />, <ComplianceReportPage key="report" />]) {

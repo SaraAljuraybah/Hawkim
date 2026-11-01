@@ -41,7 +41,8 @@ export function reviewSopForUser(sop: Sop, userId: string): { sop: Sop; historic
       versions,
       complianceChecks: sop.complianceChecks.filter((check) => visible(check.version)),
       comments: sop.comments.filter((comment) => visible(comment.version)),
-      timeline: sop.timeline.filter((event) => visible(event.version)),
+      // A response stays with the reviewer it's addressed to: older ones were saved on the current version.
+      timeline: sop.timeline.filter((event) => visible(event.version) || (event.type === 'response' && !!event.recipientIds?.includes(userId))),
       internalReviewRounds: visibleRounds,
       approvalSubmissions: sop.approvalSubmissions?.filter((submission) => visible(submission.version)),
       externalReviewGate: sop.externalReviewGate && visible(sop.externalReviewGate.version) ? sop.externalReviewGate : undefined,
