@@ -28,7 +28,7 @@ import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { checkRequired, checkStartFailure, currentCheck, hasCurrentCheck, isCheckRunning } from '../lib/compliance'
 import { approvalReadiness, type ApprovalReadiness } from '../lib/approval'
 import { hasResponseOutsideReviewers, requestResponseRecipients } from '../lib/reviewRequestRows'
-import { canAddReviewers, canSendNewVersion, currentInternalRound, type ReviewPhaseItem } from '../lib/internalReview'
+import { canAddReviewers, canSendNewVersion, type ReviewPhaseItem } from '../lib/internalReview'
 import { reviewAllowsNewVersion } from '../lib/internalReviewStatus'
 import { formatDate } from '../lib/format'
 import { hasPermission } from '../lib/permissions'
@@ -464,9 +464,6 @@ export function SopWorkflowPage() {
           )
         }
       >
-        {isMainAuthor && sop.status === 'in-review' && currentInternalRound(sop)?.status === 'completed' && (
-          <p className="mb-4 text-sm leading-relaxed text-text-gray">{internalReviewEn.panel.externalPending}</p>
-        )}
         {isMainAuthor && (canSubmit && submitReason || requestReason) && (
           <p id="submit-hint" className="mb-4 text-sm text-text-gray">
             {canSubmit ? submitReason : requestReason}

@@ -68,7 +68,6 @@ export const internalReviewEn = {
     inactiveDeadline: 'Saved deadline; this request is no longer active.',
     responseRemaining: 'Time to respond: {duration}',
     expiredResponse: 'Response deadline passed.',
-    externalPending: 'Additional department review is optional and controlled by the Author. Department selection remains pending the team\'s agreed routing contract. This prototype does not send external requests. If none are required, use the existing approval confirmation.',
     sent: 'Request sent {date}', version: 'Version v{version}', reviewerHistory: 'Review requests for {name}',
     decided: 'Decision submitted {date}', accepted: 'Accepted {date}',
     declined: 'Declined {date}', declineReason: 'Reason: {reason}',
