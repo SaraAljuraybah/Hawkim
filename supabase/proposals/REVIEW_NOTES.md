@@ -1,10 +1,10 @@
 # Riyadh working-day review deadlines
 
-**Status: APPROVED by the database owner on 1 November 2026. NOT APPLIED YET.** The two files are in
-`supabase/migrations/`, so the next `npx supabase db push` applies them. Neither they nor their SQL
-tests have been run against any database, so database integration is still unverified. The local
-SQL tests were skipped for this delivery. The frontend reads `deadline_policy`, so **apply these
-migrations before the frontend change reaches any running app**.
+**Status: APPLIED to the live project on 1 November 2026, with `WORKING_DAY_DEADLINES_ACTIVE` on.**
+The database owner approved and applied the two files in `supabase/migrations/`. Afterwards the
+existing rows were `calendar-v1` and unchanged, the calculation and permissions were correct, and a
+new request in the browser got the right response and review deadlines. The SQL tests in
+`supabase/tests/` were skipped for this delivery and have never been executed.
 
 ## Files
 
@@ -60,12 +60,7 @@ RLS policies, table grants, triggers, the public RPC grants, `create_sop`, title
 `withdraw_due`, every other function, and every existing row except the new column's default value.
 Function signatures and return values are unchanged, so current frontend calls keep working.
 
-## Before applying, the database owner should check
-
-1. That the latest applied migration is still `20261026150000_internal_review.sql`
-   (`npx supabase migration list`), and that the dry run lists exactly these two files.
-2. That the three deployed functions match `20261026150000_internal_review.sql`, so nothing changed
-   by hand is overwritten.
+## SQL tests
 
 The companion tests `supabase/tests/calendar_helpers.sql` and `supabase/tests/internal_review_rpc.sql`
 were never executed. They are only for a disposable local database, and only with explicit permission.
@@ -74,8 +69,5 @@ were never executed. They are only for a disposable local database, and only wit
 
 `WORKING_DAY_DEADLINES_ACTIVE` in `frontend/src/lib/deadlinePolicy.ts` is `true`, so the app reads
 `deadline_policy` and the Submit for Review dialog has no response date field.
-
-1. The database owner applies the two migrations first.
-2. The frontend change is pushed and deployed only after that.
 
 To roll back, set the switch to `false` first, then run the rollback script.
