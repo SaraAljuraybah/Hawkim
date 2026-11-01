@@ -6,9 +6,15 @@ import { addRiyadhCalendarDays, riyadhDate } from './riyadhWorkingDays'
  * and the internal review transitions (no imports from either, so both can use them). Pure functions.
  */
 
-/** A review duration is a whole number of days in this range (calendar days now; working days once activated). */
+/**
+ * A review duration is a whole number of working days in this range. The maximum is a technical
+ * limit, far above real use, so the date stays one the database and the browser can handle.
+ */
 export const REVIEW_DURATION_MIN = 1
-export const REVIEW_DURATION_MAX = 30
+export const REVIEW_DURATION_MAX = 3650
+
+/** Above this many working days the author confirms the number, in case of a typing mistake. */
+export const REVIEW_DURATION_CONFIRM_ABOVE = 60
 
 /** Whether a review duration is allowed (blank, i.e. undefined, means no review deadline). */
 export function isValidReviewDuration(days: number | undefined): boolean {

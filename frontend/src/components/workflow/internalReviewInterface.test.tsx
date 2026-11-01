@@ -146,7 +146,7 @@ describe('internal parallel review across transitions and detail views', () => {
     const duration = html.match(/<input[^>]*name="reviewDurationDays"[^>]*>/)![0]
     expect(duration).toContain('type="number"')
     expect(duration).toContain('min="1"')
-    expect(duration).toContain('max="30"')
+    expect(duration).toContain('max="3650"')
     expect(duration).toContain('aria-describedby=')
     expect(html).toContain('Review Duration in Working Days (Optional)')
     expect(html).toContain(internalReviewEn.submit.durationHelp)

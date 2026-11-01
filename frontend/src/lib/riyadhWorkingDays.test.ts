@@ -18,6 +18,20 @@ describe('frontend Riyadh working-day allocations', () => {
     expect(reviewWorkingDueDateFrom(`${start}T15:00:00+03:00`, days)).toBe(due)
   })
 
+  it('gives the same date as counting one day at a time, from every weekday, up to the limit', () => {
+    const counted = (start: string, days: number) => {
+      let date = new Date(`${start}T00:00:00.000Z`)
+      for (let remaining = days; remaining > 0;) {
+        date = new Date(date.getTime() + 24 * 60 * 60 * 1000)
+        if (date.getUTCDay() !== 5 && date.getUTCDay() !== 6) remaining -= 1
+      }
+      return date.toISOString().slice(0, 10)
+    }
+    for (const start of ['2026-10-25', '2026-10-26', '2026-10-27', '2026-10-28', '2026-10-29', '2026-10-30', '2026-10-31']) {
+      for (const days of [1, 2, 3, 4, 5, 6, 7, 10, 11, 31, 60, 61, 365, 3650]) expect(addRiyadhWorkingDays(start, days)).toBe(counted(start, days))
+    }
+  })
+
   it('uses the Riyadh date across UTC midnight independently of the execution timezone', () => {
     expect(riyadhDate(new Date('2026-10-28T20:59:59.999Z'))).toBe('2026-10-28')
     expect(riyadhDate(new Date('2026-10-28T21:00:00.000Z'))).toBe('2026-10-29')

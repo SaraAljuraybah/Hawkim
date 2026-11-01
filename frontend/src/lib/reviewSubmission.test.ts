@@ -13,7 +13,7 @@ describe('review request form validation', () => {
     expect(prepare(selected, '', '')).toEqual({ error: 'reviewers' })
   })
 
-  it.each(['0', '31', '-1', '1.5', 'NaN', 'invalid'])('rejects unsupported duration %s', (days) => {
+  it.each(['0', '3651', '-1', '1.5', 'NaN', 'invalid'])('rejects unsupported duration %s', (days) => {
     expect(prepare(['first'], days, '')).toEqual({ error: 'duration' })
   })
 

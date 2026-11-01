@@ -114,12 +114,12 @@ describe.each(['UTC', 'Asia/Riyadh', 'America/Los_Angeles', 'Pacific/Auckland'])
     expect(parseResponseDueDate('   ', now)).toEqual({ valid: true })
   })
 
-  it('accepts review durations of 1 and 30 calendar days and rejects 0 and 31', () => {
-    for (const days of [1, 30]) {
+  it('accepts review durations of 1 and 3,650 days and rejects 0 and 3,651', () => {
+    for (const days of [1, 3650]) {
       expect(isValidReviewDuration(days)).toBe(true)
       expect(prepareReviewSubmission(['r1'], ['r1'], String(days), '')).toHaveProperty('options.reviewDurationDays', days)
     }
-    for (const days of [0, 31]) {
+    for (const days of [0, 3651]) {
       expect(isValidReviewDuration(days)).toBe(false)
       expect(prepareReviewSubmission(['r1'], ['r1'], String(days), '')).toEqual({ error: 'duration' })
     }

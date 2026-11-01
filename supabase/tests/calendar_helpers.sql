@@ -69,7 +69,7 @@ begin
   assert public.hawkim_review_due_at(timestamptz '2026-10-29 21:30:00+00', 2)
     = timestamptz '2026-11-02 23:59:59.999+03', 'Session timezone must not affect deadlines';
 
-  foreach duration in array array[0, 31] loop
+  foreach duration in array array[0, 3651] loop
     rejected := false;
     begin perform public.hawkim_review_due_at(now(), duration);
     exception when invalid_parameter_value then rejected := true; end;

@@ -19,10 +19,12 @@ export const internalReviewEn = {
     duration: 'Review Duration in Days (Optional)',
     durationHelp: 'Counted from when the reviewer accepts the request, excluding weekends.',
     durationWorkingDays: 'Review Duration in Working Days (Optional)',
-    durationInvalid: 'Enter a whole number of days from 1 to 30, or leave it blank.',
+    durationInvalid: 'Enter a whole number of days from 1 to 3,650, or leave it blank.',
+    durationLong: 'That is more than {count} working days. Check the number, then confirm.',
     note: 'Submission Note (Optional)',
     noteServiceLimit: 'Comments must be at most 500 characters. Shorten your comments before submitting; your draft has been kept.',
     confirm: 'Submit',
+    confirmLong: 'Confirm and Submit',
     cancel: 'Cancel',
   } satisfies InternalReviewSubmitContent,
   actions: {

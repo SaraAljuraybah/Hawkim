@@ -204,7 +204,7 @@ export interface InternalReviewerAssignment extends Omit<ReviewerAssignment, 'de
   assignedAt: string
   /** Deadline date to accept or decline; use responseDueAt when present and retain legacy date semantics otherwise. */
   responseDueDate?: string
-  /** Optional duration (1–30): working days for tagged new requests, calendar days for historical requests. */
+  /** Optional duration (1–3,650): working days for tagged new requests, calendar days for historical requests. */
   reviewDurationDays?: number
   /** When the reviewer accepted the request. */
   acceptedAt?: string

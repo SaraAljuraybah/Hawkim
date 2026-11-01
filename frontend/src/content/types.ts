@@ -483,9 +483,12 @@ export interface InternalReviewSubmitContent {
   durationHelp: string
   durationWorkingDays: string
   durationInvalid: string
+  /** `{count}` is replaced. */
+  durationLong: string
   note: string
   noteServiceLimit: string
   confirm: string
+  confirmLong: string
   cancel: string
 }
 

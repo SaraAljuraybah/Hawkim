@@ -115,13 +115,13 @@ describe('internal parallel review requests', () => {
     expect(reviewerDueAt(accept(blank, 'a'), task(accept(blank, 'a'), 'a'))).toBeUndefined()
     expect(currentDueAt(blank)).toBe(endOfRiyadhDay('2026-10-26'))
   })
-  it('ignores any chosen response date, and requires a whole-number duration from 1 to 30 working days', () => {
+  it('ignores any chosen response date, and requires a whole-number duration from 1 to 3,650 working days', () => {
     const expected = fixedResponseDueDate()
     for (const responseDueDate of ['2026-10-22', '2027-01-15', 'invalid']) {
       expect(task(startInternalReview(draft(), 'author', '4.0', { reviewerIds: ['a'], responseDueDate }, env()), 'a').responseDueDate).toBe(expected)
     }
-    for (const reviewDurationDays of [1, 30]) expect(() => startInternalReview(draft(), 'author', '4.0', { reviewerIds: ['a'], reviewDurationDays }, env())).not.toThrow()
-    for (const reviewDurationDays of [0, 31, 2.5, -1, Number.NaN]) {
+    for (const reviewDurationDays of [1, 31, 3650]) expect(() => startInternalReview(draft(), 'author', '4.0', { reviewerIds: ['a'], reviewDurationDays }, env())).not.toThrow()
+    for (const reviewDurationDays of [0, 3651, 2.5, -1, Number.NaN]) {
       expect(() => startInternalReview(draft(), 'author', '4.0', { reviewerIds: ['a'], reviewDurationDays }, env())).toThrow(/duration/)
     }
   })
@@ -347,7 +347,7 @@ describe('returns, removals, new versions and immutable history', () => {
     expect(addableReviewers(sop, env().users).map((user) => user.id)).toEqual(['a'])
     for (const reviewerIds of [['b'], ['a', 'b'], ['author'], ['other']]) expect(() => addInternalReviewers(sop, 'author', { reviewerIds }, env())).toThrow()
     for (const actor of ['coauthor', 'a', 'admin']) expect(() => addInternalReviewers(sop, actor, { reviewerIds: ['a'] }, env())).toThrow()
-    expect(() => addInternalReviewers(sop, 'author', { reviewerIds: ['a'], reviewDurationDays: 31 }, env())).toThrow(/duration/)
+    expect(() => addInternalReviewers(sop, 'author', { reviewerIds: ['a'], reviewDurationDays: 3651 }, env())).toThrow(/duration/)
     expect(task(addInternalReviewers(sop, 'author', { reviewerIds: ['a'] }, env()), 'a').decision).toBe('pending')
     const withdrawn = withdrawUnanswered(start(), new Date(2026, 9, 28, 23, 59, 59, 999).getTime())
     expect(addableReviewers(withdrawn, env().users).map((user) => user.id)).toEqual(['a', 'b', 'c'])

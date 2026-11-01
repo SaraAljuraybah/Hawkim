@@ -17,7 +17,7 @@ export interface InternalReviewOptions {
    * active the date is fixed at two working days and the server sets it, so this is ignored.
    */
   responseDueDate?: string
-  /** Optional review duration (whole working days, 1–30; calendar days if the switch is off), counted from each reviewer's acceptance. */
+  /** Optional review duration (whole working days, 1–3,650; calendar days if the switch is off), counted from each reviewer's acceptance. */
   reviewDurationDays?: number
   note?: string
 }
@@ -98,12 +98,12 @@ function deadlines(options: InternalReviewOptions, now = new Date()): Pick<Inter
   if (!WORKING_DAY_DEADLINES_ACTIVE) {
     const chosen = options.responseDueDate?.trim() || undefined
     assert(parseResponseDueDate(chosen ?? '', now).valid, 'Choose an optional response due date today or later (tomorrow or later from 4:00 PM)')
-    assert(isValidReviewDuration(options.reviewDurationDays), 'Choose an optional review duration of 1 to 30 whole days')
+    assert(isValidReviewDuration(options.reviewDurationDays), 'Choose an optional review duration of 1 to 3,650 whole days')
     // The end of the chosen day in Riyadh, as send_review_requests saves it (riyadh_end_of_day).
     return { ...(chosen ? { responseDueDate: chosen, responseDueAt: endOfRiyadhDay(chosen) } : {}), ...(options.reviewDurationDays !== undefined ? { reviewDurationDays: options.reviewDurationDays } : {}) }
   }
   const responseDueDate = fixedResponseDueDate(now)
-  assert(isValidReviewDuration(options.reviewDurationDays), 'Choose an optional review duration of 1 to 30 whole working days')
+  assert(isValidReviewDuration(options.reviewDurationDays), 'Choose an optional review duration of 1 to 3,650 whole working days')
   return { responseDueDate, responseDueAt: endOfRiyadhDay(responseDueDate), deadlinePolicy: WORKING_DAY_POLICY,
     ...(options.reviewDurationDays !== undefined ? { reviewDurationDays: options.reviewDurationDays } : {}) }
 }

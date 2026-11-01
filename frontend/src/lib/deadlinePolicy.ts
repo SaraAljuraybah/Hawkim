@@ -1,6 +1,6 @@
 /**
  * The single activation switch for the Riyadh working-day deadline policy
- * (2 working days to respond; optional 1–30 working days to review; Sunday to Thursday; Asia/Riyadh).
+ * (2 working days to respond; optional 1–3,650 working days to review; Sunday to Thursday; Asia/Riyadh).
  *
  * ACTIVE. New review requests get a fixed response deadline and a review duration in working days,
  * set by the server (supabase/migrations/20261101120100_internal_review_working_days.sql). Requests

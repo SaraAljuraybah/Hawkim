@@ -43,8 +43,8 @@ describe('the internal review in the database', () => {
     expect(rpc).not.toHaveBeenCalled()
   })
 
-  it.each([0, -1, 31, 1.5, NaN])('rejects an invalid working-day allocation %s without an RPC', async (reviewDurationDays) => {
-    await expect(submitReview('uuid-sop', { reviewerIds: ['uuid-noura'], reviewDurationDays })).rejects.toThrow(/1 to 30/)
+  it.each([0, -1, 3651, 1.5, NaN])('rejects an invalid working-day allocation %s without an RPC', async (reviewDurationDays) => {
+    await expect(submitReview('uuid-sop', { reviewerIds: ['uuid-noura'], reviewDurationDays })).rejects.toThrow(/1 to 3,650/)
     expect(rpc).not.toHaveBeenCalled()
   })
 

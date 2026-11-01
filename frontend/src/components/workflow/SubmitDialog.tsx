@@ -5,7 +5,7 @@ import { internalReviewEn } from '../../content/internalReview.en'
 import type { Sop } from '../../data/mock/types'
 import { addableReviewers } from '../../lib/internalReview'
 import { WORKING_DAY_DEADLINES_ACTIVE } from '../../lib/deadlinePolicy'
-import { REVIEW_DURATION_MAX, REVIEW_DURATION_MIN } from '../../lib/internalReviewStatus'
+import { REVIEW_DURATION_CONFIRM_ABOVE, REVIEW_DURATION_MAX, REVIEW_DURATION_MIN } from '../../lib/internalReviewStatus'
 import { eligibleReviewers } from '../../lib/reviewFlow'
 import { REVIEW_NOTE_EDITOR_MAX, prepareReviewSubmission } from '../../lib/reviewSubmission'
 import { useDepartments } from '../../state/departmentsContext'
@@ -43,6 +43,7 @@ export function SubmitDialog({ sop, content, onSubmit, onClose, mode = 'submit' 
   const [note, setNote] = useState('')
   const [error, setError] = useState('')
   const [durationError, setDurationError] = useState('')
+  const [confirmLong, setConfirmLong] = useState(false)
   const [noteError, setNoteError] = useState('')
   const [failed, setFailed] = useState(false)
   const firstRef = useRef<HTMLInputElement>(null)
@@ -66,11 +67,17 @@ export function SubmitDialog({ sop, content, onSubmit, onClose, mode = 'submit' 
       noteRef.current?.focus()
       return false
     }
+    // A long duration may be a typing mistake: the first press asks, the second sends.
+    if ((result.options.reviewDurationDays ?? 0) > REVIEW_DURATION_CONFIRM_ABOVE && !confirmLong) {
+      flushSync(() => setConfirmLong(true))
+      durationRef.current?.focus()
+      return false
+    }
     try { await onSubmit(result.options) }
     catch { flushSync(() => setFailed(true)); return false }
   }
   return (
-    <FormDialog open title={text.title} confirmLabel={text.confirm} cancelLabel={content.cancel} onConfirm={confirm} onClose={onClose}>
+    <FormDialog open title={text.title} confirmLabel={confirmLong ? text.confirmLong : text.confirm} cancelLabel={content.cancel} onConfirm={confirm} onClose={onClose}>
       {mode === 'add' && <p className="text-sm text-text-gray">{text.addIntro.replace('{version}', sop.version)}</p>}
       {mode === 'version' && <p className="text-sm text-maroon">{text.versionIntro.replace('{version}', sop.version)}</p>}
       {failed && <p role="alert" className="text-sm text-status-rejected-fg">{fields.errors.submitFailed}</p>}
@@ -85,7 +92,8 @@ export function SubmitDialog({ sop, content, onSubmit, onClose, mode = 'submit' 
       <TextField ref={durationRef} name="reviewDurationDays" type="number" inputMode="numeric" min={REVIEW_DURATION_MIN} max={REVIEW_DURATION_MAX} step={1}
         label={WORKING_DAY_DEADLINES_ACTIVE ? text.durationWorkingDays : text.duration}
         hint={text.durationHelp} value={duration} error={durationError || undefined}
-        onChange={(event) => { setDuration(event.target.value); setDurationError(''); setFailed(false) }} />
+        onChange={(event) => { setDuration(event.target.value); setDurationError(''); setConfirmLong(false); setFailed(false) }} />
+      {confirmLong && <p role="alert" className="text-sm text-maroon">{text.durationLong.replace('{count}', String(REVIEW_DURATION_CONFIRM_ABOVE))}</p>}
       <TextAreaField ref={noteRef} name="note" rows={3} label={fields.note.label}
         error={noteError || undefined} placeholder={fields.note.placeholder} maxLength={REVIEW_NOTE_EDITOR_MAX} resizable={false}
         counter={fields.note.counter.replace('{count}', String(note.length)).replace('{max}', String(REVIEW_NOTE_EDITOR_MAX))}

@@ -63,7 +63,10 @@ export function riyadhDateAt(isoDate: string, hour: number): Date {
 export function addRiyadhWorkingDays(isoDate: string, days: number): string {
   if (!Number.isInteger(days) || days < 0) throw new Error('A non-negative whole working-day duration is required')
   let date = dateOnly(isoDate)
-  let remaining = days
+  if (days === 0) return isoDate
+  // Any 7 days in a row hold 5 working days, so whole weeks are arithmetic; at most 5 remain.
+  date = new Date(date.getTime() + Math.floor((days - 1) / 5) * 7 * DAY_MS)
+  let remaining = (days - 1) % 5 + 1
   while (remaining > 0) {
     date = new Date(date.getTime() + DAY_MS)
     if (date.getUTCDay() !== 5 && date.getUTCDay() !== 6) remaining -= 1
