@@ -20,6 +20,11 @@ Supabase paths again, with Dalal's new UI on top:
   10-minute signed links again (`services/files.ts`), not prototype-only URLs.
 - **Compliance check:** only where `departments.requires_compliance_check` is true
   (Pharmacovigilance), as the database enforces. The prototype "required for every SOP" rule was removed.
+  One completed check per SOP version and GVP version: the page blocks the button, and
+  `20261101140000_compliance_check_once_per_version.sql` makes `start_compliance_check` refuse too
+  (not applied yet). A failed check or a newer GVP version can still run. It covers that function
+  only, so a future service that writes `compliance_checks` directly with the secret key bypasses it.
+  `supabase/scripts/rollback_compliance_check_once_per_version.sql` undoes it.
 - **Internal parallel review:** submit, add/remove reviewers, accept, decline, decide, respond,
   withdraw — each checks the browser rules first, then calls the RPC and reads the SOP again.
 - **Identity isolation (Dalal's):** rows are reloaded per signed-in user; a previous user's database
@@ -64,8 +69,8 @@ reload, as in `develop`. Note:
 
 From `frontend/`: `npm test`, `npm run test:calendar`, `npm run lint`, `npx tsc -b`, `npm run build`.
 Service and provider tests use mocked services (a stand-in database in
-`state/SopsProvider.isolation.test.tsx`); `services/reviewSchemaContract.test.ts` checks SQL text
-statically. None of this proves RPC behaviour, RLS, grants or deployed compatibility.
+`state/SopsProvider.isolation.test.tsx`); `services/reviewSchemaContract.test.ts` and
+`services/complianceSchemaContract.test.ts` check SQL text statically. None of this proves RPC behaviour, RLS, grants or deployed compatibility.
 
 `supabase/tests/*.sql` and the CLI mode of `supabase/tests/calendar_parity.mjs` execute SQL; they
 were updated to match the migrations but were **not executed**, and may only run against a
