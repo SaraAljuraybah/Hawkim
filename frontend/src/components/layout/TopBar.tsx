@@ -4,6 +4,7 @@ import type { AppShellContent } from '../../content/types'
 import type { User } from '../../data/mock/types'
 import { DepartmentSwitcher } from './DepartmentSwitcher'
 import { NotificationsBell } from './NotificationsBell'
+import { UserMenu } from './UserMenu'
 
 interface TopBarProps {
   content: AppShellContent
@@ -40,14 +41,9 @@ export function TopBar({ content, user, menuOpen, onOpenMenu, menuButtonRef }: T
 
           <span aria-hidden="true" className="h-8 w-px bg-beige" />
 
-          {/* Current user (display only — not a menu yet) */}
+          {/* Current user: the avatar opens their menu; the department switcher stays separate */}
           <div className="flex items-center gap-3">
-            <span
-              aria-hidden="true"
-              className="inline-flex size-10 shrink-0 items-center justify-center rounded-full bg-maroon text-sm font-semibold text-offwhite"
-            >
-              {user.initials}
-            </span>
+            <UserMenu content={content.userMenu} user={user} />
             <div className="leading-tight">
               {/* On phones the name stays available to screen readers only; the
                   department switcher moves into the mobile drawer. */}

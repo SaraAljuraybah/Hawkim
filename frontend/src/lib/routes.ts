@@ -9,6 +9,9 @@ export const DEPARTMENTS_PATH = '/departments'
 /** The Submit a Request form. */
 export const SUBMIT_REQUEST_PATH = '/requests/new'
 
+/** My Profile: the signed-in employee's own information. */
+export const PROFILE_PATH = '/profile'
+
 /** Path of an SOP's detail page in the SOPs directory. */
 export function sopPath(sopId: string): string {
   return `${SOP_DIRECTORY_PATH}/${encodeURIComponent(sopId)}`

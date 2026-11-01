@@ -184,6 +184,17 @@ export interface SignInContent {
 }
 
 /** The page behind "Forgot password?": passwords are reset by the project owner for now. */
+export interface ProfileContent {
+  /** Browser tab title. */
+  pageTitle: string
+  title: string
+  detailsTitle: string
+  fields: { name: string; email: string; department: string; division: string; roles: string }
+  /** Shown when a value isn't set. */
+  none: string
+  roles: { author: string; reviewer: string; approver: string }
+}
+
 export interface ForgotPasswordContent {
   /** Browser tab title. */
   pageTitle: string
@@ -245,6 +256,12 @@ export interface AppShellContent extends SidebarContent {
   drawerLabel: string
   /** Accessible text of the My Reviews to-do count; `{count}` is replaced. */
   reviewsToDoLabel: string
+  userMenu: {
+    /** Accessible name of the avatar button; `{name}` is the signed-in user. */
+    button: string
+    menuLabel: string
+    profile: LinkContent
+  }
   departmentSwitcher: {
     /** Label before the department name (visible in the drawer, screen-reader only in the top bar). */
     label: string

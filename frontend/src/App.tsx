@@ -12,6 +12,7 @@ import { SubmitRequestPage } from './pages/SubmitRequestPage'
 import { LandingPage } from './pages/LandingPage'
 import { NotConfiguredPage } from './pages/NotConfiguredPage'
 import { NotFoundPage } from './pages/NotFoundPage'
+import { ProfilePage } from './pages/ProfilePage'
 import { SignInPage } from './pages/SignInPage'
 import { ADMIN_USERS_PATH } from './lib/routes'
 import { AdminArea, EmployeeArea } from './routes/guards'
@@ -113,6 +114,7 @@ function AppRoutes() {
         <Route path="/reviews/:id/compliance" element={<ComplianceReportPage audience="reviewer" />} />
         <Route path="/requests" element={<MyRequestsPage />} />
         <Route path="/requests/new" element={<SubmitRequestPage />} />
+        <Route path="/profile" element={<ProfilePage />} />
       </Route>
 
       {/* Admin portal: its own layout; only for admins (others see Not Found). */}
