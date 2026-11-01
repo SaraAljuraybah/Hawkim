@@ -29,6 +29,8 @@ Supabase paths again, with Dalal's new UI on top:
   `supabase/scripts/rollback_compliance_check_once_per_version.sql` undoes it.
 - **Internal parallel review:** submit, add/remove reviewers, accept, decline, decide, respond,
   expire, send again — each checks the browser rules first, then calls the RPC and reads the SOP again.
+  Expired requests and Send Again (`20261102120100_review_request_expired.sql`, applied to the live
+  project on 2 November 2026) replaced the automatic withdrawal.
   A response from a reviewer's comments dialog goes only to that reviewer
   (`20261101150000_respond_to_one_reviewer.sql`, applied to the live project on 1 November 2026, with
   `PER_REVIEWER_RESPONSE_ACTIVE` on). `supabase/scripts/rollback_respond_to_one_reviewer.sql` undoes it.

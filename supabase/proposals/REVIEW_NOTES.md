@@ -78,6 +78,9 @@ To roll back, set the switch to `false` first, then run the rollback script.
 
 # Expired review requests
 
+**Status: APPLIED to the live project on 2 November 2026.** The status check afterwards showed no
+withdrawn requests.
+
 `20261102120000_review_request_expired_values.sql` and `20261102120100_review_request_expired.sql`
 replace the automatic withdrawal of unanswered requests with a stored `expired` status. The response
 deadline itself doesn't change, and neither does Overdue after acceptance.
