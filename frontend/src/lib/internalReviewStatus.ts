@@ -51,11 +51,12 @@ export function requestDeadline(assignment: Pick<InternalReviewerAssignment, 'ac
 export const REVIEW_DEADLINE_EDITING_ACTIVE: boolean = false
 
 /**
- * A response to one reviewer's request. Off: respond_to_comments can only reach all current
- * recipients (responseRecipients). Switch it on once that function accepts p_request_id: this
- * constant is the only frontend change needed.
+ * A response to one reviewer's request, through respond_to_comments' p_request_id
+ * (supabase/migrations/20261101150000_respond_to_one_reviewer.sql, applied first). Off: a response
+ * reaches all current recipients (responseRecipients). To roll back, set it to false before running
+ * supabase/scripts/rollback_respond_to_one_reviewer.sql.
  */
-export const PER_REVIEWER_RESPONSE_ACTIVE: boolean = false
+export const PER_REVIEWER_RESPONSE_ACTIVE: boolean = true
 
 /** Waiting for the reviewer: to accept or decline (pending), or to decide (accepted). */
 export function isOpenDecision(decision: InternalReviewDecision): boolean {
