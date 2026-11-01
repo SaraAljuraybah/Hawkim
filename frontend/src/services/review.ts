@@ -4,6 +4,7 @@
  * Rounds, requests and comments are read with each SOP (services/sops.ts).
  */
 
+import type { ClosedReviewRequest, InternalReviewDecision } from '../data/mock/types'
 import type { InternalReviewOptions } from '../lib/internalReview'
 import { isValidReviewDuration, RequestExpiredError, RequestNotResendableError, ReviewerOrderError } from '../lib/internalReviewStatus'
 import { ReviewDeadlineUnavailableError } from '../lib/reviewDeadline'
@@ -96,6 +97,15 @@ export async function respondToComments(sopId: string, text: string, requestId?:
   const { error } = await supabase().rpc('respond_to_comments', { p_sop_id: sopId, p_text: text, ...(requestId ? { p_request_id: requestId } : {}) })
   if (error?.hint === RESPONSE_NOT_AVAILABLE_HINT) throw new ResponseNotAvailableError(error.message)
   if (error) throw new Error(error.message)
+}
+
+/** The signed-in reviewer's own closed requests on SOPs they can no longer read. */
+export async function fetchClosedReviewRequests(): Promise<ClosedReviewRequest[]> {
+  const rows = await call('my_closed_review_requests', {}) as { request_id: string; sop_title: string; version: number; status: InternalReviewDecision; reason: string | null; closed_at: string }[] | null
+  return (rows ?? []).map((row) => ({
+    id: row.request_id, sopTitle: row.sop_title, version: String(row.version), status: row.status,
+    closedAt: row.closed_at, ...(row.reason ? { reason: row.reason } : {}),
+  }))
 }
 
 /** Expires the SOP's requests whose response due date has ended (nothing happens when none are due). */

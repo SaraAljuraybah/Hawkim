@@ -19,7 +19,7 @@ const TICK_MS = 60 * 1000
  */
 export function NotificationsProvider({ children }: { children: ReactNode }) {
   const user = useSession().user
-  const { sops } = useSops()
+  const { sops, closedRequests } = useSops()
   const { requests } = useRequests()
   const [sessionStartedAt] = useState(() => Date.now())
   const [now, setNow] = useState(() => Date.now())
@@ -42,11 +42,11 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
   const notifications = useMemo(() => {
     if (!userId) return []
     const readIds = new Set(readByUser[userId] ?? [])
-    return deriveNotifications(userId, { sops, requests, now }).map((notification) => ({
+    return deriveNotifications(userId, { sops, requests, now, closedRequests }).map((notification) => ({
       ...notification,
       read: isRead(notification, readIds, sessionStartedAt),
     }))
-  }, [userId, sops, requests, now, readByUser, sessionStartedAt])
+  }, [userId, sops, requests, closedRequests, now, readByUser, sessionStartedAt])
 
   const markIds = useCallback(
     (ids: string[]) => {

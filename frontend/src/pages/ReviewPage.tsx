@@ -37,6 +37,7 @@ import { useDepartments } from '../state/departmentsContext'
 import { useCurrentUser } from '../state/sessionContext'
 import { useSops } from '../state/sopsContext'
 import { useUsers } from '../state/usersContext'
+import { MessageScreen } from '../components/layout/MessageScreen'
 import { NotFoundPage } from './NotFoundPage'
 
 type DialogName = 'complete' | 'returnReviewer' | 'approve' | 'returnApprover' | 'publish'
@@ -70,9 +71,20 @@ export function ReviewPage() {
   const user = useCurrentUser()
   const sop = sops.find((item) => item.id === id)
   const access = sop ? reviewSopForUser(sop, user.id) : undefined
+  const [openId, setOpenId] = useState<string>()
+  if (access && openId !== id) setOpenId(id)
   useDocumentTitle(access ? reviewsEn.page.pageTitle.replace('{title}', access.sop.title) : undefined)
 
-  if (!access) return <NotFoundPage embedded />
+  // It was open a moment ago: they lost access (e.g. declined from another department), so say that.
+  if (!access) {
+    if (openId !== id) return <NotFoundPage embedded />
+    const lost = internalReviewEn.lostAccess
+    return (
+      <MessageScreen embedded title={lost.title} text={lost.text} logoAlt={lost.logoAlt}>
+        <Button to={lost.back.href}>{lost.back.label}</Button>
+      </MessageScreen>
+    )
+  }
   // Reset dialogs when the authorized version or signed-in reviewer changes.
   return <Review key={`${access.sop.id}:${access.sop.version}:${user.id}`} sop={access.sop} historical={access.historical} />
 }

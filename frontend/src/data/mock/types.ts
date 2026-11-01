@@ -226,6 +226,16 @@ export interface InternalReviewerAssignment extends Omit<ReviewerAssignment, 'de
   commentId?: string
 }
 
+/** A reviewer's own closed request on an SOP they can no longer read: all they see of it (see my_closed_review_requests). */
+export interface ClosedReviewRequest {
+  id: string
+  sopTitle: string
+  version: string
+  status: InternalReviewDecision
+  reason?: string
+  closedAt: string
+}
+
 /** Shared integration boundary: external routing can consume completed internal rounds. */
 export interface InternalReviewRound {
   id: string

@@ -1,5 +1,5 @@
 import { createContext, useContext } from 'react'
-import type { ApprovalDecisionSnapshot, Sop } from '../data/mock/types'
+import type { ApprovalDecisionSnapshot, Sop, ClosedReviewRequest } from '../data/mock/types'
 import type { ApprovalSubmissionOptions } from '../lib/approval'
 import type { ReviewAction } from '../lib/reviewFlow'
 import type { InternalReviewOptions } from '../lib/internalReview'
@@ -26,6 +26,8 @@ export interface SopsStore {
   status: LoadStatus
   /** Only this identity's authorized SOP views (the directory further limits published access). */
   sops: Sop[]
+  /** The signed-in reviewer's own closed requests on SOPs they can no longer read, for their notifications. */
+  closedRequests: ClosedReviewRequest[]
   /** Creates a local draft and file preview by the current user; lost on reload. */
   addDraft: (draft: NewDraft) => Promise<Sop>
 

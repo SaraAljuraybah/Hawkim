@@ -30,6 +30,7 @@ export const notificationsEn: NotificationsContent = {
       reviewer: 'Your review request for {title} · v{version} expired because it was not answered in time',
     },
     reviewerRemoved: '{name} removed you from the review of {title} · v{version}. Reason: {reason}',
+    reviewerRemovedClosed: 'You were removed from the review of {title} · v{version}. Reason: {reason}',
     reviewCompleted: '{name} completed the review of {title} · v{version}',
     reviewReturned: '{name} returned {title} · v{version} with comments',
     reviewOverdue: '{name}’s review of {title} · v{version} is overdue',

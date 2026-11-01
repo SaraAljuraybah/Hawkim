@@ -44,6 +44,10 @@ export const internalReviewEn = {
     returned: 'Returned to the author.', reviewCompleted: 'Review completed.',
     inProgress: 'In Progress', completed: 'Your review is complete.',
   },
+  lostAccess: {
+    title: 'No Access', text: 'You no longer have access to this SOP.', logoAlt: 'Hawkim',
+    back: { label: 'Back to My Reviews', href: '/reviews' },
+  },
   approvalMissing: {
     title: 'You can’t submit for approval yet:',
     noReviewers: 'Add at least one reviewer first.',

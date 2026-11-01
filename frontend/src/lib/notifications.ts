@@ -1,4 +1,4 @@
-import type { Sop, TimelineEvent, UserRequest } from '../data/mock/types'
+import type { ClosedReviewRequest, Sop, TimelineEvent, UserRequest } from '../data/mock/types'
 import { isOpenDecision, latestAssignmentOf, latestAssignments, requestDeadline } from './internalReviewStatus'
 import { mySopPath, reviewPath } from './routes'
 import { reviewSopForUser } from './reviewAccess'
@@ -77,6 +77,8 @@ export interface AppNotification {
   request?: Pick<UserRequest, 'title' | 'type' | 'departmentId'>
 }
 
+const REVIEWS_PATH = '/reviews'
+
 /** Due-soon starts this long before the due date. */
 export const DUE_SOON_MS = 24 * 60 * 60 * 1000
 
@@ -95,6 +97,14 @@ function isUnresolvedExpiry(sop: Sop, event: TimelineEvent): boolean {
   const round = sop.internalReviewRounds?.at(-1)
   const request = round?.assignments.find((assignment) => assignment.id === event.reviewAssignmentId)
   return sop.status === 'in-review' && round?.version === sop.version && request?.decision === 'expired' && latestAssignmentOf(round, request.userId) === request
+}
+
+/** An other-department reviewer who lost access: the SOP can't be read, so its timeline can't tell them. */
+function fromClosedRequest(request: ClosedReviewRequest, userId: string): AppNotification[] {
+  const base = { id: `closed:${request.id}:${userId}`, createdAt: request.closedAt, sopTitle: request.sopTitle, version: request.version, forReviewer: true, link: REVIEWS_PATH }
+  if (request.status === 'expired') return [{ ...base, type: 'review-expired', unresolved: true }]
+  if (request.status === 'removed') return [{ ...base, type: 'reviewer-removed', reason: request.reason }]
+  return []
 }
 
 function fromEvent(sop: Sop, event: TimelineEvent, userId: string): AppNotification | undefined {
@@ -246,9 +256,9 @@ function authorOverdue(sop: Sop, userId: string, now: number): AppNotification[]
 /** Every notification for the user, newest first. */
 export function deriveNotifications(
   userId: string,
-  { sops, requests, now }: { sops: Sop[]; requests: UserRequest[]; now: number },
+  { sops, requests, now, closedRequests = [] }: { sops: Sop[]; requests: UserRequest[]; now: number; closedRequests?: ClosedReviewRequest[] },
 ): AppNotification[] {
-  const notifications: AppNotification[] = []
+  const notifications: AppNotification[] = closedRequests.flatMap((request) => fromClosedRequest(request, userId))
   for (const sop of sops) {
     for (const event of sop.timeline) {
       const notification = fromEvent(sop, event, userId)

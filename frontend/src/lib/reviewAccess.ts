@@ -1,4 +1,4 @@
-import type { Sop } from '../data/mock/types'
+import type { Sop, User } from '../data/mock/types'
 import { projectReviewers } from './internalReviewStatus'
 import { isApprover, isReviewer } from './workflow'
 
@@ -9,6 +9,16 @@ import { isApprover, isReviewer } from './workflow'
  */
 const HISTORICAL_REVIEW_PROJECTION = Symbol('hawkim.historical-review-projection')
 type ReviewProjection = Sop & { [HISTORICAL_REVIEW_PROJECTION]?: true }
+
+/**
+ * An other-department reviewer whose latest request on the SOP was declined, removed or expired:
+ * they lose every version until they are asked again. Same-department reviewers keep their access.
+ */
+export function reviewerLostAccess(sop: Pick<Sop, 'departmentId' | 'internalReviewRounds'>, user: Pick<User, 'id' | 'departmentId'>): boolean {
+  if (user.departmentId === sop.departmentId) return false
+  const latest = sop.internalReviewRounds?.flatMap((round) => round.assignments).filter((request) => request.userId === user.id).at(-1)
+  return latest?.decision === 'declined' || latest?.decision === 'removed' || latest?.decision === 'expired'
+}
 
 /** A reviewer-facing view; historical membership never authorizes a newer file. */
 export function reviewSopForUser(sop: Sop, userId: string): { sop: Sop; historical: boolean } | undefined {

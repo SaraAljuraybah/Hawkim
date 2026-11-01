@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { RequestExpiredError, RequestNotResendableError, ReviewerOrderError } from '../lib/internalReviewStatus'
 import { ReviewDeadlineUnavailableError } from '../lib/reviewDeadline'
 import { ResponseNotAvailableError } from '../lib/reviewRequestRows'
-import { HOME_REVIEWER_MUST_FINISH_HINT, HOME_REVIEWERS_FIRST_HINT, REQUEST_EXPIRED_HINT, REQUEST_NOT_RESENDABLE_HINT, resendReviewRequest, acceptReview, addReviewers, changeReviewDeadline, declineReview, decideReview, removeReviewer, respondToComments, RESPONSE_NOT_AVAILABLE_HINT, REVIEW_DEADLINE_UNAVAILABLE_HINT, submitReview, expireDueRequests } from './review'
+import { fetchClosedReviewRequests, HOME_REVIEWER_MUST_FINISH_HINT, HOME_REVIEWERS_FIRST_HINT, REQUEST_EXPIRED_HINT, REQUEST_NOT_RESENDABLE_HINT, resendReviewRequest, acceptReview, addReviewers, changeReviewDeadline, declineReview, decideReview, removeReviewer, respondToComments, RESPONSE_NOT_AVAILABLE_HINT, REVIEW_DEADLINE_UNAVAILABLE_HINT, submitReview, expireDueRequests } from './review'
 
 const rpc = vi.fn()
 vi.mock('./supabase', () => ({ supabase: () => ({ rpc }) }))
@@ -97,6 +97,12 @@ describe('the internal review in the database', () => {
     expect(rpc).toHaveBeenLastCalledWith('resend_review_request', { p_request_id: 'uuid-request' })
     rpc.mockResolvedValueOnce({ data: null, error: { message: 'Any wording', code: '23514', hint: REQUEST_NOT_RESENDABLE_HINT } })
     await expect(resendReviewRequest('uuid-request')).rejects.toBeInstanceOf(RequestNotResendableError)
+  })
+
+  it('reads the reviewer\'s own closed requests', async () => {
+    rpc.mockResolvedValueOnce({ data: [{ request_id: 'uuid-request', sop_title: 'Backup', version: 2, status: 'removed', reason: 'Not needed', closed_at: '2026-10-20T00:00:00Z' }], error: null })
+    await expect(fetchClosedReviewRequests()).resolves.toEqual([{ id: 'uuid-request', sopTitle: 'Backup', version: '2', status: 'removed', reason: 'Not needed', closedAt: '2026-10-20T00:00:00Z' }])
+    expect(rpc).toHaveBeenLastCalledWith('my_closed_review_requests', {})
   })
 
   it('recognises a reviewer refused for their department by its hint', async () => {

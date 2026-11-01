@@ -1082,6 +1082,8 @@ export interface NotificationsContent {
     reviewWithdrawn: { author: string; reviewer: string }
     reviewExpired: { author: string; reviewer: string }
     reviewerRemoved: string
+    /** To a reviewer who can no longer read the SOP, so no name is shown. */
+    reviewerRemovedClosed: string
     reviewCompleted: string
     reviewReturned: string
     reviewOverdue: string

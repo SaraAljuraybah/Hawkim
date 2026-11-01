@@ -6,7 +6,10 @@ import { sopWorkflowEn } from '../content/workflow.en'
 import type { Department, Sop, User } from '../data/mock/types'
 import { acceptInternalReview, addableReviewers, addInternalReviewers, currentInternalRound, decideInternalReview, declineInternalReview, expireUnanswered, hasHomeFinished, homeReviewers, removeInternalReviewer, resendInternalReview, resendIsTooEarly, startInternalReview } from './internalReview'
 import { latestAssignmentOf } from './internalReviewStatus'
+import { deriveNotifications, isRead } from './notifications'
+import { reviewerLostAccess } from './reviewAccess'
 import { assignableReviewers } from './reviewFlow'
+import { visibleSops } from '../state/visibleSops'
 import { endOfRiyadhDay } from './riyadhWorkingDays'
 
 const fixture = vi.hoisted(() => ({
@@ -136,6 +139,54 @@ describe('Send Again by department', () => {
     expect(() => resendInternalReview(withoutHome, 'author', request(withoutHome, 'o1').id, env())).toThrow(/must finish/)
     const home = expireUnanswered(start(), end)
     expect(resendIsTooEarly(home, request(home, 'h1'), env().users)).toBe(false)
+  })
+})
+
+describe('losing access', () => {
+  const user = (id: string) => fixture.users.find((item) => item.id === id)!
+  const withOther = () => addInternalReviewers(finished(), 'author', { reviewerIds: ['o1'] }, env())
+  const round = (sop: Sop) => currentInternalRound(sop)!
+  const declined = () => { const sop = withOther(); return declineInternalReview(sop, 'o1', round(sop).id, request(sop, 'o1').id, 'Busy', env()) }
+
+  it('keeps access while taking part or finished', () => {
+    const sop = accept(withOther(), 'o1')
+    expect(reviewerLostAccess(sop, user('o1'))).toBe(false)
+    expect(visibleSops([sop], user('o1'), [])).toHaveLength(1)
+    expect(reviewerLostAccess(decide(sop, 'o1'), user('o1'))).toBe(false)
+  })
+
+  it('loses the SOP when the latest request is declined, removed or expired', () => {
+    expect(reviewerLostAccess(declined(), user('o1'))).toBe(true)
+    expect(visibleSops([declined()], user('o1'), [])).toEqual([])
+    const sop = withOther()
+    expect(reviewerLostAccess(removeInternalReviewer(sop, 'author', round(sop).id, request(sop, 'o1').id, 'Not needed', env()), user('o1'))).toBe(true)
+    expect(reviewerLostAccess(expireUnanswered(sop, Date.parse(endOfRiyadhDay('2026-10-30'))), user('o1'))).toBe(true)
+  })
+
+  it('goes by the latest request: asked again gives access back', () => {
+    const again = addInternalReviewers(declined(), 'author', { reviewerIds: ['o1'] }, env())
+    expect(reviewerLostAccess(again, user('o1'))).toBe(false)
+    expect(visibleSops([again], user('o1'), [])).toHaveLength(1)
+  })
+
+  it('keeps a same-department reviewer\'s access as it was', () => {
+    const sop = start(['h1', 'h2'])
+    expect(reviewerLostAccess(declineInternalReview(sop, 'h1', round(sop).id, request(sop, 'h1').id, 'Busy', env()), user('h1'))).toBe(false)
+  })
+
+  it('still tells them through their closed requests, with no SOP link', () => {
+    const closedRequests = [
+      { id: 'one', sopTitle: 'Cross', version: '1', status: 'expired' as const, closedAt: '2026-10-20T00:00:00Z' },
+      { id: 'two', sopTitle: 'Other', version: '2', status: 'removed' as const, reason: 'Not needed', closedAt: '2026-10-21T00:00:00Z' },
+      { id: 'three', sopTitle: 'Third', version: '1', status: 'declined' as const, reason: 'Busy', closedAt: '2026-10-22T00:00:00Z' },
+    ]
+    const notifications = deriveNotifications('o1', { sops: [], requests: [], now: Date.now(), closedRequests })
+    expect(notifications).toEqual([
+      expect.objectContaining({ type: 'reviewer-removed', sopTitle: 'Other', reason: 'Not needed', forReviewer: true, link: '/reviews' }),
+      expect.objectContaining({ type: 'review-expired', sopTitle: 'Cross', version: '1', forReviewer: true, unresolved: true, link: '/reviews' }),
+    ])
+    for (const item of notifications) expect(item.sopId).toBeUndefined()
+    expect(isRead(notifications[1], new Set(), Date.now())).toBe(false)
   })
 })
 

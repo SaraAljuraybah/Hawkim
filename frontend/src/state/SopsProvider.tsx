@@ -1,6 +1,6 @@
 import { useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { sops as seedSops } from '../data/mock/sops'
-import type { Sop, UserRequest } from '../data/mock/types'
+import type { ClosedReviewRequest, Sop, UserRequest } from '../data/mock/types'
 import * as compliance from '../lib/compliance'
 import { assertCanCreateSop } from '../lib/sopAccess'
 import { sopTitleProblem } from '../lib/sopTitle'
@@ -76,17 +76,34 @@ export function SopsProvider({ children }: { children: ReactNode }) {
   }, [])
 
   /** Reads one SOP again after a change saved in the database, keeping what this tab has for it. */
+  const [closed, setClosed] = useState<{ userId?: string; requests: ClosedReviewRequest[] }>({ requests: [] })
+  /** Optional for the app: without it, someone who lost access only misses these notifications. */
+  const loadClosed = useCallback(() => {
+    const owner = userId
+    return reviewService().then(({ fetchClosedReviewRequests }) => fetchClosedReviewRequests()).then(
+      (requests) => { if (owner && activeIdentity.current === owner) setClosed({ userId: owner, requests }) },
+      () => undefined,
+    )
+  }, [userId])
+
   const refresh = useCallback(
     async (sopId: string) => {
       const owner = userId
       const stored = await (await sopService()).fetchSop(sopId)
       if (!owner || activeIdentity.current !== owner) throw new Error('The signed-in user changed')
-      if (!stored) throw new Error(`Unknown SOP ${sopId}`)
+      if (!stored) {
+        // They can no longer read it, e.g. an other-department reviewer who has just declined.
+        if (!latestRef.current.some((sop) => sop.id === sopId)) throw new Error(`Unknown SOP ${sopId}`)
+        storedIds.current.delete(sopId)
+        commit(latestRef.current.filter((sop) => sop.id !== sopId))
+        await loadClosed()
+        return undefined
+      }
       storedIds.current.add(stored.id)
       commit(mergeSops(latestRef.current, [stored]))
       return latestRef.current.find((sop) => sop.id === sopId)!
     },
-    [commit, userId],
+    [commit, userId, loadClosed],
   )
 
   /** A reviewer's action. If the database says the request expired, this tab was behind: read the SOP again. */
@@ -227,6 +244,7 @@ export function SopsProvider({ children }: { children: ReactNode }) {
         for (const sop of stored) storedIds.current.add(sop.id)
         commit(mergeSops(latestRef.current, stored))
         setLoaded({ userId, status: 'ready' })
+        void loadClosed()
         // This person's sample checks still running (the page was reloaded meanwhile) are finished now.
         for (const sop of stored) {
           for (const check of sop.complianceChecks) {
@@ -243,7 +261,8 @@ export function SopsProvider({ children }: { children: ReactNode }) {
     return () => {
       active = false
     }
-  }, [userId, commit, scheduleCompletion])
+  }, [userId, commit, scheduleCompletion, loadClosed])
+  const closedRequests = useMemo(() => (closed.userId === userId ? closed.requests : []), [closed, userId])
   const status: LoadStatus = userId && loaded?.userId === userId ? loaded.status : 'loading'
 
   const addDraft = useCallback(
@@ -255,7 +274,7 @@ export function SopsProvider({ children }: { children: ReactNode }) {
       const stored = await (await fileService()).uploadSopFile(userId, file)
       if (activeIdentity.current !== userId) throw new Error('The signed-in user changed')
       const id = await (await sopService()).createSop({ ...draft, title: draft.title.trim(), file: stored })
-      return refresh(id)
+      return (await refresh(id))!
     },
     [userId, users, departments, refresh],
   )
@@ -280,6 +299,7 @@ export function SopsProvider({ children }: { children: ReactNode }) {
   const store = useMemo<SopsStore>(
     () => ({
       status,
+      closedRequests,
       sops: exposedSops,
       addDraft,
       // The first submission from Draft, or a new version sent once every reviewer has finished.
@@ -440,7 +460,7 @@ export function SopsProvider({ children }: { children: ReactNode }) {
       failNextCheck,
       setFailNextCheck,
     }),
-    [status, exposedSops, addDraft, refresh, refreshIfExpired, current, update, runCheck, failNextCheck, setFailNextCheck, userId, guideline.version, users, environment, assertActor],
+    [status, exposedSops, closedRequests, addDraft, refresh, refreshIfExpired, current, update, runCheck, failNextCheck, setFailNextCheck, userId, guideline.version, users, environment, assertActor],
   )
 
   return <SopsContext.Provider value={store}>{children}</SopsContext.Provider>

@@ -1,5 +1,5 @@
 import type { Sop, User, UserRequest } from '../data/mock/types'
-import { reviewSopForUser } from '../lib/reviewAccess'
+import { reviewerLostAccess, reviewSopForUser } from '../lib/reviewAccess'
 import { getSopAccess } from '../lib/sopAccess'
 import { isApprover, isAuthorOrCoAuthor, isReviewer } from '../lib/workflow'
 
@@ -14,6 +14,8 @@ export function visibleSops(sops: Sop[], user: User | null, requests: UserReques
   if (user.permissions.includes('admin')) return sops
   return sops.flatMap((sop) => {
     if (isAuthorOrCoAuthor(sop, user.id) || getSopAccess(sop, user, requests) === 'granted') return [sop]
+    // Mirrors the database, so a tab that is behind stops showing it too.
+    if (reviewerLostAccess(sop, user)) return []
     const canReview = user.permissions.includes('reviewer') && isReviewer(sop, user.id)
     const canApprove = user.permissions.includes('approver') && isApprover(sop, user.id)
     if (!canReview && !canApprove) return []

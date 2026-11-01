@@ -108,7 +108,7 @@ export function NotificationsBell() {
       case 'review-declined': return fill(t.reviewDeclined)
       case 'review-withdrawn': return fill(item.forReviewer ? t.reviewWithdrawn.reviewer : t.reviewWithdrawn.author)
       case 'review-expired': return fill(item.forReviewer ? t.reviewExpired.reviewer : t.reviewExpired.author)
-      case 'reviewer-removed': return fill(t.reviewerRemoved)
+      case 'reviewer-removed': return fill(item.forReviewer ? t.reviewerRemovedClosed : t.reviewerRemoved)
       case 'review-completed': return fill(t.reviewCompleted)
       case 'review-returned': return fill(t.reviewReturned)
       case 'review-overdue': return fill(t.reviewOverdue)
