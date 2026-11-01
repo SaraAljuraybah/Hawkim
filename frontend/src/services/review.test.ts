@@ -66,6 +66,8 @@ describe('the internal review in the database', () => {
   it('sends responses and asks for due withdrawals', async () => {
     await respondToComments('uuid-sop', 'Done')
     expect(rpc).toHaveBeenLastCalledWith('respond_to_comments', { p_sop_id: 'uuid-sop', p_text: 'Done' })
+    await respondToComments('uuid-sop', 'Done', 'uuid-request')
+    expect(rpc).toHaveBeenLastCalledWith('respond_to_comments', { p_sop_id: 'uuid-sop', p_text: 'Done', p_request_id: 'uuid-request' })
     await withdrawDueRequests('uuid-sop')
     expect(rpc).toHaveBeenLastCalledWith('withdraw_due_requests', { p_sop_id: 'uuid-sop' })
   })

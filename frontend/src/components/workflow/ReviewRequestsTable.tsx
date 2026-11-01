@@ -4,7 +4,7 @@ import { internalReviewEn } from '../../content/internalReview.en'
 import type { InternalReviewerAssignment, InternalReviewRound, Sop } from '../../data/mock/types'
 import { formatDate, formatReviewDate } from '../../lib/format'
 import { isInactiveDecision, REVIEW_DEADLINE_EDITING_ACTIVE } from '../../lib/internalReviewStatus'
-import { requestDecisionDate, requestReviewDueDate, reviewNotes, type ReviewNote } from '../../lib/reviewRequestRows'
+import { canRespondToRequest, requestDecisionDate, requestReviewDueDate, reviewNotes, type ReviewNote } from '../../lib/reviewRequestRows'
 import { useDepartments } from '../../state/departmentsContext'
 import { useUsers } from '../../state/usersContext'
 import { IconButton } from '../ui/IconButton'
@@ -20,6 +20,15 @@ interface ReviewRequestsTableProps {
   canEditDeadline: (round: InternalReviewRound, request: InternalReviewerAssignment) => boolean
   /** Used once REVIEW_DEADLINE_EDITING_ACTIVE is switched on. */
   onEditDeadline?: (round: InternalReviewRound, request: InternalReviewerAssignment, trigger: HTMLButtonElement) => void
+  /** Responding from the comments dialog (the author's SOP page). */
+  response?: ReviewRequestResponse
+}
+
+export interface ReviewRequestResponse {
+  /** Who a response to this request goes to, as shown in the dialog. */
+  recipients: (request: InternalReviewerAssignment) => string
+  /** Saves the response; if it throws, the dialog stays open and says so. */
+  send: (request: InternalReviewerAssignment, text: string) => Promise<void>
 }
 
 const text = internalReviewEn.panel.table
@@ -35,11 +44,11 @@ function Timestamp({ value, format }: { value?: string; format: (value: string) 
  * part use lighter text. A table from xl up (eight columns don't fit beside the sidebar
  * earlier); stacked cards below.
  */
-export function ReviewRequestsTable({ sop, canRemove, onRemove, canEditDeadline, onEditDeadline }: ReviewRequestsTableProps) {
+export function ReviewRequestsTable({ sop, canRemove, onRemove, canEditDeadline, onEditDeadline, response }: ReviewRequestsTableProps) {
   const { nameOf, getUser } = useUsers()
   const { departments } = useDepartments()
   const [toggled, setToggled] = useState<Record<string, boolean>>({})
-  const [viewing, setViewing] = useState<{ name: string; notes: ReviewNote[] } | null>(null)
+  const [viewing, setViewing] = useState<{ name: string; notes: ReviewNote[]; request: InternalReviewerAssignment } | null>(null)
   const notesTrigger = useRef<HTMLButtonElement | null>(null)
   const rounds = [...(sop.internalReviewRounds ?? [])].reverse()
 
@@ -65,7 +74,7 @@ export function ReviewRequestsTable({ sop, canRemove, onRemove, canEditDeadline,
         <div className="grid grid-cols-[repeat(3,2.25rem)] justify-end gap-1">
           {notes.length > 0 ? (
             <IconButton label={text.viewNotes.replace('{name}', name)} icon={Eye}
-              onClick={(event: MouseEvent<HTMLButtonElement>) => { notesTrigger.current = event.currentTarget; setViewing({ name, notes }) }} />
+              onClick={(event: MouseEvent<HTMLButtonElement>) => { notesTrigger.current = event.currentTarget; setViewing({ name, notes, request }) }} />
           ) : (
             <span className="inline-flex size-9 items-center justify-center text-text-gray">
               <span aria-hidden="true">{text.none}</span>
@@ -180,7 +189,11 @@ export function ReviewRequestsTable({ sop, canRemove, onRemove, canEditDeadline,
       })}
       {viewing && (
         <ReviewNotesDialog title={text.notesTitle.replace('{name}', viewing.name)} notes={viewing.notes}
-          labels={text.notes} closeLabel={text.close} onClose={closeNotes} />
+          labels={text.notes} closeLabel={text.close} onClose={closeNotes}
+          response={response && canRespondToRequest(sop, viewing.request) ? {
+            recipients: response.recipients(viewing.request),
+            onSend: (reply) => response.send(viewing.request, reply),
+          } : undefined} />
       )}
     </div>
   )

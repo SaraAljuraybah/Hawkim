@@ -27,6 +27,7 @@ import type { Sop, SopVersion } from '../data/mock/types'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { checkRequired, currentCheck, hasCurrentCheck, isCheckRunning } from '../lib/compliance'
 import { approvalReadiness, type ApprovalReadiness } from '../lib/approval'
+import { hasResponseOutsideReviewers, requestResponseRecipients } from '../lib/reviewRequestRows'
 import { canAddReviewers, canSendNewVersion, currentInternalRound, type ReviewPhaseItem } from '../lib/internalReview'
 import { reviewAllowsNewVersion } from '../lib/internalReviewStatus'
 import { formatDate } from '../lib/format'
@@ -214,6 +215,8 @@ export function SopWorkflowPage() {
   }
   // Response: to everyone who commented in the latest round; not once published.
   const recipients = sop.status === 'published' ? [] : responseRecipients(sop)
+  // Reviewers are answered from their row's comments dialog; the header is for anyone else (e.g. an approver).
+  const showResponse = sop.status !== 'published' && hasResponseOutsideReviewers(sop)
 
   // Compliance check: only where the GVP guideline applies; hidden once Approved or Published; disabled
   // In Review and In Approval (that reason wins); otherwise the main author, or a co-author who uploaded the current version.
@@ -411,12 +414,19 @@ export function SopWorkflowPage() {
         sop={sop}
         canRemove={isMainAuthor}
         table
+        response={{
+          recipients: (request) => requestResponseRecipients(sop, request).map((id) => personWithRole(sop, id, content.roles, nameOf)).join(', '),
+          send: async (request, text) => {
+            await store.addResponse(sop.id, text, request.id)
+            announce(content.messages.responseSent)
+          },
+        }}
         showEmpty
         title={internalReviewEn.panel.authorPageTitle}
         actions={
-          (recipients.length > 0 || (isMainAuthor && canSubmit) || addReviewers || sendVersion || showApproval) && (
+          (showResponse || (isMainAuthor && canSubmit) || addReviewers || sendVersion || showApproval) && (
             <>
-              {recipients.length > 0 && (
+              {showResponse && (
                 <Button size="sm" variant="secondary" onClick={(event) => open('response', event.currentTarget)}>
                   <MessageSquareReply aria-hidden="true" className="size-4" strokeWidth={2} />
                   {actions.response}

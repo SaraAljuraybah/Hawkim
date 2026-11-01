@@ -680,20 +680,25 @@ export function deleteVersion(sop: Sop, actorId: string, version: string): Sop {
 
 /**
  * Author or co-author: reply to the reviewers' and approvers' comments. Recorded in the
- * timeline, sent to everyone who commented in the latest round (see responseRecipients).
+ * timeline, sent to everyone who commented in the latest round (see responseRecipients),
+ * or only to the reviewer of `requestId`, recorded on that request's version.
  * Not once the SOP is published.
  */
-export function addResponse(sop: Sop, actorId: string, text: string): Sop {
+export function addResponse(sop: Sop, actorId: string, text: string, requestId?: string): Sop {
   assert(sop.status !== 'published', "Can't respond once the SOP is published")
   assert(isAuthorOrCoAuthor(sop, actorId), 'Only the author or a co-author can respond')
   const trimmed = text.trim()
   assert(!!trimmed && trimmed.length <= RESPONSE_MAX, 'A response of up to 1000 characters is required')
-  const recipientIds = responseRecipients(sop)
+  const round = sop.internalReviewRounds?.find((item) => item.assignments.some((request) => request.id === requestId))
+  const request = round?.assignments.find((item) => item.id === requestId)
+  assert(!requestId || !!request, 'There are no comments to respond to')
+  const recipientIds = request ? [request.userId] : responseRecipients(sop)
   assert(recipientIds.length > 0, 'There are no comments to respond to')
+  const response = event(sop, 'response', actorId, { recipientIds, note: trimmed, ...(request ? { reviewAssignmentId: request.id } : {}) })
   return {
     ...sop,
     lastUpdated: todayIsoDate(),
-    timeline: [...sop.timeline, event(sop, 'response', actorId, { recipientIds, note: trimmed })],
+    timeline: [...sop.timeline, round ? { ...response, version: round.version } : response],
   }
 }
 

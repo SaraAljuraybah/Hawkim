@@ -51,7 +51,8 @@ export interface SopsStore {
   /** Main author or its uploader: deletes a version (Draft or Returned; at least one remains). */
   deleteVersion: (sopId: string, version: string) => Promise<void>
   /** Author or co-author: replies to the latest round's comments. */
-  addResponse: (sopId: string, text: string) => Promise<void>
+  /** `requestId`: the reviewer's request a comments dialog responds to (only used once PER_REVIEWER_RESPONSE_ACTIVE is on). */
+  addResponse: (sopId: string, text: string, requestId?: string) => Promise<void>
   /** Main author: adds one or more co-authors in a single update (all or none). */
   addCoAuthors: (sopId: string, userIds: string[]) => Promise<void>
   /** Main author: removes a co-author. */

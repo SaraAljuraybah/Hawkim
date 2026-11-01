@@ -50,6 +50,13 @@ export function requestDeadline(assignment: Pick<InternalReviewerAssignment, 'ac
  */
 export const REVIEW_DEADLINE_EDITING_ACTIVE: boolean = false
 
+/**
+ * A response to one reviewer's request. Off: respond_to_comments can only reach all current
+ * recipients (responseRecipients). Switch it on once that function accepts p_request_id: this
+ * constant is the only frontend change needed.
+ */
+export const PER_REVIEWER_RESPONSE_ACTIVE: boolean = false
+
 /** Waiting for the reviewer: to accept or decline (pending), or to decide (accepted). */
 export function isOpenDecision(decision: InternalReviewDecision): boolean {
   return decision === 'pending' || decision === 'accepted'

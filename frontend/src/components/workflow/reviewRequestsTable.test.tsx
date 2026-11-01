@@ -138,6 +138,21 @@ describe('ReviewNotesDialog', () => {
   })
 })
 
+describe('Response in the comments dialog', () => {
+  const dialog = (response?: { recipients: string; onSend: (text: string) => Promise<void> }) => renderToStaticMarkup(<ReviewNotesDialog title="Comments from Reviewer Alpha" closeLabel="Close" onClose={() => {}}
+    labels={{ comment: 'Comments', decline: 'Reason for Declining', removal: 'Reason for Removing' }} response={response}
+    notes={[{ kind: 'comment', text: 'Revise section 2', date: '2026-10-04T08:00:00Z' }]} />)
+
+  it('shows Response beside Close, both filled, only when the reviewer can be responded to', () => {
+    const html = dialog({ recipients: 'Reviewer Alpha (Reviewer)', onSend: async () => {} })
+    const buttons = html.match(/<button[^>]*>[^<]*<\/button>/g)!
+    expect(buttons.map((button) => button.replace(/<[^>]+>/g, ''))).toEqual(['Close', 'Response'])
+    for (const button of buttons) expect(button).toContain('bg-maroon')
+    expect(html).not.toContain('<textarea')
+    expect(dialog()).not.toContain('>Response<')
+  })
+})
+
 describe('Remove Reviewer dialog', () => {
   it('offers the reason and a × close button, without the description or Keep Reviewer', () => {
     const html = renderToStaticMarkup(<FormDialog open title="Remove Reviewer Alpha from This Review?" confirmLabel="Remove Reviewer" closeLabel="Close" onConfirm={() => {}} onClose={() => {}}><textarea name="removalReason" /></FormDialog>)

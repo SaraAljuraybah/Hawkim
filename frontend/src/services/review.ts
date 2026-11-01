@@ -57,9 +57,9 @@ export async function decideReview(requestId: string, decision: 'completed' | 'r
   await call('decide_review', { p_request_id: requestId, p_decision: decision, p_text: text?.trim() || null })
 }
 
-/** Author or co-author: replies to the latest comments. */
-export async function respondToComments(sopId: string, text: string): Promise<void> {
-  await call('respond_to_comments', { p_sop_id: sopId, p_text: text })
+/** Author or co-author: replies to the latest comments, or only to the reviewer of `requestId`. */
+export async function respondToComments(sopId: string, text: string, requestId?: string): Promise<void> {
+  await call('respond_to_comments', { p_sop_id: sopId, p_text: text, ...(requestId ? { p_request_id: requestId } : {}) })
 }
 
 /** Withdraws the SOP's requests whose response due date has ended (nothing happens when none are due). */

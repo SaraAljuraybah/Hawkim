@@ -113,6 +113,10 @@ describe('internal parallel review across transitions and detail views', () => {
     for (const label of [events.submitted, events['review-accepted'], events['review-completed'], events['review-changes-requested']]) expect(author).toContain('>' + label + '<')
     for (const comment of ['All sections are clear', 'Revise the safety section']) expect(author).toContain(comment)
   })
+  it('leaves Response out of the Reviewers header when the comments are on reviewer rows', () => {
+    fixture.sop = decide(start(), 'reviewer-a', 'returned', 'Revise the safety section')
+    expect(render(<SopWorkflowPage />)).not.toContain('Response</button>')
+  })
   it('keeps unassigned users outside the Author and Reviewer detail views', () => {
     fixture.sop = start()
     fixture.userId = 'external'
