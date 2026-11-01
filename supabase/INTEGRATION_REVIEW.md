@@ -3,11 +3,12 @@
 Current state of `feat/frontend-ui-enhancements` after removing prototype mode (31 October 2026).
 The earlier version of this review (with `FRONTEND_PROTOTYPE = true`) is in the Git history.
 
-**Database integration is unverified, except the working-day deadlines, the compliance check rule and
-responses to one reviewer.** This review executed no SQL, applied no migration and did not contact
-the shared Supabase project; all tests below run locally against stand-ins. The database owner
-applied those three changes to the live project on 1 November 2026 and checked them there, see
-"Compliance check", "Internal parallel review" and "Deadlines" below.
+**Database integration is unverified, except the working-day deadlines, the compliance check rule,
+responses to one reviewer, and private comments and responses.** This review executed no SQL, applied
+no migration and did not contact the shared Supabase project; all tests below run locally against
+stand-ins. The database owner applied those four changes to the live project on 1 November 2026 and
+checked them there, see "Compliance check", "Internal parallel review", "Private comments and
+responses" and "Deadlines" below.
 
 ## What runs on the real backend (from `develop`)
 
@@ -31,10 +32,10 @@ Supabase paths again, with Dalal's new UI on top:
   A response from a reviewer's comments dialog goes only to that reviewer
   (`20261101150000_respond_to_one_reviewer.sql`, applied to the live project on 1 November 2026, with
   `PER_REVIEWER_RESPONSE_ACTIVE` on). `supabase/scripts/rollback_respond_to_one_reviewer.sql` undoes it.
-- **Private comments and responses:** `20261101160000_private_review_comments_and_responses.sql`
-  (not applied yet) limits reviewer comments (`sop_comments`, `role = 'reviewer'`) and responses
-  (`timeline_events`, `type = 'response'`) to the SOP's author, its co-authors and that reviewer, with
-  `can_read_review_note`. Until it is applied, anyone who can view a version can read them.
+- **Private comments and responses:** `20261101160000_private_review_comments_and_responses.sql`,
+  applied to the live project on 1 November 2026, limits reviewer comments (`sop_comments`,
+  `role = 'reviewer'`) and responses (`timeline_events`, `type = 'response'`) to the SOP's author, its
+  co-authors and that reviewer, with `can_read_review_note`.
   `supabase/scripts/rollback_private_review_comments_and_responses.sql` undoes it. Sample SOPs live
   in the browser, so this doesn't cover them.
   Other reviewers can still read decline reasons, removal reasons, each other's decisions and names
