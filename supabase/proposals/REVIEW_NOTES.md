@@ -76,6 +76,31 @@ still never been executed.
 
 To roll back, set the switch to `false` first, then run the rollback script.
 
+# Reviewers from other departments
+
+**Status: not applied yet.** `20261102130000_other_department_reviewers.sql`, undone by
+`supabase/scripts/rollback_other_department_reviewers.sql`.
+
+- **Who can be asked:** the first send of each version goes only to the SOP's department. Other
+  departments can be added, or sent an expired request again, once a reviewer from the SOP's department
+  has finished that version (completed or returned, as their latest request). A batch can mix
+  departments from then on. Because a round where every reviewer has finished and one returned it is
+  `changes-requested`, and `add_reviewers` refuses that status, "returned" only helps while someone
+  else is still reviewing.
+- **`is_eligible_reviewer`** no longer looks at the department: the order is checked where requests are
+  sent. `open_request` uses it, so other-department reviewers can accept and decide.
+- **Reading:** `reviewer_lost_access` is true for an other-department reviewer whose latest request on
+  the SOP is declined, removed or expired. `can_view_sop` and `can_view_version` then refuse them, which
+  also stops files, rounds, requests, compliance results and the timeline. A new request gives it back.
+  Their own comments and the responses addressed to them still follow `can_read_review_note`.
+- **`my_closed_review_requests`** returns only that person's latest request on such SOPs, with the title,
+  version, status, reason and date, so the bell can still tell them about an expiry or a removal.
+- **Other departments can read,** for versions sent to them: every reviewer's status, decline and removal
+  reasons, and the author's note, as same-department reviewers can.
+- **Not changed:** Submit for Approval (including its external-review checkbox) and `settle_review_round`.
+  If the same-department reviewer is later removed, approval doesn't block on it.
+- **Department:** always the reviewer's current department; nothing records it at request time.
+
 # Expired review requests
 
 **Status: APPLIED to the live project on 2 November 2026.** The status check afterwards showed no

@@ -29,8 +29,11 @@ SOPs of every other department are submitted for review without a check.
   Compliance results are sample results until the compliance service is connected.
 - Not connected yet: approval, the admin portal's changes, requests, guideline upload
   and which notifications were read. These stay in the browser and are lost on reload.
-- Unanswered review requests are withdrawn when their response due date ends, the next
-  time the SOP is opened or acted on (a scheduled job will do it on the server later).
+- Unanswered review requests expire when their response due date ends, the next time the
+  SOP is opened or acted on. The main author can then remove the reviewer, add another or
+  send the request again.
+- To test reviewers from other departments, use a Quality Assurance SOP: `abeer.alhamdan`
+  as author, `faisal.alharbi` from the same department and `noura.alqahtani` from another.
 - The sample SOPs, requests and notifications belong to the old sample accounts, so
   they don't appear in My SOPs, My Reviews or My Requests, and sample authors and
   requesters show without a name. Test with new SOPs.

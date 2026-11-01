@@ -106,7 +106,10 @@ disposable local database with explicit permission. Never run them against the s
 
 ## Remaining boundaries
 
-- Approval, administration and cross-department access need tables, RPCs and RLS.
+- Approval, administration and department access requests need tables, RPCs and RLS.
+- Reviewers from other departments: `20261102130000_other_department_reviewers.sql` (not applied yet).
+  The Quality Document Controller is hidden from the reviewer list in the browser only, because that
+  setting isn't in the database.
 - Unanswered requests expire when review functions are called or an SOP loads, not at a scheduled
   time. That is enough for in-app notifications; a scheduled job would only be needed for emails.
 - Frontend date handling outside review deadlines still uses the device's time zone for some legacy
