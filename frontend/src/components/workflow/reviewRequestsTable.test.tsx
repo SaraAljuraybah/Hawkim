@@ -61,12 +61,16 @@ describe('Reviewers table on the author SOP page', () => {
     expect(table(html)).toMatch(/<tr class="text-text-gray"><th scope="row"[^>]*>Reviewer Gamma/)
   })
 
-  it('lists a reviewer asked again once per request', () => {
+  it('shows only the latest request of a reviewer asked again, in the table and the cards, keeping the data', () => {
     let sop = started()
     sop = declineInternalReview(sop, 'alpha', currentInternalRound(sop)!.id, request(sop, 'alpha').id, 'On leave', env())
     sop = addInternalReviewers(sop, 'author', { reviewerIds: ['alpha'] }, env())
-    const rows = table(render(sop)).match(/<th scope="row"[^>]*>Reviewer Alpha/g)
-    expect(rows).toHaveLength(2)
+    const html = render(sop)
+    expect(table(html).match(/<th scope="row"[^>]*>Reviewer Alpha/g)).toHaveLength(1)
+    expect(row(html, 'Reviewer Alpha')).toContain('</span>Pending</span>')
+    expect(html).not.toContain('</span>Declined</span>')
+    expect(html.match(/<li class="rounded-lg border border-beige p-4">/g)).toHaveLength(3)
+    expect(currentInternalRound(sop)!.assignments.filter((item) => item.userId === 'alpha').map((item) => item.decision)).toEqual(['declined', 'pending'])
   })
 
   it('keeps — before acceptance, then shows the due date and the decision date', () => {
@@ -158,9 +162,26 @@ describe('an expired request in the table', () => {
     const sop = expired()
     const sent = resendInternalReview(sop, 'author', request(sop, 'alpha').id, env())
     const rows = table(render(sent)).match(/<tr[^>]*><th scope="row"[^>]*>Reviewer Alpha.*?<\/tr>/g)!
-    expect(rows).toHaveLength(2)
-    for (const item of rows) expect(item).not.toContain('Send Again')
-    expect(rows[1]).toContain('</span>Pending</span>')
+    expect(rows).toHaveLength(1)
+    expect(rows[0]).not.toContain('Send Again')
+    expect(rows[0]).toContain('</span>Pending</span>')
+    expect(rows[0]).not.toContain('</span>Expired</span>')
+  })
+  it('keeps the latest row of a reviewer who was not asked again', () => {
+    let sop = started()
+    const round = currentInternalRound(sop)!
+    sop = declineInternalReview(sop, 'alpha', round.id, request(sop, 'alpha').id, 'On leave', env())
+    sop = removeInternalReviewer(sop, 'author', round.id, request(sop, 'beta').id, 'Not needed', env())
+    const html = render(sop)
+    expect(row(html, 'Reviewer Alpha')).toContain('</span>Declined</span>')
+    expect(row(html, 'Reviewer Beta')).toContain('</span>Removed</span>')
+    expect(row(html, 'Reviewer Gamma')).toContain('</span>Pending</span>')
+  })
+  it('shows a reviewer once per version, so another version keeps its own row', () => {
+    const sop = started()
+    const first = currentInternalRound(sop)!
+    const two: Sop = { ...sop, version: '2', internalReviewRounds: [first, { ...first, id: 'second', version: '2' }] }
+    expect(render(two).match(/<th scope="row"[^>]*>Reviewer Alpha/g)).toHaveLength(2)
   })
   it('keeps the trash icon off declined rows', () => {
     const sop = started(5)

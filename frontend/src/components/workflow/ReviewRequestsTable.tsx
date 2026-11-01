@@ -3,7 +3,7 @@ import { ChevronDown, Eye, Pencil, RotateCw, Trash2 } from 'lucide-react'
 import { internalReviewEn } from '../../content/internalReview.en'
 import type { InternalReviewerAssignment, InternalReviewRound, Sop } from '../../data/mock/types'
 import { formatDate, formatReviewDate } from '../../lib/format'
-import { isInactiveDecision, REVIEW_DEADLINE_EDITING_ACTIVE } from '../../lib/internalReviewStatus'
+import { isInactiveDecision, latestAssignments, REVIEW_DEADLINE_EDITING_ACTIVE } from '../../lib/internalReviewStatus'
 import { canRespondToRequest, requestDecisionDate, requestReviewDueDate, reviewNotes, type ReviewNote } from '../../lib/reviewRequestRows'
 import { useDepartments } from '../../state/departmentsContext'
 import { useUsers } from '../../state/usersContext'
@@ -41,7 +41,8 @@ function Timestamp({ value, format }: { value?: string; format: (value: string) 
 }
 
 /**
- * Every review request of the SOP, one table per version, newest first (the author's SOP page).
+ * Each reviewer's latest request, one table per version, newest first (the author's SOP page):
+ * a reviewer asked again shows only the new request; nothing is removed from the data.
  * The newest version starts expanded and the older ones collapsed. Requests no longer taking
  * part use lighter text. A table from xl up (eight columns don't fit beside the sidebar
  * earlier); stacked cards below.
@@ -105,6 +106,7 @@ export function ReviewRequestsTable({ sop, canRemove, onRemove, canEditDeadline,
   }
 
   function requestTable(round: InternalReviewRound): ReactNode {
+    const requests = latestAssignments(round)
     return (
       <>
         <table className="hidden w-full text-left text-sm xl:table">
@@ -118,7 +120,7 @@ export function ReviewRequestsTable({ sop, canRemove, onRemove, canEditDeadline,
             </tr>
           </thead>
           <tbody className="divide-y divide-beige">
-            {round.assignments.map((request) => {
+            {requests.map((request) => {
               const row = cells(round, request)
               const colour = isInactiveDecision(request.decision) ? 'text-text-gray' : 'text-maroon'
               return (
@@ -139,7 +141,7 @@ export function ReviewRequestsTable({ sop, canRemove, onRemove, canEditDeadline,
 
         {/* Below xl: one card per request */}
         <ul className="space-y-3 xl:hidden">
-          {round.assignments.map((request) => {
+          {requests.map((request) => {
             const row = cells(round, request)
             const colour = isInactiveDecision(request.decision) ? 'text-text-gray' : 'text-maroon'
             return (
