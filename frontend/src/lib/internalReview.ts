@@ -2,7 +2,8 @@ import { SYSTEM_ACTOR, type InternalReviewRound, type InternalReviewerAssignment
 import { checkRequired, hasCurrentCheck } from './compliance'
 import { fixedResponseDueDate } from './fixedResponseDeadline'
 import { todayIsoDate } from './format'
-import { isInactiveDecision, isOpenDecision, isUnsentVersion, isValidReviewDuration, isWithdrawalDue, latestAssignmentOf, latestAssignments, projectReviewers, reviewDueDateFrom, withdrawalDueAt } from './internalReviewStatus'
+import { isInactiveDecision, isOpenDecision, isUnsentVersion, isValidReviewDuration, isWithdrawalDue, latestAssignmentOf, latestAssignments, projectReviewers, requestDeadline, reviewDueDateFrom, withdrawalDueAt } from './internalReviewStatus'
+import { previewReviewDeadline } from './reviewDeadline'
 import { eligibleReviewers, type ReviewEnvironment } from './reviewFlow'
 import { WORKING_DAY_DEADLINES_ACTIVE } from './deadlinePolicy'
 import { parseResponseDueDate } from './responseTime'
@@ -237,6 +238,28 @@ export function removeInternalReviewer(sop: Sop, actorId: string, roundId: strin
   const now = new Date().toISOString()
   const updated = update(round, assignmentId, { decision: 'removed', removedAt: now, removedById: actorId, removalReason: trimmed })
   return settleRound(sop, updated, [event(round, 'reviewer-removed', actorId, { reviewAssignmentId: assignmentId, note: trimmed, recipientIds: [assignment.userId] })])
+}
+/** The reviewer is reviewing the current version (accepted, on their latest request, in an open round), so their deadline can change. */
+export function canChangeReviewDeadline(sop: Sop, round: InternalReviewRound, assignment: InternalReviewerAssignment): boolean {
+  return sop.status === 'in-review' && round === currentInternalRound(sop) && round.version === sop.version && round.status === 'open' &&
+    assignment.decision === 'accepted' && latestAssignmentOf(round, assignment.userId) === assignment
+}
+/**
+ * The main author changes a reviewer's review deadline, or sets one: a number of working days from
+ * acceptance. The request then follows the working-day policy, whichever one it was sent under.
+ */
+export function changeInternalReviewDeadline(sop: Sop, actorId: string, roundId: string, assignmentId: string, days: number, env: ReviewEnvironment): Sop {
+  author(sop, actorId, env)
+  const round = currentInternalRound(sop)
+  const assignment = round?.assignments.find((person) => person.id === assignmentId)
+  assert(round?.id === roundId && assignment && canChangeReviewDeadline(sop, round, assignment), "This reviewer isn't reviewing this version any more")
+  const preview = previewReviewDeadline(assignment, String(days))
+  assert(preview.problem !== 'invalid', 'Choose a review duration of 1 to 3,650 working days')
+  assert(preview.problem !== 'past', 'That deadline has already passed')
+  assert(preview.problem !== 'unchanged', 'That is already the review deadline')
+  const updated = update(round, assignmentId, { reviewDurationDays: days, reviewDueDate: preview.dueDate, reviewDueAt: preview.dueAt, deadlinePolicy: WORKING_DAY_POLICY })
+  return save(sop, updated, [event(round, 'review-deadline-changed', actorId, { reviewAssignmentId: assignmentId, recipientIds: [assignment.userId],
+    previousReviewDueAt: requestDeadline(assignment)?.dueAt, newReviewDueAt: preview.dueAt })])
 }
 /** A new version, uploaded once everyone finished (or after an approver return), is ready to be sent to reviewers. */
 export function canSendNewVersion(sop: Sop): boolean {

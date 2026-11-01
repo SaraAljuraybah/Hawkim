@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { SYSTEM_ACTOR, type InternalReviewRound, type Sop, type User } from '../data/mock/types'
-import { acceptInternalReview, addableReviewers, addInternalReviewers, canAddReviewers, currentInternalRound, decideInternalReview, declineInternalReview, isInternalReviewPending, nextWithdrawalAt, removeInternalReviewer, canSendNewVersion, sendNewVersionForReview, startInternalReview, withdrawUnanswered } from './internalReview'
+import { acceptInternalReview, addableReviewers, addInternalReviewers, canAddReviewers, changeInternalReviewDeadline, currentInternalRound, decideInternalReview, declineInternalReview, isInternalReviewPending, nextWithdrawalAt, removeInternalReviewer, canSendNewVersion, sendNewVersionForReview, startInternalReview, withdrawUnanswered } from './internalReview'
 import { latestAssignmentOf, projectReviewers, reviewAllowsNewVersion } from './internalReviewStatus'
 import { fixedResponseDueDate } from './fixedResponseDeadline'
 import { endOfRiyadhDay } from './riyadhWorkingDays'
@@ -523,6 +523,63 @@ describe('automatic withdrawal of unanswered requests', () => {
     expect(currentInternalRound(settled)!.status).toBe('completed')
     expect(requiredReviewsComplete(settled)).toBe(true)
     expect(reviewTasks('c', [settled])[0]).toMatchObject({ group: 'done', decision: 'withdrawn' })
+  })
+})
+
+describe('changing a review deadline', () => {
+  // Thursday 29 October 2026: accepted that day, so working days count from Sunday 1 November.
+  beforeEach(() => vi.setSystemTime(new Date('2026-10-29T12:00:00+03:00')))
+  const accepted = () => accept(start(), 'a')
+  const change = (sop: Sop, days: number, actor = 'author', userId = 'a') => changeInternalReviewDeadline(sop, actor, currentInternalRound(sop)!.id, task(sop, userId).id, days, env())
+
+  it('saves the working days and dates, and records the old and new deadlines for the reviewer', () => {
+    const before = accepted()
+    const changed = change(before, 3)
+    expect(task(changed, 'a')).toMatchObject({ reviewDurationDays: 3, reviewDueDate: '2026-11-03', reviewDueAt: endOfRiyadhDay('2026-11-03') })
+    expect(changed.timeline.at(-1)).toMatchObject({ type: 'review-deadline-changed', actorId: 'author', recipientIds: ['a'], reviewAssignmentId: task(before, 'a').id,
+      previousReviewDueAt: endOfRiyadhDay('2026-11-05'), newReviewDueAt: endOfRiyadhDay('2026-11-03'), version: '1' })
+  })
+
+  it('can be changed again, each time with its own entry, and goes beyond the old maximum', () => {
+    const changed = change(change(accepted(), 3), 200)
+    expect(changed.timeline.filter((event) => event.type === 'review-deadline-changed')).toHaveLength(2)
+    expect(task(changed, 'a').reviewDurationDays).toBe(200)
+  })
+
+  it('sets a deadline on a request accepted without one, with no old deadline recorded', () => {
+    const sop = accept(startInternalReview(draft(), 'author', '4.0', { reviewerIds: ['a'] }, env()), 'a')
+    const changed = change(sop, 2)
+    expect(task(changed, 'a').reviewDueDate).toBe('2026-11-02')
+    expect(changed.timeline.at(-1)!.previousReviewDueAt).toBeUndefined()
+  })
+
+  it('moves a calendar-day request to working days', () => {
+    const sop = accepted()
+    task(sop, 'a').deadlinePolicy = 'calendar-v1'
+    expect(task(change(sop, 2), 'a')).toMatchObject({ deadlinePolicy: 'riyadh-working-days-v1', reviewDueDate: '2026-11-02' })
+  })
+
+  it('refuses the same deadline, one already passed, and an invalid number', () => {
+    const sop = accepted()
+    expect(() => change(sop, 5)).toThrow(/already the review deadline/)
+    for (const days of [0, 3651, 1.5]) expect(() => change(sop, days)).toThrow(/1 to 3,650/)
+    vi.setSystemTime(new Date('2026-11-04T12:00:00+03:00'))
+    expect(() => change(sop, 1)).toThrow(/already passed/)
+  })
+
+  it('counts as a new reminder, because the old one may have been read', () => {
+    const sop = accepted()
+    const reminder = (source: Sop, at: string) => deriveNotifications('a', { sops: [source], requests: [], now: Date.parse(at) }).find((item) => item.type === 'due-soon')
+    const moved = change(sop, 6)
+    expect(reminder(moved, '2026-11-08T12:00:00+03:00')!.id).not.toBe(reminder(sop, '2026-11-05T12:00:00+03:00')!.id)
+  })
+
+  it('is only for the main author, on a request being reviewed', () => {
+    const sop = accepted()
+    for (const actor of ['coauthor', 'a', 'admin']) expect(() => change(sop, 3, actor)).toThrow()
+    expect(() => change(sop, 3, 'author', 'b')).toThrow(/any more/)
+    const finished = decideInternalReview(sop, 'a', currentInternalRound(sop)!.id, task(sop, 'a').id, 'completed', undefined, env())
+    expect(() => change(finished, 3)).toThrow(/any more/)
   })
 })
 

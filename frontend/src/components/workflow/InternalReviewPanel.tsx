@@ -3,7 +3,7 @@ import { flushSync } from 'react-dom'
 import { internalReviewEn as text } from '../../content/internalReview.en'
 import { sopWorkflowEn } from '../../content/workflow.en'
 import type { InternalReviewerAssignment, InternalReviewRound, Sop } from '../../data/mock/types'
-import { REVIEW_TEXT_MAX } from '../../lib/internalReview'
+import { canChangeReviewDeadline, REVIEW_TEXT_MAX } from '../../lib/internalReview'
 import { isInactiveDecision, latestAssignmentOf } from '../../lib/internalReviewStatus'
 import { useSops } from '../../state/sopsContext'
 import { useUsers } from '../../state/usersContext'
@@ -14,6 +14,7 @@ import { TextAreaField } from '../ui/TextAreaField'
 import { RequestStatusBadge, ReviewRequestDetails } from './ReviewRequestDetails'
 import { ReviewRequestsTable, type ReviewRequestResponse } from './ReviewRequestsTable'
 import { DecisionBadge } from './DecisionBadge'
+import { ReviewDeadlineDialog } from './ReviewDeadlineDialog'
 import { ReviewerDeadline } from './ReviewerDeadline'
 
 interface Props {
@@ -43,6 +44,7 @@ export function InternalReviewPanel({ sop, canRemove, inactive = false, table = 
   const { nameOf } = useUsers()
   const store = useSops()
   const [target, setTarget] = useState<{ roundId: string; assignment: InternalReviewerAssignment } | null>(null)
+  const [editing, setEditing] = useState<{ roundId: string; assignment: InternalReviewerAssignment } | null>(null)
   const [reason, setReason] = useState('')
   const [reasonError, setReasonError] = useState('')
   const [error, setError] = useState('')
@@ -65,6 +67,10 @@ export function InternalReviewPanel({ sop, canRemove, inactive = false, table = 
     setReasonError('')
     setError('')
   }
+  function closeEditing() {
+    setEditing(null)
+    requestAnimationFrame(() => { if (triggerRef.current?.isConnected) triggerRef.current.focus(); else document.getElementById(TITLE_ID)?.focus() })
+  }
   const isLatestRequest = (round: InternalReviewRound, assignment: InternalReviewerAssignment) => round === current && assignment === latestAssignmentOf(current, assignment.userId)
   // After a removal the Remove button may be gone: focus moves to the panel heading instead.
   function close() { setTarget(null); requestAnimationFrame(() => { if (triggerRef.current?.isConnected) triggerRef.current.focus(); else document.getElementById(TITLE_ID)?.focus() }) }
@@ -86,7 +92,8 @@ export function InternalReviewPanel({ sop, canRemove, inactive = false, table = 
     </li>)}</ul>}
     {table && requests.length > 0 && <ReviewRequestsTable sop={sop} response={response} onRemove={askToRemove}
       canRemove={(round, assignment) => removable && isLatestRequest(round, assignment) && !isInactiveDecision(assignment.decision)}
-      canEditDeadline={(round, assignment) => canRemove && round.version === sop.version && assignment.decision === 'accepted'} />}
+      canEditDeadline={(round, assignment) => canRemove && canChangeReviewDeadline(sop, round, assignment)}
+      onEditDeadline={(round, assignment, trigger) => { triggerRef.current = trigger; setEditing({ roundId: round.id, assignment }) }} />}
     {!table && reviewerIds.length > 0 && <ul className="space-y-4">{reviewerIds.map((userId) => {
       const own = requestsOf(userId).reverse()
       const name = nameOf(userId)
@@ -102,6 +109,11 @@ export function InternalReviewPanel({ sop, canRemove, inactive = false, table = 
           </li>)}</ul>
       </li>
     })}</ul>}
+    {editing && <ReviewDeadlineDialog request={editing.assignment} name={nameOf(editing.assignment.userId)} onClose={closeEditing}
+      onSubmit={async (days) => {
+        await store.changeReviewDeadline(sop.id, editing.roundId, editing.assignment.id, days)
+        setMessage(text.panel.deadline.changed.replace('{name}', nameOf(editing.assignment.userId)))
+      }} />}
     {target && <FormDialog open title={text.panel.removeTitle.replace('{name}', nameOf(target.assignment.userId))}
       confirmLabel={text.panel.remove} closeLabel={text.panel.table.close} onConfirm={remove} onClose={close}>
       {error && <p role="alert" className="text-sm text-status-rejected-fg">{error}</p>}

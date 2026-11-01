@@ -2,7 +2,7 @@ import { useId, useState, type ReactNode } from 'react'
 import { reviewFlowEn } from '../../content/reviewFlow.en'
 import type { SopWorkflowContent } from '../../content/types'
 import type { Sop, TimelineEvent } from '../../data/mock/types'
-import { formatReviewDateTime as formatDateTime, formatReviewDateTimeNoZone } from '../../lib/format'
+import { formatReviewDate, formatReviewDateTime as formatDateTime, formatReviewDateTimeNoZone } from '../../lib/format'
 import { visibleTimelineEvents } from '../../lib/releaseScope'
 import { commentForEvent, timelineRecipients } from '../../lib/workflow'
 import { useDepartments } from '../../state/departmentsContext'
@@ -81,7 +81,10 @@ export function ReviewTimelineTable({ sop, content, mainAuthorOnly = false, rele
     timelineRecipients(sop, event, mainAuthorOnly)
       .map((id) => personWithRole(sop, id, roles, nameOf))
       .join(', ')
-  const comment = (event: TimelineEvent) => event.note ?? commentForEvent(sop, event)?.text
+  const deadlineChange = (event: TimelineEvent) => timeline.deadlineChange
+    .replace('{old}', event.previousReviewDueAt ? formatReviewDate(event.previousReviewDueAt) : timeline.noDeadline)
+    .replace('{new}', event.newReviewDueAt ? formatReviewDate(event.newReviewDueAt) : timeline.noDeadline)
+  const comment = (event: TimelineEvent) => event.type === 'review-deadline-changed' ? deadlineChange(event) : event.note ?? commentForEvent(sop, event)?.text
   const version = (event: TimelineEvent) => versionTemplate.replace('{version}', event.version)
   const date = (event: TimelineEvent) => <time dateTime={event.createdAt}>{formatReviewDateTimeNoZone(event.createdAt)}</time>
   const empty = (

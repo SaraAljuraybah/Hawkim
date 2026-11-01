@@ -42,7 +42,7 @@ const SOP_COLUMNS = `id, code, title, description, department_id, author_id, sta
   sop_versions!sop_versions_sop_id_fkey (version, file_name, file_type, storage_path, uploaded_by, uploaded_at, deleted_at, deleted_by),
   sop_co_authors!sop_co_authors_sop_id_fkey (user_id, added_at),
   timeline_events!timeline_events_sop_id_fkey (id, type, actor_id, version, recipient_ids, subject_id, note, created_at,
-    review_round_id, review_request_id, comment_id),
+    review_round_id, review_request_id, comment_id, previous_review_due_at, new_review_due_at),
   review_rounds!review_rounds_sop_id_fkey (id, version, status, requested_by, requested_at, closed_at,
     review_requests!review_requests_round_id_fkey (id, seq, reviewer_id, status, assigned_at, response_due_date, response_due_at,
       review_duration_days, accepted_at, review_due_date, review_due_at,${REQUEST_POLICY_COLUMN} decided_at, decline_reason, comment_id, withdrawn_at,
@@ -76,6 +76,8 @@ export interface TimelineEventRow {
   review_round_id: string | null
   review_request_id: string | null
   comment_id: string | null
+  previous_review_due_at?: string | null
+  new_review_due_at?: string | null
 }
 
 export interface ReviewRequestRow {
@@ -185,6 +187,8 @@ function toEvent(row: TimelineEventRow): TimelineEvent {
     ...(row.review_round_id ? { reviewRoundId: row.review_round_id } : {}),
     ...(row.review_request_id ? { reviewAssignmentId: row.review_request_id } : {}),
     ...(row.comment_id ? { commentId: row.comment_id } : {}),
+    ...(row.previous_review_due_at ? { previousReviewDueAt: row.previous_review_due_at } : {}),
+    ...(row.new_review_due_at ? { newReviewDueAt: row.new_review_due_at } : {}),
   }
 }
 

@@ -57,6 +57,18 @@ beforeEach(() => {
   fixture.sop = { ...sops[0], id: 'test', code: 'SOP-SECRET', title: 'Visible Procedure', departmentId: 'home', authorId: 'author', coAuthorIds: ['coauthor'], status: 'draft', version: '1', fileName: 'SOP-SECRET.pdf', fileUrl: 'blob:document', fileType: 'pdf', description: 'Line one\nLine two', versions: [{ version: '1', fileName: 'SOP-SECRET.pdf', fileType: 'pdf', uploadedAt: '2026-10-29T08:00:00Z', uploadedById: 'author', fileUrl: 'blob:document' }], reviewers: [], approvers: [], internalReviewRounds: undefined, reviewFlow: undefined, comments: [], timeline: [], complianceChecks: [] }
 })
 
+describe('a changed review deadline in the timeline', () => {
+  it('shows the old and new dates, or that there was none, on the author\'s page', () => {
+    const version = fixture.sop!.version
+    const changed = (id: string, previousReviewDueAt?: string) => ({ id, type: 'review-deadline-changed' as const, actorId: 'author', version, recipientIds: ['reviewer'], previousReviewDueAt, newReviewDueAt: '2026-11-03T20:59:59.999Z', createdAt: '2026-11-01T09:00:00Z' })
+    fixture.sop = { ...fixture.sop!, timeline: [changed('first'), changed('second', '2026-11-05T20:59:59.999Z')] }
+    const html = render(<SopWorkflowPage />)
+    expect(html).toContain('Review deadline changed')
+    expect(html).toContain('From no deadline to Nov 3, 2026')
+    expect(html).toContain('From Nov 5, 2026 to Nov 3, 2026')
+  })
+})
+
 describe('the review page when the database hides another reviewer\'s comment', () => {
   it('renders the request and its timeline event without the comment, and the empty comments message', () => {
     const version = fixture.sop!.version

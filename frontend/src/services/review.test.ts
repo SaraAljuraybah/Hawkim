@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { ReviewDeadlineUnavailableError } from '../lib/reviewDeadline'
 import { ResponseNotAvailableError } from '../lib/reviewRequestRows'
-import { acceptReview, addReviewers, declineReview, decideReview, removeReviewer, respondToComments, RESPONSE_NOT_AVAILABLE_HINT, submitReview, withdrawDueRequests } from './review'
+import { acceptReview, addReviewers, changeReviewDeadline, declineReview, decideReview, removeReviewer, respondToComments, RESPONSE_NOT_AVAILABLE_HINT, REVIEW_DEADLINE_UNAVAILABLE_HINT, submitReview, withdrawDueRequests } from './review'
 
 const rpc = vi.fn()
 vi.mock('./supabase', () => ({ supabase: () => ({ rpc }) }))
@@ -62,6 +63,15 @@ describe('the internal review in the database', () => {
     rpc.mockClear()
     await expect(addReviewers('uuid-sop', { reviewerIds: ['uuid-noura'], note: note + 'x' })).rejects.toThrow(/too long/)
     expect(rpc).not.toHaveBeenCalled()
+  })
+
+  it('changes a review deadline, and recognises a stale request by its hint, and only by that', async () => {
+    await changeReviewDeadline('uuid-request', 7)
+    expect(rpc).toHaveBeenLastCalledWith('change_review_deadline', { p_request_id: 'uuid-request', p_review_duration_days: 7 })
+    rpc.mockResolvedValueOnce({ data: null, error: { message: 'Any wording', code: '23514', hint: REVIEW_DEADLINE_UNAVAILABLE_HINT } })
+    await expect(changeReviewDeadline('uuid-request', 7)).rejects.toBeInstanceOf(ReviewDeadlineUnavailableError)
+    rpc.mockResolvedValueOnce({ data: null, error: { message: 'Another refusal', code: '23514', hint: null } })
+    await expect(changeReviewDeadline('uuid-request', 7)).rejects.not.toBeInstanceOf(ReviewDeadlineUnavailableError)
   })
 
   it('recognises a response the database refused by its hint, and only by that', async () => {

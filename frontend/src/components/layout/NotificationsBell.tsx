@@ -17,7 +17,7 @@ import {
 import { notificationsEn } from '../../content/notifications.en'
 import type { NotificationType } from '../../lib/notifications'
 import { isReadOnlyDepartment, needsHomeDepartment } from '../../lib/departmentNavigation'
-import { formatRelativeTime } from '../../lib/format'
+import { formatRelativeTime, formatReviewDate } from '../../lib/format'
 import { useActiveDepartment } from '../../state/activeDepartmentContext'
 import { useDepartments } from '../../state/departmentsContext'
 import { useNotifications, type NotificationItem } from '../../state/notificationsContext'
@@ -40,6 +40,7 @@ const ICONS: Record<NotificationType, LucideIcon> = {
   'ready-to-publish': Upload,
   'sop-returned': Undo2,
   response: MessageSquareReply,
+  'review-deadline-changed': Clock,
   'sop-approved': BadgeCheck,
   'sop-published': BookOpen,
   'due-soon': Clock,
@@ -119,6 +120,8 @@ export function NotificationsBell() {
         return fill(t.returned)
       case 'response':
         return fill(t.response)
+      case 'review-deadline-changed':
+        return fill(t.reviewDeadlineChanged).replace('{date}', item.dueAt ? formatReviewDate(item.dueAt) : '')
       case 'sop-approved':
         return fill(t.approved)
       case 'sop-published':

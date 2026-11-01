@@ -739,6 +739,9 @@ export interface SopWorkflowContent {
     viewMore: string
     viewLess: string
     events: Record<TimelineEventType, string>
+    /** review-deadline-changed: `{old}` and `{new}` are the dates, or noDeadline. */
+    deadlineChange: string
+    noDeadline: string
     /** Label for stage-due-date-set events, by stage. */
     stageDue: { review: string; approval: string }
     /** `{date}` is replaced. */
@@ -1080,6 +1083,8 @@ export interface NotificationsContent {
     approved: string
     published: string
     response: string
+    /** `{date}` is the new deadline. */
+    reviewDeadlineChanged: string
     /** `response`: a reviewer's reminder to accept or decline before the request is withdrawn. */
     dueSoon: { review: string; response: string; approval: string }
     days: { today: string; tomorrow: string }

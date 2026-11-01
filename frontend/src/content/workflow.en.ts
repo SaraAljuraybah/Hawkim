@@ -149,8 +149,11 @@ export const sopWorkflowEn: SopWorkflowContent = {
     none: 'None',
     viewMore: 'View More',
     viewLess: 'View Less',
+    deadlineChange: 'From {old} to {new}',
+    noDeadline: 'no deadline',
     events: {
       'review-accepted': 'Review accepted',
+      'review-deadline-changed': 'Review deadline changed',
       'review-declined': 'Review declined',
       'review-withdrawn': 'Review request withdrawn (no response)',
       'reviewer-removed': 'Reviewer removed',

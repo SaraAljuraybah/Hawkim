@@ -1,10 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import sopsMigration from '../../../supabase/migrations/20261026120000_sops_and_versions.sql?raw'
 import reviewMigration from '../../../supabase/migrations/20261026150000_internal_review.sql?raw'
+import changeDeadlineMigration from '../../../supabase/migrations/20261101170100_change_review_deadline.sql?raw'
 import oneReviewerMigration from '../../../supabase/migrations/20261101150000_respond_to_one_reviewer.sql?raw'
 import calendarMigration from '../../../supabase/migrations/20261101120000_review_deadline_helpers.sql?raw'
 import workingDaysMigration from '../../../supabase/migrations/20261101120100_internal_review_working_days.sql?raw'
-import { acceptReview, addReviewers, declineReview, decideReview, removeReviewer, respondToComments, submitReview, withdrawDueRequests } from './review'
+import { acceptReview, addReviewers, changeReviewDeadline, declineReview, decideReview, removeReviewer, respondToComments, submitReview, withdrawDueRequests } from './review'
 import { fetchSops } from './sops'
 
 const rpc = vi.fn()
@@ -93,10 +94,11 @@ describe('the static review service and migration contract (no SQL execution)', 
     await decideReview('request-id', 'completed', 'Reviewed')
     await respondToComments('sop-id', 'Addressed')
     await respondToComments('sop-id', 'Addressed', 'request-id')
+    await changeReviewDeadline('request-id', 7)
     await withdrawDueRequests('sop-id')
 
-    const signatures = functionSignatures([sopsMigration, reviewMigration, calendarMigration, workingDaysMigration, oneReviewerMigration].join('\n'))
-    expect(rpc.mock.calls).toHaveLength(9)
+    const signatures = functionSignatures([sopsMigration, reviewMigration, calendarMigration, workingDaysMigration, oneReviewerMigration, changeDeadlineMigration].join('\n'))
+    expect(rpc.mock.calls).toHaveLength(10)
     for (const [name, parameters] of rpc.mock.calls as [string, Record<string, unknown>][]) {
       expect(signatures.has(name), `Missing SQL RPC ${name}`).toBe(true)
       const declared = signatures.get(name)!

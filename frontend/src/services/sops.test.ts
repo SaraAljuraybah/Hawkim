@@ -148,6 +148,15 @@ describe('SOPs from the database', () => {
   })
 })
 
+describe('a changed review deadline in the timeline', () => {
+  it('keeps the old and new deadlines, and leaves out an old deadline that was empty', () => {
+    const event = (previous: string | null) => ({ ...row.timeline_events[0], type: 'review-deadline-changed' as const, previous_review_due_at: previous, new_review_due_at: '2026-11-03T20:59:59.999Z' })
+    const stored = { ...row, timeline_events: [event('2026-11-05T20:59:59.999Z')] }
+    expect(toSop(stored).timeline[0]).toMatchObject({ previousReviewDueAt: '2026-11-05T20:59:59.999Z', newReviewDueAt: '2026-11-03T20:59:59.999Z' })
+    expect(toSop({ ...row, timeline_events: [event(null)] }).timeline[0].previousReviewDueAt).toBeUndefined()
+  })
+})
+
 describe('reading SOPs', () => {
   it('selects the saved deadlines and their policy, but no column outside the schema', async () => {
     await fetchSops()

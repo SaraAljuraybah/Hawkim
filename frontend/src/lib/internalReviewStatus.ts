@@ -51,10 +51,12 @@ export function requestDeadline(assignment: Pick<InternalReviewerAssignment, 'ac
 }
 
 /**
- * Editing a saved review deadline. Off: the database has no function for it yet, so the author's
- * Reviewers table shows the action disabled. Switch it on in the same change that adds that function.
+ * Changing a saved review deadline, through change_review_deadline
+ * (supabase/migrations/20261101170100_change_review_deadline.sql, applied first). Off: the author's
+ * Reviewers table has no action for it. To roll back, set it to false before running
+ * supabase/scripts/rollback_change_review_deadline.sql.
  */
-export const REVIEW_DEADLINE_EDITING_ACTIVE: boolean = false
+export const REVIEW_DEADLINE_EDITING_ACTIVE: boolean = true
 
 /**
  * A response to one reviewer's request, through respond_to_comments' p_request_id

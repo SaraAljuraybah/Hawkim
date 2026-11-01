@@ -44,6 +44,7 @@ export interface SopsStore {
   addInternalReviewers: (sopId: string, options: SubmitOptions) => Promise<void>
   /** Main author: remove a reviewer from the current round at any time, with a required reason. */
   removeInternalReviewer: (sopId: string, roundId: string, assignmentId: string, reason: string) => Promise<void>
+  changeReviewDeadline: (sopId: string, roundId: string, assignmentId: string, days: number) => Promise<void>
   /** Main author: legacy resubmission with an optional new date and comments (internal reviews use submitForReview). */
   resubmit: (sopId: string, options?: ResubmitOptions) => void
   /** Uploads the file as the next version (Draft or Returned). It isn't checked until someone runs a compliance check. */

@@ -18,7 +18,6 @@ interface ReviewRequestsTableProps {
   onRemove: (round: InternalReviewRound, request: InternalReviewerAssignment, trigger: HTMLButtonElement) => void
   /** Whether this request shows the Edit Review Deadline action. */
   canEditDeadline: (round: InternalReviewRound, request: InternalReviewerAssignment) => boolean
-  /** Used once REVIEW_DEADLINE_EDITING_ACTIVE is switched on. */
   onEditDeadline?: (round: InternalReviewRound, request: InternalReviewerAssignment, trigger: HTMLButtonElement) => void
   /** Responding from the comments dialog (the author's SOP page). */
   response?: ReviewRequestResponse
@@ -82,9 +81,8 @@ export function ReviewRequestsTable({ sop, canRemove, onRemove, canEditDeadline,
             </span>
           )}
           <span>
-            {canEditDeadline(round, request) && (
+            {REVIEW_DEADLINE_EDITING_ACTIVE && canEditDeadline(round, request) && (
               <IconButton label={text.editDeadline.replace('{name}', name)} icon={Pencil}
-                disabledReason={REVIEW_DEADLINE_EDITING_ACTIVE ? undefined : text.editDeadlineSoon}
                 onClick={(event: MouseEvent<HTMLButtonElement>) => onEditDeadline?.(round, request, event.currentTarget)} />
             )}
           </span>

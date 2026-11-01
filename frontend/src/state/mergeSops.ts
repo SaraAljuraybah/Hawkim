@@ -25,6 +25,7 @@ const DATABASE_EVENTS = new Set<TimelineEventType>([
   'review-changes-requested',
   'internal-review-completed',
   'response',
+  'review-deadline-changed',
 ])
 
 /** Statuses only the approval kept in this tab can reach; the database's In Review doesn't replace them. */

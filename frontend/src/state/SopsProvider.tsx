@@ -7,8 +7,9 @@ import { sopTitleProblem } from '../lib/sopTitle'
 import { submitForApproval } from '../lib/approval'
 import { applyReviewAction } from '../lib/reviewFlow'
 import { PER_REVIEWER_RESPONSE_ACTIVE } from '../lib/internalReviewStatus'
+import { ReviewDeadlineUnavailableError } from '../lib/reviewDeadline'
 import { ResponseNotAvailableError } from '../lib/reviewRequestRows'
-import { acceptInternalReview, addInternalReviewers, decideInternalReview, declineInternalReview, nextWithdrawalAt, removeInternalReviewer, sendNewVersionForReview, startInternalReview, withdrawUnanswered } from '../lib/internalReview'
+import { acceptInternalReview, addInternalReviewers, changeInternalReviewDeadline, decideInternalReview, declineInternalReview, nextWithdrawalAt, removeInternalReviewer, sendNewVersionForReview, startInternalReview, withdrawUnanswered } from '../lib/internalReview'
 import { useDepartments } from './departmentsContext'
 import * as workflow from '../lib/workflow'
 import { fileTypeOf } from '../lib/prototypeFiles'
@@ -310,6 +311,17 @@ export function SopsProvider({ children }: { children: ReactNode }) {
       removeInternalReviewer: async (id, roundId, assignmentId, reason) => {
         removeInternalReviewer(current(id), userId, roundId, assignmentId, reason, environment)
         await (await reviewService()).removeReviewer(assignmentId, reason.trim())
+        await refresh(id)
+      },
+      changeReviewDeadline: async (id, roundId, assignmentId, days) => {
+        changeInternalReviewDeadline(current(id), userId, roundId, assignmentId, days, environment)
+        try {
+          await (await reviewService()).changeReviewDeadline(assignmentId, days)
+        } catch (error) {
+          // This tab was behind: read the SOP again, so the page shows what changed.
+          if (error instanceof ReviewDeadlineUnavailableError) await refresh(id).catch(() => undefined)
+          throw error
+        }
         await refresh(id)
       },
       resubmit: (id, options) => update(id, (sop) => {

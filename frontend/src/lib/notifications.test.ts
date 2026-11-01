@@ -137,6 +137,16 @@ describe('my SOP (author and co-authors)', () => {
   })
 })
 
+describe('a changed review deadline', () => {
+  it('tells only the reviewer, with the new deadline', () => {
+    const source = submit()
+    const changed: Sop = { ...source, timeline: [...source.timeline, { id: 'changed', type: 'review-deadline-changed', actorId: 'sara', version: '1', recipientIds: ['noura'], newReviewDueAt: '2026-11-03T20:59:59.999Z', createdAt: '2026-11-01T09:00:00Z' }] }
+    const told = deriveNotifications('noura', { sops: [changed], requests: [], now: Date.parse('2026-11-01T10:00:00Z') }).find((item) => item.type === 'review-deadline-changed')
+    expect(told).toMatchObject({ actorId: 'sara', dueAt: '2026-11-03T20:59:59.999Z', link: '/reviews/sop-1' })
+    for (const other of ['faisal', 'sara', 'reem']) expect(kinds(other, [changed])).not.toContain('review-deadline-changed')
+  })
+})
+
 describe('responses to comments', () => {
   it('tells everyone who commented in the latest round, not the author who responded', () => {
     const returned = returnAsReviewer(completeReview(submit(), 'noura', 'Minor wording.'), 'faisal', 'Fix section 4.')

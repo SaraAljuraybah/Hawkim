@@ -6,12 +6,16 @@
 
 import type { InternalReviewOptions } from '../lib/internalReview'
 import { isValidReviewDuration } from '../lib/internalReviewStatus'
+import { ReviewDeadlineUnavailableError } from '../lib/reviewDeadline'
 import { ResponseNotAvailableError } from '../lib/reviewRequestRows'
 import { SUBMIT_COMMENT_MAX } from '../lib/workflow'
 import { supabase } from './supabase'
 
 /** The hint respond_to_comments raises when a request can't receive a response. */
 export const RESPONSE_NOT_AVAILABLE_HINT = 'response-not-available'
+
+/** The hint change_review_deadline raises when the request can't be changed any more. */
+export const REVIEW_DEADLINE_UNAVAILABLE_HINT = 'review-deadline-unavailable'
 
 async function call(name: string, args: Record<string, unknown>): Promise<unknown> {
   const { data, error } = await supabase().rpc(name, args)
@@ -44,6 +48,13 @@ export async function addReviewers(sopId: string, o: InternalReviewOptions): Pro
 /** Main author: removes a reviewer from the current round, with a reason. */
 export async function removeReviewer(requestId: string, reason: string): Promise<void> {
   await call('remove_reviewer', { p_request_id: requestId, p_reason: reason })
+}
+
+/** Main author: changes a reviewer's review deadline, to a number of working days from their acceptance. */
+export async function changeReviewDeadline(requestId: string, days: number): Promise<void> {
+  const { error } = await supabase().rpc('change_review_deadline', { p_request_id: requestId, p_review_duration_days: days })
+  if (error?.hint === REVIEW_DEADLINE_UNAVAILABLE_HINT) throw new ReviewDeadlineUnavailableError(error.message)
+  if (error) throw new Error(error.message)
 }
 
 /** Reviewer: takes the task. */

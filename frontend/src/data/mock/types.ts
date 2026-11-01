@@ -310,6 +310,7 @@ export type TimelineEventType =
   | 'version-uploaded'
   | 'version-deleted'
   | 'response'
+  | 'review-deadline-changed'
   | 'submitted'
   | 'resubmitted'
   | 'forwarded-to-approver'
@@ -353,6 +354,9 @@ export interface TimelineEvent {
   departmentId?: DepartmentId
   /** The reviewer's or approver's comment made with this action (returned, review-completed, approved-by). */
   commentId?: string
+  /** For review-deadline-changed: the deadline before (none if there wasn't one) and after. */
+  previousReviewDueAt?: string
+  newReviewDueAt?: string
   /** For stage-due-date-set: which stage and its due date (ISO date and time). */
   stage?: 'review' | 'approval'
   dueAt?: string

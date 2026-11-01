@@ -101,15 +101,15 @@ describe('Reviewers table on the author SOP page', () => {
     expect(render(sop, false)).not.toContain('from this review')
   })
 
-  it('shows the disabled pencil to the main author on accepted requests of the current version only', () => {
+  it('shows the pencil to the main author on requests being reviewed in the current version only', () => {
     let sop = started()
     sop = acceptInternalReview(sop, 'alpha', currentInternalRound(sop)!.id, request(sop, 'alpha').id, env())
     const pencil = row(render(sop), 'Reviewer Alpha').match(/<button[^>]*aria-label="Edit Review Deadline for Reviewer Alpha"[^>]*>/)![0]
-    expect(pencil).toContain('aria-disabled="true"')
-    expect(pencil).toContain('aria-describedby')
-    expect(render(sop)).toContain('Editing review deadlines will be available soon.')
+    expect(pencil).not.toContain('aria-disabled="true"')
     expect(row(render(sop), 'Reviewer Beta')).not.toContain('Edit Review Deadline')
     expect(render(sop, false)).not.toContain('Edit Review Deadline')
+    const finished = decideInternalReview(sop, 'alpha', currentInternalRound(sop)!.id, request(sop, 'alpha').id, 'completed', undefined, env())
+    expect(row(render(finished), 'Reviewer Alpha')).not.toContain('Edit Review Deadline')
   })
 
   it('shows one disclosure per version, newest first, with only the newest expanded', () => {

@@ -33,6 +33,8 @@ export type NotificationType =
   | 'sop-published'
   /** The author or a co-author responded to my comments. */
   | 'response'
+  /** The main author changed my review deadline. */
+  | 'review-deadline-changed'
   /** My pending decision in the open stage. */
   | 'due-soon'
   | 'overdue'
@@ -150,6 +152,8 @@ function fromEvent(sop: Sop, event: TimelineEvent, userId: string): AppNotificat
       return isRecipient ? { ...base, type: 'sop-returned', link: mySopPath(sop.id) } : undefined
     case 'response':
       return isRecipient ? { ...base, type: 'response', link: reviewPath(sop.id) } : undefined
+    case 'review-deadline-changed':
+      return isRecipient ? { ...base, type: 'review-deadline-changed', dueAt: event.newReviewDueAt, link: reviewPath(sop.id) } : undefined
     case 'published':
       return isWriter && event.actorId !== userId ? { ...base, type: 'sop-published', link: mySopPath(sop.id) } : undefined
     default:
@@ -198,10 +202,11 @@ function dueNotification(sop: Sop, userId: string, now: number): AppNotification
 /**
  * A reviewer's reminder for their own request, with a stable identity per request and phase.
  * A passed response due date withdraws the request instead, so only a review can be overdue.
+ * A changed review deadline is a new reminder: the old one may have been read.
  */
 function internalDeadline(sop: Sop, requestKey: string, dueAt: string, userId: string, now: number, phase: 'response' | 'review'): AppNotification | undefined {
   const due = new Date(dueAt).getTime()
-  const key = requestKey + ':' + phase + ':' + userId
+  const key = requestKey + ':' + phase + ':' + userId + (phase === 'review' ? ':' + dueAt : '')
   const base = { sopId: sop.id, sopCode: sop.code, sopTitle: sop.title, version: sop.version, stage: 'review' as const, phase, dueAt, link: reviewPath(sop.id) }
   if (now >= due) return phase === 'review' ? { ...base, id: 'overdue:' + key, type: 'overdue', createdAt: dueAt } : undefined
   if (due - now <= DUE_SOON_MS) return { ...base, id: 'due-soon:' + key, type: 'due-soon', createdAt: new Date(due - DUE_SOON_MS).toISOString() }
@@ -215,7 +220,7 @@ function authorOverdue(sop: Sop, userId: string, now: number): AppNotification[]
   return latestAssignments(round).flatMap((assignment): AppNotification[] => {
     const deadline = assignment.decision === 'accepted' ? requestDeadline(assignment) : undefined
     if (!deadline || new Date(deadline.dueAt).getTime() > now) return []
-    return [{ id: `review-overdue:${assignment.id}:${userId}`, type: 'review-overdue', createdAt: deadline.dueAt, link: mySopPath(sop.id),
+    return [{ id: `review-overdue:${assignment.id}:${userId}:${deadline.dueAt}`, type: 'review-overdue', createdAt: deadline.dueAt, link: mySopPath(sop.id),
       sopId: sop.id, sopCode: sop.code, sopTitle: sop.title, version: sop.version, actorId: assignment.userId, dueAt: deadline.dueAt }]
   })
 }
