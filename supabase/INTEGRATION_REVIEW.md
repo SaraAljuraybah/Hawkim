@@ -3,10 +3,11 @@
 Current state of `feat/frontend-ui-enhancements` after removing prototype mode (31 October 2026).
 The earlier version of this review (with `FRONTEND_PROTOTYPE = true`) is in the Git history.
 
-**Database integration is unverified, except the working-day deadlines and the compliance check rule.**
-This review executed no SQL, applied no migration and did not contact the shared Supabase project;
-all tests below run locally against stand-ins. The database owner applied those two changes to the
-live project on 1 November 2026 and checked them there, see "Compliance check" and "Deadlines" below.
+**Database integration is unverified, except the working-day deadlines, the compliance check rule and
+responses to one reviewer.** This review executed no SQL, applied no migration and did not contact
+the shared Supabase project; all tests below run locally against stand-ins. The database owner
+applied those three changes to the live project on 1 November 2026 and checked them there, see
+"Compliance check", "Internal parallel review" and "Deadlines" below.
 
 ## What runs on the real backend (from `develop`)
 
@@ -28,9 +29,9 @@ Supabase paths again, with Dalal's new UI on top:
 - **Internal parallel review:** submit, add/remove reviewers, accept, decline, decide, respond,
   withdraw — each checks the browser rules first, then calls the RPC and reads the SOP again.
   A response from a reviewer's comments dialog goes only to that reviewer
-  (`20261101150000_respond_to_one_reviewer.sql`, not applied yet; `PER_REVIEWER_RESPONSE_ACTIVE` is
-  on, so apply it first). That is about the recipient and the notification: anyone who can view that
-  version can still read it in the timeline.
+  (`20261101150000_respond_to_one_reviewer.sql`, applied to the live project on 1 November 2026, with
+  `PER_REVIEWER_RESPONSE_ACTIVE` on). That is about the recipient and the notification: anyone who
+  can view that version can still read it in the timeline.
   `supabase/scripts/rollback_respond_to_one_reviewer.sql` undoes it.
 - **Identity isolation (Dalal's):** rows are reloaded per signed-in user; a previous user's database
   rows are cleared before the next user's load; late replies and stale callbacks are rejected.
