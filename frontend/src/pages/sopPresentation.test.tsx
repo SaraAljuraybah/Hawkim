@@ -37,6 +37,12 @@ vi.mock('../state/requestsContext', () => ({ useMyRequests: () => [] }))
 vi.mock('../state/activeDepartmentContext', () => ({ useActiveDepartment: () => ({ activeDepartment: { id: 'home' }, homeDepartment: { id: 'home' } }) }))
 vi.mock('../state/notificationsContext', () => ({ useNotifications: () => ({ notifications: deriveNotifications('reviewer', { sops: [fixture.sop!], requests: [], now: Date.parse('2026-10-29T09:00:00Z') }), unreadCount: 1, now: Date.parse('2026-10-29T09:00:00Z') }) }))
 
+// The page tests below hold while the release 1 timeline scope is on, whatever the constant is set to.
+vi.mock('../lib/releaseScope', async (original) => {
+  const actual = await original<typeof import('../lib/releaseScope')>()
+  return { ...actual, visibleTimelineEvents: (events: Parameters<typeof actual.visibleTimelineEvents>[0]) => actual.visibleTimelineEvents(events, true) }
+})
+
 function render(page: ReactNode) {
   return renderToStaticMarkup(<MemoryRouter initialEntries={['/test']}><Routes><Route path="/:id" element={page} /></Routes></MemoryRouter>)
 }
@@ -99,6 +105,20 @@ describe('SOP title presentation without exposing generated serial numbers', () 
       expect(html).toContain('or the current version&#x27;s uploader')
       expect(html).not.toContain(sopWorkflowEn.history.checkCompleted)
     })
+  })
+
+  it('limits the timeline on the author page only, keeping hidden types on the review page', () => {
+    const declined = { id: 'declined', type: 'review-declined' as const, actorId: 'reviewer', version: '1', createdAt: '2026-10-29T08:30:00Z' }
+    fixture.sop = { ...reviewSop(), timeline: [...reviewSop().timeline, declined] }
+    const label = `>${sopWorkflowEn.timeline.events['review-declined']}<`
+    const submitted = `>${sopWorkflowEn.timeline.events.submitted}<`
+    const author = render(<SopWorkflowPage />)
+    expect(author).toContain(submitted)
+    expect(author).not.toContain(label)
+    fixture.userId = 'reviewer'
+    const review = render(<ReviewPage />)
+    expect(review).toContain(submitted)
+    expect(review).toContain(label)
   })
 
   it('uses title-based download names while retaining stored identity, file metadata and routes', () => {

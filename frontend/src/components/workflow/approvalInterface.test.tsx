@@ -30,6 +30,8 @@ const fixture = vi.hoisted(() => ({
   ] as Department[],
 }))
 
+// These tests read the full timeline on the author's page; lib/releaseScope.test.tsx covers its release scope.
+vi.mock('../../lib/releaseScope', () => ({ visibleTimelineEvents: (events: unknown[]) => events }))
 vi.mock('../../state/sessionContext', () => ({ useCurrentUser: () => fixture.users.find((user) => user.id === fixture.userId) }))
 vi.mock('../../state/usersContext', () => ({ useUsers: () => ({ users: fixture.users, activeUsers: fixture.users, nameOf: (id: string) => fixture.users.find((user) => user.id === id)?.name ?? id ?? '', getUser: (id: string) => fixture.users.find((user) => user.id === id) }) }))
 vi.mock('../../state/departmentsContext', () => ({ useDepartments: () => ({ departments: fixture.departments, nameOf: (id: string) => id }) }))

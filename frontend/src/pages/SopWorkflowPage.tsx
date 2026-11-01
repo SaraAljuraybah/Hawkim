@@ -479,7 +479,7 @@ export function SopWorkflowPage() {
 
       {/* The timeline contains historical events only. */}
       <Section id="timeline-title" title={content.timeline.title} className="mt-6">
-        <ReviewTimelineTable sop={sop} content={content} mainAuthorOnly />
+        <ReviewTimelineTable sop={sop} content={content} mainAuthorOnly releaseScoped />
       </Section>
 
 
