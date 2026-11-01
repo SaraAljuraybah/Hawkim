@@ -269,6 +269,7 @@ export const sopWorkflowEn: SopWorkflowContent = {
     coAuthorRemoveFailed: '{name} could not be removed as co-author.',
     checkStarted: 'Compliance check started.',
     checkStartFailed: 'The sample compliance check could not be started.',
+    checkAlreadyCompleted: 'This version already has a completed compliance check. Upload a new version to run another check.',
     responseSent: 'Response sent.',
   },
 }

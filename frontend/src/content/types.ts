@@ -815,6 +815,8 @@ export interface SopWorkflowContent {
     checkStarted: string
     /** The check couldn't be started. */
     checkStartFailed: string
+    /** The database refused the check: this version already has a completed one. */
+    checkAlreadyCompleted: string
     responseSent: string
   }
 }

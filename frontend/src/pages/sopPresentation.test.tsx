@@ -18,6 +18,7 @@ import { SopDetailPage } from './SopDetailPage'
 import { ReviewPage } from './ReviewPage'
 import { ComplianceReportPage } from './ComplianceReportPage'
 import { UploadSopPage } from './UploadSopPage'
+import { CheckAlreadyCompletedError, checkStartFailure } from '../lib/compliance'
 import { sopTitleProblem } from '../lib/sopTitle'
 import { deriveNotifications } from '../lib/notifications'
 import { sopDownloadName, sopFileLabel } from '../lib/sopPresentation'
@@ -96,6 +97,13 @@ describe('SOP title presentation without exposing generated serial numbers', () 
       fixture.sop = { ...fixture.sop!, complianceChecks }
       expect(button()).not.toContain('aria-disabled="true"')
       expect(render(<SopWorkflowPage />)).not.toContain(sopWorkflowEn.history.checkCompleted)
+    })
+
+    it('explains a repeat check the database refused, and keeps the general message otherwise', () => {
+      const refused = sopWorkflowEn.messages[checkStartFailure(new CheckAlreadyCompletedError('Refused'))]
+      expect(refused).toBe(sopWorkflowEn.messages.checkAlreadyCompleted)
+      expect(refused).toContain('Upload a new version')
+      expect(sopWorkflowEn.messages[checkStartFailure(new Error('Connection lost'))]).toBe(sopWorkflowEn.messages.checkStartFailed)
     })
 
     it('shows the existing reason first when the user may not run a check', () => {

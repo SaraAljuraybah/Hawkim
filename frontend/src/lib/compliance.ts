@@ -19,6 +19,14 @@ import {
 /** How long a sample check stays "running". */
 export const SAMPLE_CHECK_DURATION_MS = 3000
 
+/** The database refused a check because this version already has a completed one (this tab didn't know yet). */
+export class CheckAlreadyCompletedError extends Error {}
+
+/** Which message explains why a check didn't start. */
+export function checkStartFailure(error: unknown): 'checkAlreadyCompleted' | 'checkStartFailed' {
+  return error instanceof CheckAlreadyCompletedError ? 'checkAlreadyCompleted' : 'checkStartFailed'
+}
+
 /** Result order for sorting and filters: problems first. */
 export const RESULT_ORDER: ComplianceResult[] = ['conflict', 'not-addressed', 'partial', 'compliant']
 

@@ -1,7 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { renderToStaticMarkup } from 'react-dom/server'
 import type { Sop, User } from '../data/mock/types'
-import { SAMPLE_CHECK_DURATION_MS } from '../lib/compliance'
+import { CheckAlreadyCompletedError, SAMPLE_CHECK_DURATION_MS } from '../lib/compliance'
+import { fetchSop } from '../services/sops'
 import { SopsProvider } from './SopsProvider'
 import { useSops, type SopsStore } from './sopsContext'
 
@@ -62,6 +63,31 @@ describe('running a compliance check', () => {
     await sops.runCheck('uuid-sop')
     await vi.advanceTimersByTimeAsync(SAMPLE_CHECK_DURATION_MS)
     expect(service.finish).toHaveBeenLastCalledWith('uuid-check', 'completed')
+  })
+
+  it('reads the SOP again when the database refuses a repeat check, and passes the refusal on', async () => {
+    const sops = store()
+    vi.mocked(fetchSop).mockClear()
+    service.start.mockRejectedValue(new CheckAlreadyCompletedError('Already completed'))
+    await expect(sops.runCheck('uuid-sop')).rejects.toBeInstanceOf(CheckAlreadyCompletedError)
+    expect(fetchSop).toHaveBeenCalledWith('uuid-sop')
+    await vi.advanceTimersByTimeAsync(SAMPLE_CHECK_DURATION_MS)
+    expect(service.finish).not.toHaveBeenCalled()
+  })
+
+  it('still reports the refusal if reading the SOP again fails', async () => {
+    const sops = store()
+    vi.mocked(fetchSop).mockRejectedValueOnce(new Error('Offline'))
+    service.start.mockRejectedValue(new CheckAlreadyCompletedError('Already completed'))
+    await expect(sops.runCheck('uuid-sop')).rejects.toBeInstanceOf(CheckAlreadyCompletedError)
+  })
+
+  it('does not read the SOP again after any other failure to start', async () => {
+    const sops = store()
+    vi.mocked(fetchSop).mockClear()
+    service.start.mockRejectedValue(new Error('Connection lost'))
+    await expect(sops.runCheck('uuid-sop')).rejects.toThrow('Connection lost')
+    expect(fetchSop).not.toHaveBeenCalled()
   })
 
   it('refuses a check the person may not run, without asking the database', async () => {

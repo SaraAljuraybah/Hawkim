@@ -178,7 +178,14 @@ export function SopsProvider({ children }: { children: ReactNode }) {
       if (!compliance.checkRequired(sop, departments)) throw new Error('Compliance checks are only for SOPs of departments the GVP guideline applies to')
       if (compliance.isCheckRunning(sop)) throw new Error('A compliance check is already running')
       const fail = failNextRef.current
-      const checkId = await (await complianceService()).startComplianceCheck(sopId)
+      let checkId: string
+      try {
+        checkId = await (await complianceService()).startComplianceCheck(sopId)
+      } catch (error) {
+        // This tab was behind: read the SOP again, so the page shows the completed check.
+        if (error instanceof compliance.CheckAlreadyCompletedError) await refresh(sopId).catch(() => undefined)
+        throw error
+      }
       if (fail) setFailNextCheck(false)
       await refresh(sopId)
       scheduleCompletion(sopId, checkId, fail ? 'failed' : 'completed')

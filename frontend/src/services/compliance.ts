@@ -9,7 +9,11 @@
  */
 
 import type { GuidelineVersion } from '../data/mock/types'
+import { CheckAlreadyCompletedError } from '../lib/compliance'
 import { supabase } from './supabase'
+
+/** The hint start_compliance_check raises when this version already has a completed check. */
+export const CHECK_ALREADY_COMPLETED_HINT = 'check-already-completed'
 
 const GUIDELINE_COLUMNS = `id, version, issued_date, effective_date, file_name, summary, added_by, added_at,
   guideline_requirements!guideline_requirements_guideline_version_id_fkey (code, module, section, section_title, short_title, page, summary)`
@@ -69,6 +73,7 @@ export async function fetchGuidelineVersions(): Promise<GuidelineVersion[]> {
 /** Starts a check of the SOP's current version against the current guideline; returns its id. */
 export async function startComplianceCheck(sopId: string): Promise<string> {
   const { data, error } = await supabase().rpc('start_compliance_check', { p_sop_id: sopId })
+  if (error?.hint === CHECK_ALREADY_COMPLETED_HINT) throw new CheckAlreadyCompletedError(error.message)
   if (error) throw new Error(error.message)
   return data as string
 }

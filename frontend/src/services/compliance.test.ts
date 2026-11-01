@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { finishSampleCheck, startComplianceCheck, toGuidelineVersion, type GuidelineVersionRow } from './compliance'
+import { CheckAlreadyCompletedError } from '../lib/compliance'
+import { CHECK_ALREADY_COMPLETED_HINT, finishSampleCheck, startComplianceCheck, toGuidelineVersion, type GuidelineVersionRow } from './compliance'
 
 const rpc = vi.fn()
 vi.mock('./supabase', () => ({ supabase: () => ({ rpc }) }))
@@ -38,5 +39,12 @@ describe('running a sample check', () => {
   it('reports when a check is already running', async () => {
     rpc.mockResolvedValue({ data: null, error: { message: 'A compliance check is already running' } })
     await expect(startComplianceCheck('uuid-sop')).rejects.toThrow('already running')
+  })
+
+  it('recognises a refused repeat check by its hint, and only by that', async () => {
+    rpc.mockResolvedValue({ data: null, error: { message: 'Any wording', code: '23514', hint: CHECK_ALREADY_COMPLETED_HINT } })
+    await expect(startComplianceCheck('uuid-sop')).rejects.toBeInstanceOf(CheckAlreadyCompletedError)
+    rpc.mockResolvedValue({ data: null, error: { message: 'Another refusal', code: '23514', hint: null } })
+    await expect(startComplianceCheck('uuid-sop')).rejects.not.toBeInstanceOf(CheckAlreadyCompletedError)
   })
 })

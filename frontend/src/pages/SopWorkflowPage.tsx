@@ -25,7 +25,7 @@ import { internalReviewEn } from '../content/internalReview.en'
 import { sopWorkflowEn } from '../content/workflow.en'
 import type { Sop, SopVersion } from '../data/mock/types'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
-import { checkRequired, currentCheck, hasCurrentCheck, isCheckRunning } from '../lib/compliance'
+import { checkRequired, checkStartFailure, currentCheck, hasCurrentCheck, isCheckRunning } from '../lib/compliance'
 import { approvalReadiness, type ApprovalReadiness } from '../lib/approval'
 import { hasResponseOutsideReviewers, requestResponseRecipients } from '../lib/reviewRequestRows'
 import { canAddReviewers, canSendNewVersion, currentInternalRound, type ReviewPhaseItem } from '../lib/internalReview'
@@ -252,7 +252,7 @@ export function SopWorkflowPage() {
     setMessage('')
     store.runCheck(sopId).then(
       () => announce(content.messages.checkStarted),
-      () => announce(content.messages.checkStartFailed),
+      (error: unknown) => announce(content.messages[checkStartFailure(error)]),
     )
   }
 
