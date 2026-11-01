@@ -2,14 +2,13 @@
  * The single activation switch for the Riyadh working-day deadline policy
  * (2 working days to respond; optional 1–30 working days to review; Sunday to Thursday; Asia/Riyadh).
  *
- * PENDING ACTIVATION. While false, new review requests follow the approved backend
- * (supabase/migrations/20261026150000_internal_review.sql): the author picks an optional response
- * due date (today or later; tomorrow or later from 16:00) and an optional review duration of
- * 1–30 calendar days, and the UI shows the deadlines the database saved.
+ * ACTIVE. New review requests get a fixed response deadline and a review duration in working days,
+ * set by the server (supabase/migrations/20261101120100_internal_review_working_days.sql). Requests
+ * sent before that migration keep the deadlines they were saved with.
  *
- * Set it to true ONLY in the same approved change that applies the two migrations in
- * supabase/proposals/ (see supabase/proposals/REVIEW_NOTES.md). Nothing else turns it on:
- * no environment variable and no automatic detection. While it is false the frontend never
- * reads the deadline_policy column, which exists only after that migration.
+ * It depends on the database: the frontend reads the deadline_policy column only while this is true,
+ * so the migrations must be applied first. To roll back, set it to false before running
+ * supabase/scripts/rollback_working_day_deadlines.sql. Nothing else changes it: no environment
+ * variable and no automatic detection.
  */
-export const WORKING_DAY_DEADLINES_ACTIVE: boolean = false
+export const WORKING_DAY_DEADLINES_ACTIVE: boolean = true

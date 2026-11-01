@@ -34,8 +34,8 @@ import { supabase } from './supabase'
  * the SOP's current version), so the API can't tell which one is meant otherwise.
  * Every selected column exists in the approved schema (supabase/migrations/). The saved
  * deadlines (response_due_at, review_due_at) are authoritative and shown as saved.
- * deadline_policy exists only after the proposed working-day migration (supabase/proposals/),
- * so it is selected only once WORKING_DAY_DEADLINES_ACTIVE is switched on in the same change.
+ * deadline_policy exists only after the working-day migration (20261101120100), so it is
+ * selected only while WORKING_DAY_DEADLINES_ACTIVE is on.
  */
 const REQUEST_POLICY_COLUMN = WORKING_DAY_DEADLINES_ACTIVE ? ' deadline_policy,' : ''
 const SOP_COLUMNS = `id, code, title, description, department_id, author_id, status, current_version, updated_at,

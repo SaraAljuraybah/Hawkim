@@ -151,14 +151,14 @@ describe('SOPs from the database', () => {
 })
 
 describe('reading SOPs', () => {
-  it('selects the saved deadlines but no column that exists only in the unapplied working-day proposal', async () => {
+  it('selects the saved deadlines and their policy, but no column outside the schema', async () => {
     await fetchSops()
     await fetchSop('uuid-sop')
     expect(query.select).toHaveBeenCalledTimes(2)
     for (const [columns] of query.select.mock.calls) {
       expect(columns).toContain('response_due_at')
       expect(columns).toContain('review_due_at')
-      expect(columns).not.toContain('deadline_policy')
+      expect(columns).toContain('deadline_policy')
       expect(columns).not.toContain('response_counts_from')
     }
   })

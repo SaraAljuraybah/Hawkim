@@ -11,12 +11,13 @@ import { isAfterResponseCutoff, parseResponseDueDate, responseCountsFrom, respon
 import { prepareReviewSubmission } from './reviewSubmission'
 
 /*
- * The live (approved backend) response-deadline rules, checked in Riyadh time under several device
- * time zones: the same inputs must give the same results everywhere, as the database
- * (earliest_response_date(), riyadh_end_of_day(), riyadh_today() + duration) works in Asia/Riyadh.
- * No Supabase client is created.
+ * The calendar-day response-deadline rules, which apply again if WORKING_DAY_DEADLINES_ACTIVE is
+ * switched off to roll back, checked in Riyadh time under several device time zones: the same
+ * inputs must give the same results everywhere, as the database (earliest_response_date(),
+ * riyadh_end_of_day(), riyadh_today() + duration) works in Asia/Riyadh. No Supabase client is created.
  */
 vi.mock('../services/supabase', () => ({ supabase: () => { throw new Error('No database in these tests') } }))
+vi.mock('./deadlinePolicy', () => ({ WORKING_DAY_DEADLINES_ACTIVE: false }))
 
 /** A moment written in Riyadh time (UTC+03:00 all year). */
 const riyadh = (local: string) => new Date(`${local}+03:00`)

@@ -59,7 +59,7 @@ function functionSignatures(sql: string): Map<string, string[]> {
 }
 
 describe('the static review service and migration contract (no SQL execution)', () => {
-  it('selects only review-request columns of the approved schema; the proposal adds only deadline_policy', async () => {
+  it('selects only review-request columns of the schema; the working-day migration adds only deadline_policy', async () => {
     await fetchSops()
     const selected: string = query.select.mock.calls[0][0]
     const embedded = /\breview_requests![\w]+\s*\(/.exec(selected)
@@ -77,8 +77,8 @@ describe('the static review service and migration contract (no SQL execution)', 
     const allColumns = new Set([...baseColumns, ...additions.map((match) => match[1])])
 
     expect(requestedColumns.filter((column) => !allColumns.has(column))).toEqual([])
-    // While working-day deadlines are pending activation, nothing outside the approved schema is read.
-    expect(requestedColumns.filter((column) => !baseColumns.includes(column))).toEqual([])
+    // With working-day deadlines active, deadline_policy is the only column read from the later migration.
+    expect(requestedColumns.filter((column) => !baseColumns.includes(column))).toEqual(['deadline_policy'])
     expect(Object.fromEntries(additions.map((match) => [match[1], match[2]]))).toEqual({ deadline_policy: 'text' })
   })
 

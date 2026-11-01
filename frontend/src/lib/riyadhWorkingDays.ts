@@ -1,6 +1,6 @@
 /**
- * Riyadh working-day calendar (Sunday to Thursday). Pending activation (lib/deadlinePolicy.ts):
- * the server enforces and saves deadlines; this calculates the same dates for previews and tests.
+ * Riyadh working-day calendar (Sunday to Thursday), see lib/deadlinePolicy.ts: the server enforces
+ * and saves deadlines; this calculates the same dates for the browser's rules and tests.
  */
 export const REVIEW_TIME_ZONE = 'Asia/Riyadh'
 export const WORKING_DAY_POLICY = 'riyadh-working-days-v1' as const
@@ -26,9 +26,9 @@ function dateOnly(isoDate: string): Date {
 }
 
 /*
- * Riyadh calendar helpers shared by the live (approved) deadline rules and the pending working-day
- * policy. They never depend on the device's time zone (Saudi Arabia has no daylight saving, but the
- * named zone is used anyway).
+ * Riyadh calendar helpers shared by the working-day policy and the calendar-day rules it replaced.
+ * They never depend on the device's time zone (Saudi Arabia has no daylight saving, but the named
+ * zone is used anyway).
  */
 const hourFormatter = new Intl.DateTimeFormat('en-GB', { timeZone: REVIEW_TIME_ZONE, hour: '2-digit', hourCycle: 'h23' })
 
