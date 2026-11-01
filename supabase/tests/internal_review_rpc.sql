@@ -93,7 +93,7 @@ begin
   perform pg_temp.expect_error(format('select public.submit_for_review(%L, array[%L]::uuid[], null, 2, null)', sop, foreign_reviewer), '23514');
   perform pg_temp.expect_error(format('select public.submit_for_review(%L, array[%L]::uuid[], null, 2, null)', sop, inactive_reviewer), '23514');
   perform pg_temp.expect_error(format('select public.submit_for_review(%L, array[%L,%L]::uuid[], null, 2, null)', sop, reviewer, reviewer), '23514');
-  foreach note_length in array array[0, 31] loop
+  foreach note_length in array array[0, 3651] loop
     perform pg_temp.expect_error(format('select public.submit_for_review(%L, array[%L]::uuid[], null, %s, null)', sop, reviewer, note_length), '23514');
   end loop;
   perform pg_temp.expect_error(format('select public.submit_for_review(%L, array[%L]::uuid[], null, 2, %L)', sop, reviewer, repeat('x', 501)), '23514');
@@ -211,7 +211,7 @@ begin
   assert legacy_request.review_due_at = public.hawkim_riyadh_end_of_day(public.hawkim_riyadh_date(legacy_request.accepted_at) + 2), 'Existing calendar allocation must retain its original semantics';
   assert legacy_request.deadline_policy = 'calendar-v1' and legacy_request.response_due_at = old_response_at, 'Historical policy and response date must not be changed';
 
-  -- Existing withdrawal stops action on expired response requests. Administrative
+  -- An unanswered request expires at its response deadline and is locked. Administrative
   -- fixture adjustment is not an application mutation and is rolled back.
   reset role;
   update public.review_requests set response_due_date = public.hawkim_riyadh_date(now()) - 1,
@@ -219,14 +219,51 @@ begin
   where round_id = round2;
   set local role authenticated;
   perform set_config('request.jwt.claim.sub', author::text, true);
-  perform public.withdraw_due_requests(sop);
-  assert (select bool_and(q.status = 'withdrawn') from public.review_requests q where q.round_id = round2), 'Unanswered expired response tasks must be withdrawn';
+  perform public.expire_due_requests(sop);
+  assert (select bool_and(q.status = 'expired' and q.expired_at = q.response_due_at and q.withdrawn_at is null) from public.review_requests q where q.round_id = round2), 'Unanswered requests must expire at their response deadline, not be withdrawn';
+  assert (select count(*) from public.timeline_events e where e.sop_id = sop and e.type = 'review-expired' and e.actor_id is null and e.recipient_ids = array[author, reviewer2]) = 1, 'The expiry event must go to the main author and the reviewer only';
   select * into request2 from public.review_requests q where q.round_id = round2 and q.reviewer_id = reviewer2;
   perform set_config('request.jwt.claim.sub', reviewer2::text, true);
   perform pg_temp.expect_error(format('select public.accept_review(%L)', request2.id), '23514');
-  assert (select q.accepted_at is null and q.review_due_at is null from public.review_requests q where q.id = request2.id), 'Withdrawn tasks must not start a review allocation';
+  assert (select q.accepted_at is null and q.review_due_at is null from public.review_requests q where q.id = request2.id), 'Expired requests must not start a review allocation';
+
+  perform pg_temp.expect_error(format('select public.decline_review(%L, %L)', request2.id, 'Too late'), '23514');
+
+  -- Add Reviewers refuses the same reviewer: Send Again is for them. Only the main author can send again.
+  perform set_config('request.jwt.claim.sub', author::text, true);
+  perform pg_temp.expect_error(format('select public.add_reviewers(%L, array[%L]::uuid[], null, null, null)', sop, reviewer2), '23514');
+  perform set_config('request.jwt.claim.sub', reviewer2::text, true);
+  perform pg_temp.expect_error(format('select public.resend_review_request(%L)', request2.id), '42501');
+
+  -- Send Again: a new request with a new deadline; the expired one stays in the history.
+  perform set_config('request.jwt.claim.sub', author::text, true);
+  perform public.resend_review_request(request2.id);
+  assert (select q.status from public.review_requests q where q.id = request2.id) = 'expired', 'The expired request must stay in the history';
+  assert exists (select 1 from public.review_requests q where q.round_id = round2 and q.reviewer_id = reviewer2 and q.id <> request2.id and q.status = 'pending'
+    and q.response_due_at = public.hawkim_review_response_due_at(q.assigned_at) and q.review_duration_days is not distinct from request2.review_duration_days and q.deadline_policy = 'riyadh-working-days-v1'),
+    'Send Again must create a pending request with a new response deadline and the same duration';
+  assert (select count(*) from public.timeline_events e where e.sop_id = sop and e.type = 'review-request-resent' and e.recipient_ids = array[reviewer2]) = 1, 'Send Again must be recorded for that reviewer';
+  perform pg_temp.expect_error(format('select public.resend_review_request(%L)', request2.id), '23514');
+  assert (select r.status from public.review_rounds r where r.id = round2) = 'open', 'The round stays open while the new request is pending';
+
+  -- Both new events are private: the author, co-authors and the people they name.
+  perform set_config('request.jwt.claim.sub', coauthor::text, true);
+  assert (select count(*) from public.timeline_events e where e.sop_id = sop and e.type in ('review-expired', 'review-request-resent')) = 3, 'A co-author can read the expiry and Send Again events';
+  perform set_config('request.jwt.claim.sub', reviewer2::text, true);
+  assert (select count(*) from public.timeline_events e where e.sop_id = sop and e.type in ('review-expired', 'review-request-resent')) = 2, 'A reviewer reads only their own expiry and Send Again events';
+
+  -- An expired reviewer isn't taking part: the round completes without them, and Send Again reopens it.
+  select * into request2 from public.review_requests q where q.round_id = round2 and q.reviewer_id = reviewer2 and q.status = 'pending';
+  perform public.accept_review(request2.id);
+  perform public.decide_review(request2.id, 'completed', null);
+  assert (select r.status from public.review_rounds r where r.id = round2) = 'completed', 'A round must complete without its expired reviewers';
+  perform set_config('request.jwt.claim.sub', author::text, true);
+  perform public.resend_review_request((select q.id from public.review_requests q where q.round_id = round2 and q.reviewer_id = reviewer and q.status = 'expired' order by q.seq desc limit 1));
+  assert (select r.status from public.review_rounds r where r.id = round2) = 'open', 'Send Again must reopen a completed round';
 
   -- Browser roles cannot invoke the unchecked internal sender or rewrite tables.
+  assert not has_function_privilege('authenticated', 'public.expire_due(uuid)', 'EXECUTE'), 'The internal expiry step must stay unavailable from the browser';
+  assert not has_function_privilege('anon', 'public.resend_review_request(uuid)', 'EXECUTE'), 'Anonymous Send Again must remain unavailable';
   assert not has_function_privilege('authenticated', 'public.send_review_requests(public.sops,uuid,public.timeline_event_type,uuid[],date,integer,text)', 'EXECUTE'), 'Internal sender must not become a browser mutation shortcut';
   assert not has_table_privilege('authenticated', 'public.review_requests', 'UPDATE'), 'RLS/privilege protection must still prevent direct deadline edits';
   assert not has_function_privilege('anon', 'public.accept_review(uuid)', 'EXECUTE'), 'Anonymous acceptance must remain unavailable';
