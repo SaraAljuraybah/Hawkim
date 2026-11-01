@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import sopsMigration from '../../../supabase/migrations/20261026120000_sops_and_versions.sql?raw'
 import reviewMigration from '../../../supabase/migrations/20261026150000_internal_review.sql?raw'
+import oneReviewerMigration from '../../../supabase/migrations/20261101150000_respond_to_one_reviewer.sql?raw'
 import calendarMigration from '../../../supabase/migrations/20261101120000_review_deadline_helpers.sql?raw'
 import workingDaysMigration from '../../../supabase/migrations/20261101120100_internal_review_working_days.sql?raw'
 import { acceptReview, addReviewers, declineReview, decideReview, removeReviewer, respondToComments, submitReview, withdrawDueRequests } from './review'
@@ -91,14 +92,19 @@ describe('the static review service and migration contract (no SQL execution)', 
     await declineReview('request-id', 'Unavailable')
     await decideReview('request-id', 'completed', 'Reviewed')
     await respondToComments('sop-id', 'Addressed')
+    await respondToComments('sop-id', 'Addressed', 'request-id')
     await withdrawDueRequests('sop-id')
 
-    const signatures = functionSignatures([sopsMigration, reviewMigration, calendarMigration, workingDaysMigration].join('\n'))
-    expect(rpc.mock.calls).toHaveLength(8)
+    const signatures = functionSignatures([sopsMigration, reviewMigration, calendarMigration, workingDaysMigration, oneReviewerMigration].join('\n'))
+    expect(rpc.mock.calls).toHaveLength(9)
     for (const [name, parameters] of rpc.mock.calls as [string, Record<string, unknown>][]) {
       expect(signatures.has(name), `Missing SQL RPC ${name}`).toBe(true)
-      const declaredNames = signatures.get(name)!.map((parameter) => parameter.split(' ')[0]).sort()
-      expect(Object.keys(parameters).sort(), `Parameters for ${name}`).toEqual(declaredNames)
+      const declared = signatures.get(name)!
+      const names = (list: string[]) => list.map((parameter) => parameter.split(' ')[0])
+      const sent = Object.keys(parameters)
+      // Every parameter sent exists, and every parameter without a default is sent.
+      expect(sent.filter((parameter) => !names(declared).includes(parameter)), `Unknown parameters for ${name}`).toEqual([])
+      expect(names(declared.filter((parameter) => !/\bdefault\b/i.test(parameter))).filter((parameter) => !sent.includes(parameter)), `Missing parameters for ${name}`).toEqual([])
     }
   })
 
