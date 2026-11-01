@@ -115,10 +115,10 @@ describe('internal parallel review requests', () => {
     expect(reviewerDueAt(accept(blank, 'a'), task(accept(blank, 'a'), 'a'))).toBeUndefined()
     expect(currentDueAt(blank)).toBe(endOfRiyadhDay('2026-10-26'))
   })
-  it('requires the fixed response date and a whole-number duration from 1 to 30 working days', () => {
-    expect(() => startInternalReview(draft(), 'author', '4.0', { reviewerIds: ['a'], responseDueDate: fixedResponseDueDate() }, env())).not.toThrow()
-    for (const responseDueDate of ['2026-10-22', '2026-10-23', '2027-01-15', '2026-02-30', 'invalid']) {
-      expect(() => startInternalReview(draft(), 'author', '4.0', { reviewerIds: ['a'], responseDueDate }, env())).toThrow(/response due date/)
+  it('ignores any chosen response date, and requires a whole-number duration from 1 to 30 working days', () => {
+    const expected = fixedResponseDueDate()
+    for (const responseDueDate of ['2026-10-22', '2027-01-15', 'invalid']) {
+      expect(task(startInternalReview(draft(), 'author', '4.0', { reviewerIds: ['a'], responseDueDate }, env()), 'a').responseDueDate).toBe(expected)
     }
     for (const reviewDurationDays of [1, 30]) expect(() => startInternalReview(draft(), 'author', '4.0', { reviewerIds: ['a'], reviewDurationDays }, env())).not.toThrow()
     for (const reviewDurationDays of [0, 31, 2.5, -1, Number.NaN]) {
@@ -138,8 +138,7 @@ describe('internal parallel review requests', () => {
     expect(task(accepted, 'a')).toMatchObject({ acceptedAt: '2026-10-29T13:00:00.000Z', reviewDueDate: '2026-11-05', reviewDueAt: endOfRiyadhDay('2026-11-05') })
     expect(() => decline(accepted, 'b')).not.toThrow()
     // Adding reviewers follows the same rule.
-    expect(() => addInternalReviewers(accepted, 'author', { reviewerIds: ['c'], responseDueDate: '2026-10-30' }, env())).toThrow(/response due date/)
-    expect(() => addInternalReviewers(accepted, 'author', { reviewerIds: ['c'], responseDueDate: '2026-11-02' }, env())).not.toThrow()
+    expect(task(addInternalReviewers(accepted, 'author', { reviewerIds: ['c'], responseDueDate: '2026-10-30' }, env()), 'c').responseDueDate).toBe('2026-11-02')
   })
   it('starts the review duration when each reviewer accepts, due at the end of the last day', () => {
     vi.setSystemTime(new Date('2026-10-25T15:00:00+03:00'))

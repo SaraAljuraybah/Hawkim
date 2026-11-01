@@ -3,10 +3,8 @@ import { flushSync } from 'react-dom'
 import type { SopWorkflowContent } from '../../content/types'
 import { internalReviewEn } from '../../content/internalReview.en'
 import type { Sop } from '../../data/mock/types'
-import { useDeadlineClock } from '../../hooks/useDeadlineClock'
 import { addableReviewers } from '../../lib/internalReview'
 import { WORKING_DAY_DEADLINES_ACTIVE } from '../../lib/deadlinePolicy'
-import { fixedResponseDueDate } from '../../lib/fixedResponseDeadline'
 import { REVIEW_DURATION_MAX, REVIEW_DURATION_MIN } from '../../lib/internalReviewStatus'
 import { eligibleReviewers } from '../../lib/reviewFlow'
 import { REVIEW_NOTE_EDITOR_MAX, prepareReviewSubmission } from '../../lib/reviewSubmission'
@@ -17,7 +15,6 @@ import { FormDialog } from '../ui/FormDialog'
 import { PeoplePicker } from '../ui/PeoplePicker'
 import { TextAreaField } from '../ui/TextAreaField'
 import { TextField } from '../ui/TextField'
-import { ReviewDueDateField } from './ReviewDueDateField'
 
 interface SubmitDialogProps {
   sop: Sop
@@ -30,10 +27,8 @@ interface SubmitDialogProps {
 }
 
 /**
- * Sends eligible home-department reviewers the same optional response due date and review duration.
- * Until working-day deadlines are activated (lib/deadlinePolicy.ts) the author picks the response date
- * and the duration is in calendar days, as the approved backend expects; once active, the response
- * date is fixed at two working days (the server sets it) and the duration is in working days.
+ * Sends eligible home-department reviewers the same optional review duration, in working days
+ * (lib/deadlinePolicy.ts). There's no response date to choose: the server sets it for each request.
  */
 export function SubmitDialog({ sop, content, onSubmit, onClose, mode = 'submit' }: SubmitDialogProps) {
   const text = internalReviewEn.submit
@@ -44,10 +39,6 @@ export function SubmitDialog({ sop, content, onSubmit, onClose, mode = 'submit' 
   // Adding: only reviewers not yet asked, or whose latest request was declined, withdrawn or removed.
   const options = mode === 'add' ? addableReviewers(sop, activeUsers) : eligibleReviewers(sop, sop.departmentId, activeUsers)
   const [reviewerIds, setReviewerIds] = useState<string[]>([])
-  const now = useDeadlineClock(undefined, WORKING_DAY_DEADLINES_ACTIVE)
-  const fixedDueDate = fixedResponseDueDate(new Date(now))
-  const [chosenDate, setChosenDate] = useState('')
-  const [dateError, setDateError] = useState('')
   const [duration, setDuration] = useState('')
   const [note, setNote] = useState('')
   const [error, setError] = useState('')
@@ -55,21 +46,14 @@ export function SubmitDialog({ sop, content, onSubmit, onClose, mode = 'submit' 
   const [noteError, setNoteError] = useState('')
   const [failed, setFailed] = useState(false)
   const firstRef = useRef<HTMLInputElement>(null)
-  const requestRef = useRef<HTMLInputElement>(null)
   const durationRef = useRef<HTMLInputElement>(null)
   const noteRef = useRef<HTMLTextAreaElement>(null)
 
   async function confirm() {
-    // This also calculates the date at confirmation, rather than trusting a potentially older preview.
-    const result = prepareReviewSubmission(reviewerIds, options.map((user) => user.id), duration, note, undefined, chosenDate)
+    const result = prepareReviewSubmission(reviewerIds, options.map((user) => user.id), duration, note)
     if ('error' in result && result.error === 'reviewers') {
       flushSync(() => setError(text.reviewerRequired))
       firstRef.current?.focus()
-      return false
-    }
-    if ('error' in result && result.error === 'responseDate') {
-      flushSync(() => setDateError(text.dateInvalid))
-      requestRef.current?.focus()
       return false
     }
     if ('error' in result && result.error === 'duration') {
@@ -98,13 +82,6 @@ export function SubmitDialog({ sop, content, onSubmit, onClose, mode = 'submit' 
         options={options.map((user) => ({ id: user.id, name: user.name }))} value={reviewerIds}
         error={error || undefined} hint={options.length ? undefined : text.noneEligible}
         onChange={(next) => { setReviewerIds(next); setError(''); setFailed(false) }} />
-      {WORKING_DAY_DEADLINES_ACTIVE
-        ? <TextField name="reviewRequestDueDate" type="date" label={text.responseDate}
-            value={fixedDueDate} readOnly />
-        : <ReviewDueDateField ref={requestRef} name="reviewRequestDueDate" stage="response"
-            text={{ ...fields.reviewDate, label: text.responseDateOptional, help: undefined, duration: text.responseTimeGiven }}
-            value={chosenDate} error={dateError} closeLabel={text.closeAlert} onDismissError={() => setDateError('')}
-            onChange={(value) => { setChosenDate(value); setDateError(''); setFailed(false) }} />}
       <TextField ref={durationRef} name="reviewDurationDays" type="number" inputMode="numeric" min={REVIEW_DURATION_MIN} max={REVIEW_DURATION_MAX} step={1}
         label={WORKING_DAY_DEADLINES_ACTIVE ? text.durationWorkingDays : text.duration}
         hint={text.durationHelp} value={duration} error={durationError || undefined}

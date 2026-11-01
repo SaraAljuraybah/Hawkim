@@ -12,12 +12,12 @@ import { isAuthor, SUBMIT_COMMENT_MAX } from './workflow'
 export interface InternalReviewOptions {
   reviewerIds: string[]
   /**
-   * Optional deadline to accept or decline (YYYY-MM-DD, today or later; tomorrow or later from 4:00 PM),
-   * the same for every request sent. Once working-day deadlines are active (lib/deadlinePolicy.ts) the
-   * date is fixed at two working days and the server sets it; this is then only the preview.
+   * Used only if working-day deadlines are switched off (lib/deadlinePolicy.ts): an optional deadline
+   * to accept or decline (YYYY-MM-DD, today or later; tomorrow or later from 4:00 PM). While they're
+   * active the date is fixed at two working days and the server sets it, so this is ignored.
    */
   responseDueDate?: string
-  /** Optional review duration (whole days, 1–30: calendar days now, working days once active), counted from each reviewer's acceptance. */
+  /** Optional review duration (whole working days, 1–30; calendar days if the switch is off), counted from each reviewer's acceptance. */
   reviewDurationDays?: number
   note?: string
 }
@@ -89,10 +89,10 @@ function update(round: InternalReviewRound, assignmentId: string, change: Partia
   return { ...round, assignments: round.assignments.map((person) => person.id === assignmentId ? { ...person, ...change } : person) }
 }
 /**
- * The deadlines each new request gets, validated. Until working-day deadlines are activated
- * (lib/deadlinePolicy.ts), as the approved backend: an optional response date today or later
- * (tomorrow or later from 4:00 PM, see lib/responseTime) and a whole-day duration.
- * Existing records are never rewritten.
+ * The deadlines each new request gets, validated: the fixed two-working-day response date and a
+ * duration in working days. With working-day deadlines switched off (lib/deadlinePolicy.ts): an
+ * optional response date today or later (tomorrow or later from 4:00 PM, see lib/responseTime)
+ * and a whole-day duration. Existing records are never rewritten.
  */
 function deadlines(options: InternalReviewOptions, now = new Date()): Pick<InternalReviewerAssignment, 'responseDueDate' | 'responseDueAt' | 'responseCountsFromAt' | 'reviewDurationDays' | 'deadlinePolicy'> {
   if (!WORKING_DAY_DEADLINES_ACTIVE) {
@@ -103,7 +103,6 @@ function deadlines(options: InternalReviewOptions, now = new Date()): Pick<Inter
     return { ...(chosen ? { responseDueDate: chosen, responseDueAt: endOfRiyadhDay(chosen) } : {}), ...(options.reviewDurationDays !== undefined ? { reviewDurationDays: options.reviewDurationDays } : {}) }
   }
   const responseDueDate = fixedResponseDueDate(now)
-  assert(!options.responseDueDate?.trim() || options.responseDueDate.trim() === responseDueDate, 'The response due date is fixed at two working days in Riyadh; refresh the request preview')
   assert(isValidReviewDuration(options.reviewDurationDays), 'Choose an optional review duration of 1 to 30 whole working days')
   return { responseDueDate, responseDueAt: endOfRiyadhDay(responseDueDate), responseCountsFromAt: responseWorkingCountsFrom(now).toISOString(), deadlinePolicy: WORKING_DAY_POLICY,
     ...(options.reviewDurationDays !== undefined ? { reviewDurationDays: options.reviewDurationDays } : {}) }

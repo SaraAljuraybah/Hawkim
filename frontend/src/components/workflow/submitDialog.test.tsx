@@ -69,12 +69,10 @@ describe('Submit for Review safe frontend presentation', () => {
     for (const excluded of ['Main Writer', 'Co Writer', 'Foreign Reviewer', 'Administrator', 'Removed User']) expect(html).not.toContain(excluded)
   })
 
-  it('shows a nonempty fixed two-working-date allocation independently of review duration', () => {
+  it('asks only for the optional review duration: the server sets the response deadline', () => {
     const html = render()
-    const date = html.match(/<input[^>]*name="reviewRequestDueDate"[^>]*>/)![0]
-    expect(date).toContain('readOnly=""')
-    expect(date).not.toContain('disabled=')
-    expect(date).toContain('value="2026-11-02"')
+    expect(html).not.toContain('name="reviewRequestDueDate"')
+    expect(html).not.toContain('type="date"')
     expect(html).not.toContain('Friday and Saturday are excluded')
     expect(html).toContain('Counted from when the reviewer accepts the request, excluding weekends.')
     expect(html.match(/<input[^>]*name="reviewDurationDays"[^>]*>/)![0]).toContain('min="1" max="30"')

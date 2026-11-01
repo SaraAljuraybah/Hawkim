@@ -65,8 +65,9 @@ describe('working-day deadlines are active', () => {
     expect(request.reviewDueDate).toBe('2026-10-31')
   })
 
-  it('shows the duration in working days in Submit for Review', () => {
+  it('asks only for the duration in working days in Submit for Review, with no response date field', () => {
     const html = renderToStaticMarkup(<SubmitDialog sop={draft()} content={sopWorkflowEn.dialogs} onClose={() => {}} onSubmit={() => {}} />)
+    expect(html).not.toContain('name="reviewRequestDueDate"')
     expect(html).toContain(internalReviewEn.submit.durationWorkingDays)
     expect(html).not.toContain(internalReviewEn.submit.duration)
     expect(html).toContain(internalReviewEn.submit.durationHelp)

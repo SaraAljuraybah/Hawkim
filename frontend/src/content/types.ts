@@ -479,11 +479,6 @@ export interface InternalReviewSubmitContent {
   reviewerSearch: PeoplePickerContent
   reviewerRequired: string
   noneEligible: string
-  responseDate: string
-  responseDateOptional: string
-  responseTimeGiven: string
-  dateInvalid: string
-  closeAlert: string
   duration: string
   durationHelp: string
   durationWorkingDays: string

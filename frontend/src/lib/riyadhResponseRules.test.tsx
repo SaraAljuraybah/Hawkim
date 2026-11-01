@@ -1,6 +1,5 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { renderToStaticMarkup } from 'react-dom/server'
-import { internalReviewEn } from '../content/internalReview.en'
 import { sopWorkflowEn } from '../content/workflow.en'
 import type { Sop, User } from '../data/mock/types'
 import { ReviewDueDateField } from '../components/workflow/ReviewDueDateField'
@@ -32,7 +31,7 @@ function draft(): Sop {
     complianceChecks: [{ id: 'c', sopId: 'sop', version: '1', status: 'completed', startedAt: '2026-10-01T00:00:00Z', guideline: { name: 'GVP', version: '4.0' }, findings: [] }] }
 }
 const field = (value: string) => renderToStaticMarkup(<ReviewDueDateField name="reviewRequestDueDate" stage="response"
-  text={{ ...sopWorkflowEn.dialogs.submit.reviewDate, label: internalReviewEn.submit.responseDateOptional, help: undefined, duration: internalReviewEn.submit.responseTimeGiven }}
+  text={{ ...sopWorkflowEn.dialogs.submit.reviewDate, label: 'Response Deadline', help: undefined, duration: 'Time to respond: {duration} · Due {date}' }}
   value={value} closeLabel="Close" onChange={() => {}} />)
 
 // Device time zones: UTC, Riyadh itself, far west (UTC−7/−8) and far east (UTC+13).
@@ -63,10 +62,7 @@ describe.each(['UTC', 'Asia/Riyadh', 'America/Los_Angeles', 'Pacific/Auckland'])
     expect(parseResponseDueDate('2026-10-26', at)).toEqual({ valid: false })
     expect(parseResponseDueDate('2026-10-26', after)).toEqual({ valid: false })
     expect(parseResponseDueDate('2026-10-27', after)).toEqual({ valid: true, days: 1 })
-    // The same through the Submit form and the browser's workflow rule.
-    expect(prepareReviewSubmission(['r1'], ['r1'], '', '', before, '2026-10-26')).toHaveProperty('options.responseDueDate', '2026-10-26')
-    expect(prepareReviewSubmission(['r1'], ['r1'], '', '', at, '2026-10-26')).toEqual({ error: 'responseDate' })
-    expect(prepareReviewSubmission(['r1'], ['r1'], '', '', after, '2026-10-27')).toHaveProperty('options.responseDueDate', '2026-10-27')
+    // The same through the browser's workflow rule.
     vi.useFakeTimers({ now: at })
     expect(() => startInternalReview(draft(), 'author', '4.0', { reviewerIds: ['r1'], responseDueDate: '2026-10-26' }, env)).toThrow(/tomorrow or later/)
     expect(currentInternalRound(startInternalReview(draft(), 'author', '4.0', { reviewerIds: ['r1'], responseDueDate: '2026-10-27' }, env))!.assignments[0])
@@ -113,22 +109,19 @@ describe.each(['UTC', 'Asia/Riyadh', 'America/Los_Angeles', 'Pacific/Auckland'])
     const now = riyadh('2026-10-26T10:00:00')
     for (const date of ['2026-02-30', 'invalid', '26-10-2026', '2026-1-5', '2026-10-25', '2025-10-26']) {
       expect(parseResponseDueDate(date, now)).toEqual({ valid: false })
-      expect(prepareReviewSubmission(['r1'], ['r1'], '', '', now, date)).toEqual({ error: 'responseDate' })
     }
     expect(parseResponseDueDate('', now)).toEqual({ valid: true })
     expect(parseResponseDueDate('   ', now)).toEqual({ valid: true })
-    expect(prepareReviewSubmission(['r1'], ['r1'], '', '', now, '')).toHaveProperty('options.responseDueDate', undefined)
   })
 
   it('accepts review durations of 1 and 30 calendar days and rejects 0 and 31', () => {
-    const now = riyadh('2026-10-26T10:00:00')
     for (const days of [1, 30]) {
       expect(isValidReviewDuration(days)).toBe(true)
-      expect(prepareReviewSubmission(['r1'], ['r1'], String(days), '', now)).toHaveProperty('options.reviewDurationDays', days)
+      expect(prepareReviewSubmission(['r1'], ['r1'], String(days), '')).toHaveProperty('options.reviewDurationDays', days)
     }
     for (const days of [0, 31]) {
       expect(isValidReviewDuration(days)).toBe(false)
-      expect(prepareReviewSubmission(['r1'], ['r1'], String(days), '', now)).toEqual({ error: 'duration' })
+      expect(prepareReviewSubmission(['r1'], ['r1'], String(days), '')).toEqual({ error: 'duration' })
     }
     expect(isValidReviewDuration(undefined)).toBe(true)
     // Calendar days from the Riyadh date of acceptance (Friday and Saturday count), as riyadh_today() + n.

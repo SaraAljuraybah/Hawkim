@@ -141,7 +141,7 @@ describe('internal parallel review across transitions and detail views', () => {
     expect(html).toContain('Reviewer Alpha')
     expect(html).toContain('Reviewer Beta')
     for (const name of ['Main writer', 'Contributing writer', 'External reviewer', 'Reviewer 1']) expect(html).not.toContain(name)
-    expect(html).toContain('Request Response Deadline')
+    expect(html).not.toContain('Response Deadline')
     expect(html).not.toContain('23:59:59.999')
     const duration = html.match(/<input[^>]*name="reviewDurationDays"[^>]*>/)![0]
     expect(duration).toContain('type="number"')
@@ -152,13 +152,10 @@ describe('internal parallel review across transitions and detail views', () => {
     expect(html).toContain(internalReviewEn.submit.durationHelp)
     expect(html).not.toContain('withdrawn automatically')
     expect(html).not.toContain('has to finish after they accept')
-    expect(html.match(/<input[^>]*type="date"[^>]*>/)![0]).toContain('readOnly=""')
-    expect(html.match(/<input[^>]*type="date"[^>]*>/)![0]).toContain('value="2026-10-26"')
-    expect(html.match(/type="date"/g)).toHaveLength(1)
+    expect(html).not.toContain('type="date"')
     expect(html).not.toContain('name="reviewerDueDate-')
-    expect(html.match(/<input[^>]*type="date"[^>]*>/)![0]).not.toContain('max="')
     expect(html).toContain(sopWorkflowEn.dialogs.submit.note.label)
-    expect(html).toContain('name="reviewRequestDueDate"')
+    expect(html).not.toContain('name="reviewRequestDueDate"')
     expect(html).toContain('name="note"')
   })
   it('activates both review pages and tasks without routing or approval controls', () => {
@@ -268,11 +265,12 @@ describe('historical review pages cannot reveal a later unassigned version', () 
   })
 })
 
-describe('response due date in the Submit for review dialog', () => {
-  const text = internalReviewEn.submit
-  const fieldText = { ...sopWorkflowEn.dialogs.submit.reviewDate, label: text.responseDate, help: undefined, duration: text.responseTimeGiven }
+// The response stage of the date field stays for a rollback of working-day deadlines; no dialog uses it now.
+describe('the response stage of the review date field', () => {
+  const fieldText = { ...sopWorkflowEn.dialogs.submit.reviewDate, label: 'Response Deadline', help: undefined, duration: 'Time to respond: {duration} · Due {date}' }
+  const closeLabel = 'Close message'
   const field = (value: string, error?: string) => renderToStaticMarkup(
-    <ReviewDueDateField name="reviewRequestDueDate" stage="response" text={fieldText} value={value} error={error} closeLabel={text.closeAlert} onChange={() => {}} />)
+    <ReviewDueDateField name="reviewRequestDueDate" stage="response" text={fieldText} value={value} error={error} closeLabel={closeLabel} onChange={() => {}} />)
   it('counts the time to respond from the moment it is sent before 4:00 PM, and today is selectable', () => {
     vi.setSystemTime(new Date('2026-10-26T14:00:00.000+03:00'))
     const html = field('2026-10-27')
@@ -283,7 +281,6 @@ describe('response due date in the Submit for review dialog', () => {
     vi.setSystemTime(new Date('2026-10-26T16:40:00.000+03:00'))
     expect(field('2026-10-27')).toContain('Time to respond: 15 hours 59 minutes')
     expect(field('2026-10-27')).toContain('min="2026-10-27"')
-    expect(renderToStaticMarkup(<SubmitDialog sop={draft()} content={sopWorkflowEn.dialogs} onSubmit={() => {}} onClose={() => {}} />)).toContain('value="2026-10-28"')
     expect(field('2026-10-26')).not.toContain('Time to respond')
   })
   it('counts from 8:00 AM the same day before 8:00 AM', () => {
@@ -293,12 +290,12 @@ describe('response due date in the Submit for review dialog', () => {
   })
   it('shows the date error in an announced pop-up with a close button instead of under the field', () => {
     vi.setSystemTime(new Date('2026-10-26T16:40:00.000+03:00'))
-    const html = field('2026-10-26', text.dateInvalid)
+    const html = field('2026-10-26', 'Invalid date.')
     const popup = html.match(/<div[^>]*role="alert"[^>]*>/)![0]
     const popupId = popup.match(/id="([^"]+)"/)![1]
     const input = html.match(/<input[^>]*type="date"[^>]*>/)![0]
     expect(html).toContain('>Invalid date.<')
-    expect(html).toContain(`aria-label="${text.closeAlert}"`)
+    expect(html).toContain(`aria-label="${closeLabel}"`)
     expect(input).toContain('aria-invalid="true"')
     expect(input).toContain(popupId)
     // No inline error under the field.
