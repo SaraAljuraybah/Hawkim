@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { renderToStaticMarkup } from 'react-dom/server'
 import type { Department, Sop, User } from '../../data/mock/types'
-import { acceptInternalReview, addInternalReviewers, currentInternalRound, decideInternalReview, declineInternalReview, removeInternalReviewer, startInternalReview, expireUnanswered } from '../../lib/internalReview'
+import { acceptInternalReview, addInternalReviewers, currentInternalRound, decideInternalReview, declineInternalReview, removeInternalReviewer, startInternalReview, expireUnanswered, resendInternalReview } from '../../lib/internalReview'
 import { latestAssignmentOf } from '../../lib/internalReviewStatus'
 import { endOfRiyadhDay } from '../../lib/riyadhWorkingDays'
 import { FormDialog } from '../ui/FormDialog'
@@ -150,6 +150,17 @@ describe('an expired request in the table', () => {
     expect(table(html)).toMatch(/<tr class="text-text-gray"><th scope="row"[^>]*>Reviewer Alpha/)
     expect(row(html, 'Reviewer Alpha')).toContain('aria-label="Remove Reviewer Alpha from this review"')
     expect(render(expired(), false)).not.toContain('from this review')
+  })
+  it('offers Send Again to the main author only, and not once it was sent', () => {
+    const html = render(expired())
+    expect(row(html, 'Reviewer Alpha')).toContain('aria-label="Send Again to Reviewer Alpha"')
+    expect(render(expired(), false)).not.toContain('Send Again')
+    const sop = expired()
+    const sent = resendInternalReview(sop, 'author', request(sop, 'alpha').id, env())
+    const rows = table(render(sent)).match(/<tr[^>]*><th scope="row"[^>]*>Reviewer Alpha.*?<\/tr>/g)!
+    expect(rows).toHaveLength(2)
+    for (const item of rows) expect(item).not.toContain('Send Again')
+    expect(rows[1]).toContain('</span>Pending</span>')
   })
   it('keeps the trash icon off declined rows', () => {
     const sop = started(5)

@@ -47,7 +47,7 @@ export const internalReviewEn = {
     returned: '{name} returned v{version} with comments. Upload a new version and submit it for review.',
   },
   status: {
-    cancelled: 'You are no longer taking part in this review.', closed: 'This review round is closed.',
+    cancelled: 'You are no longer taking part in this review.', expired: 'This review request expired because it was not answered in time. The author can send it again.', closed: 'This review round is closed.',
     awaitingAuthor: 'Internal reviews are complete. Awaiting the next Author action.',
   },
   panel: {
@@ -69,6 +69,14 @@ export const internalReviewEn = {
     decisions: { pending: 'Pending', accepted: 'Accepted', declined: 'Declined', withdrawn: 'Withdrawn', removed: 'Removed', overdue: 'Overdue', expired: 'Expired', completed: 'Completed', returned: 'Returned with Comments' },
     remove: 'Remove Reviewer', removeFor: 'Remove {name} from this review', removeTitle: 'Remove {name} from This Review?',
     removeReason: 'Reason for Removing', removeRequired: 'Enter a reason for removing this reviewer.',
+    sendAgain: {
+      label: 'Send Again to {name}', title: 'Send This Request Again?',
+      description: 'Send this review request to {name} again? The new response deadline is {date}.',
+      confirm: 'Send Again', cancel: 'Cancel',
+      unavailable: "This request can't be sent again. It may have changed in the meantime.",
+      failed: 'The request could not be sent. Please try again.',
+      sent: 'Review request sent to {name} again.',
+    },
     deadline: {
       title: 'Change Review Deadline for {name}',
       current: 'Current review deadline: {date}', noCurrent: 'Current review deadline: none',

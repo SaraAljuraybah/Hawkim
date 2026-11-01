@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { SYSTEM_ACTOR, type InternalReviewRound, type Sop, type User } from '../data/mock/types'
-import { acceptInternalReview, addableReviewers, addInternalReviewers, canAddReviewers, changeInternalReviewDeadline, currentInternalRound, decideInternalReview, declineInternalReview, isInternalReviewPending, nextExpiryAt, removeInternalReviewer, canSendNewVersion, sendNewVersionForReview, startInternalReview, expireUnanswered } from './internalReview'
+import { acceptInternalReview, canResendRequest, resendInternalReview, addableReviewers, addInternalReviewers, canAddReviewers, changeInternalReviewDeadline, currentInternalRound, decideInternalReview, declineInternalReview, isInternalReviewPending, nextExpiryAt, removeInternalReviewer, canSendNewVersion, sendNewVersionForReview, startInternalReview, expireUnanswered } from './internalReview'
 import { latestAssignmentOf, projectReviewers, reviewAllowsNewVersion } from './internalReviewStatus'
 import { fixedResponseDueDate } from './fixedResponseDeadline'
 import { endOfRiyadhDay } from './riyadhWorkingDays'
@@ -519,6 +519,36 @@ describe('automatic expiry of unanswered requests', () => {
     const expired = expireUnanswered(sop, endOfDay(26))
     expect(() => accept(expired, 'a')).toThrow(/expired/)
     expect(() => decline(expired, 'a')).toThrow(/expired/)
+  })
+  it('sends an expired request again as a new request, with a new deadline and the same duration', () => {
+    const started = startInternalReview(draft(), 'author', '4.0', { reviewerIds: ['a', 'b'], reviewDurationDays: 7 }, env())
+    const expired = expireUnanswered(started, endOfDay(26))
+    const old = task(expired, 'a')
+    const round = currentInternalRound(expired)!
+    expect(canResendRequest(expired, round, old)).toBe(true)
+    vi.setSystemTime(new Date('2026-10-27T10:00:00+03:00'))
+    const sent = resendInternalReview(expired, 'author', old.id, env())
+    const fresh = task(sent, 'a')
+    expect(fresh).toMatchObject({ decision: 'pending', reviewDurationDays: 7, responseDueDate: '2026-10-29' })
+    expect(fresh.id).not.toBe(old.id)
+    expect(currentInternalRound(sent)!.assignments.find((item) => item.id === old.id)).toMatchObject({ decision: 'expired', expiredAt: old.expiredAt })
+    expect(sent.timeline.at(-1)).toMatchObject({ type: 'review-request-resent', actorId: 'author', recipientIds: ['a'] })
+    // The reviewer can act on the new request, and the old one can't be sent twice.
+    expect(task(accept(sent, 'a'), 'a').decision).toBe('accepted')
+    expect(() => resendInternalReview(sent, 'author', old.id, env())).toThrow(/can't be sent again/)
+    for (const actor of ['coauthor', 'a', 'other']) expect(() => resendInternalReview(expired, actor, old.id, env())).toThrow()
+  })
+  it('reopens a completed round when an expired request is sent again', () => {
+    const sop = decide(decide(accept(accept(start(), 'a'), 'b'), 'a'), 'b')
+    const settled = expireUnanswered(sop, endOfDay(26))
+    expect(currentInternalRound(settled)!.status).toBe('completed')
+    expect(currentInternalRound(resendInternalReview(settled, 'author', task(settled, 'c').id, env()))!.status).toBe('open')
+  })
+  it('refuses Send Again for anything but an expired latest request of the current review', () => {
+    const sop = accept(start(), 'a')
+    expect(() => resendInternalReview(sop, 'author', task(sop, 'a').id, env())).toThrow(/can't be sent again/)
+    const declined = decline(start(), 'a')
+    expect(() => resendInternalReview(declined, 'author', task(declined, 'a').id, env())).toThrow(/can't be sent again/)
   })
   it('does not count an expired reviewer as taking part', () => {
     const sop = decide(decide(accept(accept(start(), 'a'), 'b'), 'a'), 'b')

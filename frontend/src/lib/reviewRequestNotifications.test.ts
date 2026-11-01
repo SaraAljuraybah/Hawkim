@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Sop, User } from '../data/mock/types'
-import { acceptInternalReview, currentInternalRound, decideInternalReview, declineInternalReview, removeInternalReviewer, startInternalReview, expireUnanswered } from './internalReview'
+import { acceptInternalReview, currentInternalRound, decideInternalReview, declineInternalReview, removeInternalReviewer, startInternalReview, expireUnanswered, resendInternalReview } from './internalReview'
 import { latestAssignmentOf } from './internalReviewStatus'
 import { endOfRiyadhDay } from './riyadhWorkingDays'
 import { deriveNotifications, isDueNotification, isRead, type AppNotification } from './notifications'
@@ -37,6 +37,13 @@ describe('internal review request notifications', () => {
     expect(of('a', sop, 'review-expired')).toEqual([expect.objectContaining({ actorId: 'a', forReviewer: true, link: '/reviews/test' })])
     expect(of('coauthor', sop, 'review-expired')).toEqual([])
     expect(of('b', sop, 'review-expired')).toEqual([expect.objectContaining({ actorId: 'b', forReviewer: true })])
+  })
+  it('tells only the reviewer when a request is sent again, and the first notification stops counting as unresolved', () => {
+    const sop = expireUnanswered(start(), Date.parse(endOfRiyadhDay('2026-10-26')))
+    const sent = resendInternalReview(sop, 'author', id(sop, 'a'), env())
+    expect(of('a', sent, 'assigned-review').filter((item) => item.via === 'resent')).toEqual([expect.objectContaining({ link: '/reviews/test' })])
+    for (const user of ['author', 'coauthor', 'b']) expect(of(user, sent, 'assigned-review').filter((item) => item.via === 'resent')).toEqual([])
+    expect(isRead(of('a', sent, 'review-expired')[0], new Set(), Date.parse('2026-11-30T00:00:00Z'))).toBe(true)
   })
   it('keeps an expired request unread however old, until someone acts on it', () => {
     const sop = expireUnanswered(start(), Date.parse(endOfRiyadhDay('2026-10-26')))

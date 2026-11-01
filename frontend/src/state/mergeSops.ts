@@ -21,6 +21,7 @@ const DATABASE_EVENTS = new Set<TimelineEventType>([
   'review-declined',
   'review-withdrawn',
   'review-expired',
+  'review-request-resent',
   'reviewer-removed',
   'review-completed',
   'review-changes-requested',

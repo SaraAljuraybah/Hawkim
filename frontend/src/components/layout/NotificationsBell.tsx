@@ -113,7 +113,7 @@ export function NotificationsBell() {
       case 'review-returned': return fill(t.reviewReturned)
       case 'review-overdue': return fill(t.reviewOverdue)
       case 'assigned-review':
-        return fill(item.via === 'handoff' ? t.handoff : item.via === 'routed' ? t.routed : item.via === 'resubmitted' ? t.resubmitted : t.submitted)
+        return fill(item.via === 'handoff' ? t.handoff : item.via === 'routed' ? t.routed : item.via === 'resubmitted' ? t.resubmitted : item.via === 'resent' ? t.resent : t.submitted)
       case 'assigned-approval':
         return fill(t.assignedApproval)
       case 'ready-to-publish':

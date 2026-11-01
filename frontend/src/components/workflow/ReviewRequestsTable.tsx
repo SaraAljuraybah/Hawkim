@@ -1,5 +1,5 @@
 import { useRef, useState, type MouseEvent, type ReactNode } from 'react'
-import { ChevronDown, Eye, Pencil, Trash2 } from 'lucide-react'
+import { ChevronDown, Eye, Pencil, RotateCw, Trash2 } from 'lucide-react'
 import { internalReviewEn } from '../../content/internalReview.en'
 import type { InternalReviewerAssignment, InternalReviewRound, Sop } from '../../data/mock/types'
 import { formatDate, formatReviewDate } from '../../lib/format'
@@ -19,6 +19,9 @@ interface ReviewRequestsTableProps {
   /** Whether this request shows the Edit Review Deadline action. */
   canEditDeadline: (round: InternalReviewRound, request: InternalReviewerAssignment) => boolean
   onEditDeadline?: (round: InternalReviewRound, request: InternalReviewerAssignment, trigger: HTMLButtonElement) => void
+  /** Whether this expired request can be sent again (it shares the deadline action's place: a row never has both). */
+  canResend: (round: InternalReviewRound, request: InternalReviewerAssignment) => boolean
+  onResend: (round: InternalReviewRound, request: InternalReviewerAssignment, trigger: HTMLButtonElement) => void
   /** Responding from the comments dialog (the author's SOP page). */
   response?: ReviewRequestResponse
 }
@@ -43,7 +46,7 @@ function Timestamp({ value, format }: { value?: string; format: (value: string) 
  * part use lighter text. A table from xl up (eight columns don't fit beside the sidebar
  * earlier); stacked cards below.
  */
-export function ReviewRequestsTable({ sop, canRemove, onRemove, canEditDeadline, onEditDeadline, response }: ReviewRequestsTableProps) {
+export function ReviewRequestsTable({ sop, canRemove, onRemove, canEditDeadline, onEditDeadline, canResend, onResend, response }: ReviewRequestsTableProps) {
   const { nameOf, getUser } = useUsers()
   const { departments } = useDepartments()
   const [toggled, setToggled] = useState<Record<string, boolean>>({})
@@ -81,6 +84,10 @@ export function ReviewRequestsTable({ sop, canRemove, onRemove, canEditDeadline,
             </span>
           )}
           <span>
+            {canResend(round, request) && (
+              <IconButton label={internalReviewEn.panel.sendAgain.label.replace('{name}', name)} icon={RotateCw}
+                onClick={(event: MouseEvent<HTMLButtonElement>) => onResend(round, request, event.currentTarget)} />
+            )}
             {REVIEW_DEADLINE_EDITING_ACTIVE && canEditDeadline(round, request) && (
               <IconButton label={text.editDeadline.replace('{name}', name)} icon={Pencil}
                 onClick={(event: MouseEvent<HTMLButtonElement>) => onEditDeadline?.(round, request, event.currentTarget)} />

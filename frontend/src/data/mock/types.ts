@@ -334,6 +334,7 @@ export type TimelineEventType =
   | 'review-declined'
   | 'review-withdrawn'
   | 'review-expired'
+  | 'review-request-resent'
   | 'reviewer-removed'
   | 'review-changes-requested'
   | 'internal-review-completed'

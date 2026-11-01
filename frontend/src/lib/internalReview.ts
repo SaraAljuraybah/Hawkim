@@ -169,6 +169,28 @@ export function addInternalReviewers(sop: Sop, actorId: string, options: Interna
     ...options.reviewerIds.map((userId) => ({ id: id('internal-task'), userId, decision: 'pending' as const, assignedAt: now, assignedDueDays: null, ...timing }))] }
   return settleRound(sop, updated, [event(round, 'submitted', actorId, { createdAt: now, recipientIds: options.reviewerIds, ...(options.note?.trim() ? { note: options.note.trim() } : {}) })])
 }
+/** Whether the main author can send this expired request again: the reviewer's latest, in the current version's review. */
+export function canResendRequest(sop: Sop, round: InternalReviewRound, request: InternalReviewerAssignment): boolean {
+  return canAddReviewers(sop) && round === currentInternalRound(sop) && request.decision === 'expired' && latestAssignmentOf(round, request.userId) === request
+}
+/**
+ * The main author sends an expired request to the same reviewer again, with the same review
+ * duration and a new response deadline. It is a new request: the expired one stays in the
+ * history, and a settled round reopens.
+ */
+export function resendInternalReview(sop: Sop, actorId: string, assignmentId: string, env: ReviewEnvironment): Sop {
+  author(sop, actorId, env)
+  const round = currentInternalRound(sop)
+  const request = round?.assignments.find((person) => person.id === assignmentId)
+  assert(round && request && canResendRequest(sop, round, request), 'This review request can\'t be sent again')
+  const options = { reviewerIds: [request.userId], reviewDurationDays: request.reviewDurationDays }
+  validate(sop, options, env)
+  const requestedAt = new Date()
+  const now = requestedAt.toISOString()
+  const updated: InternalReviewRound = { ...round, assignments: [...round.assignments,
+    { id: id('internal-task'), userId: request.userId, decision: 'pending', assignedAt: now, assignedDueDays: null, ...deadlines(options, requestedAt) }] }
+  return settleRound(sop, updated, [event(round, 'review-request-resent', actorId, { createdAt: now, recipientIds: [request.userId] })])
+}
 /** The reviewer takes the task; a decision is only possible after accepting. */
 export function acceptInternalReview(sop: Sop, actorId: string, roundId: string, assignmentId: string, env: ReviewEnvironment): Sop {
   const { round, assignment } = active(sop, roundId, assignmentId)

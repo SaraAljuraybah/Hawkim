@@ -6,11 +6,11 @@ import { assertCanCreateSop } from '../lib/sopAccess'
 import { sopTitleProblem } from '../lib/sopTitle'
 import { submitForApproval } from '../lib/approval'
 import { applyReviewAction } from '../lib/reviewFlow'
-import { RequestExpiredError } from '../lib/internalReviewStatus'
+import { RequestExpiredError, RequestNotResendableError } from '../lib/internalReviewStatus'
 import { PER_REVIEWER_RESPONSE_ACTIVE } from '../lib/internalReviewStatus'
 import { ReviewDeadlineUnavailableError } from '../lib/reviewDeadline'
 import { ResponseNotAvailableError } from '../lib/reviewRequestRows'
-import { acceptInternalReview, addInternalReviewers, changeInternalReviewDeadline, decideInternalReview, declineInternalReview, nextExpiryAt, removeInternalReviewer, sendNewVersionForReview, startInternalReview, expireUnanswered } from '../lib/internalReview'
+import { acceptInternalReview, addInternalReviewers, changeInternalReviewDeadline, decideInternalReview, declineInternalReview, resendInternalReview, nextExpiryAt, removeInternalReviewer, sendNewVersionForReview, startInternalReview, expireUnanswered } from '../lib/internalReview'
 import { useDepartments } from './departmentsContext'
 import * as workflow from '../lib/workflow'
 import { fileTypeOf } from '../lib/prototypeFiles'
@@ -326,6 +326,17 @@ export function SopsProvider({ children }: { children: ReactNode }) {
       removeInternalReviewer: async (id, roundId, assignmentId, reason) => {
         removeInternalReviewer(current(id), userId, roundId, assignmentId, reason, environment)
         await (await reviewService()).removeReviewer(assignmentId, reason.trim())
+        await refresh(id)
+      },
+      resendInternalReview: async (id, assignmentId) => {
+        resendInternalReview(current(id), userId, assignmentId, environment)
+        try {
+          await (await reviewService()).resendReviewRequest(assignmentId)
+        } catch (error) {
+          // This tab was behind: read the SOP again, so the page shows what changed.
+          if (error instanceof RequestNotResendableError) await refresh(id).catch(() => undefined)
+          throw error
+        }
         await refresh(id)
       },
       changeReviewDeadline: async (id, roundId, assignmentId, days) => {

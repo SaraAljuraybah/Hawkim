@@ -16,6 +16,7 @@ export const notificationsEn: NotificationsContent = {
   texts: {
     submitted: '{name} submitted {title} · v{version} for your review',
     resubmitted: '{name} resubmitted {title} · v{version} for your review',
+    resent: '{name} sent you the review request for {title} · v{version} again',
     routed: '{name} routed {title} · v{version} to you for review',
     handoff: '{title} · v{version} is ready for your review',
     internalReviewCompleted: 'All reviewers completed {title} · v{version}. You can now submit it for approval.',

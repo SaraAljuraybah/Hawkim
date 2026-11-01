@@ -79,6 +79,9 @@ export function isInactiveDecision(decision: InternalReviewDecision): boolean {
 /** The database refused a reviewer's action because the request expired: this tab was behind. */
 export class RequestExpiredError extends Error {}
 
+/** The database refused Send Again: this tab was behind (the request isn't the latest any more, say). */
+export class RequestNotResendableError extends Error {}
+
 /**
  * During internal review the author can upload a new version only once everyone taking part has
  * finished reviewing the current one (returned it or completed it), or when nobody is taking part.

@@ -7,6 +7,7 @@ import { InternalReviewActions } from '../components/reviews/InternalReviewActio
 import { InternalReviewPanel } from '../components/workflow/InternalReviewPanel'
 import { internalReviewEn } from '../content/internalReview.en'
 import { currentInternalRound, isInternalReviewPending } from '../lib/internalReview'
+import { latestAssignmentOf } from '../lib/internalReviewStatus'
 import { ReviewFlowActions } from '../components/reviews/ReviewFlowActions'
 import { CommentDialog } from '../components/reviews/ReviewDialogs'
 import { PdfViewer } from '../components/sops/PdfViewer'
@@ -96,6 +97,7 @@ function Review({ sop, historical }: { sop: Sop; historical: boolean }) {
   const department = departmentName(sop.departmentId)
   const internalRound = currentInternalRound(sop)
   const reviewer = sop.reviewers.find((person) => person.userId === user.id) ?? [...(sop.internalReviewRounds ?? [])].reverse().flatMap((round) => round.assignments).find((person) => person.userId === user.id)
+  const ownRequest = latestAssignmentOf(internalRound, user.id)
   const approver = sop.approvers.find((person) => person.userId === user.id)
   const approvalSubmission = activeApprovalSubmission(sop)
   const approvalPhase = !internalRound || !!approvalSubmission
@@ -155,7 +157,7 @@ function Review({ sop, historical }: { sop: Sop; historical: boolean }) {
       return [text.status.published.replace('{date}', date(published?.createdAt))]
     }
     if (sop.status === 'returned') return [text.status.returned.replace('{date}', date(latestReturn(sop)?.createdAt))]
-    if (internalRound && !approver && (sop.status === 'in-review' || sop.status === 'draft')) return [reviewer?.decision === 'cancelled' ? internalReviewEn.status.cancelled : internalRound.status === 'completed' ? internalReviewEn.status.awaitingAuthor : internalRound.status !== 'open' ? internalReviewEn.status.closed : reviewer?.decision === 'completed' ? internalReviewEn.actions.completed : ''] .filter(Boolean)
+    if (internalRound && !approver && (sop.status === 'in-review' || sop.status === 'draft')) return [ownRequest?.decision === 'expired' ? internalReviewEn.status.expired : reviewer?.decision === 'cancelled' ? internalReviewEn.status.cancelled : internalRound.status === 'completed' ? internalReviewEn.status.awaitingAuthor : internalRound.status !== 'open' ? internalReviewEn.status.closed : reviewer?.decision === 'completed' ? internalReviewEn.actions.completed : ''] .filter(Boolean)
     const lines: string[] = []
     if (reviewer?.decision === 'completed') lines.push(text.status.reviewCompleted.replace('{date}', date(reviewer.decidedAt)))
     if (approver && sop.status === 'in-review') lines.push(text.status.waitingForReviews)

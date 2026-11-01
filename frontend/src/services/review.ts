@@ -5,7 +5,7 @@
  */
 
 import type { InternalReviewOptions } from '../lib/internalReview'
-import { isValidReviewDuration, RequestExpiredError } from '../lib/internalReviewStatus'
+import { isValidReviewDuration, RequestExpiredError, RequestNotResendableError } from '../lib/internalReviewStatus'
 import { ReviewDeadlineUnavailableError } from '../lib/reviewDeadline'
 import { ResponseNotAvailableError } from '../lib/reviewRequestRows'
 import { SUBMIT_COMMENT_MAX } from '../lib/workflow'
@@ -20,9 +20,13 @@ export const REVIEW_DEADLINE_UNAVAILABLE_HINT = 'review-deadline-unavailable'
 /** The hint the reviewer's actions raise when their request has expired. */
 export const REQUEST_EXPIRED_HINT = 'request-expired'
 
+/** The hint resend_review_request raises when the request can't be sent again. */
+export const REQUEST_NOT_RESENDABLE_HINT = 'request-not-resendable'
+
 async function call(name: string, args: Record<string, unknown>): Promise<unknown> {
   const { data, error } = await supabase().rpc(name, args)
   if (error?.hint === REQUEST_EXPIRED_HINT) throw new RequestExpiredError(error.message)
+  if (error?.hint === REQUEST_NOT_RESENDABLE_HINT) throw new RequestNotResendableError(error.message)
   if (error) throw new Error(error.message)
   return data
 }
@@ -52,6 +56,11 @@ export async function addReviewers(sopId: string, o: InternalReviewOptions): Pro
 /** Main author: removes a reviewer from the current round, with a reason. */
 export async function removeReviewer(requestId: string, reason: string): Promise<void> {
   await call('remove_reviewer', { p_request_id: requestId, p_reason: reason })
+}
+
+/** Main author: sends an expired request to the same reviewer again, as a new request. */
+export async function resendReviewRequest(requestId: string): Promise<void> {
+  await call('resend_review_request', { p_request_id: requestId })
 }
 
 /** Main author: changes a reviewer's review deadline, to a number of working days from their acceptance. */

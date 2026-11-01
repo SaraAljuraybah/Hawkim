@@ -6,7 +6,7 @@ import oneReviewerMigration from '../../../supabase/migrations/20261101150000_re
 import calendarMigration from '../../../supabase/migrations/20261101120000_review_deadline_helpers.sql?raw'
 import workingDaysMigration from '../../../supabase/migrations/20261101120100_internal_review_working_days.sql?raw'
 import expiredMigration from '../../../supabase/migrations/20261102120100_review_request_expired.sql?raw'
-import { acceptReview, addReviewers, changeReviewDeadline, declineReview, decideReview, removeReviewer, respondToComments, submitReview, expireDueRequests } from './review'
+import { resendReviewRequest, acceptReview, addReviewers, changeReviewDeadline, declineReview, decideReview, removeReviewer, respondToComments, submitReview, expireDueRequests } from './review'
 import { fetchSops } from './sops'
 
 const rpc = vi.fn()
@@ -97,9 +97,10 @@ describe('the static review service and migration contract (no SQL execution)', 
     await respondToComments('sop-id', 'Addressed', 'request-id')
     await changeReviewDeadline('request-id', 7)
     await expireDueRequests('sop-id')
+    await resendReviewRequest('request-id')
 
     const signatures = functionSignatures([expiredMigration, sopsMigration, reviewMigration, calendarMigration, workingDaysMigration, oneReviewerMigration, changeDeadlineMigration].join('\n'))
-    expect(rpc.mock.calls).toHaveLength(10)
+    expect(rpc.mock.calls).toHaveLength(11)
     for (const [name, parameters] of rpc.mock.calls as [string, Record<string, unknown>][]) {
       expect(signatures.has(name), `Missing SQL RPC ${name}`).toBe(true)
       const declared = signatures.get(name)!

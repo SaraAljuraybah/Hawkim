@@ -19,6 +19,7 @@ const RELEASE_1_TIMELINE_TYPES: readonly TimelineEventType[] = [
   'response',
   'review-deadline-changed',
   'review-expired',
+  'review-request-resent',
 ]
 
 /** The events a release-scoped timeline shows (see RELEASE_1_TIMELINE_ONLY). */

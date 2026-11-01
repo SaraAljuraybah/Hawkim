@@ -61,7 +61,7 @@ export interface AppNotification {
   /** Who acted (submitted, routed, returned). */
   actorId?: string
   /** assigned-review: how it reached them. */
-  via?: 'submitted' | 'resubmitted' | 'routed' | 'handoff'
+  via?: 'submitted' | 'resubmitted' | 'resent' | 'routed' | 'handoff'
   /** due-soon / overdue: the stage, and its due date. */
   stage?: 'review' | 'approval'
   /** Internal review due-soon: accepting or declining (response), or finishing the review. */
@@ -131,6 +131,8 @@ function fromEvent(sop: Sop, event: TimelineEvent, userId: string): AppNotificat
       const forReviewer = reviewerId === userId
       return { ...base, actorId: reviewerId, type: 'review-expired', forReviewer, unresolved: isUnresolvedExpiry(sop, event), link: forReviewer ? reviewPath(sop.id) : mySopPath(sop.id) }
     }
+    case 'review-request-resent':
+      return isRecipient ? { ...base, type: 'assigned-review', via: 'resent', link: reviewPath(sop.id) } : undefined
     case 'submitted':
     case 'resubmitted':
       if (event.reviewRoundId) {

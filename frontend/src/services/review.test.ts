@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { RequestExpiredError } from '../lib/internalReviewStatus'
+import { RequestExpiredError, RequestNotResendableError } from '../lib/internalReviewStatus'
 import { ReviewDeadlineUnavailableError } from '../lib/reviewDeadline'
 import { ResponseNotAvailableError } from '../lib/reviewRequestRows'
-import { REQUEST_EXPIRED_HINT, acceptReview, addReviewers, changeReviewDeadline, declineReview, decideReview, removeReviewer, respondToComments, RESPONSE_NOT_AVAILABLE_HINT, REVIEW_DEADLINE_UNAVAILABLE_HINT, submitReview, expireDueRequests } from './review'
+import { REQUEST_EXPIRED_HINT, REQUEST_NOT_RESENDABLE_HINT, resendReviewRequest, acceptReview, addReviewers, changeReviewDeadline, declineReview, decideReview, removeReviewer, respondToComments, RESPONSE_NOT_AVAILABLE_HINT, REVIEW_DEADLINE_UNAVAILABLE_HINT, submitReview, expireDueRequests } from './review'
 
 const rpc = vi.fn()
 vi.mock('./supabase', () => ({ supabase: () => ({ rpc }) }))
@@ -89,6 +89,14 @@ describe('the internal review in the database', () => {
     expect(rpc).toHaveBeenLastCalledWith('respond_to_comments', { p_sop_id: 'uuid-sop', p_text: 'Done', p_request_id: 'uuid-request' })
     await expireDueRequests('uuid-sop')
     expect(rpc).toHaveBeenLastCalledWith('expire_due_requests', { p_sop_id: 'uuid-sop' })
+  })
+
+  it('sends an expired request again, and recognises a refusal by its hint', async () => {
+    rpc.mockResolvedValueOnce({ data: null, error: null })
+    await resendReviewRequest('uuid-request')
+    expect(rpc).toHaveBeenLastCalledWith('resend_review_request', { p_request_id: 'uuid-request' })
+    rpc.mockResolvedValueOnce({ data: null, error: { message: 'Any wording', code: '23514', hint: REQUEST_NOT_RESENDABLE_HINT } })
+    await expect(resendReviewRequest('uuid-request')).rejects.toBeInstanceOf(RequestNotResendableError)
   })
 
   it('recognises an expired request by its hint, and only by that', async () => {

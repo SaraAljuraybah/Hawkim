@@ -1069,6 +1069,7 @@ export interface NotificationsContent {
     resubmitted: string
     routed: string
     handoff: string
+    resent: string
     internalReviewCompleted: string
     /** Internal review requests ({name}: the reviewer, or the author for a removal). */
     reviewDeclined: string
