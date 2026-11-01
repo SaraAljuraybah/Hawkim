@@ -19,7 +19,7 @@ New internal requests use `riyadh-working-days-v1`:
 
 - Response due date: the second working date after the request's date in `Asia/Riyadh`. The request date is excluded; Friday and Saturday are excluded. Thursday 29 October 2026 therefore expires Monday 2 November 2026.
 - Review duration: optional 1–30 working days, counted after each reviewer's acceptance date. Acceptance day and Friday/Saturday do not count. The response period is separate.
-- The end of a newly allocated date is 23:59:59.999 in Riyadh (20:59:59.999Z). Precise saved timestamps govern countdowns, reminders and local withdrawal.
+- The end of a newly allocated date is 23:59:59.999 in Riyadh (20:59:59.999Z). Precise saved timestamps govern countdowns, reminders and expiry.
 - New legacy date allocations and resubmissions also save a precise Riyadh deadline. Saved date-only legacy records retain their compatibility interpretation. No historical allocation is migrated or recalculated.
 - Original allocation, saved deadline and real remaining time are distinct. Historical/closed views keep dates without active clocks or overdue reminders, including the People section.
 - Approval dates retain their existing browser-local tomorrow-through-30-days rules. Review changes do not alter them.

@@ -64,7 +64,10 @@ Function signatures and return values are unchanged, so current frontend calls k
 ## SQL tests
 
 The companion tests `supabase/tests/calendar_helpers.sql` and `supabase/tests/internal_review_rpc.sql`
-were never executed. They are only for a disposable local database, and only with explicit permission.
+are only for a disposable local database, never the shared project. `internal_review_rpc.sql` was
+first run on 2 November 2026, on a throwaway in-memory Postgres (PGlite) with stand-ins for Supabase's
+auth and storage schemas; its old 30-day duration check was corrected then. `calendar_helpers.sql` has
+still never been executed.
 
 ## Activation
 
@@ -72,3 +75,30 @@ were never executed. They are only for a disposable local database, and only wit
 `deadline_policy` and the Submit for Review dialog has no response date field.
 
 To roll back, set the switch to `false` first, then run the rollback script.
+
+# Expired review requests
+
+`20261102120000_review_request_expired_values.sql` and `20261102120100_review_request_expired.sql`
+replace the automatic withdrawal of unanswered requests with a stored `expired` status. The response
+deadline itself doesn't change, and neither does Overdue after acceptance.
+
+- `expire_due` does what `withdraw_due` did, and `withdraw_due` now calls it, so the functions that
+  call it are unchanged. `withdraw_due_requests` stays for tabs still open on the previous app; the
+  app calls `expire_due_requests`. Both can go once no old tab can be open.
+- An expired reviewer doesn't count as taking part, as withdrawn didn't. `settle_review_round` and
+  `upload_sop_version` list it; `add_reviewers` deliberately doesn't, so it refuses that reviewer.
+- `resend_review_request` is the main author's Send Again: a new request, same duration, new response
+  deadline. It records `review-request-resent`, not `submitted`, because `submitted` would move the
+  window that decides who a general response reaches.
+- `review-expired` and `review-request-resent` are private, like responses: the author, co-authors
+  and the people in `recipient_ids` (the main author and the reviewer, not co-authors).
+- **No scheduled job:** the bell is built in the browser, so someone has to have the app open to see a
+  notification, and loading the SOP expires what is due. Because the event is dated at the deadline,
+  which is usually before the session started, `isRead` keeps an expired request unread until the
+  reviewer's latest request on the current version is no longer expired.
+- **Backfill:** only requests with `withdrawn_at = response_due_at`, never accepted, decided or
+  removed, with System's `review-withdrawn` event. They keep `withdrawn_at`, and rounds don't change.
+  Requests withdrawn and later removed stay Removed, and their event keeps its wording.
+
+`supabase/scripts/rollback_review_request_expired.sql` undoes it, after the app is back on the
+previous code. Requests already sent again stay, and their event reads "submitted".

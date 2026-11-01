@@ -28,7 +28,7 @@ Supabase paths again, with Dalal's new UI on top:
   only, so a future service that writes `compliance_checks` directly with the secret key bypasses it.
   `supabase/scripts/rollback_compliance_check_once_per_version.sql` undoes it.
 - **Internal parallel review:** submit, add/remove reviewers, accept, decline, decide, respond,
-  withdraw — each checks the browser rules first, then calls the RPC and reads the SOP again.
+  expire, send again — each checks the browser rules first, then calls the RPC and reads the SOP again.
   A response from a reviewer's comments dialog goes only to that reviewer
   (`20261101150000_respond_to_one_reviewer.sql`, applied to the live project on 1 November 2026, with
   `PER_REVIEWER_RESPONSE_ACTIVE` on). `supabase/scripts/rollback_respond_to_one_reviewer.sql` undoes it.
@@ -105,8 +105,8 @@ disposable local database with explicit permission. Never run them against the s
 ## Remaining boundaries
 
 - Approval, administration and cross-department access need tables, RPCs and RLS.
-- Unattended withdrawal of expired pending requests still needs a scheduled job; today it runs when
-  review functions are called or a SOP loads.
+- Unanswered requests expire when review functions are called or an SOP loads, not at a scheduled
+  time. That is enough for in-app notifications; a scheduled job would only be needed for emails.
 - Frontend date handling outside review deadlines still uses the device's time zone for some legacy
   (sample-only) flows; devices in Saudi Arabia give the same results.
 - Do not reset the database or replay the whole migration history:
