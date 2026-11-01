@@ -121,7 +121,7 @@ describe('retained internal history and subsequent passive workflow consumers', 
     const assignment = sop.internalReviewRounds![0].assignments[1]
     assignment.decision = 'accepted'
     expect(internalReviewsComplete(sop)).toBe(false)
-    for (const decision of ['declined', 'withdrawn', 'removed'] as const) {
+    for (const decision of ['declined', 'withdrawn', 'expired', 'removed'] as const) {
       assignment.decision = decision
       sop.reviewers = projectReviewers(sop.internalReviewRounds![0])
       expect(requiredReviewsComplete(sop)).toBe(true)

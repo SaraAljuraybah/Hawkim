@@ -25,7 +25,7 @@ export const reviewsEn: ReviewsContent = {
     reviewerListLabel: 'Assigned reviews',
     waiting: 'Waiting for an earlier workflow step',
     closed: 'Closed request',
-    decisions: { pending: 'Pending', accepted: 'Accepted', completed: 'Completed', returned: 'Returned to author', cancelled: 'Cancelled', declined: 'Declined', withdrawn: 'Withdrawn', removed: 'Removed', approved: 'Approved' },
+    decisions: { pending: 'Pending', accepted: 'Accepted', completed: 'Completed', returned: 'Returned to author', cancelled: 'Cancelled', declined: 'Declined', withdrawn: 'Withdrawn', expired: 'Expired', removed: 'Removed', approved: 'Approved' },
     version: 'v{version}',
     updated: 'Updated {date}',
     view: { label: 'Review view', grid: 'Grid view', list: 'List view' },

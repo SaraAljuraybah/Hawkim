@@ -46,10 +46,10 @@ const row: SopRow = {
       id: 'round-1', version: 1, status: 'open', requested_by: 'uuid-sara', requested_at: '2026-10-24T10:00:00Z', closed_at: null,
       review_requests: [
         { id: 'req-2', seq: 2, reviewer_id: 'uuid-lulwah', status: 'removed', assigned_at: '2026-10-24T10:00:00Z', response_due_date: null, review_duration_days: null,
-          accepted_at: '2026-10-24T11:00:00Z', review_due_date: null, decided_at: '2026-10-24T12:00:00Z', decline_reason: null, comment_id: 'c-1', withdrawn_at: null,
+          accepted_at: '2026-10-24T11:00:00Z', review_due_date: null, decided_at: '2026-10-24T12:00:00Z', decline_reason: null, comment_id: 'c-1', withdrawn_at: null, expired_at: null,
           removed_at: '2026-10-25T09:00:00Z', removed_by: 'uuid-sara', removal_reason: 'Not needed', status_before_removal: 'completed' },
         { id: 'req-1', seq: 1, reviewer_id: 'uuid-noura', status: 'accepted', assigned_at: '2026-10-24T10:00:00Z', response_due_date: '2026-10-26', review_duration_days: 5,
-          accepted_at: '2026-10-24T11:00:00Z', review_due_date: '2026-10-29', decided_at: null, decline_reason: null, comment_id: null, withdrawn_at: null,
+          accepted_at: '2026-10-24T11:00:00Z', review_due_date: '2026-10-29', decided_at: null, decline_reason: null, comment_id: null, withdrawn_at: null, expired_at: null,
           removed_at: null, removed_by: null, removal_reason: null, status_before_removal: null },
       ],
     },

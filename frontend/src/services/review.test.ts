@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { RequestExpiredError } from '../lib/internalReviewStatus'
 import { ReviewDeadlineUnavailableError } from '../lib/reviewDeadline'
 import { ResponseNotAvailableError } from '../lib/reviewRequestRows'
-import { acceptReview, addReviewers, changeReviewDeadline, declineReview, decideReview, removeReviewer, respondToComments, RESPONSE_NOT_AVAILABLE_HINT, REVIEW_DEADLINE_UNAVAILABLE_HINT, submitReview, withdrawDueRequests } from './review'
+import { REQUEST_EXPIRED_HINT, acceptReview, addReviewers, changeReviewDeadline, declineReview, decideReview, removeReviewer, respondToComments, RESPONSE_NOT_AVAILABLE_HINT, REVIEW_DEADLINE_UNAVAILABLE_HINT, submitReview, expireDueRequests } from './review'
 
 const rpc = vi.fn()
 vi.mock('./supabase', () => ({ supabase: () => ({ rpc }) }))
@@ -81,13 +82,20 @@ describe('the internal review in the database', () => {
     await expect(respondToComments('uuid-sop', 'Done', 'uuid-request')).rejects.not.toBeInstanceOf(ResponseNotAvailableError)
   })
 
-  it('sends responses and asks for due withdrawals', async () => {
+  it('sends responses and asks for due expiries', async () => {
     await respondToComments('uuid-sop', 'Done')
     expect(rpc).toHaveBeenLastCalledWith('respond_to_comments', { p_sop_id: 'uuid-sop', p_text: 'Done' })
     await respondToComments('uuid-sop', 'Done', 'uuid-request')
     expect(rpc).toHaveBeenLastCalledWith('respond_to_comments', { p_sop_id: 'uuid-sop', p_text: 'Done', p_request_id: 'uuid-request' })
-    await withdrawDueRequests('uuid-sop')
-    expect(rpc).toHaveBeenLastCalledWith('withdraw_due_requests', { p_sop_id: 'uuid-sop' })
+    await expireDueRequests('uuid-sop')
+    expect(rpc).toHaveBeenLastCalledWith('expire_due_requests', { p_sop_id: 'uuid-sop' })
+  })
+
+  it('recognises an expired request by its hint, and only by that', async () => {
+    rpc.mockResolvedValueOnce({ data: null, error: { message: 'Any wording', code: '23514', hint: REQUEST_EXPIRED_HINT } })
+    await expect(acceptReview('uuid-request')).rejects.toBeInstanceOf(RequestExpiredError)
+    rpc.mockResolvedValueOnce({ data: null, error: { message: 'Another refusal', code: '23514', hint: null } })
+    await expect(acceptReview('uuid-request')).rejects.not.toBeInstanceOf(RequestExpiredError)
   })
 
   it('throws what the database refuses', async () => {

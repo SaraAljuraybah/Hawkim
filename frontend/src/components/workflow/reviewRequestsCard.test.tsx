@@ -4,7 +4,7 @@ import { MemoryRouter } from 'react-router-dom'
 import type { ReactNode } from 'react'
 import { internalReviewEn } from '../../content/internalReview.en'
 import type { Department, Sop, User } from '../../data/mock/types'
-import { acceptInternalReview, currentInternalRound, decideInternalReview, declineInternalReview, removeInternalReviewer, startInternalReview, withdrawUnanswered } from '../../lib/internalReview'
+import { acceptInternalReview, currentInternalRound, decideInternalReview, declineInternalReview, removeInternalReviewer, startInternalReview, expireUnanswered } from '../../lib/internalReview'
 import { latestAssignmentOf } from '../../lib/internalReviewStatus'
 import { endOfRiyadhDay } from '../../lib/riyadhWorkingDays'
 import { reviewTasks } from '../../lib/reviews'
@@ -62,16 +62,17 @@ describe('review requests card', () => {
     expect(html.match(/>Remove Reviewer</g)).toHaveLength(2)
     expect(render(<InternalReviewPanel sop={sop} canRemove={false} />)).not.toContain('>Remove Reviewer<')
   })
-  it('shows Pending with the response due date and duration, then Withdrawn with its date', () => {
+  it('shows Pending with the response due date and duration, then Expired with its date', () => {
     const sop = startInternalReview(draft(), 'author', '4.0', { reviewerIds: ['alpha'], reviewDurationDays: 3 }, env())
     const pending = render(<InternalReviewPanel sop={sop} canRemove />)
     expect(pending).toContain('</span>Pending</span>')
-    expect(pending).toContain('If there is no response by then, the request is withdrawn.')
+    expect(pending).toContain('If there is no response by then, the request expires.')
     expect(pending).toContain('Review duration: 3 working days')
-    const withdrawn = withdrawUnanswered(sop, Date.parse(endOfRiyadhDay('2026-10-26')))
-    const html = render(<InternalReviewPanel sop={withdrawn} canRemove />)
-    expect(html).toContain('</span>Withdrawn</span>')
-    expect(html).toContain('Withdrawn automatically: no response by')
+    const expired = expireUnanswered(sop, Date.parse(endOfRiyadhDay('2026-10-26')))
+    const html = render(<InternalReviewPanel sop={expired} canRemove />)
+    expect(html).toContain('</span>Expired</span>')
+    expect(html).toContain('Expired: no response by')
+    expect(html).not.toContain('Withdrawn')
     expect(html).not.toContain('starts when accepted')
   })
   it('shows Overdue once an accepted review passes its due date', () => {
@@ -130,7 +131,7 @@ describe('review requests card', () => {
 })
 
 describe('My Reviews', () => {
-  it('shows the reviewer the same request details, and keeps removed and withdrawn requests in Done', () => {
+  it('shows the reviewer the same request details, and keeps removed and expired requests in Done', () => {
     let sop = startInternalReview(draft(), 'author', '4.0', { reviewerIds: ['alpha', 'beta'], reviewDurationDays: 3 }, env())
     fixture.sop = sop
     fixture.userId = 'alpha'
@@ -140,10 +141,10 @@ describe('My Reviews', () => {
     expect(todo).toContain(internalReviewEn.panel.version.replace('{version}', '1'))
     expect(todo).toContain('Review duration: 3 working days')
     sop = removeInternalReviewer(sop, 'author', currentInternalRound(sop)!.id, request(sop, 'alpha').id, 'Covered by another team', env())
-    sop = withdrawUnanswered(sop, Date.parse(endOfRiyadhDay('2026-10-26')))
+    sop = expireUnanswered(sop, Date.parse(endOfRiyadhDay('2026-10-26')))
     expect(reviewTasks('alpha', [sop])[0]).toMatchObject({ group: 'done', decision: 'removed' })
-    expect(reviewTasks('beta', [sop])[0]).toMatchObject({ group: 'done', decision: 'withdrawn' })
+    expect(reviewTasks('beta', [sop])[0]).toMatchObject({ group: 'done', decision: 'expired' })
     expect(render(<ReviewRequestDetails sop={sop} request={request(sop, 'alpha')} />)).toContain('Reason: Covered by another team')
-    expect(render(<ReviewRequestDetails sop={sop} request={request(sop, 'beta')} />)).toContain('Withdrawn automatically: no response by')
+    expect(render(<ReviewRequestDetails sop={sop} request={request(sop, 'beta')} />)).toContain('Expired: no response by')
   })
 })

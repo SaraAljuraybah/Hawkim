@@ -24,6 +24,10 @@ export const notificationsEn: NotificationsContent = {
       author: '{name} did not respond in time, so the review request for {title} · v{version} was withdrawn',
       reviewer: 'Your review request for {title} · v{version} was withdrawn because it was not answered by the response due date',
     },
+    reviewExpired: {
+      author: '{name} did not respond in time, so the review request for {title} · v{version} expired',
+      reviewer: 'Your review request for {title} · v{version} expired because it was not answered in time',
+    },
     reviewerRemoved: '{name} removed you from the review of {title} · v{version}. Reason: {reason}',
     reviewCompleted: '{name} completed the review of {title} · v{version}',
     reviewReturned: '{name} returned {title} · v{version} with comments',
@@ -37,7 +41,7 @@ export const notificationsEn: NotificationsContent = {
     reviewDeadlineChanged: '{name} changed your review deadline for {title} · v{version} to {date}',
     dueSoon: {
       review: '{title} is due for your review {day}',
-      response: '{title}: accept or decline the review request {day}, or it will be withdrawn',
+      response: '{title}: accept or decline the review request {day}, or it will expire',
       approval: '{title} is due for your approval {day}',
     },
     days: { today: 'today', tomorrow: 'tomorrow' },

@@ -34,14 +34,14 @@ vi.mock('./departmentsContext', () => ({ useDepartments: () => ({ departments: f
 vi.mock('./guidelinesContext', () => ({ useGuidelines: () => ({ currentGuideline: { name: 'GVP', version: '4.0' } }) }))
 /*
  * A stand-in for the database: each review function applies the same transition as
- * lib/internalReview.ts to the SOP (unanswered requests withdrawn first), and fetchSop
+ * lib/internalReview.ts to the SOP (unanswered requests expired first), and fetchSop
  * returns the result, which the store then merges and commits.
  */
 const backend = vi.hoisted(() => ({ sop: undefined as Sop | undefined }))
 vi.mock('../services/review', async () => {
   const lib = await import('../lib/internalReview')
   const workflow = await import('../lib/workflow')
-  const apply = async (transition: (sop: Sop) => Sop) => { backend.sop = transition(lib.withdrawUnanswered(current())) }
+  const apply = async (transition: (sop: Sop) => Sop) => { backend.sop = transition(lib.expireUnanswered(current())) }
   const roundOf = (sop: Sop) => lib.currentInternalRound(sop)!.id
   return {
     submitReview: (_id: string, o: InternalReviewOptions) => apply((sop) => sop.status === 'draft'
@@ -53,7 +53,7 @@ vi.mock('../services/review', async () => {
     decideReview: (requestId: string, decision: 'completed' | 'returned', text?: string) => apply((sop) => lib.decideInternalReview(sop, fixture.userId, roundOf(sop), requestId, decision, text, env())),
     removeReviewer: (requestId: string, reason: string) => apply((sop) => lib.removeInternalReviewer(sop, fixture.userId, roundOf(sop), requestId, reason, env())),
     respondToComments: (_id: string, text: string) => apply((sop) => workflow.addResponse(sop, fixture.userId, text)),
-    withdrawDueRequests: async () => {},
+    expireDueRequests: async () => {},
   }
 })
 vi.mock('../services/sops', () => ({ fetchSops: async () => [], fetchSop: async () => backend.sop }))
@@ -337,21 +337,21 @@ describe('assigned controller decisions at the store boundary', () => {
   })
 })
 
-describe('automatic withdrawal at the store boundary', () => {
+describe('automatic expiry at the store boundary', () => {
   function requested(): Sop {
     fixture.users.push(person('second', ['reviewer']))
-    const draft: Sop = { id: 'test', code: 'TEST', title: 'Withdrawal fixture', version: '1', departmentId: 'home', authorId: 'author', coAuthorIds: [], status: 'draft', lastUpdated: '2026-10-23', fileName: 'test.pdf', fileType: 'pdf', versions: [{ version: '1', fileName: 'test.pdf', fileType: 'pdf', uploadedAt: new Date().toISOString() }], reviewers: [], approvers: [], comments: [], timeline: [], complianceChecks: [check('1')] }
+    const draft: Sop = { id: 'test', code: 'TEST', title: 'Expiry fixture', version: '1', departmentId: 'home', authorId: 'author', coAuthorIds: [], status: 'draft', lastUpdated: '2026-10-23', fileName: 'test.pdf', fileType: 'pdf', versions: [{ version: '1', fileName: 'test.pdf', fileType: 'pdf', uploadedAt: new Date().toISOString() }], reviewers: [], approvers: [], comments: [], timeline: [], complianceChecks: [check('1')] }
     const sop = startInternalReview(draft, 'author', '4.0', { reviewerIds: ['reviewer', 'second'], responseDueDate: fixedResponseDueDate() }, env())
     return acceptInternalReview(sop, 'second', currentInternalRound(sop)!.id, currentInternalRound(sop)!.assignments[1].id, env())
   }
-  it('withdraws unanswered requests before the next action and refuses acting on them', async () => {
+  it('expires unanswered requests before the next action and refuses acting on them', async () => {
     const sop = requested()
     const responseDueAt = currentInternalRound(sop)!.assignments[0].responseDueAt!
     vi.setSystemTime(new Date(new Date(responseDueAt).getTime() + 1))
-    await expect(capture('reviewer', sop).acceptInternalReview(sop.id, currentInternalRound(sop)!.id, currentInternalRound(sop)!.assignments[0].id)).rejects.toThrow(/withdrawn/)
+    await expect(capture('reviewer', sop).acceptInternalReview(sop.id, currentInternalRound(sop)!.id, currentInternalRound(sop)!.assignments[0].id)).rejects.toThrow(/expired/)
     const round = currentInternalRound(sop)!
     await capture('second', sop).decideInternalReview(sop.id, round.id, round.assignments[1].id, 'completed', 'Fine')
-    expect(currentInternalRound(current())!.assignments.map((assignment) => assignment.decision)).toEqual(['withdrawn', 'completed'])
-    expect(current().timeline.find((event) => event.type === 'review-withdrawn')).toMatchObject({ createdAt: responseDueAt })
+    expect(currentInternalRound(current())!.assignments.map((assignment) => assignment.decision)).toEqual(['expired', 'completed'])
+    expect(current().timeline.find((event) => event.type === 'review-expired')).toMatchObject({ createdAt: responseDueAt })
   })
 })

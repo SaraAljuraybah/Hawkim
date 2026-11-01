@@ -163,7 +163,7 @@ describe('reviewer-facing sections', () => {
     expect(item).toEqual(before)
   })
 
-  it.each(['completed', 'returned', 'declined', 'withdrawn', 'removed'] as const)('keeps %s requests in history with their actual decision', (decision) => {
+  it.each(['completed', 'returned', 'declined', 'withdrawn', 'expired', 'removed'] as const)('keeps %s requests in history with their actual decision', (decision) => {
     const task = reviewTasks('noura', [internal(decision)])[0]
     expect(reviewerTaskSection(task)).toBe('completed')
     expect(task.decision).toBe(decision)

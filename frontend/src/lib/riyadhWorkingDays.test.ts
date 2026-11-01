@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { fixedResponseDueDate } from './fixedResponseDeadline'
-import { isWithdrawalDue, requestDeadline, reviewDueDateFrom } from './internalReviewStatus'
+import { isExpiryDue, requestDeadline, reviewDueDateFrom } from './internalReviewStatus'
 import { addRiyadhWorkingDays, endOfRiyadhDay, reviewWorkingDueDateFrom, riyadhDate } from './riyadhWorkingDays'
 
 describe('frontend Riyadh working-day allocations', () => {
@@ -50,8 +50,8 @@ describe('frontend Riyadh working-day allocations', () => {
     const request = { decision: 'pending' as const, responseDueDate: '2026-11-01', responseDueAt: '2026-11-02T20:59:59.999Z' }
     const due = Date.parse(request.responseDueAt)
     expect(requestDeadline(request)?.dueAt).toBe(request.responseDueAt)
-    expect(isWithdrawalDue(request, due - 1)).toBe(false)
-    expect(isWithdrawalDue(request, due)).toBe(true)
+    expect(isExpiryDue(request, due - 1)).toBe(false)
+    expect(isExpiryDue(request, due)).toBe(true)
     expect(requestDeadline({ ...request, acceptedAt: '2026-11-01T10:00:00Z', reviewDueDate: '2026-11-08', reviewDueAt: '2026-11-08T20:59:59.999Z' }))
       .toEqual({ phase: 'review', dueAt: '2026-11-08T20:59:59.999Z' })
   })

@@ -1,8 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { renderToStaticMarkup } from 'react-dom/server'
 import type { Department, Sop, User } from '../../data/mock/types'
-import { acceptInternalReview, addInternalReviewers, currentInternalRound, decideInternalReview, declineInternalReview, removeInternalReviewer, startInternalReview } from '../../lib/internalReview'
+import { acceptInternalReview, addInternalReviewers, currentInternalRound, decideInternalReview, declineInternalReview, removeInternalReviewer, startInternalReview, expireUnanswered } from '../../lib/internalReview'
 import { latestAssignmentOf } from '../../lib/internalReviewStatus'
+import { endOfRiyadhDay } from '../../lib/riyadhWorkingDays'
 import { FormDialog } from '../ui/FormDialog'
 import { InternalReviewPanel } from './InternalReviewPanel'
 import { ReviewNotesDialog } from './ReviewNotesDialog'
@@ -135,6 +136,25 @@ describe('ReviewNotesDialog', () => {
     const heading = html.match(/<h2 id="([^"]+)"[^>]*>Comments from Reviewer Alpha<\/h2>/)!
     expect(html.match(/<dialog[^>]*>/)![0]).toContain(`aria-labelledby="${heading[1]}"`)
     for (const text of ['>Comments<', 'Revise section 2', 'Oct 4, 2026', '>Reason for Removing<', 'Not needed', 'Oct 5, 2026', '>Close<']) expect(html).toContain(text)
+  })
+})
+
+describe('an expired request in the table', () => {
+  function expired() {
+    const sop = started(5)
+    return expireUnanswered(sop, Date.parse(endOfRiyadhDay(sop.internalReviewRounds![0].assignments[0].responseDueDate!)))
+  }
+  it('shows the Expired label in lighter text, and the main author can remove the reviewer', () => {
+    const html = render(expired())
+    expect(table(html)).toContain('</span>Expired</span>')
+    expect(table(html)).toMatch(/<tr class="text-text-gray"><th scope="row"[^>]*>Reviewer Alpha/)
+    expect(row(html, 'Reviewer Alpha')).toContain('aria-label="Remove Reviewer Alpha from this review"')
+    expect(render(expired(), false)).not.toContain('from this review')
+  })
+  it('keeps the trash icon off declined rows', () => {
+    const sop = started(5)
+    const declined = declineInternalReview(sop, 'alpha', currentInternalRound(sop)!.id, request(sop, 'alpha').id, 'On leave', env())
+    expect(row(render(declined), 'Reviewer Alpha')).not.toContain('from this review')
   })
 })
 

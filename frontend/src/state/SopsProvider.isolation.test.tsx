@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Department, Sop, User } from '../data/mock/types'
-import { currentInternalRound, withdrawUnanswered } from '../lib/internalReview'
+import { currentInternalRound, expireUnanswered } from '../lib/internalReview'
 import { SopsProvider } from './SopsProvider'
 import type { SopsStore } from './sopsContext'
 
@@ -112,7 +112,7 @@ vi.mock('../services/review', async () => {
   const actor = () => fixture.user!.id
   const sopOfRequest = (requestId: string) => [...backend.rows.values()].find((sop) => sop.internalReviewRounds?.some((round) => round.assignments.some((task) => task.id === requestId)))!
   const roundOf = (sop: Sop, requestId: string) => sop.internalReviewRounds!.find((round) => round.assignments.some((task) => task.id === requestId))!.id
-  const apply = (sop: Sop, transition: (sop: Sop) => Sop) => { backend.calls.push('review'); backend.rows.set(sop.id, transition(lib.withdrawUnanswered(sop))) }
+  const apply = (sop: Sop, transition: (sop: Sop) => Sop) => { backend.calls.push('review'); backend.rows.set(sop.id, transition(lib.expireUnanswered(sop))) }
   const onRequest = (requestId: string, transition: (sop: Sop, roundId: string) => Sop) => { const sop = sopOfRequest(requestId); apply(sop, (current) => transition(current, roundOf(sop, requestId))) }
   return {
     submitReview: async (id: string, o: Parameters<typeof lib.startInternalReview>[3]) => apply(backend.rows.get(id)!, (sop) => sop.status === 'draft'
@@ -123,7 +123,7 @@ vi.mock('../services/review', async () => {
     decideReview: async (requestId: string, decision: 'completed' | 'returned', text?: string) => onRequest(requestId, (sop, roundId) => lib.decideInternalReview(sop, actor(), roundId, requestId, decision, text, env())),
     removeReviewer: async (requestId: string, reason: string) => onRequest(requestId, (sop, roundId) => lib.removeInternalReviewer(sop, actor(), roundId, requestId, reason, env())),
     respondToComments: async (id: string, text: string) => apply(backend.rows.get(id)!, (sop) => workflow.addResponse(sop, actor(), text)),
-    withdrawDueRequests: async (id: string) => apply(backend.rows.get(id)!, (sop) => sop),
+    expireDueRequests: async (id: string) => apply(backend.rows.get(id)!, (sop) => sop),
   }
 })
 vi.mock('../services/files', async () => {
@@ -329,20 +329,20 @@ describe('identity isolation with the database services (stand-in database, no n
     expect(Date.parse(accepted.reviewDueAt!)).toBeLessThan(Date.now())
     await vi.advanceTimersByTimeAsync(999)
     expect(currentInternalRound(render().sops[0])!.assignments.map((assignment) => assignment.decision)).toEqual(['pending', 'accepted'])
-    // At the deadline the database is asked to withdraw (withdraw_due_requests), then the SOP is read again.
-    backend.rows.set('expiring', withdrawUnanswered(backend.rows.get('expiring')!, Date.parse(deadline) + 1))
+    // At the deadline the database is asked to expire it (expire_due_requests), then the SOP is read again.
+    backend.rows.set('expiring', expireUnanswered(backend.rows.get('expiring')!, Date.parse(deadline) + 1))
     await vi.advanceTimersByTimeAsync(1); await settle()
     const expired = render().sops[0]
     expect(expired.status).toBe('in-review')
     expect(currentInternalRound(expired)!.assignments).toEqual([
-      expect.objectContaining({ id: round.assignments[0].id, decision: 'withdrawn', withdrawnAt: deadline }), accepted,
+      expect.objectContaining({ id: round.assignments[0].id, decision: 'expired', expiredAt: deadline }), accepted,
     ])
-    expect(expired.timeline.filter((event) => event.type === 'review-withdrawn')).toEqual([
+    expect(expired.timeline.filter((event) => event.type === 'review-expired')).toEqual([
       expect.objectContaining({ actorId: 'system', reviewAssignmentId: round.assignments[0].id, createdAt: deadline }),
     ])
     store = await signIn(fixture.people[1])
-    expect(currentInternalRound(store.sops[0])!.assignments[0].decision).toBe('withdrawn')
-    await expect(store.acceptInternalReview('expiring', round.id, round.assignments[0].id)).rejects.toThrow(/withdrawn/)
+    expect(currentInternalRound(store.sops[0])!.assignments[0].decision).toBe('expired')
+    await expect(store.acceptInternalReview('expiring', round.id, round.assignments[0].id)).rejects.toThrow(/expired/)
   })
 
   it('does not permit a Reviewer to independently add or route reviewers', async () => {

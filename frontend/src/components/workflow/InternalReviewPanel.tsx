@@ -91,7 +91,7 @@ export function InternalReviewPanel({ sop, canRemove, inactive = false, table = 
       <ReviewerDeadline sop={sop} reviewer={reviewer} content={sopWorkflowEn.reviewerDeadline} showQueue inactive={inactive} />
     </li>)}</ul>}
     {table && requests.length > 0 && <ReviewRequestsTable sop={sop} response={response} onRemove={askToRemove}
-      canRemove={(round, assignment) => removable && isLatestRequest(round, assignment) && !isInactiveDecision(assignment.decision)}
+      canRemove={(round, assignment) => removable && isLatestRequest(round, assignment) && (assignment.decision === 'expired' || !isInactiveDecision(assignment.decision))}
       canEditDeadline={(round, assignment) => canRemove && canChangeReviewDeadline(sop, round, assignment)}
       onEditDeadline={(round, assignment, trigger) => { triggerRef.current = trigger; setEditing({ roundId: round.id, assignment }) }} />}
     {!table && reviewerIds.length > 0 && <ul className="space-y-4">{reviewerIds.map((userId) => {

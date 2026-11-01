@@ -73,8 +73,11 @@ export function isOpenDecision(decision: InternalReviewDecision): boolean {
 
 /** The reviewer no longer takes part in this round, so they don't count against completing it. */
 export function isInactiveDecision(decision: InternalReviewDecision): boolean {
-  return decision === 'declined' || decision === 'withdrawn' || decision === 'removed'
+  return decision === 'declined' || decision === 'withdrawn' || decision === 'expired' || decision === 'removed'
 }
+
+/** The database refused a reviewer's action because the request expired: this tab was behind. */
+export class RequestExpiredError extends Error {}
 
 /**
  * During internal review the author can upload a new version only once everyone taking part has
@@ -101,18 +104,18 @@ export function isActiveRequest(sop: Pick<Sop, 'status' | 'version' | 'internalR
 
 /**
  * THE ONLY AUTOMATIC STEP in internal review: a request that is still pending when its
- * response due date has ended (the end of that local day) is withdrawn. Without a response
+ * response due date has ended (the end of that local day) expires. Without a response
  * due date it never expires; once accepted, nothing happens automatically.
  * Returns when that happens, or undefined when it can't.
- * TODO: The real withdrawal must run on the backend (a scheduled job), not in the browser.
+ * The database expires it when anyone who can see the SOP loads it or acts on it.
  */
-export function withdrawalDueAt(assignment: Pick<InternalReviewerAssignment, 'decision' | 'responseDueDate' | 'responseDueAt'>): string | undefined {
+export function expiryDueAt(assignment: Pick<InternalReviewerAssignment, 'decision' | 'responseDueDate' | 'responseDueAt'>): string | undefined {
   return assignment.decision === 'pending' ? assignment.responseDueAt ?? (assignment.responseDueDate ? endOfLocalDay(assignment.responseDueDate) : undefined) : undefined
 }
 
-/** Whether the request is due to be withdrawn at `now`. */
-export function isWithdrawalDue(assignment: Pick<InternalReviewerAssignment, 'decision' | 'responseDueDate' | 'responseDueAt'>, now: number): boolean {
-  const dueAt = withdrawalDueAt(assignment)
+/** Whether the request is due to expire at `now`. */
+export function isExpiryDue(assignment: Pick<InternalReviewerAssignment, 'decision' | 'responseDueDate' | 'responseDueAt'>, now: number): boolean {
+  const dueAt = expiryDueAt(assignment)
   return dueAt !== undefined && new Date(dueAt).getTime() <= now
 }
 
@@ -139,7 +142,7 @@ export function activeAssignments(round: InternalReviewRound): InternalReviewerA
 /** The decision shared views (people list, user administration, legacy helpers) understand. */
 export function legacyDecision(decision: InternalReviewDecision): ReviewerDecision {
   if (decision === 'accepted') return 'pending'
-  if (decision === 'declined' || decision === 'withdrawn' || decision === 'removed') return 'cancelled'
+  if (decision === 'declined' || decision === 'withdrawn' || decision === 'expired' || decision === 'removed') return 'cancelled'
   return decision
 }
 

@@ -6,10 +6,11 @@ import { assertCanCreateSop } from '../lib/sopAccess'
 import { sopTitleProblem } from '../lib/sopTitle'
 import { submitForApproval } from '../lib/approval'
 import { applyReviewAction } from '../lib/reviewFlow'
+import { RequestExpiredError } from '../lib/internalReviewStatus'
 import { PER_REVIEWER_RESPONSE_ACTIVE } from '../lib/internalReviewStatus'
 import { ReviewDeadlineUnavailableError } from '../lib/reviewDeadline'
 import { ResponseNotAvailableError } from '../lib/reviewRequestRows'
-import { acceptInternalReview, addInternalReviewers, changeInternalReviewDeadline, decideInternalReview, declineInternalReview, nextWithdrawalAt, removeInternalReviewer, sendNewVersionForReview, startInternalReview, withdrawUnanswered } from '../lib/internalReview'
+import { acceptInternalReview, addInternalReviewers, changeInternalReviewDeadline, decideInternalReview, declineInternalReview, nextExpiryAt, removeInternalReviewer, sendNewVersionForReview, startInternalReview, expireUnanswered } from '../lib/internalReview'
 import { useDepartments } from './departmentsContext'
 import * as workflow from '../lib/workflow'
 import { fileTypeOf } from '../lib/prototypeFiles'
@@ -88,12 +89,25 @@ export function SopsProvider({ children }: { children: ReactNode }) {
     [commit, userId],
   )
 
-  /** The SOP as the workflow rules see it now (unanswered review requests withdrawn first). */
+  /** A reviewer's action. If the database says the request expired, this tab was behind: read the SOP again. */
+  const refreshIfExpired = useCallback(
+    async (sopId: string, action: () => Promise<void>) => {
+      try {
+        await action()
+      } catch (error) {
+        if (error instanceof RequestExpiredError) await refresh(sopId).catch(() => undefined)
+        throw error
+      }
+    },
+    [refresh],
+  )
+
+  /** The SOP as the workflow rules see it now (unanswered review requests expired first). */
   const current = useCallback((sopId: string) => {
     if (!userId || activeIdentity.current !== userId) throw new Error('The signed-in user changed')
     const sop = latestRef.current.find((item) => item.id === sopId)
     if (!sop) throw new Error(`Unknown SOP ${sopId}`)
-    return withdrawUnanswered(sop)
+    return expireUnanswered(sop)
   }, [userId])
 
   /**
@@ -107,33 +121,34 @@ export function SopsProvider({ children }: { children: ReactNode }) {
       const current = latestRef.current
       const sop = current.find((item) => item.id === sopId)
       if (!sop) throw new Error(`Unknown SOP ${sopId}`)
-      // Unanswered review requests past their response due date are withdrawn before anything else happens.
-      const updated = transition(withdrawUnanswered(sop))
+      // Unanswered review requests past their response due date expire before anything else happens.
+      const updated = transition(expireUnanswered(sop))
       commit(current.map((item) => (item.id === sopId ? updated : item)))
     },
     [commit, userId],
   )
 
   /*
-   * The automatic withdrawal also runs on load and at the moment the next response due date
-   * ends: in the database for stored SOPs (asked once per deadline, then read again), in this
-   * tab for the sample SOPs. TODO: A scheduled job will withdraw them on the server.
+   * The expiry also runs on load and at the moment the next response due date ends: in the
+   * database for stored SOPs (asked once per deadline, then read again), in this tab for the
+   * sample SOPs. No scheduled job is needed: someone has to have the app open to see the
+   * notification, and loading the SOP expires what is due.
    */
-  const withdrawalsAsked = useRef(new Set<string>())
+  const expiriesAsked = useRef(new Set<string>())
   useEffect(() => {
-    const next = nextWithdrawalAt(sops)
+    const next = nextExpiryAt(sops)
     if (next === undefined) return
     // Long waits are re-checked daily (browser timers can't wait longer than about 24 days).
     const timer = window.setTimeout(() => {
       const now = Date.now()
-      const swept = latestRef.current.map((sop) => (storedIds.current.has(sop.id) ? sop : withdrawUnanswered(sop, now)))
+      const swept = latestRef.current.map((sop) => (storedIds.current.has(sop.id) ? sop : expireUnanswered(sop, now)))
       if (swept.some((sop, index) => sop !== latestRef.current[index])) commit(swept)
       for (const sop of latestRef.current) {
-        if (!storedIds.current.has(sop.id) || withdrawUnanswered(sop, now) === sop) continue
-        const key = `${sop.id}:${nextWithdrawalAt([sop])}`
-        if (withdrawalsAsked.current.has(key)) continue
-        withdrawalsAsked.current.add(key)
-        void reviewService().then(({ withdrawDueRequests }) => withdrawDueRequests(sop.id))
+        if (!storedIds.current.has(sop.id) || expireUnanswered(sop, now) === sop) continue
+        const key = `${sop.id}:${nextExpiryAt([sop])}`
+        if (expiriesAsked.current.has(key)) continue
+        expiriesAsked.current.add(key)
+        void reviewService().then(({ expireDueRequests }) => expireDueRequests(sop.id))
           .then(() => refresh(sop.id))
           .catch(() => undefined)
       }
@@ -201,7 +216,7 @@ export function SopsProvider({ children }: { children: ReactNode }) {
     if (cacheOwner.current !== userId) {
       commit(latestRef.current.filter((sop) => !storedIds.current.has(sop.id)))
       storedIds.current.clear()
-      withdrawalsAsked.current.clear()
+      expiriesAsked.current.clear()
       cacheOwner.current = userId
     }
     if (!userId) return
@@ -290,17 +305,17 @@ export function SopsProvider({ children }: { children: ReactNode }) {
       }),
       acceptInternalReview: async (id, roundId, assignmentId) => {
         acceptInternalReview(current(id), userId, roundId, assignmentId, environment)
-        await (await reviewService()).acceptReview(assignmentId)
+        await refreshIfExpired(id, async () => (await reviewService()).acceptReview(assignmentId))
         await refresh(id)
       },
       declineInternalReview: async (id, roundId, assignmentId, reason) => {
         declineInternalReview(current(id), userId, roundId, assignmentId, reason, environment)
-        await (await reviewService()).declineReview(assignmentId, reason.trim())
+        await refreshIfExpired(id, async () => (await reviewService()).declineReview(assignmentId, reason.trim()))
         await refresh(id)
       },
       decideInternalReview: async (id, roundId, assignmentId, decision, text) => {
         decideInternalReview(current(id), userId, roundId, assignmentId, decision, text, environment)
-        await (await reviewService()).decideReview(assignmentId, decision, text)
+        await refreshIfExpired(id, async () => (await reviewService()).decideReview(assignmentId, decision, text))
         await refresh(id)
       },
       addInternalReviewers: async (id, options) => {
@@ -414,7 +429,7 @@ export function SopsProvider({ children }: { children: ReactNode }) {
       failNextCheck,
       setFailNextCheck,
     }),
-    [status, exposedSops, addDraft, refresh, current, update, runCheck, failNextCheck, setFailNextCheck, userId, guideline.version, users, environment, assertActor],
+    [status, exposedSops, addDraft, refresh, refreshIfExpired, current, update, runCheck, failNextCheck, setFailNextCheck, userId, guideline.version, users, environment, assertActor],
   )
 
   return <SopsContext.Provider value={store}>{children}</SopsContext.Provider>

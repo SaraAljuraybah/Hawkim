@@ -5,7 +5,7 @@
  */
 
 import type { InternalReviewOptions } from '../lib/internalReview'
-import { isValidReviewDuration } from '../lib/internalReviewStatus'
+import { isValidReviewDuration, RequestExpiredError } from '../lib/internalReviewStatus'
 import { ReviewDeadlineUnavailableError } from '../lib/reviewDeadline'
 import { ResponseNotAvailableError } from '../lib/reviewRequestRows'
 import { SUBMIT_COMMENT_MAX } from '../lib/workflow'
@@ -17,8 +17,12 @@ export const RESPONSE_NOT_AVAILABLE_HINT = 'response-not-available'
 /** The hint change_review_deadline raises when the request can't be changed any more. */
 export const REVIEW_DEADLINE_UNAVAILABLE_HINT = 'review-deadline-unavailable'
 
+/** The hint the reviewer's actions raise when their request has expired. */
+export const REQUEST_EXPIRED_HINT = 'request-expired'
+
 async function call(name: string, args: Record<string, unknown>): Promise<unknown> {
   const { data, error } = await supabase().rpc(name, args)
+  if (error?.hint === REQUEST_EXPIRED_HINT) throw new RequestExpiredError(error.message)
   if (error) throw new Error(error.message)
   return data
 }
@@ -79,7 +83,7 @@ export async function respondToComments(sopId: string, text: string, requestId?:
   if (error) throw new Error(error.message)
 }
 
-/** Withdraws the SOP's requests whose response due date has ended (nothing happens when none are due). */
-export async function withdrawDueRequests(sopId: string): Promise<void> {
-  await call('withdraw_due_requests', { p_sop_id: sopId })
+/** Expires the SOP's requests whose response due date has ended (nothing happens when none are due). */
+export async function expireDueRequests(sopId: string): Promise<void> {
+  await call('expire_due_requests', { p_sop_id: sopId })
 }

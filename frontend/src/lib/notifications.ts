@@ -18,6 +18,7 @@ export type NotificationType =
   /** Internal review requests: to the author (and co-authors), or to the reviewer concerned. */
   | 'review-declined'
   | 'review-withdrawn'
+  | 'review-expired'
   | 'reviewer-removed'
   | 'review-completed'
   | 'review-returned'
@@ -68,8 +69,10 @@ export interface AppNotification {
   dueAt?: string
   /** A decline or removal reason. */
   reason?: string
-  /** review-withdrawn: whether the user is the reviewer whose request was withdrawn (otherwise the author). */
+  /** review-withdrawn and review-expired: whether the user is the reviewer whose request it was (otherwise the author). */
   forReviewer?: boolean
+  /** review-expired: nobody has acted on it yet, so it stays unread however old it is. */
+  unresolved?: boolean
   /** Request notifications. */
   request?: Pick<UserRequest, 'title' | 'type' | 'departmentId'>
 }
@@ -87,6 +90,13 @@ function requestReviewer(sop: Sop, event: TimelineEvent): string | undefined {
   return sop.internalReviewRounds?.flatMap((round) => round.assignments).find((assignment) => assignment.id === event.reviewAssignmentId)?.userId
 }
 
+/** The expired request is still the reviewer's latest one in the current version's review. */
+function isUnresolvedExpiry(sop: Sop, event: TimelineEvent): boolean {
+  const round = sop.internalReviewRounds?.at(-1)
+  const request = round?.assignments.find((assignment) => assignment.id === event.reviewAssignmentId)
+  return sop.status === 'in-review' && round?.version === sop.version && request?.decision === 'expired' && latestAssignmentOf(round, request.userId) === request
+}
+
 function fromEvent(sop: Sop, event: TimelineEvent, userId: string): AppNotification | undefined {
   const base = {
     id: `${event.id}:${userId}`,
@@ -102,7 +112,7 @@ function fromEvent(sop: Sop, event: TimelineEvent, userId: string): AppNotificat
     case 'internal-review-completed':
       return isRecipient ? { ...base, type: 'internal-review-completed', link: mySopPath(sop.id) } : undefined
     // Internal review requests: the author and co-authors hear about declines and returns, the author
-    // about each completion, the reviewer about a removal, and both about a withdrawal.
+    // about each completion, the reviewer about a removal, and both about an expiry.
     case 'review-declined':
       return isRecipient ? { ...base, type: 'review-declined', reason: event.note, link: mySopPath(sop.id) } : undefined
     case 'review-changes-requested':
@@ -114,6 +124,12 @@ function fromEvent(sop: Sop, event: TimelineEvent, userId: string): AppNotificat
       const reviewerId = requestReviewer(sop, event)
       const forReviewer = reviewerId === userId
       return { ...base, actorId: reviewerId, type: 'review-withdrawn', forReviewer, link: forReviewer ? reviewPath(sop.id) : mySopPath(sop.id) }
+    }
+    case 'review-expired': {
+      if (!isRecipient) return undefined
+      const reviewerId = requestReviewer(sop, event)
+      const forReviewer = reviewerId === userId
+      return { ...base, actorId: reviewerId, type: 'review-expired', forReviewer, unresolved: isUnresolvedExpiry(sop, event), link: forReviewer ? reviewPath(sop.id) : mySopPath(sop.id) }
     }
     case 'submitted':
     case 'resubmitted':
@@ -201,7 +217,7 @@ function dueNotification(sop: Sop, userId: string, now: number): AppNotification
 
 /**
  * A reviewer's reminder for their own request, with a stable identity per request and phase.
- * A passed response due date withdraws the request instead, so only a review can be overdue.
+ * A passed response due date expires the request instead, so only a review can be overdue.
  * A changed review deadline is a new reminder: the old one may have been read.
  */
 function internalDeadline(sop: Sop, requestKey: string, dueAt: string, userId: string, now: number, phase: 'response' | 'review'): AppNotification | undefined {
@@ -264,9 +280,10 @@ export function deriveNotifications(
 
 /**
  * Read: opened or marked as read, or it happened before this app session started
- * (the sample history), except due-soon and overdue, which stay unread until opened.
+ * (the sample history), except due-soon, overdue and an expired request nobody has acted on yet,
+ * which stay unread until opened.
  */
 export function isRead(notification: AppNotification, readIds: ReadonlySet<string>, sessionStartedAt: number): boolean {
   if (readIds.has(notification.id)) return true
-  return !isDueNotification(notification.type) && new Date(notification.createdAt).getTime() < sessionStartedAt
+  return !isDueNotification(notification.type) && !notification.unresolved && new Date(notification.createdAt).getTime() < sessionStartedAt
 }

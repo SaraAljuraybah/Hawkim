@@ -45,7 +45,7 @@ const SOP_COLUMNS = `id, code, title, description, department_id, author_id, sta
     review_round_id, review_request_id, comment_id, previous_review_due_at, new_review_due_at),
   review_rounds!review_rounds_sop_id_fkey (id, version, status, requested_by, requested_at, closed_at,
     review_requests!review_requests_round_id_fkey (id, seq, reviewer_id, status, assigned_at, response_due_date, response_due_at,
-      review_duration_days, accepted_at, review_due_date, review_due_at,${REQUEST_POLICY_COLUMN} decided_at, decline_reason, comment_id, withdrawn_at,
+      review_duration_days, accepted_at, review_due_date, review_due_at,${REQUEST_POLICY_COLUMN} decided_at, decline_reason, comment_id, withdrawn_at, expired_at,
       removed_at, removed_by, removal_reason, status_before_removal)),
   sop_comments!sop_comments_sop_id_fkey (id, version, author_id, role, text, review_round_id, review_request_id, created_at),
   compliance_checks!compliance_checks_sop_id_fkey (id, sop_version, status, engine, triggered_by, started_at, completed_at,
@@ -97,6 +97,7 @@ export interface ReviewRequestRow {
   decline_reason: string | null
   comment_id: string | null
   withdrawn_at: string | null
+  expired_at: string | null
   removed_at: string | null
   removed_by: string | null
   removal_reason: string | null
@@ -206,6 +207,7 @@ function toRequest(row: ReviewRequestRow): InternalReviewerAssignment {
     declineReason: row.decline_reason,
     commentId: row.comment_id,
     withdrawnAt: row.withdrawn_at,
+    expiredAt: row.expired_at,
     removedAt: row.removed_at,
     removedById: row.removed_by,
     removalReason: row.removal_reason,

@@ -1,5 +1,5 @@
 import type { InternalReviewerAssignment, ReviewerAssignment, Sop } from '../data/mock/types'
-import { isOpenDecision, isWithdrawalDue, latestAssignmentOf } from './internalReviewStatus'
+import { isOpenDecision, isExpiryDue, latestAssignmentOf } from './internalReviewStatus'
 import { reviewSopForUser } from './reviewAccess'
 import { activeApprovalSubmission, currentDueAt, currentReviewer, isOverdue, reviewerDueAt } from './workflow'
 
@@ -57,7 +57,7 @@ export function reviewTasks(userId: string, sops: Sop[], now = Date.now()): Revi
       const ownRound = [...sop.internalReviewRounds!].reverse().find((item) => item.assignments.some((person) => person.userId === userId))
       const assignment = latestAssignmentOf(ownRound, userId)
       if (assignment) {
-        const active = !historical && ownRound!.id === round.id && round.status === 'open' && round.version === sop.version && sop.status === 'in-review' && isOpenDecision(assignment.decision) && !isWithdrawalDue(assignment, now)
+        const active = !historical && ownRound!.id === round.id && round.status === 'open' && round.version === sop.version && sop.status === 'in-review' && isOpenDecision(assignment.decision) && !isExpiryDue(assignment, now)
         tasks.push({ sop, role: 'reviewer', group: active ? 'todo' : 'done', ...(active ? { need: 'review' as const } : {}), decision: assignment.decision, decidedAt: assignment.decidedAt, dueAt: reviewerDueAt(sop, assignment), reviewer: assignment })
         continue
       }

@@ -2,7 +2,7 @@ import { SYSTEM_ACTOR, type InternalReviewRound, type InternalReviewerAssignment
 import { checkRequired, hasCurrentCheck } from './compliance'
 import { fixedResponseDueDate } from './fixedResponseDeadline'
 import { todayIsoDate } from './format'
-import { isInactiveDecision, isOpenDecision, isUnsentVersion, isValidReviewDuration, isWithdrawalDue, latestAssignmentOf, latestAssignments, projectReviewers, requestDeadline, reviewDueDateFrom, withdrawalDueAt } from './internalReviewStatus'
+import { isInactiveDecision, isOpenDecision, isUnsentVersion, isValidReviewDuration, isExpiryDue, latestAssignmentOf, latestAssignments, projectReviewers, requestDeadline, reviewDueDateFrom, expiryDueAt } from './internalReviewStatus'
 import { previewReviewDeadline } from './reviewDeadline'
 import { eligibleReviewers, type ReviewEnvironment } from './reviewFlow'
 import { WORKING_DAY_DEADLINES_ACTIVE } from './deadlinePolicy'
@@ -22,6 +22,7 @@ export interface InternalReviewOptions {
   reviewDurationDays?: number
   note?: string
 }
+const REQUEST_EXPIRED = 'This review request expired because it was not accepted or declined by its response due date'
 /** Decline reasons and review comments are limited like other comments. */
 export const REVIEW_TEXT_MAX = 1000
 let serial = 0
@@ -44,35 +45,36 @@ function active(sop: Sop, roundId: string, assignmentId: string) {
   assert(sop.status === 'in-review' && round?.id === roundId && round.version === sop.version && round.status === 'open', 'This internal review round is no longer open')
   const assignment = round.assignments.find((person) => person.id === assignmentId)
   assert(assignment?.decision !== 'withdrawn', 'This review request was withdrawn because it was not accepted or declined by its response due date')
+  assert(assignment?.decision !== 'expired', REQUEST_EXPIRED)
   assert(assignment && isOpenDecision(assignment.decision) && latestAssignmentOf(round, assignment.userId) === assignment, 'This assignment is cancelled, decided, or no longer open')
-  assert(!isWithdrawalDue(assignment, Date.now()), 'This review request was withdrawn because it was not accepted or declined by its response due date')
+  assert(!isExpiryDue(assignment, Date.now()), REQUEST_EXPIRED)
   return { round, assignment }
 }
 /**
- * Applies the automatic withdrawal rule (see withdrawalDueAt) to the open round: each pending
- * request whose response due date has ended is withdrawn, dated at that deadline, by System.
- * The author and the reviewer are told. Returns the same SOP when nothing is due.
+ * Applies the expiry rule (see expiryDueAt) to the open round: each pending request whose
+ * response due date has ended expires, dated at that deadline, by System. It is locked, and
+ * the main author and the reviewer are told. Returns the same SOP when nothing is due.
  */
-export function withdrawUnanswered(sop: Sop, now = Date.now()): Sop {
+export function expireUnanswered(sop: Sop, now = Date.now()): Sop {
   const round = currentInternalRound(sop)
   if (!round || round.status !== 'open' || sop.status !== 'in-review') return sop
-  const due = latestAssignments(round).filter((person) => isWithdrawalDue(person, now))
+  const due = latestAssignments(round).filter((person) => isExpiryDue(person, now))
   if (!due.length) return sop
   let updated = round
   const events: TimelineEvent[] = []
   for (const person of due) {
-    const withdrawnAt = withdrawalDueAt(person)!
-    updated = update(updated, person.id, { decision: 'withdrawn', withdrawnAt })
-    events.push(event(round, 'review-withdrawn', SYSTEM_ACTOR, { reviewAssignmentId: person.id, createdAt: withdrawnAt, recipientIds: [sop.authorId!, person.userId] }))
+    const expiredAt = expiryDueAt(person)!
+    updated = update(updated, person.id, { decision: 'expired', expiredAt })
+    events.push(event(round, 'review-expired', SYSTEM_ACTOR, { reviewAssignmentId: person.id, createdAt: expiredAt, recipientIds: [sop.authorId!, person.userId] }))
   }
   return settleRound(sop, updated, events)
 }
-/** When the next automatic withdrawal is due across these SOPs (epoch milliseconds), if any. */
-export function nextWithdrawalAt(sops: Sop[]): number | undefined {
+/** When the next expiry is due across these SOPs (epoch milliseconds), if any. */
+export function nextExpiryAt(sops: Sop[]): number | undefined {
   const times = sops.flatMap((sop) => {
     const round = currentInternalRound(sop)
     if (!round || round.status !== 'open' || sop.status !== 'in-review') return []
-    return latestAssignments(round).map((person) => withdrawalDueAt(person)).filter((dueAt) => dueAt !== undefined).map((dueAt) => new Date(dueAt).getTime())
+    return latestAssignments(round).map((person) => expiryDueAt(person)).filter((dueAt) => dueAt !== undefined).map((dueAt) => new Date(dueAt).getTime())
   })
   return times.length ? Math.min(...times) : undefined
 }
@@ -136,12 +138,12 @@ export function startInternalReview(sop: Sop, actorId: string, guidelineVersion:
   validate(sop, options, env)
   return create(sop, actorId, options, 'submitted')
 }
-/** Reviewers who can be sent the current version now: not yet asked, or their latest request was declined, withdrawn or removed. */
+/** Reviewers who can be added now: not yet asked, or their latest request was declined, withdrawn or removed. An expired request is sent again instead. */
 export function addableReviewers(sop: Sop, users: ReviewEnvironment['users']) {
   const round = currentInternalRound(sop)
   return eligibleReviewers(sop, sop.departmentId, users).filter((user) => {
     const latest = latestAssignmentOf(round?.version === sop.version ? round : undefined, user.id)
-    return !latest || isInactiveDecision(latest.decision)
+    return !latest || (isInactiveDecision(latest.decision) && latest.decision !== 'expired')
   })
 }
 /** Whether the main author can add reviewers to the current version's review now (it reopens a settled round). */
@@ -151,7 +153,7 @@ export function canAddReviewers(sop: Sop): boolean {
 }
 /**
  * The main author sends the current version to more reviewers, e.g. to replace one who declined,
- * was withdrawn or was removed. Each gets a new request; their earlier one stays in the history.
+ * expired or was removed. Each gets a new request; their earlier one stays in the history.
  */
 export function addInternalReviewers(sop: Sop, actorId: string, options: InternalReviewOptions, env: ReviewEnvironment): Sop {
   author(sop, actorId, env)

@@ -39,7 +39,7 @@ vi.mock('./sessionContext', () => ({ useSession: () => ({ user: author }) }))
 vi.mock('./usersContext', () => ({ useUsers: () => ({ users: [author], getUser: () => author }) }))
 vi.mock('./departmentsContext', () => ({ useDepartments: () => ({ departments: [{ id: 'home', name: 'Home', initials: 'HM', description: '' }] }) }))
 vi.mock('./guidelinesContext', () => ({ useGuidelines: () => ({ currentGuideline: { name: 'GVP', version: '4.0' } }) }))
-vi.mock('../services/review', () => ({ respondToComments, withdrawDueRequests: vi.fn() }))
+vi.mock('../services/review', () => ({ respondToComments, expireDueRequests: vi.fn() }))
 vi.mock('../services/sops', () => ({ fetchSops: vi.fn(async () => []), fetchSop: vi.fn(async () => sop) }))
 
 const requestOf = (id: string) => sop.internalReviewRounds!.flatMap((round) => round.assignments).find((item) => item.id === id) as InternalReviewerAssignment

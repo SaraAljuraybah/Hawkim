@@ -101,7 +101,7 @@ describe('parallel reviewer deadline displays', () => {
     expect(html).toContain('Response due ')
     expect(html).toContain(new Date(2026, 9, 21, 23, 59, 59, 999).toISOString())
     expect(html).toContain('Review duration: 5 days, starts when accepted')
-    expect(html).toContain('If there is no response by then, the request is withdrawn.')
+    expect(html).toContain('If there is no response by then, the request expires.')
     expect(html).not.toContain('Time remaining')
     expect(render(<ReviewerDeadline sop={item} reviewer={next} content={sopWorkflowEn.reviewerDeadline} />)).toContain('Review duration: 1 day, starts when accepted')
     const blank = render(<ReviewerDeadline sop={item} reviewer={none} content={sopWorkflowEn.reviewerDeadline} />)
@@ -128,9 +128,9 @@ describe('parallel reviewer deadline displays', () => {
     expect(overdue).toContain('Review overdue')
     expect(overdue).not.toContain('Time remaining')
   })
-  it('shows no countdown once the request is decided, declined, withdrawn or removed', () => {
+  it('shows no countdown once the request is decided, declined, withdrawn, expired or removed', () => {
     vi.useFakeTimers({ now: new Date(2026, 9, 21, 12) })
-    for (const decision of ['completed', 'returned', 'declined', 'withdrawn', 'removed'] as const) {
+    for (const decision of ['completed', 'returned', 'declined', 'withdrawn', 'expired', 'removed'] as const) {
       const item = internal([request('First reviewer', { decision, acceptedAt: new Date(2026, 9, 19, 15).toISOString(), reviewDurationDays: 1, reviewDueDate: '2026-10-20' })])
       const html = render(<ReviewerDeadline sop={item} reviewer={item.internalReviewRounds![0].assignments[0]} content={sopWorkflowEn.reviewerDeadline} />)
       expect(html).not.toContain('Time remaining')

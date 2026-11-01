@@ -5,7 +5,8 @@ import changeDeadlineMigration from '../../../supabase/migrations/20261101170100
 import oneReviewerMigration from '../../../supabase/migrations/20261101150000_respond_to_one_reviewer.sql?raw'
 import calendarMigration from '../../../supabase/migrations/20261101120000_review_deadline_helpers.sql?raw'
 import workingDaysMigration from '../../../supabase/migrations/20261101120100_internal_review_working_days.sql?raw'
-import { acceptReview, addReviewers, changeReviewDeadline, declineReview, decideReview, removeReviewer, respondToComments, submitReview, withdrawDueRequests } from './review'
+import expiredMigration from '../../../supabase/migrations/20261102120100_review_request_expired.sql?raw'
+import { acceptReview, addReviewers, changeReviewDeadline, declineReview, decideReview, removeReviewer, respondToComments, submitReview, expireDueRequests } from './review'
 import { fetchSops } from './sops'
 
 const rpc = vi.fn()
@@ -61,7 +62,7 @@ function functionSignatures(sql: string): Map<string, string[]> {
 }
 
 describe('the static review service and migration contract (no SQL execution)', () => {
-  it('selects only review-request columns of the schema; the working-day migration adds only deadline_policy', async () => {
+  it('selects only review-request columns of the schema; the later migrations add only deadline_policy and expired_at', async () => {
     await fetchSops()
     const selected: string = query.select.mock.calls[0][0]
     const embedded = /\breview_requests![\w]+\s*\(/.exec(selected)
@@ -75,13 +76,13 @@ describe('the static review service and migration contract (no SQL execution)', 
     const baseColumns = declarations(parenthesized(base, table!.index + table![0].lastIndexOf('(')))
       .filter((declaration) => !/^(?:check|constraint|foreign|unique|primary|exclude)\b/i.test(declaration))
       .map((declaration) => declaration.split(/\s+/)[0])
-    const additions = [...withoutComments(workingDaysMigration).matchAll(/\balter\s+table\s+public\.review_requests\s+add\s+column\s+(\w+)\s+(\w+)/gi)]
+    const additions = [...withoutComments(workingDaysMigration + expiredMigration).matchAll(/\balter\s+table\s+public\.review_requests\s+add\s+column\s+(\w+)\s+(\w+)/gi)]
     const allColumns = new Set([...baseColumns, ...additions.map((match) => match[1])])
 
     expect(requestedColumns.filter((column) => !allColumns.has(column))).toEqual([])
-    // With working-day deadlines active, deadline_policy is the only column read from the later migration.
-    expect(requestedColumns.filter((column) => !baseColumns.includes(column))).toEqual(['deadline_policy'])
-    expect(Object.fromEntries(additions.map((match) => [match[1], match[2]]))).toEqual({ deadline_policy: 'text' })
+    // Those are the only columns read from the later migrations.
+    expect(requestedColumns.filter((column) => !baseColumns.includes(column)).sort()).toEqual(['deadline_policy', 'expired_at'])
+    expect(Object.fromEntries(additions.map((match) => [match[1], match[2]]))).toEqual({ deadline_policy: 'text', expired_at: 'timestamptz' })
   })
 
   it('matches actual review RPC calls and their parameter names to the migration signatures', async () => {
@@ -95,9 +96,9 @@ describe('the static review service and migration contract (no SQL execution)', 
     await respondToComments('sop-id', 'Addressed')
     await respondToComments('sop-id', 'Addressed', 'request-id')
     await changeReviewDeadline('request-id', 7)
-    await withdrawDueRequests('sop-id')
+    await expireDueRequests('sop-id')
 
-    const signatures = functionSignatures([sopsMigration, reviewMigration, calendarMigration, workingDaysMigration, oneReviewerMigration, changeDeadlineMigration].join('\n'))
+    const signatures = functionSignatures([expiredMigration, sopsMigration, reviewMigration, calendarMigration, workingDaysMigration, oneReviewerMigration, changeDeadlineMigration].join('\n'))
     expect(rpc.mock.calls).toHaveLength(10)
     for (const [name, parameters] of rpc.mock.calls as [string, Record<string, unknown>][]) {
       expect(signatures.has(name), `Missing SQL RPC ${name}`).toBe(true)

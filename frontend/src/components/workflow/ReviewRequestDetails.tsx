@@ -3,7 +3,7 @@ import { sopWorkflowEn } from '../../content/workflow.en'
 import type { InternalReviewerAssignment, Sop } from '../../data/mock/types'
 import { useDeadlineClock } from '../../hooks/useDeadlineClock'
 import { formatDate, formatReviewDateTime as formatDateTime } from '../../lib/format'
-import { isActiveRequest, isWithdrawalDue, requestDeadline } from '../../lib/internalReviewStatus'
+import { isActiveRequest, isExpiryDue, requestDeadline } from '../../lib/internalReviewStatus'
 import { DecisionBadge } from './DecisionBadge'
 import { ReviewerDeadline } from './ReviewerDeadline'
 
@@ -13,8 +13,8 @@ export function RequestStatusBadge({ sop, request, inactive = false }: { sop: So
   const reviewDueAt = request.acceptedAt ? requestDeadline(request)?.dueAt : undefined
   const now = useDeadlineClock(requestDeadline(request)?.dueAt, active)
   const overdue = active && request.decision === 'accepted' && !!reviewDueAt && new Date(reviewDueAt).getTime() <= now
-  // Expiry is a presentation state until the local workflow records withdrawal.
-  const expired = isWithdrawalDue(request, now)
+  // Shown from the deadline itself, a moment before the request is saved as expired.
+  const expired = isExpiryDue(request, now)
   return <DecisionBadge decision={overdue ? 'overdue' : expired ? 'expired' : request.decision} labels={text.panel.decisions} />
 }
 
@@ -34,7 +34,9 @@ export function ReviewRequestDetails({ sop, request, inactive = false }: { sop: 
     </p>
     <ReviewerDeadline sop={sop} reviewer={request} content={sopWorkflowEn.reviewerDeadline} inactive={inactive} />
     {request.acceptedAt && <p className={line}>{text.panel.accepted.replace('{date}', formatDateTime(request.acceptedAt))}</p>}
-    {request.withdrawnAt && request.responseDueDate && <p className={line}>{text.panel.withdrawn.replace('{date}', formatDate(request.responseDueDate))}</p>}
+    {request.expiredAt && request.responseDueDate
+      ? <p className={line}>{text.panel.expired.replace('{date}', formatDate(request.responseDueDate))}</p>
+      : request.withdrawnAt && request.responseDueDate && <p className={line}>{text.panel.withdrawn.replace('{date}', formatDate(request.responseDueDate))}</p>}
     {request.declineReason && <>
       {request.decidedAt && <p className={line}>{text.panel.declined.replace('{date}', formatDateTime(request.decidedAt))}</p>}
       <p className={quote}>{text.panel.declineReason.replace('{reason}', request.declineReason)}</p>

@@ -5,7 +5,7 @@ import type { Sop, User } from '../data/mock/types'
 import { ReviewDueDateField } from '../components/workflow/ReviewDueDateField'
 import { toSop, type SopRow } from '../services/sops'
 import { acceptInternalReview, currentInternalRound, startInternalReview } from './internalReview'
-import { isValidReviewDuration, requestDeadline, reviewDueDateFrom, withdrawalDueAt } from './internalReviewStatus'
+import { isValidReviewDuration, requestDeadline, reviewDueDateFrom, expiryDueAt } from './internalReviewStatus'
 import { isAfterResponseCutoff, parseResponseDueDate, responseCountsFrom, responseDueDateRange, responseTimeMilliseconds } from './responseTime'
 import { prepareReviewSubmission } from './reviewSubmission'
 
@@ -143,12 +143,12 @@ describe.each(['UTC', 'Asia/Riyadh', 'America/Los_Angeles', 'Pacific/Auckland'])
         review_requests: [{ id: 'req', seq: 1, reviewer_id: 'r1', status: 'accepted', assigned_at: '2026-10-26T10:00:00Z',
           // Saved values that no browser rule would produce, to prove they are shown as saved.
           response_due_date: '2026-11-04', response_due_at: '2026-11-04T20:59:59.999Z', review_duration_days: 3, accepted_at: '2026-10-26T11:00:00Z',
-          review_due_date: '2026-11-09', review_due_at: '2026-11-09T20:59:59.999Z', decided_at: null, decline_reason: null, comment_id: null, withdrawn_at: null,
+          review_due_date: '2026-11-09', review_due_at: '2026-11-09T20:59:59.999Z', decided_at: null, decline_reason: null, comment_id: null, withdrawn_at: null, expired_at: null,
           removed_at: null, removed_by: null, removal_reason: null, status_before_removal: null }] }],
     } as unknown as SopRow
     const request = currentInternalRound(toSop(row))!.assignments[0]
     expect(requestDeadline(request)).toEqual({ phase: 'review', dueAt: '2026-11-09T20:59:59.999Z' })
     expect(requestDeadline({ ...request, acceptedAt: undefined })).toEqual({ phase: 'response', dueAt: '2026-11-04T20:59:59.999Z' })
-    expect(withdrawalDueAt({ ...request, decision: 'pending' })).toBe('2026-11-04T20:59:59.999Z')
+    expect(expiryDueAt({ ...request, decision: 'pending' })).toBe('2026-11-04T20:59:59.999Z')
   })
 })

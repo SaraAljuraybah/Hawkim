@@ -32,6 +32,7 @@ const ICONS: Record<NotificationType, LucideIcon> = {
   'internal-review-completed': CircleCheck,
   'review-declined': CircleX,
   'review-withdrawn': AlarmClock,
+  'review-expired': AlarmClock,
   'reviewer-removed': CircleX,
   'review-completed': CircleCheck,
   'review-returned': Undo2,
@@ -106,6 +107,7 @@ export function NotificationsBell() {
       case 'internal-review-completed': return fill(t.internalReviewCompleted)
       case 'review-declined': return fill(t.reviewDeclined)
       case 'review-withdrawn': return fill(item.forReviewer ? t.reviewWithdrawn.reviewer : t.reviewWithdrawn.author)
+      case 'review-expired': return fill(item.forReviewer ? t.reviewExpired.reviewer : t.reviewExpired.author)
       case 'reviewer-removed': return fill(t.reviewerRemoved)
       case 'review-completed': return fill(t.reviewCompleted)
       case 'review-returned': return fill(t.reviewReturned)
@@ -129,7 +131,7 @@ export function NotificationsBell() {
       case 'due-soon': {
         // Within 24 hours: today, or tomorrow (local dates).
         const today = new Date(now).toDateString() === new Date(item.dueAt ?? '').toDateString()
-        // An internal request not yet accepted is reminded to accept or decline before it's withdrawn.
+        // An internal request not yet accepted is reminded to accept or decline before it expires.
         return fill(item.phase === 'response' ? t.dueSoon.response : t.dueSoon[item.stage ?? 'review']).replace('{day}', today ? t.days.today : t.days.tomorrow)
       }
       case 'overdue':

@@ -36,7 +36,7 @@ export function SubmitDialog({ sop, content, onSubmit, onClose, mode = 'submit' 
   const { activeUsers } = useUsers()
   const { departments } = useDepartments()
   const department = departments.find((item) => item.id === sop.departmentId)
-  // Adding: only reviewers not yet asked, or whose latest request was declined, withdrawn or removed.
+  // Adding: only reviewers not yet asked, or whose latest request was declined, withdrawn or removed (an expired one is sent again instead).
   const options = mode === 'add' ? addableReviewers(sop, activeUsers) : eligibleReviewers(sop, sop.departmentId, activeUsers)
   const [reviewerIds, setReviewerIds] = useState<string[]>([])
   const [duration, setDuration] = useState('')

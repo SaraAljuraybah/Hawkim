@@ -84,11 +84,11 @@ describe('My Reviews presentation', () => {
     }
   })
 
-  it.each(['completed', 'returned', 'declined', 'withdrawn', 'removed'] as const)('labels closed %s reviews by their actual outcome', (decision) => {
+  it.each(['completed', 'returned', 'declined', 'withdrawn', 'expired', 'removed'] as const)('labels closed %s reviews by their actual outcome', (decision) => {
     fixture.reviewTab = 'completed'
     fixture.sops = [internal(decision)]
     const html = renderPage()
-    const labels = { completed: 'Completed', returned: 'Returned', declined: 'Declined', withdrawn: 'Withdrawn', removed: 'Removed' }
+    const labels = { completed: 'Completed', returned: 'Returned', declined: 'Declined', withdrawn: 'Withdrawn', expired: 'Expired', removed: 'Removed' }
     expect(html).toContain(labels[decision])
     expect(html).toContain('Calibrating equipment')
     if (decision === 'declined') expect(html).toContain('Unavailable for this round')

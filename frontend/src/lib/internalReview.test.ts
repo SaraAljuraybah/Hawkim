@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { SYSTEM_ACTOR, type InternalReviewRound, type Sop, type User } from '../data/mock/types'
-import { acceptInternalReview, addableReviewers, addInternalReviewers, canAddReviewers, changeInternalReviewDeadline, currentInternalRound, decideInternalReview, declineInternalReview, isInternalReviewPending, nextWithdrawalAt, removeInternalReviewer, canSendNewVersion, sendNewVersionForReview, startInternalReview, withdrawUnanswered } from './internalReview'
+import { acceptInternalReview, addableReviewers, addInternalReviewers, canAddReviewers, changeInternalReviewDeadline, currentInternalRound, decideInternalReview, declineInternalReview, isInternalReviewPending, nextExpiryAt, removeInternalReviewer, canSendNewVersion, sendNewVersionForReview, startInternalReview, expireUnanswered } from './internalReview'
 import { latestAssignmentOf, projectReviewers, reviewAllowsNewVersion } from './internalReviewStatus'
 import { fixedResponseDueDate } from './fixedResponseDeadline'
 import { endOfRiyadhDay } from './riyadhWorkingDays'
@@ -210,7 +210,7 @@ describe('internal parallel review requests', () => {
     expect(reviewerRemainingMilliseconds(completed, finished, later)).toBeUndefined()
     expect(reviewerDeadlinePassed(completed, finished, later)).toBe(false)
     expect(isOverdue(completed, 'review', later)).toBe(false)
-    expect(withdrawUnanswered(completed, later)).toBe(completed)
+    expect(expireUnanswered(completed, later)).toBe(completed)
     expect(completed).toEqual(before)
   })
   it('keeps original time given separate from the running clock and explicit deadline simulation', () => {
@@ -342,15 +342,16 @@ describe('returns, removals, new versions and immutable history', () => {
     expect(reviewTasks('a', [added])[0]).toMatchObject({ group: 'done', decision: 'removed' })
     expect(reviewTasks('b', [added])[0]).toMatchObject({ group: 'todo' })
   })
-  it('only adds new reviewers or those who declined, were withdrawn or were removed, by the main author', () => {
+  it('only adds new reviewers or those who declined, were withdrawn or were removed, by the main author, not one whose request expired', () => {
     const sop = decline(start(), 'a')
     expect(addableReviewers(sop, env().users).map((user) => user.id)).toEqual(['a'])
     for (const reviewerIds of [['b'], ['a', 'b'], ['author'], ['other']]) expect(() => addInternalReviewers(sop, 'author', { reviewerIds }, env())).toThrow()
     for (const actor of ['coauthor', 'a', 'admin']) expect(() => addInternalReviewers(sop, actor, { reviewerIds: ['a'] }, env())).toThrow()
     expect(() => addInternalReviewers(sop, 'author', { reviewerIds: ['a'], reviewDurationDays: 3651 }, env())).toThrow(/duration/)
     expect(task(addInternalReviewers(sop, 'author', { reviewerIds: ['a'] }, env()), 'a').decision).toBe('pending')
-    const withdrawn = withdrawUnanswered(start(), new Date(2026, 9, 28, 23, 59, 59, 999).getTime())
-    expect(addableReviewers(withdrawn, env().users).map((user) => user.id)).toEqual(['a', 'b', 'c'])
+    const expired = expireUnanswered(start(), new Date(2026, 9, 28, 23, 59, 59, 999).getTime())
+    expect(addableReviewers(expired, env().users)).toEqual([])
+    expect(() => addInternalReviewers(expired, 'author', { reviewerIds: ['a'] }, env())).toThrow(/already have a request/)
   })
   it('reopens a settled round when a reviewer is added before submitting for approval', () => {
     const settled = decide(decide(decide(start(), 'a'), 'b'), 'c')
@@ -482,47 +483,50 @@ describe('assignment cancellation is separate from global Reviewer permission', 
   })
 })
 
-describe('automatic withdrawal of unanswered requests', () => {
+describe('automatic expiry of unanswered requests', () => {
   const endOfDay = (day: number) => Date.parse(endOfRiyadhDay(`2026-10-${day}`))
-  it('withdraws a pending request exactly when its response due date has ended, dated at the deadline by System', () => {
+  it('expires a pending request exactly when its response due date has ended, dated at the deadline by System', () => {
     const sop = start()
-    expect(withdrawUnanswered(sop, endOfDay(26) - 1)).toBe(sop)
-    const withdrawn = withdrawUnanswered(sop, endOfDay(26))
-    for (const user of ['a', 'b', 'c']) expect(task(withdrawn, user)).toMatchObject({ decision: 'withdrawn', withdrawnAt: new Date(endOfDay(26)).toISOString() })
-    expect(withdrawn.timeline.filter((event) => event.type === 'review-withdrawn')).toEqual(['a', 'b', 'c'].map((user) => expect.objectContaining({
+    expect(expireUnanswered(sop, endOfDay(26) - 1)).toBe(sop)
+    const expired = expireUnanswered(sop, endOfDay(26))
+    for (const user of ['a', 'b', 'c']) expect(task(expired, user)).toMatchObject({ decision: 'expired', expiredAt: new Date(endOfDay(26)).toISOString() })
+    expect(expired.timeline.filter((event) => event.type === 'review-expired')).toEqual(['a', 'b', 'c'].map((user) => expect.objectContaining({
       actorId: SYSTEM_ACTOR, createdAt: new Date(endOfDay(26)).toISOString(), recipientIds: ['author', user], reviewAssignmentId: task(sop, user).id,
     })))
     // Applying the rule again changes nothing.
-    expect(withdrawUnanswered(withdrawn, endOfDay(30))).toBe(withdrawn)
-    expect(sopsUsing('reviewer', 'a', [withdrawn])).toEqual([])
+    expect(expireUnanswered(expired, endOfDay(30))).toBe(expired)
+    expect(sopsUsing('reviewer', 'a', [expired])).toEqual([])
   })
-  it('never withdraws a historical request without a response deadline, or one that was accepted', () => {
+  it('never expires a historical request without a response deadline, or one that was accepted', () => {
     const blank = startInternalReview(draft(), 'author', '4.0', { reviewerIds: ['a', 'b'], reviewDurationDays: 1 }, env())
     // Simulate pre-policy saved requests that never had a response deadline.
     for (const request of currentInternalRound(blank)!.assignments) {
       delete request.responseDueDate; delete request.responseDueAt; delete request.deadlinePolicy
     }
-    expect(withdrawUnanswered(blank, endOfDay(31) * 2)).toBe(blank)
+    expect(expireUnanswered(blank, endOfDay(31) * 2)).toBe(blank)
     const accepted = accept(start(), 'a')
-    const later = withdrawUnanswered(accepted, endOfDay(26))
+    const later = expireUnanswered(accepted, endOfDay(26))
     expect(task(later, 'a').decision).toBe('accepted')
-    expect(task(later, 'b').decision).toBe('withdrawn')
-    expect(nextWithdrawalAt([accepted])).toBe(endOfDay(26))
-    expect(nextWithdrawalAt([later, blank])).toBeUndefined()
+    expect(task(later, 'b').decision).toBe('expired')
+    expect(nextExpiryAt([accepted])).toBe(endOfDay(26))
+    expect(nextExpiryAt([later, blank])).toBeUndefined()
   })
   it('refuses accepting or declining once the response due date has ended, even before the rule has run', () => {
     const sop = start()
     vi.setSystemTime(endOfDay(26))
-    expect(() => accept(sop, 'a')).toThrow(/withdrawn/)
-    expect(() => decline(sop, 'a')).toThrow(/withdrawn/)
+    expect(() => accept(sop, 'a')).toThrow(/expired/)
+    expect(() => decline(sop, 'a')).toThrow(/expired/)
+    const expired = expireUnanswered(sop, endOfDay(26))
+    expect(() => accept(expired, 'a')).toThrow(/expired/)
+    expect(() => decline(expired, 'a')).toThrow(/expired/)
   })
-  it('does not count a withdrawn reviewer as taking part', () => {
+  it('does not count an expired reviewer as taking part', () => {
     const sop = decide(decide(accept(accept(start(), 'a'), 'b'), 'a'), 'b')
-    const settled = withdrawUnanswered(sop, endOfDay(26))
-    expect(task(settled, 'c').decision).toBe('withdrawn')
+    const settled = expireUnanswered(sop, endOfDay(26))
+    expect(task(settled, 'c').decision).toBe('expired')
     expect(currentInternalRound(settled)!.status).toBe('completed')
     expect(requiredReviewsComplete(settled)).toBe(true)
-    expect(reviewTasks('c', [settled])[0]).toMatchObject({ group: 'done', decision: 'withdrawn' })
+    expect(reviewTasks('c', [settled])[0]).toMatchObject({ group: 'done', decision: 'expired' })
   })
 })
 

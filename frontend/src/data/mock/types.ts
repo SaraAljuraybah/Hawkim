@@ -187,11 +187,11 @@ export interface ReviewerAssignment {
 
 
 /**
- * An internal review request: pending until the reviewer accepts or declines (or it is withdrawn
+ * An internal review request: pending until the reviewer accepts or declines (or it expires
  * when the response due date ends); only an accepted request can be completed or returned. The main
  * author can remove a reviewer at any time.
  */
-export type InternalReviewDecision = 'pending' | 'accepted' | 'declined' | 'withdrawn' | 'removed' | 'completed' | 'returned'
+export type InternalReviewDecision = 'pending' | 'accepted' | 'declined' | 'withdrawn' | 'expired' | 'removed' | 'completed' | 'returned'
 
 export interface InternalReviewerAssignment extends Omit<ReviewerAssignment, 'decision' | 'startedAt'> {
   /** Saved precise deadlines; new prototype requests calculate them in Riyadh, without server enforcement. */
@@ -210,8 +210,10 @@ export interface InternalReviewerAssignment extends Omit<ReviewerAssignment, 'de
   acceptedAt?: string
   /** The review's last day (YYYY-MM-DD), fixed on acceptance when a duration was set. */
   reviewDueDate?: string
-  /** Set when a pending request was withdrawn automatically at the end of its response due date. */
+  /** Requests from before the Expired status: when the end of the response due date withdrew it. Also kept on those that became Expired. */
   withdrawnAt?: string
+  /** Set when a pending request expired at the end of its response due date. */
+  expiredAt?: string
   /** Set when the main author removed the reviewer from the round, with the required reason. */
   removedAt?: string
   removedById?: string
@@ -331,6 +333,7 @@ export type TimelineEventType =
   | 'review-accepted'
   | 'review-declined'
   | 'review-withdrawn'
+  | 'review-expired'
   | 'reviewer-removed'
   | 'review-changes-requested'
   | 'internal-review-completed'

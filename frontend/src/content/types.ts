@@ -1073,6 +1073,7 @@ export interface NotificationsContent {
     /** Internal review requests ({name}: the reviewer, or the author for a removal). */
     reviewDeclined: string
     reviewWithdrawn: { author: string; reviewer: string }
+    reviewExpired: { author: string; reviewer: string }
     reviewerRemoved: string
     reviewCompleted: string
     reviewReturned: string
@@ -1085,7 +1086,7 @@ export interface NotificationsContent {
     response: string
     /** `{date}` is the new deadline. */
     reviewDeadlineChanged: string
-    /** `response`: a reviewer's reminder to accept or decline before the request is withdrawn. */
+    /** `response`: a reviewer's reminder to accept or decline before the request expires. */
     dueSoon: { review: string; response: string; approval: string }
     days: { today: string; tomorrow: string }
     overdue: { review: string; approval: string }

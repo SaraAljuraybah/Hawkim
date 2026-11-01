@@ -156,6 +156,7 @@ export const sopWorkflowEn: SopWorkflowContent = {
       'review-deadline-changed': 'Review deadline changed',
       'review-declined': 'Review declined',
       'review-withdrawn': 'Review request withdrawn (no response)',
+      'review-expired': 'Review request expired',
       'reviewer-removed': 'Reviewer removed',
       'review-changes-requested': 'Returned with comments',
       'internal-review-completed': 'Internal reviews completed; awaiting Author',
