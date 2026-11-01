@@ -1,5 +1,5 @@
-import type { InternalReviewerAssignment, Sop } from '../data/mock/types'
-import { PER_REVIEWER_RESPONSE_ACTIVE } from './internalReviewStatus'
+import type { InternalReviewerAssignment, InternalReviewRound, Sop } from '../data/mock/types'
+import { latestAssignmentOf, PER_REVIEWER_RESPONSE_ACTIVE } from './internalReviewStatus'
 import { responseRecipients } from './workflow'
 
 /** The database refused a response to this request: another tab removed the reviewer, say (this tab didn't know yet). */
@@ -15,6 +15,15 @@ export interface ReviewNote {
   kind: 'comment' | 'decline' | 'removal'
   text: string
   date?: string
+}
+
+/**
+ * The rows of a version's table: every request, except an expired one the reviewer has a newer
+ * request after (Send Again). Declined and removed rows stay, for their reasons and comments.
+ * Display only: the requests themselves don't change.
+ */
+export function visibleReviewRequests(round: InternalReviewRound): InternalReviewerAssignment[] {
+  return round.assignments.filter((request) => request.decision !== 'expired' || latestAssignmentOf(round, request.userId) === request)
 }
 
 /** The Decision Date column: when the reviewer accepted or declined the request. */

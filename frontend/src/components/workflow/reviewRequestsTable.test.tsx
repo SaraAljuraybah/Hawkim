@@ -61,16 +61,23 @@ describe('Reviewers table on the author SOP page', () => {
     expect(table(html)).toMatch(/<tr class="text-text-gray"><th scope="row"[^>]*>Reviewer Gamma/)
   })
 
-  it('shows only the latest request of a reviewer asked again, in the table and the cards, keeping the data', () => {
+  it('keeps every row of a declined reviewer asked again, with the decline reason', () => {
     let sop = started()
     sop = declineInternalReview(sop, 'alpha', currentInternalRound(sop)!.id, request(sop, 'alpha').id, 'On leave', env())
     sop = addInternalReviewers(sop, 'author', { reviewerIds: ['alpha'] }, env())
     const html = render(sop)
-    expect(table(html).match(/<th scope="row"[^>]*>Reviewer Alpha/g)).toHaveLength(1)
-    expect(row(html, 'Reviewer Alpha')).toContain('</span>Pending</span>')
-    expect(html).not.toContain('</span>Declined</span>')
-    expect(html.match(/<li class="rounded-lg border border-beige p-4">/g)).toHaveLength(3)
-    expect(currentInternalRound(sop)!.assignments.filter((item) => item.userId === 'alpha').map((item) => item.decision)).toEqual(['declined', 'pending'])
+    expect(table(html).match(/<th scope="row"[^>]*>Reviewer Alpha/g)).toHaveLength(2)
+    expect(table(html)).toContain('</span>Declined</span>')
+    expect(table(html)).toContain('</span>Pending</span>')
+    expect(html.match(/aria-label="View Comments from Reviewer Alpha"/g)!.length).toBeGreaterThan(0)
+    expect(html.match(/<li class="rounded-lg border border-beige p-4">/g)).toHaveLength(4)
+  })
+  it('keeps every row of a removed reviewer asked again', () => {
+    let sop = started()
+    sop = removeInternalReviewer(sop, 'author', currentInternalRound(sop)!.id, request(sop, 'alpha').id, 'Not needed', env())
+    sop = addInternalReviewers(sop, 'author', { reviewerIds: ['alpha'] }, env())
+    expect(table(render(sop)).match(/<th scope="row"[^>]*>Reviewer Alpha/g)).toHaveLength(2)
+    expect(table(render(sop))).toContain('</span>Removed</span>')
   })
 
   it('keeps — before acceptance, then shows the due date and the decision date', () => {
@@ -166,6 +173,17 @@ describe('an expired request in the table', () => {
     expect(rows[0]).not.toContain('Send Again')
     expect(rows[0]).toContain('</span>Pending</span>')
     expect(rows[0]).not.toContain('</span>Expired</span>')
+    // In the cards too, and the expired request stays in the data.
+    expect(render(sent).match(/<li class="rounded-lg border border-beige p-4">/g)).toHaveLength(3)
+    expect(currentInternalRound(sent)!.assignments.filter((item) => item.userId === 'alpha').map((item) => item.decision)).toEqual(['expired', 'pending'])
+  })
+  it('hides an expired row sent again but keeps a later decline', () => {
+    const sop = expired()
+    const sent = resendInternalReview(sop, 'author', request(sop, 'alpha').id, env())
+    const declined = declineInternalReview(sent, 'alpha', currentInternalRound(sent)!.id, request(sent, 'alpha').id, 'On leave', env())
+    const html = render(declined)
+    expect(table(html).match(/<th scope="row"[^>]*>Reviewer Alpha/g)).toHaveLength(1)
+    expect(row(html, 'Reviewer Alpha')).toContain('</span>Declined</span>')
   })
   it('keeps the latest row of a reviewer who was not asked again', () => {
     let sop = started()

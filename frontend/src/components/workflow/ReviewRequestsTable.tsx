@@ -3,8 +3,8 @@ import { ChevronDown, Eye, Pencil, RotateCw, Trash2 } from 'lucide-react'
 import { internalReviewEn } from '../../content/internalReview.en'
 import type { InternalReviewerAssignment, InternalReviewRound, Sop } from '../../data/mock/types'
 import { formatDate, formatReviewDate } from '../../lib/format'
-import { isInactiveDecision, latestAssignments, REVIEW_DEADLINE_EDITING_ACTIVE } from '../../lib/internalReviewStatus'
-import { canRespondToRequest, requestDecisionDate, requestReviewDueDate, reviewNotes, type ReviewNote } from '../../lib/reviewRequestRows'
+import { isInactiveDecision, REVIEW_DEADLINE_EDITING_ACTIVE } from '../../lib/internalReviewStatus'
+import { canRespondToRequest, requestDecisionDate, requestReviewDueDate, reviewNotes, visibleReviewRequests, type ReviewNote } from '../../lib/reviewRequestRows'
 import { useDepartments } from '../../state/departmentsContext'
 import { useUsers } from '../../state/usersContext'
 import { IconButton } from '../ui/IconButton'
@@ -41,9 +41,9 @@ function Timestamp({ value, format }: { value?: string; format: (value: string) 
 }
 
 /**
- * Each reviewer's latest request, one table per version, newest first (the author's SOP page):
- * a reviewer asked again shows only the new request; nothing is removed from the data.
- * The newest version starts expanded and the older ones collapsed. Requests no longer taking
+ * The review requests of the SOP, one table per version, newest first (the author's SOP page). An
+ * expired request that was sent again is left out (see visibleReviewRequests); every other request
+ * shows. The newest version starts expanded and the older ones collapsed. Requests no longer taking
  * part use lighter text. A table from xl up (eight columns don't fit beside the sidebar
  * earlier); stacked cards below.
  */
@@ -106,7 +106,7 @@ export function ReviewRequestsTable({ sop, canRemove, onRemove, canEditDeadline,
   }
 
   function requestTable(round: InternalReviewRound): ReactNode {
-    const requests = latestAssignments(round)
+    const requests = visibleReviewRequests(round)
     return (
       <>
         <table className="hidden w-full text-left text-sm xl:table">
