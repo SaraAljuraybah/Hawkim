@@ -27,6 +27,11 @@ Supabase paths again, with Dalal's new UI on top:
   `supabase/scripts/rollback_compliance_check_once_per_version.sql` undoes it.
 - **Internal parallel review:** submit, add/remove reviewers, accept, decline, decide, respond,
   withdraw — each checks the browser rules first, then calls the RPC and reads the SOP again.
+  A response from a reviewer's comments dialog goes only to that reviewer
+  (`20261101150000_respond_to_one_reviewer.sql`, not applied yet; `PER_REVIEWER_RESPONSE_ACTIVE` is
+  on, so apply it first). That is about the recipient and the notification: anyone who can view that
+  version can still read it in the timeline.
+  `supabase/scripts/rollback_respond_to_one_reviewer.sql` undoes it.
 - **Identity isolation (Dalal's):** rows are reloaded per signed-in user; a previous user's database
   rows are cleared before the next user's load; late replies and stale callbacks are rejected.
 
@@ -69,8 +74,9 @@ reload, as in `develop`. Note:
 
 From `frontend/`: `npm test`, `npm run test:calendar`, `npm run lint`, `npx tsc -b`, `npm run build`.
 Service and provider tests use mocked services (a stand-in database in
-`state/SopsProvider.isolation.test.tsx`); `services/reviewSchemaContract.test.ts` and
-`services/complianceSchemaContract.test.ts` check SQL text statically. None of this proves RPC behaviour, RLS, grants or deployed compatibility.
+`state/SopsProvider.isolation.test.tsx`); `services/reviewSchemaContract.test.ts`,
+`services/complianceSchemaContract.test.ts` and `services/responseSchemaContract.test.ts` check SQL
+text statically. None of this proves RPC behaviour, RLS, grants or deployed compatibility.
 
 `supabase/tests/*.sql` and the CLI mode of `supabase/tests/calendar_parity.mjs` execute SQL; they
 were updated to match the migrations but were **not executed**, and may only run against a
