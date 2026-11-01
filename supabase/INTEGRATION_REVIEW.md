@@ -32,6 +32,14 @@ Supabase paths again, with Dalal's new UI on top:
   A response from a reviewer's comments dialog goes only to that reviewer
   (`20261101150000_respond_to_one_reviewer.sql`, applied to the live project on 1 November 2026, with
   `PER_REVIEWER_RESPONSE_ACTIVE` on). `supabase/scripts/rollback_respond_to_one_reviewer.sql` undoes it.
+- **Changing a review deadline:** `20261101170000_review_deadline_event.sql` and
+  `20261101170100_change_review_deadline.sql` (not applied yet; `REVIEW_DEADLINE_EDITING_ACTIVE` is on,
+  and the app reads the new timeline columns, so apply them first). The main author can change or
+  set the deadline of a request being reviewed, as working days from acceptance. The change is
+  private like a response, but anyone who can view the version can still read the current deadline in
+  `review_requests`. A calendar-v1 request moves to the working-day policy when edited. Review
+  durations go up to 3,650 working days, a technical limit, confirmed in the browser above 60.
+  `supabase/scripts/rollback_change_review_deadline.sql` undoes it.
 - **Private comments and responses:** `20261101160000_private_review_comments_and_responses.sql`,
   applied to the live project on 1 November 2026, limits reviewer comments (`sop_comments`,
   `role = 'reviewer'`) and responses (`timeline_events`, `type = 'response'`) to the SOP's author, its
@@ -63,7 +71,7 @@ reload, as in `develop`. Note:
 ## Deadlines: working-day policy live since 1 November 2026
 
 - `WORKING_DAY_DEADLINES_ACTIVE = true` in `frontend/src/lib/deadlinePolicy.ts`: a fixed response
-  deadline two working days after sending, set by the server, and an optional 1–30 **working** days
+  deadline two working days after sending, set by the server, and an optional 1 to 3,650 **working** days
   of review. The Submit for Review dialog has no response date field. Deadlines are shown as saved.
 - The app reads `review_requests.deadline_policy`, which comes from `20261101120000` and
   `20261101120100`, both applied to the live project. See `supabase/proposals/REVIEW_NOTES.md`.
@@ -86,8 +94,9 @@ reload, as in `develop`. Note:
 From `frontend/`: `npm test`, `npm run test:calendar`, `npm run lint`, `npx tsc -b`, `npm run build`.
 Service and provider tests use mocked services (a stand-in database in
 `state/SopsProvider.isolation.test.tsx`); `services/reviewSchemaContract.test.ts`,
-`services/complianceSchemaContract.test.ts`, `services/responseSchemaContract.test.ts` and
-`services/reviewPrivacyContract.test.ts` check SQL text statically. None of this proves RPC behaviour, RLS, grants or deployed compatibility.
+`services/complianceSchemaContract.test.ts`, `services/responseSchemaContract.test.ts`,
+`services/reviewPrivacyContract.test.ts` and `services/reviewDeadlineContract.test.ts` check SQL text
+statically. None of this proves RPC behaviour, RLS, grants or deployed compatibility.
 
 `supabase/tests/*.sql` and the CLI mode of `supabase/tests/calendar_parity.mjs` execute SQL; they
 were updated to match the migrations but were **not executed**, and may only run against a

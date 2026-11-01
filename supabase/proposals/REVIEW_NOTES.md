@@ -23,8 +23,9 @@ changed. `supabase/scripts/rollback_working_day_deadlines.sql` undoes them.
 - Time zone `Asia/Riyadh`; working days Sunday to Thursday; Friday and Saturday never count.
 - Response deadline: fixed, the end of the **second working day after the request date** (that
   date not counted). There is no 16:00 rule any more for new requests.
-- Review duration: optional, **1–30 working days**, counted after the Riyadh date of acceptance
-  (that date not counted).
+- Review duration: optional, **1–30 working days** when this was applied, counted after the Riyadh
+  date of acceptance (that date not counted). `20261101170100_change_review_deadline.sql` later
+  raised the limit to 3,650 working days.
 - Every deadline ends at **23:59:59.999** Riyadh time (millisecond precision, matching JavaScript).
 - Every new request gets a response deadline, so an unanswered request is always withdrawn in the end.
 
