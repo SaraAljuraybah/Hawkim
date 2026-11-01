@@ -1,12 +1,15 @@
 import { AuthApiError, AuthRetryableFetchError } from '@supabase/supabase-js'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { User } from '../data/mock/types'
-import { restoreSession, signIn, signOut } from './auth'
+import { recoveryTokens, restoreSession, sendPasswordResetEmail, setNewPassword, signIn, signOut, startPasswordRecovery } from './auth'
 
 const auth = {
   signInWithPassword: vi.fn(),
   getSession: vi.fn(),
   signOut: vi.fn(async () => ({ error: null })),
+  resetPasswordForEmail: vi.fn(),
+  setSession: vi.fn(),
+  updateUser: vi.fn(),
 }
 const fetchProfile = vi.fn<(id: string) => Promise<User | null>>()
 
@@ -88,5 +91,66 @@ describe('signing out', () => {
   it('ends the session in this browser only', async () => {
     await signOut()
     expect(auth.signOut).toHaveBeenCalledWith({ scope: 'local' })
+  })
+})
+
+describe('changing a password by email link', () => {
+  const tooMany = new AuthApiError('Email rate limit exceeded', 429, 'over_email_send_rate_limit')
+  const offline = new AuthRetryableFetchError('Failed to fetch', 0)
+  const link = '#access_token=access&refresh_token=refresh&type=recovery&expires_in=3600'
+
+  it('asks Supabase to email the link back to Set New Password on this site', async () => {
+    vi.stubGlobal('window', { location: { origin: 'https://hawkim.example' } })
+    auth.resetPasswordForEmail.mockResolvedValue({ data: {}, error: null })
+    expect(await sendPasswordResetEmail('sara@example.test')).toEqual({ ok: true })
+    expect(auth.resetPasswordForEmail).toHaveBeenCalledWith('sara@example.test', { redirectTo: 'https://hawkim.example/reset-password' })
+    vi.unstubAllGlobals()
+  })
+
+  it.each([
+    ['too-many-attempts', tooMany],
+    ['not-connected', offline],
+    ['failed', new AuthApiError('Unexpected failure', 500, 'unexpected_failure')],
+  ])('reports %s when the email fails', async (reason, error) => {
+    vi.stubGlobal('window', { location: { origin: 'https://hawkim.example' } })
+    auth.resetPasswordForEmail.mockResolvedValue({ data: {}, error })
+    expect(await sendPasswordResetEmail('sara@example.test')).toEqual({ ok: false, reason })
+    vi.unstubAllGlobals()
+  })
+
+  it('reads only a recovery link without an error', () => {
+    expect(recoveryTokens(link)).toEqual({ access_token: 'access', refresh_token: 'refresh' })
+    expect(recoveryTokens('')).toBeUndefined()
+    expect(recoveryTokens('#access_token=access&refresh_token=refresh&type=signup')).toBeUndefined()
+    expect(recoveryTokens('#error=access_denied&error_code=otp_expired&error_description=Email+link+is+invalid+or+has+expired')).toBeUndefined()
+  })
+
+  it('starts the session from a valid link, and refuses a bad or rejected one', async () => {
+    auth.setSession.mockResolvedValue({ data: { session: {} }, error: null })
+    expect(await startPasswordRecovery(link)).toBe(true)
+    expect(auth.setSession).toHaveBeenCalledWith({ access_token: 'access', refresh_token: 'refresh' })
+    auth.setSession.mockClear()
+    expect(await startPasswordRecovery('#error_code=otp_expired')).toBe(false)
+    expect(auth.setSession).not.toHaveBeenCalled()
+    auth.setSession.mockResolvedValue({ data: { session: null }, error: new AuthApiError('Invalid token', 403, 'bad_jwt') })
+    expect(await startPasswordRecovery(link)).toBe(false)
+  })
+
+  it('saves the new password', async () => {
+    auth.updateUser.mockResolvedValue({ data: {}, error: null })
+    expect(await setNewPassword('a new password')).toEqual({ ok: true })
+    expect(auth.updateUser).toHaveBeenCalledWith({ password: 'a new password' })
+  })
+
+  it.each([
+    ['weak-password', new AuthApiError('Password is too weak', 422, 'weak_password')],
+    ['same-password', new AuthApiError('Same password', 422, 'same_password')],
+    ['expired', new AuthApiError('Session expired', 403, 'session_expired')],
+    ['too-many-attempts', tooMany],
+    ['not-connected', offline],
+    ['failed', new AuthApiError('Unexpected failure', 500, 'unexpected_failure')],
+  ])('reports %s when saving fails', async (reason, error) => {
+    auth.updateUser.mockResolvedValue({ data: {}, error })
+    expect(await setNewPassword('a new password')).toEqual({ ok: false, reason })
   })
 })

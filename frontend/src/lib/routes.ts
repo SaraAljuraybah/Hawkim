@@ -12,6 +12,9 @@ export const SUBMIT_REQUEST_PATH = '/requests/new'
 /** My Profile: the signed-in employee's own information. */
 export const PROFILE_PATH = '/profile'
 
+/** Set New Password, opened from the password reset email. */
+export const RESET_PASSWORD_PATH = '/reset-password'
+
 /** Path of an SOP's detail page in the SOPs directory. */
 export function sopPath(sopId: string): string {
   return `${SOP_DIRECTORY_PATH}/${encodeURIComponent(sopId)}`

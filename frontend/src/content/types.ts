@@ -193,6 +193,44 @@ export interface ProfileContent {
   /** Shown when a value isn't set. */
   none: string
   roles: { author: string; reviewer: string; approver: string }
+  password: {
+    title: string
+    text: string
+    change: string
+    /** Shown after the email was sent. */
+    sent: string
+    errors: { tooManyAttempts: string; notConnected: string; failed: string }
+  }
+}
+
+export interface ResetPasswordContent {
+  /** Browser tab title. */
+  pageTitle: string
+  logoAlt: string
+  title: string
+  text: string
+  passwordLabel: string
+  /** `{min}` is the shortest password allowed. */
+  passwordHint: string
+  confirmLabel: string
+  showPassword: string
+  hidePassword: string
+  save: string
+  errors: {
+    passwordRequired: string
+    /** `{min}` is the shortest password allowed. */
+    passwordTooShort: string
+    confirmRequired: string
+    mismatch: string
+    weakPassword: string
+    samePassword: string
+    tooManyAttempts: string
+    notConnected: string
+    failed: string
+  }
+  /** The link is missing, invalid or expired. */
+  invalid: { title: string; text: string; action: LinkContent }
+  saved: { title: string; text: string; dashboard: LinkContent; signIn: LinkContent }
 }
 
 export interface ForgotPasswordContent {

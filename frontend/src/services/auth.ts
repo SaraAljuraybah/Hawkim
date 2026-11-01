@@ -8,8 +8,9 @@
  * Supabase keeps only its session tokens, in sessionStorage (see services/supabase.ts).
  */
 
-import { isAuthApiError, isAuthRetryableFetchError, type AuthError } from '@supabase/supabase-js'
+import { isAuthApiError, isAuthRetryableFetchError, isAuthSessionMissingError, type AuthError } from '@supabase/supabase-js'
 import type { User } from '../data/mock/types'
+import { RESET_PASSWORD_PATH } from '../lib/routes'
 import { fetchProfile } from './people'
 import { supabase } from './supabase'
 
@@ -75,6 +76,68 @@ export function onSignedOut(callback: () => void): () => void {
     if (event === 'SIGNED_OUT') callback()
   })
   return () => data.subscription.unsubscribe()
+}
+
+/** Why the password email could not be sent. */
+export type PasswordEmailFailureReason = 'too-many-attempts' | 'not-connected' | 'failed'
+
+/** Sends the Supabase password reset email; its link opens Set New Password on this site. */
+export async function sendPasswordResetEmail(email: string): Promise<{ ok: true } | { ok: false; reason: PasswordEmailFailureReason }> {
+  try {
+    const { error } = await supabase().auth.resetPasswordForEmail(email, { redirectTo: `${window.location.origin}${RESET_PASSWORD_PATH}` })
+    if (!error) return { ok: true }
+    return { ok: false, reason: limitOrConnection(error) ?? 'failed' }
+  } catch {
+    return { ok: false, reason: 'not-connected' }
+  }
+}
+
+/** The session tokens in a recovery link's address hash, if it is one and it has no error. */
+export function recoveryTokens(hash: string): { access_token: string; refresh_token: string } | undefined {
+  const params = new URLSearchParams(hash.replace(/^#/, ''))
+  const access_token = params.get('access_token')
+  const refresh_token = params.get('refresh_token')
+  if (params.get('error') || params.get('error_code') || params.get('type') !== 'recovery' || !access_token || !refresh_token) return undefined
+  return { access_token, refresh_token }
+}
+
+/**
+ * Starts the recovery session from a link's address hash. Returns false when the link is
+ * missing, invalid or expired. Links stay in the implicit flow on purpose: the email opens a new
+ * tab, and a PKCE verifier saved in this tab's sessionStorage wouldn't be there.
+ */
+export async function startPasswordRecovery(hash: string): Promise<boolean> {
+  const tokens = recoveryTokens(hash)
+  if (!tokens) return false
+  try {
+    const { data, error } = await supabase().auth.setSession(tokens)
+    return !error && !!data.session
+  } catch {
+    return false
+  }
+}
+
+/** Why a new password could not be saved. 'expired': the recovery session is gone. */
+export type NewPasswordFailureReason = PasswordEmailFailureReason | 'weak-password' | 'same-password' | 'expired'
+
+/** Saves the new password for the recovery session's account. */
+export async function setNewPassword(password: string): Promise<{ ok: true } | { ok: false; reason: NewPasswordFailureReason }> {
+  try {
+    const { error } = await supabase().auth.updateUser({ password })
+    if (!error) return { ok: true }
+    if (error.code === 'weak_password') return { ok: false, reason: 'weak-password' }
+    if (error.code === 'same_password') return { ok: false, reason: 'same-password' }
+    if (isAuthSessionMissingError(error) || error.status === 401 || error.status === 403) return { ok: false, reason: 'expired' }
+    return { ok: false, reason: limitOrConnection(error) ?? 'failed' }
+  } catch {
+    return { ok: false, reason: 'not-connected' }
+  }
+}
+
+function limitOrConnection(error: AuthError): 'too-many-attempts' | 'not-connected' | undefined {
+  if (isAuthRetryableFetchError(error)) return 'not-connected'
+  if (error.status === 429 || error.code === 'over_email_send_rate_limit' || error.code === 'over_request_rate_limit') return 'too-many-attempts'
+  return undefined
 }
 
 function failureReason(error: AuthError): SignInFailureReason {

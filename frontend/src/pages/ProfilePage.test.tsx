@@ -35,6 +35,14 @@ describe('My Profile', () => {
     expect(render()).toContain('>Safety<')
   })
 
+  it('offers Change Password, with live regions ready for the result', () => {
+    const html = render()
+    expect(html).toContain('>Change Password<')
+    expect(html).toContain('role="status"')
+    expect(html).toContain('role="alert"')
+    expect(html).not.toContain('Check your email')
+  })
+
   it('stays open while browsing a read-only department', () => {
     expect(isPathAllowed(PROFILE_PATH, true)).toBe(true)
   })
