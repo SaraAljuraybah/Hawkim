@@ -10,7 +10,7 @@ import { PERMISSIONS } from '../lib/userAdmin'
 import { supabase } from './supabase'
 
 /** The columns read for a person, with their roles. */
-const PROFILE_COLUMNS = 'id, full_name, email, initials, department_id, deleted_at, user_roles(role)'
+const PROFILE_COLUMNS = 'id, full_name, email, initials, department_id, phone, position, deleted_at, user_roles(role)'
 const DEPARTMENT_COLUMNS = 'id, name, initials, description, removed_at, requires_compliance_check'
 
 export interface ProfileRow {
@@ -19,6 +19,10 @@ export interface ProfileRow {
   email: string
   initials: string
   department_id: string
+  /** "+9665XXXXXXXX"; null on profiles added before it was required. */
+  phone: string | null
+  /** Job title; null on profiles added before it was required. */
+  position: string | null
   deleted_at: string | null
   user_roles: { role: Permission }[]
 }
@@ -41,6 +45,8 @@ export function toUser(row: ProfileRow): User {
     email: row.email,
     initials: row.initials,
     departmentId: row.department_id,
+    ...(row.phone ? { phone: row.phone } : {}),
+    ...(row.position ? { position: row.position } : {}),
     permissions: PERMISSIONS.filter((permission) => roles.includes(permission)),
     ...(row.deleted_at ? { deletedAt: row.deleted_at } : {}),
   }

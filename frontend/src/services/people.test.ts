@@ -18,10 +18,21 @@ beforeEach(() => {
 
 const abeerRow: ProfileRow = {
   id: 'uuid-abeer', full_name: 'Abeer Alhamdan', email: 'abeer.alhamdan@hawkim.test', initials: 'AA',
-  department_id: 'quality-assurance', deleted_at: null, user_roles: [{ role: 'reviewer' }, { role: 'author' }],
+  department_id: 'quality-assurance', phone: null, position: null, deleted_at: null, user_roles: [{ role: 'reviewer' }, { role: 'author' }],
 }
 
 describe('people from the database', () => {
+  it('reads the phone number and position, and leaves them out when not set', async () => {
+    const user = toUser({ ...abeerRow, phone: '+966500000009', position: 'QA Specialist' })
+    expect(user.phone).toBe('+966500000009')
+    expect(user.position).toBe('QA Specialist')
+    expect(toUser(abeerRow)).not.toHaveProperty('phone')
+    expect(toUser(abeerRow)).not.toHaveProperty('position')
+    result = { data: [abeerRow], error: null }
+    await fetchPeople()
+    expect(query.select.mock.calls.at(-1)?.[0]).toContain('phone, position')
+  })
+
   it('turns roles into permissions, in the usual order', () => {
     expect(toUser(abeerRow)).toEqual({
       id: 'uuid-abeer', name: 'Abeer Alhamdan', email: 'abeer.alhamdan@hawkim.test', initials: 'AA',

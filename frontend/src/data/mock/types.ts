@@ -23,6 +23,10 @@ export interface User {
   departmentId: DepartmentId
   /** The division of that department, when it has one. */
   divisionId?: string
+  /** Saudi mobile number, stored as "+9665XXXXXXXX"; missing on older profiles. */
+  phone?: string
+  /** Job title; missing on older profiles. */
+  position?: string
   permissions: Permission[]
   /**
    * Set when an admin deletes the user (ISO date and time). Deleted users can't
