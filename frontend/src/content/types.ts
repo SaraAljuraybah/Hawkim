@@ -664,7 +664,6 @@ export interface SopWorkflowContent {
     noCoAuthors: string
     /** Reviewers and approvers before the first submission. */
     notAssigned: string
-    addCoAuthor: string
     /** The author's workflow page: the Authors section. */
     authorsTitle: string
     mainAuthor: string

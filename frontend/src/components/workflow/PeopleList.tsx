@@ -1,12 +1,11 @@
 import type { ReactNode } from 'react'
 import { internalReviewEn } from '../../content/internalReview.en'
-import { Trash2, UserPlus } from 'lucide-react'
+import { Trash2 } from 'lucide-react'
 import type { SopWorkflowContent } from '../../content/types'
 import type { Sop } from '../../data/mock/types'
 import { sopWorkflowEn } from '../../content/workflow.en'
 import { ReviewerDeadline } from './ReviewerDeadline'
 import { useUsers } from '../../state/usersContext'
-import { Button } from '../ui/Button'
 import { IconButton } from '../ui/IconButton'
 import { DecisionBadge } from './DecisionBadge'
 
@@ -17,7 +16,6 @@ interface PeopleListProps {
   userId: string
   /** Only the main author manages co-authors, and not once the SOP is published. */
   canManageCoAuthors: boolean
-  onAddCoAuthor: (trigger: HTMLElement) => void
   onRemoveCoAuthor: (userId: string, trigger: HTMLElement) => void
   /** Only the main author and co-authors (the author's Authors section). */
   authorsOnly?: boolean
@@ -25,12 +23,11 @@ interface PeopleListProps {
   inactive?: boolean
 }
 
-function Group({ title, children, action }: { title: string; children: ReactNode; action?: ReactNode }) {
+function Group({ title, children }: { title: string; children: ReactNode }) {
   return (
     <div className="min-w-0">
       <h3 className="text-sm font-semibold text-maroon">{title}</h3>
       <div className="mt-2">{children}</div>
-      {action && <div className="mt-3">{action}</div>}
     </div>
   )
 }
@@ -47,7 +44,6 @@ export function PeopleList({
   content,
   userId,
   canManageCoAuthors,
-  onAddCoAuthor,
   onRemoveCoAuthor,
   authorsOnly = false,
   inactive = false,
@@ -60,36 +56,30 @@ export function PeopleList({
   const empty = (text: string) => <p className="text-sm text-text-gray">{text}</p>
 
   return (
-    <div className="grid gap-6 sm:grid-cols-2">
+    // The author's Authors section stacks its groups so co-author rows span the full width.
+    <div className={authorsOnly ? 'space-y-6' : 'grid gap-6 sm:grid-cols-2'}>
       <Group title={authorsOnly ? content.mainAuthor : content.author}>
         <p className="text-[0.9375rem] text-maroon">{sop.authorId && name(sop.authorId)}</p>
       </Group>
 
-      <Group
-        title={content.coAuthors}
-        action={
-          canManageCoAuthors && (
-            <Button size="sm" onClick={(event) => onAddCoAuthor(event.currentTarget)}>
-              <UserPlus aria-hidden="true" className="size-4" strokeWidth={2} />
-              {authorsOnly ? content.addAuthor : content.addCoAuthor}
-            </Button>
-          )
-        }
-      >
+      <Group title={content.coAuthors}>
         {sop.coAuthorIds.length === 0 ? (
           empty(content.noCoAuthors)
         ) : (
           <ul className="space-y-2">
             {sop.coAuthorIds.map((id) => (
-              <li key={id} className={rowClasses}>
-                <span className="text-[0.9375rem] text-maroon">{name(id)}</span>
+              <li key={id} className={authorsOnly ? 'flex items-center justify-between gap-3' : rowClasses}>
+                <span className="min-w-0 break-words text-[0.9375rem] text-maroon">{name(id)}</span>
                 {canManageCoAuthors && (
-                  <IconButton
-                    label={content.removeLabel.replace('{name}', nameOf(id))}
-                    icon={Trash2}
-                    danger
-                    onClick={(event) => onRemoveCoAuthor(id, event.currentTarget)}
-                  />
+                  // From md up, the same 80px centred slot as SOP history's Delete column, so the icons line up.
+                  <span className="shrink-0 md:flex md:w-20 md:justify-center">
+                    <IconButton
+                      label={content.removeLabel.replace('{name}', nameOf(id))}
+                      icon={Trash2}
+                      danger
+                      onClick={(event) => onRemoveCoAuthor(id, event.currentTarget)}
+                    />
+                  </span>
                 )}
               </li>
             ))}

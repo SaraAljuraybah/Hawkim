@@ -9,7 +9,7 @@ import { PeopleList } from './PeopleList'
 vi.mock('../../state/usersContext', () => ({ useUsers: () => ({ nameOf: (id: string) => ({ coauthor: 'Contributing Author' })[id] ?? id }) }))
 
 const sop = { authorId: 'author', coAuthorIds: ['coauthor'], reviewers: [], approvers: [] } as unknown as Sop
-const props = { sop, content: sopWorkflowEn.people, userId: 'author', authorsOnly: true, onAddCoAuthor: () => {} }
+const props = { sop, content: sopWorkflowEn.people, userId: 'author', authorsOnly: true }
 const label = 'Remove Contributing Author as co-author'
 
 function iconButton(node: ReactNode): ReactElement<{ onClick: (event: MouseEvent<HTMLButtonElement>) => void }> | undefined {
@@ -35,6 +35,13 @@ describe('remove co-author button', () => {
     const trigger = {} as HTMLButtonElement
     button.props.onClick({ currentTarget: trigger } as MouseEvent<HTMLButtonElement>)
     expect(onRemove).toHaveBeenCalledWith('coauthor', trigger)
+  })
+  it('sits at the right of a full-width row, in a slot as wide as the SOP history Delete column', () => {
+    const html = renderToStaticMarkup(<PeopleList {...props} canManageCoAuthors onRemoveCoAuthor={() => {}} />)
+    expect(html).toMatch(/^<div class="space-y-6">/)
+    expect(html).toContain('<li class="flex items-center justify-between gap-3">')
+    expect(html).toContain('md:w-20 md:justify-center')
+    expect(html).not.toContain(sopWorkflowEn.people.addAuthor)
   })
   it('is hidden from people who cannot manage co-authors', () => {
     const html = renderToStaticMarkup(<PeopleList {...props} canManageCoAuthors={false} onRemoveCoAuthor={() => {}} />)

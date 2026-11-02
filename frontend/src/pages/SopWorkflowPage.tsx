@@ -1,6 +1,6 @@
 import { useRef, useState, type ReactNode } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { ArrowLeft, ArrowUpRight, CircleCheck, MessageSquareReply, ShieldCheck, Upload } from 'lucide-react'
+import { ArrowLeft, ArrowUpRight, CircleCheck, MessageSquareReply, ShieldCheck, Upload, UserPlus } from 'lucide-react'
 import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
 import { FormDialog } from '../components/ui/FormDialog'
@@ -177,6 +177,8 @@ export function SopWorkflowPage() {
   // Legacy review plans keep their existing handoff. Parallel reviews await this main-Author action.
   // Submit for review during internal review: the current version to more reviewers, or a new version (once checked) to the reviewers chosen.
   const addReviewers = isMainAuthor && canAddReviewers(sop)
+  // Only the main author manages co-authors, and not once the SOP is published.
+  const canManageCoAuthors = isMainAuthor && sop.status !== 'published'
   const sendVersion = isMainAuthor && internal && canSendNewVersion(sop)
   const requestReason = sendVersion ? checkReason : undefined
   // Submit for approval stays visible (Draft, In Review, and Returned after an approver return); it's disabled until ready.
@@ -310,14 +312,25 @@ export function SopWorkflowPage() {
       </Section>
 
       {/* 2. Authors */}
-      <Section id="authors-title" title={content.people.authorsTitle} className="mt-6">
+      <Section
+        id="authors-title"
+        title={content.people.authorsTitle}
+        className="mt-6"
+        actions={
+          canManageCoAuthors && (
+            <Button size="sm" onClick={(event) => open('addCoAuthors', event.currentTarget)}>
+              <UserPlus aria-hidden="true" className="size-4" strokeWidth={2} />
+              {content.people.addAuthor}
+            </Button>
+          )
+        }
+      >
         <PeopleList
           authorsOnly
           sop={sop}
           content={content.people}
           userId={user.id}
-          canManageCoAuthors={isMainAuthor && sop.status !== 'published'}
-          onAddCoAuthor={(trigger) => open('addCoAuthors', trigger)}
+          canManageCoAuthors={canManageCoAuthors}
           onRemoveCoAuthor={(coAuthorId, trigger) => {
             triggerRef.current = trigger
             setMessage('')

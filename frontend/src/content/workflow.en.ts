@@ -69,7 +69,6 @@ export const sopWorkflowEn: SopWorkflowContent = {
     you: '(you)',
     noCoAuthors: 'No co-authors.',
     notAssigned: 'Chosen when the SOP is submitted.',
-    addCoAuthor: 'Add Co-author',
     authorsTitle: 'Authors',
     mainAuthor: 'Main Author',
     addAuthor: 'Add Co-authors',

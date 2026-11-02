@@ -101,7 +101,7 @@ describe('review request status colours', () => {
     expect(badge(html, 'Completed')).toContain('bg-status-published-bg text-status-published-fg')
     expect(badge(html, 'Pending')).toContain('bg-status-pending-bg text-status-pending-fg')
     // The People section shows the same reviewer's Completed in the same colour.
-    const people = render(<PeopleList sop={sop} content={sopWorkflowEn.people} userId="author" canManageCoAuthors={false} onAddCoAuthor={() => {}} onRemoveCoAuthor={() => {}} />)
+    const people = render(<PeopleList sop={sop} content={sopWorkflowEn.people} userId="author" canManageCoAuthors={false} onRemoveCoAuthor={() => {}} />)
     expect(badge(people, 'Completed')).toContain('bg-status-published-bg text-status-published-fg')
   })
   it('uses the same colours for a legacy reviewer Completed, while an approver Approved stays green', () => {

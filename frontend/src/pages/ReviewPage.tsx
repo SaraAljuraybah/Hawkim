@@ -305,7 +305,6 @@ function Review({ sop, historical }: { sop: Sop; historical: boolean }) {
             userId={user.id}
             inactive={historical}
             canManageCoAuthors={false}
-            onAddCoAuthor={() => {}}
             onRemoveCoAuthor={() => {}}
           />
         </Section>

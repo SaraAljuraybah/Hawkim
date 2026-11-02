@@ -60,7 +60,7 @@ describe('reviewer deadline displays', () => {
     for (const text of ['First reviewer', 'Next reviewer', 'No deadline reviewer', 'Time given', 'No due date', 'Approval person', 'Approvers']) expect(html).not.toContain(text)
   })
   it('shows queue positions and individual deadlines in PeopleList', () => {
-    const html = render(<PeopleList sop={sop()} content={sopWorkflowEn.people} userId="Author" canManageCoAuthors={false} onAddCoAuthor={() => {}} onRemoveCoAuthor={() => {}} />)
+    const html = render(<PeopleList sop={sop()} content={sopWorkflowEn.people} userId="Author" canManageCoAuthors={false} onRemoveCoAuthor={() => {}} />)
     expect(html).toContain('Current Reviewer')
     expect(html).toContain('Waiting in Queue')
     expect(html).toContain('Time given: 2 days')
