@@ -341,6 +341,9 @@ export interface SopsContent {
     searchPlaceholder: string
     typeLabel: string
     types: { all: string; pdf: string; docx: string }
+    sortLabel: string
+    sortNewest: string
+    sortOldest: string
     clear: string
     empty: string
     oneResult: string

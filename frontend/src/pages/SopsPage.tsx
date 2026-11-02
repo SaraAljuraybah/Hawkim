@@ -3,6 +3,7 @@ import { Building2, FileText, Search } from 'lucide-react'
 import { Button } from '../components/ui/Button'
 import { TextField } from '../components/ui/TextField'
 import { SelectField } from '../components/ui/SelectField'
+import type { MySopSort } from '../lib/mySops'
 import { filterDirectorySops, type SopDocumentFilter } from '../lib/sopDirectory'
 import { directorySopsFor } from '../lib/sopAccess'
 import { useCurrentUser } from '../state/sessionContext'
@@ -46,6 +47,8 @@ export function SopsPage() {
   const [query, setQuery] = useState('')
   const searchRef = useRef<HTMLInputElement>(null)
   const [documentType, setDocumentType] = useState<SopDocumentFilter>('all')
+  const [sort, setSort] = useState<MySopSort>('newest')
+  // The sort order isn't a filter: it doesn't show Clear Filters and isn't reset by it.
   const hasFilters = query.length > 0 || documentType !== 'all'
   const [view, setView] = useState<ViewMode>(readStoredView)
 
@@ -62,8 +65,8 @@ export function SopsPage() {
     label: content.tabs[key],
   }))
   const visibleSops = useMemo(
-    () => filterDirectorySops(directorySopsFor(sops, user, requests), activeDepartment.id, tab, query, documentType),
-    [sops, user, requests, activeDepartment.id, tab, query, documentType],
+    () => filterDirectorySops(directorySopsFor(sops, user, requests), activeDepartment.id, query, documentType, sort),
+    [sops, user, requests, activeDepartment.id, query, documentType, sort],
   )
   function clearFilters() {
     setQuery('')
@@ -83,7 +86,7 @@ export function SopsPage() {
       </p>
 
       <div role="search" aria-label={content.filters.label} className="mt-6 rounded-xl border border-beige bg-white p-4 sm:p-5">
-        <div className="grid items-end gap-4 sm:grid-cols-[minmax(0,1fr)_12rem]">
+        <div className="grid items-end gap-4 sm:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_12rem_12rem]">
           <TextField
             ref={searchRef}
             name="sopSearch"
@@ -93,6 +96,7 @@ export function SopsPage() {
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             endAdornment={<Search aria-hidden="true" className="mr-2 size-4 text-text-gray" />}
+            className="sm:col-span-2 xl:col-span-1"
           />
           <SelectField
             name="documentType"
@@ -100,6 +104,13 @@ export function SopsPage() {
             value={documentType}
             onChange={(event) => setDocumentType(event.target.value as SopDocumentFilter)}
             options={(['all', 'pdf', 'docx'] as const).map((value) => ({ value, label: content.filters.types[value] }))}
+          />
+          <SelectField
+            name="sopSort"
+            label={content.filters.sortLabel}
+            value={sort}
+            onChange={(event) => setSort(event.target.value as MySopSort)}
+            options={[{ value: 'newest', label: content.filters.sortNewest }, { value: 'oldest', label: content.filters.sortOldest }]}
           />
         </div>
         <div className="mt-3 flex min-h-8 flex-wrap items-center justify-between gap-2">

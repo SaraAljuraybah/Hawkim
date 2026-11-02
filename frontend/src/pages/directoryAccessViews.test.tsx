@@ -84,6 +84,15 @@ describe('directory selection never changes authoring or membership context', ()
     fixture.requests = [grant('rejected')]
     expect(render(<SopsPage />)).not.toContain('foreign-published')
   })
+  it('offers Sort By next to Document Type, newest first by default, and stacks on small screens', () => {
+    fixture.sops = [{ ...sop('older-sop', 'other', 'published'), lastUpdated: '2026-01-01' }, { ...sop('newer-sop', 'other', 'published'), lastUpdated: '2026-10-01' }]
+    const html = render(<SopsPage />)
+    for (const text of ['Sort By', 'Newest first', 'Oldest first']) expect(html).toContain(text)
+    expect(html.indexOf('Document Type')).toBeLessThan(html.indexOf('Sort By'))
+    expect(html).toMatch(/<option value="newest"[^>]* selected="">Newest first<\/option>/)
+    expect(html).toContain('grid items-end gap-4 sm:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_12rem_12rem]')
+    expect(html.indexOf('newer-sop')).toBeLessThan(html.indexOf('older-sop'))
+  })
 })
 
 describe('published directory access remains separate from internal views', () => {
