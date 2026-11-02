@@ -25,7 +25,7 @@ import { internalReviewEn } from '../content/internalReview.en'
 import { sopWorkflowEn } from '../content/workflow.en'
 import type { Sop, SopVersion } from '../data/mock/types'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
-import { checkRequired, checkStartFailure, currentCheck, hasCurrentCheck, isCheckRunning } from '../lib/compliance'
+import { canReplaceSampleResult, checkRequired, checkStartFailure, currentCheck, hasCurrentCheck, isCheckRunning } from '../lib/compliance'
 import { approvalReadiness, type ApprovalReadiness } from '../lib/approval'
 import { hasResponseOutsideReviewers, requestResponseRecipients } from '../lib/reviewRequestRows'
 import { canAddReviewers, canSendNewVersion, type ReviewPhaseItem } from '../lib/internalReview'
@@ -227,7 +227,8 @@ export function SopWorkflowPage() {
       ? content.history.checkBlocked.status[sop.status as keyof typeof content.history.checkBlocked.status]
       : checkBlock && content.history.checkBlocked['not-uploader'].replace('{name}', authorName)
   // One completed check per version and GVP version: a failed check or a newer GVP version can be run again.
-  const checkCompleted = hasCurrentCheck(sop, guidelines.current.version)
+  // A sample result can be checked again: the database allows it while the compliance service is online.
+  const checkCompleted = hasCurrentCheck(sop, guidelines.current.version) && !canReplaceSampleResult(sop)
   const checkUnavailableReason = checkBlockedReason || (checkCompleted ? content.history.checkCompleted : undefined)
 
   // Delete version: Draft or Returned, main author (any version) or its uploader, at least one version left.

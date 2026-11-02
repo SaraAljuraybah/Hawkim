@@ -21,6 +21,7 @@ import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import {
   compareReports,
   currentCheck,
+  isSampleCheck,
   latestCompletedChecksByVersion,
   numberedFindings,
   previousReport,
@@ -228,7 +229,7 @@ function Report({ sop, backPath }: { sop: Sop; backPath: string }) {
         </section>
       )}
 
-      <SampleBanner text={content.sampleBanner} className="mt-4" />
+      {report && isSampleCheck(report) && <SampleBanner text={content.sampleBanner} className="mt-4" />}
 
       {report && latest?.status === 'running' && (
         <p
@@ -247,7 +248,13 @@ function Report({ sop, backPath }: { sop: Sop; backPath: string }) {
 
       {report && (
         // Requirements as in the GVP version this report was checked against.
-        <ReportRequirementsContext value={(requirementId) => getRequirement(report.guideline.version, requirementId)}>
+        <ReportRequirementsContext
+          value={(requirementId) =>
+            // The details read with the findings first (the compliance service adds requirements while checks run).
+            report.findings.find((finding) => finding.requirementId === requirementId)?.requirement ??
+            getRequirement(report.guideline.version, requirementId)
+          }
+        >
           {/* b) Executive summary */}
           <ReportSection id="summary-title" title={text.summary.title}>
             <ExecutiveSummary
@@ -313,7 +320,7 @@ function Report({ sop, backPath }: { sop: Sop; backPath: string }) {
           {/* f) Method and limitations */}
           <ReportSection id="method-title" title={text.method.title}>
             <ul className="max-w-[75ch] list-disc space-y-1.5 pl-5 text-sm text-maroon">
-              {text.method.items.map((item) => (
+              {[...text.method.items, ...(isSampleCheck(report) ? [text.method.sampleNote] : [])].map((item) => (
                 <li key={item}>{item}</li>
               ))}
             </ul>

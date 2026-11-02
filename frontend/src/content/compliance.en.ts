@@ -11,7 +11,7 @@ export const complianceEn: ComplianceContent = {
     compliant: 'Compliant',
     partial: 'Partially Compliant',
     conflict: 'Conflict',
-    'not-addressed': 'Not Addressed',
+    'not-addressed': 'Requires Human Review',
   },
   sampleBanner: 'Sample results — the compliance service isn’t connected yet.',
   summary: '{count} of {total} requirements compliant',
@@ -96,7 +96,7 @@ export const complianceEn: ComplianceContent = {
       },
       attention: {
         conflict: { one: '{count} conflict', other: '{count} conflicts' },
-        'not-addressed': { one: '{count} requirement not addressed', other: '{count} requirements not addressed' },
+        'not-addressed': { one: '{count} requirement requires human review', other: '{count} requirements require human review' },
         partial: { one: '{count} partially compliant requirement', other: '{count} partially compliant requirements' },
       },
       and: 'and',
@@ -120,7 +120,7 @@ export const complianceEn: ComplianceContent = {
       tabs: {
         all: 'All',
         conflict: 'Conflict',
-        'not-addressed': 'Not Addressed',
+        'not-addressed': 'Requires Human Review',
         partial: 'Partially Compliant',
         compliant: 'Compliant',
       },
@@ -153,8 +153,8 @@ export const complianceEn: ComplianceContent = {
       items: [
         'Hawkim retrieves the GVP requirements most relevant to the SOP and assesses each one with a locally hosted language model.',
         'This report supports human review. Final review, approval and publication remain the responsibility of the assigned reviewers and approvers.',
-        'These are sample results; the compliance service isn’t connected yet.',
       ],
+      sampleNote: 'These are sample results; the compliance service isn’t connected yet.',
     },
     outOfDate: 'A new compliance check is running for v{version}. This report may be out of date.',
     olderGuideline: 'This report used GVP v{checked}. The current version is v{current}.',

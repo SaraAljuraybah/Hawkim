@@ -36,8 +36,8 @@ const row: SopRow = {
       id: 'chk-1', sop_version: 1, status: 'completed', engine: 'sample', triggered_by: 'uuid-sara', started_at: '2026-10-24T09:05:00Z', completed_at: '2026-10-24T09:05:03Z',
       guideline_versions: { name: 'GVP', version: '4.0' },
       compliance_findings: [
-        { id: 'f2', result: 'partial', justification: 'Second', sop_reference: null, recommended_action: 'Fix it', position: 2, guideline_requirements: { code: 'R2' } },
-        { id: 'f1', result: 'compliant', justification: 'First', sop_reference: 'Section 4.2', recommended_action: null, position: 1, guideline_requirements: { code: 'R1' } },
+        { id: 'f2', result: 'partial', justification: 'Second', sop_reference: null, recommended_action: 'Fix it', position: 2, guideline_requirements: { code: 'R2', module: 'Module I', section: 'I.B.10', section_title: 'Record management', short_title: 'Retention of records', page: 22, summary: 'Records are protected.' } },
+        { id: 'f1', result: 'compliant', justification: 'First', sop_reference: 'Section 4.2', recommended_action: null, position: 1, guideline_requirements: { code: 'R1', module: 'Module I', section: 'I.B.10', section_title: 'Record management', short_title: 'Access to records', page: 22, summary: 'Access is limited.' } },
       ],
     },
   ],
@@ -82,8 +82,8 @@ describe('SOPs from the database', () => {
       id: 'chk-1', sopId: 'uuid-sop', version: '1', status: 'completed', engine: 'sample', startedAt: '2026-10-24T09:05:00Z', completedAt: '2026-10-24T09:05:03Z',
       triggeredById: 'uuid-sara', guideline: { name: 'GVP', version: '4.0' },
       findings: [
-        { id: 'f1', requirementId: 'R1', result: 'compliant', justification: 'First', sopReference: 'Section 4.2' },
-        { id: 'f2', requirementId: 'R2', result: 'partial', justification: 'Second', recommendedAction: 'Fix it' },
+        { id: 'f1', requirementId: 'R1', result: 'compliant', justification: 'First', sopReference: 'Section 4.2', requirement: { id: 'R1', module: 'Module I', section: 'I.B.10', sectionTitle: 'Record management', shortTitle: 'Access to records', page: 22, summary: 'Access is limited.' } },
+        { id: 'f2', requirementId: 'R2', result: 'partial', justification: 'Second', recommendedAction: 'Fix it', requirement: { id: 'R2', module: 'Module I', section: 'I.B.10', sectionTitle: 'Record management', shortTitle: 'Retention of records', page: 22, summary: 'Records are protected.' } },
       ],
     })
     expect(second).toMatchObject({ id: 'chk-2', version: '3', status: 'running', findings: [] })

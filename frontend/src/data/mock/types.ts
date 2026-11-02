@@ -415,6 +415,12 @@ export interface Finding {
   sopReference?: string
   /** What to change; only for results that aren't compliant. */
   recommendedAction?: string
+  /**
+   * The requirement's details, read with the finding from the database. The compliance
+   * service adds requirements while checks run, so the guideline list loaded at sign-in
+   * may not have them yet; the report uses these details first.
+   */
+  requirement?: Requirement
 }
 
 /** The regulatory document a check is run against. */
@@ -460,7 +466,7 @@ export interface ComplianceCheck {
    * upload) or who pressed Check. Its timeline events are attributed to them.
    */
   triggeredById?: string
-  /** What produced the result, for checks from the database: 'sample' until the compliance service is connected. */
+  /** What produced the result, for checks from the database: 'sample' (sample findings) or the compliance service's name ('hawkim'). */
   engine?: string
   guideline: Guideline
   /** Empty until the check completes. */

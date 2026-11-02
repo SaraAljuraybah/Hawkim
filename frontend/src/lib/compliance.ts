@@ -19,6 +19,12 @@ import {
 /** How long a sample check stays "running". */
 export const SAMPLE_CHECK_DURATION_MS = 3000
 
+/** While a check of the compliance service runs, the SOP is read again this often. */
+export const SERVICE_CHECK_POLL_MS = 5000
+
+/** Stop reading again after this long (the database fails such a check after 30 minutes). */
+export const SERVICE_CHECK_WATCH_MS = 35 * 60 * 1000
+
 /** The database refused a check because this version already has a completed one (this tab didn't know yet). */
 export class CheckAlreadyCompletedError extends Error {}
 
@@ -58,6 +64,21 @@ export function currentCheck(sop: Sop): ComplianceCheck | undefined {
 export function hasCurrentCheck(sop: Sop, guidelineVersion: string): boolean {
   const check = currentCheck(sop)
   return check?.status === 'completed' && check.guideline.version === guidelineVersion
+}
+
+/** Results from the sample engine (in-memory checks have no engine and are samples too). */
+export function isSampleCheck(check: Pick<ComplianceCheck, 'engine'>): boolean {
+  return !check.engine || check.engine === 'sample'
+}
+
+/**
+ * The version's completed check is a sample result from the database: while the compliance
+ * service is online, the database lets it be checked again to get a real result (if the
+ * service is offline, it refuses with "already completed").
+ */
+export function canReplaceSampleResult(sop: Sop): boolean {
+  const check = currentCheck(sop)
+  return check?.status === 'completed' && check.engine === 'sample'
 }
 
 export function isCheckRunning(sop: Sop): boolean {

@@ -51,7 +51,7 @@ const SOP_COLUMNS = `id, code, title, description, department_id, author_id, sta
   compliance_checks!compliance_checks_sop_id_fkey (id, sop_version, status, engine, triggered_by, started_at, completed_at,
     guideline_versions!compliance_checks_guideline_version_id_fkey (name, version),
     compliance_findings!compliance_findings_check_id_fkey (id, result, justification, sop_reference, recommended_action, position,
-      guideline_requirements!compliance_findings_requirement_id_fkey (code)))`
+      guideline_requirements!compliance_findings_requirement_id_fkey (code, module, section, section_title, short_title, page, summary)))`
 
 export interface SopVersionRow {
   version: number
@@ -141,7 +141,15 @@ export interface ComplianceCheckRow {
     sop_reference: string | null
     recommended_action: string | null
     position: number
-    guideline_requirements: { code: string }
+    guideline_requirements: {
+      code: string
+      module: string
+      section: string
+      section_title: string
+      short_title: string
+      page: number
+      summary: string
+    }
   }[]
 }
 
@@ -272,6 +280,15 @@ function toCheck(sopId: string, row: ComplianceCheckRow): ComplianceCheck {
         justification: item.justification,
         ...(item.sop_reference ? { sopReference: item.sop_reference } : {}),
         ...(item.recommended_action ? { recommendedAction: item.recommended_action } : {}),
+        requirement: {
+          id: item.guideline_requirements.code,
+          module: item.guideline_requirements.module,
+          section: item.guideline_requirements.section,
+          sectionTitle: item.guideline_requirements.section_title,
+          shortTitle: item.guideline_requirements.short_title,
+          page: item.guideline_requirements.page,
+          summary: item.guideline_requirements.summary,
+        },
       })),
   }
 }

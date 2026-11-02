@@ -201,6 +201,34 @@ export function SopsProvider({ children }: { children: ReactNode }) {
   )
 
   /**
+   * COMPLIANCE SERVICE: its checks are finished by the service (compliance-service/), not the
+   * browser. While one runs, the SOP is read again every few seconds until the check ends.
+   */
+  const watching = useRef(new Set<string>())
+  const watchServiceCheck = useCallback(
+    (sopId: string) => {
+      if (watching.current.has(sopId)) return
+      watching.current.add(sopId)
+      const until = Date.now() + compliance.SERVICE_CHECK_WATCH_MS
+      const poll = () => {
+        window.setTimeout(() => {
+          refresh(sopId)
+            .then((sop) => {
+              if (sop && compliance.isCheckRunning(sop) && Date.now() < until) poll()
+              else watching.current.delete(sopId)
+            })
+            .catch(() => {
+              if (Date.now() < until) poll()
+              else watching.current.delete(sopId)
+            })
+        }, compliance.SERVICE_CHECK_POLL_MS)
+      }
+      poll()
+    },
+    [refresh],
+  )
+
+  /**
    * Starts a compliance check of the current version, only when the user presses
    * "Compliance Check for Current Version" (PBI 4, 29). The rules (who and when) are
    * checked first, then by the database. Uploading never starts a check. When the demo
@@ -220,11 +248,16 @@ export function SopsProvider({ children }: { children: ReactNode }) {
         if (error instanceof compliance.CheckAlreadyCompletedError) await refresh(sopId).catch(() => undefined)
         throw error
       }
+      const started = (await refresh(sopId))?.complianceChecks.find((check) => check.id === checkId)
+      // The database chose the engine: the compliance service while it is online, otherwise the sample.
+      if (started && !compliance.isSampleCheck(started)) {
+        watchServiceCheck(sopId)
+        return
+      }
       if (fail) setFailNextCheck(false)
-      await refresh(sopId)
       scheduleCompletion(sopId, checkId, fail ? 'failed' : 'completed')
     },
-    [current, userId, departments, refresh, scheduleCompletion, setFailNextCheck],
+    [current, userId, departments, refresh, scheduleCompletion, setFailNextCheck, watchServiceCheck],
   )
 
   // A new session must not inherit database rows cached by another user.
@@ -245,9 +278,14 @@ export function SopsProvider({ children }: { children: ReactNode }) {
         commit(mergeSops(latestRef.current, stored))
         setLoaded({ userId, status: 'ready' })
         void loadClosed()
-        // This person's sample checks still running (the page was reloaded meanwhile) are finished now.
+        // This person's sample checks still running (the page was reloaded meanwhile) are finished now;
+        // checks of the compliance service still running are watched until they end.
         for (const sop of stored) {
           for (const check of sop.complianceChecks) {
+            if (check.status === 'running' && !compliance.isSampleCheck(check)) {
+              watchServiceCheck(sop.id)
+              continue
+            }
             if (check.status !== 'running' || check.engine !== 'sample' || check.triggeredById !== userId) continue
             const left = new Date(check.startedAt).getTime() + compliance.SAMPLE_CHECK_DURATION_MS - Date.now()
             scheduleCompletion(sop.id, check.id, 'completed', Math.max(0, left))
@@ -261,7 +299,7 @@ export function SopsProvider({ children }: { children: ReactNode }) {
     return () => {
       active = false
     }
-  }, [userId, commit, scheduleCompletion, loadClosed])
+  }, [userId, commit, scheduleCompletion, loadClosed, watchServiceCheck])
   const closedRequests = useMemo(() => (closed.userId === userId ? closed.requests : []), [closed, userId])
   const status: LoadStatus = userId && loaded?.userId === userId ? loaded.status : 'loading'
 

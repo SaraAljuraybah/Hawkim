@@ -967,7 +967,8 @@ export interface ComplianceContent {
       changedTo: string
       kinds: Record<'resolved' | 'improved' | 'unchanged' | 'worsened' | 'new' | 'removed', string>
     }
-    method: { title: string; items: string[] }
+    /** `sampleNote` is added to the items only for sample results. */
+    method: { title: string; items: string[]; sampleNote: string }
     /** A new check is running for the shown (current) version; `{version}` is replaced. */
     outOfDate: string
     /** The report used an older GVP version; `{checked}` and `{current}` are replaced. */

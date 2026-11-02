@@ -3,7 +3,7 @@ import { ArrowRight, LoaderCircle } from 'lucide-react'
 import { ComplianceSummary, SampleBanner } from '../compliance/ComplianceSummary'
 import type { ComplianceContent } from '../../content/types'
 import type { Sop } from '../../data/mock/types'
-import { currentCheck } from '../../lib/compliance'
+import { currentCheck, isSampleCheck } from '../../lib/compliance'
 import { lastCheckedVersion, recheckRecommended } from '../../lib/guidelines'
 import { useGuidelines } from '../../state/guidelinesContext'
 import { RecheckBadge } from '../compliance/RecheckBadge'
@@ -44,7 +44,7 @@ export function ComplianceCard({ sop, content }: ComplianceCardProps) {
 
   return (
     <div>
-      <SampleBanner text={content.sampleBanner} />
+      {isSampleCheck(check) && <SampleBanner text={content.sampleBanner} />}
 
       {recheck && !running && (
         <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2">
