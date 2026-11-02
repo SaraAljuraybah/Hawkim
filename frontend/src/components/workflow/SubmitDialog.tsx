@@ -94,10 +94,10 @@ export function SubmitDialog({ sop, content, onSubmit, onClose, mode = 'submit' 
       {mode === 'add' && <p className="text-sm text-text-gray">{text.addIntro.replace('{version}', sop.version)}</p>}
       {mode === 'version' && <p className="text-sm text-maroon">{text.versionIntro.replace('{version}', sop.version)}</p>}
       {failed && <p role="alert" className="text-sm text-status-rejected-fg">{failedText || fields.errors.submitFailed}</p>}
-      <TextField name="reviewDepartment" label={text.department}
-        value={departmentName} readOnly />
       <TextField name="reviewDivision" label={text.division}
         value={department?.divisionId || text.noDivision} readOnly />
+      <TextField name="reviewDepartment" label={text.department}
+        value={departmentName} readOnly />
       {anyDepartment && <SelectField name="reviewerDepartment" label={text.reviewerDepartment} value={departmentFilter} onChange={(event) => setDepartmentFilter(event.target.value)}
         options={[{ value: '', label: text.allDepartments }, ...departments.filter((item) => !item.removedAt).map((item) => ({ value: item.id, label: item.name }))]} />}
       <PeoplePicker inputRef={firstRef} label={text.reviewers} hideLabel text={text.reviewerSearch}

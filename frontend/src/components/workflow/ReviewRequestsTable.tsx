@@ -36,7 +36,7 @@ export interface ReviewRequestResponse {
 }
 
 const text = internalReviewEn.panel.table
-const columns = [text.columns.reviewer, text.columns.department, text.columns.division, text.columns.sent, text.columns.status, text.columns.decision, text.columns.deadline]
+const columns = [text.columns.reviewer, text.columns.division, text.columns.department, text.columns.sent, text.columns.status, text.columns.decision, text.columns.deadline]
 
 function Timestamp({ value, format }: { value?: string; format: (value: string) => string }) {
   return value ? <time dateTime={value}>{format(value)}</time> : <>{text.none}</>
@@ -128,8 +128,8 @@ export function ReviewRequestsTable({ sop, canRemove, onRemove, canEditDeadline,
               return (
                 <tr key={request.id} className={colour}>
                   <th scope="row" className="py-3 pr-4 font-medium">{row.name}</th>
-                  <td className="py-3 pr-4">{row.department}</td>
                   <td className="py-3 pr-4">{row.division}</td>
+                  <td className="py-3 pr-4">{row.department}</td>
                   <td className="py-3 pr-4 whitespace-nowrap">{row.sent}</td>
                   <td className="py-3 pr-4">{row.status}</td>
                   <td className="py-3 pr-4 whitespace-nowrap">{row.decision}</td>
@@ -154,8 +154,8 @@ export function ReviewRequestsTable({ sop, canRemove, onRemove, canEditDeadline,
                 </div>
                 <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
                   {[
-                    [text.columns.department, row.department],
                     [text.columns.division, row.division],
+                    [text.columns.department, row.department],
                     [text.columns.sent, row.sent],
                     [text.columns.decision, row.decision],
                     [text.columns.deadline, row.deadline],

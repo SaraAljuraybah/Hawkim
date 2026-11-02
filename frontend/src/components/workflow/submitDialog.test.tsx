@@ -35,7 +35,7 @@ beforeEach(() => vi.useFakeTimers({ now: new Date('2026-10-29T09:00:00+03:00') }
 afterEach(() => vi.useRealTimers())
 
 describe('Submit for Review safe frontend presentation', () => {
-  it('locks the department and its actual configured division before searchable reviewer selection', () => {
+  it('locks the division, then the department, before searchable reviewer selection', () => {
     const html = render()
     const department = html.match(/<input[^>]*name="reviewDepartment"[^>]*>/)![0]
     const division = html.match(/<input[^>]*name="reviewDivision"[^>]*>/)![0]
@@ -43,8 +43,8 @@ describe('Submit for Review safe frontend presentation', () => {
     expect(department).toContain('value="Home Department"')
     expect(division).toContain('readOnly=""')
     expect(division).toContain('value="configured-division"')
-    expect(html.indexOf('name="reviewDepartment"')).toBeLessThan(html.indexOf('name="reviewDivision"'))
-    expect(html.indexOf('name="reviewDivision"')).toBeLessThan(html.indexOf('role="combobox"'))
+    expect(html.indexOf('name="reviewDivision"')).toBeLessThan(html.indexOf('name="reviewDepartment"'))
+    expect(html.indexOf('name="reviewDepartment"')).toBeLessThan(html.indexOf('role="combobox"'))
     expect(html).not.toContain('Cross-department requests')
     expect(html).not.toContain('Division selection')
     expect(html).not.toContain('Other Department')
