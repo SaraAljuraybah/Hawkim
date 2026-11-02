@@ -18,15 +18,16 @@ export function ProfilePage() {
   const [sent, setSent] = useState(false)
   const [failure, setFailure] = useState('')
   const roles = user.permissions.flatMap((permission) => (permission === 'admin' ? [] : [content.roles[permission]]))
+  // Same order as Add User. A value that is missing or blank shows content.none, the same way for every field.
   const details = [
     [content.fields.name, user.name],
     [content.fields.email, user.email],
-    [content.fields.phone, user.phone || content.none],
-    [content.fields.position, user.position || content.none],
-    [content.fields.division, homeDepartment.divisionId || content.none],
+    [content.fields.phone, user.phone],
+    [content.fields.division, homeDepartment.divisionId],
     [content.fields.department, homeDepartment.name],
-    [content.fields.roles, roles.join(', ') || content.none],
-  ]
+    [content.fields.position, user.position],
+    [content.fields.roles, roles.join(', ')],
+  ].map(([label, value]) => [label, value?.trim() || content.none] as const)
   const failures: Record<PasswordEmailFailureReason, string> = {
     'too-many-attempts': content.password.errors.tooManyAttempts,
     'not-connected': content.password.errors.notConnected,
@@ -51,7 +52,7 @@ export function ProfilePage() {
         <dl className="grid gap-x-6 gap-y-3 text-sm sm:grid-cols-[10rem_minmax(0,1fr)]">
           {details.map(([label, value]) => (
             <div key={label} className="contents">
-              <dt className="text-text-gray">{label}</dt>
+              <dt className="font-bold text-text-gray">{label}</dt>
               <dd className="min-w-0 break-words text-maroon max-sm:mb-1">{value}</dd>
             </div>
           ))}

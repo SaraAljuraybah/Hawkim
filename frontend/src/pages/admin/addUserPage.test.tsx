@@ -36,9 +36,11 @@ describe('Add User', () => {
     expect(html).toContain(adminEn.addUser.phone.hint)
   })
 
-  it('limits Position to 100 characters, without a counter', () => {
+  it('limits Position to 100 characters, without a counter or hint', () => {
     expect(control(html, 'position')).toContain('maxLength="100"')
+    expect(control(html, 'position')).not.toContain('aria-describedby')
     expect(html).not.toMatch(/\d+ \/ 100/)
+    expect(html).not.toContain('Job title')
   })
 
   it('makes Division and Department searchable dropdowns', () => {

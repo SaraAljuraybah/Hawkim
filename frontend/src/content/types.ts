@@ -1453,7 +1453,7 @@ export interface AdminAddUserContent {
   division: { label: string; placeholder: string; noDivision: string; toggle: string; noMatches: string }
   /** Searchable list of the chosen division's departments. */
   department: { label: string; placeholder: string; selectDivisionFirst: string; toggle: string; noMatches: string }
-  position: { label: string; hint: string }
+  position: { label: string }
   permissions: { legend: string }
   submit: string
   cancel: string

@@ -203,7 +203,6 @@ export function AddUserPage() {
           required
           requiredMark
           maxLength={POSITION_MAX}
-          hint={content.position.hint}
           value={values.position}
           error={errors.position}
           onChange={(event) => setValues({ ...values, position: event.target.value })}

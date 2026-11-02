@@ -22,7 +22,7 @@ const render = () => renderToStaticMarkup(<MemoryRouter><ProfilePage /></MemoryR
 
 beforeEach(() => {
   fixture.home.divisionId = undefined
-  fixture.user = { ...fixture.user, phone: undefined, position: undefined }
+  fixture.user = { ...fixture.user, phone: undefined, position: undefined, permissions: ['author', 'reviewer'] }
 })
 
 describe('My Profile', () => {
@@ -37,9 +37,19 @@ describe('My Profile', () => {
     expect(html).not.toContain('<input')
   })
 
-  it('lists Name, Email, Phone Number, Position, Division, Department, then Permission', () => {
-    const labels = [...render().matchAll(/<dt[^>]*>([^<]+)<\/dt>/g)].map((match) => match[1])
-    expect(labels).toEqual(['Name', 'Email', 'Phone Number', 'Position', 'Division', 'Department', 'Permission'])
+  it('lists the fields in the Add User order, with bold labels', () => {
+    const html = render()
+    const labels = [...html.matchAll(/<dt[^>]*>([^<]+)<\/dt>/g)].map((match) => match[1])
+    expect(labels).toEqual(['Name', 'Email', 'Phone Number', 'Division', 'Department', 'Position', 'Permission'])
+    for (const dt of html.match(/<dt[^>]*>/g)!) expect(dt).toContain('font-bold')
+  })
+
+  it('shows every empty value as the same —, blank text included', () => {
+    fixture.user = { ...fixture.user, permissions: ['admin'], position: '   ' }
+    const rows = [...render().matchAll(/<dt[^>]*>([^<]+)<\/dt>(<dd[^>]*>)([^<]*)<\/dd>/g)]
+    const empty = rows.filter((match) => match[3] === '—')
+    expect(empty.map((match) => match[1])).toEqual(['Phone Number', 'Division', 'Position', 'Permission'])
+    expect(new Set(empty.map((match) => match[2])).size).toBe(1)
   })
 
   it('shows the phone number and position read-only, and — without them', () => {

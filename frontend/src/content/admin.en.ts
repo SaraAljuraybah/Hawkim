@@ -69,7 +69,7 @@ export const adminEn: AdminContent = {
       toggle: 'Show departments',
       noMatches: 'No department matches. Choose one from the list.',
     },
-    position: { label: 'Position', hint: 'Job title.' },
+    position: { label: 'Position' },
     permissions: { legend: 'Permission' },
     submit: 'Add User',
     cancel: 'Cancel',
