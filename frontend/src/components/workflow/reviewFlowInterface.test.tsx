@@ -29,7 +29,7 @@ function draft(): Sop {
 describe('review plan interface', () => {
   it('offers searchable eligible internal reviewers without external reviewers or approvers', () => {
     const html = renderToStaticMarkup(<SubmitDialog sop={draft()} content={sopWorkflowEn.dialogs} onSubmit={() => {}} onClose={() => {}} />)
-    expect(html).toContain('Select Reviewers')
+    expect(html).toContain('>Reviewers</label>')
     expect(html).toContain('aria-expanded="false"')
     expect(html).toContain('role="combobox"')
     expect(html.match(/<ul[^>]*role="listbox"[^>]*>/)?.[0]).toContain('hidden=""')

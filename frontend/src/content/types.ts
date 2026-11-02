@@ -479,14 +479,20 @@ export interface InternalReviewSubmitContent {
   versionIntro: string
   department: string
   division: string
+  /** The Division choice for departments without one. */
   noDivision: string
+  /** The searchable Division and Department lists. */
+  divisionPicker: { placeholder: string; toggle: string; noMatches: string }
+  departmentPicker: { placeholder: string; toggle: string; noMatches: string }
   reviewers: string
   reviewerSearch: PeoplePickerContent
   reviewerRequired: string
-  reviewerDepartment: string
-  allDepartments: string
+  /** Shown under Reviewers while no department is chosen. */
+  chooseDepartment: string
   /** `{department}` is the SOP's department. */
   homeFirst: string
+  /** Shown under Division or Department when another one is chosen for the SOP's first review. */
+  firstReviewHome: string
   firstSendHome: string
   mustFinish: string
   noneEligible: string
@@ -494,6 +500,8 @@ export interface InternalReviewSubmitContent {
   durationHelp: string
   durationWorkingDays: string
   durationInvalid: string
+  /** The estimated last day of the review; `{date}` is replaced. */
+  durationDueDate: string
   /** `{count}` is replaced. */
   durationLong: string
   note: string
@@ -515,6 +523,8 @@ export interface PeoplePickerContent {
   /** Announced to screen readers; `{name}` is replaced. */
   added: string
   removed: string
+  /** Accessible name of the chevron button that opens the list. */
+  toggle: string
 }
 
 /* ---------- Author: My SOPs and Upload SOP ---------- */

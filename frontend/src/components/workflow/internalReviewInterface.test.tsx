@@ -135,8 +135,8 @@ describe('internal parallel review across transitions and detail views', () => {
     expect(html).not.toContain('Select eligible reviewers from the SOP department. All selected reviewers receive their tasks together.')
     const trigger = html.match(/<input[^>]*role="combobox"[^>]*>/)?.[0]
     expect(trigger).toContain('aria-expanded="false"')
-    const reviewerPanel = html.match(/<ul[^>]*role="listbox"[^>]*>/)?.[0]
-    expect(reviewerPanel).toContain('aria-label="Select Reviewers"')
+    const reviewerPanel = html.match(/<ul[^>]*role="listbox"[^>]*aria-label="Reviewers"[^>]*>/)?.[0]
+    expect(reviewerPanel).toContain('aria-label="Reviewers"')
     expect(reviewerPanel).toContain('hidden=""')
     expect(html).toContain('Reviewer Alpha')
     expect(html).toContain('Reviewer Beta')

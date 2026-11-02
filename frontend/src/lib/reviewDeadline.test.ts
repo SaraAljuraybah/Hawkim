@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { sopWorkflowEn } from '../content/workflow.en'
 import { internalReviewEn } from '../content/internalReview.en'
-import { previewReviewDeadline, ReviewDeadlineUnavailableError, reviewDeadlineFailure } from './reviewDeadline'
+import { previewReviewDeadline, ReviewDeadlineUnavailableError, reviewDeadlineFailure, reviewDueDateIfAcceptedNow } from './reviewDeadline'
+import { formatDateWithWeekday } from './format'
 import { endOfRiyadhDay } from './riyadhWorkingDays'
 
 // Accepted on Thursday 29 October 2026, so working days count from Sunday 1 November.
@@ -54,5 +55,38 @@ describe('the messages', () => {
   it('has the timeline wording', () => {
     expect(sopWorkflowEn.timeline.deadlineChange).toContain('{old}')
     expect(sopWorkflowEn.timeline.deadlineChange).toContain('{new}')
+  })
+})
+
+describe('the Submit for Review estimate', () => {
+  // Tuesday 3 November 2026, 10 PM in Riyadh (still Tuesday there, already Wednesday in UTC+4 and beyond).
+  const tuesday = new Date('2026-11-03T22:00:00+03:00')
+
+  it('counts working days from the Riyadh date, skipping Friday and Saturday', () => {
+    expect(reviewDueDateIfAcceptedNow('2', tuesday)).toBe('2026-11-05')
+    expect(reviewDueDateIfAcceptedNow('3', tuesday)).toBe('2026-11-08')
+    expect(reviewDueDateIfAcceptedNow(' 5 ', tuesday)).toBe('2026-11-10')
+    // Thursday + 1 working day is Sunday.
+    expect(reviewDueDateIfAcceptedNow('1', new Date('2026-11-05T09:00:00+03:00'))).toBe('2026-11-08')
+  })
+
+  it('matches what acceptance saves for the same moment', () => {
+    for (const days of ['1', '4', '60', '3650']) {
+      const thursday = new Date(request.acceptedAt)
+      expect(reviewDueDateIfAcceptedNow(days, thursday)).toBe(previewReviewDeadline(request, days, thursday).dueDate)
+    }
+  })
+
+  it('counts calendar days with the working-day policy off', () => {
+    expect(reviewDueDateIfAcceptedNow('3', tuesday, false)).toBe('2026-11-06')
+  })
+
+  it('gives nothing while the duration is blank or invalid', () => {
+    for (const duration of ['', '  ', '0', '3651', '2.5', '-1', '1e2', 'abc']) expect(reviewDueDateIfAcceptedNow(duration, tuesday)).toBeUndefined()
+  })
+
+  it('reads with its weekday', () => {
+    expect(internalReviewEn.submit.durationDueDate.replace('{date}', formatDateWithWeekday('2026-11-09')))
+      .toBe('If accepted today, the review is due on Mon, Nov 9, 2026.')
   })
 })

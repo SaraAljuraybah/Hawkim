@@ -191,27 +191,31 @@ describe('losing access', () => {
 })
 
 describe('the Submit for Review dialog', () => {
-  it('shows only the SOP\'s department, with no filter, on the first send', () => {
+  const departmentOptions = (html: string) => html.match(/<ul[^>]*aria-label="Department"[^>]*>.*?<\/ul>/)![0]
+    .match(/role="option"[^>]*>([^<]+)/g)!.map((option) => option.replace(/.*>/, ''))
+
+  it('starts on the SOP\'s department, listing every existing one, and shows its reviewers on the first send', () => {
     const html = render(draft())
+    expect(html.match(/<input[^>]*name="reviewDepartment"[^>]*>/)![0]).toContain('value="Home Department"')
+    expect(departmentOptions(html)).toEqual(['Home Department', 'Other Department'])
     for (const name of ['Name h1', 'Name h2']) expect(html).toContain(name)
     for (const name of ['Name o1', 'Name controller', 'Name g1']) expect(html).not.toContain(name)
     expect(html).not.toContain('name="reviewerDepartment"')
-    expect(html).toContain('name="reviewDivision"')
   })
 
-  it('explains why other departments are not offered yet in Add Reviewers', () => {
+  it('explains why other departments\' reviewers are not offered yet in Add Reviewers', () => {
     const html = render(start(), 'add')
     expect(html).toContain('Reviewers from other departments can be added once a reviewer from Home Department has finished this version.')
     expect(html).not.toContain('Name o1')
-    expect(html).not.toContain('name="reviewerDepartment"')
   })
 
-  it('offers a department filter, and shows each reviewer\'s department, once one has finished', () => {
+  it('lists the chosen department\'s reviewers, with their department, once one has finished', () => {
     const html = render(finished(), 'add')
-    const filter = html.match(/<select[^>]*name="reviewerDepartment"[^>]*>.*?<\/select>/)![0]
-    expect(filter.match(/>([^<]+)<\/option>/g)).toEqual(['>All Departments</option>', '>Home Department</option>', '>Other Department</option>'])
-    expect(html).toContain('Name o1')
-    expect(html).toContain('>Other Department</span>')
+    expect(departmentOptions(html)).toEqual(['Home Department', 'Other Department'])
+    // Home Department is chosen: its reviewers only (h1 has finished, so h2 is the one left to add).
+    expect(html).toContain('Name h2')
+    expect(html).toContain('>Home Department</span>')
+    expect(html).not.toContain('Name o1')
     expect(html).not.toContain('has finished this version')
   })
 })

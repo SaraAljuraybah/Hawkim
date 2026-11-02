@@ -35,27 +35,52 @@ beforeEach(() => vi.useFakeTimers({ now: new Date('2026-10-29T09:00:00+03:00') }
 afterEach(() => vi.useRealTimers())
 
 describe('Submit for Review safe frontend presentation', () => {
-  it('locks the division, then the department, before searchable reviewer selection', () => {
+  it('starts the searchable Division, then Department, on the SOP\'s own, before the reviewers', () => {
     const html = render()
     const department = html.match(/<input[^>]*name="reviewDepartment"[^>]*>/)![0]
     const division = html.match(/<input[^>]*name="reviewDivision"[^>]*>/)![0]
-    expect(department).toContain('readOnly=""')
+    for (const input of [division, department]) {
+      expect(input).toContain('role="combobox"')
+      expect(input).not.toContain('readOnly')
+    }
     expect(department).toContain('value="Home Department"')
-    expect(division).toContain('readOnly=""')
     expect(division).toContain('value="configured-division"')
+    expect(html).toContain('aria-label="Show divisions"')
+    expect(html).toContain('aria-label="Show departments"')
     expect(html.indexOf('name="reviewDivision"')).toBeLessThan(html.indexOf('name="reviewDepartment"'))
-    expect(html.indexOf('name="reviewDepartment"')).toBeLessThan(html.indexOf('role="combobox"'))
-    expect(html).not.toContain('Cross-department requests')
-    expect(html).not.toContain('Division selection')
+    expect(html.indexOf('name="reviewDepartment"')).toBeLessThan(html.indexOf('Search reviewers by name…'))
+    // The department list holds the chosen division's departments; no separate reviewer department filter.
     expect(html).not.toContain('Other Department')
+    expect(html).not.toContain('Reviewer Department')
+    expect(html).not.toContain('All Departments')
   })
 
-  it('does not invent divisions when none is configured', () => {
+  it('offers "No Division" for a department without one', () => {
     const configured = fixture.departments[0].divisionId
     try {
       delete fixture.departments[0].divisionId
-      expect(render()).toContain(`value="${internalReviewEn.submit.noDivision}"`)
+      const html = render()
+      expect(html.match(/<input[^>]*name="reviewDivision"[^>]*>/)![0]).toContain(`value="${internalReviewEn.submit.noDivision}"`)
+      // Both departments are without a division now, so both are listed.
+      expect(html).toContain('Other Department')
     } finally { fixture.departments[0].divisionId = configured }
+  })
+
+  it('labels the reviewer picker visibly and gives it a chevron that opens the list', () => {
+    const html = render()
+    const input = html.match(/<input[^>]*placeholder="Search reviewers by name…"[^>]*>/)![0]
+    const label = html.match(/<label[^>]*for="([^"]+)"[^>]*>Reviewers<\/label>/)!
+    expect(label[0]).not.toContain('sr-only')
+    expect(input).toContain(`id="${label[1]}"`)
+    const toggle = html.match(/<button[^>]*aria-label="Show reviewers"[^>]*>/)![0]
+    expect(toggle).toContain('tabindex="-1"')
+    expect(toggle).toContain(`aria-controls="${input.match(/aria-controls="([^"]+)"/)![1]}"`)
+  })
+
+  it('keeps the due date preview empty, in a polite live region, until a valid duration is typed', () => {
+    const html = render()
+    expect(html).toMatch(/<p aria-live="polite" class="[^"]*"><\/p>/)
+    expect(html).not.toContain('If accepted today')
   })
 
   it('exposes only eligible reviewer options in an accessible searchable picker', () => {

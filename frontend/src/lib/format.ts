@@ -12,6 +12,17 @@ export function formatDate(isoDate: string, locale = 'en-US'): string {
   }).format(new Date(isoDate))
 }
 
+/** A date-only value with its weekday, e.g. "Mon, Nov 9, 2026" (in UTC, as formatDate). */
+export function formatDateWithWeekday(isoDate: string, locale = 'en-US'): string {
+  return new Intl.DateTimeFormat(locale, {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    timeZone: 'UTC',
+  }).format(new Date(isoDate))
+}
+
 /** Today's date in the user's local time zone as an ISO date ("2024-01-12"). */
 export function todayIsoDate(date = new Date()): string {
   const month = String(date.getMonth() + 1).padStart(2, '0')

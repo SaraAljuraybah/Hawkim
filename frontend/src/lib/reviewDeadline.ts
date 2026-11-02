@@ -1,5 +1,5 @@
 import type { InternalReviewerAssignment } from '../data/mock/types'
-import { isValidReviewDuration, REVIEW_DURATION_CONFIRM_ABOVE, requestDeadline } from './internalReviewStatus'
+import { isValidReviewDuration, REVIEW_DURATION_CONFIRM_ABOVE, requestDeadline, reviewDueDateFrom } from './internalReviewStatus'
 import { endOfRiyadhDay, reviewWorkingDueDateFrom } from './riyadhWorkingDays'
 
 /** The database refused a change of deadline: this tab was behind (the reviewer finished, say). */
@@ -8,6 +8,23 @@ export class ReviewDeadlineUnavailableError extends Error {}
 /** Which message explains why a deadline wasn't changed. */
 export function reviewDeadlineFailure(error: unknown): 'unavailable' | 'failed' {
   return error instanceof ReviewDeadlineUnavailableError ? 'unavailable' : 'failed'
+}
+
+/** A typed review duration as a valid number of days, or undefined while it is blank or invalid. */
+function durationDays(duration: string): number | undefined {
+  const trimmed = duration.trim()
+  const days = /^\d+$/.test(trimmed) ? Number(trimmed) : undefined
+  return days !== undefined && isValidReviewDuration(days) ? days : undefined
+}
+
+/**
+ * Submit for Review's estimate: the last day of the review if the reviewer accepted the request now,
+ * counted as accept_review will (working days from the Riyadh date of acceptance, that date not
+ * counted; calendar days with the working-day policy off). Undefined while the duration is blank or invalid.
+ */
+export function reviewDueDateIfAcceptedNow(duration: string, now = new Date(), workingDays = true): string | undefined {
+  const days = durationDays(duration)
+  return days === undefined ? undefined : (workingDays ? reviewWorkingDueDateFrom : reviewDueDateFrom)(now.toISOString(), days)
 }
 
 export interface ReviewDeadlinePreview {
@@ -30,9 +47,8 @@ export function previewReviewDeadline(
   duration: string,
   now = new Date(),
 ): ReviewDeadlinePreview {
-  const trimmed = duration.trim()
-  const days = /^\d+$/.test(trimmed) ? Number(trimmed) : undefined
-  if (days === undefined || !isValidReviewDuration(days) || !request.acceptedAt) return { problem: 'invalid', shorter: false, long: false }
+  const days = durationDays(duration)
+  if (days === undefined || !request.acceptedAt) return { problem: 'invalid', shorter: false, long: false }
   const dueDate = reviewWorkingDueDateFrom(request.acceptedAt, days)
   const dueAt = endOfRiyadhDay(dueDate)
   const due = new Date(dueAt).getTime()

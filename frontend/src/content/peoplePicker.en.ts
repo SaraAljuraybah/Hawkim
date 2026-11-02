@@ -12,4 +12,5 @@ export const peoplePickerEn: PeoplePickerContent = {
   remove: 'Remove {name}',
   added: '{name} added.',
   removed: '{name} removed.',
+  toggle: 'Show people',
 }
