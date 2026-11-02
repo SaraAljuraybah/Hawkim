@@ -18,22 +18,68 @@ export const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 export interface NewUser {
   name: string
   email: string
-  departmentId: DepartmentId | ''
+  /** As typed; saved normalised (see normalizePhone). */
+  phone: string
+  /** Job title, free text. */
+  position: string
+  /** A division, NO_DIVISION, or '' while none is chosen. */
   divisionId?: string
+  departmentId: DepartmentId | ''
   permissions: Permission[]
 }
 
-export type NewUserField = 'name' | 'email' | 'departmentId' | 'divisionId'
-export type NewUserProblem = 'name-required' | 'email-invalid' | 'email-taken' | 'department-required' | 'division-required'
+export type NewUserField = 'name' | 'email' | 'phone' | 'divisionId' | 'departmentId' | 'position'
+export type NewUserProblem =
+  | 'name-required' | 'email-invalid' | 'email-taken' | 'phone-required' | 'phone-invalid'
+  | 'division-required' | 'department-required' | 'position-required' | 'position-too-long'
 
-/** The divisions a user of this department can be in: its division, if one is set. */
-export function divisionsOf(department: Pick<Department, 'divisionId'> | undefined): string[] {
-  return department?.divisionId ? [department.divisionId] : []
+/** Longest position (job title), in characters; the database checks the same limit. */
+export const POSITION_MAX = 100
+
+/**
+ * A Saudi mobile number as stored: "05XXXXXXXX" or "+9665XXXXXXXX" (spaces allowed) becomes
+ * "+9665XXXXXXXX". Null when it isn't one of those.
+ */
+export function normalizePhone(raw: string): string | null {
+  const digits = raw.replace(/\s+/g, '').match(/^(?:05|\+9665)(\d{8})$/)
+  return digits ? `+9665${digits[1]}` : null
 }
 
-/** What is wrong with each field (nothing for a valid user). Email must be unique among active users, ignoring case; the division is required only where the department has one. */
+/** The Division choice for departments that have none. */
+export const NO_DIVISION = '__no-division__'
+
+/**
+ * The divisions to choose from: each division of these departments, by name, then NO_DIVISION
+ * when some department has none.
+ */
+export function divisionOptions(departments: Pick<Department, 'divisionId'>[]): string[] {
+  const divisions = [...new Set(departments.flatMap((department) => (department.divisionId ? [department.divisionId] : [])))]
+  divisions.sort((a, b) => a.localeCompare(b, 'en'))
+  return departments.some((department) => !department.divisionId) ? [...divisions, NO_DIVISION] : divisions
+}
+
+/** The Division chosen from the start: NO_DIVISION when it is the only choice, otherwise none. */
+export function defaultDivision(departments: Pick<Department, 'divisionId'>[]): string {
+  const options = divisionOptions(departments)
+  return options.length === 1 && options[0] === NO_DIVISION ? NO_DIVISION : ''
+}
+
+/** The departments in this division (NO_DIVISION: those without one; '': none yet). */
+export function departmentsInDivision<T extends Pick<Department, 'divisionId'>>(departments: T[], division: string): T[] {
+  if (!division) return []
+  return departments.filter((department) => (division === NO_DIVISION ? !department.divisionId : department.divisionId === division))
+}
+
+/**
+ * What is wrong with each field (nothing for a valid user). Email must be unique among active
+ * users, ignoring case; a division must be chosen (NO_DIVISION counts) and the department must be
+ * in it; phone must be a Saudi mobile number; position is required, up to POSITION_MAX characters.
+ */
 export function validateNewUser(user: NewUser, activeUsers: User[], departments: Pick<Department, 'id' | 'divisionId'>[] = []): Partial<Record<NewUserField, NewUserProblem>> {
   const email = user.email.trim().toLowerCase()
+  const position = user.position.trim()
+  const department = departments.find((item) => item.id === user.departmentId)
+  const outsideDivision = !!department && !!user.divisionId && departmentsInDivision([department], user.divisionId).length === 0
   return {
     name: user.name.trim() ? undefined : 'name-required',
     email: !EMAIL_PATTERN.test(email)
@@ -41,9 +87,10 @@ export function validateNewUser(user: NewUser, activeUsers: User[], departments:
       : activeUsers.some((other) => other.email.toLowerCase() === email)
         ? 'email-taken'
         : undefined,
-    departmentId: user.departmentId ? undefined : 'department-required',
-    // Only a department with a division needs one.
-    divisionId: !user.divisionId && divisionsOf(departments.find((department) => department.id === user.departmentId)).length > 0 ? 'division-required' : undefined,
+    phone: !user.phone.trim() ? 'phone-required' : normalizePhone(user.phone) ? undefined : 'phone-invalid',
+    divisionId: user.divisionId ? undefined : 'division-required',
+    departmentId: user.departmentId && !outsideDivision ? undefined : 'department-required',
+    position: !position ? 'position-required' : position.length > POSITION_MAX ? 'position-too-long' : undefined,
   }
 }
 

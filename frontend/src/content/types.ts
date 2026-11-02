@@ -188,7 +188,7 @@ export interface ProfileContent {
   /** Browser tab title. */
   pageTitle: string
   title: string
-  fields: { name: string; email: string; department: string; division: string; roles: string }
+  fields: { name: string; email: string; phone: string; position: string; division: string; department: string; roles: string }
   /** Shown when a value isn't set. */
   none: string
   roles: { author: string; reviewer: string; approver: string }
@@ -1448,8 +1448,12 @@ export interface AdminAddUserContent {
   back: LinkContent
   name: { label: string }
   email: { label: string; hint: string }
-  department: { label: string; placeholder: string }
-  division: { label: string; placeholder: string; selectDepartmentFirst: string; none: string }
+  phone: { label: string; hint: string }
+  /** Searchable list of divisions; `noDivision` is the choice for departments without one. */
+  division: { label: string; placeholder: string; noDivision: string; toggle: string; noMatches: string }
+  /** Searchable list of the chosen division's departments. */
+  department: { label: string; placeholder: string; selectDivisionFirst: string; toggle: string; noMatches: string }
+  position: { label: string; hint: string }
   permissions: { legend: string }
   submit: string
   cancel: string
@@ -1457,8 +1461,13 @@ export interface AdminAddUserContent {
     nameRequired: string
     emailInvalid: string
     emailTaken: string
-    departmentRequired: string
+    phoneRequired: string
+    phoneInvalid: string
     divisionRequired: string
+    departmentRequired: string
+    positionRequired: string
+    /** `{max}` is replaced. */
+    positionTooLong: string
   }
 }
 
@@ -1469,9 +1478,13 @@ export interface AdminUserDetailsContent {
   details: {
     title: string
     email: string
-    homeDepartment: string
+    phone: string
+    position: string
     division: string
+    homeDepartment: string
     noDivision: string
+    /** Shown for a phone number or position that isn't set. */
+    notSet: string
     directoryAccess: string
     directoryHint: string
     none: string

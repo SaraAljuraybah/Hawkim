@@ -1,42 +1,45 @@
-import type { FocusEventHandler, Ref } from 'react'
+import type { RefObject } from 'react'
 import type { AdminAddUserContent } from '../../content/types'
 import type { Department } from '../../data/mock/types'
-import { divisionsOf } from '../../lib/userAdmin'
-import { SelectField } from '../ui/SelectField'
+import { divisionOptions, NO_DIVISION } from '../../lib/userAdmin'
+import { SelectCombobox } from '../ui/SelectCombobox'
 
 interface DivisionFieldProps {
-  /** The selected department, if any. */
-  department?: Department
+  /** The departments a user can join (each division among them is a choice). */
+  departments: Pick<Department, 'divisionId'>[]
   content: AdminAddUserContent['division']
+  /** A division, NO_DIVISION or ''. */
   value: string
   error?: string
-  onChange: (divisionId: string) => void
-  onBlur?: FocusEventHandler<HTMLSelectElement>
-  ref?: Ref<HTMLSelectElement>
+  onChange: (division: string) => void
+  onBlur?: (division: string) => void
+  inputRef?: RefObject<HTMLInputElement | null>
   className?: string
 }
 
 /**
- * The division of the selected department. Disabled until a department is selected, and for a
- * department without a division, where it isn't required.
+ * The required Division of a new user, chosen before the department: a searchable list of the
+ * departments' divisions, plus "No Division" for departments without one.
  */
-export function DivisionField({ department, content, value, error, onChange, onBlur, ref, className }: DivisionFieldProps) {
-  const divisions = divisionsOf(department)
-  const required = divisions.length > 0
-  const placeholder = !department ? content.selectDepartmentFirst : required ? content.placeholder : content.none
+export function DivisionField({ departments, content, value, error, onChange, onBlur, inputRef, className }: DivisionFieldProps) {
+  const options = divisionOptions(departments).map((division) => ({
+    value: division,
+    label: division === NO_DIVISION ? content.noDivision : division,
+  }))
   return (
-    <SelectField
-      ref={ref}
+    <SelectCombobox
+      inputRef={inputRef}
       name="division"
       label={content.label}
-      placeholder={placeholder}
-      options={divisions.map((division) => ({ value: division, label: division }))}
+      placeholder={content.placeholder}
+      options={options}
       value={value}
       error={error}
-      disabled={!required}
-      required={required}
-      requiredMark={required}
-      onChange={(event) => onChange(event.target.value)}
+      required
+      requiredMark
+      toggleLabel={content.toggle}
+      noMatchesText={content.noMatches}
+      onChange={onChange}
       onBlur={onBlur}
       className={className}
     />

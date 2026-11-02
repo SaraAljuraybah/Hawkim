@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { Permission, Sop, User } from '../data/mock/types'
 import type { SopStatus } from '../types/status'
-import { deleteBlockers, divisionsOf, permissionChangeBlockers, validateNewUser, type AdminContext } from './userAdmin'
+import { defaultDivision, deleteBlockers, departmentsInDivision, divisionOptions, NO_DIVISION, normalizePhone, permissionChangeBlockers, POSITION_MAX, validateNewUser, type AdminContext } from './userAdmin'
 
 /** A user in IT with these permissions. */
 function user(id: string, permissions: Permission[]): User {
@@ -169,45 +169,101 @@ describe('deleting users', () => {
 })
 
 describe('the division of a new user', () => {
-  const user = { name: 'Rana', email: 'rana@hawkim.demo', departmentId: 'home', permissions: [] }
-  const departments = [{ id: 'home', divisionId: 'Medical Division' }, { id: 'plain' }]
+  const user = { name: 'Rana', email: 'rana@hawkim.demo', phone: '0512345678', position: 'Analyst', departmentId: 'home', permissions: [] }
+  const departments = [{ id: 'home', divisionId: 'Medical Division' }, { id: 'plain' }, { id: 'lab', divisionId: 'Clinical Division' }]
 
-  it('is required only where the department has one', () => {
+  it('lists each division by name, then No Division for departments without one', () => {
+    expect(divisionOptions(departments)).toEqual(['Clinical Division', 'Medical Division', NO_DIVISION])
+    expect(divisionOptions([{ divisionId: 'Medical Division' }, { divisionId: 'Medical Division' }])).toEqual(['Medical Division'])
+    expect(divisionOptions([])).toEqual([])
+  })
+
+  it('chooses No Division from the start only when it is the only choice', () => {
+    expect(defaultDivision([{}, {}])).toBe(NO_DIVISION)
+    expect(defaultDivision(departments)).toBe('')
+    expect(defaultDivision([{ divisionId: 'Medical Division' }])).toBe('')
+    expect(defaultDivision([])).toBe('')
+  })
+
+  it('lists only the departments of the chosen division, none until one is chosen', () => {
+    expect(departmentsInDivision(departments, 'Medical Division').map((item) => item.id)).toEqual(['home'])
+    expect(departmentsInDivision(departments, NO_DIVISION).map((item) => item.id)).toEqual(['plain'])
+    expect(departmentsInDivision(departments, '')).toEqual([])
+  })
+
+  it('is always required, No Division included', () => {
     expect(validateNewUser(user, [], departments).divisionId).toBe('division-required')
     expect(validateNewUser({ ...user, divisionId: '' }, [], departments).divisionId).toBe('division-required')
     expect(validateNewUser({ ...user, divisionId: 'Medical Division' }, [], departments).divisionId).toBeUndefined()
+    expect(Object.values(validateNewUser({ ...user, departmentId: 'plain', divisionId: NO_DIVISION }, [], departments)).filter(Boolean)).toEqual([])
   })
 
-  it('leaves a department without a division exactly as before', () => {
-    expect(Object.values(validateNewUser({ ...user, departmentId: 'plain' }, [], departments)).filter(Boolean)).toEqual([])
-    expect(Object.values(validateNewUser({ ...user, departmentId: 'plain', divisionId: '' }, [], departments)).filter(Boolean)).toEqual([])
+  it('refuses a department outside the chosen division', () => {
+    expect(validateNewUser({ ...user, divisionId: 'Clinical Division' }, [], departments).departmentId).toBe('department-required')
+    expect(validateNewUser({ ...user, departmentId: 'home', divisionId: NO_DIVISION }, [], departments).departmentId).toBe('department-required')
+    expect(validateNewUser({ ...user, departmentId: 'plain', divisionId: 'Medical Division' }, [], departments).departmentId).toBe('department-required')
+  })
+})
+
+describe('the phone number of a new user', () => {
+  it('accepts a Saudi mobile number in either format, with spaces, and stores it as +9665XXXXXXXX', () => {
+    expect(normalizePhone('0512345678')).toBe('+966512345678')
+    expect(normalizePhone('05 1234 5678')).toBe('+966512345678')
+    expect(normalizePhone('+966512345678')).toBe('+966512345678')
+    expect(normalizePhone(' +966 51 234 5678 ')).toBe('+966512345678')
   })
 
-  it('lists only the department\'s division', () => {
-    expect(divisionsOf({ divisionId: 'Medical Division' })).toEqual(['Medical Division'])
-    expect(divisionsOf({})).toEqual([])
-    expect(divisionsOf(undefined)).toEqual([])
+  it('refuses anything else', () => {
+    for (const phone of ['', '0412345678', '051234567', '05123456789', '966512345678', '+9660512345678', '+966412345678', '05-1234-5678', '05123456ab']) {
+      expect(normalizePhone(phone)).toBeNull()
+    }
+  })
+
+  it('is required and must be valid', () => {
+    const user = { name: 'Rana', email: 'rana@hawkim.demo', position: 'Analyst', departmentId: 'home', divisionId: NO_DIVISION, permissions: [] }
+    expect(validateNewUser({ ...user, phone: '  ' }, []).phone).toBe('phone-required')
+    expect(validateNewUser({ ...user, phone: '12345' }, []).phone).toBe('phone-invalid')
+    expect(validateNewUser({ ...user, phone: '05 1234 5678' }, []).phone).toBeUndefined()
+  })
+})
+
+describe('the position of a new user', () => {
+  const user = { name: 'Rana', email: 'rana@hawkim.demo', phone: '0512345678', departmentId: 'home', divisionId: NO_DIVISION, permissions: [] }
+
+  it('is required', () => {
+    expect(validateNewUser({ ...user, position: '' }, []).position).toBe('position-required')
+    expect(validateNewUser({ ...user, position: '   ' }, []).position).toBe('position-required')
+  })
+
+  it('allows up to 100 characters, ignoring surrounding spaces', () => {
+    expect(POSITION_MAX).toBe(100)
+    expect(validateNewUser({ ...user, position: ` ${'a'.repeat(100)} ` }, []).position).toBeUndefined()
+    expect(validateNewUser({ ...user, position: 'a'.repeat(101) }, []).position).toBe('position-too-long')
   })
 })
 
 describe('validateNewUser', () => {
   const active = [sara]
+  const valid = { name: 'Rana', email: 'rana@hawkim.demo', phone: '0512345678', position: 'Analyst', departmentId: 'finance-administration', divisionId: NO_DIVISION, permissions: [] }
 
-  it('requires a name, a valid email and a department', () => {
-    expect(validateNewUser({ name: '  ', email: 'rana@', departmentId: '', permissions: [] }, active)).toEqual({
+  it('requires a name, a valid email, a phone number, a division, a department and a position', () => {
+    expect(validateNewUser({ name: '  ', email: 'rana@', phone: '', position: '', departmentId: '', permissions: [] }, active)).toEqual({
       name: 'name-required',
       email: 'email-invalid',
+      phone: 'phone-required',
+      divisionId: 'division-required',
       departmentId: 'department-required',
+      position: 'position-required',
     })
   })
 
   it('refuses an email an active user already has, ignoring case', () => {
-    const problems = validateNewUser({ name: 'Rana', email: 'SARA@hawkim.demo', departmentId: 'finance-administration', permissions: [] }, active)
+    const problems = validateNewUser({ ...valid, email: 'SARA@hawkim.demo' }, active)
     expect(problems.email).toBe('email-taken')
   })
 
   it('accepts a valid user with no permissions', () => {
-    const problems = validateNewUser({ name: 'Rana', email: 'rana@hawkim.demo', departmentId: 'finance-administration', permissions: [] }, active)
+    const problems = validateNewUser(valid, active)
     expect(Object.values(problems).filter(Boolean)).toEqual([])
   })
 })

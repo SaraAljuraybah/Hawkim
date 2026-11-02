@@ -4,6 +4,8 @@ import type { Permission, User } from '../data/mock/types'
 import {
   deleteBlockers,
   initialsOf,
+  NO_DIVISION,
+  normalizePhone,
   PERMISSIONS,
   permissionChangeBlockers,
   validateNewUser,
@@ -66,7 +68,9 @@ export function UsersProvider({ children }: { children: ReactNode }) {
         email: input.email.trim(),
         initials: initialsOf(name),
         departmentId: input.departmentId,
-        ...(input.divisionId ? { divisionId: input.divisionId } : {}),
+        ...(input.divisionId && input.divisionId !== NO_DIVISION ? { divisionId: input.divisionId } : {}),
+        phone: normalizePhone(input.phone) ?? '',
+        position: input.position.trim(),
         // Kept in display order, without duplicates.
         permissions: PERMISSIONS.filter((permission) => input.permissions.includes(permission)),
       }
