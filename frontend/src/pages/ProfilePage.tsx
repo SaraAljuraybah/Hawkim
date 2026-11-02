@@ -21,8 +21,10 @@ export function ProfilePage() {
   const details = [
     [content.fields.name, user.name],
     [content.fields.email, user.email],
-    [content.fields.department, homeDepartment.name],
+    [content.fields.phone, user.phone || content.none],
+    [content.fields.position, user.position || content.none],
     [content.fields.division, homeDepartment.divisionId || content.none],
+    [content.fields.department, homeDepartment.name],
     [content.fields.roles, roles.join(', ') || content.none],
   ]
   const failures: Record<PasswordEmailFailureReason, string> = {

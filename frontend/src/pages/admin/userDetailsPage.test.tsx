@@ -15,6 +15,7 @@ vi.mock('../../state/departmentsContext', () => ({ useDepartments: () => ({ acti
 
 const render = () => renderToStaticMarkup(<MemoryRouter initialEntries={['/admin/users/rana']}><Routes><Route path="/admin/users/:id" element={<UserDetailsPage />} /></Routes></MemoryRouter>)
 const division = (html: string) => html.match(/<dt[^>]*>Division<\/dt><dd[^>]*>([^<]*)</)![1]
+const detail = (html: string, label: string) => html.match(new RegExp(`<dt[^>]*>${label}</dt><dd[^>]*>([^<]*)<`))![1]
 
 beforeEach(() => { fixture.user = { id: 'rana', name: 'Rana', email: 'rana@example.test', initials: 'RA', departmentId: 'home', permissions: ['author'] } })
 
@@ -26,19 +27,36 @@ describe('a user\'s details page', () => {
     expect(render()).not.toContain('name="division"')
   })
 
-  it('calls the permissions section Role', () => {
+  it('shows the phone number and position read-only, and — without them', () => {
+    expect(detail(render(), 'Phone Number')).toBe('—')
+    expect(detail(render(), 'Position')).toBe('—')
+    fixture.user = { ...fixture.user!, phone: '+966512345678', position: 'Regulatory Specialist' }
     const html = render()
-    expect(html).toContain('>Role<')
-    expect(html).toContain('Role of Rana')
-    expect(html).toContain('>Save Role<')
+    expect(detail(html, 'Phone Number')).toBe('+966512345678')
+    expect(detail(html, 'Position')).toBe('Regulatory Specialist')
+    expect(html).not.toContain('name="phone"')
+    expect(html).not.toContain('name="position"')
+  })
+
+  it('lists Email, Phone Number, Position, Division, then Home Department', () => {
+    const labels = [...render().matchAll(/<dt[^>]*>([^<]+)<\/dt>/g)].map((match) => match[1])
+    expect(labels.slice(0, 5)).toEqual(['Email', 'Phone Number', 'Position', 'Division', 'Home Department'])
+  })
+
+  it('calls the permissions section Permission', () => {
+    const html = render()
+    expect(html).toContain('>Permission<')
+    expect(html).toContain('Permission of Rana')
+    expect(html).toContain('>Save Permission<')
+    expect(html).not.toContain('>Role<')
     expect(html).not.toContain('Permissions')
   })
 })
 
-describe('the Role wording', () => {
-  it('reads Role on the details page messages and the Users list', () => {
-    expect(adminEn.userDetails.permissions).toMatchObject({ saved: 'Role updated.', refused: "Role wasn't saved:" })
-    expect(adminEn.usersList.permissionFilter).toEqual({ label: 'Role', all: 'All Roles' })
-    expect(adminEn.usersList.columns.permissions).toBe('Role')
+describe('the Permission wording', () => {
+  it('reads Permission on the details page messages and the Users list', () => {
+    expect(adminEn.userDetails.permissions).toMatchObject({ saved: 'Permission updated.', refused: "Permission wasn't saved:" })
+    expect(adminEn.usersList.permissionFilter).toEqual({ label: 'Permission', all: 'All Permissions' })
+    expect(adminEn.usersList.columns.permissions).toBe('Permission')
   })
 })

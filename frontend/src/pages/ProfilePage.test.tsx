@@ -20,16 +20,36 @@ vi.mock('../components/layout/DepartmentSwitcher', () => ({ DepartmentSwitcher: 
 
 const render = () => renderToStaticMarkup(<MemoryRouter><ProfilePage /></MemoryRouter>)
 
-beforeEach(() => { fixture.home.divisionId = undefined })
+beforeEach(() => {
+  fixture.home.divisionId = undefined
+  fixture.user = { ...fixture.user, phone: undefined, position: undefined }
+})
 
 describe('My Profile', () => {
   it('shows the user\'s own information from their home department, in one h1 page', () => {
     const html = render()
-    for (const text of ['Name', 'Sara Aljuraybah', 'Email', 'sara@example.test', 'Department', 'Pharmacovigilance', 'Division', 'Role', 'Author, Reviewer']) expect(html).toContain(`>${text}<`)
+    for (const text of ['Name', 'Sara Aljuraybah', 'Email', 'sara@example.test', 'Department', 'Pharmacovigilance', 'Division', 'Permission', 'Author, Reviewer']) expect(html).toContain(`>${text}<`)
     expect(html).not.toContain('Your Information')
+    expect(html).not.toContain('>Role<')
     expect(html).not.toContain('>Roles<')
     expect(html.match(/<h1/g)).toHaveLength(1)
     expect(html).not.toContain('Another Directory')
+    expect(html).not.toContain('<input')
+  })
+
+  it('lists Name, Email, Phone Number, Position, Division, Department, then Permission', () => {
+    const labels = [...render().matchAll(/<dt[^>]*>([^<]+)<\/dt>/g)].map((match) => match[1])
+    expect(labels).toEqual(['Name', 'Email', 'Phone Number', 'Position', 'Division', 'Department', 'Permission'])
+  })
+
+  it('shows the phone number and position read-only, and — without them', () => {
+    const value = (html: string, label: string) => html.match(new RegExp(`<dt[^>]*>${label}</dt><dd[^>]*>([^<]*)<`))![1]
+    expect(value(render(), 'Phone Number')).toBe('—')
+    expect(value(render(), 'Position')).toBe('—')
+    fixture.user = { ...fixture.user, phone: '+966500000001', position: 'Pharmacovigilance Specialist' }
+    const html = render()
+    expect(value(html, 'Phone Number')).toBe('+966500000001')
+    expect(value(html, 'Position')).toBe('Pharmacovigilance Specialist')
     expect(html).not.toContain('<input')
   })
 
