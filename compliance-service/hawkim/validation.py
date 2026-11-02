@@ -21,7 +21,7 @@ LABEL_ALIASES = {
     "NOT_ADDRESSED": "NOT_ADDRESSED", "NOTADDRESSED": "NOT_ADDRESSED",
 }
 
-REQUIRED_FIELDS = ["label", "sop_evidence", "requirement_evidence", "justification"]
+REQUIRED_FIELDS = ["label", "sop_evidence", "justification"]   # requirement_evidence is optional (no longer asked for)
 
 
 def normalize_label(value) -> str | None:

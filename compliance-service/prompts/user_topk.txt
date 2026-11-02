@@ -15,8 +15,7 @@ Return this JSON object:
   "requirement_id": "ID of the chosen candidate, or NONE",
   "label": "COMPLIANT | PARTIAL | CONFLICT | NOT_ADDRESSED",
   "sop_evidence": "exact sentence(s) copied from the SOP passage that support the label, or an empty string if none",
-  "requirement_evidence": "exact sentence(s) copied from the chosen requirement that the label is based on",
   "missing_or_conflicting_elements": "essential elements that are missing or contradicted, or an empty string",
   "recommended_action": "one sentence telling the SOP author what to add or change, or an empty string if COMPLIANT",
-  "justification": "two or three sentences explaining the label"
+  "justification": "one or two short sentences explaining the label"
 }

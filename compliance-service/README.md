@@ -46,8 +46,11 @@ cp .env.example .env                   # fill in as agreed with the database own
 2. **GVP index:** put the guideline PDF in `data/gvp/Drug-GVP4.pdf` and run `python run.py index`
    (about 8 minutes on a CPU), or copy an `index/` folder built before. For this first run, set
    `HF_HUB_OFFLINE=0` so BGE-M3 can be downloaded; afterwards keep it at `1`.
-3. **Ollama context:** start Ollama with a larger window so long prompts are not cut:
-   `OLLAMA_CONTEXT_LENGTH=8192 ollama serve` (PowerShell: `$env:OLLAMA_CONTEXT_LENGTH="8192"; ollama serve`).
+3. **Ollama settings:** a 4096-token window fits every prompt and answer; flash attention and an 8-bit
+   working memory use less graphics memory, so more of the model runs on the GPU (faster). On Windows,
+   set them once and restart the Ollama app:
+   `setx OLLAMA_CONTEXT_LENGTH 4096`, `setx OLLAMA_FLASH_ATTENTION 1`, `setx OLLAMA_KV_CACHE_TYPE q8_0`.
+   While a check runs, `ollama ps` shows how much of the model is on the GPU.
 4. **Start the worker** and keep it running while the website is used:
 
 ```bash
