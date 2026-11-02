@@ -83,8 +83,9 @@ export function SelectCombobox({
         next = match.value
         onChange(match.value)
         setQuery(null)
-      } else if (!search) setQuery(null)
-      // Otherwise the text stays, so the admin sees what they typed; nothing is chosen.
+      } else if (!search || value) setQuery(null)
+      // Otherwise the text stays, so the admin sees what they typed; nothing is chosen. A value still
+      // chosen means the form kept it (it refused the change), so its name shows again.
     }
     onBlur?.(next)
   }
