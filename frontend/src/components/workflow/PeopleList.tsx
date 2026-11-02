@@ -56,8 +56,7 @@ export function PeopleList({
   const empty = (text: string) => <p className="text-sm text-text-gray">{text}</p>
 
   return (
-    // The author's Authors section stacks its groups so co-author rows span the full width.
-    <div className={authorsOnly ? 'space-y-6' : 'grid gap-6 sm:grid-cols-2'}>
+    <div className="grid gap-6 sm:grid-cols-2">
       <Group title={authorsOnly ? content.mainAuthor : content.author}>
         <p className="text-[0.9375rem] text-maroon">{sop.authorId && name(sop.authorId)}</p>
       </Group>
@@ -71,7 +70,7 @@ export function PeopleList({
               <li key={id} className={authorsOnly ? 'flex items-center justify-between gap-3' : rowClasses}>
                 <span className="min-w-0 break-words text-[0.9375rem] text-maroon">{name(id)}</span>
                 {canManageCoAuthors && (
-                  // From md up, the same 80px centred slot as SOP history's Delete column, so the icons line up.
+                  // Co-authors is the right-hand column, so from md up this 80px centred slot lines up with SOP history's Delete column.
                   <span className="shrink-0 md:flex md:w-20 md:justify-center">
                     <IconButton
                       label={content.removeLabel.replace('{name}', nameOf(id))}

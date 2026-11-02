@@ -36,9 +36,9 @@ describe('remove co-author button', () => {
     button.props.onClick({ currentTarget: trigger } as MouseEvent<HTMLButtonElement>)
     expect(onRemove).toHaveBeenCalledWith('coauthor', trigger)
   })
-  it('sits at the right of a full-width row, in a slot as wide as the SOP history Delete column', () => {
+  it('sits at the right of a full-width row in the Co-authors column, in a slot as wide as the SOP history Delete column', () => {
     const html = renderToStaticMarkup(<PeopleList {...props} canManageCoAuthors onRemoveCoAuthor={() => {}} />)
-    expect(html).toMatch(/^<div class="space-y-6">/)
+    expect(html).toMatch(/^<div class="grid gap-6 sm:grid-cols-2">/)
     expect(html).toContain('<li class="flex items-center justify-between gap-3">')
     expect(html).toContain('md:w-20 md:justify-center')
     expect(html).not.toContain(sopWorkflowEn.people.addAuthor)
