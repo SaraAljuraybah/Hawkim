@@ -21,6 +21,8 @@ export interface User {
   initials: string
   /** The user's home department. */
   departmentId: DepartmentId
+  /** The division of that department, when it has one. */
+  divisionId?: string
   permissions: Permission[]
   /**
    * Set when an admin deletes the user (ISO date and time). Deleted users can't

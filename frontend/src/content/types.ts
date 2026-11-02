@@ -1448,7 +1448,8 @@ export interface AdminAddUserContent {
   name: { label: string }
   email: { label: string; hint: string }
   department: { label: string; placeholder: string }
-  permissions: { legend: string; hint: string }
+  division: { label: string; placeholder: string; selectDepartmentFirst: string; none: string }
+  permissions: { legend: string }
   submit: string
   cancel: string
   errors: {
@@ -1456,6 +1457,7 @@ export interface AdminAddUserContent {
     emailInvalid: string
     emailTaken: string
     departmentRequired: string
+    divisionRequired: string
   }
 }
 
@@ -1467,6 +1469,8 @@ export interface AdminUserDetailsContent {
     title: string
     email: string
     homeDepartment: string
+    division: string
+    noDivision: string
     directoryAccess: string
     directoryHint: string
     none: string

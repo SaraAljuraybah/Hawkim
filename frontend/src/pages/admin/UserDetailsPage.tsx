@@ -156,6 +156,7 @@ function UserPanels({ user }: { user: User }) {
   const details = [
     { label: text.details.email, value: <span className="break-all">{user.email}</span> },
     { label: text.details.homeDepartment, value: departmentName(user.departmentId) },
+    { label: text.details.division, value: user.divisionId || text.details.noDivision },
     {
       label: text.details.directoryAccess,
       value: directoryAccess.length > 0 ? directoryAccess.map((department) => department.name).join(', ') : text.details.none,

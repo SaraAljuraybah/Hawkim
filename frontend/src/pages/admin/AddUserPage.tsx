@@ -2,6 +2,7 @@ import { useRef, useState, type FormEvent } from 'react'
 import { flushSync } from 'react-dom'
 import { Link, useNavigate } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
+import { DivisionField } from '../../components/admin/DivisionField'
 import { Button } from '../../components/ui/Button'
 import { CheckboxGroup } from '../../components/ui/CheckboxGroup'
 import { SelectField } from '../../components/ui/SelectField'
@@ -16,14 +17,14 @@ import { useDepartments } from '../../state/departmentsContext'
 import { useUsers } from '../../state/usersContext'
 import type { UserDetailsLocationState } from './UserDetailsPage'
 
-const FIELDS: NewUserField[] = ['name', 'email', 'departmentId']
+const FIELDS: NewUserField[] = ['name', 'email', 'departmentId', 'divisionId']
 
 type FieldErrors = Partial<Record<NewUserField, string>>
 
 /**
  * Add user ("/admin/users/new", PBI 15): full name, email (valid and unique) and
- * department are required; permissions are optional. Nothing is added while any
- * required information is missing. On success, the new user's page opens.
+ * department are required, and the division where the department has one; roles are
+ * optional. Nothing is added while any required information is missing. On success, the new user's page opens.
  * TODO: Create a real account (an invitation to set a password) once the backend
  * exists. There is no password field: the admin never chooses one.
  */
@@ -34,26 +35,28 @@ export function AddUserPage() {
   const { activeDepartments } = useDepartments()
   const navigate = useNavigate()
 
-  const [values, setValues] = useState<NewUser>({ name: '', email: '', departmentId: '', permissions: [] })
+  const [values, setValues] = useState<NewUser>({ name: '', email: '', departmentId: '', divisionId: '', permissions: [] })
   const [errors, setErrors] = useState<FieldErrors>({})
   const [submitAttempted, setSubmitAttempted] = useState(false)
   const nameRef = useRef<HTMLInputElement>(null)
   const emailRef = useRef<HTMLInputElement>(null)
   const departmentRef = useRef<HTMLSelectElement>(null)
+  const divisionRef = useRef<HTMLSelectElement>(null)
 
   const messages: Record<NewUserProblem, string> = {
     'name-required': content.errors.nameRequired,
     'email-invalid': content.errors.emailInvalid,
     'email-taken': content.errors.emailTaken,
     'department-required': content.errors.departmentRequired,
+    'division-required': content.errors.divisionRequired,
   }
   function errorsFor(user: NewUser): FieldErrors {
-    const problems = validateNewUser(user, activeUsers)
+    const problems = validateNewUser(user, activeUsers, activeDepartments)
     const errorOf = (field: NewUserField) => {
       const problem = problems[field]
       return problem && messages[problem]
     }
-    return { name: errorOf('name'), email: errorOf('email'), departmentId: errorOf('departmentId') }
+    return { name: errorOf('name'), email: errorOf('email'), departmentId: errorOf('departmentId'), divisionId: errorOf('divisionId') }
   }
 
   // Errors are first shown on submit; after that, each field re-validates on blur.
@@ -69,7 +72,7 @@ export function AddUserPage() {
     flushSync(() => setErrors(next))
     const firstInvalid = FIELDS.find((field) => next[field])
     if (firstInvalid) {
-      const refs = { name: nameRef, email: emailRef, departmentId: departmentRef }
+      const refs = { name: nameRef, email: emailRef, departmentId: departmentRef, divisionId: divisionRef }
       refs[firstInvalid].current?.focus()
       return
     }
@@ -96,6 +99,8 @@ export function AddUserPage() {
           name="name"
           autoComplete="off"
           label={content.name.label}
+          required
+          requiredMark
           value={values.name}
           error={errors.name}
           onChange={(event) => setValues({ ...values, name: event.target.value })}
@@ -109,6 +114,8 @@ export function AddUserPage() {
           autoCapitalize="none"
           spellCheck={false}
           label={content.email.label}
+          required
+          requiredMark
           hint={content.email.hint}
           value={values.email}
           error={errors.email}
@@ -120,18 +127,33 @@ export function AddUserPage() {
           ref={departmentRef}
           name="department"
           label={content.department.label}
+          required
+          requiredMark
           placeholder={content.department.placeholder}
           options={activeDepartments.map((department) => ({ value: department.id, label: department.name }))}
           value={values.departmentId}
           error={errors.departmentId}
-          onChange={(event) => setValues({ ...values, departmentId: event.target.value as DepartmentId })}
+          onChange={(event) => {
+            // A division belongs to its department, so a new department starts without one.
+            setValues({ ...values, departmentId: event.target.value as DepartmentId, divisionId: '' })
+            setErrors((prev) => ({ ...prev, divisionId: undefined }))
+          }}
           onBlur={() => blur('departmentId')}
+          className="mt-5"
+        />
+        <DivisionField
+          ref={divisionRef}
+          department={activeDepartments.find((department) => department.id === values.departmentId)}
+          content={content.division}
+          value={values.divisionId ?? ''}
+          error={errors.divisionId}
+          onChange={(divisionId) => setValues({ ...values, divisionId })}
+          onBlur={() => blur('divisionId')}
           className="mt-5"
         />
         <CheckboxGroup
           name="permissions"
           legend={content.permissions.legend}
-          hint={content.permissions.hint}
           options={PERMISSIONS.map((permission) => ({
             value: permission,
             label: usersEn.permissions[permission],

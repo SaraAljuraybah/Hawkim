@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { Permission, Sop, User } from '../data/mock/types'
 import type { SopStatus } from '../types/status'
-import { deleteBlockers, permissionChangeBlockers, validateNewUser, type AdminContext } from './userAdmin'
+import { deleteBlockers, divisionsOf, permissionChangeBlockers, validateNewUser, type AdminContext } from './userAdmin'
 
 /** A user in IT with these permissions. */
 function user(id: string, permissions: Permission[]): User {
@@ -165,6 +165,28 @@ describe('deleting users', () => {
       sop('SOP-017', 'published', { reviewers: [{ userId: 'lama', decision: 'completed' }] }),
     ]
     expect(deleteBlockers(lama, asNouf(sops))).toEqual([])
+  })
+})
+
+describe('the division of a new user', () => {
+  const user = { name: 'Rana', email: 'rana@hawkim.demo', departmentId: 'home', permissions: [] }
+  const departments = [{ id: 'home', divisionId: 'Medical Division' }, { id: 'plain' }]
+
+  it('is required only where the department has one', () => {
+    expect(validateNewUser(user, [], departments).divisionId).toBe('division-required')
+    expect(validateNewUser({ ...user, divisionId: '' }, [], departments).divisionId).toBe('division-required')
+    expect(validateNewUser({ ...user, divisionId: 'Medical Division' }, [], departments).divisionId).toBeUndefined()
+  })
+
+  it('leaves a department without a division exactly as before', () => {
+    expect(Object.values(validateNewUser({ ...user, departmentId: 'plain' }, [], departments)).filter(Boolean)).toEqual([])
+    expect(Object.values(validateNewUser({ ...user, departmentId: 'plain', divisionId: '' }, [], departments)).filter(Boolean)).toEqual([])
+  })
+
+  it('lists only the department\'s division', () => {
+    expect(divisionsOf({ divisionId: 'Medical Division' })).toEqual(['Medical Division'])
+    expect(divisionsOf({})).toEqual([])
+    expect(divisionsOf(undefined)).toEqual([])
   })
 })
 

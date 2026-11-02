@@ -55,10 +55,8 @@ export const adminEn: AdminContent = {
     name: { label: 'Full Name' },
     email: { label: 'Email', hint: 'They sign in with this email.' },
     department: { label: 'Department', placeholder: 'Select a department' },
-    permissions: {
-      legend: 'Permissions (Optional)',
-      hint: 'Every user is an employee. Permissions add features on top.',
-    },
+    division: { label: 'Division', placeholder: 'Select a division', selectDepartmentFirst: 'Select a department first', none: 'No divisions available' },
+    permissions: { legend: 'Role' },
     submit: 'Add User',
     cancel: 'Cancel',
     errors: {
@@ -66,6 +64,7 @@ export const adminEn: AdminContent = {
       emailInvalid: 'Enter a valid email address.',
       emailTaken: 'A user with this email already exists.',
       departmentRequired: 'Select a department.',
+      divisionRequired: 'Select a division.',
     },
   },
 
@@ -76,6 +75,8 @@ export const adminEn: AdminContent = {
       title: 'Details',
       email: 'Email',
       homeDepartment: 'Home Department',
+      division: 'Division',
+      noDivision: '—',
       directoryAccess: 'Published Directory Access',
       directoryHint: 'Read-only access through approved requests; membership and roles are unchanged.',
       none: 'None',

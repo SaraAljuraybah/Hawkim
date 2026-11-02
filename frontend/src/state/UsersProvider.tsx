@@ -9,6 +9,7 @@ import {
   validateNewUser,
   type NewUser,
 } from '../lib/userAdmin'
+import { useDepartments } from './departmentsContext'
 import { useLoadAfterSignIn } from './useLoadAfterSignIn'
 import { UsersContext, type AdminActionContext, type UsersStore } from './usersContext'
 import { fetchPeople } from '../services/people'
@@ -21,6 +22,7 @@ import { fetchPeople } from '../services/people'
  * Must be inside <SessionProvider>.
  */
 export function UsersProvider({ children }: { children: ReactNode }) {
+  const { departments } = useDepartments()
   const [users, setUsers] = useState<User[]>([])
   // The latest list (as in the SOPs store): actions check against it, not the last render.
   const latestRef = useRef<User[]>(users)
@@ -54,7 +56,7 @@ export function UsersProvider({ children }: { children: ReactNode }) {
   const addUser = useCallback(
     (input: NewUser) => {
       const current = latestRef.current
-      const problems = validateNewUser(input, current.filter((user) => !user.deletedAt))
+      const problems = validateNewUser(input, current.filter((user) => !user.deletedAt), departments)
       if (Object.values(problems).some(Boolean) || !input.departmentId) throw new Error('The user is not valid')
       const name = input.name.trim()
       const created: User = {
@@ -64,13 +66,14 @@ export function UsersProvider({ children }: { children: ReactNode }) {
         email: input.email.trim(),
         initials: initialsOf(name),
         departmentId: input.departmentId,
+        ...(input.divisionId ? { divisionId: input.divisionId } : {}),
         // Kept in display order, without duplicates.
         permissions: PERMISSIONS.filter((permission) => input.permissions.includes(permission)),
       }
       commit([...current, created])
       return created
     },
-    [commit],
+    [commit, departments],
   )
 
   const updatePermissions = useCallback(

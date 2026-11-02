@@ -1,4 +1,4 @@
-import type { DepartmentId, Permission, Sop, User } from '../data/mock/types'
+import type { Department, DepartmentId, Permission, Sop, User } from '../data/mock/types'
 import type { SopStatus } from '../types/status'
 
 /*
@@ -19,14 +19,20 @@ export interface NewUser {
   name: string
   email: string
   departmentId: DepartmentId | ''
+  divisionId?: string
   permissions: Permission[]
 }
 
-export type NewUserField = 'name' | 'email' | 'departmentId'
-export type NewUserProblem = 'name-required' | 'email-invalid' | 'email-taken' | 'department-required'
+export type NewUserField = 'name' | 'email' | 'departmentId' | 'divisionId'
+export type NewUserProblem = 'name-required' | 'email-invalid' | 'email-taken' | 'department-required' | 'division-required'
 
-/** What is wrong with each field (nothing for a valid user). Email must be unique among active users, ignoring case. */
-export function validateNewUser(user: NewUser, activeUsers: User[]): Partial<Record<NewUserField, NewUserProblem>> {
+/** The divisions a user of this department can be in: its division, if one is set. */
+export function divisionsOf(department: Pick<Department, 'divisionId'> | undefined): string[] {
+  return department?.divisionId ? [department.divisionId] : []
+}
+
+/** What is wrong with each field (nothing for a valid user). Email must be unique among active users, ignoring case; the division is required only where the department has one. */
+export function validateNewUser(user: NewUser, activeUsers: User[], departments: Pick<Department, 'id' | 'divisionId'>[] = []): Partial<Record<NewUserField, NewUserProblem>> {
   const email = user.email.trim().toLowerCase()
   return {
     name: user.name.trim() ? undefined : 'name-required',
@@ -36,6 +42,8 @@ export function validateNewUser(user: NewUser, activeUsers: User[]): Partial<Rec
         ? 'email-taken'
         : undefined,
     departmentId: user.departmentId ? undefined : 'department-required',
+    // Only a department with a division needs one.
+    divisionId: !user.divisionId && divisionsOf(departments.find((department) => department.id === user.departmentId)).length > 0 ? 'division-required' : undefined,
   }
 }
 
