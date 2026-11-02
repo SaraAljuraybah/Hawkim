@@ -1,0 +1,366 @@
+# =====================================================================
+# GVP mapping matrix (scope classification rules)
+# =====================================================================
+# Source: "GVP mapping matrix" by the team's pharmacovigilance expert.
+# The AI reads the SOP title and Purpose/Objective, matches these keywords
+# (case-insensitive; British/American spellings are treated the same),
+# proposes a primary GVP module, and checks the procedures before finalising.
+#
+# Module codes must match the GVP index (I ... X, XV, XVI).
+# Edit this file to change the rules; no code changes are needed.
+#
+# Hawkim adaptations (marked "adaptation" below) are not in the expert's
+# document and should be confirmed by the expert:
+#  - Rows pointing to documents that are NOT in the indexed SFDA GVP
+#    (product/population-specific considerations, Module VI and IX addenda)
+#    cannot be used for retrieval; they produce a "manual classification" flag.
+#  - "Pregnancy prevention programme" is a risk minimisation tool (XVI.B.3.3),
+#    so it is routed to Module XVI before the general "pregnancy" row.
+# =====================================================================
+
+matrix_version: expert matrix v1
+process_rules:
+- name: Pregnancy prevention programme
+  keywords: []
+  primary:
+  - XVI
+  secondary:
+  - VI
+  synonyms_added_by_hawkim:
+  - pregnancy prevention programme
+  - pregnancy prevention program
+  - ppp
+- name: PV system
+  keywords:
+  - pharmacovigilance system
+  - pv system
+  - safety oversight
+  - pv responsibilities
+  primary:
+  - I
+  secondary:
+  - II
+  synonyms_added_by_hawkim:
+  - pharmacovigilance responsibilities
+  - pharmacovigilance quality system
+- name: Quality management
+  keywords:
+  - quality management
+  - quality control
+  - capa
+  - deviations
+  - quality assurance
+  - continuous improvement
+  primary:
+  - I
+  secondary:
+  - IV
+  quality_cluster: true
+  synonyms_added_by_hawkim:
+  - deviation
+  - corrective and preventive action
+  - corrective action
+  - compliance monitoring
+- name: PSMF
+  keywords:
+  - psmf
+  - system description
+  - pharmacovigilance system master file
+  - pv system documentation
+  primary:
+  - II
+  secondary:
+  - I
+  synonyms_added_by_hawkim:
+  - psmf change control
+  - pssf
+  - sub-system file
+- name: Inspections
+  keywords:
+  - inspection readiness
+  - regulatory inspection
+  - inspection findings
+  - inspection response
+  primary:
+  - III
+  secondary:
+  - I
+  synonyms_added_by_hawkim:
+  - pharmacovigilance inspection
+  - inspections
+- name: Audits
+  keywords:
+  - pv audit
+  - audit planning
+  - audit findings
+  - audit follow-up
+  - independent audit
+  primary:
+  - IV
+  secondary:
+  - I
+  synonyms_added_by_hawkim:
+  - pharmacovigilance audit
+  - audit program
+  - audit programme
+- name: Risk management
+  keywords:
+  - risk management plan
+  - rmp
+  - safety concerns
+  - risk evaluation
+  - benefit-risk balance
+  primary:
+  - V
+  secondary:
+  - XVI
+  synonyms_added_by_hawkim:
+  - safety specification
+  - saudi-specific annex
+- name: Adverse reaction reports
+  keywords:
+  - adverse event
+  - adverse events
+  - ae
+  - adr
+  - icsr
+  - case processing
+  - follow-up
+  - seriousness
+  - expectedness
+  - causality
+  - expedited reporting
+  - adverse drug reaction
+  - case intake
+  primary:
+  - VI
+  secondary:
+  - I
+  synonyms_added_by_hawkim:
+  - adverse reaction
+  - icsrs
+  - adverse drug reactions
+  - ade
+  - adrs
+  - literature monitoring
+  - lack of efficacy
+  - product quality complaint
+- name: Duplicate cases
+  keywords:
+  - duplicate case
+  - duplicate
+  - duplicate detection
+  - duplicate report reconciliation
+  primary:
+  - VI
+  secondary:
+  - I
+  note: Expert also lists Module VI Addendum I, which is not in the indexed SFDA GVP.
+- name: PSUR
+  keywords:
+  - psur
+  - pbrer
+  - benefit-risk evaluation in periodic reports
+  - periodic safety update report
+  - cumulative safety data
+  primary:
+  - VII
+  secondary:
+  - V
+  synonyms_added_by_hawkim:
+  - data lock point
+- name: PASS
+  keywords:
+  - pass
+  - post-authorisation safety study
+  - post-authorization safety study
+  - safety study protocol
+  - non-interventional safety study
+  primary:
+  - VIII
+  secondary:
+  - V
+  synonyms_added_by_hawkim:
+  - post-authorization safety studies
+  - pharmacoepidemiology
+- name: Signals
+  keywords:
+  - signal detection
+  - signal assessment
+  - safety signal
+  - signal tracking
+  - recommendation for action
+  - signal
+  - signal validation
+  - signal prioritisation
+  - signal analysis
+  - emerging signal
+  primary:
+  - IX
+  secondary:
+  - I
+  - II
+  - IV
+  note: Expert also lists Module IX Addendum I, which is not in the indexed SFDA GVP.
+- name: Additional monitoring
+  keywords:
+  - additional monitoring
+  - black triangle
+  - additional monitoring list
+  primary:
+  - X
+  secondary:
+  - VI
+  - XV
+- name: Safety communication
+  keywords:
+  - safety communication
+  - dhpc
+  - safety alert
+  - public safety information
+  - direct healthcare professional communication
+  primary:
+  - XV
+  secondary:
+  - XVI
+- name: Risk minimisation
+  keywords:
+  - risk minimisation
+  - educational materials
+  - risk minimisation measures
+  - effectiveness indicators
+  - additional risk minimisation measures
+  primary:
+  - XVI
+  secondary:
+  - V
+- name: Pregnancy and breastfeeding (P.III)
+  keywords:
+  - pregnancy exposure
+  - breastfeeding exposure
+  - maternal exposure
+  - pregnancy outcomes
+  - pregnancy
+  - breastfeeding
+  - fetal outcomes
+  primary: []
+  secondary:
+  - VI
+  - IX
+  not_in_index: Product-/population-specific considerations III (pregnant and breastfeeding women)
+- name: Vaccines (P.I)
+  keywords:
+  - vaccine safety
+  - immunisation
+  - vaccine
+  - adverse events following immunisation
+  primary: []
+  secondary:
+  - VI
+  - IX
+  not_in_index: Product-/population-specific considerations I (vaccines)
+  synonyms_added_by_hawkim:
+  - vaccines
+- name: Biologicals (P.II)
+  keywords:
+  - biological products
+  - biologics
+  - biosimilars
+  - traceability of biological product safety
+  primary: []
+  secondary:
+  - VI
+  - IX
+  not_in_index: Product-/population-specific considerations II (biological medicinal products)
+- name: Paediatrics (P.IV)
+  keywords:
+  - paediatric safety
+  - children
+  - adolescents
+  - paediatric population
+  - paediatric
+  primary: []
+  secondary:
+  - VI
+  - VII
+  - IX
+  not_in_index: Product-/population-specific considerations IV (paediatric population)
+supporting_rules:
+- name: Signal management documentation
+  keywords:
+  - signal log
+  - signal tracking system
+  - traceability
+  - signal management process description
+  modules:
+  - IX
+  - II
+- name: Training and competence
+  keywords:
+  - training
+  - competence
+  - qualification
+  - delegated pv activities
+  modules:
+  - I
+  synonyms_added_by_hawkim:
+  - competency
+- name: Records and data integrity
+  keywords:
+  - record retention
+  - document control
+  - archival
+  - data integrity
+  - audit trail
+  modules:
+  - I
+  synonyms_added_by_hawkim:
+  - record management
+  - archiving
+- name: Outsourcing
+  keywords:
+  - outsourcing
+  - vendor oversight
+  - service provider
+  - third-party pv activities
+  modules:
+  - I
+  synonyms_added_by_hawkim:
+  - third parties
+  - subcontracting
+  - business partners
+  - pharmacovigilance agreements
+- name: Regulatory submission (report type needed)
+  keywords:
+  - regulatory submission
+  - sfda notification
+  - reporting timelines
+  - regulatory correspondence
+  modules: []
+  reporting_without_type: true
+- name: Emerging and urgent safety issues
+  keywords:
+  - emerging safety issue
+  - urgent safety concern
+  - immediate escalation
+  modules:
+  - IX
+  synonyms_added_by_hawkim:
+  - emerging safety issues
+- name: Regulatory actions
+  keywords:
+  - product recall
+  - safety-related variation
+  - variation
+  - suspension
+  - withdrawal
+  modules:
+  - IX
+  - V
+general_terms:
+- safety
+- compliance
+- monitoring
+- quality
+- procedures
+- process

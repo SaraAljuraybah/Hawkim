@@ -1,0 +1,135 @@
+# ============================================================
+# Hawkim compliance service - configuration
+# ============================================================
+# Change values here instead of editing code. Every run saves a
+# copy of this config, so results stay reproducible.
+
+paths:
+  gvp_file: data/gvp/Drug-GVP4.pdf     # SFDA GVP guideline (PDF, DOCX or TXT)
+  sop_dir: data/sops                   # put all SOP files to test here (PDF, DOCX, TXT)
+  gold_file: data/ground_truth.csv     # expert labels (create with: python run.py chunk)
+  index_dir: index                     # GVP requirement index (one sub-folder per embedding model)
+  work_dir: work                       # extracted chunks, annotation template, extraction report
+  runs_dir: runs                       # one folder per experiment run
+
+extraction:
+  # A line that appears at the top/bottom of at least this share of pages
+  # is treated as a header/footer and removed.
+  header_footer_min_page_ratio: 0.3
+  # Pages with fewer characters than this are flagged as possibly scanned.
+  min_chars_per_page_warning: 50
+
+gvp_chunking:
+  # Keep only units that express an obligation (recommended).
+  obligation_only: true
+  obligation_keywords:
+    - shall
+    - should
+    - must
+    - is required
+    - are required
+    - is responsible
+    - are responsible
+    - it is recommended
+    - needs to
+    - need to
+  max_unit_chars: 2500
+
+sop_chunking:
+  min_chunk_chars: 80        # shorter sections are merged into the next one
+  max_chunk_chars: 2500      # longer sections are split by sentences
+  heading_max_chars: 90      # a numbered line longer than this is treated as text, not a heading
+  split_steps: true          # one chunk per numbered step (5-1-1, 5.1.1 ...); false = one chunk per sub-section
+  skip_preamble: true        # skip text before the first heading (title page, approvals, table of contents)
+  include_sections: [procedure]   # only check sections whose heading contains these words; [] = all sections
+  # Sections whose heading contains any of these words are skipped
+  # (administrative content with no GVP obligation).
+  skip_sections:
+    - revision history
+    - document history
+    - change history
+    - approval
+    - signature
+    - abbreviation
+    - definitions
+    - references
+    - related documents
+    - table of contents
+    - distribution list
+    - attachments
+    - appendix
+
+embedding:
+  # sentence-transformers  -> BGE-M3 / Qwen3-Embedding (needs: pip install sentence-transformers)
+  # tfidf                  -> lexical baseline, no download; useful for smoke tests and comparison
+  backend: sentence-transformers
+  model: BAAI/bge-m3
+  device: null               # null = auto (cuda if available), or "cpu", "cuda", "mps"
+  batch_size: 16
+  max_seq_length: 1024       # BGE-M3 supports 8192; 1024 is enough for units of <=2500 chars and is faster
+  # Instruction added to SOP queries only. Leave null for BGE-M3.
+  # For Qwen/Qwen3-Embedding-0.6B use something like:
+  # "Instruct: Given an SOP passage, retrieve the SFDA GVP requirement it must comply with\nQuery: "
+  query_prompt: null
+
+scope:
+  # none   -> search the whole GVP (baseline)
+  # matrix -> search only the GVP modules the expert mapping matrix assigns from the SOP title + Purpose
+  mode: none                 # matrix is optional; the website searches the whole GVP
+  matrix_file: config/gvp_mapping_matrix.yaml
+  include_secondary: true      # also search the matrix's secondary modules
+  mismatch_threshold: 0.5      # flag "purpose_procedure_mismatch" if fewer steps than this land in scope
+  min_similarity: null         # e.g. 0.6: below this, no LLM call; step flagged for review (calibrate first)
+  outside_scope_action: review   # matched requirement outside the suggested modules: review (not assessed) | assess
+  # Sections that describe duties of the SFDA, not of the company. Never used for matching (both modes).
+  # Selected from GVP section titles; to be confirmed by the expert.
+  exclude_sections:
+    - I.B.9.2      # Compliance management by the SFDA
+    - I.C.2.3      # Specific quality system processes of the SFDA
+    - III.B.7      # Regulatory actions and sanctions
+    - III.B.9      # Qualification and training of inspectors
+    - VI.C.5       # Collaboration with the WHO and the SFDA
+    - VIII.C.2.2   # Roles and responsibilities of the SFDA (PASS)
+    - X.C.2.1      # The SFDA (additional monitoring)
+    - XVI.C.1      # Roles of the SFDA (risk minimisation)
+    - III.B.4.1    # Routine inspections: what SFDA inspectors examine (not a company obligation)
+
+retrieval:
+  top_k: 5                   # how many GVP requirements to retrieve per SOP chunk (for Recall@k)
+
+llm:
+  # openrouter | ollama | vllm | openai_compatible | mock
+  # Qwen2.5-7B-Instruct runs locally with Ollama (ollama pull qwen2.5:7b), as in the system
+  # architecture. For OpenRouter use provider: openrouter and model: qwen/qwen-2.5-7b-instruct
+  # (non-confidential SOPs only; on 1-2 Nov 2026 its only provider for this model was down).
+  provider: ollama
+  model: qwen2.5:7b                    # vLLM: Qwen/Qwen2.5-7B-Instruct
+  base_url: null                       # null = provider default
+  api_key_env: OPENROUTER_API_KEY      # name of the environment variable that holds the key
+  temperature: 0
+  max_tokens: 800
+  timeout_sec: 600          # local runs on a laptop can take up to a minute per step
+  max_retries: 4
+  request_delay_sec: 0       # pause between calls (rate limits)
+  json_mode: false           # true = ask server for JSON output (not supported by every provider)
+  # top1        -> the LLM judges the SOP chunk against the single best requirement (Sprint 0 design)
+  # topk_select -> the LLM sees several retrieved requirements, picks the applicable one, then judges
+  mode: top1
+  candidates_for_llm: 3      # used in topk_select mode
+  system_prompt_file: prompts/system.txt
+  user_prompt_top1_file: prompts/user_top1.txt
+  user_prompt_topk_file: prompts/user_topk.txt
+  cache: true                # reuse identical LLM calls (saves money, allows resuming)
+
+evaluation:
+  scoring: sprint0           # sprint0 = as in Sprint 0 Table 6; lenient = invalid wrong, NOT_ADDRESSED counts as detected
+  bootstrap_samples: 2000    # for 95% confidence intervals
+  seed: 42
+
+# Website connection (worker.py). Secrets are read from .env, never from this file.
+service:
+  engine_name: hawkim                 # written to compliance_checks.engine
+  engine_version: "1.0 (BGE-M3 + Qwen2.5-7B-Instruct)"
+  guideline_version: "4.0"            # the GVP version the index was built from
+  poll_seconds: 5                     # how often to look for new checks
+  heartbeat_seconds: 30               # the website uses the sample engine if no heartbeat for 2 minutes
