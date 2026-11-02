@@ -153,7 +153,7 @@ export const adminEn: AdminContent = {
     backToDepartment: 'Back to {name}',
     name: { label: 'Name' },
     initials: { label: 'Initials', hint: '2–3 letters, e.g. QA. Shown in the department badge.' },
-    description: { label: 'Description (Optional)', hint: 'One line about what the department does (up to 200 characters).' },
+    description: { label: 'Description', hint: 'One line about what the department does (up to 200 characters).' },
     cancel: 'Cancel',
     errors: {
       nameRequired: 'Enter a department name.',

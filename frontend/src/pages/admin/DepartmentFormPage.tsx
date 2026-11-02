@@ -130,6 +130,8 @@ function DepartmentForm({ department }: { department?: Department }) {
           name="name"
           autoComplete="off"
           label={content.name.label}
+          required
+          requiredMark
           value={values.name}
           error={errors.name}
           onChange={(event) => setValues({ ...values, name: event.target.value })}
@@ -142,6 +144,8 @@ function DepartmentForm({ department }: { department?: Department }) {
           autoCapitalize="characters"
           spellCheck={false}
           label={content.initials.label}
+          required
+          requiredMark
           hint={content.initials.hint}
           value={values.initials}
           error={errors.initials}

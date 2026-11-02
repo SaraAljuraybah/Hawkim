@@ -44,7 +44,7 @@ export const reviewFlowEn = {
   workflowConfig: {
     title: 'Review Workflow Configuration', open: 'Configure Review Workflow',
     help: 'Enter the approved division identifier for this department and select its final Quality Document Controller. Leave unknown assignments unconfigured. Department representatives are selected dynamically during routing.',
-    division: 'Division Identifier (Optional)', divisionHint: 'Departments in the same division must use exactly the same identifier. No organizational structure is inferred.',
-    controller: 'Quality Document Controller (Optional)', unconfigured: 'Not Configured', save: 'Save Configuration', saved: 'Workflow configuration saved.',
+    division: 'Division Identifier', divisionHint: 'Departments in the same division must use exactly the same identifier. No organizational structure is inferred.',
+    controller: 'Quality Document Controller', unconfigured: 'Not Configured', save: 'Save Configuration', saved: 'Workflow configuration saved.',
   },
 }
