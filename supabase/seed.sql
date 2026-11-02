@@ -4,8 +4,9 @@
 -- Run it AFTER the migrations and AFTER the sign-in accounts were created in the Supabase
 -- dashboard (Authentication → Users). Profiles are linked to those accounts by email; a
 -- person without an account is skipped and listed by the last query, so the file can be run
--- again once more accounts exist. Running it again updates names, departments, the guideline
--- and the sample results, and adds missing roles; it never removes a role.
+-- again once more accounts exist. Running it again updates names, departments, phone numbers,
+-- positions, the guideline and the sample results, and adds missing roles; it never removes a
+-- role.
 --
 -- Emails use the reserved test domain hawkim.test, never real addresses.
 
@@ -97,7 +98,8 @@ on conflict (guideline_version_id, position) do update set
   recommended_action = excluded.recommended_action;
 
 -- ---------- People ----------
--- One row per person: email, name, initials, home department, roles (empty: no role).
+-- One row per person: email, name, initials, home department, roles (empty: no role), phone
+-- (fake numbers, stored as +9665XXXXXXXX) and position (job title).
 
 -- A temporary list for this session only (it disappears when the session ends).
 drop table if exists seed_people;
@@ -106,49 +108,53 @@ create temporary table seed_people (
   full_name text not null,
   initials text not null,
   department_id text not null,
-  roles public.app_role[] not null
+  roles public.app_role[] not null,
+  phone text not null,
+  "position" text not null
 );
 
-insert into seed_people (email, full_name, initials, department_id, roles) values
+insert into seed_people (email, full_name, initials, department_id, roles, phone, "position") values
   -- Pharmacovigilance (the demo's department: its SOPs get a compliance check)
-  ('sara.aljuraybah@hawkim.test', 'Sara Aljuraybah', 'SA', 'pharmacovigilance', '{author}'),
-  ('reem.alsubaie@hawkim.test', 'Reem Alsubaie', 'RA', 'pharmacovigilance', '{author}'),
-  ('noura.alqahtani@hawkim.test', 'Noura Alqahtani', 'NA', 'pharmacovigilance', '{reviewer}'),
-  ('lulwah.alrasheed@hawkim.test', 'Lulwah Alrasheed', 'LA', 'pharmacovigilance', '{reviewer}'),
-  ('omar.alghamdi@hawkim.test', 'Omar Alghamdi', 'OA', 'pharmacovigilance', '{author}'),
-  ('lama.alshehri@hawkim.test', 'Lama Alshehri', 'LA', 'pharmacovigilance', '{reviewer}'),
+  ('sara.aljuraybah@hawkim.test', 'Sara Aljuraybah', 'SA', 'pharmacovigilance', '{author}', '+966500000001', 'Pharmacovigilance Specialist'),
+  ('reem.alsubaie@hawkim.test', 'Reem Alsubaie', 'RA', 'pharmacovigilance', '{author}', '+966500000002', 'Drug Safety Officer'),
+  ('noura.alqahtani@hawkim.test', 'Noura Alqahtani', 'NA', 'pharmacovigilance', '{reviewer}', '+966500000003', 'Senior Pharmacovigilance Specialist'),
+  ('lulwah.alrasheed@hawkim.test', 'Lulwah Alrasheed', 'LA', 'pharmacovigilance', '{reviewer}', '+966500000004', 'Pharmacovigilance Manager'),
+  ('omar.alghamdi@hawkim.test', 'Omar Alghamdi', 'OA', 'pharmacovigilance', '{author}', '+966500000005', 'Signal Detection Analyst'),
+  ('lama.alshehri@hawkim.test', 'Lama Alshehri', 'LA', 'pharmacovigilance', '{reviewer}', '+966500000006', 'Qualified Person for Pharmacovigilance'),
   -- Information Technology
-  ('nouf.almutairi@hawkim.test', 'Nouf Almutairi', 'NA', 'information-technology', '{admin}'),
+  ('nouf.almutairi@hawkim.test', 'Nouf Almutairi', 'NA', 'information-technology', '{admin}', '+966500000007', 'Systems Administrator'),
   -- Quality Assurance (the only department with Approvers)
-  ('faisal.alharbi@hawkim.test', 'Faisal Alharbi', 'FA', 'quality-assurance', '{reviewer}'),
-  ('abeer.alhamdan@hawkim.test', 'Abeer Alhamdan', 'AA', 'quality-assurance', '{author,reviewer}'),
-  ('khalid.alzahrani@hawkim.test', 'Khalid Alzahrani', 'KA', 'quality-assurance', '{approver}'),
-  ('huda.alotaibi@hawkim.test', 'Huda Alotaibi', 'HA', 'quality-assurance', '{approver}'),
-  ('maha.alenazi@hawkim.test', 'Maha Alenazi', 'MA', 'quality-assurance', '{approver}'),
-  ('sultan.aldosari@hawkim.test', 'Sultan Aldosari', 'SA', 'quality-assurance', '{approver}'),
-  ('shahad.alghamdi@hawkim.test', 'Shahad Alghamdi', 'SA', 'quality-assurance', '{}'),
+  ('faisal.alharbi@hawkim.test', 'Faisal Alharbi', 'FA', 'quality-assurance', '{reviewer}', '+966500000008', 'Quality Assurance Specialist'),
+  ('abeer.alhamdan@hawkim.test', 'Abeer Alhamdan', 'AA', 'quality-assurance', '{author,reviewer}', '+966500000009', 'Quality Systems Specialist'),
+  ('khalid.alzahrani@hawkim.test', 'Khalid Alzahrani', 'KA', 'quality-assurance', '{approver}', '+966500000010', 'Quality Assurance Manager'),
+  ('huda.alotaibi@hawkim.test', 'Huda Alotaibi', 'HA', 'quality-assurance', '{approver}', '+966500000011', 'Head of Quality'),
+  ('maha.alenazi@hawkim.test', 'Maha Alenazi', 'MA', 'quality-assurance', '{approver}', '+966500000012', 'Quality Compliance Lead'),
+  ('sultan.aldosari@hawkim.test', 'Sultan Aldosari', 'SA', 'quality-assurance', '{approver}', '+966500000013', 'Document Control Manager'),
+  ('shahad.alghamdi@hawkim.test', 'Shahad Alghamdi', 'SA', 'quality-assurance', '{}', '+966500000014', 'Quality Assurance Associate'),
   -- Regulatory Affairs
-  ('abdullah.alqahtani@hawkim.test', 'Abdullah Alqahtani', 'AA', 'regulatory-affairs', '{reviewer}'),
+  ('abdullah.alqahtani@hawkim.test', 'Abdullah Alqahtani', 'AA', 'regulatory-affairs', '{reviewer}', '+966500000015', 'Regulatory Affairs Specialist'),
   -- Employees without a role
-  ('rawan.alzahrani@hawkim.test', 'Rawan Alzahrani', 'RA', 'research-development', '{}'),
-  ('turki.alshammari@hawkim.test', 'Turki Alshammari', 'TA', 'research-development', '{}'),
-  ('hessa.alqahtani@hawkim.test', 'Hessa Alqahtani', 'HA', 'human-resources', '{}'),
-  ('nasser.alotaibi@hawkim.test', 'Nasser Alotaibi', 'NA', 'human-resources', '{}'),
-  ('dalal.alharbi@hawkim.test', 'Dalal Alharbi', 'DA', 'finance-administration', '{}'),
-  ('fahad.alanazi@hawkim.test', 'Fahad Alanazi', 'FA', 'clinical-operations', '{}'),
-  ('joud.almutairi@hawkim.test', 'Joud Almutairi', 'JA', 'clinical-operations', '{}'),
-  ('bandar.aldossary@hawkim.test', 'Bandar Aldossary', 'BA', 'legal-governance', '{}');
+  ('rawan.alzahrani@hawkim.test', 'Rawan Alzahrani', 'RA', 'research-development', '{}', '+966500000016', 'Research Scientist'),
+  ('turki.alshammari@hawkim.test', 'Turki Alshammari', 'TA', 'research-development', '{}', '+966500000017', 'Formulation Scientist'),
+  ('hessa.alqahtani@hawkim.test', 'Hessa Alqahtani', 'HA', 'human-resources', '{}', '+966500000018', 'HR Specialist'),
+  ('nasser.alotaibi@hawkim.test', 'Nasser Alotaibi', 'NA', 'human-resources', '{}', '+966500000019', 'Training Coordinator'),
+  ('dalal.alharbi@hawkim.test', 'Dalal Alharbi', 'DA', 'finance-administration', '{}', '+966500000020', 'Accountant'),
+  ('fahad.alanazi@hawkim.test', 'Fahad Alanazi', 'FA', 'clinical-operations', '{}', '+966500000021', 'Clinical Research Associate'),
+  ('joud.almutairi@hawkim.test', 'Joud Almutairi', 'JA', 'clinical-operations', '{}', '+966500000022', 'Clinical Trial Coordinator'),
+  ('bandar.aldossary@hawkim.test', 'Bandar Aldossary', 'BA', 'legal-governance', '{}', '+966500000023', 'Legal Counsel');
 
 -- A profile for every person who has a sign-in account (matched by email, ignoring case).
-insert into public.profiles (id, full_name, email, initials, department_id)
-select u.id, s.full_name, s.email, s.initials, s.department_id
+insert into public.profiles (id, full_name, email, initials, department_id, phone, "position")
+select u.id, s.full_name, s.email, s.initials, s.department_id, s.phone, s."position"
 from seed_people s
 join auth.users u on lower(u.email) = s.email
 on conflict (id) do update set
   full_name = excluded.full_name,
   email = excluded.email,
   initials = excluded.initials,
-  department_id = excluded.department_id;
+  department_id = excluded.department_id,
+  phone = excluded.phone,
+  "position" = excluded."position";
 
 -- Their roles (the role rule triggers check each one).
 insert into public.user_roles (user_id, role)
