@@ -74,6 +74,12 @@ describe('directory selection never changes authoring or membership context', ()
     expect(html).toContain('Foreign Directory')
     expect(html).toContain('(Read-only)')
   })
+  it('never cuts the department name in the top bar, keeping the chevron', () => {
+    const html = render(<DepartmentSwitcher content={appShellEn.departmentSwitcher} variant="topbar" />)
+    expect(html).not.toContain('truncate')
+    expect(html).toContain('break-words')
+    expect(html.match(/<button[^>]*aria-haspopup="menu"[^>]*>.*?<\/button>/)![0]).toContain('lucide-chevron-down')
+  })
   it('lists only authorized published data, regardless of the selected context', () => {
     const html = render(<SopsPage />)
     expect(html).toContain('foreign-published')

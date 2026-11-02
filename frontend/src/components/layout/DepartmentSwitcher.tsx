@@ -127,10 +127,11 @@ export function DepartmentSwitcher({ content, variant, onSwitched }: DepartmentS
         className={
           isDrawer
             ? 'flex w-full items-center justify-between gap-2 rounded-lg border border-white/20 bg-white/10 px-3 py-2.5 text-left text-sm font-medium text-offwhite hover:bg-white/15'
-            : '-mx-1 inline-flex items-center gap-1 rounded-md px-1 text-xs text-text-gray hover:text-maroon'
+            : '-mx-1 inline-flex items-center gap-1 rounded-md px-1 text-left text-xs text-text-gray hover:text-maroon'
         }
       >
-        <span className="truncate">
+        {/* The top bar never cuts the name: it wraps instead. */}
+        <span className={isDrawer ? 'truncate' : 'break-words'}>
           {srLabel}
           {activeDepartment.name}
           {activeDepartment.id !== homeDepartment.id && ` (${content.readOnly})`}

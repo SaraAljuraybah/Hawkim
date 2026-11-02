@@ -22,7 +22,8 @@ const iconButton =
 export function TopBar({ content, user, menuOpen, onOpenMenu, menuButtonRef }: TopBarProps) {
   return (
     <header className="sticky top-0 z-30 border-b border-beige bg-white/90 backdrop-blur-md print:hidden">
-      <div className="flex h-16 items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
+      {/* At least 64px; taller only when the user's details wrap on a narrow window */}
+      <div className="flex min-h-16 items-center justify-between gap-4 px-4 py-2 sm:px-6 lg:px-8">
         <button
           ref={menuButtonRef}
           type="button"
@@ -35,14 +36,15 @@ export function TopBar({ content, user, menuOpen, onOpenMenu, menuButtonRef }: T
           <Menu aria-hidden="true" className="size-5" strokeWidth={1.75} />
         </button>
 
-        <div className="ml-auto flex items-center gap-3 sm:gap-4">
+        <div className="ml-auto flex min-w-0 items-center gap-3 sm:gap-4">
           {/* Notifications (PBI 31): unread count and a panel with the newest ones */}
           <NotificationsBell />
 
-          <span aria-hidden="true" className="h-8 w-px bg-beige" />
+          <span aria-hidden="true" className="h-8 w-px shrink-0 bg-beige" />
 
-          {/* Current user: the avatar is the link to their profile; the department switcher stays separate */}
-          <div className="flex items-center gap-3">
+          {/* Current user: the avatar is the link to their profile; the department switcher stays separate.
+              No fixed width and nothing truncated: the details size to their content and wrap when space runs out. */}
+          <div className="flex min-w-0 items-center gap-3">
             <Link
               to={content.profileLink.href}
               aria-label={content.profileLink.label.replace('{name}', user.name)}
@@ -50,7 +52,7 @@ export function TopBar({ content, user, menuOpen, onOpenMenu, menuButtonRef }: T
             >
               <span aria-hidden="true">{user.initials}</span>
             </Link>
-            <div className="leading-tight">
+            <div className="min-w-0 leading-tight">
               {/* The same link for the mouse and touch, hidden on phones. Screen readers and the
                   keyboard use the avatar's link, so they don't meet it twice. The department
                   switcher moves into the mobile drawer on phones. */}
@@ -58,11 +60,18 @@ export function TopBar({ content, user, menuOpen, onOpenMenu, menuButtonRef }: T
                 to={content.profileLink.href}
                 tabIndex={-1}
                 aria-hidden="true"
-                className="hidden text-sm font-medium text-maroon underline-offset-2 hover:underline sm:block"
+                className="hidden text-sm font-medium break-words text-maroon underline-offset-2 hover:underline sm:block"
               >
                 {user.name}
               </Link>
-              <div className="hidden sm:block">
+              {/* "Position | Department": the position is plain text; the department stays the switcher. */}
+              <div className="hidden flex-wrap items-center gap-x-1.5 text-xs text-text-gray sm:flex">
+                {user.position && (
+                  <>
+                    <span className="min-w-0 break-words">{user.position}</span>
+                    <span aria-hidden="true">{content.positionSeparator}</span>
+                  </>
+                )}
                 <DepartmentSwitcher content={content.departmentSwitcher} variant="topbar" />
               </div>
             </div>

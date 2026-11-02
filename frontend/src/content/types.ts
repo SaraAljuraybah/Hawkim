@@ -295,6 +295,8 @@ export interface AppShellContent extends SidebarContent {
   reviewsToDoLabel: string
   /** The avatar's link; `label` is its accessible name and `{name}` is the signed-in user. */
   profileLink: LinkContent
+  /** Between the user's position and department under their name in the top bar; hidden from screen readers. */
+  positionSeparator: string
   departmentSwitcher: {
     /** Label before the department name (visible in the drawer, screen-reader only in the top bar). */
     label: string

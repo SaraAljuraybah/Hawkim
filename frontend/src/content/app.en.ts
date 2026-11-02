@@ -29,6 +29,7 @@ export const appShellEn: AppShellContent = {
   drawerLabel: 'Navigation',
   reviewsToDoLabel: '{count} to do',
   profileLink: { label: 'My Profile, {name}', href: '/profile' },
+  positionSeparator: '|',
   departmentSwitcher: {
     label: 'SOP Directory',
     menuLabel: 'Available SOP directories',

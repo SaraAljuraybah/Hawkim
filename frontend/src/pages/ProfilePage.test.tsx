@@ -99,6 +99,32 @@ describe('top bar links to My Profile', () => {
     expect(links()[1]).toContain('>Sara Aljuraybah<')
   })
 
+  it('shows "Position | Department" under the name, the separator hidden from screen readers', () => {
+    fixture.user = { ...fixture.user, position: 'Pharmacovigilance Specialist' }
+    const markup = html()
+    const line = markup.match(/<div class="hidden flex-wrap[^"]*sm:flex">(.*?)<\/div>/)![1]
+    expect(line).toBe('<span class="min-w-0 break-words">Pharmacovigilance Specialist</span><span aria-hidden="true">|</span><button type="button">Department Switcher</button>')
+    expect(markup.indexOf('Sara Aljuraybah<')).toBeLessThan(markup.indexOf('Pharmacovigilance Specialist'))
+  })
+
+  it('shows only the department without a position', () => {
+    const line = html().match(/<div class="hidden flex-wrap[^"]*sm:flex">(.*?)<\/div>/)![1]
+    expect(line).toBe('<button type="button">Department Switcher</button>')
+  })
+
+  it('never truncates the user details, lets them wrap, and keeps them hidden on phones', () => {
+    fixture.user = { ...fixture.user, position: 'Pharmacovigilance Specialist' }
+    const markup = html()
+    const userArea = markup.slice(markup.indexOf('href="/profile"'))
+    expect(userArea).not.toContain('truncate')
+    // No fixed or maximum width on the user details.
+    expect(userArea).not.toMatch(/[\s"](?:max-w-|w-)\S/)
+    expect(markup).toContain('min-h-16')
+    expect(links()[1]).toContain('hidden')
+    expect(links()[1]).toContain('sm:block')
+    expect(markup).toMatch(/<div class="hidden flex-wrap[^"]*sm:flex">/)
+  })
+
   it('keeps the department switcher outside the links, with no menu on the avatar', () => {
     expect(html()).toContain('>Department Switcher<')
     for (const link of links()) expect(link).not.toContain('<button')
