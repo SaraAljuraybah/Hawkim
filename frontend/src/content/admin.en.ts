@@ -270,10 +270,11 @@ export const adminEn: AdminContent = {
     subtitle: 'Add the latest SFDA Guideline on Good Pharmacovigilance Practices. It replaces the current version.',
     back: { label: 'Back to Regulations', href: '/admin/regulations' },
     version: { label: 'Version', hint: 'For example 4.1 or 5.0.' },
-    issuedDate: { label: 'Issued Date (Optional)' },
+    issuedDate: { label: 'Issued Date' },
     effectiveDate: { label: 'Effective Date', hint: 'As stated in the guideline. It can be in the future.' },
     file: {
       label: 'Guideline File',
+      requiredTag: '(required)',
       hint: 'PDF, up to 20 MB',
       dropPrompt: 'Drag and drop the PDF here, or',
       browse: 'browse',
@@ -281,7 +282,7 @@ export const adminEn: AdminContent = {
       typeError: "{name} isn't a PDF. Upload the guideline as a PDF file.",
       sizeError: '{name} is too large. Files must be {max} or smaller.',
     },
-    summary: { label: 'Summary of Changes (Optional)', counter: '{count} / {max}' },
+    summary: { label: 'Summary of Changes', counter: '{count} / {max}' },
     submit: 'Add Version',
     cancel: 'Cancel',
     errors: {

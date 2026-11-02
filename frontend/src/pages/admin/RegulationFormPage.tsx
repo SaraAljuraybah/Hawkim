@@ -120,6 +120,8 @@ export function RegulationFormPage() {
           inputMode="decimal"
           autoComplete="off"
           label={text.version.label}
+          required
+          requiredMark
           hint={text.version.hint}
           value={values.version}
           error={errors.version}
@@ -143,6 +145,8 @@ export function RegulationFormPage() {
             name="effectiveDate"
             type="date"
             label={text.effectiveDate.label}
+            required
+            requiredMark
             hint={text.effectiveDate.hint}
             value={values.effectiveDate}
             error={errors.effectiveDate}
