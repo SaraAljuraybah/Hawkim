@@ -666,8 +666,7 @@ export interface SopWorkflowContent {
     authorsTitle: string
     mainAuthor: string
     addAuthor: string
-    remove: string
-    /** Accessible name of a Remove button; `{name}` is replaced. */
+    /** Accessible name and tooltip of the Remove icon button; `{name}` is replaced. */
     removeLabel: string
     decisions: { pending: string; completed: string; approved: string; returned: string; cancelled: string }
   }

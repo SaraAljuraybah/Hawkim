@@ -1,12 +1,13 @@
 import type { ReactNode } from 'react'
 import { internalReviewEn } from '../../content/internalReview.en'
-import { UserPlus } from 'lucide-react'
+import { Trash2, UserPlus } from 'lucide-react'
 import type { SopWorkflowContent } from '../../content/types'
 import type { Sop } from '../../data/mock/types'
 import { sopWorkflowEn } from '../../content/workflow.en'
 import { ReviewerDeadline } from './ReviewerDeadline'
 import { useUsers } from '../../state/usersContext'
 import { Button } from '../ui/Button'
+import { IconButton } from '../ui/IconButton'
 import { DecisionBadge } from './DecisionBadge'
 
 interface PeopleListProps {
@@ -83,14 +84,12 @@ export function PeopleList({
               <li key={id} className={rowClasses}>
                 <span className="text-[0.9375rem] text-maroon">{name(id)}</span>
                 {canManageCoAuthors && (
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    aria-label={content.removeLabel.replace('{name}', nameOf(id))}
+                  <IconButton
+                    label={content.removeLabel.replace('{name}', nameOf(id))}
+                    icon={Trash2}
+                    danger
                     onClick={(event) => onRemoveCoAuthor(id, event.currentTarget)}
-                  >
-                    {content.remove}
-                  </Button>
+                  />
                 )}
               </li>
             ))}

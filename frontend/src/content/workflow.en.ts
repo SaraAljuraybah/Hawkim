@@ -73,7 +73,6 @@ export const sopWorkflowEn: SopWorkflowContent = {
     authorsTitle: 'Authors',
     mainAuthor: 'Main Author',
     addAuthor: 'Add Co-authors',
-    remove: 'Remove',
     removeLabel: 'Remove {name} as co-author',
     decisions: { pending: 'Pending', completed: 'Completed', approved: 'Approved', returned: 'Returned', cancelled: 'Cancelled' },
   },
