@@ -93,10 +93,15 @@ describe('SOP description', () => {
     expect(button(editing, content.cancel)).toBeDefined()
     expect(of(editing, IconButton)).toHaveLength(0)
     // Label, textarea, counter and Save/Cancel share a reading width; about 3 rows high, still resizable.
-    expect(field).toMatchObject({ rows: 3, compact: true })
+    expect(field).toMatchObject({ rows: 3, compact: true, hideLabel: true })
     const markup = renderToStaticMarkup(<>{editing}</>)
     expect(markup).toMatch(/^<div class="mt-3 max-w-2xl">/)
     expect(markup).toMatch(/<textarea [^>]*rows="3"/)
+    // The label is only for screen readers, and still names the textarea.
+    const label = markup.match(/<label for="([^"]+)" class="([^"]+)">([^<]+)<\/label>/)!
+    expect(label[2]).toBe('sr-only')
+    expect(label[3]).toBe(content.label)
+    expect(markup).toContain(`<textarea id="${label[1]}"`)
     const textarea = markup.match(/<textarea [^>]*class="([^"]+)"/)![1].split(' ')
     expect(textarea).toContain('resize-y')
     expect(textarea).not.toContain('min-h-28')

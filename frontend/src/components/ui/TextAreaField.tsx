@@ -15,6 +15,8 @@ export interface TextAreaFieldProps extends Omit<TextareaHTMLAttributes<HTMLText
   resizable?: boolean
   /** true: no minimum height, so a small `rows` (e.g. 3) sets the starting height. */
   compact?: boolean
+  /** Keeps the label for screen readers only (sr-only), so the field still has an accessible name. */
+  hideLabel?: boolean
   ref?: Ref<HTMLTextAreaElement>
   className?: string
 }
@@ -27,6 +29,7 @@ export function TextAreaField({
   counter,
   resizable = true,
   compact = false,
+  hideLabel = false,
   ref,
   id,
   rows = 5,
@@ -41,6 +44,7 @@ export function TextAreaField({
   return (
     <FieldShell
       label={label}
+      hideLabel={hideLabel}
       inputId={fieldIds.inputId}
       hint={hint}
       hintId={fieldIds.hintId}

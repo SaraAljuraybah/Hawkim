@@ -81,6 +81,7 @@ export function SopDescription({ description = '', content, onSave, onSaved }: S
           name="description"
           rows={3}
           compact
+          hideLabel
           label={content.label}
           maxLength={SOP_DESCRIPTION_MAX}
           counter={content.counter.replace('{count}', String(draft.length)).replace('{max}', String(SOP_DESCRIPTION_MAX))}
