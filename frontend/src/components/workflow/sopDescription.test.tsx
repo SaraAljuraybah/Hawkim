@@ -92,10 +92,14 @@ describe('SOP description', () => {
     expect(button(editing, content.save)).toBeDefined()
     expect(button(editing, content.cancel)).toBeDefined()
     expect(of(editing, IconButton)).toHaveLength(0)
-    // The textarea uses the full row width, with Save and Cancel below it.
+    // Label, textarea, counter and Save/Cancel share a reading width; about 3 rows high, still resizable.
+    expect(field).toMatchObject({ rows: 3, compact: true })
     const markup = renderToStaticMarkup(<>{editing}</>)
-    expect(markup).toMatch(/^<div class="mt-3">/)
-    expect(markup).not.toContain('max-w-prose')
+    expect(markup).toMatch(/^<div class="mt-3 max-w-2xl">/)
+    expect(markup).toMatch(/<textarea [^>]*rows="3"/)
+    const textarea = markup.match(/<textarea [^>]*class="([^"]+)"/)![1].split(' ')
+    expect(textarea).toContain('resize-y')
+    expect(textarea).not.toContain('min-h-28')
     expect(markup.indexOf('<textarea')).toBeLessThan(markup.indexOf('>Save<'))
   })
 

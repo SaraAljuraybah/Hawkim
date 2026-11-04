@@ -74,10 +74,13 @@ export function SopDescription({ description = '', content, onSave, onSaved }: S
 
   if (editing) {
     return (
-      <div className="mt-3" onKeyDown={onKeyDown}>
+      // At most a reading width (full width on small screens); the counter ends at the textarea's right edge.
+      <div className="mt-3 max-w-2xl" onKeyDown={onKeyDown}>
         <TextAreaField
           ref={fieldRef}
           name="description"
+          rows={3}
+          compact
           label={content.label}
           maxLength={SOP_DESCRIPTION_MAX}
           counter={content.counter.replace('{count}', String(draft.length)).replace('{max}', String(SOP_DESCRIPTION_MAX))}
