@@ -16,6 +16,7 @@ import type { SopStatus } from '../types/status'
 import { hasCurrentCheck } from './compliance'
 import { fixedResponseDueDate } from './fixedResponseDeadline'
 import { todayIsoDate } from './format'
+import { SOP_DESCRIPTION_MAX } from './sopDescription'
 import { isInactiveDecision, isOpenDecision, isUnsentVersion, latestAssignments, projectReviewers, requestDeadline, reviewAllowsNewVersion } from './internalReviewStatus'
 import { endOfRiyadhDay, reviewWorkingDueDateFrom, riyadhDate, WORKING_DAY_POLICY } from './riyadhWorkingDays'
 
@@ -701,6 +702,15 @@ export function addResponse(sop: Sop, actorId: string, text: string, requestId?:
     lastUpdated: todayIsoDate(),
     timeline: [...sop.timeline, round ? { ...response, version: round.version } : response],
   }
+}
+
+/** Main author: change the description any time before the SOP is published. No timeline event. */
+export function updateDescription(sop: Sop, actorId: string, text: string): Sop {
+  assert(isAuthor(sop, actorId), 'Only the main author can change the description')
+  assert(sop.status !== 'published', "The description can't change once the SOP is published")
+  const description = text.trim()
+  assert(description.length <= SOP_DESCRIPTION_MAX, `The description must be at most ${SOP_DESCRIPTION_MAX} characters`)
+  return { ...sop, description, lastUpdated: todayIsoDate() }
 }
 
 /** Main author: add a co-author (PBI 2). Not when Published; never a reviewer or approver. */

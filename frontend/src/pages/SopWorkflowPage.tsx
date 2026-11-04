@@ -2,7 +2,6 @@ import { useRef, useState, type ReactNode } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { ArrowLeft, ArrowUpRight, CircleCheck, MessageSquareReply, ShieldCheck, Upload, UserPlus } from 'lucide-react'
 import { Button } from '../components/ui/Button'
-import { Card } from '../components/ui/Card'
 import { FormDialog } from '../components/ui/FormDialog'
 import { Tooltip } from '../components/ui/Tooltip'
 import { AddCoAuthorsDialog } from '../components/workflow/AddCoAuthorsDialog'
@@ -15,6 +14,7 @@ import { PreviewDialog } from '../components/workflow/PreviewDialog'
 import { ResponseDialog } from '../components/workflow/ResponseDialog'
 import { ResubmitDialog } from '../components/workflow/ResubmitDialog'
 import { ReviewTimelineTable } from '../components/workflow/ReviewTimelineTable'
+import { SopDescription } from '../components/workflow/SopDescription'
 import { StatusTracker } from '../components/workflow/StatusTracker'
 import { SubmitDialog } from '../components/workflow/SubmitDialog'
 import { SubmitForApprovalDialog } from '../components/workflow/SubmitForApprovalDialog'
@@ -287,13 +287,14 @@ export function SopWorkflowPage() {
             {content.lastUpdatedTemplate.split('{date}')[1]}
           </span>
         </div>
+        <SopDescription
+          description={sop.description}
+          content={content.description}
+          onSave={isMainAuthor && sop.status !== 'published' ? (text) => store.updateDescription(sop.id, text) : undefined}
+          onSaved={() => announce(content.messages.descriptionUpdated)}
+        />
       </div>
 
-      {sop.description?.trim() && (
-        <Card title={content.descriptionTitle} titleId="description-title" className="mt-6">
-          <p className="text-sm leading-relaxed whitespace-pre-wrap break-words text-maroon">{sop.description}</p>
-        </Card>
-      )}
 
       {/* Success message after an action (live region stays mounted) */}
       <div role="status" ref={statusRef} tabIndex={-1} className="rounded-lg focus:outline-none">

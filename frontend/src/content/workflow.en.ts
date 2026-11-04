@@ -12,7 +12,14 @@ export const sopWorkflowEn: SopWorkflowContent = {
   versionTemplate: 'v{version}',
   lastUpdatedTemplate: 'Last updated {date}',
   departmentLabel: 'Department',
-  descriptionTitle: 'SOP Description',
+  description: {
+    edit: 'Edit Description',
+    label: 'Description',
+    counter: '{count} / {max}',
+    save: 'Save',
+    cancel: 'Cancel',
+    failed: "The description couldn't be saved. Try again.",
+  },
   roles: { reviewer: 'Reviewer', approver: 'Approver', author: 'Author', coAuthor: 'Co-author', system: 'System' },
 
   reviewerDeadline: {
@@ -269,6 +276,7 @@ export const sopWorkflowEn: SopWorkflowContent = {
     fileFailed: "The file couldn't be opened. Try again.",
     resubmitted: 'Resubmitted for review.',
     coAuthorsAdded: 'Co-authors added.',
+    descriptionUpdated: 'Description updated.',
     coAuthorRemoved: '{name} removed as co-author.',
     coAuthorRemoveFailed: '{name} could not be removed as co-author.',
     checkStarted: 'Compliance check started.',

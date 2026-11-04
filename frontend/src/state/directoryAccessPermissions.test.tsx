@@ -32,6 +32,7 @@ vi.mock('../services/sops', () => ({
   deleteSopVersion: vi.fn(async () => {}),
   addCoAuthors: vi.fn(async () => {}),
   removeCoAuthor: vi.fn(async () => {}),
+  updateSopDescription: vi.fn(async () => {}),
 }))
 
 function person(id: string, departmentId: string, permissions: User['permissions']): User {
@@ -101,6 +102,7 @@ describe('directory access never authorizes authoring', () => {
       () => store.uploadVersion(foreign.id, pdf('replacement.pdf')),
       () => store.deleteVersion(foreign.id, '1'), () => store.addCoAuthors(foreign.id, ['route-target']),
       () => store.removeCoAuthor(foreign.id, 'writer'), () => store.runCheck(foreign.id),
+      () => store.updateDescription(foreign.id, 'Changed by a visitor'),
       () => store.shiftDueDates(foreign.id, 3),
     ]
     for (const action of actions) await refused(action)

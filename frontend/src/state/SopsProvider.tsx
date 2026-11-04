@@ -453,6 +453,11 @@ export function SopsProvider({ children }: { children: ReactNode }) {
         await (await sopService()).removeCoAuthor(id, coAuthorId)
         await refresh(id)
       },
+      updateDescription: async (id, text) => {
+        workflow.updateDescription(current(id), userId, text)
+        await (await sopService()).updateSopDescription(id, text)
+        await refresh(id)
+      },
       runCheck,
       completeReview: (id, reviewerId, text) => update(id, (sop) => {
         assertActor(reviewerId, 'reviewer')

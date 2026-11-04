@@ -3,6 +3,7 @@ import { isValidElement, type ReactElement, type ReactNode } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { FormDialog } from '../components/ui/FormDialog'
 import { PeopleList } from '../components/workflow/PeopleList'
+import { SopDescription } from '../components/workflow/SopDescription'
 import { VersionHistory } from '../components/workflow/VersionHistory'
 import { sopWorkflowEn } from '../content/workflow.en'
 import type { Sop, SopVersion, User } from '../data/mock/types'
@@ -19,6 +20,7 @@ const fixture = vi.hoisted(() => ({
   slots: [] as Slot[], index: 0, confirmations: [] as Confirmation[], sop: null as Sop | null,
   removeCoAuthor: vi.fn<(sopId: string, userId: string) => Promise<void>>(),
   deleteVersion: vi.fn<(sopId: string, version: string) => Promise<void>>(),
+  updateDescription: vi.fn<(sopId: string, text: string) => Promise<void>>(),
   users: [
     { id: 'author', name: 'Main Author', departmentId: 'home', permissions: ['author'] },
     { id: 'coauthor', name: 'Contributing Author', departmentId: 'home', permissions: ['author'] },
@@ -47,7 +49,7 @@ vi.mock('../state/sessionContext', () => ({ useCurrentUser: () => fixture.users[
 vi.mock('../state/usersContext', () => ({ useUsers: () => ({ users: fixture.users, nameOf: (id?: string) => fixture.users.find((user) => user.id === id)?.name ?? '' }) }))
 vi.mock('../state/departmentsContext', () => ({ useDepartments: () => ({ departments: [{ id: 'home', name: 'Home', requiresComplianceCheck: false }], nameOf: () => 'Home' }) }))
 vi.mock('../state/guidelinesContext', () => ({ useGuidelines: () => ({ current: { version: '4.0' } }) }))
-vi.mock('../state/sopsContext', () => ({ useSops: () => ({ sops: [fixture.sop], removeCoAuthor: fixture.removeCoAuthor, deleteVersion: fixture.deleteVersion }) }))
+vi.mock('../state/sopsContext', () => ({ useSops: () => ({ sops: [fixture.sop], removeCoAuthor: fixture.removeCoAuthor, deleteVersion: fixture.deleteVersion, updateDescription: fixture.updateDescription }) }))
 vi.mock('../components/ui/FormDialog', () => ({ FormDialog: (props: Confirmation) => {
   fixture.confirmations.push(props)
   return props.open ? <section role="dialog" aria-label={props.title}>{props.children}</section> : null
@@ -102,6 +104,7 @@ beforeEach(() => {
   fixture.confirmations = []
   fixture.removeCoAuthor.mockReset()
   fixture.deleteVersion.mockReset()
+  fixture.updateDescription.mockReset()
   fixture.sop = {
     id: 'author-sop', code: 'SOP-001', title: 'Author mutations', departmentId: 'home', authorId: 'author', coAuthorIds: ['coauthor'],
     status: 'draft', version: '2', lastUpdated: '2026-10-29', fileName: 'current.pdf', fileType: 'pdf',
@@ -144,4 +147,36 @@ describe('author workflow confirmation mutations', () => {
       expect(failed.html).toContain(operation.error)
     })
   }
+})
+
+describe('SOP description on the author page', () => {
+  type DescriptionProps = { description?: string; onSave?: (text: string) => Promise<void>; onSaved?: () => void }
+  const description = () => element<DescriptionProps>(render().page, SopDescription).props
+
+  it('lets the main author save it through the store and announces the change', async () => {
+    fixture.sop!.description = 'Current scope'
+    fixture.updateDescription.mockResolvedValue()
+    const props = description()
+    expect(props.description).toBe('Current scope')
+    await props.onSave!('New scope')
+    expect(fixture.updateDescription).toHaveBeenCalledExactlyOnceWith('author-sop', 'New scope')
+    props.onSaved!()
+    vi.runAllTimers()
+    const status = elements(render().page).find((node) => (node.props as { role?: string }).role === 'status')!
+    expect(renderToStaticMarkup(status)).toContain(sopWorkflowEn.messages.descriptionUpdated)
+  })
+
+  it('is editable at any status before publishing, and read-only for co-authors and once published', () => {
+    fixture.sop!.status = 'in-review'
+    expect(description().onSave).toBeDefined()
+    fixture.sop!.status = 'published'
+    expect(description().onSave).toBeUndefined()
+    fixture.sop!.status = 'draft'
+    fixture.users.reverse()
+    try {
+      expect(description().onSave).toBeUndefined()
+    } finally {
+      fixture.users.reverse()
+    }
+  })
 })

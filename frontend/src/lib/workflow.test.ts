@@ -36,6 +36,7 @@ import {
   routeToReviewer,
   submitForReview,
   timelineRecipients,
+  updateDescription,
   uploadVersion,
 } from './workflow'
 
@@ -675,6 +676,30 @@ describe('managing co-authors (Add co-authors, Remove)', () => {
     expect(removed.coAuthorIds).toEqual([])
     expect(removed.timeline.at(-1)).toMatchObject({ type: 'co-author-removed', actorId: SARA, subjectId: REEM })
     expect(() => removeCoAuthor(draft(), REEM, REEM)).toThrow(/Only the author/)
+  })
+})
+
+describe('SOP description', () => {
+  it('lets the main author change it, trimmed, without a timeline event', () => {
+    const before = draft({ description: 'Old text', lastUpdated: '2026-01-01' })
+    const changed = updateDescription(before, SARA, '  New scope and purpose.  ')
+    expect(changed.description).toBe('New scope and purpose.')
+    expect(changed.lastUpdated).not.toBe('2026-01-01')
+    expect(changed.timeline).toEqual(before.timeline)
+    expect(updateDescription(before, SARA, '   ').description).toBe('')
+  })
+
+  it('is editable at any status before publishing', () => {
+    expect(updateDescription(inReview(), SARA, 'During review').description).toBe('During review')
+    expect(updateDescription(inApproval(), SARA, 'During approval').description).toBe('During approval')
+    expect(() => updateDescription(draft({ status: 'published' }), SARA, 'Too late')).toThrow(/published/)
+  })
+
+  it('is only for the main author, within 1000 characters', () => {
+    expect(() => updateDescription(draft(), REEM, 'Co-author edit')).toThrow(/Only the main author/)
+    expect(() => updateDescription(draft(), NOURA, 'Reviewer edit')).toThrow(/Only the main author/)
+    expect(updateDescription(draft(), SARA, 'a'.repeat(1000)).description).toHaveLength(1000)
+    expect(() => updateDescription(draft(), SARA, 'a'.repeat(1001))).toThrow(/1000 characters/)
   })
 })
 

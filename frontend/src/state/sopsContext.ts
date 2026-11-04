@@ -62,6 +62,8 @@ export interface SopsStore {
   addCoAuthors: (sopId: string, userIds: string[]) => Promise<void>
   /** Main author: removes a co-author. */
   removeCoAuthor: (sopId: string, userId: string) => Promise<void>
+  /** Main author: changes the description any time before the SOP is published. */
+  updateDescription: (sopId: string, text: string) => Promise<void>
   /**
    * Runs a compliance check of the current version (PBI 4, 29). It is "running"
    * for a moment, then saves its report. Refused if a check is already running.

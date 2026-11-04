@@ -12,7 +12,6 @@ import { ReviewFlowActions } from '../components/reviews/ReviewFlowActions'
 import { CommentDialog } from '../components/reviews/ReviewDialogs'
 import { PdfViewer } from '../components/sops/PdfViewer'
 import { Button } from '../components/ui/Button'
-import { Card } from '../components/ui/Card'
 import { ConfirmDialog } from '../components/ui/ConfirmDialog'
 import { StatusBadge } from '../components/ui/StatusBadge'
 import { CommentList } from '../components/workflow/CommentList'
@@ -20,6 +19,7 @@ import { ReviewerDeadline } from '../components/workflow/ReviewerDeadline'
 import { PeopleList } from '../components/workflow/PeopleList'
 import { StatusTracker } from '../components/workflow/StatusTracker'
 import { ReviewTimelineTable } from '../components/workflow/ReviewTimelineTable'
+import { SopDescription } from '../components/workflow/SopDescription'
 import { complianceEn } from '../content/compliance.en'
 import { reviewsEn } from '../content/reviews.en'
 import { sopWorkflowEn } from '../content/workflow.en'
@@ -233,6 +233,7 @@ function Review({ sop, historical }: { sop: Sop; historical: boolean }) {
             )}
           </p>
         )}
+        <SopDescription description={sop.description} content={workflow.description} />
       </div>
 
       {sop.status === 'in-review' && (reviewer ?? currentReviewer(sop)) && (
@@ -241,11 +242,6 @@ function Review({ sop, historical }: { sop: Sop; historical: boolean }) {
         </div>
       )}
 
-      {sop.description?.trim() && (
-        <Card title={workflow.descriptionTitle} titleId="description-title" className="mt-6">
-          <p className="text-sm leading-relaxed whitespace-pre-wrap break-words text-maroon">{sop.description}</p>
-        </Card>
-      )}
 
       {/* Success message after an action (live region stays mounted) */}
       <div role="status" ref={statusRef} tabIndex={-1} className="rounded-lg focus:outline-none">

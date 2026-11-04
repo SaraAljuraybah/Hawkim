@@ -1,4 +1,4 @@
-import { useId, useState, type KeyboardEvent, type MouseEvent } from 'react'
+import { useId, useState, type KeyboardEvent, type MouseEvent, type Ref } from 'react'
 import type { LucideIcon } from 'lucide-react'
 
 interface IconButtonProps {
@@ -16,6 +16,8 @@ interface IconButtonProps {
   onClick?: (event: MouseEvent<HTMLButtonElement>) => void
   /** Red icon for a destructive action (always confirmed by the caller). */
   danger?: boolean
+  /** The button element, e.g. to move focus back to it. Not used for links. */
+  ref?: Ref<HTMLButtonElement>
 }
 
 const base =
@@ -27,7 +29,7 @@ const base =
  * can be hovered and is dismissed with Escape (WCAG 1.4.13). It opens to the left
  * of the button's right edge, so it stays inside the page at the end of a row.
  */
-export function IconButton({ label, icon: Icon, disabledReason, href, download, onClick, danger = false }: IconButtonProps) {
+export function IconButton({ label, icon: Icon, disabledReason, href, download, onClick, danger = false, ref }: IconButtonProps) {
   const [open, setOpen] = useState(false)
   const tooltipId = useId()
   const disabled = !!disabledReason
@@ -55,7 +57,7 @@ export function IconButton({ label, icon: Icon, disabledReason, href, download, 
           {icon}
         </a>
       ) : (
-        <button type="button" aria-disabled={disabled || undefined} onClick={disabled ? undefined : onClick} {...shared}>
+        <button ref={ref} type="button" aria-disabled={disabled || undefined} onClick={disabled ? undefined : onClick} {...shared}>
           {icon}
         </button>
       )}

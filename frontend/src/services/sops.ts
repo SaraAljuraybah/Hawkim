@@ -388,3 +388,9 @@ export async function removeCoAuthor(sopId: string, userId: string): Promise<voi
   const { error } = await supabase().rpc('remove_co_author', { p_sop_id: sopId, p_user_id: userId })
   if (error) throw new Error(error.message)
 }
+
+/** Main author: changes the description before the SOP is published (trimmed and checked by the database). */
+export async function updateSopDescription(sopId: string, description: string): Promise<void> {
+  const { error } = await supabase().rpc('update_sop_description', { p_sop_id: sopId, p_description: description.trim() })
+  if (error) throw new Error(error.message)
+}

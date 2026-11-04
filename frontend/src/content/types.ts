@@ -624,7 +624,18 @@ export interface SopWorkflowContent {
   /** `{date}` is replaced. */
   lastUpdatedTemplate: string
   departmentLabel: string
-  descriptionTitle: string
+  /** The SOP description under the header; the main author can edit it until the SOP is published. */
+  description: {
+    /** Accessible name and tooltip of the pencil button. */
+    edit: string
+    /** Label of the textarea while editing. */
+    label: string
+    /** `{count}` and `{max}` are replaced. */
+    counter: string
+    save: string
+    cancel: string
+    failed: string
+  }
   roles: { reviewer: string; approver: string; author: string; coAuthor: string; system: string }
   reviewerDeadline: {
     due: string
@@ -833,6 +844,7 @@ export interface SopWorkflowContent {
     fileFailed: string
     resubmitted: string
     coAuthorsAdded: string
+    descriptionUpdated: string
     /** `{name}` is replaced. */
     coAuthorRemoved: string
     /** `{name}` is replaced. */

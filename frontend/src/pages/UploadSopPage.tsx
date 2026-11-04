@@ -9,6 +9,7 @@ import { TextField } from '../components/ui/TextField'
 import { uploadSopEn } from '../content/mySops.en'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { hasPermission } from '../lib/permissions'
+import { SOP_DESCRIPTION_MAX } from '../lib/sopDescription'
 import { SOP_TITLE_MAX, sopTitleProblem } from '../lib/sopTitle'
 import { useActiveDepartment } from '../state/activeDepartmentContext'
 import { useCurrentUser } from '../state/sessionContext'
@@ -16,7 +17,6 @@ import { useSops } from '../state/sopsContext'
 import { NotFoundPage } from './NotFoundPage'
 import type { MySopsLocationState } from './MySopsPage'
 
-const DESCRIPTION_MAX = 1000
 /** Authors can upload Word (.docx) and PDF files (PBI 1). */
 const FILE_EXTENSIONS = ['.docx', '.pdf']
 const FILE_MAX_BYTES = 10 * 1024 * 1024 // 10 MB
@@ -144,10 +144,10 @@ export function UploadSopPage() {
             name="description"
             label={content.fields.description.label}
             placeholder={content.fields.description.placeholder}
-            maxLength={DESCRIPTION_MAX}
+            maxLength={SOP_DESCRIPTION_MAX}
             counter={content.fields.description.counter
               .replace('{count}', String(description.length))
-              .replace('{max}', String(DESCRIPTION_MAX))}
+              .replace('{max}', String(SOP_DESCRIPTION_MAX))}
             value={description}
             onChange={(e) => setDescription(e.target.value)}
           />
