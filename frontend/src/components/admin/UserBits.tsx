@@ -2,7 +2,7 @@ import { usersEn } from '../../content/users.en'
 import type { User } from '../../data/mock/types'
 
 /** The user's initials in a circle (decorative: the name is always shown next to it). */
-export function UserAvatar({ user, className = '' }: { user: User; className?: string }) {
+export function UserAvatar({ user, className = '' }: { user: Pick<User, 'initials'>; className?: string }) {
   return (
     <span
       aria-hidden="true"
@@ -14,7 +14,7 @@ export function UserAvatar({ user, className = '' }: { user: User; className?: s
 }
 
 /** The user's permissions as text badges, or "Employee" when they have none. */
-export function PermissionBadges({ user, className = '' }: { user: User; className?: string }) {
+export function PermissionBadges({ user, className = '' }: { user: Pick<User, 'permissions'>; className?: string }) {
   const badge = 'inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium whitespace-nowrap'
   return (
     <ul className={`flex flex-wrap gap-1.5 ${className}`}>

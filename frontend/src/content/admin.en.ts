@@ -18,6 +18,7 @@ export const adminEn: AdminContent = {
       { label: 'Departments', href: '/admin/departments', icon: 'departments', matchSubpaths: true },
       { label: 'Requests', href: '/admin/requests', icon: 'requests', matchSubpaths: true },
       { label: 'Regulations', href: '/admin/regulations', icon: 'regulatory', matchSubpaths: true },
+      { label: 'Organizational Structure', href: '/admin/organizational-structure', icon: 'hierarchy', matchSubpaths: true },
     ],
     signOut: { label: 'Sign Out', href: '/login', icon: 'signOut' },
     openMenu: 'Open menu',

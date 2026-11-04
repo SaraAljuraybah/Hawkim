@@ -23,6 +23,7 @@ export type IconName =
   | 'workflow'
   | 'regulatory'
   | 'organization'
+  | 'hierarchy'
   | 'traceability'
   | 'dashboard'
   | 'requests'
