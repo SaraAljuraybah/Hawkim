@@ -1,9 +1,9 @@
-import { useId, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import { flushSync } from 'react-dom'
 import { approvalEn } from '../../content/approval.en'
 import { sopWorkflowEn } from '../../content/workflow.en'
 import type { Sop } from '../../data/mock/types'
-import { approvalReadiness, type ApprovalSubmissionOptions } from '../../lib/approval'
+import { approvalReadiness, type ApprovalBlocker, type ApprovalSubmissionOptions } from '../../lib/approval'
 import { formatDate } from '../../lib/format'
 import { approvalDueDateRange, parseApprovalDueDate } from '../../lib/workflow'
 import { useDepartments } from '../../state/departmentsContext'
@@ -18,7 +18,12 @@ interface SubmitForApprovalDialogProps {
   onClose: () => void
 }
 
-/** Explicit Author attestations belong to this version and review round only. */
+/** The dialog's text for a reason the submit step refuses (the deadline has its own field error). */
+function blockerText(code: ApprovalBlocker): string | undefined {
+  return code in approvalEn.blockers ? approvalEn.blockers[code as keyof typeof approvalEn.blockers] : undefined
+}
+
+/** Sends this version and review round to the department's Quality Document Controller, with an optional deadline. */
 export function SubmitForApprovalDialog({ sop, onSubmit, onClose }: SubmitForApprovalDialogProps) {
   const text = approvalEn.dialog
   const user = useCurrentUser()
@@ -27,41 +32,36 @@ export function SubmitForApprovalDialog({ sop, onSubmit, onClose }: SubmitForApp
   const environment = { users, departments }
   // Keep the opening snapshot: a stale dialog cannot submit a later version or round.
   const [snapshot] = useState(() => ({ version: sop.version, internalReviewRoundId: sop.internalReviewRounds?.at(-1)?.id ?? '' }))
-  const [noExternalReviewsRequired, setNoExternalReviewsRequired] = useState(false)
-  const [feedbackAddressed, setFeedbackAddressed] = useState(false)
   const [dueDate, setDueDate] = useState('')
   const [errors, setErrors] = useState<string[]>([])
   const [dateError, setDateError] = useState('')
   const errorRef = useRef<HTMLDivElement>(null)
   const dateRef = useRef<HTMLInputElement>(null)
-  const externalHintId = useId()
   const readiness = approvalReadiness(sop, user.id, environment)
 
+  function showErrors(messages: string[]) {
+    flushSync(() => setErrors(messages))
+    errorRef.current?.focus()
+    return false
+  }
+
   function confirm() {
-    const options: ApprovalSubmissionOptions = {
-      ...snapshot,
-      noExternalReviewsRequired,
-      feedbackAddressed,
-      dueDate: dueDate || undefined,
-    }
-    const current = approvalReadiness(sop, user.id, environment, options)
-    if (!current.ready) {
-      flushSync(() => setErrors(current.reasons))
-      errorRef.current?.focus()
-      return false
-    }
     if (!parseApprovalDueDate(dueDate).valid) {
       const range = approvalDueDateRange()
       flushSync(() => setDateError(text.dateInvalid.replace('{min}', formatDate(range.min)).replace('{max}', formatDate(range.max))))
       dateRef.current?.focus()
       return false
     }
+    const options: ApprovalSubmissionOptions = { ...snapshot, dueDate: dueDate || undefined }
+    const current = approvalReadiness(sop, user.id, environment, options)
+    if (!current.ready) {
+      const messages = current.blockers.map(blockerText).filter((message): message is string => !!message)
+      return showErrors(messages.length ? messages : [text.failed])
+    }
     try {
       onSubmit(options)
     } catch (error) {
-      flushSync(() => setErrors([error instanceof Error ? error.message : text.failed]))
-      errorRef.current?.focus()
-      return false
+      return showErrors([error instanceof Error ? error.message : text.failed])
     }
   }
 
@@ -78,25 +78,6 @@ export function SubmitForApprovalDialog({ sop, onSubmit, onClose }: SubmitForApp
           <p className="text-text-gray">{text.controller}</p>
           <p className="mt-1 font-medium text-maroon">{readiness.qualityController.name}</p>
         </div>
-      )}
-      {readiness.requiresExternalConfirmation && (
-        <div>
-          <label className="flex cursor-pointer items-start gap-3 text-sm text-maroon">
-            <input type="checkbox" name="noExternalReviewsRequired" checked={noExternalReviewsRequired}
-              aria-describedby={externalHintId} className="mt-0.5 size-4 shrink-0 cursor-pointer accent-maroon"
-              onChange={(event) => { setNoExternalReviewsRequired(event.target.checked); setErrors([]) }} />
-            <span>{text.noExternalReviews}</span>
-          </label>
-          <p id={externalHintId} className="mt-2 text-sm text-text-gray">{text.noExternalReviewsHint}</p>
-        </div>
-      )}
-      {readiness.requiresFeedbackConfirmation && (
-        <label className="flex cursor-pointer items-start gap-3 text-sm text-maroon">
-          <input type="checkbox" name="feedbackAddressed" checked={feedbackAddressed}
-            className="mt-0.5 size-4 shrink-0 cursor-pointer accent-maroon"
-            onChange={(event) => { setFeedbackAddressed(event.target.checked); setErrors([]) }} />
-          <span>{text.feedbackAddressed}</span>
-        </label>
       )}
       <ReviewDueDateField ref={dateRef} stage="approval" name="approvalDueDate" value={dueDate} error={dateError}
         text={{ ...sopWorkflowEn.dialogs.submit.reviewDate, label: text.dueDate, help: text.dueDateHelp }}

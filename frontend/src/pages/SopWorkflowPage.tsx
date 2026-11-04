@@ -23,12 +23,12 @@ import { complianceEn } from '../content/compliance.en'
 import { approvalEn } from '../content/approval.en'
 import { internalReviewEn } from '../content/internalReview.en'
 import { sopWorkflowEn } from '../content/workflow.en'
-import type { Sop, SopVersion } from '../data/mock/types'
+import type { SopVersion } from '../data/mock/types'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { canReplaceSampleResult, checkRequired, checkStartFailure, currentCheck, hasCurrentCheck, isCheckRunning } from '../lib/compliance'
-import { approvalReadiness, type ApprovalReadiness } from '../lib/approval'
+import { approvalButtonBlocker } from '../lib/approval'
 import { hasResponseOutsideReviewers, requestResponseRecipients } from '../lib/reviewRequestRows'
-import { canAddReviewers, canSendNewVersion, type ReviewPhaseItem } from '../lib/internalReview'
+import { canAddReviewers, canSendNewVersion } from '../lib/internalReview'
 import { reviewAllowsNewVersion } from '../lib/internalReviewStatus'
 import { formatDate } from '../lib/format'
 import { hasPermission } from '../lib/permissions'
@@ -46,6 +46,7 @@ import { fileUrlOf } from '../services/files'
 import { useDepartments } from '../state/departmentsContext'
 import { useGuidelines } from '../state/guidelinesContext'
 import { useCurrentUser } from '../state/sessionContext'
+import { wasSentForApproval } from '../state/approvalSentStorage'
 import { useSops } from '../state/sopsContext'
 import { useUsers } from '../state/usersContext'
 import { NotFoundPage } from './NotFoundPage'
@@ -89,7 +90,7 @@ export function SopWorkflowPage() {
   const { id } = useParams()
   const store = useSops()
   const user = useCurrentUser()
-  const { nameOf, users } = useUsers()
+  const { nameOf } = useUsers()
   const departments = useDepartments()
   const guidelines = useGuidelines()
   const sop = store.sops.find((item) => item.id === id)
@@ -181,40 +182,11 @@ export function SopWorkflowPage() {
   const canManageCoAuthors = isMainAuthor && sop.status !== 'published'
   const sendVersion = isMainAuthor && internal && canSendNewVersion(sop)
   const requestReason = sendVersion ? checkReason : undefined
-  // Submit for approval stays visible (Draft, In Review, and Returned after an approver return); it's disabled until ready.
+  // Submit for approval stays visible (Draft, In Review, and Returned after an approver return). It is
+  // available once one reviewer completed the current version; this browser also remembers a version
+  // it sent (approval isn't in the database yet, so a reload would otherwise forget it).
   const showApproval = isMainAuthor && (sop.status === 'draft' || internal) && sop.status !== 'approved' && sop.status !== 'published'
-  const approval = showApproval
-    ? approvalReadiness(sop, user.id, { users, departments: departments.departments }, {
-        noExternalReviewsRequired: true,
-        feedbackAddressed: true,
-      })
-    : undefined
-
-  /** One reviewer still to finish the latest version (or nobody taking part), as a line of the missing list. */
-  function missingText(item: ReviewPhaseItem): string {
-    const text = internalReviewEn.approvalMissing
-    if (item.kind === 'no-reviewers') return text.noReviewers
-    const template = item.kind === 'respond' ? text.respond : item.kind === 'finish' ? text.finish : text.returned
-    return template.replace('{name}', nameOf(item.userId)).replace('{version}', 'version' in item ? item.version : '')
-  }
-  /**
-   * The approval tooltip's lines: the reviewers still missing, then the other reasons in simple words.
-   * Display only: the codes come from approvalReadiness, unchanged.
-   */
-  function approvalLines(readiness: ApprovalReadiness, current: Sop): string[] {
-    const blocked = approvalEn.blockers
-    const requested = readiness.blockers.includes('already-requested')
-    const latest = current.approvalSubmissions?.at(-1)
-    return [...readiness.missing.map(missingText), ...readiness.blockers.flatMap((code, index) => {
-      // "Already sent" (or the approver's return) explains it; "not in review" would only repeat it.
-      if (code === 'not-in-review' && requested) return []
-      if (code === 'already-requested' && current.status === 'returned') {
-        // After a new version is uploaded, the reviewer line says what's next.
-        return latest?.status === 'returned' && latest.version === current.version ? [approvalEn.returnedByApprover] : []
-      }
-      return [code in blocked ? blocked[code as keyof typeof blocked] : readiness.reasons[index]]
-    })]
-  }
+  const approvalBlocker = showApproval ? approvalButtonBlocker(sop, wasSentForApproval(sop.id, sop.version)) : undefined
   // Response: to everyone who commented in the latest round; not once published.
   const recipients = sop.status === 'published' ? [] : responseRecipients(sop)
   // Reviewers are answered from their row's comments dialog; the header is for anyone else (e.g. an approver).
@@ -460,15 +432,12 @@ export function SopWorkflowPage() {
                 <Button size="sm" disabled={!!requestReason} aria-describedby={requestReason ? 'submit-hint' : undefined}
                   onClick={(event) => open(sendVersion ? 'submit' : 'addReviewers', event.currentTarget)}>{actions.submit}</Button>
               )}
-              {showApproval && (approval?.ready ? (
+              {showApproval && (!approvalBlocker ? (
                 <Button size="sm" grayWhenDisabled onClick={(event) => open('approval', event.currentTarget)}>{approvalEn.action}</Button>
               ) : (
-                // Not available yet: grey and aria-disabled, so it stays focusable; the tooltip says why
+                // Not available: grey and aria-disabled, so it stays focusable; the tooltip gives the one reason
                 // (on hover, keyboard focus or a tap) and is read with the button.
-                <Tooltip openOnTap wide text={<>
-                  <span className="block font-semibold">{internalReviewEn.approvalMissing.title}</span>
-                  {approval && approvalLines(approval, sop).map((line) => <span key={line} className="ml-4 list-item list-disc">{line}</span>)}
-                </>}>
+                <Tooltip openOnTap wide text={approvalEn.blockers[approvalBlocker]}>
                   {(tooltipId) => (
                     <Button size="sm" grayWhenDisabled aria-disabled aria-describedby={tooltipId}>{approvalEn.action}</Button>
                   )}

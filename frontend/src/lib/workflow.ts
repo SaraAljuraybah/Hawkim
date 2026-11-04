@@ -852,6 +852,12 @@ export function internalReviewsComplete(sop: Sop): boolean {
     latest.every((person) => person.decision === 'completed' || isInactiveDecision(person.decision))
 }
 
+/** The approval rule: the latest round is on the current version and at least one reviewer's latest request in it is Completed. */
+export function hasCompletedCurrentReview(sop: Sop): boolean {
+  const round = sop.internalReviewRounds?.at(-1)
+  return !!round && round.version === sop.version && latestAssignments(round).some((person) => person.decision === 'completed')
+}
+
 /** All required initial and department reviews must be evidenced by completed assignments. */
 export function requiredReviewsComplete(sop: Sop): boolean {
   const round = sop.internalReviewRounds?.at(-1)
@@ -871,20 +877,6 @@ export function requiredReviewsComplete(sop: Sop): boolean {
     flow.departments.every((d) => d.completed && completed(d.representativeId) && completed(d.reviewerId))
 }
 
-/** Explicit external-review evidence only; an absent routing plan never means no reviews are required. */
-export function externalReviewsComplete(sop: Sop): boolean {
-  const gate = sop.externalReviewGate
-  const round = sop.internalReviewRounds?.at(-1)
-  if (!gate || gate.version !== sop.version || gate.internalReviewRoundId !== round?.id) return false
-  if (gate.requirement === 'not-required') return gate.confirmedById === sop.authorId && !!gate.confirmedAt
-  return gate.departmentIds.length > 0 && new Set(gate.departmentIds).size === gate.departmentIds.length &&
-    !gate.departmentIds.includes(sop.departmentId) && gate.assignments.length === gate.departmentIds.length &&
-    new Set(gate.assignments.map((assignment) => assignment.id)).size === gate.assignments.length &&
-    gate.departmentIds.every((departmentId) => gate.assignments.filter((assignment) => assignment.departmentId === departmentId).length === 1) &&
-    gate.assignments.every((assignment) => assignment.version === sop.version && assignment.decision === 'completed' &&
-      (!assignment.feedbackRequired || assignment.feedbackAddressed === true))
-}
-
 /** Review-plan readiness also protects direct approval and publication calls. */
 function assertQualityReady(sop: Sop, userId: string) {
   if (!sop.reviewFlow) return
@@ -897,7 +889,7 @@ export function activeApprovalSubmission(sop: Sop): ApprovalSubmission | undefin
   const submission = sop.approvalSubmissions?.at(-1)
   const round = sop.internalReviewRounds?.at(-1)
   if (!submission || submission.version !== sop.version || submission.internalReviewRoundId !== round?.id ||
-    !internalReviewsComplete(sop) || !requiredReviewsComplete(sop) || !externalReviewsComplete(sop) ||
+    !hasCompletedCurrentReview(sop) ||
     sop.approvers.length !== 1 || sop.approvers[0].userId !== submission.approverId ||
     sop.approvers[0].id !== submission.id || sop.approvers[0].version !== submission.version) return undefined
   const expected = sop.status === 'in-approval' ? 'pending' : sop.status === 'approved' ? 'approved' : sop.status === 'published' ? 'published' : undefined

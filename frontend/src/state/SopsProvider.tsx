@@ -14,6 +14,7 @@ import { acceptInternalReview, addInternalReviewers, changeInternalReviewDeadlin
 import { useDepartments } from './departmentsContext'
 import * as workflow from '../lib/workflow'
 import { fileTypeOf } from '../lib/prototypeFiles'
+import { forgetSentForApproval, rememberSentForApproval, wasSentForApproval } from './approvalSentStorage'
 import { mergeSops } from './mergeSops'
 import * as complianceApi from '../services/compliance'
 import * as filesApi from '../services/files'
@@ -349,7 +350,11 @@ export function SopsProvider({ children }: { children: ReactNode }) {
         await (await reviewService()).submitReview(id, o)
         await refresh(id)
       },
-      submitForApproval: (id, options) => update(id, (sop) => submitForApproval(sop, userId, options, environment)),
+      submitForApproval: (id, options) => {
+        update(id, (sop) => submitForApproval(sop, userId, { ...options, sentBefore: wasSentForApproval(id, sop.version) }, environment))
+        // Approval isn't in the database yet: remember it, so a reload keeps the button disabled.
+        rememberSentForApproval(id, options.version)
+      },
       // Reviewer assignment is Author-controlled: a reviewer may only hand off to an existing
       // Author-assigned reviewer (with the original deadline); cross-department routing is pending.
       reviewAction: (id, action) => update(id, (sop) => {
@@ -422,6 +427,7 @@ export function SopsProvider({ children }: { children: ReactNode }) {
         const stored = await (await fileService()).uploadSopFile(userId, file)
         if (activeIdentity.current !== userId) throw new Error('The signed-in user changed')
         await (await sopService()).uploadSopVersion(id, stored)
+        forgetSentForApproval(id)
         await refresh(id)
       },
       deleteVersion: async (id, version) => {
@@ -477,10 +483,13 @@ export function SopsProvider({ children }: { children: ReactNode }) {
         assertActor(approverId, 'approver')
         return workflow.approveAs(sop, approverId, text, snapshot)
       }),
-      returnAsApprover: (id, approverId, text, snapshot) => update(id, (sop) => {
-        assertActor(approverId, 'approver')
-        return workflow.returnAsApprover(sop, approverId, text, snapshot)
-      }),
+      returnAsApprover: (id, approverId, text, snapshot) => {
+        update(id, (sop) => {
+          assertActor(approverId, 'approver')
+          return workflow.returnAsApprover(sop, approverId, text, snapshot)
+        })
+        forgetSentForApproval(id)
+      },
       publishAs: (id, approverId, snapshot) => update(id, (sop) => {
         assertActor(approverId, 'approver')
         return workflow.publishAs(sop, approverId, snapshot)

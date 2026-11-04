@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Department, Sop, User } from '../data/mock/types'
 import { currentInternalRound, expireUnanswered } from '../lib/internalReview'
+import { rememberSentForApproval, wasSentForApproval } from './approvalSentStorage'
 import { SopsProvider } from './SopsProvider'
 import type { SopsStore } from './sopsContext'
 
@@ -229,6 +230,17 @@ describe('identity isolation with the database services (stand-in database, no n
     expect(backend.calls.filter((call) => call === 'uploadSopFile')).toHaveLength(1)
   })
 
+  it('forgets a version remembered as sent for approval once a new version is uploaded', async () => {
+    const items = new Map<string, string>()
+    vi.stubGlobal('localStorage', { getItem: (key: string) => items.get(key) ?? null, setItem: (key: string, value: string) => { items.set(key, value) }, removeItem: (key: string) => { items.delete(key) } })
+    stored(draft('remembered', 'author'))
+    const store = await signIn(fixture.people[0])
+    rememberSentForApproval('remembered', '1')
+    await store.uploadVersion('remembered', new File(['%PDF'], 'second.pdf', { type: 'application/pdf' }))
+    expect(render().sops[0].version).toBe('2')
+    expect(wasSentForApproval('remembered', '1')).toBe(false)
+  })
+
   it('hides previous identity data immediately, does not carry database rows across users, and rejects stale callbacks', async () => {
     stored(draft('private', 'author'))
     const author = await signIn(fixture.people[0])
@@ -271,7 +283,7 @@ describe('identity isolation with the database services (stand-in database, no n
     expect(round.assignments.map((assignment) => ({ userId: assignment.userId, decision: assignment.decision }))).toEqual([
       { userId: 'reviewer', decision: 'pending' }, { userId: second.id, decision: 'pending' },
     ])
-    const options = { version: requested.version, internalReviewRoundId: round.id, noExternalReviewsRequired: true, feedbackAddressed: true }
+    const options = { version: requested.version, internalReviewRoundId: round.id }
     expect(() => render().submitForApproval('shared', options)).toThrow(/review/i)
 
     // Department configuration alone gives the controller no access.
@@ -299,7 +311,6 @@ describe('identity isolation with the database services (stand-in database, no n
     const reviewed = store.sops.find((sop) => sop.id === 'shared')!
     expect(reviewed.status).toBe('in-review')
     expect(reviewed.approvers).toEqual([])
-    expect(() => store.submitForApproval('shared', { ...options, feedbackAddressed: false })).toThrow(/feedback/)
     store.submitForApproval('shared', options)
     store = render()
     const submitted = store.sops.find((sop) => sop.id === 'shared')!

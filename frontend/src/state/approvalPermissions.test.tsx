@@ -5,6 +5,7 @@ import { submitForApproval, type ApprovalSubmissionOptions } from '../lib/approv
 import { acceptInternalReview, currentInternalRound, decideInternalReview, startInternalReview, type InternalReviewOptions } from '../lib/internalReview'
 import { activeApprovalSubmission, isApprover, returnAsApprover, uploadVersion } from '../lib/workflow'
 import { fixedResponseDueDate } from '../lib/fixedResponseDeadline'
+import { wasSentForApproval } from './approvalSentStorage'
 import { SopsProvider } from './SopsProvider'
 import { useSops, type SopsStore } from './sopsContext'
 // These store tests use working-day request deadlines as they behave once activated (lib/deadlinePolicy.ts).
@@ -71,7 +72,7 @@ function reviewed(deadlines: Pick<InternalReviewOptions, 'responseDueDate'> = {}
   return decideInternalReview(accepted, 'reviewer', round.id, round.assignments[0].id, 'completed', 'Checked this version', env())
 }
 function options(sop: Sop): ApprovalSubmissionOptions {
-  return { version: sop.version, internalReviewRoundId: currentInternalRound(sop)!.id, noExternalReviewsRequired: true, feedbackAddressed: true, dueDate: '2026-10-28' }
+  return { version: sop.version, internalReviewRoundId: currentInternalRound(sop)!.id, dueDate: '2026-10-28' }
 }
 function submitted(deadlines: Pick<InternalReviewOptions, 'responseDueDate'> = {}): Sop {
   const sop = reviewed(deadlines)
@@ -232,12 +233,27 @@ describe('approval submission at the authenticated store boundary', () => {
     expect(fixture.commit).not.toHaveBeenCalled()
   })
 
-  it('rejects stale snapshots and missing attestations before committing', () => {
+  it('rejects stale snapshots before committing', () => {
     const sop = reviewed(), store = capture('author', sop), valid = options(sop)
-    for (const invalid of [{ ...valid, version: '0' }, { ...valid, internalReviewRoundId: 'old' }, { ...valid, noExternalReviewsRequired: false }, { ...valid, feedbackAddressed: false }]) {
+    for (const invalid of [{ ...valid, version: '0' }, { ...valid, internalReviewRoundId: 'old' }]) {
       expect(() => store.submitForApproval(sop.id, invalid)).toThrow()
     }
     expect(fixture.commit).not.toHaveBeenCalled()
+  })
+
+  it('remembers a sent version in this browser until the approver returns it', () => {
+    const items = new Map<string, string>()
+    vi.stubGlobal('localStorage', { getItem: (key: string) => items.get(key) ?? null, setItem: (key: string, value: string) => { items.set(key, value) }, removeItem: (key: string) => { items.delete(key) } })
+    const sop = reviewed()
+    capture('author', sop).submitForApproval(sop.id, options(sop))
+    expect(wasSentForApproval(sop.id, '1')).toBe(true)
+    const sent = current()
+    // After a reload the SOP is In Review again (approval isn't in the database): still refused.
+    expect(() => capture('author', reviewed()).submitForApproval(sop.id, options(sop))).toThrow(/Already sent for approval/)
+    expect(fixture.commit).not.toHaveBeenCalled()
+    capture('controller', sent).returnAsApprover(sop.id, 'controller', 'Revise the controls', snapshot(sent))
+    expect(wasSentForApproval(sop.id, '1')).toBe(false)
+    vi.unstubAllGlobals()
   })
 
   it('preserves external reviewer separation of duties when consuming Task 4 completion evidence', async () => {
@@ -250,7 +266,7 @@ describe('approval submission at the authenticated store boundary', () => {
       assignments: [{ id: 'external-review', departmentId: 'other', userId: external.id, version: sop.version, decision: 'completed', decidedAt: new Date().toISOString() }],
     }
     const author = capture('author', sop)
-    author.submitForApproval(sop.id, { ...options(sop), noExternalReviewsRequired: false })
+    author.submitForApproval(sop.id, options(sop))
     expect(current().status).toBe('in-approval')
     await expect(author.addCoAuthors(sop.id, [external.id])).rejects.toThrow(/Reviewers and approvers cannot be co-authors/)
     expect(current().coAuthorIds).not.toContain(external.id)

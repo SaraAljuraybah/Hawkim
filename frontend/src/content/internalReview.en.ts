@@ -51,13 +51,6 @@ export const internalReviewEn = {
     title: 'No Access', text: 'You no longer have access to this SOP.', logoAlt: 'Hawkim',
     back: { label: 'Back to My Reviews', href: '/reviews' },
   },
-  approvalMissing: {
-    title: 'You can’t submit for approval yet:',
-    noReviewers: 'Add at least one reviewer first.',
-    respond: 'Waiting for {name} to accept or decline.',
-    finish: 'Waiting for {name} to finish reviewing v{version}.',
-    returned: '{name} returned v{version} with comments. Upload a new version and submit it for review.',
-  },
   status: {
     cancelled: 'You are no longer taking part in this review.', expired: 'This review request expired because it was not answered in time. The author can send it again.', closed: 'This review round is closed.',
     awaitingAuthor: 'Internal reviews are complete. Awaiting the next Author action.',
