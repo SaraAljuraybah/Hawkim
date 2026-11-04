@@ -273,7 +273,13 @@ export function SopWorkflowPage() {
       {/* Header (no status badge: the Workflow status steps show the status) */}
       <div className="mt-5">
         <h1 className="mt-1 text-2xl leading-tight tracking-tight sm:text-3xl">{sop.title}</h1>
-        <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-text-gray">
+        <SopDescription
+          description={sop.description}
+          content={content.description}
+          onSave={isMainAuthor && sop.status !== 'published' ? (text) => store.updateDescription(sop.id, text) : undefined}
+          onSaved={() => announce(content.messages.descriptionUpdated)}
+        />
+        <div className={`${sop.description?.trim() ? 'mt-4' : 'mt-3'} flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-text-gray`}>
           <span>{content.versionTemplate.replace('{version}', sop.version)}</span>
           <span aria-hidden="true">·</span>
           <span>
@@ -287,14 +293,7 @@ export function SopWorkflowPage() {
             {content.lastUpdatedTemplate.split('{date}')[1]}
           </span>
         </div>
-        <SopDescription
-          description={sop.description}
-          content={content.description}
-          onSave={isMainAuthor && sop.status !== 'published' ? (text) => store.updateDescription(sop.id, text) : undefined}
-          onSaved={() => announce(content.messages.descriptionUpdated)}
-        />
       </div>
-
 
       {/* Success message after an action (live region stays mounted) */}
       <div role="status" ref={statusRef} tabIndex={-1} className="rounded-lg focus:outline-none">

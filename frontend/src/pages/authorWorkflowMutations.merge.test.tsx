@@ -166,6 +166,17 @@ describe('SOP description on the author page', () => {
     expect(renderToStaticMarkup(status)).toContain(sopWorkflowEn.messages.descriptionUpdated)
   })
 
+  it('sits between the title and the version, department and last updated line', () => {
+    fixture.sop!.description = 'Current scope'
+    const nodes = elements(render().page)
+    const title = nodes.findIndex((node) => node.type === 'h1')
+    const block = nodes.findIndex((node) => node.type === SopDescription)
+    const meta = nodes.findIndex((node) => node.type === 'time')
+    expect(title).toBeGreaterThanOrEqual(0)
+    expect(title).toBeLessThan(block)
+    expect(block).toBeLessThan(meta)
+  })
+
   it('is editable at any status before publishing, and read-only for co-authors and once published', () => {
     fixture.sop!.status = 'in-review'
     expect(description().onSave).toBeDefined()

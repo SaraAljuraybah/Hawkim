@@ -200,7 +200,8 @@ function Review({ sop, historical }: { sop: Sop; historical: boolean }) {
       {/* Header */}
       <div className="mt-5">
         <h1 className="mt-1 text-2xl leading-tight tracking-tight sm:text-3xl">{sop.title}</h1>
-        <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-text-gray">
+        <SopDescription description={sop.description} content={workflow.description} />
+        <div className={`${sop.description?.trim() ? 'mt-4' : 'mt-3'} flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-text-gray`}>
           <StatusBadge status={sop.status} />
           <span>{workflow.versionTemplate.replace('{version}', sop.version)}</span>
           <span aria-hidden="true">·</span>
@@ -233,7 +234,6 @@ function Review({ sop, historical }: { sop: Sop; historical: boolean }) {
             )}
           </p>
         )}
-        <SopDescription description={sop.description} content={workflow.description} />
       </div>
 
       {sop.status === 'in-review' && (reviewer ?? currentReviewer(sop)) && (

@@ -57,18 +57,25 @@ describe('SOP description', () => {
   it('shows the text as body text at a reading width, without the small grey meta style', () => {
     const markup = html({ description: 'Covers adverse event intake.\nSecond line.', content })
     expect(markup).toContain('Covers adverse event intake.\nSecond line.')
-    expect(markup).toMatch(/<p class="mt-4 max-w-prose [^"]*whitespace-pre-wrap[^"]*text-maroon"/)
+    expect(markup).toMatch(/<p class="max-w-prose [^"]*whitespace-pre-wrap[^"]*text-maroon"/)
     expect(markup).not.toContain('text-sm')
     expect(markup).not.toContain('text-text-gray')
     expect(markup).not.toContain(content.edit)
   })
 
-  it('shows nothing when empty, except the edit button for the main author', () => {
+  it('puts the edit button at the right end of the row, lined up with the Preview column from md up', () => {
+    const markup = html({ description: 'Current text', content, onSave: vi.fn() })
+    expect(markup).toMatch(/^<div class="mt-3 flex items-start gap-3"><div class="min-w-0 flex-1"><p [^>]*>Current text<\/p><\/div><span class="[^"]*">/)
+    const cell = markup.match(/<\/div><span class="([^"]+)"/)![1].split(' ')
+    expect(cell).toEqual(expect.arrayContaining(['shrink-0', 'justify-end', 'md:w-20', 'md:justify-center', 'md:mr-[calc(11.5rem+1px)]']))
+    expect(markup).toContain(`aria-label="${content.edit}"`)
+    expect(markup).toContain(`role="tooltip" hidden=""`)
+  })
+
+  it('shows nothing at all when empty, not even the edit button', () => {
     expect(html({ description: '  ', content })).toBe('')
-    const editable = html({ description: '', content, onSave: vi.fn() })
-    expect(editable).toContain(`aria-label="${content.edit}"`)
-    expect(editable).toContain(`role="tooltip" hidden=""`)
-    expect(editable.replace(/<[^>]+>/g, '')).toBe(content.edit) // only the tooltip text, no description
+    expect(html({ description: '', content, onSave: vi.fn() })).toBe('')
+    expect(html({ content, onSave: vi.fn() })).toBe('')
   })
 
   it('opens a textarea with the description, its limit and counter, Save and Cancel', () => {
@@ -80,6 +87,11 @@ describe('SOP description', () => {
     expect(button(editing, content.save)).toBeDefined()
     expect(button(editing, content.cancel)).toBeDefined()
     expect(of(editing, IconButton)).toHaveLength(0)
+    // The textarea uses the full row width, with Save and Cancel below it.
+    const markup = renderToStaticMarkup(<>{editing}</>)
+    expect(markup).toMatch(/^<div class="mt-3">/)
+    expect(markup).not.toContain('max-w-prose')
+    expect(markup.indexOf('<textarea')).toBeLessThan(markup.indexOf('>Save<'))
   })
 
   it('cancels with Escape or Cancel and keeps the original text', () => {
@@ -126,7 +138,7 @@ describe('SOP description', () => {
   it('stays open with an error when saving fails', async () => {
     const onSave = vi.fn(async () => { throw new Error('Refused') })
     const onSaved = vi.fn()
-    const props = { description: '', content, onSave, onSaved }
+    const props = { description: 'Current text', content, onSave, onSaved }
     edit(call(props))
     ;(of(call(props), TextAreaField)[0].props.onChange as (event: unknown) => void)({ target: { value: 'First description' } })
     await (button(call(props), content.save).props.onClick as () => Promise<void>)()

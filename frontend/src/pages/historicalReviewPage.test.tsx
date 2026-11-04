@@ -38,6 +38,10 @@ describe('historical review page as a complete authorized view', () => {
     const html = render()
     expect(html).toContain('Historical review of v1')
     expect(html).toContain('Preserved description')
+    // Read-only, between the title and the status, version and department line.
+    expect(html.indexOf('</h1>')).toBeLessThan(html.indexOf('Preserved description'))
+    expect(html.indexOf('Preserved description')).toBeLessThan(html.indexOf(sopWorkflowEn.departmentLabel + ': <'))
+    expect(html).not.toContain(sopWorkflowEn.description.edit)
     expect(html).toContain('/old.pdf')
     expect(html).not.toContain('private-v2')
     for (const text of [
