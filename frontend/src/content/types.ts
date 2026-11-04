@@ -238,7 +238,12 @@ export interface ForgotPasswordContent {
   logoAlt: string
   title: string
   text: string
+  emailLabel: string
+  submit: string
   backLink: LinkContent
+  errors: { emailRequired: string; emailInvalid: string; tooManyAttempts: string; notConnected: string; failed: string }
+  /** Shown after the request; `{email}` is the address entered. Same text whether or not an account exists. */
+  sent: { title: string; text: string }
 }
 
 /* ---------- Not Found page ---------- */

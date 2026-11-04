@@ -63,6 +63,19 @@ export const forgotPasswordEn: ForgotPasswordContent = {
   pageTitle: 'Forgot Password | Hawkim',
   logoAlt: 'Hawkim',
   title: 'Forgot your password?',
-  text: 'Ask the project owner to reset your password.',
+  text: 'Enter your email address and we will send you a link to set a new password.',
+  emailLabel: 'Email',
+  submit: 'Send Reset Link',
   backLink: { label: 'Back to Sign In', href: '/login' },
+  errors: {
+    emailRequired: 'Enter your email address.',
+    emailInvalid: 'Enter a valid email address, like you@organization.com.',
+    tooManyAttempts: 'Too many requests right now. Please wait a while and try again.',
+    notConnected: "Couldn't reach Hawkim. Check your internet connection and try again.",
+    failed: 'The email could not be sent. Please try again.',
+  },
+  sent: {
+    title: 'Check your email',
+    text: 'If {email} has a Hawkim account, we have sent it a link to set a new password. The link expires in 1 hour.',
+  },
 }
