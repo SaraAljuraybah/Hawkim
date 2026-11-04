@@ -18,7 +18,7 @@ interface SopDescriptionProps {
 
 /**
  * The SOP description under the title, in body text at a reading width, with the edit
- * button at the right end of the row. Nothing is shown when it's empty.
+ * button right after the last word. Nothing is shown when it's empty.
  */
 export function SopDescription({ description = '', content, onSave, onSaved }: SopDescriptionProps) {
   const text = description.trim()
@@ -103,17 +103,14 @@ export function SopDescription({ description = '', content, onSave, onSaved }: S
   }
 
   return (
-    <div className="mt-3 flex items-start gap-3">
-      <div className="min-w-0 flex-1">
-        <p className="max-w-prose leading-relaxed whitespace-pre-wrap break-words text-maroon">{text}</p>
-      </div>
+    <p className="mt-3 max-w-prose leading-relaxed whitespace-pre-wrap break-words text-maroon">
+      {text}
       {onSave && (
-        // From md up, the same width and right offset as the Preview column of the SOP History
-        // table below (card border and padding, then the Download and Delete columns), so the icons line up.
-        <span className="flex shrink-0 justify-end md:mr-[calc(11.5rem+1px)] md:w-20 md:justify-center">
-          <IconButton ref={editRef} label={content.edit} icon={Pencil} onClick={startEditing} />
+        // Right after the last word, on the same line.
+        <span className="ml-1 inline-flex align-middle">
+          <IconButton ref={editRef} bare label={content.edit} icon={Pencil} onClick={startEditing} />
         </span>
       )}
-    </div>
+    </p>
   )
 }

@@ -57,19 +57,24 @@ describe('SOP description', () => {
   it('shows the text as body text at a reading width, without the small grey meta style', () => {
     const markup = html({ description: 'Covers adverse event intake.\nSecond line.', content })
     expect(markup).toContain('Covers adverse event intake.\nSecond line.')
-    expect(markup).toMatch(/<p class="max-w-prose [^"]*whitespace-pre-wrap[^"]*text-maroon"/)
+    expect(markup).toMatch(/^<p class="mt-3 max-w-prose [^"]*whitespace-pre-wrap[^"]*text-maroon"/)
     expect(markup).not.toContain('text-sm')
     expect(markup).not.toContain('text-text-gray')
     expect(markup).not.toContain(content.edit)
   })
 
-  it('puts the edit button at the right end of the row, lined up with the Preview column from md up', () => {
+  it('puts the edit button right after the last word, as an icon-only button with a 24px target', () => {
     const markup = html({ description: 'Current text', content, onSave: vi.fn() })
-    expect(markup).toMatch(/^<div class="mt-3 flex items-start gap-3"><div class="min-w-0 flex-1"><p [^>]*>Current text<\/p><\/div><span class="[^"]*">/)
-    const cell = markup.match(/<\/div><span class="([^"]+)"/)![1].split(' ')
-    expect(cell).toEqual(expect.arrayContaining(['shrink-0', 'justify-end', 'md:w-20', 'md:justify-center', 'md:mr-[calc(11.5rem+1px)]']))
-    expect(markup).toContain(`aria-label="${content.edit}"`)
+    // Inside the same paragraph, straight after the text, with a small gap.
+    expect(markup).toMatch(/^<p [^>]*>Current text<span class="ml-1 inline-flex align-middle">/)
+    const button = markup.match(/<button [^>]*>/)![0]
+    expect(button).toContain('type="button"')
+    expect(button).toContain(`aria-label="${content.edit}"`)
+    const classes = button.match(/class="([^"]+)"/)![1].split(' ')
+    expect(classes).toEqual(expect.arrayContaining(['size-6', 'text-text-gray', 'hover:text-maroon']))
+    expect(classes.some((name) => name === 'border' || name.startsWith('border-') || name.startsWith('bg-') || name.startsWith('hover:bg-'))).toBe(false)
     expect(markup).toContain(`role="tooltip" hidden=""`)
+    expect(markup).toContain(`>${content.edit}<`)
   })
 
   it('shows nothing at all when empty, not even the edit button', () => {
