@@ -1,13 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ReactElement } from 'react'
-import type { OrganizationHierarchy } from '../../services/organization'
+import type { OrganizationHierarchy } from '../services/organization'
 import { OrganizationalStructurePage, type OrganizationLoadState } from './OrganizationalStructurePage'
 
 type Slot = { value?: unknown; initialized?: boolean; dependencies?: unknown[]; cleanup?: () => void }
 const host = vi.hoisted(() => ({ slots: [] as Slot[], index: 0, effects: [] as (() => void)[], userId: 'admin-1', load: vi.fn() }))
-vi.mock('../../services/organization', () => ({ fetchOrganization: host.load }))
-vi.mock('../../state/sessionContext', () => ({ useCurrentUser: () => ({ id: host.userId }) }))
-vi.mock('../../hooks/useDocumentTitle', () => ({ useDocumentTitle: () => {} }))
+vi.mock('../services/organization', () => ({ fetchOrganization: host.load }))
+vi.mock('../state/sessionContext', () => ({ useCurrentUser: () => ({ id: host.userId }) }))
+vi.mock('../hooks/useDocumentTitle', () => ({ useDocumentTitle: () => {} }))
 // Same deterministic hook-host approach used by the existing provider tests.
 vi.mock('react', async (original) => {
   const react = await original<typeof import('react')>()

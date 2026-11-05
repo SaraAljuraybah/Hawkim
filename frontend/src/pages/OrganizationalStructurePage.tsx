@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react'
-import { OrganizationChart } from '../../components/admin/OrganizationChart'
-import { Button } from '../../components/ui/Button'
-import { adminEn } from '../../content/admin.en'
-import { organizationEn as content } from '../../content/organization.en'
-import { useDocumentTitle } from '../../hooks/useDocumentTitle'
-import { fetchOrganization, type OrganizationHierarchy } from '../../services/organization'
-import { useCurrentUser } from '../../state/sessionContext'
+import { OrganizationChart } from '../components/layout/OrganizationChart'
+import { Button } from '../components/ui/Button'
+import { adminEn } from '../content/admin.en'
+import { organizationEn as content } from '../content/organization.en'
+import { useDocumentTitle } from '../hooks/useDocumentTitle'
+import { fetchOrganization, type OrganizationHierarchy } from '../services/organization'
+import { useCurrentUser } from '../state/sessionContext'
 
 export type OrganizationLoadState = { status: 'loading' } | { status: 'error' } | { status: 'ready'; hierarchy: OrganizationHierarchy }
 

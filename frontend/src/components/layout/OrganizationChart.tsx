@@ -3,7 +3,7 @@ import { ChevronDown } from 'lucide-react'
 import { organizationEn as content } from '../../content/organization.en'
 import { usersEn } from '../../content/users.en'
 import type { OrganizationDepartment, OrganizationHierarchy } from '../../services/organization'
-import { UserAvatar } from './UserBits'
+import { UserAvatar } from '../ui/UserAvatar'
 import './organizationChart.css'
 
 export function OrganizationDepartmentCard({ department }: { department: OrganizationDepartment }) {

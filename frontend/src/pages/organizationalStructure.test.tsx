@@ -1,14 +1,14 @@
 import { describe, expect, it, vi } from 'vitest'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { MemoryRouter } from 'react-router-dom'
-import { OrganizationChart } from '../../components/admin/OrganizationChart'
-import { Sidebar } from '../../components/layout/Sidebar'
-import { adminEn } from '../../content/admin.en'
-import type { OrganizationHierarchy } from '../../services/organization'
+import { OrganizationChart } from '../components/layout/OrganizationChart'
+import { Sidebar } from '../components/layout/Sidebar'
+import { adminEn } from '../content/admin.en'
+import type { OrganizationHierarchy } from '../services/organization'
 import { OrganizationalStructurePage, OrganizationContent } from './OrganizationalStructurePage'
 
-vi.mock('../../state/sessionContext', () => ({ useSession: () => ({ signOut: vi.fn() }), useCurrentUser: () => ({ id: 'admin' }) }))
-vi.mock('../../hooks/useDocumentTitle', () => ({ useDocumentTitle: () => {} }))
+vi.mock('../state/sessionContext', () => ({ useSession: () => ({ signOut: vi.fn() }), useCurrentUser: () => ({ id: 'admin' }) }))
+vi.mock('../hooks/useDocumentTitle', () => ({ useDocumentTitle: () => {} }))
 const hierarchy: OrganizationHierarchy = {
   organization: { name: 'Configured Organization' }, divisions: [{ id: 'division-1', name: 'Operations' }],
   departments: [
