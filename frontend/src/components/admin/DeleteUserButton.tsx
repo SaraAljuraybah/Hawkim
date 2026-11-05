@@ -48,7 +48,6 @@ export function DeleteUserButton({ user, onDeleted, onRefused }: DeleteUserButto
       <IconButton ref={buttonRef} label={text.button.replace('{name}', user.name)} icon={Trash2} danger onClick={() => setConfirming(true)} />
       <ConfirmDialog
         open={confirming}
-        danger
         title={text.title}
         description={text.description.replace('{name}', user.name)}
         cancelLabel={text.cancel}

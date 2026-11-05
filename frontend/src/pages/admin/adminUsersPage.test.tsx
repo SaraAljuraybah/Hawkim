@@ -5,6 +5,7 @@ import { adminEn } from '../../content/admin.en'
 import { usersEn } from '../../content/users.en'
 import type { Department, User } from '../../data/mock/types'
 import { ALL_FILTER, filterUsers, NO_DIVISION } from '../../lib/userAdmin'
+import { PermissionBadges } from '../../components/admin/UserBits'
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
 import { AdminUsersPage } from './AdminUsersPage'
 
@@ -36,8 +37,12 @@ const search = (query: string, division = ALL_FILTER, departmentId = ALL_FILTER)
 describe('Users list', () => {
   it('has the columns Name, Division, Department, Permission and Actions, without Email', () => {
     const html = table(render())
-    const columns = [...html.matchAll(/<th scope="col"[^>]*>([^<]+)<\/th>/g)].map((match) => match[1])
+    const columns = [...html.matchAll(/<th scope="col"[^>]*>(?:<span class="sr-only">)?([^<]+)(?:<\/span>)?<\/th>/g)].map((match) => match[1])
     expect(columns).toEqual(['Name', 'Division', 'Department', 'Permission', 'Actions'])
+    // "Actions" is the column's accessible name only.
+    expect(html).toContain('<span class="sr-only">Actions</span></th>')
+    // A soft maroon tint, with maroon text.
+    expect(html).toContain('<thead class="bg-maroon/[0.06] text-maroon">')
     expect(html).not.toContain('sara@example.test')
     // The division of the department, or — without one.
     expect(html).toContain('>Regulatory &amp; Drug Safety<')
@@ -114,10 +119,10 @@ describe('searching and filtering users', () => {
 })
 
 describe('the Delete User warning', () => {
-  it('asks "Delete User?" with Cancel first and a destructive Delete', () => {
+  it('asks "Delete User?" with Cancel first and Delete in the primary filled style', () => {
     const text = adminEn.deleteUser
     const html = renderToStaticMarkup(
-      <ConfirmDialog open danger title={text.title} description={text.description.replace('{name}', 'Sara Aljuraybah')}
+      <ConfirmDialog open title={text.title} description={text.description.replace('{name}', 'Sara Aljuraybah')}
         cancelLabel={text.cancel} confirmLabel={text.confirm} onConfirm={() => {}} onCancel={() => {}} />,
     )
     expect(html).toContain('>Delete User?</h2>')
@@ -126,11 +131,20 @@ describe('the Delete User warning', () => {
     const remove = html.match(/<button[^>]*>Delete<\/button>/)![0]
     expect(cancel).toContain('autofocus')
     expect(html.indexOf('>Cancel<')).toBeLessThan(html.indexOf('>Delete<'))
-    expect(remove).toContain('text-status-rejected-fg')
+    expect(remove).toContain('bg-maroon')
+    expect(remove).not.toContain('text-status-rejected-fg')
   })
+})
 
-  it('keeps the primary confirm style for other dialogs', () => {
-    const html = renderToStaticMarkup(<ConfirmDialog open title="T" description="D" cancelLabel="Cancel" confirmLabel="OK" onConfirm={() => {}} onCancel={() => {}} />)
-    expect(html.match(/<button[^>]*>OK<\/button>/)![0]).not.toContain('text-status-rejected-fg')
+describe('permission badges', () => {
+  it('use the gold accent of the sidebar\'s Admin badge everywhere, Employee included', () => {
+    const html = render()
+    const badges = html.match(/<li class="[^"]*rounded-full[^"]*">[^<]+<\/li>/g)!
+    expect(badges.length).toBeGreaterThan(0)
+    for (const badge of badges) expect(badge).toContain('border-gold bg-gold-light')
+    for (const badge of badges) expect(badge).toContain('text-maroon')
+    const employee = renderToStaticMarkup(<PermissionBadges user={{ permissions: [] }} />)
+    expect(employee).toContain('border-gold bg-gold-light')
+    expect(employee).toContain('>Employee</li>')
   })
 })

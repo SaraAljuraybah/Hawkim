@@ -159,13 +159,16 @@ export function AdminUsersPage() {
           {/* Table — md and up */}
           <div className="hidden md:block">
             <table aria-label={content.tableLabel} className="w-full text-left text-sm">
-              <thead className="bg-beige/60 text-maroon">
+              {/* A soft maroon tint; maroon text on it is far above AA. */}
+              <thead className="bg-maroon/[0.06] text-maroon">
                 <tr>
                   <th scope="col" className="rounded-tl-xl px-5 py-3 font-semibold">{content.columns.name}</th>
                   <th scope="col" className="px-5 py-3 font-semibold">{content.columns.division}</th>
                   <th scope="col" className="px-5 py-3 font-semibold">{content.columns.department}</th>
                   <th scope="col" className="px-5 py-3 font-semibold">{content.columns.permissions}</th>
-                  <th scope="col" className="rounded-tr-xl px-5 py-3 text-right font-semibold">{content.columns.actions}</th>
+                  <th scope="col" className="rounded-tr-xl px-5 py-3 text-right font-semibold">
+                    <span className="sr-only">{content.columns.actions}</span>
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-beige">
