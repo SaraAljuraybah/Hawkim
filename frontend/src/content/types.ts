@@ -612,6 +612,8 @@ export interface UploadSopContent {
 /** Text for a single-file picker (FileDropzone) used in workflow dialogs. */
 export interface SopFileFieldContent {
   label: string
+  /** Read by screen readers only (a red asterisk is shown). */
+  requiredTag: string
   hint: string
   dropPrompt: string
   browse: string

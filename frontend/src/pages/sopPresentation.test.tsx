@@ -131,7 +131,7 @@ describe('SOP title presentation without exposing generated serial numbers', () 
     it('explains a repeat check the database refused, and keeps the general message otherwise', () => {
       const refused = sopWorkflowEn.messages[checkStartFailure(new CheckAlreadyCompletedError('Refused'))]
       expect(refused).toBe(sopWorkflowEn.messages.checkAlreadyCompleted)
-      expect(refused).toContain('Upload a new version')
+      expect(refused).toContain('Add a new version')
       expect(sopWorkflowEn.messages[checkStartFailure(new Error('Connection lost'))]).toBe(sopWorkflowEn.messages.checkStartFailed)
     })
 
@@ -139,7 +139,7 @@ describe('SOP title presentation without exposing generated serial numbers', () 
       fixture.sop = { ...fixture.sop!, complianceChecks: [check('completed', '4.0')], versions: [{ ...fixture.sop!.versions[0], uploadedById: 'author' }] }
       fixture.userId = 'coauthor'
       const html = render(<SopWorkflowPage />)
-      expect(html).toContain('or the current version&#x27;s uploader')
+      expect(html).toContain('or the person who added the current version')
       expect(html).not.toContain(sopWorkflowEn.history.checkCompleted)
     })
   })

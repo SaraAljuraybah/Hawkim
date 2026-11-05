@@ -103,7 +103,7 @@ export const reviewsEn: ReviewsContent = {
       },
       return: {
         title: 'Return to the Author?',
-        description: 'The author will see your comment and can upload a new version.',
+        description: 'The author will see your comment and can add a new version.',
         label: 'Comment',
         required: 'Enter a comment explaining the changes needed.',
         confirm: 'Return to Author',

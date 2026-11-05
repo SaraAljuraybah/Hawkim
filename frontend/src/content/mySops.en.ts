@@ -1,5 +1,5 @@
 /*
- * English content for the author's screens (My SOPs, Upload SOP).
+ * English content for the author's screens (My SOPs, Add SOP).
  * Same pattern as the other content files — no hard-coded text in components.
  * Sample SOPs live separately in src/data/mock/sops.ts.
  */
@@ -10,10 +10,10 @@ export const mySopsEn: MySopsContent = {
   pageTitle: 'My SOPs | Hawkim',
   title: 'My SOPs',
   subtitle: "SOPs you've authored or co-authored in {department}.",
-  upload: { label: 'Upload SOP', href: '/my-sops/upload' },
+  upload: { label: 'Add SOP', href: '/my-sops/upload' },
   versionTemplate: 'v{version}',
   empty: 'No SOPs in this category yet. Try another category.',
-  uploadedMessage: 'SOP uploaded as a draft.',
+  uploadedMessage: 'SOP added as a draft.',
   coAuthorLabel: 'Co-Author',
   mainAuthorLabel: 'Main Author',
   tabsLabel: 'My SOP categories',
@@ -39,8 +39,8 @@ export const mySopsEn: MySopsContent = {
 }
 
 export const uploadSopEn: UploadSopContent = {
-  pageTitle: 'Upload SOP | Hawkim',
-  title: 'Upload SOP',
+  pageTitle: 'Add SOP | Hawkim',
+  title: 'Add SOP',
   subtitle: 'Add a new SOP to {department}. It will be saved as a draft.',
   fields: {
     title: { label: 'Title', placeholder: 'Enter the SOP title', hint: 'Up to 50 characters.', counter: '{count} / {max}' },
@@ -53,7 +53,7 @@ export const uploadSopEn: UploadSopContent = {
       browse: 'browse',
       remove: 'Remove {name}',
       // PBI 1: unsupported formats are rejected with this message.
-      typeError: "This file type isn't supported. Upload a .docx or PDF file.",
+      typeError: "This file type isn't supported. Add a .docx or PDF file.",
       sizeError: '{name} is too large. Files must be {max} or smaller.',
     },
     description: {
@@ -66,8 +66,8 @@ export const uploadSopEn: UploadSopContent = {
     saveFailed: 'The SOP could not be saved. Your draft has been kept.',
     titleRequired: 'Enter a title.',
     titleTooLong: 'Enter a title of up to 50 characters.',
-    fileRequired: 'Upload an SOP file.',
+    fileRequired: 'Add an SOP file.',
   },
   cancel: { label: 'Cancel', href: '/my-sops' },
-  submit: { label: 'Upload SOP', loadingLabel: 'Uploading…' },
+  submit: { label: 'Add SOP', loadingLabel: 'Adding…' },
 }

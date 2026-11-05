@@ -26,9 +26,10 @@ describe('review timeline', () => {
     expect(html).not.toContain('GMT')
   })
 
-  it('calls every version upload "SOP uploaded"', () => {
-    expect(sopWorkflowEn.timeline.events['version-uploaded']).toBe('SOP uploaded')
-    expect(html.match(/SOP uploaded/g)).toHaveLength(4)
+  it('calls every added version "SOP added"', () => {
+    expect(sopWorkflowEn.timeline.events['version-uploaded']).toBe('SOP added')
+    expect(html.match(/SOP added/g)).toHaveLength(4)
+    expect(html).not.toMatch(/uploaded/i)
     expect(html).not.toContain('New version uploaded')
   })
 })

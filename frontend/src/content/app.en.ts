@@ -56,7 +56,7 @@ export const dashboardEn: DashboardContent = {
     primary: { label: 'Submit a Request', href: '/requests/new', icon: 'submitRequest' },
     secondary: [
       // Author permission only (placed right after "Submit a Request")
-      { label: 'Upload SOP', href: '/my-sops/upload', icon: 'upload', permission: 'author' },
+      { label: 'Add SOP', href: '/my-sops/upload', icon: 'upload', permission: 'author' },
       // Reviewer or Approver permission only
       { label: 'My Reviews', href: '/reviews', icon: 'reviews', permission: ['reviewer', 'approver'] },
     ],

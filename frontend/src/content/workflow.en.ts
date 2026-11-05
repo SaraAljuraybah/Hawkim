@@ -107,20 +107,20 @@ export const sopWorkflowEn: SopWorkflowContent = {
         approved: "Versions can't be deleted once the SOP is approved",
         published: "Versions can't be deleted once the SOP is published",
       },
-      'not-uploader': "Restricted to {name} (main author) or this version's uploader",
+      'not-uploader': 'Restricted to {name} (main author) or the person who added this version',
       'submitted-version': 'Versions previously submitted or resubmitted for review cannot be deleted',
       'last-version': 'At least one version must remain',
     },
-    upload: 'Upload',
+    upload: 'Add SOP',
     check: 'Compliance Check for Current Version',
     checkBlocked: {
       status: {
         'in-review': "Compliance checks can't be run while the SOP is in review",
         'in-approval': "Compliance checks can't be run while the SOP is in approval",
       },
-      'not-uploader': "Restricted to {name} (main author) or the current version's uploader",
+      'not-uploader': 'Restricted to {name} (main author) or the person who added the current version',
     },
-    checkCompleted: 'Upload a new version to run another check.',
+    checkCompleted: 'Add a new version to run another check.',
     previewTitle: '{title} · v{version}',
     viewerTitle: '{title}, v{version} (PDF)',
     close: 'Close preview',
@@ -135,7 +135,7 @@ export const sopWorkflowEn: SopWorkflowContent = {
     submit: 'Add Reviewers',
     resubmit: 'Add Reviewers',
     response: 'Response',
-    resubmitHint: 'Upload a new version with your changes before resubmitting.',
+    resubmitHint: 'Add a new version with your changes before resubmitting.',
     authorOnly: 'Only the author, {name}, can submit this SOP.',
     checkWaiting: 'Waiting for the compliance check to finish.',
     checkNeeded: 'Run a compliance check for this version first.',
@@ -168,7 +168,7 @@ export const sopWorkflowEn: SopWorkflowContent = {
       'internal-review-completed': 'Internal reviews completed; awaiting Author',
       'external-reviews-not-required': approvalEn.events['external-reviews-not-required'],
       'submitted-for-approval': approvalEn.events['submitted-for-approval'],
-      'version-uploaded': 'SOP uploaded',
+      'version-uploaded': 'SOP added',
       'version-deleted': 'Version deleted',
       response: 'Response',
       submitted: 'Submitted for review',
@@ -197,17 +197,18 @@ export const sopWorkflowEn: SopWorkflowContent = {
 
   dialogs: {
     cancel: 'Cancel',
-    // Same rules as Upload SOP (.docx or PDF, up to 10 MB).
+    // Same rules as Add SOP (.docx or PDF, up to 10 MB).
     fileField: {
       label: 'SOP File',
+      requiredTag: '(required)',
       hint: '.docx or PDF, up to 10 MB',
       dropPrompt: 'Drag and drop the file here, or',
       browse: 'browse',
       remove: 'Remove {name}',
-      typeError: "This file type isn't supported. Upload a .docx or PDF file.",
+      typeError: "This file type isn't supported. Add a .docx or PDF file.",
       sizeError: '{name} is too large. Files must be {max} or smaller.',
     },
-    fileRequired: 'Upload an SOP file.',
+    fileRequired: 'Add an SOP file.',
     uploadFailed: 'The file could not be added. Your draft has been kept.',
     submit: {
       title: 'Submit for Review',
@@ -224,9 +225,9 @@ export const sopWorkflowEn: SopWorkflowContent = {
       confirm: 'Submit for Review',
     },
     newVersion: {
-      title: 'Upload a New Version',
-      description: 'Upload the file with your changes. It becomes v{version}.',
-      confirm: 'Upload',
+      title: 'Add SOP',
+      description: 'You are adding v{version}. Choose the file with your changes.',
+      confirm: 'Add SOP',
     },
     deleteVersion: {
       title: 'Delete v{version}?',
@@ -237,7 +238,7 @@ export const sopWorkflowEn: SopWorkflowContent = {
     },
     addCoAuthors: {
       title: 'Add Co-authors',
-      description: 'Co-authors can upload versions and run compliance checks on their own uploads. Only you can submit for review.',
+      description: 'Co-authors can add versions and run compliance checks on the versions they added. Only you can submit for review.',
       label: 'Co-authors',
       required: 'Select at least one co-author.',
       failed: 'Co-authors could not be added. Review your selection and try again.',
@@ -245,7 +246,7 @@ export const sopWorkflowEn: SopWorkflowContent = {
     },
     removeCoAuthor: {
       title: 'Remove Co-author?',
-      description: '{name} will no longer be able to open this SOP or upload new versions.',
+      description: '{name} will no longer be able to open this SOP or add new versions.',
       keep: 'Cancel',
       confirm: 'Remove Co-author',
     },
@@ -268,7 +269,7 @@ export const sopWorkflowEn: SopWorkflowContent = {
 
   messages: {
     submitted: 'Submitted for review.',
-    newVersion: 'v{version} uploaded.',
+    newVersion: 'v{version} added.',
     versionDeleted: 'v{version} deleted.',
     deleteFailed: 'v{version} could not be deleted.',
     fileFailed: "The file couldn't be opened. Try again.",
@@ -279,7 +280,7 @@ export const sopWorkflowEn: SopWorkflowContent = {
     coAuthorRemoveFailed: '{name} could not be removed as co-author.',
     checkStarted: 'Compliance check started.',
     checkStartFailed: 'The sample compliance check could not be started.',
-    checkAlreadyCompleted: 'This version already has a completed compliance check. Upload a new version to run another check.',
+    checkAlreadyCompleted: 'This version already has a completed compliance check. Add a new version to run another check.',
     responseSent: 'Response sent.',
   },
 }

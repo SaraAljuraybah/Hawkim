@@ -59,7 +59,7 @@ export const adminEn: AdminContent = {
   },
 
   permissionDescriptions: {
-    author: 'Uploads SOPs, works on them with co-authors and submits them for review.',
+    author: 'Adds SOPs, works on them with co-authors and submits them for review.',
     reviewer: 'Reviews submitted SOPs and returns them with comments when needed.',
     approver: 'Approves reviewed SOPs and publishes them.',
     admin: 'Manages users and permissions in the admin portal.',
