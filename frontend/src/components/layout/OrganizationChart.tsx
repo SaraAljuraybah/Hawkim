@@ -1,5 +1,5 @@
 import { useState, type CSSProperties } from 'react'
-import { ChevronDown, Funnel, Search } from 'lucide-react'
+import { ChevronDown, Funnel, Mail, Search } from 'lucide-react'
 import { organizationEn as content } from '../../content/organization.en'
 import { usersEn } from '../../content/users.en'
 import { filterPeople, OTHERS_FILTER, roleFilters, type RoleFilter } from '../../lib/organization'
@@ -61,9 +61,10 @@ export function OrganizationDepartmentCard({ department, isQuality = false }: { 
           <p role="status" className={shown.length ? 'sr-only' : 'p-4 text-sm text-text-gray'}>{shown.length ? '' : content.noMatches}</p>
           {shown.length > 0 && <ul aria-label={department.name} tabIndex={0} className="max-h-80 overflow-y-auto overscroll-contain divide-y divide-beige">
             {shown.map((employee) => (
-              <li key={employee.id} className="flex items-start gap-3 bg-offwhite p-3">
+              // Two columns: the avatar beside the name and roles, then the envelope beside the email line.
+              <li key={employee.id} className="grid grid-cols-[2.25rem_minmax(0,1fr)] items-start gap-x-3 gap-y-0.5 bg-offwhite p-3">
                 <UserAvatar user={employee} />
-                <div className="min-w-0 flex-1">
+                <div className="min-w-0">
                   <p className="text-sm font-medium break-words text-maroon">{employee.name}</p>
                   {/* People without a role show no role line here. */}
                   {employee.permissions.length > 0 && (
@@ -72,11 +73,15 @@ export function OrganizationDepartmentCard({ department, isQuality = false }: { 
                       {employee.permissions.map((permission) => usersEn.permissions[permission]).join(', ')}
                     </p>
                   )}
-                  {/* One line: the email is truncated (full address on hover and for screen readers), the copy button stays at the end. */}
-                  <div className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-1.5 text-xs font-normal text-text-gray">
-                    <p title={employee.email} className="min-w-0 flex-1 truncate"><span className="sr-only">{content.emailLabel}: </span>{employee.email}</p>
-                    <CopyButton text={employee.email} label={content.copyEmail(employee.name)} copiedText={content.copied} failedText={content.copyFailed} />
-                  </div>
+                </div>
+                {/* Decorative: centred under the avatar, on the email line's height (the copy button's 24px). */}
+                <span aria-hidden="true" className="flex h-6 items-center justify-center text-text-gray">
+                  <Mail aria-hidden="true" className="size-4" strokeWidth={1.75} />
+                </span>
+                {/* One line: the email is truncated (full address on hover and for screen readers), the copy button stays at the end. */}
+                <div className="flex min-w-0 flex-wrap items-center gap-x-1.5 text-xs font-normal text-text-gray">
+                  <p title={employee.email} className="min-w-0 flex-1 truncate"><span className="sr-only">{content.emailLabel}: </span>{employee.email}</p>
+                  <CopyButton text={employee.email} label={content.copyEmail(employee.name)} copiedText={content.copied} failedText={content.copyFailed} />
                 </div>
               </li>
             ))}

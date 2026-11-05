@@ -57,6 +57,13 @@ describe('Organizational Structure', () => {
     expect(email).toBeGreaterThan(roles)
     expect(row.indexOf('aria-label="Copy Test Employee&#x27;s email"')).toBeGreaterThan(email)
     expect(row).toContain('aria-live="polite"')
+    // A decorative envelope in the avatar column, on the email line, before the email itself.
+    expect(row).toContain('grid-cols-[2.25rem_minmax(0,1fr)]')
+    const envelope = row.match(/<span aria-hidden="true" class="flex h-6 items-center justify-center text-text-gray"><svg[^>]*lucide-mail[^>]*>/)
+    expect(envelope).not.toBeNull()
+    expect(envelope![0]).toContain('aria-hidden="true"')
+    expect(row.indexOf('lucide-mail')).toBeGreaterThan(roles)
+    expect(row.indexOf('lucide-mail')).toBeLessThan(email)
     expect(html).not.toContain('Specialist')
     expect(html).not.toContain('Position')
   })
