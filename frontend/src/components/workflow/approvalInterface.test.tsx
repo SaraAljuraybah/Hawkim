@@ -231,6 +231,16 @@ describe('main Author approval interface', () => {
       for (const user of quality) user.permissions = ['approver']
     }
   })
+  it('marks Division, Department and Approvers required with a red asterisk; Comments stays optional', () => {
+    const html = renderDialog(finished())
+    const asterisk = '<span aria-hidden="true" class="ml-0.5 text-status-rejected-fg">*</span>'
+    const label = (text: string) => html.match(new RegExp(`<label[^>]*>${text.replace(/[()]/g, '\\$&')}(<span[^>]*>\\*</span>)?</label>`))![0]
+    for (const text of ['Division', 'Department', 'Approvers']) expect(label(text)).toContain(asterisk)
+    for (const name of ['approvalDivision', 'approvalDepartment']) expect(html.match(new RegExp(`<input[^>]*name="${name}"[^>]*>`))![0]).toContain('required=""')
+    expect(html.match(/<input[^>]*placeholder="Search approvers by name…"[^>]*>/)![0]).toContain('aria-required="true"')
+    expect(label('Comments (Optional)')).not.toContain('*')
+    expect(html.match(/<textarea[^>]*name="note"[^>]*>/)![0]).not.toContain('required')
+  })
   it('keeps the optional comment with the 500 limit and counter', () => {
     const html = renderDialog(finished())
     const comment = html.match(/<textarea[^>]*name="note"[^>]*>/)![0]

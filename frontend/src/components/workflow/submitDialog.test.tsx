@@ -35,6 +35,20 @@ beforeEach(() => vi.useFakeTimers({ now: new Date('2026-10-29T09:00:00+03:00') }
 afterEach(() => vi.useRealTimers())
 
 describe('Submit for Review safe frontend presentation', () => {
+  it('marks Division, Department and Reviewers required, with a red asterisk, in every mode; the optional fields stay unmarked', () => {
+    const asterisk = '<span aria-hidden="true" class="ml-0.5 text-status-rejected-fg">*</span>'
+    for (const mode of ['submit', 'add', 'version'] as const) {
+      const html = renderToStaticMarkup(<SubmitDialog sop={draft()} content={sopWorkflowEn.dialogs} mode={mode} onClose={() => {}} onSubmit={() => {}} />)
+      const label = (text: string) => html.match(new RegExp(`<label[^>]*>${text.replace(/[()]/g, '\\$&')}(<span[^>]*>\\*</span>)?</label>`))![0]
+      for (const text of ['Division', 'Department', 'Reviewers']) expect(label(text)).toContain(asterisk)
+      for (const name of ['reviewDivision', 'reviewDepartment']) expect(html.match(new RegExp(`<input[^>]*name="${name}"[^>]*>`))![0]).toContain('required=""')
+      expect(html.match(/<input[^>]*placeholder="Search reviewers by name…"[^>]*>/)![0]).toContain('aria-required="true"')
+      for (const text of ['Review Duration in Working Days (Optional)', 'Comments (Optional)']) expect(label(text)).not.toContain('*')
+      expect(html.match(/<input[^>]*name="reviewDurationDays"[^>]*>/)![0]).not.toContain('required')
+      expect(html.match(/<textarea[^>]*name="note"[^>]*>/)![0]).not.toContain('required')
+    }
+  })
+
   it('starts the searchable Division, then Department, on the SOP\'s own, before the reviewers', () => {
     const html = render()
     const department = html.match(/<input[^>]*name="reviewDepartment"[^>]*>/)![0]
@@ -69,7 +83,7 @@ describe('Submit for Review safe frontend presentation', () => {
   it('labels the reviewer picker visibly and gives it a chevron that opens the list', () => {
     const html = render()
     const input = html.match(/<input[^>]*placeholder="Search reviewers by name…"[^>]*>/)![0]
-    const label = html.match(/<label[^>]*for="([^"]+)"[^>]*>Reviewers<\/label>/)!
+    const label = html.match(/<label[^>]*for="([^"]+)"[^>]*>Reviewers(?:<span[^>]*>\*<\/span>)?<\/label>/)!
     expect(label[0]).not.toContain('sr-only')
     expect(input).toContain(`id="${label[1]}"`)
     const toggle = html.match(/<button[^>]*aria-label="Show reviewers"[^>]*>/)![0]

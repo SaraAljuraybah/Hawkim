@@ -96,14 +96,14 @@ export function SubmitForApprovalDialog({ sop, onSubmit, onClose }: SubmitForApp
       <SelectCombobox name="approvalDivision" label={text.division} placeholder={text.divisionPicker.placeholder}
         options={divisionOptions(choosable).map((item) => ({ value: item, label: item === NO_DIVISION ? text.noDivision : item }))}
         value={ownDivision} error={divisionError || undefined} toggleLabel={text.divisionPicker.toggle} noMatchesText={text.divisionPicker.noMatches}
-        onChange={(next) => setDivisionError(refusesChoice(true, ownDivision, next) ? lockMessage : '')} />
+        required requiredMark onChange={(next) => setDivisionError(refusesChoice(true, ownDivision, next) ? lockMessage : '')} />
       <SelectCombobox name="approvalDepartment" label={text.department} placeholder={text.departmentPicker.placeholder}
         options={departmentsInDivision(choosable, ownDivision).map((item) => ({ value: item.id, label: item.name }))}
         value={quality?.id ?? ''} error={departmentError || undefined} toggleLabel={text.departmentPicker.toggle} noMatchesText={text.departmentPicker.noMatches}
-        onChange={(next) => setDepartmentError(refusesChoice(true, quality?.id ?? '', next) ? lockMessage : '')} />
+        required requiredMark onChange={(next) => setDepartmentError(refusesChoice(true, quality?.id ?? '', next) ? lockMessage : '')} />
       <PeoplePicker inputRef={approverRef} label={text.approvers} text={text.approverSearch}
         options={approvers.map((person) => ({ id: person.id, name: person.name }))} value={approverIds}
-        error={approverError || undefined} hint={approvers.length ? undefined : text.noApprovers.replace('{department}', qualityName)}
+        error={approverError || undefined} hint={approvers.length ? undefined : text.noApprovers.replace('{department}', qualityName)} required requiredMark
         // One approver: choosing another replaces the first.
         onChange={(next) => { setApproverIds(next.slice(-1)); setApproverError(''); setErrors([]) }} />
       <TextAreaField ref={noteRef} name="note" rows={3} label={text.note.label} placeholder={text.note.placeholder}

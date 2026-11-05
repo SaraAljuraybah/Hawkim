@@ -133,16 +133,16 @@ export function SubmitDialog({ sop, content, onSubmit, onClose, mode = 'submit' 
       <SelectCombobox name="reviewDivision" label={text.division} placeholder={text.divisionPicker.placeholder}
         options={divisionOptions(choosable).map((item) => ({ value: item, label: item === NO_DIVISION ? text.noDivision : item }))}
         value={division} error={divisionError || undefined} toggleLabel={text.divisionPicker.toggle} noMatchesText={text.divisionPicker.noMatches}
-        onChange={chooseDivision} />
+        required requiredMark onChange={chooseDivision} />
       <SelectCombobox
         // A fresh list (and no leftover typed text) for each division.
         key={division} name="reviewDepartment" label={text.department} placeholder={text.departmentPicker.placeholder}
         options={departmentsInDivision(choosable, division).map((item) => ({ value: item.id, label: item.name }))}
         value={departmentId} error={departmentError || undefined} toggleLabel={text.departmentPicker.toggle} noMatchesText={text.departmentPicker.noMatches}
-        onChange={chooseDepartment} />
+        required requiredMark onChange={chooseDepartment} />
       <PeoplePicker inputRef={firstRef} label={text.reviewers} text={text.reviewerSearch}
         options={shown.map((user) => ({ id: user.id, name: user.name, ...(anyDepartment ? { description: departments.find((item) => item.id === user.departmentId)?.name } : {}) }))} value={reviewerIds}
-        error={error || undefined} hint={reviewerHint}
+        error={error || undefined} hint={reviewerHint} required requiredMark
         onChange={(next) => { setReviewerIds(next); setError(''); setFailed(false) }} />
       <div>
         <TextField ref={durationRef} name="reviewDurationDays" type="number" inputMode="numeric" min={REVIEW_DURATION_MIN} max={REVIEW_DURATION_MAX} step={1}

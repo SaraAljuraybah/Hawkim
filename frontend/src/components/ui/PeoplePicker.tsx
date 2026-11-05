@@ -28,6 +28,13 @@ interface PeoplePickerProps {
   text?: PeoplePickerContent
   /** The label is read by screen readers only (see FieldShell). */
   hideLabel?: boolean
+  /**
+   * Announces the field as required (aria-required: the search input itself is empty once people
+   * are picked, so not the native attribute).
+   */
+  required?: boolean
+  /** Shows a red asterisk after the label (visual only; pass `required` too). */
+  requiredMark?: boolean
   className?: string
 }
 
@@ -51,6 +58,8 @@ export function PeoplePicker({
   id,
   text = peoplePickerEn,
   hideLabel = false,
+  required = false,
+  requiredMark = false,
   className = '',
 }: PeoplePickerProps) {
   const fieldIds = useFieldIds({ id, hint, error })
@@ -155,6 +164,7 @@ export function PeoplePicker({
       error={error}
       errorId={fieldIds.errorId}
       hideLabel={hideLabel}
+      requiredMark={requiredMark}
       className={className}
     >
       {selected.length > 0 && (
@@ -189,6 +199,7 @@ export function PeoplePicker({
           aria-autocomplete="list"
           aria-activedescendant={activeId}
           aria-invalid={error ? true : undefined}
+          aria-required={required || undefined}
           aria-describedby={describedBy}
           autoComplete="off"
           placeholder={text.placeholder}
