@@ -18,6 +18,8 @@ interface IconButtonProps {
   danger?: boolean
   /** Only the icon, no box: e.g. inline after a line of text. Still a 24x24px target. */
   bare?: boolean
+  /** Show the label as a tooltip on hover and focus (default). False: accessible name only. */
+  tooltip?: boolean
   /** The button element, e.g. to move focus back to it. Not used for links. */
   ref?: Ref<HTMLButtonElement>
 }
@@ -33,7 +35,7 @@ const iconOnly = 'size-6 rounded-sm'
  * can be hovered and is dismissed with Escape (WCAG 1.4.13). It opens to the left
  * of the button's right edge, so it stays inside the page at the end of a row.
  */
-export function IconButton({ label, icon: Icon, disabledReason, href, download, onClick, danger = false, bare = false, ref }: IconButtonProps) {
+export function IconButton({ label, icon: Icon, disabledReason, href, download, onClick, danger = false, bare = false, tooltip = true, ref }: IconButtonProps) {
   const [open, setOpen] = useState(false)
   const tooltipId = useId()
   const disabled = !!disabledReason
@@ -43,9 +45,9 @@ export function IconButton({ label, icon: Icon, disabledReason, href, download, 
   const shared = {
     'aria-label': label,
     // The reason is extra information; when enabled the tooltip only repeats the name.
-    'aria-describedby': disabled ? tooltipId : undefined,
+    'aria-describedby': disabled && tooltip ? tooltipId : undefined,
     className: `${base} ${bare ? iconOnly : boxed} ${colours}`,
-    onFocus: () => setOpen(true),
+    onFocus: () => setOpen(tooltip),
     onBlur: () => setOpen(false),
     onKeyDown: (event: KeyboardEvent) => {
       if (event.key === 'Escape' && open) {
@@ -57,7 +59,7 @@ export function IconButton({ label, icon: Icon, disabledReason, href, download, 
   const icon = <Icon aria-hidden="true" className="size-4" strokeWidth={1.75} />
 
   return (
-    <span className="relative inline-flex" onMouseEnter={() => setOpen(true)} onMouseLeave={() => setOpen(false)}>
+    <span className="relative inline-flex" onMouseEnter={() => setOpen(tooltip)} onMouseLeave={() => setOpen(false)}>
       {href && !disabled ? (
         <a href={href} download={download} {...shared}>
           {icon}
@@ -68,11 +70,13 @@ export function IconButton({ label, icon: Icon, disabledReason, href, download, 
         </button>
       )}
       {/* The transparent bottom padding bridges the gap, so the pointer can move onto the tooltip. */}
-      <span id={tooltipId} role="tooltip" hidden={!open} className="absolute right-0 bottom-full z-20 w-max max-w-[15rem] pb-1.5">
-        <span className="block rounded-md bg-maroon px-2 py-1 text-left text-xs leading-snug font-medium text-offwhite shadow-md">
-          {disabledReason ?? label}
+      {tooltip && (
+        <span id={tooltipId} role="tooltip" hidden={!open} className="absolute right-0 bottom-full z-20 w-max max-w-[15rem] pb-1.5">
+          <span className="block rounded-md bg-maroon px-2 py-1 text-left text-xs leading-snug font-medium text-offwhite shadow-md">
+            {disabledReason ?? label}
+          </span>
         </span>
-      </span>
+      )}
     </span>
   )
 }

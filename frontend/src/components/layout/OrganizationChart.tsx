@@ -73,8 +73,9 @@ export function OrganizationDepartmentCard({ department, isQuality = false }: { 
                       {employee.permissions.map((permission) => usersEn.permissions[permission]).join(', ')}
                     </p>
                   )}
+                  {/* One line: the email is truncated (full address on hover and for screen readers), the copy button stays at the end. */}
                   <div className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-1.5 text-xs font-normal text-text-gray">
-                    <p className="min-w-0 break-all"><span className="sr-only">{content.emailLabel}: </span>{employee.email}</p>
+                    <p title={employee.email} className="min-w-0 flex-1 truncate"><span className="sr-only">{content.emailLabel}: </span>{employee.email}</p>
                     <CopyButton text={employee.email} label={content.copyEmail(employee.name)} copiedText={content.copied} failedText={content.copyFailed} />
                   </div>
                 </div>

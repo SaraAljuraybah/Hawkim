@@ -21,8 +21,10 @@ const COPIED_MS = 2000
 const FAILED_MS = 5000
 
 /**
- * An icon-only button that copies `text`, then shows a short confirmation (or error) next
- * to it. The message is in a polite live region, so screen readers announce it too.
+ * An icon-only button that copies `text`, then shows a short confirmation (or error). The message
+ * is in a polite live region, so screen readers announce it too. Its parts are laid out by the
+ * parent: in a wrapping flex row the button stays full size and the message takes its own line.
+ * No hover tooltip (it would cover the text beside it); the label is the accessible name.
  */
 export function CopyButton({ text, label, copiedText, failedText }: CopyButtonProps) {
   const [status, setStatus] = useState<CopyStatus>('idle')
@@ -39,9 +41,11 @@ export function CopyButton({ text, label, copiedText, failedText }: CopyButtonPr
   }
 
   return (
-    <span className="inline-flex min-w-0 flex-wrap items-center gap-x-1.5">
-      <IconButton bare label={label} icon={status === 'copied' ? Check : Copy} onClick={() => void copy()} />
-      <span aria-live="polite" className={`text-xs font-medium ${status === 'failed' ? 'text-status-rejected-fg' : 'text-maroon'}`}>
+    <span className="contents">
+      <span className="inline-flex shrink-0">
+        <IconButton bare tooltip={false} label={label} icon={status === 'copied' ? Check : Copy} onClick={() => void copy()} />
+      </span>
+      <span aria-live="polite" className={`basis-full text-xs font-medium ${status === 'failed' ? 'text-status-rejected-fg' : 'text-maroon'}`}>
         {status === 'copied' ? copiedText : status === 'failed' ? failedText : ''}
       </span>
     </span>

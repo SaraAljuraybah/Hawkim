@@ -50,6 +50,8 @@ describe('Organizational Structure', () => {
     const name = row.indexOf('>Test Employee</p>')
     const roles = row.indexOf('Permissions: </span>Author, Reviewer, Approver</p>')
     const email = row.indexOf('Email: </span>test.employee@test.invalid</p>')
+    // One line, truncated by CSS only: the full address stays in the text and the title.
+    expect(row).toContain('<p title="test.employee@test.invalid" class="min-w-0 flex-1 truncate">')
     expect(name).toBeGreaterThan(-1)
     expect(roles).toBeGreaterThan(name)
     expect(email).toBeGreaterThan(roles)
