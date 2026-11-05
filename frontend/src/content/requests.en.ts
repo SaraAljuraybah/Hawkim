@@ -44,7 +44,7 @@ export const requestsEn: RequestsContent = {
       descriptionRequired: 'Enter a description.',
     },
     cancel: { label: 'Cancel', href: '/requests' },
-    readOnlyCancelHref: '/departments',
+    readOnlyCancelHref: '/sops',
     submit: { label: 'Submit Request', loadingLabel: 'Submitting…' },
     confirmation: {
       title: 'Request Submitted',

@@ -1,7 +1,6 @@
 import { lazy, useEffect } from 'react'
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { DashboardPage } from './pages/DashboardPage'
-import { DepartmentsPage } from './pages/DepartmentsPage'
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage'
 import { MyRequestsPage } from './pages/MyRequestsPage'
 import { MySopsPage } from './pages/MySopsPage'
@@ -108,7 +107,6 @@ function AppRoutes() {
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/sops" element={<SopsPage />} />
         <Route path="/sops/:id" element={<SopDetailPage />} />
-        <Route path="/departments" element={<DepartmentsPage />} />
         <Route path="/organizational-structure" element={<EmployeeOrganizationalStructurePage />} />
         <Route path="/my-sops" element={<MySopsPage />} />
         <Route path="/my-sops/upload" element={<UploadSopPage />} />

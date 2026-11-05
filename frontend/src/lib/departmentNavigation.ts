@@ -1,7 +1,7 @@
 import type { AppNavItem } from '../content/types'
 import type { DepartmentId, User } from '../data/mock/types'
 import { hasAnyPermission } from './permissions'
-import { DEPARTMENTS_PATH, ORGANIZATIONAL_STRUCTURE_PATH, PROFILE_PATH, SOP_DIRECTORY_PATH, SUBMIT_REQUEST_PATH } from './routes'
+import { ORGANIZATIONAL_STRUCTURE_PATH, PROFILE_PATH, SOP_DIRECTORY_PATH, SUBMIT_REQUEST_PATH } from './routes'
 
 /*
  * Which screens the employee app offers for the active department. In the home
@@ -12,7 +12,7 @@ import { DEPARTMENTS_PATH, ORGANIZATIONAL_STRUCTURE_PATH, PROFILE_PATH, SOP_DIRE
  */
 
 /** Paths (and the pages below them) open in a read-only department. */
-const READ_ONLY_PATHS = [SOP_DIRECTORY_PATH, ORGANIZATIONAL_STRUCTURE_PATH, DEPARTMENTS_PATH, SUBMIT_REQUEST_PATH, PROFILE_PATH]
+const READ_ONLY_PATHS = [SOP_DIRECTORY_PATH, ORGANIZATIONAL_STRUCTURE_PATH, SUBMIT_REQUEST_PATH, PROFILE_PATH]
 
 /** Where hidden pages lead in a read-only department. */
 export const READ_ONLY_LANDING_PATH = SOP_DIRECTORY_PATH

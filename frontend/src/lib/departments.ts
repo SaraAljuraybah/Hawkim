@@ -19,15 +19,3 @@ export function getDirectoryDepartments(user: DepartmentUser, requests: UserRequ
   const others = departments.filter((department) => !department.removedAt && department.id !== user.departmentId && hasDirectoryAccess(user, department.id, requests))
   return [...home, ...others]
 }
-
-export type DepartmentState = 'current' | 'member' | 'directory' | 'requested' | 'none'
-
-/** Directory selection is a browsing preference, never a membership or role change. */
-export function getDepartmentState(departmentId: DepartmentId, activeDirectoryId: DepartmentId, user: DepartmentUser, requests: UserRequest[]): DepartmentState {
-  if (hasDirectoryAccess(user, departmentId, requests)) {
-    if (departmentId === activeDirectoryId) return 'current'
-    return departmentId === user.departmentId ? 'member' : 'directory'
-  }
-  const pending = !user.deletedAt && requests.some((request) => request.requesterId === user.id && request.type === 'department-access' && request.departmentId === departmentId && request.status === 'pending')
-  return pending ? 'requested' : 'none'
-}

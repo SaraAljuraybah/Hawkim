@@ -34,8 +34,9 @@ describe('sidebar items', () => {
 })
 
 describe('routes', () => {
-  const hidden = ['/dashboard', '/my-sops', '/my-sops/upload', '/my-sops/sop-079', '/my-sops/sop-079/compliance', '/reviews', '/reviews/sop-079', '/reviews/sop-079/compliance', '/requests']
-  const open = ['/sops', '/sops/sop-079', '/organizational-structure', '/departments', '/requests/new']
+  // '/departments' (the removed Departments page) is no longer a read-only path either.
+  const hidden = ['/departments', '/dashboard', '/my-sops', '/my-sops/upload', '/my-sops/sop-079', '/my-sops/sop-079/compliance', '/reviews', '/reviews/sop-079', '/reviews/sop-079/compliance', '/requests']
+  const open = ['/sops', '/sops/sop-079', '/organizational-structure', '/requests/new']
 
   it('allows every page in the home department', () => {
     for (const path of [...hidden, ...open]) expect(isPathAllowed(path, false)).toBe(true)

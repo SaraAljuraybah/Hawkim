@@ -407,26 +407,6 @@ export interface SopDetailContent {
   pendingAccess: { title: string; text: string }
 }
 
-/* ---------- Signed-in app: Departments ---------- */
-
-export interface DepartmentsContent {
-  /** Browser tab title. */
-  pageTitle: string
-  title: string
-  subtitle: string
-  /** Member count wording by plural form; `{count}` is replaced with the number. */
-  memberCount: { one: string; other: string }
-  /** The user's relationship with each department, and its actions. */
-  states: {
-    current: string
-    member: string
-    directoryAccess: string
-    open: string
-    accessRequested: string
-    requestAccess: string
-  }
-}
-
 /* ---------- Signed-in app: requests ---------- */
 
 export interface SubmitRequestContent {

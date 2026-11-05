@@ -57,8 +57,8 @@ export function SubmitRequestPage() {
   const { addRequest } = useRequests()
   const user = useCurrentUser()
   const { activeDepartments } = useDepartments()
-  // My Requests is hidden in a read-only department: Cancel returns to Organization
-  // Structure and the confirmation has no link there (the department card shows the status).
+  // My Requests is hidden in a read-only department: Cancel returns to the SOP Directory
+  // and the confirmation has no link to My Requests.
   const { activeDepartment } = useActiveDepartment()
   const readOnly = isReadOnlyDepartment(activeDepartment.id, user)
 

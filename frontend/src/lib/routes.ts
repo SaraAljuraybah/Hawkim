@@ -3,9 +3,6 @@ import type { DepartmentId, RequestType } from '../data/mock/types'
 /** The SOP Directory (published SOPs of the active department). */
 export const SOP_DIRECTORY_PATH = '/sops'
 
-/** The Organization Structure page (department cards). */
-export const DEPARTMENTS_PATH = '/departments'
-
 /** The Organizational Structure page (divisions, departments and their employees). */
 export const ORGANIZATIONAL_STRUCTURE_PATH = '/organizational-structure'
 
