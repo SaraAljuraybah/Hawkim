@@ -17,8 +17,8 @@ interface CopyButtonProps {
 }
 
 /** How long the confirmation and the error stay visible (ms). */
-const COPIED_MS = 2000
-const FAILED_MS = 5000
+export const COPIED_MS = 1000
+export const FAILED_MS = 5000
 
 /**
  * An icon-only button that copies `text`, then shows a short confirmation (or error). The message

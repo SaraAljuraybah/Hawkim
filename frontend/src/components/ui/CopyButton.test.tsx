@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { Copy } from 'lucide-react'
 import { copyToClipboard } from './clipboard'
-import { CopyButton, type CopyStatus } from './CopyButton'
+import { COPIED_MS, CopyButton, FAILED_MS, type CopyStatus } from './CopyButton'
 import { IconButton } from './IconButton'
 
 // Renders the button in a chosen state: CopyButton's status is the only useState starting at 'idle'.
@@ -51,6 +51,13 @@ describe('CopyButton states', () => {
     const html = render('failed')
     expect(html).toMatch(/<span aria-live="polite"[^>]*text-status-rejected-fg[^>]*>Couldn&#x27;t copy<\/span>/)
     expect(html).toContain('lucide-copy')
+  })
+})
+
+describe('message durations', () => {
+  it('shows "Copied" for 1 second and the error for 5 seconds', () => {
+    expect(COPIED_MS).toBe(1000)
+    expect(FAILED_MS).toBe(5000)
   })
 })
 
