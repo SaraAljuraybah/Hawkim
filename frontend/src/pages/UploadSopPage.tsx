@@ -24,7 +24,7 @@ const FILE_MAX_BYTES = 10 * 1024 * 1024 // 10 MB
 type Field = 'title' | 'file'
 type FieldErrors = Partial<Record<Field, string>>
 
-/** Upload SOP ("/my-sops/upload", Author permission): saves a new draft in the home department. */
+/** Add SOP ("/my-sops/upload", Author permission): saves a new draft in the home department. */
 export function UploadSopPage() {
   const content = uploadSopEn
   const user = useCurrentUser()

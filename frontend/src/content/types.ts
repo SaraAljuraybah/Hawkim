@@ -600,7 +600,7 @@ export interface UploadSopContent {
     titleRequired: string
     titleTooLong: string
     fileRequired: string
-    /** The file couldn't be uploaded or the SOP couldn't be saved. */
+    /** The file couldn't be added or the SOP couldn't be saved. */
     saveFailed: string
   }
   cancel: LinkContent

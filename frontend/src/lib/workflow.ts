@@ -570,7 +570,7 @@ export const SUBMIT_COMMENT_MAX = 500
 export function resubmit(sop: Sop, actorId: string, guidelineVersion: string, note?: string, dueDate?: string): Sop {
   assert(!sop.internalReviewRounds?.length, 'Use the internal review request to resubmit this SOP')
   assert(isAuthor(sop, actorId), 'Only the author can resubmit this SOP')
-  assert(canResubmit(sop), 'Upload a new version before resubmitting')
+  assert(canResubmit(sop), 'Add a new version before resubmitting')
   assert(hasCurrentCheck(sop, guidelineVersion), 'Run a compliance check against the current guideline first')
   const trimmed = note?.trim()
   assert(!trimmed || trimmed.length <= SUBMIT_COMMENT_MAX, 'Submission comments must be at most 500 characters')
@@ -621,8 +621,8 @@ export function resubmit(sop: Sop, actorId: string, guidelineVersion: string, no
  */
 export function uploadVersion(sop: Sop, actorId: string, file: UploadedFile): Sop {
   // During internal review, a new version can follow once every reviewer has finished the current one.
-  if (!reviewAllowsNewVersion(sop)) assertStatus(sop, ['draft', 'returned'], 'upload a version of')
-  assert(isAuthorOrCoAuthor(sop, actorId), 'Only the author or a co-author can upload a version')
+  if (!reviewAllowsNewVersion(sop)) assertStatus(sop, ['draft', 'returned'], 'add a version of')
+  assert(isAuthorOrCoAuthor(sop, actorId), 'Only the author or a co-author can add a version')
   const version = nextVersion(sop)
   const uploadedAt = new Date().toISOString()
   const updated: Sop = { ...sop, ...file, version, lastUpdated: todayIsoDate() }
@@ -643,7 +643,7 @@ export function deleteVersion(sop: Sop, actorId: string, version: string): Sop {
   assert(!!target, `Unknown version ${version}`)
   const blocker = deleteVersionBlocker(sop, actorId, version)
   assert(blocker !== 'status', `Can't delete a version of an SOP that is ${sop.status}`)
-  assert(blocker !== 'not-uploader', 'Only the main author or the person who uploaded this version can delete it')
+  assert(blocker !== 'not-uploader', 'Only the main author or the person who added this version can delete it')
   assert(blocker !== 'submitted-version', 'Versions previously submitted or resubmitted for review cannot be deleted')
   assert(blocker !== 'last-version', 'At least one version must remain')
   const deletedAt = new Date().toISOString()

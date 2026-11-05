@@ -409,7 +409,7 @@ describe('deleting a version', () => {
     expect(deleteVersionBlocker(sop, REEM, '2')).toBeUndefined()
     expect(deleteVersion(sop, REEM, '2').versions.find((item) => item.version === '2')).toMatchObject({ deletedById: REEM })
     expect(deleteVersionBlocker(sop, REEM, '1')).toBe('not-uploader')
-    expect(() => deleteVersion(sop, REEM, '1')).toThrow(/uploaded/)
+    expect(() => deleteVersion(sop, REEM, '1')).toThrow(/person who added this version/)
     // Someone who isn't an author can't delete anything.
     expect(deleteVersionBlocker(sop, NOURA, '2')).toBe('not-uploader')
     expect(() => deleteVersion(sop, NOURA, '2')).toThrow()

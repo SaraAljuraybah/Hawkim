@@ -315,7 +315,7 @@ export function canSendNewVersion(sop: Sop): boolean {
 /** The main author sends the new version to the reviewers they choose (all, some, or new ones) as a new round. */
 export function sendNewVersionForReview(sop: Sop, actorId: string, guidelineVersion: string, options: InternalReviewOptions, env: ReviewEnvironment): Sop {
   author(sop, actorId, env)
-  assert(canSendNewVersion(sop), 'Upload a new version once every reviewer has finished before sending it for review')
+  assert(canSendNewVersion(sop), 'Add a new version once every reviewer has finished before sending it for review')
   assert(!checkRequired(sop, env.departments) || hasCurrentCheck(sop, guidelineVersion), 'Complete a compliance check of the new version against the current guideline first')
   validate(sop, options, env)
   return create(sop, actorId, options, 'resubmitted')
