@@ -189,17 +189,35 @@ export interface ProfileContent {
   /** Browser tab title. */
   pageTitle: string
   title: string
-  fields: { name: string; email: string; phone: string; position: string; division: string; department: string; roles: string }
+  /** Row labels; `password` is the last row, with the Change Password action. */
+  fields: { name: string; email: string; phone: string; position: string; division: string; department: string; roles: string; password: string }
   /** Shown when a value isn't set. */
   none: string
   roles: { author: string; reviewer: string; approver: string }
   password: {
-    title: string
-    text: string
+    /** Visible text of the action in the Password row. */
     change: string
-    /** Shown after the email was sent. */
-    sent: string
-    errors: { tooManyAttempts: string; notConnected: string; failed: string }
+    /** Its accessible name (contains the visible text). */
+    changeLabel: string
+    dialog: {
+      title: string
+      current: string
+      next: string
+      confirm: string
+      /** `{min}` is replaced. */
+      hint: string
+      /** Accessible names of the eye button while the password is hidden / visible. */
+      show: string
+      hide: string
+      cancel: string
+      save: string
+      /** Accessible name of the × button. */
+      close: string
+      /** A valid Save while changing passwords isn't connected. */
+      notConnected: string
+      /** `{min}` is replaced in tooShort. */
+      errors: { currentRequired: string; nextRequired: string; tooShort: string; confirmRequired: string; mismatch: string; sameAsCurrent: string }
+    }
   }
 }
 

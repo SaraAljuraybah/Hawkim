@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { MemoryRouter } from 'react-router-dom'
-import { profileEn, resetPasswordEn } from '../content/profile.en'
+import { resetPasswordEn } from '../content/profile.en'
 import { newPasswordProblems } from '../lib/newPassword'
 import { RESET_PASSWORD_PATH } from '../lib/routes'
 import { NewPasswordForm, ResetPasswordPage } from './ResetPasswordPage'
@@ -36,9 +36,8 @@ describe('Set New Password', () => {
     expect(newPasswordProblems('long enough', 'long enough')).toEqual({})
   })
 
-  it('sends a new request to the profile page, and uses the agreed message', () => {
+  it('sends a new request to the profile page', () => {
     expect(resetPasswordEn.invalid.action.href).toBe('/profile')
     expect(RESET_PASSWORD_PATH).toBe('/reset-password')
-    expect(profileEn.password.sent).toBe('Check your email for a link to change your password.')
   })
 })

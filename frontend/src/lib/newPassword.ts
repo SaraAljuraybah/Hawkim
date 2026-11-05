@@ -9,6 +9,25 @@ export interface NewPasswordProblems {
   confirm?: 'required' | 'mismatch'
 }
 
+/**
+ * Changing the password from My Profile isn't connected yet: while this is false, a valid
+ * Save only says so and changes nothing.
+ */
+export const PASSWORD_CHANGE_ACTIVE = false
+
+export interface ChangePasswordProblems extends NewPasswordProblems {
+  current?: 'required'
+  /** Shown on the new password. */
+  sameAsCurrent?: true
+}
+
+/** What's wrong with the Change Password fields (current, new and confirmation), if anything. */
+export function changePasswordProblems(current: string, next: string, confirm: string): ChangePasswordProblems {
+  const problems: ChangePasswordProblems = { ...(!current ? { current: 'required' as const } : {}), ...newPasswordProblems(next, confirm) }
+  if (current && !problems.password && next === current) problems.sameAsCurrent = true
+  return problems
+}
+
 /** What's wrong with the two password fields, if anything. */
 export function newPasswordProblems(password: string, confirm: string): NewPasswordProblems {
   return {

@@ -14,7 +14,6 @@ const fixture = vi.hoisted(() => ({
 }))
 vi.mock('../state/sessionContext', () => ({ useCurrentUser: () => fixture.user }))
 vi.mock('../state/activeDepartmentContext', () => ({ useActiveDepartment: () => ({ homeDepartment: fixture.home, activeDepartment: { id: 'other', name: 'Another Directory' } }) }))
-vi.mock('../services/auth', () => ({ sendPasswordResetEmail: vi.fn() }))
 vi.mock('../components/layout/NotificationsBell', () => ({ NotificationsBell: () => null }))
 vi.mock('../components/layout/DepartmentSwitcher', () => ({ DepartmentSwitcher: () => <button type="button">Department Switcher</button> }))
 
@@ -37,11 +36,15 @@ describe('My Profile', () => {
     expect(html).not.toContain('<input')
   })
 
-  it('lists the fields in the Add User order, with bold labels', () => {
+  it('lists the fields in the Add User order, then Password, with bold labels in the heading colour', () => {
     const html = render()
     const labels = [...html.matchAll(/<dt[^>]*>([^<]+)<\/dt>/g)].map((match) => match[1])
-    expect(labels).toEqual(['Name', 'Email', 'Phone Number', 'Division', 'Department', 'Position', 'Permission'])
-    for (const dt of html.match(/<dt[^>]*>/g)!) expect(dt).toContain('font-bold')
+    expect(labels).toEqual(['Name', 'Email', 'Phone Number', 'Division', 'Department', 'Position', 'Permission', 'Password'])
+    for (const dt of html.match(/<dt[^>]*>/g)!) {
+      expect(dt).toContain('font-bold')
+      expect(dt).toContain('text-maroon')
+      expect(dt).not.toContain('text-text-gray')
+    }
   })
 
   it('shows every empty value as the same —, blank text included', () => {
@@ -69,12 +72,31 @@ describe('My Profile', () => {
     expect(render()).toContain('>Safety<')
   })
 
-  it('offers Change Password, with live regions ready for the result', () => {
+  it('shows the password as a field-style box with hidden dots and a Change button named Change Password', () => {
     const html = render()
-    expect(html).toContain('>Change Password<')
-    expect(html).toContain('role="status"')
-    expect(html).toContain('role="alert"')
+    const row = html.match(/<div class="([^"]*)"><dt[^>]*>Password<\/dt><dd[^>]*>(.*?)<\/dd><\/div>/)!
+    expect(row[1]).toContain('border-t border-beige')
+    const box = row[2]
+    // The same look as the text inputs (controlClasses), but not an input.
+    const boxClasses = box.match(/^<div class="([^"]*)"/)![1]
+    for (const token of ['h-11', 'rounded-lg', 'border', 'bg-white', 'border-text-gray/70']) expect(boxClasses.split(' ')).toContain(token)
+    expect(box).toContain('<span aria-hidden="true" class="tracking-widest">••••••••</span>')
+    const button = box.match(/<button[^>]*>[^<]*<\/button>/)![0]
+    expect(button).toMatch(/^<button type="button" aria-label="Change Password"/)
+    expect(button).toMatch(/class="[^"]*text-maroon[^"]*hover:underline/)
+    expect(button.match(/class="([^"]*)"/)![1].split(' ').some((token) => token.startsWith('bg-'))).toBe(false)
+    expect(button).toContain('>Change</button>')
+    expect(box).not.toContain('<input')
+  })
+
+  it('no longer offers the email link on the profile, and keeps the dialog closed at first', () => {
+    const html = render()
+    expect(html).not.toContain('We will email you')
     expect(html).not.toContain('Check your email')
+    expect(html).not.toContain('role="alert"')
+    expect(html).not.toMatch(/<h2[^>]*>/)
+    expect(html).toContain('<dialog')
+    expect(html).not.toContain('Current Password')
   })
 
   it('stays open while browsing a read-only department', () => {
