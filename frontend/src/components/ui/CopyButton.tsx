@@ -17,7 +17,7 @@ interface CopyButtonProps {
 }
 
 /** How long the confirmation and the error stay visible (ms). */
-export const COPIED_MS = 1000
+export const COPIED_MS = 700
 export const FAILED_MS = 5000
 
 /**
