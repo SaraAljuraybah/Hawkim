@@ -1,13 +1,24 @@
-import type { CSSProperties } from 'react'
-import { ChevronDown } from 'lucide-react'
+import { useState, type CSSProperties } from 'react'
+import { ChevronDown, Search } from 'lucide-react'
 import { organizationEn as content } from '../../content/organization.en'
 import { usersEn } from '../../content/users.en'
+import { filterPeople, OTHERS_FILTER, roleFilters, type RoleFilter } from '../../lib/organization'
 import type { OrganizationDepartment, OrganizationHierarchy } from '../../services/organization'
 import { CopyButton } from '../ui/CopyButton'
+import { MultiSelectField } from '../ui/MultiSelectField'
+import { TextField } from '../ui/TextField'
 import { UserAvatar } from '../ui/UserAvatar'
 import './organizationChart.css'
 
-export function OrganizationDepartmentCard({ department }: { department: OrganizationDepartment }) {
+/**
+ * One department: a disclosure with its employees. When it has employees, its own name search and
+ * role filter (side by side when the card is wide enough, stacked otherwise) narrow the list.
+ */
+export function OrganizationDepartmentCard({ department, isQuality = false }: { department: OrganizationDepartment; isQuality?: boolean }) {
+  const [query, setQuery] = useState('')
+  const [roles, setRoles] = useState<RoleFilter[]>([])
+  const shown = filterPeople(department.employees, query, roles)
+  const roleOptions = roleFilters(isQuality).map((role) => ({ value: role, label: role === OTHERS_FILTER ? content.others : usersEn.permissions[role] }))
   return (
     <details className="group min-w-0 rounded-xl border border-beige bg-white shadow-sm">
       <summary className="flex cursor-pointer list-none items-center gap-3 p-4 text-maroon transition-colors hover:bg-beige/40 [&::-webkit-details-marker]:hidden">
@@ -18,9 +29,39 @@ export function OrganizationDepartmentCard({ department }: { department: Organiz
         <ChevronDown aria-hidden="true" className="size-4 shrink-0 motion-safe:transition-transform group-open:rotate-180" />
       </summary>
       <div className="border-t border-beige">
-        {department.employees.length === 0 ? <p className="p-4 text-sm text-text-gray">{content.noEmployees}</p> : (
-          <ul aria-label={department.name} tabIndex={0} className="max-h-80 overflow-y-auto overscroll-contain divide-y divide-beige">
-            {department.employees.map((employee) => (
+        {department.employees.length === 0 ? <p className="p-4 text-sm text-text-gray">{content.noEmployees}</p> : (<>
+          <div role="search" aria-label={content.searchAndFilterLabel(department.name)} className="@container border-b border-beige p-3">
+            <div className="grid gap-3 @xs:grid-cols-2">
+              <TextField
+                name={`organization-search-${department.id}`}
+                type="search"
+                label={content.searchLabel}
+                placeholder={content.searchPlaceholder}
+                autoComplete="off"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                endAdornment={<Search aria-hidden="true" className="mr-2 size-4 text-text-gray" />}
+                className="min-w-0"
+              />
+              <div className="min-w-0">
+                {/* MultiSelectField is named by its label; this shows the same text above it. */}
+                <span aria-hidden="true" className="mb-1.5 block text-sm font-medium text-maroon">{content.filterLabel}</span>
+                <MultiSelectField
+                  name={`organization-roles-${department.id}`}
+                  label={content.filterLabel}
+                  placeholder={content.filterPlaceholder}
+                  emptyText={content.filterEmpty}
+                  options={roleOptions}
+                  value={roles}
+                  onChange={(next) => setRoles(next as RoleFilter[])}
+                />
+              </div>
+            </div>
+          </div>
+          {/* Announced when nothing matches. */}
+          <p role="status" className={shown.length ? 'sr-only' : 'p-4 text-sm text-text-gray'}>{shown.length ? '' : content.noMatches}</p>
+          {shown.length > 0 && <ul aria-label={department.name} tabIndex={0} className="max-h-80 overflow-y-auto overscroll-contain divide-y divide-beige">
+            {shown.map((employee) => (
               <li key={employee.id} className="flex items-start gap-3 bg-offwhite p-3">
                 <UserAvatar user={employee} />
                 <div className="min-w-0 flex-1">
@@ -39,14 +80,15 @@ export function OrganizationDepartmentCard({ department }: { department: Organiz
                 </div>
               </li>
             ))}
-          </ul>
-        )}
+          </ul>}
+        </>)}
       </div>
     </details>
   )
 }
 
-export function OrganizationChart({ hierarchy }: { hierarchy: OrganizationHierarchy }) {
+/** `qualityDepartmentId`: the Quality department (the only one whose role filter offers Approver). */
+export function OrganizationChart({ hierarchy, qualityDepartmentId }: { hierarchy: OrganizationHierarchy; qualityDepartmentId?: string }) {
   const direct = hierarchy.departments.filter((department) => !hierarchy.divisions.some((division) => division.id === department.divisionId))
   const branches = hierarchy.divisions.map((division) => ({
     key: `division:${division.id}`, name: division.name,
@@ -75,12 +117,12 @@ export function OrganizationChart({ hierarchy }: { hierarchy: OrganizationHierar
                   </div>
                   <ul className="org-departments">
                     {branch.departments.map((department) => (
-                      <li key={department.id}><OrganizationDepartmentCard department={department} /></li>
+                      <li key={department.id}><OrganizationDepartmentCard department={department} isQuality={department.id === qualityDepartmentId} /></li>
                     ))}
                   </ul>
                 </li>
               ))}
-              {!hierarchy.divisions.length && direct.map((department) => <li key={department.id} className="org-branch"><OrganizationDepartmentCard department={department} /></li>)}
+              {!hierarchy.divisions.length && direct.map((department) => <li key={department.id} className="org-branch"><OrganizationDepartmentCard department={department} isQuality={department.id === qualityDepartmentId} /></li>)}
             </ul>
           )}
         </div>

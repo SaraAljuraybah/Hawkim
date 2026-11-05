@@ -16,7 +16,7 @@ const hierarchy: OrganizationHierarchy = {
     { id: 'department-2', name: 'Empty Department', divisionId: null, employees: [] },
   ],
 }
-const chart = (value = hierarchy) => renderToStaticMarkup(<OrganizationChart hierarchy={value} />)
+const chart = (value = hierarchy, qualityDepartmentId?: string) => renderToStaticMarkup(<OrganizationChart hierarchy={value} qualityDepartmentId={qualityDepartmentId} />)
 
 describe('Organizational Structure', () => {
   it('puts Organizational Structure last after Regulations with its existing active indicator', () => {
@@ -116,6 +116,30 @@ describe('Organizational Structure', () => {
     expect(html).toContain('No employees assigned')
     expect(html).not.toContain('Operations')
     expect(chart({ organization: null, divisions: [], departments: [] })).toContain('No departments have been configured yet')
+  })
+  it('gives each department with employees its own name search and role filter, side by side when wide enough', () => {
+    const html = chart()
+    const searches = html.match(/<div role="search"[^>]*>/g)!
+    expect(searches).toEqual(['<div role="search" aria-label="Search and filter Quality" class="@container border-b border-beige p-3">'])
+    expect(html).toContain('@xs:grid-cols-2')
+    expect(html).toMatch(/<input[^>]*type="search"[^>]*name="organization-search-department-1"|<input[^>]*name="organization-search-department-1"[^>]*type="search"/)
+    expect(html).toContain('>Search by name</label>')
+    expect(html).toContain('aria-label="Filter by role"')
+    expect(html).toContain('>All roles</span>')
+    // No search box in a department without employees, and no "No matching employees" before searching.
+    expect(html).not.toContain('organization-search-department-2')
+    expect(html).not.toContain('No matching employees')
+  })
+  it('offers Approver in the role filter only in the Quality department', () => {
+    const options = (html: string) => [...html.matchAll(/name="organization-roles-department-1" value="([^"]+)"/g)].map((match) => match[1])
+    const roleLabels = (html: string) => [...html.matchAll(/<span class="min-w-0 break-words">([^<]+)<\/span>/g)].map((match) => match[1])
+    const quality = chart(hierarchy, 'department-1')
+    expect(options(quality)).toEqual(['author', 'reviewer', 'approver', 'others'])
+    expect(roleLabels(quality)).toEqual(['Author', 'Reviewer', 'Approver', 'Others'])
+    const other = chart(hierarchy, 'department-2')
+    expect(options(other)).toEqual(['author', 'reviewer', 'others'])
+    expect(roleLabels(other)).toEqual(['Author', 'Reviewer', 'Others'])
+    expect(options(chart())).toEqual(['author', 'reviewer', 'others'])
   })
   it('renders loading skeletons and a clear retry state', () => {
     expect(renderToStaticMarkup(<OrganizationContent state={{ status: 'loading' }} reload={() => {}} />)).toContain('role="status"')

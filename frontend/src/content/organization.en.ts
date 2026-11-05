@@ -13,5 +13,13 @@ export const organizationEn = {
   copyEmail: (name: string) => `Copy ${name}'s email`,
   copied: 'Copied',
   copyFailed: "Couldn't copy. Please copy the email manually.",
+  searchAndFilterLabel: (department: string) => `Search and filter ${department}`,
+  searchLabel: 'Search by name',
+  searchPlaceholder: 'Type a name',
+  filterLabel: 'Filter by role',
+  filterPlaceholder: 'All roles',
+  filterEmpty: 'No roles to filter by',
+  others: 'Others',
+  noMatches: 'No matching employees',
   employees: (count: number) => `${count} ${count === 1 ? 'employee' : 'employees'}`,
 }
