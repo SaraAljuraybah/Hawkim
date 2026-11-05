@@ -41,8 +41,10 @@ describe('Users list', () => {
     expect(columns).toEqual(['Name', 'Division', 'Department', 'Permission', 'Actions'])
     // "Actions" is the column's accessible name only.
     expect(html).toContain('<span class="sr-only">Actions</span></th>')
-    // A soft maroon tint, with maroon text.
-    expect(html).toContain('<thead class="bg-maroon/[0.06] text-maroon">')
+    // The admin sidebar's maroon, with off-white text, on every header cell (keeping the rounded corners).
+    expect(html).toContain('<thead class="text-offwhite [&amp;_th]:bg-maroon">')
+    expect(html).toMatch(/<th scope="col" class="rounded-tl-xl /)
+    expect(html).toMatch(/<th scope="col" class="rounded-tr-xl /)
     expect(html).not.toContain('sara@example.test')
     // The division of the department, or — without one.
     expect(html).toContain('>Regulatory &amp; Drug Safety<')
@@ -137,14 +139,14 @@ describe('the Delete User warning', () => {
 })
 
 describe('permission badges', () => {
-  it('use the gold accent of the sidebar\'s Admin badge everywhere, Employee included', () => {
-    const html = render()
-    const badges = html.match(/<li class="[^"]*rounded-full[^"]*">[^<]+<\/li>/g)!
-    expect(badges.length).toBeGreaterThan(0)
-    for (const badge of badges) expect(badge).toContain('border-gold bg-gold-light')
-    for (const badge of badges) expect(badge).toContain('text-maroon')
-    const employee = renderToStaticMarkup(<PermissionBadges user={{ permissions: [] }} />)
-    expect(employee).toContain('border-gold bg-gold-light')
-    expect(employee).toContain('>Employee</li>')
+  it('use exactly the tokens of the sidebar\'s Admin tag everywhere, Employee included', () => {
+    const tag = ['rounded-md', 'bg-gold-light', 'px-1.5', 'py-0.5', 'text-xs', 'font-semibold', 'text-maroon']
+    const html = render() + renderToStaticMarkup(<PermissionBadges user={{ permissions: [] }} />)
+    const badges = [...html.matchAll(/<li class="([^"]*)">([^<]+)<\/li>/g)]
+    expect(badges.map((match) => match[2])).toContain('Employee')
+    for (const [, classes] of badges) {
+      for (const token of tag) expect(classes.split(' ')).toContain(token)
+      expect(classes).not.toMatch(/border|rounded-full|px-2\.5/)
+    }
   })
 })

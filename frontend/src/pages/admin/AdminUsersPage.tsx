@@ -159,8 +159,9 @@ export function AdminUsersPage() {
           {/* Table — md and up */}
           <div className="hidden md:block">
             <table aria-label={content.tableLabel} className="w-full text-left text-sm">
-              {/* A soft maroon tint; maroon text on it is far above AA. */}
-              <thead className="bg-maroon/[0.06] text-maroon">
+              {/* The admin sidebar's maroon, off-white text (about 16:1). The colour is on the cells, so the
+                  first and last keep the table's rounded top corners. */}
+              <thead className="text-offwhite [&_th]:bg-maroon">
                 <tr>
                   <th scope="col" className="rounded-tl-xl px-5 py-3 font-semibold">{content.columns.name}</th>
                   <th scope="col" className="px-5 py-3 font-semibold">{content.columns.division}</th>
