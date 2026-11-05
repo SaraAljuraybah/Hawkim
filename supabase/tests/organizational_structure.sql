@@ -38,9 +38,9 @@ begin
   assert rejected, 'Anonymous direct column access must fail';
   reset role;
   set local role authenticated;
-  -- Missing, nonexistent, malformed, non-admin and deleted-profile identities.
+  -- Missing, nonexistent, malformed and deleted-profile identities.
   foreach caller in array array['', 'f4000000-0000-4000-8000-000000000099', 'not-a-uuid',
-    'f4000000-0000-4000-8000-000000000002', 'f4000000-0000-4000-8000-000000000003']
+    'f4000000-0000-4000-8000-000000000003']
   loop
     perform set_config('request.jwt.claim.sub', caller, true);
     rejected := false;
@@ -49,15 +49,13 @@ begin
     end;
     assert rejected, 'Invalid or unauthorized caller must be refused';
   end loop;
+  -- Every active user, not only Admins, can view the structure and read divisions.
   perform set_config('request.jwt.claim.sub', 'f4000000-0000-4000-8000-000000000002', true);
-  rejected := false;
-  begin perform public.get_organizational_structure();
-  exception when insufficient_privilege then rejected := true;
-  end;
-  assert rejected, 'Non-admin must be refused';
-  select count(*) into row_count from public.divisions;
-  assert row_count = 0, 'Non-admin must see no divisions, even with a permissive legacy policy';
-  -- The existing employee directory intentionally remains readable.
+  snapshot := public.get_organizational_structure();
+  assert exists(select 1 from jsonb_array_elements(snapshot->'departments') where value->>'id' = 'org-test-home'), 'Non-admin active users must see the structure';
+  select count(*) into row_count from public.divisions where id like 'org%';
+  assert row_count = 3, 'Non-admin active users must read divisions';
+  -- The existing employee directory remains readable.
   assert exists(select 1 from public.profiles where id = 'f4000000-0000-4000-8000-000000000002');
   assert exists(select 1 from public.departments where id = 'org-test-home');
   assert exists(select 1 from public.user_roles where user_id = 'f4000000-0000-4000-8000-000000000002');
@@ -73,10 +71,11 @@ begin
   assert (select count(*) = 4 from jsonb_object_keys(home));
   assert jsonb_array_length(home->'employees') = 2, 'Deleted employees must not count';
   assert (select value->'permissions' @> '["author", "reviewer"]'::jsonb from jsonb_array_elements(home->'employees') where value->>'id' = 'f4000000-0000-4000-8000-000000000002');
-  assert not exists(select 1 from jsonb_array_elements(home->'employees') where value ? 'email' or value ? 'phone');
+  assert not exists(select 1 from jsonb_array_elements(home->'employees') where value ? 'phone');
+  assert (select value->>'email' = 'org-test-2@test.invalid' from jsonb_array_elements(home->'employees') where value->>'id' = 'f4000000-0000-4000-8000-000000000002'), 'Employees carry their profile email';
   assert not exists(select 1 from jsonb_array_elements(home->'employees') e
-    where not (e.value ?& array['id', 'name', 'initials', 'position', 'permissions'])
-      or (select count(*) <> 5 from jsonb_object_keys(e.value))
+    where not (e.value ?& array['id', 'name', 'initials', 'email', 'position', 'permissions'])
+      or (select count(*) <> 6 from jsonb_object_keys(e.value))
       or jsonb_typeof(e.value->'permissions') <> 'array');
   assert not exists(select 1 from jsonb_array_elements(snapshot->'departments') where value->>'id' = 'org-test-removed');
   assert (select jsonb_array_length(value->'employees') = 0 from jsonb_array_elements(snapshot->'departments') where value->>'id' = 'org-test-empty');
@@ -110,7 +109,7 @@ begin
   reset role;
   delete from public.user_roles where user_id = 'f4000000-0000-4000-8000-000000000001';
   set local role authenticated;
-  assert not public.can_read_organizational_structure(), 'Removing Admin must revoke access without waiting for token expiry';
+  assert public.can_read_organizational_structure(), 'An active user without any role can still read the structure';
   reset role;
   insert into public.user_roles(user_id, role) values ('f4000000-0000-4000-8000-000000000001', 'admin');
   -- A stale JWT cannot bypass an Auth ban, even while has_role still returns true.
@@ -124,6 +123,16 @@ begin
   end;
   assert rejected, 'Banned Admin must be refused';
   assert not exists(select 1 from public.divisions), 'Banned Admin cannot bypass through divisions';
+  reset role;
+  update auth.users set banned_until = now() + interval '1 day' where id = 'f4000000-0000-4000-8000-000000000002';
+  perform set_config('request.jwt.claim.sub', 'f4000000-0000-4000-8000-000000000002', true);
+  set local role authenticated;
+  assert not public.can_read_organizational_structure(), 'Banned non-admin must be refused';
+  assert not exists(select 1 from public.divisions), 'Banned non-admin cannot read divisions';
+  reset role;
+  update auth.users set banned_until = null where id = 'f4000000-0000-4000-8000-000000000002';
+  perform set_config('request.jwt.claim.sub', 'f4000000-0000-4000-8000-000000000001', true);
+  set local role authenticated;
   reset role;
   update auth.users set banned_until = now() - interval '1 day' where id = 'f4000000-0000-4000-8000-000000000001';
   set local role authenticated;

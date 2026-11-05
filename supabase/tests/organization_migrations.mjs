@@ -26,6 +26,7 @@ const catalogSnapshot = `select row_to_json(state) from (select
   (select jsonb_agg(to_jsonb(c) order by c.oid) from pg_constraint c where c.connamespace = 'public'::regnamespace) constraints
 ) state;`
 const migration = read('supabase/migrations/20261104130000_reconcile_organizational_structure.sql')
+const forAllUsers = read('supabase/migrations/20261105120000_organizational_structure_for_all_users.sql')
 const prerequisites = `
 create schema auth;
 create table auth.users(id uuid primary key, banned_until timestamptz, deleted_at timestamptz);
@@ -99,6 +100,23 @@ begin
 end;
 $$;
 `
+// After 20261105120000: the same helper and grants, both divisions policies under their new names.
+const forAllUsersChecks = `
+do $$
+begin
+  assert (select count(*) = 0 from pg_policy where polrelid = 'public.divisions'::regclass and polname in ('Admins can read divisions', 'Organizational structure admin guard'));
+  assert (select count(*) = 1 from pg_policy where polrelid = 'public.divisions'::regclass and polname = 'Active users can read divisions' and polpermissive);
+  assert (select count(*) = 1 from pg_policy where polrelid = 'public.divisions'::regclass and polname = 'Organizational structure active user guard' and not polpermissive);
+  assert (select prosecdef and proowner = 'postgres'::regrole and proconfig @> array['search_path=""']
+    from pg_proc where oid = 'public.can_read_organizational_structure()'::regprocedure), 'Helper keeps trusted ownership and a fixed search path';
+  assert has_function_privilege('authenticated', 'public.can_read_organizational_structure()', 'EXECUTE');
+  assert not has_function_privilege('anon', 'public.can_read_organizational_structure()', 'EXECUTE');
+  assert not has_function_privilege('anon', 'public.get_organizational_structure()', 'EXECUTE');
+end;
+$$;
+`
+// The new migration has its own BEGIN/COMMIT (for SQL Editor), so it runs without --single-transaction.
+const script = (database, input) => docker(['exec', '-i', name, 'psql', '-X', '-U', 'postgres', '-d', database, '-v', 'ON_ERROR_STOP=1'], input)
 
 let started = false
 try {
@@ -134,6 +152,9 @@ try {
     sql(scenario, migration)
     sql(scenario, migration) // Replay must not duplicate schema objects or data.
     sql(scenario, compatibilityChecks)
+    script(scenario, forAllUsers)
+    script(scenario, forAllUsers) // Replay must leave the same two policies.
+    sql(scenario, forAllUsersChecks)
     // Native tests manage their own transaction and roll fixtures back.
     docker(['exec', '-i', name, 'psql', '-X', '-U', 'postgres', '-d', scenario, '-v', 'ON_ERROR_STOP=1'], read('supabase/tests/organizational_structure.sql'))
     if (scenario === 'legacy') sql(scenario, "insert into public.divisions(id, name) values ('underscore_id', 'Compatible ID');")
