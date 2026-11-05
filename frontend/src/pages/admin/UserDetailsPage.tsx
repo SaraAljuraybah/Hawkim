@@ -1,22 +1,20 @@
-import { useRef, useState, type ReactNode, type Ref } from 'react'
+import { useEffect, useRef, useState, type ReactNode, type Ref } from 'react'
 import { flushSync } from 'react-dom'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, CircleAlert, CircleCheck, Trash2 } from 'lucide-react'
+import { ArrowLeft, CircleAlert, CircleCheck } from 'lucide-react'
 import { blockerMessage } from '../../components/admin/blockerMessages'
+import { DeleteUserButton } from '../../components/admin/DeleteUserButton'
 import { PermissionBadges, UserAvatar } from '../../components/admin/UserBits'
 import { Button } from '../../components/ui/Button'
 import { CheckboxGroup } from '../../components/ui/CheckboxGroup'
-import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
 import { StatusBadge } from '../../components/ui/StatusBadge'
 import { adminEn } from '../../content/admin.en'
 import { usersEn } from '../../content/users.en'
 import type { Permission, User } from '../../data/mock/types'
 import { useDocumentTitle } from '../../hooks/useDocumentTitle'
-import { getDirectoryDepartments } from '../../lib/departments'
-import { ADMIN_USERS_PATH } from '../../lib/routes'
-import { deleteBlockers, involvement, PERMISSIONS, permissionChangeBlockers } from '../../lib/userAdmin'
+import { ADMIN_USERS_PATH, USER_PERMISSIONS_SECTION } from '../../lib/routes'
+import { divisionLabel, involvement, PERMISSIONS, permissionChangeBlockers } from '../../lib/userAdmin'
 import { useDepartments } from '../../state/departmentsContext'
-import { useRequests } from '../../state/requestsContext'
 import { useCurrentUser } from '../../state/sessionContext'
 import { useSops } from '../../state/sopsContext'
 import { useUsers } from '../../state/usersContext'
@@ -30,9 +28,9 @@ export interface UserDetailsLocationState {
 
 /**
  * A user's page in the admin portal ("/admin/users/:id", PBI 17, 18, 19): their
- * details and departments, their permissions (granted or revoked here), the SOPs
- * they are involved in, and Delete user. Changes the rules refuse are explained,
- * naming the SOPs that block them. Deleted and unknown users show Not Found.
+ * details, their permissions (granted or revoked here; "#permissions-title" opens the page
+ * there), the SOPs they are involved in, and Delete user in the header. Changes the rules
+ * refuse are explained, naming the SOPs that block them. Deleted and unknown users show Not Found.
  */
 export function UserDetailsPage() {
   const { id } = useParams()
@@ -62,11 +60,11 @@ function UserDetails({ id }: { id: string | undefined }) {
   )
 }
 
-/** A white card with an h2. */
-function Panel({ id, title, children }: { id: string; title: string; children: ReactNode }) {
+/** A white card with an h2 (focusable from script, to open the page at a section). */
+function Panel({ id, title, children, headingRef }: { id: string; title: string; children: ReactNode; headingRef?: Ref<HTMLHeadingElement> }) {
   return (
-    <section aria-labelledby={id} className="rounded-xl border border-beige bg-white p-5 sm:p-6">
-      <h2 id={id} className="text-lg">
+    <section aria-labelledby={id} className="scroll-mt-24 rounded-xl border border-beige bg-white p-5 sm:p-6">
+      <h2 ref={headingRef} id={id} tabIndex={headingRef ? -1 : undefined} className="rounded-sm text-lg">
         {title}
       </h2>
       <div className="mt-4">{children}</div>
@@ -98,11 +96,10 @@ function RefusedBox({ title, messages, ref }: { title: string; messages: string[
 
 function UserPanels({ user }: { user: User }) {
   const text = adminEn.userDetails
-  const { activeUsers, updatePermissions, deleteUser } = useUsers()
+  const { activeUsers, updatePermissions } = useUsers()
   const admin = useCurrentUser()
   const { sops } = useSops()
-  const { requests } = useRequests()
-  const { activeDepartments, nameOf: departmentName } = useDepartments()
+  const { getDepartment } = useDepartments()
   const navigate = useNavigate()
   const location = useLocation()
   const rules = { actorId: admin.id, users: activeUsers, sops }
@@ -111,14 +108,22 @@ function UserPanels({ user }: { user: User }) {
   const [selected, setSelected] = useState<Permission[]>(user.permissions)
   const [saved, setSaved] = useState(false)
   const [permissionErrors, setPermissionErrors] = useState<string[]>([])
-  const [deleteErrors, setDeleteErrors] = useState<string[]>([])
-  const [confirming, setConfirming] = useState(false)
+  const [deleteRefused, setDeleteRefused] = useState<{ title: string; reasons: string[] }>()
   const permissionErrorRef = useRef<HTMLDivElement>(null)
   const deleteErrorRef = useRef<HTMLDivElement>(null)
-  const deleteButtonRef = useRef<HTMLButtonElement | null>(null)
+  const permissionsRef = useRef<HTMLHeadingElement>(null)
 
-  const directoryAccess = getDirectoryDepartments(user, requests, activeDepartments).filter((department) => department.id !== user.departmentId)
   const involved = involvement(user.id, sops)
+  const department = getDepartment(user.departmentId)
+
+  // Opened from "Edit permissions" on the list: go to the Permission section.
+  const openAtPermissions = location.hash === '#' + USER_PERMISSIONS_SECTION
+  useEffect(() => {
+    if (!openAtPermissions) return
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    permissionsRef.current?.scrollIntoView({ block: 'start', behavior: reduceMotion ? 'auto' : 'smooth' })
+    permissionsRef.current?.focus({ preventScroll: true })
+  }, [openAtPermissions])
 
   function savePermissions() {
     setAdded(false)
@@ -134,48 +139,41 @@ function UserPanels({ user }: { user: User }) {
     setSaved(true)
   }
 
-  function startDelete() {
-    setAdded(false)
-    const blockers = deleteBlockers(user, rules)
-    if (blockers.length > 0) {
-      flushSync(() => setDeleteErrors(blockers.map((blocker) => blockerMessage(blocker, user, text.blockers, false))))
-      deleteErrorRef.current?.focus()
-      return
-    }
-    setDeleteErrors([])
-    setConfirming(true)
-  }
-
-  function confirmDelete() {
-    setConfirming(false)
-    deleteUser(user.id, rules)
-    const state: AdminUsersLocationState = { deleted: text.delete.done.replace('{name}', user.name) }
+  function deleted(message: string) {
+    const state: AdminUsersLocationState = { deleted: message }
     navigate(ADMIN_USERS_PATH, { state })
   }
 
-  const details = [
-    { label: text.details.email, value: <span className="break-all">{user.email}</span> },
-    { label: text.details.phone, value: user.phone || text.details.notSet },
-    { label: text.details.position, value: user.position || text.details.notSet },
-    { label: text.details.division, value: user.divisionId || text.details.noDivision },
-    { label: text.details.homeDepartment, value: departmentName(user.departmentId) },
-    {
-      label: text.details.directoryAccess,
-      value: directoryAccess.length > 0 ? directoryAccess.map((department) => department.name).join(', ') : text.details.none,
-      hint: text.details.directoryHint,
-    },
+  function refuseDelete(title: string, reasons: string[]) {
+    setAdded(false)
+    flushSync(() => setDeleteRefused({ title, reasons }))
+    deleteErrorRef.current?.focus()
+  }
+
+  // Same order and look as My Profile; an empty value shows notSet.
+  const details: [string, string | undefined][] = [
+    [text.details.name, user.name],
+    [text.details.email, user.email],
+    [text.details.phone, user.phone],
+    [text.details.division, divisionLabel(department)],
+    [text.details.department, department?.name],
+    [text.details.position, user.position],
+    [text.details.permission, user.permissions.map((permission) => usersEn.permissions[permission]).join(', ')],
   ]
 
   return (
     <>
-      {/* Header */}
-      <div className="mt-5 flex items-center gap-4">
+      {/* Header, with Delete user at the top right */}
+      <div className="mt-5 flex items-start gap-4">
         <UserAvatar user={user} className="size-14 text-base" />
-        <div className="min-w-0">
-          <h1 className="text-2xl tracking-tight sm:text-3xl">{user.name}</h1>
+        <div className="min-w-0 flex-1">
+          <h1 className="text-2xl break-words tracking-tight sm:text-3xl">{user.name}</h1>
           <PermissionBadges user={user} className="mt-2" />
         </div>
+        <DeleteUserButton user={user} onDeleted={deleted} onRefused={refuseDelete} />
       </div>
+
+      {deleteRefused && <RefusedBox ref={deleteErrorRef} title={deleteRefused.title} messages={deleteRefused.reasons} />}
 
       <div role="status">
         {added && (
@@ -188,18 +186,17 @@ function UserPanels({ user }: { user: User }) {
 
       <div className="mt-6 grid max-w-3xl gap-6">
         <Panel id="details-title" title={text.details.title}>
-          <dl className="grid gap-x-8 gap-y-4 text-sm sm:grid-cols-2">
-            {details.map((detail) => (
-              <div key={detail.label} className="min-w-0">
-                <dt className="text-text-gray">{detail.label}</dt>
-                <dd className="mt-0.5 font-medium text-maroon">{detail.value}</dd>
-                {detail.hint && <dd className="mt-0.5 text-xs text-text-gray">{detail.hint}</dd>}
+          <dl className="grid gap-x-6 gap-y-3 text-sm sm:grid-cols-[10rem_minmax(0,1fr)]">
+            {details.map(([label, value]) => (
+              <div key={label} className="contents">
+                <dt className="font-bold text-maroon">{label}</dt>
+                <dd className="min-w-0 break-words text-maroon max-sm:mb-1">{value?.trim() || text.details.notSet}</dd>
               </div>
             ))}
           </dl>
         </Panel>
 
-        <Panel id="permissions-title" title={text.permissions.title}>
+        <Panel id={USER_PERMISSIONS_SECTION} title={text.permissions.title} headingRef={permissionsRef}>
           <CheckboxGroup
             name="permissions"
             legend={text.permissions.legend.replace('{name}', user.name)}
@@ -253,42 +250,7 @@ function UserPanels({ user }: { user: User }) {
             </ul>
           )}
         </Panel>
-
-        <Panel id="delete-title" title={text.delete.title}>
-          <p className="text-sm text-text-gray">{text.delete.text}</p>
-          {deleteErrors.length > 0 && (
-            <RefusedBox
-              ref={deleteErrorRef}
-              title={text.delete.refused.replace('{name}', user.name)}
-              messages={deleteErrors}
-            />
-          )}
-          <Button
-            variant="danger"
-            className="mt-4"
-            onClick={(event) => {
-              deleteButtonRef.current = event.currentTarget
-              startDelete()
-            }}
-          >
-            <Trash2 aria-hidden="true" className="size-4" strokeWidth={1.75} />
-            {text.delete.button}
-          </Button>
-        </Panel>
       </div>
-
-      <ConfirmDialog
-        open={confirming}
-        title={text.delete.dialog.title.replace('{name}', user.name)}
-        description={text.delete.dialog.description}
-        cancelLabel={text.delete.dialog.cancel}
-        confirmLabel={text.delete.dialog.confirm}
-        onConfirm={confirmDelete}
-        onCancel={() => {
-          setConfirming(false)
-          deleteButtonRef.current?.focus()
-        }}
-      />
     </>
   )
 }

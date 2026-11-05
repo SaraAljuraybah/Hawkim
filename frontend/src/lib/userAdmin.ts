@@ -45,6 +45,37 @@ export function normalizePhone(raw: string): string | null {
   return digits ? `+9665${digits[1]}` : null
 }
 
+/** A department's division as shown (its name once divisions are loaded), or '' without one. */
+export function divisionLabel(department: Pick<Department, 'divisionId'> | undefined): string {
+  return department?.divisionId ?? ''
+}
+
+/** "All" in the Users list's Division and Department filters. */
+export const ALL_FILTER = 'all'
+
+export interface UserFilter {
+  /** Searched in name, email, division, department and permission names, ignoring case. */
+  query: string
+  /** A division, NO_DIVISION, or ALL_FILTER. */
+  division: string
+  /** A department id, or ALL_FILTER. */
+  departmentId: string
+}
+
+/** The Users list's users matching the search and both filters, by name. `permissionLabels`: the names shown. */
+export function filterUsers(users: User[], getDepartment: (id: string) => Department | undefined, filter: UserFilter, permissionLabels: Record<Permission, string>): User[] {
+  const text = filter.query.trim().toLowerCase()
+  return users
+    .filter((user) => {
+      const department = getDepartment(user.departmentId)
+      const searched = [user.name, user.email, divisionLabel(department), department?.name ?? '', ...user.permissions.map((permission) => permissionLabels[permission])]
+      return (!text || searched.some((value) => value.toLowerCase().includes(text))) &&
+        (filter.division === ALL_FILTER || (!!department && departmentsInDivision([department], filter.division).length > 0)) &&
+        (filter.departmentId === ALL_FILTER || user.departmentId === filter.departmentId)
+    })
+    .sort((a, b) => a.name.localeCompare(b.name))
+}
+
 /** The Division choice for departments that have none. */
 export const NO_DIVISION = '__no-division__'
 
@@ -193,17 +224,11 @@ export function permissionChangeBlockers(target: User, next: Permission[], conte
   return blockers
 }
 
-/** Why the target can't be deleted (none: it is allowed). */
+/**
+ * Why the target can't be deleted (none: it is allowed): only their own account and the last admin.
+ * Work in progress doesn't block it; their name stays on the SOPs' history.
+ */
 export function deleteBlockers(target: User, context: AdminContext): Blocker[] {
   if (target.id === context.actorId) return [{ kind: 'self-delete' }]
-  const blockers: Blocker[] = []
-  if (target.permissions.includes('admin') && !otherAdminExists(target.id, context.users)) {
-    blockers.push({ kind: 'last-admin' })
-  }
-  // Whatever their permissions are now, they can't leave work in progress behind.
-  for (const permission of ['author', 'reviewer', 'approver'] as const) {
-    const sops = sopsUsing(permission, target.id, context.sops)
-    if (sops.length > 0) blockers.push({ kind: 'in-use', permission, sops })
-  }
-  return blockers
+  return target.permissions.includes('admin') && !otherAdminExists(target.id, context.users) ? [{ kind: 'last-admin' }] : []
 }

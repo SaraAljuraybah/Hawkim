@@ -92,3 +92,11 @@ export function adminRegulationPath(versionId: string): string {
 export function adminUserPath(userId: string): string {
   return `${ADMIN_USERS_PATH}/${encodeURIComponent(userId)}`
 }
+
+/** The id of the Permission section on a user's page, and its anchor. */
+export const USER_PERMISSIONS_SECTION = 'permissions-title'
+
+/** A user's page, opened at its Permission section, e.g. /admin/users/user-sara#permissions-title */
+export function adminUserPermissionsPath(userId: string): string {
+  return `${adminUserPath(userId)}#${USER_PERMISSIONS_SECTION}`
+}

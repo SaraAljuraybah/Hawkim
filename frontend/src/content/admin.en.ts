@@ -33,13 +33,29 @@ export const adminEn: AdminContent = {
     title: 'Users',
     subtitle: 'Manage who can use Hawkim and what they can do.',
     addUser: { label: 'Add User', href: '/admin/users/new' },
-    search: { label: 'Search', placeholder: 'Search by name or email' },
+    search: { label: 'Search Users', placeholder: 'Search by name, email, division, department or permission…' },
+    divisionFilter: { label: 'Division', all: 'All Divisions', noDivision: 'No Division' },
     departmentFilter: { label: 'Department', all: 'All Departments' },
-    permissionFilter: { label: 'Permission', all: 'All Permissions' },
     count: { one: '{count} user', other: '{count} users' },
     tableLabel: 'Users',
-    columns: { name: 'Name', email: 'Email', department: 'Department', permissions: 'Permission' },
+    columns: { name: 'Name', division: 'Division', department: 'Department', permissions: 'Permission', actions: 'Actions' },
+    none: '—',
+    actions: { view: 'View {name}', edit: 'Edit permissions for {name}' },
     empty: 'No users match your search.',
+  },
+
+  /** Delete User, the same on the Users list and a user's page. */
+  deleteUser: {
+    /** Accessible name and tooltip of the Trash button; `{name}` is replaced. */
+    button: 'Delete {name}',
+    title: 'Delete User?',
+    description: "Are you sure you want to delete {name}? This can't be undone.",
+    cancel: 'Cancel',
+    confirm: 'Delete',
+    /** Above the reasons when deleting is refused; `{name}` is replaced. */
+    refused: "{name} can't be deleted:",
+    /** Shown on the users list afterwards; `{name}` is replaced. */
+    done: '{name} deleted.',
   },
 
   permissionDescriptions: {
@@ -92,16 +108,14 @@ export const adminEn: AdminContent = {
     added: 'User added.',
     details: {
       title: 'Details',
+      name: 'Name',
       email: 'Email',
       phone: 'Phone Number',
-      position: 'Position',
       division: 'Division',
-      homeDepartment: 'Home Department',
-      noDivision: '—',
+      department: 'Department',
+      position: 'Position',
+      permission: 'Permission',
       notSet: '—',
-      directoryAccess: 'Published Directory Access',
-      directoryHint: 'Read-only access through approved requests; membership and permissions are unchanged.',
-      none: 'None',
     },
     permissions: {
       title: 'Permission',
@@ -116,19 +130,6 @@ export const adminEn: AdminContent = {
       label: 'SOPs this user is involved in',
       roles: { author: 'Author', 'co-author': 'Co-author', reviewer: 'Reviewer', approver: 'Approver' },
       rolesLabel: 'Role:',
-    },
-    delete: {
-      title: 'Delete User',
-      text: 'They will no longer be able to access Hawkim. Their name stays on SOP history.',
-      button: 'Delete User',
-      refused: "{name} can't be deleted yet:",
-      dialog: {
-        title: 'Delete {name}?',
-        description: "They will no longer be able to access Hawkim. This can't be undone.",
-        confirm: 'Delete',
-        cancel: 'Cancel',
-      },
-      done: '{name} deleted.',
     },
     blockers: {
       selfDelete: "You can't delete your own account.",

@@ -142,21 +142,20 @@ describe('Reviewer and Approver are in use while assigned to an SOP still in the
 })
 
 describe('deleting users', () => {
-  it('refuses deleting Noura while she is assigned as a reviewer, naming every SOP', () => {
+  it('allows deleting Noura while she is assigned as a reviewer on unpublished SOPs', () => {
     const sops = [
       sop('SOP-081', 'returned', { reviewers: [{ userId: 'noura', decision: 'returned' }] }),
       sop('SOP-082', 'in-approval', { reviewers: [{ userId: 'noura', decision: 'completed' }] }),
       sop('SOP-017', 'published', { reviewers: [{ userId: 'noura', decision: 'completed' }] }),
     ]
-    const blockers = deleteBlockers(noura, asNouf(sops))
-    expect(kinds(blockers)).toEqual(['in-use'])
-    expect(blockingCodes(blockers)).toEqual(['SOP-081', 'SOP-082'])
+    expect(deleteBlockers(noura, asNouf(sops))).toEqual([])
+    // Removing her Reviewer permission is still refused while she is assigned.
+    expect(blockingCodes(permissionChangeBlockers(noura, [], asNouf(sops)))).toEqual(['SOP-081', 'SOP-082'])
   })
 
-  it('refuses deleting someone with work in progress even after the permission was removed', () => {
-    const formerReviewer = user('noura', [])
-    const sops = [sop('SOP-081', 'returned', { reviewers: [{ userId: 'noura', decision: 'returned' }] })]
-    expect(blockingCodes(deleteBlockers(formerReviewer, asNouf(sops)))).toEqual(['SOP-081'])
+  it('allows deleting an author or approver of unpublished SOPs too', () => {
+    const sops = [sop('SOP-081', 'draft', { authorId: 'noura' }), sop('SOP-082', 'in-approval', { approvers: [{ userId: 'noura', decision: 'pending' }] })]
+    expect(deleteBlockers(user('noura', ['author', 'approver']), asNouf(sops))).toEqual([])
   })
 
   it('allows deleting a user who isn’t assigned to anything in progress', () => {

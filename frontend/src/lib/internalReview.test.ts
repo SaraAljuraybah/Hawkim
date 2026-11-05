@@ -459,7 +459,8 @@ describe('assignment cancellation is separate from global Reviewer permission', 
     expect(deleteBlockers(user, context)).toEqual([])
     expect(sopsUsing('reviewer', user.id, [cancelled, other]).map((sop) => sop.id)).toEqual(['other-sop'])
     expect(permissionChangeBlockers(user, [], { ...context, sops: [cancelled, other] })[0]).toMatchObject({ kind: 'in-use', permission: 'reviewer', sops: [other] })
-    expect(deleteBlockers(user, { ...context, sops: [cancelled, other] })[0]).toMatchObject({ kind: 'in-use', sops: [other] })
+    // Deleting is never blocked by SOP work (only their own account or the last admin).
+    expect(deleteBlockers(user, { ...context, sops: [cancelled, other] })).toEqual([])
     expect(reviewTasks(user.id, [cancelled, other]).filter((task) => task.group === 'todo').map((task) => task.sop.id)).toEqual(['other-sop'])
     expect(pendingPeople(cancelled).map((person) => person.userId)).toEqual(['b', 'c'])
     expect(task(cancelled, 'a')).toMatchObject({ decision: 'removed', responseDueDate: '2026-10-26', reviewDurationDays: 5, removalReason: 'No longer needed' })

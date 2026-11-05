@@ -12,6 +12,8 @@ interface ConfirmDialogProps {
   onConfirm: () => void
   /** Called when the dialog closes without confirming (cancel button, Escape, backdrop). */
   onCancel: () => void
+  /** The confirming action is destructive (e.g. Delete): it uses the danger button style. */
+  danger?: boolean
 }
 
 /**
@@ -19,7 +21,7 @@ interface ConfirmDialogProps {
  * makes it inert, closes on Escape. Focus starts on the safe choice and Tab
  * wraps between the two buttons. The caller decides where focus goes afterwards.
  */
-export function ConfirmDialog({ open, title, description, cancelLabel, confirmLabel, onConfirm, onCancel }: ConfirmDialogProps) {
+export function ConfirmDialog({ open, title, description, cancelLabel, confirmLabel, onConfirm, onCancel, danger = false }: ConfirmDialogProps) {
   const dialogRef = useRef<HTMLDialogElement>(null)
   const confirmedRef = useRef(false)
   const titleId = useId()
@@ -81,6 +83,7 @@ export function ConfirmDialog({ open, title, description, cancelLabel, confirmLa
               {cancelLabel}
             </Button>
             <Button
+              variant={danger ? 'danger' : 'primary'}
               onClick={() => {
                 confirmedRef.current = true
                 dialogRef.current?.close()

@@ -1255,6 +1255,7 @@ export interface AdminContent {
   permissionDescriptions: Record<Permission, string>
   addUser: AdminAddUserContent
   userDetails: AdminUserDetailsContent
+  deleteUser: AdminDeleteUserContent
   departmentsList: AdminDepartmentsListContent
   departmentForm: AdminDepartmentFormContent
   departmentDetails: AdminDepartmentDetailsContent
@@ -1478,19 +1479,17 @@ export interface AdminUserDetailsContent {
   back: LinkContent
   /** Shown after adding a user. */
   added: string
+  /** The rows, in this order; `notSet` for an empty value. */
   details: {
     title: string
+    name: string
     email: string
     phone: string
-    position: string
     division: string
-    homeDepartment: string
-    noDivision: string
-    /** Shown for a phone number or position that isn't set. */
+    department: string
+    position: string
+    permission: string
     notSet: string
-    directoryAccess: string
-    directoryHint: string
-    none: string
   }
   permissions: {
     title: string
@@ -1509,16 +1508,6 @@ export interface AdminUserDetailsContent {
     roles: Record<'author' | 'co-author' | 'reviewer' | 'approver', string>
     /** Visually hidden before the roles. */
     rolesLabel: string
-  }
-  delete: {
-    title: string
-    text: string
-    button: string
-    /** `{name}` is replaced. */
-    refused: string
-    dialog: { title: string; description: string; confirm: string; cancel: string }
-    /** Shown on the users list afterwards; `{name}` is replaced. */
-    done: string
   }
   /**
    * Why a change is refused. `{name}` (the user) and `{sops}` (SOP codes; with their
@@ -1547,11 +1536,28 @@ export interface AdminUsersListContent {
   subtitle: string
   addUser: LinkContent
   search: { label: string; placeholder: string }
+  /** `noDivision`: departments without a division. */
+  divisionFilter: { label: string; all: string; noDivision: string }
+  /** Lists the chosen division's departments. */
   departmentFilter: { label: string; all: string }
-  permissionFilter: { label: string; all: string }
   count: CountText
   /** Accessible name of the table. */
   tableLabel: string
-  columns: { name: string; email: string; department: string; permissions: string }
+  columns: { name: string; division: string; department: string; permissions: string; actions: string }
+  /** An empty cell (e.g. no division). */
+  none: string
+  /** Accessible names and tooltips of the row's icon buttons; `{name}` is replaced. */
+  actions: { view: string; edit: string }
   empty: string
+}
+
+/** Delete User, on the Users list and a user's page; `{name}` is replaced. */
+export interface AdminDeleteUserContent {
+  button: string
+  title: string
+  description: string
+  cancel: string
+  confirm: string
+  refused: string
+  done: string
 }
