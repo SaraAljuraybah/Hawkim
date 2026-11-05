@@ -1,18 +1,18 @@
 import type { AppNavItem } from '../content/types'
 import type { DepartmentId, User } from '../data/mock/types'
 import { hasAnyPermission } from './permissions'
-import { DEPARTMENTS_PATH, PROFILE_PATH, SOP_DIRECTORY_PATH, SUBMIT_REQUEST_PATH } from './routes'
+import { DEPARTMENTS_PATH, ORGANIZATIONAL_STRUCTURE_PATH, PROFILE_PATH, SOP_DIRECTORY_PATH, SUBMIT_REQUEST_PATH } from './routes'
 
 /*
  * Which screens the employee app offers for the active department. In the home
  * department everything the user's roles allow; in a department they only have
- * read-only access to, just browsing its SOP Directory (plus Organization Structure,
+ * read-only access to, just browsing its SOP Directory (plus Organizational Structure,
  * the request form its "Request access" buttons open, and the user's own profile). Used by both the sidebar
  * and the route guard, so the rule lives in one place. Pure functions.
  */
 
 /** Paths (and the pages below them) open in a read-only department. */
-const READ_ONLY_PATHS = [SOP_DIRECTORY_PATH, DEPARTMENTS_PATH, SUBMIT_REQUEST_PATH, PROFILE_PATH]
+const READ_ONLY_PATHS = [SOP_DIRECTORY_PATH, ORGANIZATIONAL_STRUCTURE_PATH, DEPARTMENTS_PATH, SUBMIT_REQUEST_PATH, PROFILE_PATH]
 
 /** Where hidden pages lead in a read-only department. */
 export const READ_ONLY_LANDING_PATH = SOP_DIRECTORY_PATH

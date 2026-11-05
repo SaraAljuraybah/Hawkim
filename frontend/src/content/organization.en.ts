@@ -1,4 +1,5 @@
 export const organizationEn = {
+  pageTitle: 'Organizational Structure | Hawkim',
   title: 'Organizational Structure',
   organization: 'Organization',
   retry: 'Retry',

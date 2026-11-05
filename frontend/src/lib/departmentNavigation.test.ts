@@ -16,26 +16,26 @@ describe('active department', () => {
 
 describe('sidebar items', () => {
   it('shows every tab the roles allow in the home department', () => {
-    expect(labels([], false)).toEqual(['Dashboard', 'My Requests', 'SOP Directory', 'Organization Structure'])
-    expect(labels(['author'], false)).toEqual(['Dashboard', 'My SOPs', 'My Requests', 'SOP Directory', 'Organization Structure'])
-    expect(labels(['reviewer', 'approver'], false)).toEqual(['Dashboard', 'My Reviews', 'My Requests', 'SOP Directory', 'Organization Structure'])
-    expect(labels(['author', 'reviewer'], false)).toEqual(['Dashboard', 'My SOPs', 'My Reviews', 'My Requests', 'SOP Directory', 'Organization Structure'])
+    expect(labels([], false)).toEqual(['Dashboard', 'My Requests', 'SOP Directory', 'Organizational Structure'])
+    expect(labels(['author'], false)).toEqual(['Dashboard', 'My SOPs', 'My Requests', 'SOP Directory', 'Organizational Structure'])
+    expect(labels(['reviewer', 'approver'], false)).toEqual(['Dashboard', 'My Reviews', 'My Requests', 'SOP Directory', 'Organizational Structure'])
+    expect(labels(['author', 'reviewer'], false)).toEqual(['Dashboard', 'My SOPs', 'My Reviews', 'My Requests', 'SOP Directory', 'Organizational Structure'])
   })
 
-  it('shows only SOP Directory and Organization Structure in a read-only department', () => {
-    expect(labels([], true)).toEqual(['SOP Directory', 'Organization Structure'])
-    expect(labels(['author'], true)).toEqual(['SOP Directory', 'Organization Structure'])
+  it('shows only SOP Directory and Organizational Structure in a read-only department', () => {
+    expect(labels([], true)).toEqual(['SOP Directory', 'Organizational Structure'])
+    expect(labels(['author'], true)).toEqual(['SOP Directory', 'Organizational Structure'])
   })
 
   it('ignores extra roles in a read-only department', () => {
-    expect(labels(['reviewer'], true)).toEqual(['SOP Directory', 'Organization Structure'])
-    expect(labels(['author', 'reviewer', 'approver'], true)).toEqual(['SOP Directory', 'Organization Structure'])
+    expect(labels(['reviewer'], true)).toEqual(['SOP Directory', 'Organizational Structure'])
+    expect(labels(['author', 'reviewer', 'approver'], true)).toEqual(['SOP Directory', 'Organizational Structure'])
   })
 })
 
 describe('routes', () => {
   const hidden = ['/dashboard', '/my-sops', '/my-sops/upload', '/my-sops/sop-079', '/my-sops/sop-079/compliance', '/reviews', '/reviews/sop-079', '/reviews/sop-079/compliance', '/requests']
-  const open = ['/sops', '/sops/sop-079', '/departments', '/requests/new']
+  const open = ['/sops', '/sops/sop-079', '/organizational-structure', '/departments', '/requests/new']
 
   it('allows every page in the home department', () => {
     for (const path of [...hidden, ...open]) expect(isPathAllowed(path, false)).toBe(true)

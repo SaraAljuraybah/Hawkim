@@ -35,6 +35,7 @@ const ComplianceReportPage = lazy(() => import('./pages/ComplianceReportPage').t
 const ReviewPage = lazy(() => import('./pages/ReviewPage').then((m) => ({ default: m.ReviewPage })))
 const SopDetailPage = lazy(() => import('./pages/SopDetailPage').then((m) => ({ default: m.SopDetailPage })))
 const SopWorkflowPage = lazy(() => import('./pages/SopWorkflowPage').then((m) => ({ default: m.SopWorkflowPage })))
+const EmployeeOrganizationalStructurePage = lazy(() => import('./pages/OrganizationalStructurePage').then((m) => ({ default: m.OrganizationalStructurePage })))
 
 const adminPortal = () => import('./routes/adminPortal')
 const AddUserPage = lazy(() => adminPortal().then((m) => ({ default: m.AddUserPage })))
@@ -108,6 +109,7 @@ function AppRoutes() {
         <Route path="/sops" element={<SopsPage />} />
         <Route path="/sops/:id" element={<SopDetailPage />} />
         <Route path="/departments" element={<DepartmentsPage />} />
+        <Route path="/organizational-structure" element={<EmployeeOrganizationalStructurePage />} />
         <Route path="/my-sops" element={<MySopsPage />} />
         <Route path="/my-sops/upload" element={<UploadSopPage />} />
         <Route path="/my-sops/:id" element={<SopWorkflowPage />} />
@@ -127,7 +129,7 @@ function AppRoutes() {
         <Route path="users/new" element={<AddUserPage />} />
         <Route path="users/:id" element={<UserDetailsPage />} />
         <Route path="departments" element={<AdminDepartmentsPage />} />
-        <Route path="organizational-structure" element={<OrganizationalStructurePage />} />
+        <Route path="organizational-structure" element={<OrganizationalStructurePage admin />} />
         <Route path="departments/new" element={<DepartmentFormPage />} />
         <Route path="departments/:id" element={<DepartmentDetailsPage />} />
         <Route path="departments/:id/edit" element={<DepartmentFormPage />} />

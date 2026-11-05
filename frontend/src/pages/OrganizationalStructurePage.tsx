@@ -4,12 +4,14 @@ import { Button } from '../components/ui/Button'
 import { adminEn } from '../content/admin.en'
 import { organizationEn as content } from '../content/organization.en'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
+import { qualityDepartment } from '../lib/approval'
 import { fetchOrganization, type OrganizationHierarchy } from '../services/organization'
+import { useDepartments } from '../state/departmentsContext'
 import { useCurrentUser } from '../state/sessionContext'
 
 export type OrganizationLoadState = { status: 'loading' } | { status: 'error' } | { status: 'ready'; hierarchy: OrganizationHierarchy }
 
-export function OrganizationContent({ state, reload }: { state: OrganizationLoadState; reload: () => void }) {
+export function OrganizationContent({ state, reload, qualityDepartmentId }: { state: OrganizationLoadState; reload: () => void; qualityDepartmentId?: string }) {
   if (state.status === 'loading') return (
     <div role="status" aria-label={content.loading} className="mt-8 space-y-8 motion-safe:animate-pulse">
       <span className="sr-only">{content.loading}</span>
@@ -23,12 +25,18 @@ export function OrganizationContent({ state, reload }: { state: OrganizationLoad
       <Button variant="secondary" onClick={reload}>{content.retry}</Button>
     </div>
   )
-  return <OrganizationChart hierarchy={state.hierarchy} />
+  return <OrganizationChart hierarchy={state.hierarchy} qualityDepartmentId={qualityDepartmentId} />
 }
 
-export function OrganizationalStructurePage() {
-  useDocumentTitle(adminEn.pageTitle.replace('{page}', content.title))
+/**
+ * Organizational Structure, the same page for every signed-in user: in the employee app
+ * ("/organizational-structure") and in the admin portal (`admin`, only the tab title differs).
+ */
+export function OrganizationalStructurePage({ admin = false }: { admin?: boolean }) {
+  useDocumentTitle(admin ? adminEn.pageTitle.replace('{page}', content.title) : content.pageTitle)
   const user = useCurrentUser()
+  // The Quality department is identified as for the Approver rule (departments.is_quality).
+  const qualityDepartmentId = qualityDepartment(useDepartments().departments)?.id
   const [attempt, setAttempt] = useState(0)
   const [loaded, setLoaded] = useState<{ userId: string; attempt: number; state: OrganizationLoadState } | null>(null)
   const state: OrganizationLoadState = loaded?.userId === user.id && loaded.attempt === attempt ? loaded.state : { status: 'loading' }
@@ -44,7 +52,7 @@ export function OrganizationalStructurePage() {
   return (
     <div className="min-w-0">
       <h1 className="text-2xl tracking-tight sm:text-3xl">{content.title}</h1>
-      <OrganizationContent state={state} reload={reload} />
+      <OrganizationContent state={state} reload={reload} qualityDepartmentId={qualityDepartmentId} />
     </div>
   )
 }

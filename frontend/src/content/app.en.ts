@@ -20,7 +20,7 @@ export const appShellEn: AppShellContent = {
     { label: 'My Reviews', href: '/reviews', icon: 'reviews', matchSubpaths: true, permission: ['reviewer', 'approver'] },
     { label: 'My Requests', href: '/requests', icon: 'requests', matchSubpaths: true },
     { label: 'SOP Directory', href: '/sops', icon: 'sops', matchSubpaths: true },
-    { label: 'Organization Structure', href: '/departments', icon: 'departments' },
+    { label: 'Organizational Structure', href: '/organizational-structure', icon: 'hierarchy' },
   ],
 
   signOut: { label: 'Sign Out', href: '/login', icon: 'signOut' },

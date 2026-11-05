@@ -9,6 +9,7 @@ import { OrganizationalStructurePage, OrganizationContent } from './Organization
 
 vi.mock('../state/sessionContext', () => ({ useSession: () => ({ signOut: vi.fn() }), useCurrentUser: () => ({ id: 'admin' }) }))
 vi.mock('../hooks/useDocumentTitle', () => ({ useDocumentTitle: () => {} }))
+vi.mock('../state/departmentsContext', () => ({ useDepartments: () => ({ departments: [] }) }))
 const hierarchy: OrganizationHierarchy = {
   organization: { name: 'Configured Organization' }, divisions: [{ id: 'division-1', name: 'Operations' }],
   departments: [

@@ -6,6 +6,9 @@ export const SOP_DIRECTORY_PATH = '/sops'
 /** The Organization Structure page (department cards). */
 export const DEPARTMENTS_PATH = '/departments'
 
+/** The Organizational Structure page (divisions, departments and their employees). */
+export const ORGANIZATIONAL_STRUCTURE_PATH = '/organizational-structure'
+
 /** The Submit a Request form. */
 export const SUBMIT_REQUEST_PATH = '/requests/new'
 
