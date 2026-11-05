@@ -120,15 +120,22 @@ describe('Organizational Structure', () => {
     expect(html).not.toContain('Operations')
     expect(chart({ organization: null, divisions: [], departments: [] })).toContain('No departments have been configured yet')
   })
-  it('gives each department with employees its own name search and role filter, side by side when wide enough', () => {
+  it('gives each department with employees its own compact search and filter row, on one line', () => {
     const html = chart()
     const searches = html.match(/<div role="search"[^>]*>/g)!
-    expect(searches).toEqual(['<div role="search" aria-label="Search and filter Quality" class="@container border-b border-beige p-3">'])
-    expect(html).toContain('@xs:grid-cols-2')
-    expect(html).toMatch(/<input[^>]*type="search"[^>]*name="organization-search-department-1"|<input[^>]*name="organization-search-department-1"[^>]*type="search"/)
-    expect(html).toContain('>Search by name</label>')
-    expect(html).toContain('aria-label="Filter by role"')
-    expect(html).toContain('>All roles</span>')
+    expect(searches).toEqual(['<div role="search" aria-label="Search and filter Quality" class="flex items-center gap-2 border-b border-beige p-3">'])
+    expect(html).not.toContain('@xs:grid-cols-2')
+    expect(html).not.toContain('@container')
+    // The labels are kept for screen readers only; the placeholder says the same.
+    expect(html).toMatch(/<label for="[^"]+" class="sr-only">Search by name<\/label>/)
+    const search = html.match(/<input[^>]*name="organization-search-department-1"[^>]*>/)![0]
+    expect(search).toContain('type="search"')
+    expect(search).toContain('placeholder="Search by name"')
+    expect(search).toContain('class="h-10 ')
+    expect(html).not.toContain('>Filter by role<')
+    expect(html).not.toContain('All roles')
+    // The filter is a funnel icon button at the end of the row, named for screen readers.
+    expect(html).toMatch(/<button type="button" aria-label="Filter by role" aria-expanded="false"[^>]*size-10[^>]*><svg[^>]*lucide-funnel/)
     // No search box in a department without employees, and no "No matching employees" before searching.
     expect(html).not.toContain('organization-search-department-2')
     expect(html).not.toContain('No matching employees')

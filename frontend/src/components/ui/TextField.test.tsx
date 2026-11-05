@@ -26,4 +26,16 @@ describe('TextField', () => {
     expect(html).toContain('0 / 50')
     expect(html).toContain('aria-describedby="title-error title-counter"')
   })
+
+  it('can keep the label for screen readers only and use a 40px input', () => {
+    const html = renderToStaticMarkup(<TextField id="search" label="Search by name" labelHidden compact />)
+    expect(html).toContain('<label for="search" class="sr-only">Search by name</label>')
+    expect(html).toMatch(/<input id="search" class="h-10 /)
+  })
+
+  it('shows the label and the usual 44px input by default', () => {
+    const html = renderToStaticMarkup(<TextField id="title" label="Title" />)
+    expect(html).toContain('<label for="title" class="mb-1.5 block text-sm font-medium text-maroon">Title</label>')
+    expect(html).toMatch(/<input id="title" class="h-11 /)
+  })
 })

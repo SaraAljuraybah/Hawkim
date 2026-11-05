@@ -19,6 +19,10 @@ export interface TextFieldProps extends Omit<InputHTMLAttributes<HTMLInputElemen
   counter?: string
   /** Element placed inside the input on the right, e.g. a visibility toggle. */
   endAdornment?: ReactNode
+  /** Keeps the label for screen readers only (e.g. a search box whose placeholder says the same). */
+  labelHidden?: boolean
+  /** A slightly shorter input (40px instead of 44px), e.g. in a compact toolbar. */
+  compact?: boolean
   /** Forwarded to the `<input>` (React 19 passes refs as regular props). */
   ref?: Ref<HTMLInputElement>
   /** Classes for the outer wrapper. */
@@ -38,6 +42,8 @@ export function TextField({
   requiredMark = false,
   counter,
   endAdornment,
+  labelHidden = false,
+  compact = false,
   ref,
   id,
   className = '',
@@ -58,6 +64,7 @@ export function TextField({
       error={error}
       errorId={errorId}
       requiredMark={requiredMark}
+      hideLabel={labelHidden}
       className={className}
       aside={
         counter && (
@@ -73,7 +80,7 @@ export function TextField({
           id={inputId}
           aria-invalid={error || invalid ? true : undefined}
           aria-describedby={describedByIds}
-          className={`h-11 ${controlClasses(error || (invalid ? 'invalid' : undefined))} ${endAdornment ? 'pr-12' : ''}`}
+          className={`${compact ? 'h-10' : 'h-11'} ${controlClasses(error || (invalid ? 'invalid' : undefined))} ${endAdornment ? 'pr-12' : ''}`}
           {...inputProps}
         />
         {endAdornment && (

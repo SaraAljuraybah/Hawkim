@@ -1,5 +1,5 @@
 import { useState, type CSSProperties } from 'react'
-import { ChevronDown, Search } from 'lucide-react'
+import { ChevronDown, Funnel, Search } from 'lucide-react'
 import { organizationEn as content } from '../../content/organization.en'
 import { usersEn } from '../../content/users.en'
 import { filterPeople, OTHERS_FILTER, roleFilters, type RoleFilter } from '../../lib/organization'
@@ -12,7 +12,7 @@ import './organizationChart.css'
 
 /**
  * One department: a disclosure with its employees. When it has employees, its own name search and
- * role filter (side by side when the card is wide enough, stacked otherwise) narrow the list.
+ * role filter (one row: the search takes the width, the filter is an icon button at the end) narrow the list.
  */
 export function OrganizationDepartmentCard({ department, isQuality = false }: { department: OrganizationDepartment; isQuality?: boolean }) {
   const [query, setQuery] = useState('')
@@ -30,33 +30,32 @@ export function OrganizationDepartmentCard({ department, isQuality = false }: { 
       </summary>
       <div className="border-t border-beige">
         {department.employees.length === 0 ? <p className="p-4 text-sm text-text-gray">{content.noEmployees}</p> : (<>
-          <div role="search" aria-label={content.searchAndFilterLabel(department.name)} className="@container border-b border-beige p-3">
-            <div className="grid gap-3 @xs:grid-cols-2">
-              <TextField
-                name={`organization-search-${department.id}`}
-                type="search"
-                label={content.searchLabel}
-                placeholder={content.searchPlaceholder}
-                autoComplete="off"
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                endAdornment={<Search aria-hidden="true" className="mr-2 size-4 text-text-gray" />}
-                className="min-w-0"
-              />
-              <div className="min-w-0">
-                {/* MultiSelectField is named by its label; this shows the same text above it. */}
-                <span aria-hidden="true" className="mb-1.5 block text-sm font-medium text-maroon">{content.filterLabel}</span>
-                <MultiSelectField
-                  name={`organization-roles-${department.id}`}
-                  label={content.filterLabel}
-                  placeholder={content.filterPlaceholder}
-                  emptyText={content.filterEmpty}
-                  options={roleOptions}
-                  value={roles}
-                  onChange={(next) => setRoles(next as RoleFilter[])}
-                />
-              </div>
-            </div>
+          <div role="search" aria-label={content.searchAndFilterLabel(department.name)} className="flex items-center gap-2 border-b border-beige p-3">
+            <TextField
+              name={`organization-search-${department.id}`}
+              type="search"
+              label={content.searchLabel}
+              labelHidden
+              compact
+              placeholder={content.searchPlaceholder}
+              autoComplete="off"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              endAdornment={<Search aria-hidden="true" className="mr-2 size-4 text-text-gray" />}
+              className="min-w-0 flex-1"
+            />
+            <MultiSelectField
+              trigger="icon"
+              icon={Funnel}
+              name={`organization-roles-${department.id}`}
+              label={content.filterLabel}
+              buttonLabel={roles.length ? content.filterSelected(roles.length) : content.filterLabel}
+              placeholder={content.filterLabel}
+              emptyText={content.filterEmpty}
+              options={roleOptions}
+              value={roles}
+              onChange={(next) => setRoles(next as RoleFilter[])}
+            />
           </div>
           {/* Announced when nothing matches. */}
           <p role="status" className={shown.length ? 'sr-only' : 'p-4 text-sm text-text-gray'}>{shown.length ? '' : content.noMatches}</p>
