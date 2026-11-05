@@ -2,8 +2,8 @@ import type { Permission, User } from '../data/mock/types'
 import { PERMISSIONS } from '../lib/userAdmin'
 import { supabase } from './supabase'
 
-// Deliberately excludes email, phone and authentication information.
-export type OrganizationEmployee = Pick<User, 'id' | 'name' | 'initials' | 'permissions'> & { position?: string | null }
+// Includes the work email (readable by every active user); deliberately excludes phone and authentication information.
+export type OrganizationEmployee = Pick<User, 'id' | 'name' | 'initials' | 'email' | 'permissions'> & { position?: string | null }
 export interface OrganizationDepartment {
   id: string
   name: string
@@ -35,7 +35,7 @@ function isHierarchy(value: unknown): value is OrganizationHierarchy {
       !(department.divisionId === null || text(department.divisionId)) || !Array.isArray(department.employees)) return false
     departmentIds.add(department.id)
     return department.employees.every((employee: unknown) => {
-      if (!record(employee) || !text(employee.id) || !text(employee.name) || !text(employee.initials) || employeeIds.has(employee.id) ||
+      if (!record(employee) || !text(employee.id) || !text(employee.name) || !text(employee.initials) || !text(employee.email) || employeeIds.has(employee.id) ||
         !(employee.position == null || text(employee.position)) || !Array.isArray(employee.permissions) ||
         !employee.permissions.every((permission: unknown) => text(permission) && PERMISSIONS.includes(permission as Permission)) ||
         new Set(employee.permissions).size !== employee.permissions.length) return false
@@ -45,7 +45,7 @@ function isHierarchy(value: unknown): value is OrganizationHierarchy {
   })
 }
 
-/** A single authenticated, Admin-only database snapshot; never falls back to mock data. */
+/** A single authenticated database snapshot for any active user; never falls back to mock data. */
 export async function fetchOrganization(): Promise<OrganizationHierarchy> {
   const { data, error } = await supabase().rpc('get_organizational_structure')
   if (error) throw new Error(error.message)

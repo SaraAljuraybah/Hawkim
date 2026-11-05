@@ -9,6 +9,9 @@ export const organizationEn = {
   noDivisions: 'Departments are shown directly under the organization until divisions are configured.',
   directDepartments: 'Departments without a division',
   permissionsLabel: 'Permissions',
-  positionLabel: 'Position',
+  emailLabel: 'Email',
+  copyEmail: (name: string) => `Copy ${name}'s email`,
+  copied: 'Copied',
+  copyFailed: "Couldn't copy. Please copy the email manually.",
   employees: (count: number) => `${count} ${count === 1 ? 'employee' : 'employees'}`,
 }

@@ -33,7 +33,7 @@ describe('persisted organizational structure', () => {
   it('accepts nullable positions and preserves all real permissions and underscore division IDs', async () => {
     const hierarchy = { organization: null, divisions: [{ id: 'regulatory_drug_safety', name: 'Configured name' }], departments: [
       { id: 'department', name: 'Department', divisionId: 'regulatory_drug_safety', employees: [
-        { id: 'employee', name: 'Stored name', initials: 'SN', position: null, permissions: ['author', 'reviewer'] },
+        { id: 'employee', name: 'Stored name', initials: 'SN', email: 'stored@test.invalid', position: null, permissions: ['author', 'reviewer'] },
       ] },
     ] }
     rpc.mockResolvedValue({ data: hierarchy, error: null })
@@ -43,15 +43,18 @@ describe('persisted organizational structure', () => {
     { organization: undefined, divisions: [], departments: [] },
     { organization: null, divisions: [null], departments: [] },
     { organization: null, divisions: [], departments: [{ id: 'd', name: 'D', divisionId: null, employees: null }] },
-    ...[null, { id: 'u', name: 'U', initials: 'U', position: 123, permissions: [] },
-      { id: 'u', name: 'U', initials: 'U', permissions: ['invented-role'] },
-      { id: 'u', name: 'U', initials: 'U', permissions: ['admin', 'admin'] }].map((employee) => ({ organization: null, divisions: [], departments: [{ id: 'd', name: 'D', divisionId: null, employees: [employee] }] })),
+    ...[null, { id: 'u', name: 'U', initials: 'U', email: 'u@test.invalid', position: 123, permissions: [] },
+      { id: 'u', name: 'U', initials: 'U', email: 'u@test.invalid', permissions: ['invented-role'] },
+      { id: 'u', name: 'U', initials: 'U', email: 'u@test.invalid', permissions: ['admin', 'admin'] },
+      // Every employee carries an email.
+      { id: 'u', name: 'U', initials: 'U', permissions: [] },
+      { id: 'u', name: 'U', initials: 'U', email: null, permissions: [] }].map((employee) => ({ organization: null, divisions: [], departments: [{ id: 'd', name: 'D', divisionId: null, employees: [employee] }] })),
   ])('rejects an invalid nested response: %j', async (data) => {
     rpc.mockResolvedValue({ data, error: null })
     await expect(fetchOrganization()).rejects.toThrow('Invalid organizational structure')
   })
   it('rejects duplicate employee memberships instead of displaying false counts', async () => {
-    const employee = { id: 'u', name: 'U', initials: 'U', permissions: [] }
+    const employee = { id: 'u', name: 'U', initials: 'U', email: 'u@test.invalid', permissions: [] }
     rpc.mockResolvedValue({ data: { organization: null, divisions: [], departments: ['a', 'b'].map((id) => ({ id, name: id, divisionId: null, employees: [employee] })) }, error: null })
     await expect(fetchOrganization()).rejects.toThrow('Invalid organizational structure')
   })

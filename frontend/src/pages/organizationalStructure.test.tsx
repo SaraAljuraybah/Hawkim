@@ -12,7 +12,7 @@ vi.mock('../hooks/useDocumentTitle', () => ({ useDocumentTitle: () => {} }))
 const hierarchy: OrganizationHierarchy = {
   organization: { name: 'Configured Organization' }, divisions: [{ id: 'division-1', name: 'Operations' }],
   departments: [
-    { id: 'department-1', name: 'Quality', divisionId: 'division-1', employees: [{ id: 'person-1', name: 'Test Employee', initials: 'TE', position: 'Specialist', permissions: ['author', 'reviewer', 'approver'] }] },
+    { id: 'department-1', name: 'Quality', divisionId: 'division-1', employees: [{ id: 'person-1', name: 'Test Employee', initials: 'TE', email: 'test.employee@test.invalid', position: 'Specialist', permissions: ['author', 'reviewer', 'approver'] }] },
     { id: 'department-2', name: 'Empty Department', divisionId: null, employees: [] },
   ],
 }
@@ -38,15 +38,27 @@ describe('Organizational Structure', () => {
   })
   it('renders real division and department relationships with accurate membership counts and all permissions', () => {
     const html = chart()
-    for (const text of ['Configured Organization', 'Operations', 'Quality', 'Test Employee', 'Specialist', 'Author', 'Reviewer', 'Approver', '1 employee', '0 employees']) expect(html).toContain(text)
+    for (const text of ['Configured Organization', 'Operations', 'Quality', 'Test Employee', 'Author', 'Reviewer', 'Approver', '1 employee', '0 employees']) expect(html).toContain(text)
     expect(html).toContain('Departments without a division')
     const qualityMembers = html.match(/<ul aria-label="Quality".*?<\/ul>/)![0]
     expect(qualityMembers).toContain('Test Employee')
-    expect(html).not.toContain('email')
   })
-  it('uses plain permissions distinct from the job position, without chart icons or role badges', () => {
+  it('shows each person as name, then roles, then email with a copy button, without the position', () => {
     const html = chart()
-    expect(html).toContain('Position: </span>Specialist</p>')
+    const row = html.match(/<li[^>]*bg-offwhite.*?<\/li>/)![0]
+    const name = row.indexOf('>Test Employee</p>')
+    const roles = row.indexOf('Permissions: </span>Author, Reviewer, Approver</p>')
+    const email = row.indexOf('Email: </span>test.employee@test.invalid</p>')
+    expect(name).toBeGreaterThan(-1)
+    expect(roles).toBeGreaterThan(name)
+    expect(email).toBeGreaterThan(roles)
+    expect(row.indexOf('aria-label="Copy Test Employee&#x27;s email"')).toBeGreaterThan(email)
+    expect(row).toContain('aria-live="polite"')
+    expect(html).not.toContain('Specialist')
+    expect(html).not.toContain('Position')
+  })
+  it('uses plain comma-separated permissions, without chart icons or role badges', () => {
+    const html = chart()
     expect(html).toContain('Permissions: </span>Author, Reviewer, Approver</p>')
     expect(html).not.toContain('rounded-full border')
     for (const icon of ['lucide-folder', 'lucide-building-2', 'lucide-network']) expect(html).not.toContain(icon)
@@ -56,7 +68,7 @@ describe('Organizational Structure', () => {
     expect(html).not.toContain('overflow-x-auto')
     expect(html).not.toContain('w-80')
   })
-  it('retains database labels, department names and the roleless Employee meaning', () => {
+  it('retains database labels and department names, and shows no role label for people without a role', () => {
     const data = structuredClone(hierarchy)
     data.divisions[0].id = 'rnd'
     data.divisions[0].name = 'R&D Division'
@@ -67,8 +79,9 @@ describe('Organizational Structure', () => {
     const html = chart(data)
     expect(html).toContain('R&amp;D Division')
     expect(html).toContain('Legal &amp; Governance')
-    expect(html).toContain('Permissions: </span>Employee</p>')
-    expect(html).not.toContain('Position:')
+    expect(html).not.toContain('Permissions:')
+    expect(html).not.toContain('>Employee<')
+    expect(html).toContain('>Test Employee</p>')
   })
   it.each([
     ['rnd', 'Clinical Research & Development'],

@@ -3,6 +3,7 @@ import { ChevronDown } from 'lucide-react'
 import { organizationEn as content } from '../../content/organization.en'
 import { usersEn } from '../../content/users.en'
 import type { OrganizationDepartment, OrganizationHierarchy } from '../../services/organization'
+import { CopyButton } from '../ui/CopyButton'
 import { UserAvatar } from '../ui/UserAvatar'
 import './organizationChart.css'
 
@@ -24,11 +25,17 @@ export function OrganizationDepartmentCard({ department }: { department: Organiz
                 <UserAvatar user={employee} />
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium break-words text-maroon">{employee.name}</p>
-                  {employee.position && <p className="mt-0.5 text-xs font-normal text-text-gray"><span className="sr-only">{content.positionLabel}: </span>{employee.position}</p>}
-                  <p className="mt-0.5 text-xs font-normal text-text-gray">
-                    <span className="sr-only">{content.permissionsLabel}: </span>
-                    {employee.permissions.length ? employee.permissions.map((permission) => usersEn.permissions[permission]).join(', ') : usersEn.employee}
-                  </p>
+                  {/* People without a role show no role line here. */}
+                  {employee.permissions.length > 0 && (
+                    <p className="mt-0.5 text-xs font-normal text-text-gray">
+                      <span className="sr-only">{content.permissionsLabel}: </span>
+                      {employee.permissions.map((permission) => usersEn.permissions[permission]).join(', ')}
+                    </p>
+                  )}
+                  <div className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-1.5 text-xs font-normal text-text-gray">
+                    <p className="min-w-0 break-all"><span className="sr-only">{content.emailLabel}: </span>{employee.email}</p>
+                    <CopyButton text={employee.email} label={content.copyEmail(employee.name)} copiedText={content.copied} failedText={content.copyFailed} />
+                  </div>
                 </div>
               </li>
             ))}

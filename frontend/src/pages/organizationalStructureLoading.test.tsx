@@ -37,7 +37,7 @@ function render() {
 const flush = async () => { await Promise.resolve(); await Promise.resolve() }
 const snapshot: OrganizationHierarchy = {
   organization: null, divisions: [], departments: [
-    { id: 'a', name: 'A', divisionId: null, employees: [{ id: 'u', name: 'Persisted name', initials: 'PN', permissions: ['author'] }] },
+    { id: 'a', name: 'A', divisionId: null, employees: [{ id: 'u', name: 'Persisted name', initials: 'PN', email: 'persisted@test.invalid', permissions: ['author'] }] },
     { id: 'b', name: 'B', divisionId: null, employees: [] },
   ],
 }
