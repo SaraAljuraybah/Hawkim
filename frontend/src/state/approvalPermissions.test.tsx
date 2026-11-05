@@ -59,8 +59,8 @@ vi.mock('../services/review', async () => {
 })
 vi.mock('../services/sops', () => ({ fetchSops: async () => [], fetchSop: async () => backend.sop }))
 
-function person(id: string, permissions: User['permissions']): User {
-  return { id, name: id, email: id + '@example.test', initials: 'TT', departmentId: 'home', permissions }
+function person(id: string, permissions: User['permissions'], departmentId = 'home'): User {
+  return { id, name: id, email: id + '@example.test', initials: 'TT', departmentId, permissions }
 }
 const env = () => ({ users: fixture.users, departments: fixture.departments })
 const check = (version: string) => ({ id: 'check-' + version, sopId: 'test', version, status: 'completed' as const, startedAt: new Date().toISOString(), guideline: { name: 'GVP', version: '4.0' }, findings: [] })
@@ -72,7 +72,7 @@ function reviewed(deadlines: Pick<InternalReviewOptions, 'responseDueDate'> = {}
   return decideInternalReview(accepted, 'reviewer', round.id, round.assignments[0].id, 'completed', 'Checked this version', env())
 }
 function options(sop: Sop): ApprovalSubmissionOptions {
-  return { version: sop.version, internalReviewRoundId: currentInternalRound(sop)!.id, dueDate: '2026-10-28' }
+  return { version: sop.version, internalReviewRoundId: currentInternalRound(sop)!.id, approverId: 'controller' }
 }
 function submitted(deadlines: Pick<InternalReviewOptions, 'responseDueDate'> = {}): Sop {
   const sop = reviewed(deadlines)
@@ -103,8 +103,9 @@ async function restartedReview(): Promise<Sop> {
 }
 beforeEach(() => {
   vi.useFakeTimers({ now: new Date(2026, 9, 23, 12) })
-  fixture.users.splice(0, fixture.users.length, person('author', ['author']), person('coauthor', ['author']), person('reviewer', ['reviewer']), person('controller', ['approver']), person('other', ['author', 'approver']), person('admin', ['admin', 'author']))
-  fixture.departments.splice(0, fixture.departments.length, { id: 'home', name: 'Home', initials: 'HM', description: '', qualityControllerId: 'controller', requiresComplianceCheck: true })
+  fixture.users.splice(0, fixture.users.length, person('author', ['author']), person('coauthor', ['author']), person('reviewer', ['reviewer']), person('controller', ['approver'], 'quality'), person('other', ['author', 'approver'], 'quality'), person('admin', ['admin', 'author']))
+  fixture.departments.splice(0, fixture.departments.length, { id: 'home', name: 'Home', initials: 'HM', description: '', requiresComplianceCheck: true },
+    { id: 'quality', name: 'Quality Assurance', initials: 'QA', description: '', isQuality: true })
 })
 afterEach(() => vi.useRealTimers())
 
@@ -131,16 +132,16 @@ describe('deadline simulation requires a current assignment', () => {
     expect(fixture.commit).not.toHaveBeenCalled()
   })
 
-  it('allows a current v2 Approver to shift only the active approval deadline, preserving v1 history and original allocations', async () => {
+  it('lets a current v2 Approver run the deadline simulation without an approval deadline, preserving v1 history and original allocations', async () => {
     const revised = await restartedReview(), round = currentInternalRound(revised)!
     const accepted = acceptInternalReview(revised, 'reviewer', round.id, round.assignments[0].id, env())
     const completed = decideInternalReview(accepted, 'reviewer', round.id, round.assignments[0].id, 'completed', undefined, env())
     const sop = submitForApproval(completed, 'author', options(completed), env())
     const before = structuredClone(sop), store = capture('controller', sop)
     store.shiftDueDates(sop.id, 1)
-    expect(current().approvalDueAt).toBe(new Date('2026-10-27T23:59:59.999').toISOString())
-    expect(current().approvalSubmissions!.at(-1)).toMatchObject({ version: '2', dueDate: '2026-10-27', assignedDueDays: 5 })
-    expect(current().approvalSubmissions![0]).toEqual(before.approvalSubmissions![0])
+    // Submit for Approval no longer sets a deadline, so there is none to move.
+    expect(current().approvalDueAt).toBeUndefined()
+    expect(current().approvalSubmissions).toEqual(before.approvalSubmissions)
     expect(current().internalReviewRounds).toEqual(before.internalReviewRounds)
     expect(current().timeline).toEqual(before.timeline)
     expect(current().approvalDueDays).toBe(before.approvalDueDays)

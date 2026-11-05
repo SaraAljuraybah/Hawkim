@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Sop } from '../data/mock/types'
-import { approvalDueDateRange, dueAtOfDate, dueDateRange, parseDueDate, resubmit, returnAsReviewer, reviewerAssignedMilliseconds, reviewerDueAt, shiftDueDates, submitForReview, uploadVersion } from './workflow'
+import { dueAtOfDate, dueDateRange, parseDueDate, resubmit, returnAsReviewer, reviewerAssignedMilliseconds, reviewerDueAt, shiftDueDates, submitForReview, uploadVersion } from './workflow'
 
 const sentAt = '2026-10-29T21:30:00.123Z' // Friday 00:30 in Riyadh, Thursday in UTC.
 const deadline = '2026-10-30T20:59:59.999Z'
@@ -44,12 +44,9 @@ describe('new legacy review dates in the frontend Riyadh prototype', () => {
     expect(again.timeline.slice(0, revised.timeline.length)).toEqual(revised.timeline)
     expect(revised).toEqual(before)
   })
-  it('retains date-only historical interpretation and existing approval date restrictions', () => {
+  it('retains date-only historical interpretation', () => {
     const sop = submit()
     const historical = { userId: 'reviewer', decision: 'pending' as const, dueDate: '2026-10-30', assignedDueDays: 1 }
     expect(reviewerDueAt(sop, historical)).toBe(dueAtOfDate('2026-10-30'))
-    const now = new Date()
-    const localTomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1)
-    expect(approvalDueDateRange(now).min).toBe(`${localTomorrow.getFullYear()}-${String(localTomorrow.getMonth() + 1).padStart(2, '0')}-${String(localTomorrow.getDate()).padStart(2, '0')}`)
   })
 })

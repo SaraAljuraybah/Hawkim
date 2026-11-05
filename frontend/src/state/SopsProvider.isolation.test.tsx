@@ -271,9 +271,9 @@ describe('identity isolation with the database services (stand-in database, no n
 
   it('runs parallel reviews in the database and keeps the separate Author approval handoff in this tab only', async () => {
     const second = person('second', ['reviewer'])
-    const controller = person('controller', ['approver'])
+    const controller = { ...person('controller', ['approver']), departmentId: 'quality' }
     fixture.people.push(second, controller)
-    fixture.departments[0].qualityControllerId = controller.id
+    fixture.departments.push({ id: 'quality', name: 'Quality Assurance', initials: 'QA', description: '', isQuality: true })
     stored(draft('shared', 'author'), draft('author-private', 'author'), draft('other-private', 'other'))
     const author = await signIn(fixture.people[0])
     expect(author.sops.map((sop) => sop.id).sort()).toEqual(['author-private', 'shared'])
@@ -283,10 +283,10 @@ describe('identity isolation with the database services (stand-in database, no n
     expect(round.assignments.map((assignment) => ({ userId: assignment.userId, decision: assignment.decision }))).toEqual([
       { userId: 'reviewer', decision: 'pending' }, { userId: second.id, decision: 'pending' },
     ])
-    const options = { version: requested.version, internalReviewRoundId: round.id }
+    const options = { version: requested.version, internalReviewRoundId: round.id, approverId: controller.id }
     expect(() => render().submitForApproval('shared', options)).toThrow(/review/i)
 
-    // Department configuration alone gives the controller no access.
+    // Being an eligible Approver alone gives the controller no access.
     expect((await signIn(controller)).sops).toEqual([])
     expect(() => author.submitForApproval('shared', options)).toThrow(/user changed/)
 

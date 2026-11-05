@@ -64,7 +64,7 @@ describe('review plan interface', () => {
 afterEach(() => vi.useRealTimers())
 
 describe('review date field policy and accessible allocation preview', () => {
-  function field(value: string, stage?: 'review' | 'approval', error?: string) {
+  function field(value: string, stage?: 'review', error?: string) {
     return renderToStaticMarkup(<ReviewDueDateField name="deadline" text={sopWorkflowEn.dialogs.submit.reviewDate}
       value={value} stage={stage} error={error} onChange={() => {}} />)
   }
@@ -99,15 +99,5 @@ describe('review date field policy and accessible allocation preview', () => {
     const html = field('2026-10-23', 'review', 'Choose today or a future date.')
     expect(html).toContain('aria-invalid="true"')
     expect(html).toContain('Choose today or a future date.')
-  })
-
-  it('retains tomorrow through 30 days for approval without changing its allocation preview', () => {
-    vi.useFakeTimers({ now: new Date(2026, 9, 24, 12) })
-    const html = field('2026-10-25', 'approval')
-    expect(html).toContain('min="2026-10-25"')
-    expect(html).toContain('max="2026-11-23"')
-    expect(html).toContain('Time given: 1 day')
-    expect(field('2026-10-24', 'approval')).not.toContain('Time given:')
-    expect(field('2026-11-24', 'approval')).not.toContain('Time given:')
   })
 })

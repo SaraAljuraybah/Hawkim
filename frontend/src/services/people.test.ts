@@ -71,14 +71,14 @@ describe('people from the database', () => {
 
 describe('departments from the database', () => {
   it('keeps when a department was removed', () => {
-    expect(toDepartment({ id: 'legal-governance', name: 'Legal & Governance', initials: 'LG', description: '', removed_at: '2026-10-01T09:00:00Z', requires_compliance_check: false }))
+    expect(toDepartment({ id: 'legal-governance', name: 'Legal & Governance', initials: 'LG', description: '', is_quality: false, removed_at: '2026-10-01T09:00:00Z', requires_compliance_check: false }))
       .toEqual({ id: 'legal-governance', name: 'Legal & Governance', initials: 'LG', description: '', removedAt: '2026-10-01T09:00:00Z' })
   })
 
   it('loads every department, by name', async () => {
-    result = { data: [{ id: 'quality-assurance', name: 'Quality Assurance', initials: 'QA', description: 'Quality.', removed_at: null, requires_compliance_check: false }, { id: 'pharmacovigilance', name: 'Pharmacovigilance', initials: 'PV', description: '', removed_at: null, requires_compliance_check: true }], error: null }
+    result = { data: [{ id: 'quality-assurance', name: 'Quality Assurance', initials: 'QA', description: 'Quality.', is_quality: true, removed_at: null, requires_compliance_check: false }, { id: 'pharmacovigilance', name: 'Pharmacovigilance', initials: 'PV', description: '', is_quality: false, removed_at: null, requires_compliance_check: true }], error: null }
     expect(await fetchDepartments()).toEqual([
-      { id: 'quality-assurance', name: 'Quality Assurance', initials: 'QA', description: 'Quality.' },
+      { id: 'quality-assurance', name: 'Quality Assurance', initials: 'QA', description: 'Quality.', isQuality: true },
       { id: 'pharmacovigilance', name: 'Pharmacovigilance', initials: 'PV', description: '', requiresComplianceCheck: true },
     ])
     expect(from).toHaveBeenCalledWith('departments')

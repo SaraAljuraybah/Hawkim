@@ -58,6 +58,8 @@ export interface Department extends DepartmentWorkflowConfiguration {
   initials: string
   /** One-line description of the department's function (may be empty). */
   description: string
+  /** The Quality department (database `is_quality`, only one): its Approvers approve every SOP. */
+  isQuality?: boolean
   /**
    * Set when an admin removes the department (ISO date and time). Removed departments
    * are hidden everywhere, but their name stays on old requests.
@@ -294,7 +296,10 @@ export interface ApprovalSubmission {
   approverId: string
   status: 'pending' | 'approved' | 'returned' | 'published'
   assignedDueDays: number | null
+  /** Only on requests sent before the due date was removed from Submit for Approval. */
   dueDate?: string
+  /** The main Author's optional comment for the approver (also on the timeline event). */
+  note?: string
   /** The main Author acknowledged feedback on completed internal reviews. */
   feedbackAddressed?: boolean
   decidedAt?: string

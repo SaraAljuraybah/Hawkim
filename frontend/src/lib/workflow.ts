@@ -77,11 +77,6 @@ export function dueDateRange(now = new Date()): { min: string; max?: string } {
   return { min: riyadhDate(now) }
 }
 
-/** Approval-stage restrictions are independent of the review date picker. */
-export function approvalDueDateRange(now = new Date()): { min: string; max: string } {
-  return { min: localDatePlus(now, DUE_DAYS_MIN), max: localDatePlus(now, DUE_DAYS_MAX) }
-}
-
 /**
  * Calendar days from today to an ISO date ("2026-10-19"), or undefined if it isn't a
  * real date. Counted by date, not by hours, so a daylight-saving change doesn't matter.
@@ -109,13 +104,6 @@ export function parseDueDate(isoDate: string, now = new Date()): { valid: boolea
   if (!isoDate.trim()) return { valid: true }
   const days = daysFromCalendarDate(isoDate.trim(), riyadhDate(now))
   return days !== undefined && days >= 0 ? { valid: true, days } : { valid: false }
-}
-
-/** Approval dates preserve their original tomorrow-through-30-days validation. */
-export function parseApprovalDueDate(isoDate: string, now = new Date()): { valid: boolean; days?: number } {
-  if (!isoDate.trim()) return { valid: true }
-  const days = daysFromToday(isoDate.trim(), now)
-  return days !== undefined && isValidDueDays(days) ? { valid: true, days } : { valid: false }
 }
 
 /** Response texts are limited like comments. */

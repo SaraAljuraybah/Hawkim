@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ApprovalDecisionSnapshot, Sop, User } from '../data/mock/types'
-import { approvalButtonBlocker, approvalReadiness, submitForApproval, type ApprovalSubmissionOptions } from './approval'
+import { approvalButtonBlocker, approvalReadiness, eligibleApprovers, submitForApproval, type ApprovalSubmissionOptions } from './approval'
 import { acceptInternalReview, decideInternalReview, canSendNewVersion, removeInternalReviewer, sendNewVersionForReview, startInternalReview } from './internalReview'
 import type { ReviewEnvironment } from './reviewFlow'
-import { activeApprovalSubmission, approveAs, completeReview, currentDueAt, publishAs, returnAsApprover, shiftDueDates, submitForReview, uploadVersion } from './workflow'
+import { activeApprovalSubmission, approveAs, completeReview, currentDueAt, publishAs, returnAsApprover, submitForReview, uploadVersion } from './workflow'
 
 function person(id: string, permissions: User['permissions'], departmentId = 'home'): User {
   return { id, name: id, email: id + '@example.test', initials: 'TT', permissions, departmentId }
@@ -11,9 +11,10 @@ function person(id: string, permissions: User['permissions'], departmentId = 'ho
 function environment(): ReviewEnvironment {
   return {
     users: [person('author', ['author', 'reviewer', 'approver']), person('coauthor', ['author', 'reviewer', 'approver']),
-      person('a', ['reviewer']), person('b', ['reviewer']), person('controller', ['approver']), person('external', ['reviewer'], 'other')],
-    departments: [{ id: 'home', name: 'Home', initials: 'HM', description: '', qualityControllerId: 'controller', requiresComplianceCheck: true },
-      { id: 'other', name: 'Other', initials: 'OT', description: '' }],
+      person('a', ['reviewer']), person('b', ['reviewer']), person('controller', ['approver'], 'quality'), person('second', ['approver'], 'quality'),
+      person('external', ['reviewer'], 'other')],
+    departments: [{ id: 'home', name: 'Home', initials: 'HM', description: '', requiresComplianceCheck: true },
+      { id: 'other', name: 'Other', initials: 'OT', description: '' }, { id: 'quality', name: 'Quality Assurance', initials: 'QA', description: '', isQuality: true }],
   }
 }
 function check(version: string) {
@@ -42,7 +43,7 @@ function cancel(sop: Sop, userId: string): Sop {
 }
 function complete(text?: string): Sop { return decide(decide(requested(), 'b'), 'a', 'completed', text) }
 function options(sop: Sop): ApprovalSubmissionOptions {
-  return { version: sop.version, internalReviewRoundId: sop.internalReviewRounds!.at(-1)!.id }
+  return { version: sop.version, internalReviewRoundId: sop.internalReviewRounds!.at(-1)!.id, approverId: 'controller' }
 }
 function submit(sop = complete(), input: Partial<ApprovalSubmissionOptions> = {}, env = environment()): Sop {
   return submitForApproval(sop, 'author', { ...options(sop), ...input }, env)
@@ -88,7 +89,7 @@ describe('Submit for approval: one completed review of the current version', () 
     const oldRoundCompleted = { ...complete(), version: '2', versions: [...complete().versions, { version: '2', fileName: 'v2.pdf', fileType: 'pdf' as const, uploadedAt: new Date().toISOString() }] }
     for (const sop of [draft(), requested(), accept(requested(), 'a'), removedAfterCompleting, onlyReturned, newVersion, oldRoundCompleted]) {
       expect(approvalButtonBlocker(sop)).toBe('no-completed-review')
-      expect(() => submitForApproval(sop, 'author', { version: sop.version, internalReviewRoundId: sop.internalReviewRounds?.at(-1)?.id ?? 'none' }, environment()))
+      expect(() => submitForApproval(sop, 'author', { version: sop.version, internalReviewRoundId: sop.internalReviewRounds?.at(-1)?.id ?? 'none', approverId: 'controller' }, environment()))
         .toThrow(/At least one reviewer must complete/)
     }
   })
@@ -113,17 +114,40 @@ describe('Submit for approval: one completed review of the current version', () 
     expect(approveAs(again, 'controller', undefined, snapshot(again)).status).toBe('approved')
   })
 
-  it('assumes an approver for the button, but the submit step refuses without one', () => {
+  it('offers only active Approvers of the Quality department who are not an author, co-author, reviewer or admin', () => {
+    const sop = complete()
+    expect(eligibleApprovers(sop, environment()).map((user) => user.id)).toEqual(['controller', 'second'])
+    const env = environment()
+    env.users.push(person('home-approver', ['approver']), person('admin-approver', ['approver', 'admin'], 'quality'), person('quality-reviewer', ['reviewer'], 'quality'))
+    env.users.find((user) => user.id === 'second')!.deletedAt = new Date().toISOString()
+    const reviewer = env.users.find((user) => user.id === 'a')!
+    reviewer.departmentId = 'quality'
+    reviewer.permissions = ['reviewer', 'approver']
+    env.users.find((user) => user.id === 'coauthor')!.departmentId = 'quality'
+    // A reviewer of the SOP (a), the co-author, an admin, a deleted user and other departments are left out.
+    expect(eligibleApprovers(sop, env).map((user) => user.id)).toEqual(['controller'])
+  })
+
+  it('uses the chosen approver, and refuses a missing or ineligible choice', () => {
+    const sop = complete()
+    const chosen = submit(sop, { approverId: 'second' })
+    expect(activeApprovalSubmission(chosen)).toMatchObject({ approverId: 'second' })
+    expect(chosen.approvers).toMatchObject([{ userId: 'second', decision: 'pending' }])
+    expect(chosen.timeline.at(-1)).toMatchObject({ type: 'submitted-for-approval', recipientIds: ['second'] })
+    expect(approvalReadiness(sop, 'author', environment(), { ...options(sop), approverId: '' }).blockers).toEqual(['approver-required'])
+    expect(() => submit(sop, { approverId: undefined })).toThrow('Select an approver.')
+    for (const approverId of ['a', 'author', 'external', 'missing']) {
+      expect(approvalReadiness(sop, 'author', environment(), { ...options(sop), approverId }).blockers).toEqual(['approver-not-eligible'])
+      expect(() => submit(sop, { approverId })).toThrow(/approve this SOP/)
+    }
+  })
+
+  it('assumes an approver for the button, but the submit step refuses when nobody is eligible', () => {
     const sop = complete()
     const invalid: ReviewEnvironment[] = []
-    for (const id of [undefined, 'missing', 'author', 'coauthor', 'a']) {
-      const env = environment(); env.departments[0].qualityControllerId = id; invalid.push(env)
-    }
-    for (const permissions of [[], ['reviewer'], ['approver', 'admin']] satisfies User['permissions'][]) {
-      const env = environment(); env.users.find((user) => user.id === 'controller')!.permissions = permissions; invalid.push(env)
-    }
-    const deleted = environment(); deleted.users.find((user) => user.id === 'controller')!.deletedAt = new Date().toISOString(); invalid.push(deleted)
-    const removed = environment(); removed.departments[0].removedAt = new Date().toISOString(); invalid.push(removed)
+    const noQuality = environment(); noQuality.departments[2].isQuality = false; invalid.push(noQuality)
+    const removed = environment(); removed.departments[2].removedAt = new Date().toISOString(); invalid.push(removed)
+    const nobody = environment(); nobody.users = nobody.users.filter((user) => user.departmentId !== 'quality'); invalid.push(nobody)
     expect(approvalButtonBlocker(sop)).toBeUndefined()
     for (const env of invalid) {
       expect(approvalReadiness(sop, 'author', env, options(sop)).blockers).toEqual(['no-approver'])
@@ -150,25 +174,29 @@ describe('Submit for approval: one completed review of the current version', () 
 
   it('gives one code per reason, in the same order', () => {
     for (const sop of [draft(), requested(), complete(), submit()]) {
-      const result = approvalReadiness(sop, 'author', environment(), { dueDate: 'not-a-date' })
+      const result = approvalReadiness(sop, 'author', environment(), { approverId: 'missing', note: 'x'.repeat(501) })
       expect(result.blockers).toHaveLength(result.reasons.length)
     }
     expect(approvalReadiness(complete(), 'author', environment())).toMatchObject({ ready: true, blockers: [], reasons: [] })
-    expect(approvalReadiness(complete(), 'author', environment(), { dueDate: '2026-10-23' }).blockers).toEqual(['due-date'])
+    const ready = complete()
+    expect(approvalReadiness(ready, 'author', environment(), { ...options(ready), note: 'x'.repeat(501) }).blockers).toEqual(['note-too-long'])
   })
 })
 
 describe('approval phase transitions with retained parallel review history', () => {
-  it('starts the independent approval deadline and keeps review allocations and history intact', () => {
+  it('sends the comment with the request, sets no approval deadline and keeps review history intact', () => {
     const sop = complete()
-    const submitted = submit(sop, { dueDate: '2026-10-28' })
-    expect(submitted.approvalDueDays).toBe(5)
-    expect(currentDueAt(submitted)).toBe(new Date('2026-10-28T23:59:59.999').toISOString())
-    const shifted = shiftDueDates(submitted, 2)
-    expect(currentDueAt(shifted)).toBe(new Date('2026-10-26T23:59:59.999').toISOString())
-    expect(shifted.internalReviewRounds).toEqual(sop.internalReviewRounds)
-    expect(shifted.approvalDueDays).toBe(5)
-    for (const dueDate of ['2026-10-23', '2026-12-01', 'not-a-date']) expect(() => submit(sop, { dueDate })).toThrow(/deadline/)
+    const submitted = submit(sop, { note: '  Please check the labels.  ' })
+    expect(activeApprovalSubmission(submitted)).toMatchObject({ note: 'Please check the labels.', assignedDueDays: null })
+    expect(activeApprovalSubmission(submitted)).not.toHaveProperty('dueDate')
+    expect(submitted.timeline.at(-1)).toMatchObject({ type: 'submitted-for-approval', note: 'Please check the labels.' })
+    expect(submitted.timeline.some((event) => event.type === 'stage-due-date-set')).toBe(false)
+    expect(submitted.approvalDueDays).toBeUndefined()
+    expect(currentDueAt(submitted)).toBeUndefined()
+    expect(submitted.internalReviewRounds).toEqual(sop.internalReviewRounds)
+    const plain = submit(sop, { note: '   ' })
+    expect(activeApprovalSubmission(plain)).not.toHaveProperty('note')
+    expect(plain.timeline.at(-1)).not.toHaveProperty('note')
   })
 
   it('approves and publishes only the current assigned request and records its history', () => {

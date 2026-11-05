@@ -22,12 +22,15 @@ const fixture = vi.hoisted(() => ({
     { id: 'coauthor', name: 'Co-Author', permissions: ['author'], departmentId: 'home' },
     { id: 'reviewer-a', name: 'Reviewer A', permissions: ['reviewer'], departmentId: 'home' },
     { id: 'reviewer-b', name: 'Reviewer B', permissions: ['reviewer'], departmentId: 'home' },
-    { id: 'controller', name: 'Quality Controller', permissions: ['approver'], departmentId: 'home' },
+    { id: 'controller', name: 'Quality Controller', permissions: ['approver'], departmentId: 'quality' },
+    { id: 'second-approver', name: 'Second Approver', permissions: ['approver'], departmentId: 'quality' },
+    { id: 'home-approver', name: 'Home Approver', permissions: ['approver'], departmentId: 'home' },
     { id: 'external', name: 'External Reviewer', permissions: ['reviewer'], departmentId: 'other' },
   ] as User[],
   departments: [
-    { id: 'home', name: 'Home', initials: 'HM', description: '', qualityControllerId: 'controller' },
+    { id: 'home', name: 'Home', initials: 'HM', description: '' },
     { id: 'other', name: 'Other', initials: 'OT', description: '' },
+    { id: 'quality', name: 'Quality Assurance', initials: 'QA', description: '', isQuality: true },
   ] as Department[],
 }))
 
@@ -68,7 +71,7 @@ function approvalTooltip(html: string): string | undefined {
   return id ? html.match(new RegExp(`<span id="${id}" role="tooltip" hidden=""[^>]*><span[^>]*>(.*?)</span></span>`))?.[1] : undefined
 }
 const env = () => ({ users: fixture.users, departments: fixture.departments })
-function send(sop: Sop) { return submitForApproval(sop, 'author', { version: sop.version, internalReviewRoundId: currentInternalRound(sop)!.id }, env()) }
+function send(sop: Sop, note?: string) { return submitForApproval(sop, 'author', { version: sop.version, internalReviewRoundId: currentInternalRound(sop)!.id, approverId: 'controller', note }, env()) }
 function renderDialog(sop: Sop) { return renderToStaticMarkup(<SubmitForApprovalDialog sop={sop} onSubmit={() => {}} onClose={() => {}} />) }
 const noReview = approvalEn.blockers['no-completed-review']
 const alreadySent = approvalEn.blockers['already-requested']
@@ -83,7 +86,7 @@ beforeEach(() => {
   vi.useFakeTimers({ now: new Date(2026, 9, 23, 12) })
   vi.stubGlobal('localStorage', memoryStorage())
   fixture.userId = 'author'
-  fixture.departments[0].qualityControllerId = 'controller'
+  fixture.departments[2].isQuality = true
 })
 afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals() })
 
@@ -160,7 +163,7 @@ describe('main Author approval interface', () => {
   })
   it('assumes an approver: no approver is never a reason on the button', () => {
     fixture.sop = finished()
-    fixture.departments[0].qualityControllerId = undefined
+    fixture.departments[2].isQuality = false
     const html = renderPage()
     expect(approvalButton(html)).not.toContain('aria-disabled="true"')
     expect(html).not.toContain(approvalEn.blockers['no-approver'])
@@ -186,16 +189,61 @@ describe('main Author approval interface', () => {
     expect(timeline).toContain(sopWorkflowEn.timeline.events['reviewer-removed'])
     expect(timeline).toContain('No longer needed')
   })
-  it('uses a dialog with the approver and an optional deadline, and no confirmation checkboxes', () => {
-    for (const sop of [finished(), finished('Please check the labels before final approval')]) {
-      const html = renderDialog(sop)
-      expect(html).toContain('Quality Controller')
-      expect(html).toContain('name="approvalDueDate"')
-      expect(html).not.toContain('type="checkbox"')
-      expect(html).not.toContain('name="noExternalReviewsRequired"')
-      expect(html).not.toContain('name="feedbackAddressed"')
-      expect(html).not.toContain('name="internalReviewers"')
+  it('looks like Submit for Review: title, no subtitle, no due date, Cancel and Submit, and no confirmation checkboxes', () => {
+    const html = renderDialog(finished())
+    expect(html).toContain('>Submit for Approval</h2>')
+    expect(html).not.toContain('Quality Document Controller')
+    expect(html).not.toContain('Assigned Approver')
+    expect(html).not.toMatch(/<dialog[^>]*aria-describedby/)
+    expect(html).not.toContain('type="date"')
+    expect(html).not.toContain('Approval Due Date')
+    expect(html).toMatch(/<button type="button"[^>]*>Cancel<\/button>/)
+    expect(html).toMatch(/<button type="submit"[^>]*>Submit<\/button>/)
+    for (const name of ['noExternalReviewsRequired', 'feedbackAddressed', 'internalReviewers']) expect(html).not.toContain(`name="${name}"`)
+    expect(html).not.toContain('type="checkbox"')
+  })
+  it('pre-fills Division and Department with the Quality department, in searchable lists', () => {
+    const html = renderDialog(finished())
+    const division = html.match(/<input[^>]*name="approvalDivision"[^>]*>/)![0]
+    const department = html.match(/<input[^>]*name="approvalDepartment"[^>]*>/)![0]
+    // Divisions aren't loaded yet: the same fallback as Submit for Review.
+    expect(division).toContain('value="No Division"')
+    expect(department).toContain('value="Quality Assurance"')
+    for (const input of [division, department]) expect(input).toContain('role="combobox"')
+    expect(html).toContain('>Division<')
+    expect(html).toContain('>Department<')
+    expect(approvalEn.dialog.qualityOnly.replace('{department}', 'Quality Assurance')).toBe('Approval must be completed within the Quality Assurance department.')
+  })
+  it('lists only eligible Approvers of the Quality department, with the approver texts', () => {
+    const html = renderDialog(finished())
+    expect(html).toContain('>Approvers<')
+    expect(html).toContain('placeholder="Search approvers by name…"')
+    for (const name of ['Quality Controller', 'Second Approver']) expect(html).toContain(name)
+    for (const name of ['Home Approver', 'Reviewer A', 'Main Author', 'Co-Author']) expect(html).not.toContain(`>${name}<`)
+    expect(html).not.toContain('No approvers available')
+  })
+  it('says when no approver is available in the Quality department', () => {
+    const quality = fixture.users.filter((user) => user.departmentId === 'quality')
+    for (const user of quality) user.permissions = ['reviewer']
+    try {
+      expect(renderDialog(finished())).toContain('No approvers available in Quality Assurance.')
+    } finally {
+      for (const user of quality) user.permissions = ['approver']
     }
+  })
+  it('keeps the optional comment with the 500 limit and counter', () => {
+    const html = renderDialog(finished())
+    const comment = html.match(/<textarea[^>]*name="note"[^>]*>/)![0]
+    expect(comment).toContain('maxLength="500"')
+    expect(html).toContain('>Comments (Optional)<')
+    expect(html).toContain('placeholder="Add a comment for the approver…"')
+    expect(html).toContain('>0 / 500<')
+  })
+  it('shows the comment to the approver on the timeline of their review page', () => {
+    const sent = send(finished(), 'Please check the labels before final approval')
+    const timeline = renderToStaticMarkup(<ReviewTimelineTable sop={reviewSopForUser(sent, 'controller')!.sop} content={sopWorkflowEn} />)
+    expect(timeline).toContain(approvalEn.events['submitted-for-approval'])
+    expect(timeline).toContain('Please check the labels before final approval')
   })
   it('records only the submission in the timeline and blocks a second request', () => {
     fixture.sop = send(finished('Check labels'))

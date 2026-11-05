@@ -11,7 +11,7 @@ import { supabase } from './supabase'
 
 /** The columns read for a person, with their roles. */
 const PROFILE_COLUMNS = 'id, full_name, email, initials, department_id, phone, position, deleted_at, user_roles(role)'
-const DEPARTMENT_COLUMNS = 'id, name, initials, description, removed_at, requires_compliance_check'
+const DEPARTMENT_COLUMNS = 'id, name, initials, description, is_quality, removed_at, requires_compliance_check'
 
 export interface ProfileRow {
   id: string
@@ -32,6 +32,7 @@ export interface DepartmentRow {
   name: string
   initials: string
   description: string
+  is_quality: boolean
   removed_at: string | null
   requires_compliance_check: boolean
 }
@@ -77,6 +78,7 @@ export function toDepartment(row: DepartmentRow): Department {
     name: row.name,
     initials: row.initials,
     description: row.description,
+    ...(row.is_quality ? { isQuality: true } : {}),
     ...(row.removed_at ? { removedAt: row.removed_at } : {}),
     ...(row.requires_compliance_check ? { requiresComplianceCheck: true } : {}),
   }
