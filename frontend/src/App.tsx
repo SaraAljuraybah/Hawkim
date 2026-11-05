@@ -12,7 +12,9 @@ import { LandingPage } from './pages/LandingPage'
 import { NotConfiguredPage } from './pages/NotConfiguredPage'
 import { NotFoundPage } from './pages/NotFoundPage'
 import { ProfilePage } from './pages/ProfilePage'
+import { RequestHawkimPage } from './pages/RequestHawkimPage'
 import { ResetPasswordPage } from './pages/ResetPasswordPage'
+import { ReviewRequestPage } from './pages/ReviewRequestPage'
 import { SignInPage } from './pages/SignInPage'
 import { ADMIN_USERS_PATH } from './lib/routes'
 import { AdminArea, EmployeeArea } from './routes/guards'
@@ -100,6 +102,8 @@ function AppRoutes() {
       <Route path="/login" element={<SignInPage />} />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
       <Route path="/reset-password" element={<ResetPasswordPage />} />
+      <Route path="/request-hawkim" element={<RequestHawkimPage />} />
+      <Route path="/review-request" element={<ReviewRequestPage />} />
 
       {/* Signed-in app: every screen inside shares the sidebar + top bar.
           Anyone not signed in is sent to /login. */}

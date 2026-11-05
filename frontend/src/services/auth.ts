@@ -97,7 +97,9 @@ export function recoveryTokens(hash: string): { access_token: string; refresh_to
   const params = new URLSearchParams(hash.replace(/^#/, ''))
   const access_token = params.get('access_token')
   const refresh_token = params.get('refresh_token')
-  if (params.get('error') || params.get('error_code') || params.get('type') !== 'recovery' || !access_token || !refresh_token) return undefined
+  // 'recovery': the password reset email; 'invite': a new account's first password (accepted Request Hawkim).
+  const type = params.get('type')
+  if (params.get('error') || params.get('error_code') || (type !== 'recovery' && type !== 'invite') || !access_token || !refresh_token) return undefined
   return { access_token, refresh_token }
 }
 

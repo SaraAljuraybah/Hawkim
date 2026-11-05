@@ -7,7 +7,7 @@ import { Mission } from '../components/landing/Mission'
 import { Navbar } from '../components/landing/Navbar'
 import { landingEn } from '../content/landing.en'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
-import { mailtoHref } from '../lib/mailto'
+import { REQUEST_HAWKIM_PATH } from '../lib/routes'
 
 /**
  * Public landing page ("/").
@@ -18,8 +18,8 @@ export function LandingPage() {
   const content = landingEn
   useDocumentTitle(content.pageTitle)
 
-  // Every "Request Hawkim" link opens the same prepared email.
-  const request = { label: content.request.label, href: mailtoHref(content.request) }
+  // Every "Request Hawkim" link opens the Request Hawkim form.
+  const request = { label: content.request.label, href: REQUEST_HAWKIM_PATH }
 
   return (
     <>

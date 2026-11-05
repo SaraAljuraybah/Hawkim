@@ -12,8 +12,14 @@ export const SUBMIT_REQUEST_PATH = '/requests/new'
 /** My Profile: the signed-in employee's own information. */
 export const PROFILE_PATH = '/profile'
 
-/** Set New Password, opened from the password reset email. */
+/** Set New Password, opened from the password reset email (and the new Admin's welcome email). */
 export const RESET_PASSWORD_PATH = '/reset-password'
+
+/** The public Request Hawkim form. */
+export const REQUEST_HAWKIM_PATH = '/request-hawkim'
+
+/** The Hawkim team's review page, opened from the request email (?id=…&token=…). */
+export const REVIEW_REQUEST_PATH = '/review-request'
 
 /** Path of an SOP's detail page in the SOPs directory. */
 export function sopPath(sopId: string): string {

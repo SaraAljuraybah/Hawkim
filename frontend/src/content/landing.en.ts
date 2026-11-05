@@ -27,7 +27,8 @@ export const landingEn: LandingContent = {
   },
 
   // Hawkim is installed in each organization's own environment, so organizations
-  // request it by email; there's no public sign-up.
+  // request it with the Request Hawkim form (pages/RequestHawkimPage.tsx); there's no
+  // public sign-up. The email, subject and body below are the team's contact details.
   request: {
     label: 'Request Hawkim',
     email: 'hawkimgp@gmail.com',

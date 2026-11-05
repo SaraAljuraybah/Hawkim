@@ -1618,3 +1618,60 @@ export interface AdminDeleteUserContent {
   refused: string
   done: string
 }
+
+/** The public Request Hawkim form (pages/RequestHawkimPage.tsx). */
+export interface RequestHawkimContent {
+  pageTitle: string
+  logoAlt: string
+  title: string
+  text: string
+  fields: {
+    organization: string
+    contactName: string
+    jobTitle: string
+    email: string
+    phone: string
+    phoneHint: string
+    approxUsers: string
+    message: string
+    messageHint: string
+  }
+  submit: string
+  backLink: LinkContent
+  errors: {
+    required: string
+    email: string
+    phone: string
+    approxUsers: string
+    tooLong: string
+    tooManyRequests: string
+    notConnected: string
+    failed: string
+  }
+  /** `{name}` and `{email}` are the contact person and the address entered. */
+  sent: { title: string; text: string; action: LinkContent }
+}
+
+/** The Hawkim team's review page for a request (pages/ReviewRequestPage.tsx). */
+export interface ReviewRequestContent {
+  pageTitle: string
+  logoAlt: string
+  loading: string
+  title: string
+  text: string
+  labels: { organization: string; contactName: string; jobTitle: string; email: string; phone: string; approxUsers: string; message: string; received: string }
+  noMessage: string
+  accountExists: string
+  accept: string
+  reject: string
+  /** Shown when the link is wrong, expired or already used. */
+  notFound: { title: string; text: string }
+  expired: { title: string; text: string }
+  decided: { accepted: { title: string; text: string }; rejected: { title: string; text: string } }
+  /** Someone else decided while this page was open. */
+  alreadyDecided: { title: string; text: string }
+  /** After the team's decision. `{email}` is the requester's address. */
+  accepted: { title: string; text: string; emailFailed: string }
+  rejected: { title: string; text: string }
+  errors: { emailInUse: string; accountFailed: string; notConnected: string; failed: string }
+}

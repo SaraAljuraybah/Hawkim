@@ -1,0 +1,77 @@
+import type { RequestHawkimContent, ReviewRequestContent } from './types'
+
+export const requestHawkimEn: RequestHawkimContent = {
+  pageTitle: 'Request Hawkim | Hawkim',
+  logoAlt: 'Hawkim',
+  title: 'Request Hawkim',
+  text: 'Tell us about your organization. Our team will review your request and reply by email.',
+  fields: {
+    organization: 'Organization',
+    contactName: 'Contact person',
+    jobTitle: 'Job title',
+    email: 'Email',
+    phone: 'Phone',
+    phoneHint: 'Saudi mobile number, for example 05XXXXXXXX.',
+    approxUsers: 'Approximate number of users',
+    message: 'Message',
+    messageHint: 'Optional.',
+  },
+  submit: 'Send Request',
+  backLink: { label: 'Back to Home', href: '/' },
+  errors: {
+    required: 'This field is required.',
+    email: 'Enter a valid email address, like you@organization.com.',
+    phone: 'Enter a Saudi mobile number, like 05XXXXXXXX.',
+    approxUsers: 'Enter a whole number from 1 to 100000.',
+    tooLong: 'This is too long.',
+    tooManyRequests: 'Too many requests from this email address today. Please try again tomorrow.',
+    notConnected: "Couldn't reach Hawkim. Check your internet connection and try again.",
+    failed: 'Your request could not be sent. Please try again.',
+  },
+  sent: {
+    title: 'Request sent',
+    text: 'Thank you, {name}. We sent a confirmation to {email}. Our team will review your request and reply to that address.',
+    action: { label: 'Back to Home', href: '/' },
+  },
+}
+
+export const reviewRequestEn: ReviewRequestContent = {
+  pageTitle: 'Review Request | Hawkim',
+  logoAlt: 'Hawkim',
+  loading: 'Loading the request…',
+  title: 'Review request',
+  text: 'Accepting creates the contact person’s account as the organization’s Admin and emails them a link to set their password.',
+  labels: {
+    organization: 'Organization',
+    contactName: 'Contact person',
+    jobTitle: 'Job title',
+    email: 'Email',
+    phone: 'Phone',
+    approxUsers: 'Approximate number of users',
+    message: 'Message',
+    received: 'Received',
+  },
+  noMessage: 'No message.',
+  accountExists: 'This email address already has a Hawkim account, so the request can’t be accepted.',
+  accept: 'Accept',
+  reject: 'Reject',
+  notFound: { title: 'Request not found', text: 'This review link is not valid. Open the link from the request email again.' },
+  expired: { title: 'Review link expired', text: 'This review link has expired. Ask the requester to send a new request.' },
+  decided: {
+    accepted: { title: 'Already accepted', text: 'This request was already accepted.' },
+    rejected: { title: 'Already rejected', text: 'This request was already rejected.' },
+  },
+  alreadyDecided: { title: 'Already decided', text: 'Someone decided this request while the page was open. Open the review link again to see the result.' },
+  accepted: {
+    title: 'Request accepted',
+    text: 'The account was created and {email} received a link to set the password and sign in as Admin.',
+    emailFailed: 'The account was created, but the email to {email} could not be sent. Ask them to use “Forgot password?” on the sign-in page.',
+  },
+  rejected: { title: 'Request rejected', text: 'The request was rejected and {email} was told by email.' },
+  errors: {
+    emailInUse: 'This email address already has a Hawkim account.',
+    accountFailed: 'The account could not be created. Please try again.',
+    notConnected: "Couldn't reach Hawkim. Check your internet connection and try again.",
+    failed: 'That didn’t work. Please try again.',
+  },
+}
