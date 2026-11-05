@@ -36,3 +36,33 @@ it('dispatches preview/edit/delete to the selected record', () => {
     expect(callback).toHaveBeenCalledOnce()
   }
 })
+it('toggles from the division name (one control with the chevron) and shows the count only under the name', () => {
+  const render = () => flatten(HierarchyTable(props))
+  let nodes = render()
+  const toggle = () => nodes.find((node) => node.type === 'button' && 'aria-expanded' in node.props)!
+  expect(flatten(toggle().props.children as ReactNode).some((node) => node.props.children === 'Safety')).toBe(true)
+  ;(toggle().props.onClick as () => void)()
+  nodes = render()
+  // The inner section header says "Departments" without a count; the count stays under the name.
+  expect(nodes.some((node) => node.props.children === 'Departments')).toBe(true)
+  expect(flatten(toggle().props.children as ReactNode).some((node) => Array.isArray(node.props.children) && node.props.children.join('') === 'Departments (1)')).toBe(true)
+  // Same button component and size as the page's Add Division button (default size).
+  const add = nodes.find((node) => node.props.to === '/admin/departments/new?division=v')!
+  expect(add.props.size).toBeUndefined()
+  expect(add.props.variant).toBeUndefined()
+})
+it('opens matching divisions while searching, and still lets them collapse', () => {
+  const render = () => flatten(HierarchyTable({ ...props, query: 'medical' }))
+  let nodes = render()
+  const toggle = () => nodes.find((node) => node.type === 'button' && 'aria-expanded' in node.props)!
+  expect(toggle().props['aria-expanded']).toBe(true)
+  ;(toggle().props.onClick as () => void)()
+  nodes = render()
+  expect(toggle().props['aria-expanded']).toBe(false)
+  expect(nodes.some((node) => node.props.to === '/admin/departments/new?division=v')).toBe(false)
+})
+it('uses the server division totals rather than only the rendered rows', () => {
+  const snapshot = { ...props.snapshot, divisions: [{ ...props.snapshot.divisions[0], department_count: 1, employees: 4, sops: 9 }] }
+  const nodes = flatten(HierarchyTable({ ...props, snapshot }))
+  expect(nodes.filter((node) => node.type === 'td' && typeof node.props.children === 'number').map((node) => node.props.children)).toEqual([4, 9])
+})

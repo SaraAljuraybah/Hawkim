@@ -32,7 +32,7 @@ try {
  const targets=await (await fetch('http://127.0.0.1:'+debuggingPort+'/json/list')).json()
  socket=new WebSocket(targets.find(target=>target.type==='page').webSocketDebuggerUrl)
  await new Promise((resolve,reject)=>{socket.onopen=resolve;socket.onerror=reject})
- socket.onmessage=event=>{const message=JSON.parse(event.data);if(message.id){const task=pending.get(message.id);if(task){pending.delete(message.id);message.error?task.reject(new Error(message.error.message)):task.resolve(message.result)}}else if(message.method==='Runtime.exceptionThrown')runtimeErrors.push(message.params.exceptionDetails.text)}
+ socket.onmessage=event=>{const message=JSON.parse(event.data);if(message.id){const task=pending.get(message.id);if(task){pending.delete(message.id);if(message.error)task.reject(new Error(message.error.message));else task.resolve(message.result)}}else if(message.method==='Runtime.exceptionThrown')runtimeErrors.push(message.params.exceptionDetails.text)}
  await send('Runtime.enable');await send('Page.enable')
  await send('Emulation.setDeviceMetricsOverride',{width:1440,height:1000,deviceScaleFactor:1,mobile:false})
  const storageKey='sb-'+new URL(fixture.url).hostname.split('.')[0]+'-auth-token'

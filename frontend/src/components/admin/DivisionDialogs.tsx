@@ -33,16 +33,16 @@ export function DivisionForm({ division, onClose, onSaved }: { division?: Divisi
 
 export function DivisionPreview({ division, onEdit, onClose }: { division: DivisionRecord; onEdit: () => void; onClose: () => void }) {
   const [feedback, setFeedback] = useState('')
-  return <FormDialog open title={division.name} confirmLabel={text.close} onConfirm={() => {}} onClose={onClose}>
-    <div className="flex justify-end"><Button size="sm" variant="secondary" onClick={onEdit}><Pencil className="size-4" aria-hidden="true" />{text.edit}</Button></div>
-    <p className="text-black">{division.description}</p>
-    <div><p className="text-sm text-text-gray">{text.email}</p>
-      <div className="mt-1 flex items-center gap-2"><span className="break-all text-black">{division.email || text.missingEmail}</span>
-        {division.email && <IconButton bare icon={Copy} label={text.copy} onClick={async () => {
-          try { await navigator.clipboard.writeText(division.email!); setFeedback(text.copied) }
-          catch { setFeedback(text.copyFailed) }
-        }} />}
-      </div><p role="status" className="mt-1 text-xs text-text-gray">{feedback}</p>
-    </div>
+  return <FormDialog open title={division.name} confirmLabel={text.close} onConfirm={() => {}} onClose={onClose}
+    headerAction={<Button size="sm" variant="secondary" onClick={onEdit}><Pencil className="size-4" aria-hidden="true" strokeWidth={1.75} />{text.edit}</Button>}>
+    {division.description && <div><p className="mb-1.5 text-sm font-medium text-maroon">{text.description}</p>
+      <p className="text-black">{division.description}</p></div>}
+    {division.email ? <TextField name="divisionEmailPreview" type="email" label={text.email} value={division.email} readOnly
+      endAdornment={<IconButton bare icon={Copy} label={text.copy} onClick={async () => {
+        try { await navigator.clipboard.writeText(division.email!); setFeedback(text.copied) }
+        catch { setFeedback(text.copyFailed) }
+      }} />} />
+      : <div><p className="mb-1.5 text-sm font-medium text-maroon">{text.email}</p><p className="text-text-gray">{text.missingEmail}</p></div>}
+    <p role="status" className="-mt-3 text-xs text-text-gray">{feedback}</p>
   </FormDialog>
 }

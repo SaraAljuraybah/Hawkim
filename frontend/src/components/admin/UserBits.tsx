@@ -30,3 +30,21 @@ export function PermissionBadges({ user, className = '' }: { user: Pick<User, 'p
     </ul>
   )
 }
+
+/** Every position (job title) an employee holds, as text badges in the same style as permissions. */
+export function PositionBadges({ positions, empty, className = '' }: { positions: string[]; empty: string; className?: string }) {
+  const badge = 'inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium whitespace-nowrap'
+  return (
+    <ul className={`flex flex-wrap gap-1.5 ${className}`}>
+      {positions.length === 0 ? (
+        <li className={`${badge} border-text-gray/30 text-text-gray`}>{empty}</li>
+      ) : (
+        positions.map((position) => (
+          <li key={position} className={`${badge} border-maroon/20 bg-maroon/[0.06] text-maroon`}>
+            {position}
+          </li>
+        ))
+      )}
+    </ul>
+  )
+}

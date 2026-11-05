@@ -1,9 +1,30 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { deleteDepartment, deleteDivision, fetchManagement, managementError, organizationEvents, ORGANIZATION_CHANGED, saveDepartment, saveDivision } from './organizationAdmin'
+import { deleteDepartment, deleteDivision, fetchManagement, managementError, organizationEvents, ORGANIZATION_CHANGED, saveDepartment, saveDivision, setEmployeePositions } from './organizationAdmin'
 const { rpc, invoke } = vi.hoisted(() => ({ rpc:vi.fn(),invoke:vi.fn() }))
 vi.mock('./supabase', () => ({ supabase: () => ({ rpc,functions:{invoke} }) }))
 beforeEach(() => { vi.clearAllMocks(); rpc.mockResolvedValue({ data: 'saved-id', error: null }); invoke.mockResolvedValue({data:{state:'completed'},error:null}) })
 const division = { id: 'v', name: 'Division', email: 'd@test.invalid', description: '', updated_at: '2026-11-01T00:00:00Z' }
+describe('employee positions', () => {
+  const person = { id:'p', name:'Sara', email:'s@test.invalid', initials:'SA', departmentId:'d', permissions:['author'], positions:['Safety Officer','QPPV Deputy'] }
+  const department = { id:'d', name:'PV', initials:'PV', description:'', division_id:'v', updated_at:'r', employees:1, sops:0, status_counts:{}, people:[person] }
+  it('accepts several positions per employee and server division totals', async () => {
+    const data = { divisions: [{ ...division, department_count: 1, employees: 1, sops: 0 }], departments: [department] }
+    rpc.mockResolvedValue({ data, error: null })
+    expect((await fetchManagement()).departments[0].people?.[0].positions).toEqual(['Safety Officer','QPPV Deputy'])
+  })
+  it.each([[{ ...person, positions: 'Officer' }], [{ ...person, positions: [''] }], [{ ...person, positions: undefined }]])('rejects malformed positions', async (bad) => {
+    rpc.mockResolvedValue({ data: { divisions: [division], departments: [{ ...department, people: [bad] }] }, error: null })
+    await expect(fetchManagement()).rejects.toThrow('load')
+  })
+  it('saves trimmed, non-empty positions through the admin RPC', async () => {
+    rpc.mockResolvedValue({ data: null, error: null })
+    await setEmployeePositions('p', [' Safety Officer ', '', 'QPPV Deputy'])
+    expect(rpc).toHaveBeenCalledWith('set_employee_positions', { p_profile_id: 'p', p_titles: ['Safety Officer', 'QPPV Deputy'] })
+  })
+  it('explains the required-position rule', () => {
+    expect(managementError({ code: '23514', message: 'A position is required for a department assignment' }).message).toMatch('at least one position')
+  })
+})
 describe('organization management RPC contract', () => {
   it('reads one authoritative snapshot', async () => {
     const data = { divisions: [division], departments: [] }

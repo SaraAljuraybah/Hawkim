@@ -31,5 +31,12 @@ export const organizationAdminEn = {
   activeWorkflow: 'Settle active reviews and compliance checks before deleting this department.',
   requiredName: 'Enter a name (up to 100 characters).', requiredEmail: 'Enter a valid email address (up to 254 characters).',
   descriptionLong: 'Use at most 500 characters.', requiredDivision: 'Select a division.',
+  positions: 'Positions', editPositions: 'Edit positions for {name}', positionsTitle: 'Positions: {name}',
+  positionsHint: 'An employee assigned to a department needs at least one position. The first one is the primary position.',
+  positionLabel: 'Position {n}', addPosition: 'Add position', removePosition: 'Remove position {n}',
+  positionRequired: 'An employee needs at least one position in their department.',
+  positionTooLong: 'Use at most 100 characters.', positionsLimit: 'Use at most 10 positions.', positionsSaved: 'Positions saved.',
+  noPositions: 'No position recorded', employeeActions: 'Actions',
+  divisionDetails: 'Division details', departmentsInDivision: 'Departments',
   others: 'Others', directoryGroup: 'Directory section', departmentSection: 'Current department',
 } as const

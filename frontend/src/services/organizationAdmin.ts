@@ -3,10 +3,16 @@ import { supabase } from './supabase'
 import { organizationAdminEn as text } from '../content/organizationAdmin.en'
 import type { DepartmentInput } from '../lib/departmentAdmin'
 
-export interface DivisionRecord { id: string; name: string; description: string | null; email: string | null; updated_at: string | null }
+export interface DivisionRecord {
+  id: string; name: string; description: string | null; email: string | null; updated_at: string | null
+  /** Server-computed totals over ALL of the division's departments (distinct employees, SOP records). */
+  department_count?: number; employees?: number; sops?: number
+}
+/** An employee as listed in a department: roles plus every position (job title) held there. */
+export type ManagedPerson = User & { positions: string[] }
 export interface ManagedDepartment {
   id: string; name: string; initials: string; description: string; division_id: string | null;
-  updated_at: string; deletion_job_id?: string | null; people?: User[]; employees: number; sops: number; status_counts: Record<string, number>
+  updated_at: string; deletion_job_id?: string | null; people?: ManagedPerson[]; employees: number; sops: number; status_counts: Record<string, number>
 }
 export interface ManagementSnapshot { divisions: DivisionRecord[]; departments: ManagedDepartment[] }
 export type SopDisposition = 'empty' | 'delete' | 'others'
@@ -17,6 +23,7 @@ export function managementError(error: { code?: string; message?: string }): Err
   if (error.code === '42501') return new Error(text.forbidden)
   if (error.code === '40001' || error.code === 'P0002') return new Error(text.conflict)
   if (error.code === '23505') return new Error(text.duplicate)
+  if (error.message === 'A position is required for a department assignment') return new Error(text.positionRequired)
   const known = [text.divisionBlocked, text.departmentBlocked, text.activeWorkflow]
   const match = known.find((message) => error.message === message)
   return new Error(match ?? (error.code === '23514' ? text.invalid : text.failed))
@@ -35,7 +42,8 @@ function isSnapshot(value: unknown): value is ManagementSnapshot {
   return value.divisions.every((row: unknown) => {
     if (!object(row) || typeof row.id !== 'string' || typeof row.name !== 'string' || divisionIds.has(row.id) ||
       !(row.description === null || typeof row.description === 'string') || !(row.email === null || typeof row.email === 'string') ||
-      !(row.updated_at === null || typeof row.updated_at === 'string')) return false
+      !(row.updated_at === null || typeof row.updated_at === 'string') ||
+      [row.department_count, row.employees, row.sops].some((total) => total !== undefined && !count(total))) return false
     divisionIds.add(row.id); return true
   }) && value.departments.every((row: unknown) => {
     if (!object(row) || typeof row.id !== 'string' || departmentIds.has(row.id) || typeof row.name !== 'string' ||
@@ -47,7 +55,8 @@ function isSnapshot(value: unknown): value is ManagementSnapshot {
     return row.people.length === row.employees && row.people.every((person: unknown) => {
       if (!object(person) || typeof person.id !== 'string' || people.has(person.id) || typeof person.name !== 'string' ||
         typeof person.email !== 'string' || typeof person.initials !== 'string' || person.departmentId !== row.id ||
-        !Array.isArray(person.permissions) || !person.permissions.every((role) => ['author','reviewer','approver','admin'].includes(role))) return false
+        !Array.isArray(person.permissions) || !person.permissions.every((role) => ['author','reviewer','approver','admin'].includes(role)) ||
+        !Array.isArray(person.positions) || !person.positions.every((title) => typeof title === 'string' && title.length > 0)) return false
       people.add(person.id); return true
     })
   })
@@ -70,6 +79,11 @@ export async function saveDepartment(input: DepartmentInput, id?: string, expect
     p_initials: input.initials.trim().toUpperCase(), p_description: input.description.trim(),
     p_division_id: input.divisionId ?? null, p_expected_updated_at: expected ?? null })
   changed(); return result
+}
+/** Replaces an employee's positions in their department (admin only, enforced by the database). */
+export async function setEmployeePositions(profileId: string, titles: string[]) {
+  await call('set_employee_positions', { p_profile_id: profileId, p_titles: titles.map((title) => title.trim()).filter(Boolean) })
+  changed()
 }
 /** Permanent deletion is completed by the authenticated server worker, never browser Storage credentials. */
 export async function deleteDepartment(department: Pick<ManagedDepartment, 'id' | 'updated_at' | 'deletion_job_id'>, disposition: SopDisposition) {

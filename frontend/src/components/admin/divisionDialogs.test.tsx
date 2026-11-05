@@ -14,7 +14,9 @@ type Element = ReactElement<Record<string, unknown>>
 function elements(node: ReactNode): Element[] {
   if (Array.isArray(node)) return node.flatMap(elements)
   if (!isValidElement<Record<string, unknown>>(node)) return []
-  return [node, ...elements(node.props.children as ReactNode)]
+  // Also walk element-valued props, e.g. FormDialog's headerAction and TextField's endAdornment.
+  const slots = Object.entries(node.props).filter(([key, value]) => key !== 'children' && isValidElement(value)).map(([, value]) => value as ReactNode)
+  return [node, ...elements(node.props.children as ReactNode), ...slots.flatMap(elements)]
 }
 function render<T>(component: () => T): T { host.index = 0; return component() }
 const confirm = (element: Element) => (element.props.onConfirm as () => Promise<boolean | void>)()
@@ -66,6 +68,9 @@ describe('division preview', () => {
     expect(onEdit).toHaveBeenCalledOnce()
     expect(element.props.title).toBe('Safety')
     expect(element.props.confirmLabel).toBe('Close')
+    // Edit sits in the dialog header; the email is a read-only field.
+    expect(elements(element.props.headerAction as ReactNode).some((item) => item.props.onClick === onEdit)).toBe(true)
+    expect(elements(element).find((item) => item.props.name === 'divisionEmailPreview')?.props.readOnly).toBe(true)
     vi.unstubAllGlobals()
   })
 })

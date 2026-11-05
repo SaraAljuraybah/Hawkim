@@ -20,6 +20,8 @@ interface FormDialogProps {
   onClose: () => void
   /** Decorative icon centred above the title, in a soft beige circle; the title and description are centred too. */
   icon?: ReactNode
+  /** An action shown at the right of the title, e.g. an Edit button on a read-only preview. */
+  headerAction?: ReactNode
   children?: ReactNode
 }
 
@@ -38,6 +40,7 @@ export function FormDialog({
   onConfirm,
   onClose,
   icon,
+  headerAction,
   children,
 }: FormDialogProps) {
   const dialogRef = useRef<HTMLDialogElement>(null)
@@ -100,9 +103,18 @@ export function FormDialog({
               {icon}
             </div>
           )}
-          <h2 id={titleId} className={icon ? 'px-10 text-center text-lg' : closeLabel ? 'pr-10 text-lg' : 'text-lg'}>
-            {title}
-          </h2>
+          {headerAction ? (
+            <div className={`flex items-start justify-between gap-4 ${closeLabel ? 'pr-10' : ''}`}>
+              <h2 id={titleId} className="min-w-0 text-lg break-words">
+                {title}
+              </h2>
+              <div className="shrink-0">{headerAction}</div>
+            </div>
+          ) : (
+            <h2 id={titleId} className={icon ? 'px-10 text-center text-lg' : closeLabel ? 'pr-10 text-lg' : 'text-lg'}>
+              {title}
+            </h2>
+          )}
           {description && (
             <p id={descriptionId} className={icon ? 'mt-2 text-center text-text-gray' : 'mt-2 text-text-gray'}>
               {description}

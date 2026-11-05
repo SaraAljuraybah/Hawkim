@@ -58,6 +58,14 @@ export function HierarchyTable({ snapshot, query = '', onPreview, onEdit, onDele
   onDeleteDepartment: (department: ManagedDepartment) => void
 }) {
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
+  // While searching, matching divisions open automatically but can still be collapsed.
+  const [collapsedInSearch, setCollapsedInSearch] = useState<Set<string>>(new Set())
+  const searching = !!query.trim()
+  const isOpen = (id: string) => searching ? !collapsedInSearch.has(id) : expanded.has(id)
+  const toggle = (id: string) => {
+    const update = (previous: Set<string>) => { const next = new Set(previous); if (next.has(id)) next.delete(id); else next.add(id); return next }
+    if (searching) setCollapsedInSearch(update); else setExpanded(update)
+  }
   const rows = hierarchyRows(snapshot, query)
   const divisionIds = new Set(snapshot.divisions.map((division) => division.id))
   const unassigned = snapshot.departments.filter((row) => (!row.division_id || !divisionIds.has(row.division_id)) && row.name.toLowerCase().includes(query.trim().toLowerCase()))
@@ -71,22 +79,28 @@ export function HierarchyTable({ snapshot, query = '', onPreview, onEdit, onDele
     </tr>
   }
   return <div className="mt-3 overflow-x-auto rounded-xl border border-beige bg-white">
-    <table aria-label={text.title} className="w-full min-w-[600px] text-left text-sm"><thead className="bg-beige/60 text-maroon"><tr>
+    <table aria-label={text.title} className="w-full min-w-[600px] table-fixed text-left text-sm">
+    {/* Fixed column widths, so expanding or searching never shifts the columns. */}
+    <colgroup><col /><col className="w-32" /><col className="w-32" /><col className="w-40" /></colgroup><thead className="bg-beige/60 text-maroon"><tr>
       <th scope="col" className="p-4">{text.name}</th><th scope="col" className="p-4 text-right">{text.employees}</th><th scope="col" className="p-4 text-right">{text.sops}</th><th scope="col"><span className="sr-only">{text.edit}</span></th>
     </tr></thead><tbody>
       {rows.map(({ division, children, departmentCount, employees, sops }) => {
-        const isExpanded = expanded.has(division.id) || !!query.trim()
+        const isExpanded = isOpen(division.id)
         return <Fragment key={division.id}><tr className="border-t border-beige">
-          <th scope="row" className="p-4"><div className="flex items-center gap-3"><button type="button" aria-expanded={isExpanded} aria-controls={`children-${division.id}`}
-            aria-label={`${text.departments}: ${division.name}`} className="rounded p-1 text-maroon" onClick={() => setExpanded((previous) => { const next = new Set(previous); if (next.has(division.id)) next.delete(division.id); else next.add(division.id); return next })}>
-            {isExpanded ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}</button>
-            <div><p className="font-semibold text-maroon">{division.name}</p><p className="mt-1 text-xs font-normal text-text-gray">{text.departments} ({departmentCount})</p></div></div></th>
+          <th scope="row" className="p-4">
+            {/* The chevron and the division name are one toggle. */}
+            <button type="button" aria-expanded={isExpanded} aria-controls={`children-${division.id}`}
+              className="group flex items-start gap-3 rounded text-left" onClick={() => toggle(division.id)}>
+              <span aria-hidden="true" className="mt-0.5 rounded p-1 text-maroon group-hover:bg-beige">{isExpanded ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}</span>
+              <span><span className="block font-semibold text-maroon group-hover:underline">{division.name}</span>
+                <span className="mt-1 block text-xs font-normal text-text-gray">{text.departments} ({departmentCount})</span></span>
+            </button></th>
           <td className="p-4 text-right tabular-nums">{employees}</td><td className="p-4 text-right tabular-nums">{sops}</td>
           <td className="p-3"><div className="flex justify-end gap-2"><IconButton label={`${text.preview} ${division.name}`} icon={Eye} onClick={() => onPreview(division)} />
             <IconButton label={`${text.edit} ${division.name}`} icon={Pencil} edit onClick={() => onEdit(division)} />
             <IconButton label={`${text.delete} ${division.name}`} icon={Trash2} danger disabledReason={departmentCount ? text.divisionBlocked : undefined} onClick={() => onDeleteDivision(division)} /></div></td>
-        </tr><tr id={`children-${division.id}`} hidden={!isExpanded}><td colSpan={4} className="bg-beige/20 py-2 pr-4 pl-12"><div className="flex items-center justify-between gap-3"><span className="font-medium text-maroon">{text.departments}</span>
-          {isExpanded && <Button size="sm" to={`/admin/departments/new?division=${encodeURIComponent(division.id)}`}><Plus className="size-4" aria-hidden="true" />{text.addDepartment}</Button>}</div></td></tr>
+        </tr><tr id={`children-${division.id}`} hidden={!isExpanded}><td colSpan={4} className="border-t border-beige bg-beige/20 py-2 pr-3 pl-12"><div className="flex items-center justify-between gap-3"><span className="font-medium text-maroon">{text.departments}</span>
+          {isExpanded && <Button to={`/admin/departments/new?division=${encodeURIComponent(division.id)}`}><Plus className="size-4" aria-hidden="true" />{text.addDepartment}</Button>}</div></td></tr>
         {isExpanded && (children.length ? children.map(child) : <tr><td colSpan={4} className="py-4 pl-16 text-text-gray">{text.emptyDepartments}</td></tr>)}
         </Fragment>
       })}

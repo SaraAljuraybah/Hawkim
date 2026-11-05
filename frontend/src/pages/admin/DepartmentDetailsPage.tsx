@@ -7,7 +7,9 @@ import { PageLoading } from '../../components/ui/PageLoading'
 import { Button } from '../../components/ui/Button'
 import { DeleteDepartmentDialog } from '../../components/admin/DeleteDepartmentDialog'
 import { IconButton } from '../../components/ui/IconButton'
-import { PermissionBadges } from '../../components/admin/UserBits'
+import { PositionBadges } from '../../components/admin/UserBits'
+import { EmployeePositionsDialog } from '../../components/admin/EmployeePositionsDialog'
+import type { ManagedPerson } from '../../services/organizationAdmin'
 import { useOrganizationManagement } from '../../hooks/useOrganizationManagement'
 import { organizationAdminEn as orgText } from '../../content/organizationAdmin.en'
 import { adminEn } from '../../content/admin.en'
@@ -104,6 +106,8 @@ function DepartmentPanels({ department }: { department: Department }) {
   const [notice] = useState(() => (location.state as DepartmentDetailsLocationState | null)?.notice)
   const [showNotice, setShowNotice] = useState(!!notice)
   const [confirming, setConfirming] = useState(false)
+  const [editingPerson, setEditingPerson] = useState<ManagedPerson>()
+  const [positionsSaved, setPositionsSaved] = useState(false)
   const withCount = (title: string, count: number) =>
     text.titleWithCount.replace('{title}', title).replace('{count}', String(count))
   const departmentMembers = record?.people ?? []
@@ -136,12 +140,19 @@ function DepartmentPanels({ department }: { department: Department }) {
 
       <div className="mt-6 grid max-w-3xl gap-6">
         <Panel id="members-title" title={record ? withCount(orgText.employees, record.employees) : orgText.employees}>
-          {!record ? <PageLoading /> : departmentMembers.length === 0 ? <p className="text-sm text-text-gray">{text.members.empty}</p> : <div className="overflow-x-auto"><table className="w-full text-left text-sm">
-            <thead><tr><th className="pb-3">{orgText.name}</th><th className="pb-3">{orgText.email}</th><th className="pb-3">{orgText.position}</th></tr></thead>
+          {!record ? (management.error ? <div role="alert"><p>{orgText.loadFailed}</p><Button onClick={() => void management.refresh()}>{orgText.retry}</Button></div> : <PageLoading />)
+            : departmentMembers.length === 0 ? <p className="text-sm text-text-gray">{text.members.empty}</p>
+            : <div className="overflow-x-auto"><table className="w-full text-left text-sm">
+            <thead><tr><th scope="col" className="pb-3 pr-4">{orgText.name}</th><th scope="col" className="pb-3 pr-4">{orgText.email}</th><th scope="col" className="pb-3 pr-4">{orgText.positions}</th><th scope="col" className="pb-3"><span className="sr-only">{orgText.employeeActions}</span></th></tr></thead>
             <tbody>{departmentMembers.map((person) => <tr key={person.id} className="border-t border-beige">
               <th scope="row" className="py-3 pr-4 font-medium"><Link to={adminUserPath(person.id)} className="text-maroon hover:underline">{person.name}</Link></th>
-              <td className="py-3 pr-4">{person.email}</td><td className="py-3"><PermissionBadges user={person} /></td>
+              <td className="py-3 pr-4 break-all">{person.email}</td>
+              <td className="py-3 pr-4"><PositionBadges positions={person.positions} empty={orgText.noPositions} /></td>
+              <td className="py-3 text-right"><IconButton edit icon={Pencil} label={orgText.editPositions.replace('{name}', person.name)}
+                disabledReason={record.deletion_job_id ? orgText.cleanupPending : undefined}
+                onClick={() => { setShowNotice(false); setPositionsSaved(false); setEditingPerson(person) }} /></td>
             </tr>)}</tbody></table></div>}
+          <p role="status" className="mt-3 text-sm text-status-approved-fg">{positionsSaved ? orgText.positionsSaved : ''}</p>
         </Panel>
 
         <Panel id="access-title" title={withCount(text.withAccess.title, departmentWithAccess.length)}>
@@ -169,6 +180,8 @@ function DepartmentPanels({ department }: { department: Department }) {
           disabledReason={(record?.employees ?? 0) > 0 ? orgText.departmentBlocked : !record ? orgText.loadFailed : undefined}
           onClick={() => { setShowNotice(false); setConfirming(true) }} />
       </div>
+      {editingPerson && <EmployeePositionsDialog person={editingPerson} onClose={() => setEditingPerson(undefined)}
+        onSaved={() => { setPositionsSaved(true); void management.refresh() }} />}
       {confirming && record && <DeleteDepartmentDialog department={record} onClose={() => setConfirming(false)}
         onDeleted={() => { const state: AdminDepartmentsLocationState = { removed: text.remove.done.replace('{name}', department.name) }; navigate('/admin/divisions-departments', { state }) }} />}
 
