@@ -30,4 +30,11 @@ describe('the Admin guard enclosing Organizational Structure', () => {
     session.user!.permissions = ['admin']
     expect(AdminArea().type).toBe(Suspense)
   })
+  it('refuses an ended profile even when its cached roles still include Admin', () => {
+    session.user!.permissions = ['admin']
+    session.user!.deletedAt = '2026-11-05T00:00:00Z'
+    const result = AdminArea()
+    expect(result.type).toBe(Navigate)
+    expect(result.props.to).toBe('/login')
+  })
 })

@@ -16,14 +16,20 @@ select c.conrelid::regclass as table_name, c.conname, c.convalidated, pg_get_con
 from pg_constraint c where c.conrelid in ('public.divisions'::regclass, 'public.departments'::regclass) order by 1, 2;
 select tablename, indexname, indexdef from pg_indexes where schemaname = 'public' and tablename in ('divisions', 'departments');
 select schemaname, tablename, policyname, permissive, roles, cmd, qual, with_check
-from pg_policies where schemaname = 'public' and tablename in ('divisions', 'departments', 'profiles', 'user_roles');
+from pg_policies where schemaname = 'public' and tablename in ('divisions', 'departments', 'profiles', 'user_roles',
+  'employee_positions', 'organization_management_audit', 'department_file_deletions', 'department_file_deletion_items', 'access_requests');
 select c.oid::regclass as table_name, c.relrowsecurity, c.relforcerowsecurity, c.relacl
 from pg_class c where c.oid in ('public.divisions'::regclass, 'public.departments'::regclass, 'public.profiles'::regclass, 'public.user_roles'::regclass);
 select * from information_schema.column_privileges where table_schema = 'public' and table_name = 'divisions';
 select p.oid::regprocedure as signature, p.prosecdef as security_definer, p.proconfig, p.proacl,
   pg_get_userbyid(p.proowner) as owner, pg_get_functiondef(p.oid) as definition
 from pg_proc p where p.pronamespace = 'public'::regnamespace
-  and p.proname in ('has_role', 'is_active_user', 'can_read_organizational_structure', 'get_organizational_structure', 'update_sop_description');
+  and p.proname in ('has_role', 'is_active_user', 'can_read_organizational_structure', 'can_manage_organization',
+    'get_organizational_structure', 'get_divisions_departments', 'get_employees_missing_positions',
+    'save_division', 'delete_division', 'save_department', 'delete_department', 'set_employee_positions',
+    'create_employee_profile', 'set_user_roles', 'delete_user_profile', 'begin_department_file_deletion',
+    'get_department_file_deletion', 'claim_department_file_deletion', 'ack_department_file_deletion',
+    'department_file_paths_present', 'accept_access_request', 'reject_access_request', 'update_sop_description');
 
 -- Snapshot totals and relationship gaps, without employee contact details.
 select (select count(*) from public.divisions) as divisions,

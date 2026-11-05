@@ -1,7 +1,13 @@
 # Divisions & Departments
 
-Branch `feat/divisions-departments`. Nothing in this document has been applied to, deployed to or
-tested against the hosted Supabase project.
+Branch `feat/divisions-departments`. The management migrations and Edge Functions have not been
+deployed to hosted Supabase by this work. Hosted catalog/configuration access was read-only; integration
+tests ran only in disposable local environments.
+
+**Approved final product policy (5 November 2026): active Admin users only may view either organization
+interface, read the management hierarchy, or modify divisions/departments.** The local remediation and
+current hosted readiness findings are in [the deployment plan](hosted-supabase-deployment-plan.md).
+Its deployment restrictions supersede the older rollout instructions and historical test notes here.
 
 ## What is implemented
 
@@ -32,7 +38,9 @@ tested against the hosted Supabase project.
 
 | Migration | Contents |
 | --- | --- |
-| `20261105120000_divisions_departments_management.sql` | `divisions.email`, `departments.updated_at`, `sops.deleted_at`, `sops.directory_group`; audit table; admin RPCs `get_divisions_departments`, `save_division`, `delete_division`, `save_department`, `delete_department`; assignment and retained-SOP guards |
+| `20261105120100_organization_admin_authorization.sql` | Forward repair of hosted visibility drift; strict Admin-only read helper, independent `can_manage_organization`, Admin-only division RLS and minimal hierarchy payload |
+| `20261105120200_divisions_departments_management.sql` | `divisions.email`, `departments.updated_at`, `sops.deleted_at`, `sops.directory_group`; audit table; admin RPCs `get_divisions_departments`, `save_division`, `delete_division`, `save_department`, `delete_department`; assignment and retained-SOP guards |
+| `20261105120300_access_request_admin_decisions.sql` | Forward onboarding hardening from observed definitions: active Admin decisions, matching new Auth identity, no existing-employee repurposing; external caller update remains a deployment blocker |
 | `20261105130000_department_storage_cleanup.sql` | Durable deletion job (`department_file_deletions` + items), `begin_department_file_deletion`, `get_department_file_deletion` (admin), `claim_…`/`ack_…` (service role only), path-reuse policy |
 | `20261105140000_employee_positions.sql` (**new**) | `employee_positions` table, home-department guard, sync from `profiles.position`, commit-time "position required" rule, backfill, admin RPC `set_employee_positions`, snapshot with positions and server division totals |
 | `20261105150000_department_storage_verification.sql` (**new**) | `department_file_paths_present` (service role only); `ack_department_file_deletion` refuses any path still present in `storage.objects` |
@@ -69,14 +77,15 @@ Existing tables are reused (`divisions`, `departments.division_id`, `profiles.de
 
 ## Security
 
-- Every RPC checks `can_read_organizational_structure()` (active Admin role, active profile, Auth user not
-  deleted or banned). Functions are `security definer` with an empty `search_path`; `public`/`anon` have no
+- Read RPCs check `can_read_organizational_structure()`; administrative mutations independently check
+  `can_manage_organization()`. Both require an active Admin role/profile and an Auth user not deleted or
+  banned. Functions are `security definer` with an empty `search_path`; `public`/`anon` have no
   execute rights; browser table writes are not granted. The audit table is private.
 - Cleanup worker RPCs (`claim_…`, `ack_…`, `department_file_paths_present`) are executable by
   `service_role` only, and the service-role key is used only inside the Edge Function.
 - **Edge Function `delete-department`** with `verify_jwt = false`: the function itself requires a
   `Bearer` token, verifies it with `auth.getUser(token)` against the Auth server, then calls
-  `can_read_organizational_structure()` **as that user**. Anonymous keys, expired/forged tokens and
+  `can_manage_organization()` **as that user**. Anonymous keys, expired/forged tokens and
   non-admins get 401/403 before any service-role client is created. The gateway check is off so the
   function can answer CORS preflight and so it keeps working if the project moves to the newer JWT
   signing keys; the in-function check is stricter than the gateway's (it also rejects banned/deleted
@@ -135,21 +144,12 @@ Existing tables are reused (`divisions`, `departments.division_id`, `profiles.de
 
 ## Deployment (requires your approval — nothing has been applied)
 
-1. Back up the hosted database and check the migration ledger (`supabase migration list`).
-2. Apply in order: `20261105120000`, `20261105130000`, `20261105140000`, `20261105150000`, `20261105160000`
-   (`supabase db push --dry-run`, then `supabase db push`, after `supabase link --project-ref <ref>`).
-3. Run the legacy audit for profiles without positions and fix them through Edit positions.
-4. Deploy the functions: `supabase functions deploy delete-department` and
-   `supabase functions deploy manage-users` (both `verify_jwt = false` in `config.toml`; see Security).
-5. Auth settings: add `<site>/reset-password` (production and any preview/local origin used) to
-   Authentication → URL Configuration → Redirect URLs; confirm the Send Email hook (`send-email`) is
-   enabled, since it sends the `invite` email.
-6. Function environment: `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` (provided
-   automatically by hosted Supabase; if the legacy API keys are disabled, `SUPABASE_ANON_KEY` is missing and
-   both functions answer 503 `*-not-configured`). Frontend: `VITE_SUPABASE_URL`,
-   `VITE_SUPABASE_PUBLISHABLE_KEY` (never a secret key).
-7. Deploy the frontend only after the migrations: `services/sops.ts` selects `sops.directory_group`, so an
-   older schema breaks the whole SOP list, not just this page.
+**Blocked:** hosted version `20261105120000` belongs to `access_requests`, whose original migration source
+has not been recovered. Do not run a blanket database push, modify that ledger entry, or install the
+catalog-derived test fixture in production. Management has been renumbered to `20261105120200`;
+authorization repair is `20261105120100`, and onboarding hardening is `20261105120300`, followed by the existing `13`–`16` migrations. Use the exact
+conditional sequence, backup gates, source-reconciliation alternatives and restoration procedure in
+[the deployment plan](hosted-supabase-deployment-plan.md). No hosted execution has been approved.
 
 Division email is **optional** (form and database agree: blank is stored as null; a given address must be
 valid, at most 254 characters).

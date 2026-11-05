@@ -1,5 +1,5 @@
+import { localManagementTarget } from './localManagementTarget.mjs'
 ﻿// REAL local Auth/PostgREST/Storage/Edge tests. Hard refuses hosted URLs.
-import { readFileSync } from 'node:fs'
 import { execFileSync, spawn } from 'node:child_process'
 import { createRequire } from 'node:module'
 import { randomUUID } from 'node:crypto'
@@ -8,19 +8,8 @@ import { cleanDepartmentFiles, storageObjectExists } from '../functions/delete-d
 const require=createRequire(new URL('../../frontend/package.json',import.meta.url))
 const {createClient}=require('@supabase/supabase-js')
 const {PDFDocument,StandardFonts}=require('pdf-lib')
-const root=new URL('../../',import.meta.url)
-const container='supabase_db_hawkim-deletion-20261105'
-const inspect=JSON.parse(execFileSync('docker',['inspect',container],{encoding:'utf8'}))[0]
-assert(inspect.Mounts.some(m=>m.Name==='supabase_db_hawkim-deletion-20261105'))
-const storage=JSON.parse(execFileSync('docker',['inspect','supabase_storage_hawkim-deletion-20261105'],{encoding:'utf8'}))[0]
-assert(storage.Mounts.some(m=>m.Name==='supabase_storage_hawkim-deletion-20261105'))
-assert.equal(inspect.HostConfig.PortBindings['5432/tcp'][0].HostPort,'56432')
-assert(inspect.Mounts.filter(m=>m.Type==='volume').every(m=>m.Name.endsWith('_hawkim-deletion-20261105')))
-assert(storage.Mounts.filter(m=>m.Type==='volume').every(m=>m.Name.endsWith('_hawkim-deletion-20261105')))
-const configuration=JSON.parse(readFileSync(new URL('.local-tests/deletion-20261105/status.local.json',root),'utf8').trim())
-const url=configuration.API_URL ?? configuration.api_url
-assert.equal(url,'http://127.0.0.1:56431','This test only accepts the isolated local project')
-assert.equal(configuration.DB_URL,'postgresql://postgres:postgres@127.0.0.1:56432/postgres')
+const {container,configuration}=localManagementTarget()
+const url=configuration.API_URL
 console.log('PASS target guards: dedicated loopback API/database and separate Docker database/Storage volumes')
 const key=configuration.ANON_KEY ?? configuration.anon_key
 const secret=configuration.SERVICE_ROLE_KEY ?? configuration.service_role_key

@@ -26,7 +26,7 @@ Deno.serve(async (request) => {
   // Auth server verification, then the database's active/non-banned Admin check.
   const { data: identity, error: authError } = await user.auth.getUser(authorization.slice(7))
   if (authError || !identity.user) return json(401, { errorCode: 'unauthorized' })
-  const { data: allowed, error: permissionError } = await user.rpc('can_read_organizational_structure')
+  const { data: allowed, error: permissionError } = await user.rpc('can_manage_organization')
   if (permissionError || allowed !== true) return json(403, { errorCode: 'forbidden' })
   let jobId: string | undefined
   try {

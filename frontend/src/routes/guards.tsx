@@ -2,6 +2,7 @@ import { lazy, Suspense, type ReactNode } from 'react'
 import { Navigate, useLocation } from 'react-router-dom'
 import { AppLayout } from '../components/layout/AppLayout'
 import { PageLoading } from '../components/ui/PageLoading'
+import { AdminAuthorizationGate } from '../components/admin/AdminAuthorizationGate'
 import { isPathAllowed, isReadOnlyDepartment, READ_ONLY_LANDING_PATH } from '../lib/departmentNavigation'
 import { hasPermission } from '../lib/permissions'
 import { ADMIN_USERS_PATH } from '../lib/routes'
@@ -78,7 +79,7 @@ export function AdminArea() {
   const { status, user } = useSession()
   const data = useSharedData()
   if (status === 'loading') return <PageLoading fullScreen />
-  if (!user) return <Navigate to={SIGN_IN_PATH} replace />
+  if (!user || user.deletedAt) return <Navigate to={SIGN_IN_PATH} replace />
   if (data === 'error') return <LoadFailedPage />
   if (data === 'loading') return <PageLoading fullScreen />
   if (!hasPermission(user, 'admin')) {
@@ -92,7 +93,7 @@ export function AdminArea() {
   }
   return (
     <Suspense fallback={<PageLoading fullScreen />}>
-      <AdminLayout />
+      <AdminAuthorizationGate><AdminLayout /></AdminAuthorizationGate>
     </Suspense>
   )
 }

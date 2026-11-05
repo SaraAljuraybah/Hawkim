@@ -1,0 +1,201 @@
+{
+  "provenance": {
+    "kind": "observed hosted catalog; NOT original migration source",
+    "project": "bicfkrntoliyagihdkfn",
+    "capturedAt": "2026-11-05T18:33:18.418Z",
+    "dataRowsIncluded": false,
+    "remoteWrites": false
+  },
+  "columns": [
+    {
+      "default": "gen_random_uuid()",
+      "name": "id",
+      "not_null": true,
+      "type": "uuid"
+    },
+    {
+      "default": null,
+      "name": "organization",
+      "not_null": true,
+      "type": "text"
+    },
+    {
+      "default": null,
+      "name": "contact_name",
+      "not_null": true,
+      "type": "text"
+    },
+    {
+      "default": null,
+      "name": "job_title",
+      "not_null": true,
+      "type": "text"
+    },
+    {
+      "default": null,
+      "name": "email",
+      "not_null": true,
+      "type": "text"
+    },
+    {
+      "default": null,
+      "name": "phone",
+      "not_null": true,
+      "type": "text"
+    },
+    {
+      "default": null,
+      "name": "approx_users",
+      "not_null": true,
+      "type": "integer"
+    },
+    {
+      "default": "''::text",
+      "name": "message",
+      "not_null": true,
+      "type": "text"
+    },
+    {
+      "default": "'pending'::access_request_status",
+      "name": "status",
+      "not_null": true,
+      "type": "access_request_status"
+    },
+    {
+      "default": null,
+      "name": "review_token_hash",
+      "not_null": true,
+      "type": "text"
+    },
+    {
+      "default": null,
+      "name": "review_expires_at",
+      "not_null": true,
+      "type": "timestamp with time zone"
+    },
+    {
+      "default": null,
+      "name": "user_id",
+      "not_null": false,
+      "type": "uuid"
+    },
+    {
+      "default": null,
+      "name": "decided_at",
+      "not_null": false,
+      "type": "timestamp with time zone"
+    },
+    {
+      "default": "now()",
+      "name": "created_at",
+      "not_null": true,
+      "type": "timestamp with time zone"
+    }
+  ],
+  "constraints": [
+    {
+      "definition": "CHECK (((approx_users >= 1) AND (approx_users <= 100000)))",
+      "name": "access_requests_approx_users_check"
+    },
+    {
+      "definition": "CHECK (((contact_name = TRIM(BOTH FROM contact_name)) AND ((char_length(contact_name) >= 1) AND (char_length(contact_name) <= 100))))",
+      "name": "access_requests_contact_name_check"
+    },
+    {
+      "definition": "CHECK (((email = lower(TRIM(BOTH FROM email))) AND (email ~ '^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$'::text) AND (char_length(email) <= 254)))",
+      "name": "access_requests_email_check"
+    },
+    {
+      "definition": "CHECK (((job_title = TRIM(BOTH FROM job_title)) AND ((char_length(job_title) >= 1) AND (char_length(job_title) <= 100))))",
+      "name": "access_requests_job_title_check"
+    },
+    {
+      "definition": "CHECK (((message = TRIM(BOTH FROM message)) AND (char_length(message) <= 2000)))",
+      "name": "access_requests_message_check"
+    },
+    {
+      "definition": "CHECK (((organization = TRIM(BOTH FROM organization)) AND ((char_length(organization) >= 1) AND (char_length(organization) <= 200))))",
+      "name": "access_requests_organization_check"
+    },
+    {
+      "definition": "CHECK ((phone ~ '^\\+9665[0-9]{8}$'::text))",
+      "name": "access_requests_phone_check"
+    },
+    {
+      "definition": "PRIMARY KEY (id)",
+      "name": "access_requests_pkey"
+    },
+    {
+      "definition": "CHECK ((review_token_hash ~ '^[0-9a-f]{64}$'::text))",
+      "name": "access_requests_review_token_hash_check"
+    },
+    {
+      "definition": "FOREIGN KEY (user_id) REFERENCES auth.users(id)",
+      "name": "access_requests_user_id_fkey"
+    }
+  ],
+  "enum_labels": [
+    "pending",
+    "accepted",
+    "rejected"
+  ],
+  "functions": [
+    {
+      "acl": [
+        "postgres=X/postgres",
+        "service_role=X/postgres"
+      ],
+      "definition": "CREATE OR REPLACE FUNCTION public.accept_access_request(p_id uuid, p_token_hash text, p_user_id uuid, p_department text)\n RETURNS void\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO ''\nAS $function$\r\ndeclare\r\n  request public.access_requests;\r\n  words text[];\r\n  initials text;\r\nbegin\r\n  request := public.lock_pending_access_request(p_id, p_token_hash);\r\n\r\n  if exists (select 1 from public.profiles p where p.email = request.email and p.deleted_at is null) then\r\n    raise exception 'email_in_use' using errcode = 'P0001';\r\n  end if;\r\n  if not exists (select 1 from public.departments d where d.id = p_department and d.removed_at is null) then\r\n    raise exception 'department_not_found' using errcode = 'P0001';\r\n  end if;\r\n\r\n  words := regexp_split_to_array(request.contact_name, '\\s+');\r\n  initials := upper(case\r\n    when array_length(words, 1) >= 2 then left(words[1], 1) || left(words[array_length(words, 1)], 1)\r\n    else left(words[1], 2)\r\n  end);\r\n\r\n  insert into public.profiles (id, full_name, email, initials, department_id, phone, \"position\")\r\n  values (p_user_id, request.contact_name, request.email, initials, p_department, request.phone, request.job_title)\r\n  on conflict (id) do update set\r\n    full_name = excluded.full_name, email = excluded.email, initials = excluded.initials,\r\n    department_id = excluded.department_id, phone = excluded.phone, \"position\" = excluded.\"position\",\r\n    deleted_at = null;\r\n\r\n  -- Admin is exclusive: remove any other roles first.\r\n  delete from public.user_roles ur where ur.user_id = p_user_id and ur.role <> 'admin';\r\n  insert into public.user_roles (user_id, role) values (p_user_id, 'admin') on conflict do nothing;\r\n\r\n  update public.access_requests r\r\n  set status = 'accepted', user_id = p_user_id, decided_at = now()\r\n  where r.id = request.id;\r\nend;\r\n$function$\n",
+      "name": "accept_access_request",
+      "signature": "accept_access_request(uuid,text,uuid,text)"
+    },
+    {
+      "acl": [
+        "postgres=X/postgres",
+        "service_role=X/postgres"
+      ],
+      "definition": "CREATE OR REPLACE FUNCTION public.get_access_request(p_id uuid, p_token_hash text)\n RETURNS TABLE(id uuid, organization text, contact_name text, job_title text, email text, phone text, approx_users integer, message text, status access_request_status, created_at timestamp with time zone, decided_at timestamp with time zone, expired boolean, account_exists boolean)\n LANGUAGE sql\n STABLE SECURITY DEFINER\n SET search_path TO ''\nAS $function$\r\n  select r.id, r.organization, r.contact_name, r.job_title, r.email, r.phone, r.approx_users, r.message,\r\n         r.status, r.created_at, r.decided_at,\r\n         r.review_expires_at < now() as expired,\r\n         exists (select 1 from public.profiles p where p.email = r.email and p.deleted_at is null) as account_exists\r\n  from public.access_requests r\r\n  where r.id = p_id and r.review_token_hash = p_token_hash;\r\n$function$\n",
+      "name": "get_access_request",
+      "signature": "get_access_request(uuid,text)"
+    },
+    {
+      "acl": [
+        "postgres=X/postgres",
+        "service_role=X/postgres"
+      ],
+      "definition": "CREATE OR REPLACE FUNCTION public.lock_pending_access_request(p_id uuid, p_token_hash text)\n RETURNS access_requests\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO ''\nAS $function$\r\ndeclare\r\n  request public.access_requests;\r\nbegin\r\n  select * into request from public.access_requests r\r\n  where r.id = p_id and r.review_token_hash = p_token_hash\r\n  for update;\r\n  if not found then\r\n    raise exception 'request_not_found' using errcode = 'P0001';\r\n  end if;\r\n  if request.status <> 'pending' then\r\n    raise exception 'request_already_decided' using errcode = 'P0001';\r\n  end if;\r\n  if request.review_expires_at < now() then\r\n    raise exception 'review_link_expired' using errcode = 'P0001';\r\n  end if;\r\n  return request;\r\nend;\r\n$function$\n",
+      "name": "lock_pending_access_request",
+      "signature": "lock_pending_access_request(uuid,text)"
+    },
+    {
+      "acl": [
+        "postgres=X/postgres",
+        "service_role=X/postgres"
+      ],
+      "definition": "CREATE OR REPLACE FUNCTION public.reject_access_request(p_id uuid, p_token_hash text)\n RETURNS void\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO ''\nAS $function$\r\ndeclare\r\n  request public.access_requests;\r\nbegin\r\n  request := public.lock_pending_access_request(p_id, p_token_hash);\r\n  update public.access_requests r set status = 'rejected', decided_at = now() where r.id = request.id;\r\nend;\r\n$function$\n",
+      "name": "reject_access_request",
+      "signature": "reject_access_request(uuid,text)"
+    },
+    {
+      "acl": [
+        "postgres=X/postgres",
+        "service_role=X/postgres"
+      ],
+      "definition": "CREATE OR REPLACE FUNCTION public.submit_access_request(p_organization text, p_contact_name text, p_job_title text, p_email text, p_phone text, p_approx_users integer, p_message text, p_token_hash text)\n RETURNS uuid\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO ''\nAS $function$\r\ndeclare\r\n  normalized text := lower(trim(p_email));\r\n  recent integer;\r\n  new_id uuid;\r\nbegin\r\n  select count(*) into recent from public.access_requests r\r\n  where r.email = normalized and r.created_at > now() - interval '24 hours';\r\n  if recent >= 3 then\r\n    raise exception 'too_many_requests' using errcode = 'P0001';\r\n  end if;\r\n\r\n  insert into public.access_requests\r\n    (organization, contact_name, job_title, email, phone, approx_users, message, review_token_hash, review_expires_at)\r\n  values\r\n    (trim(p_organization), trim(p_contact_name), trim(p_job_title), normalized, p_phone, p_approx_users,\r\n     trim(coalesce(p_message, '')), p_token_hash, now() + interval '14 days')\r\n  returning id into new_id;\r\n  return new_id;\r\nend;\r\n$function$\n",
+      "name": "submit_access_request",
+      "signature": "submit_access_request(text,text,text,text,text,integer,text,text)"
+    }
+  ],
+  "indexes": [
+    "CREATE INDEX access_requests_email_created ON public.access_requests USING btree (email, created_at)"
+  ],
+  "ledger": {
+    "name": "access_requests",
+    "statements_present": false,
+    "version": "20261105120000"
+  },
+  "policies": [],
+  "rls": true,
+  "table_acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+  "triggers": []
+}

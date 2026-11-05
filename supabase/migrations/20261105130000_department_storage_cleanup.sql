@@ -49,7 +49,7 @@ create function public.begin_department_file_deletion(p_id text,p_expected_updat
 language plpgsql security definer set search_path='' as $$
 declare department public.departments; ids uuid[]; job uuid;
 begin
-  if not public.can_read_organizational_structure() then raise exception 'Administrator required' using errcode='42501'; end if;
+  if not public.can_manage_organization() then raise exception 'Administrator required' using errcode='42501'; end if;
   perform pg_catalog.pg_advisory_xact_lock(72441,1);
   select * into department from public.departments where id=p_id for update;
   if not found then raise exception 'Department unavailable' using errcode='40001'; end if;
@@ -181,7 +181,7 @@ create or replace function public.delete_department(p_id text,p_sop_action text,
 language plpgsql security definer set search_path = '' as $$
 declare old public.departments; ids uuid[];
 begin
-  if not public.can_read_organizational_structure() then raise exception 'Administrator required' using errcode='42501'; end if;
+  if not public.can_manage_organization() then raise exception 'Administrator required' using errcode='42501'; end if;
   if p_sop_action='delete' then raise exception 'Permanent file deletion requires the secure cleanup endpoint' using errcode='23514'; end if;
   if p_sop_action is null or p_sop_action not in ('empty','delete','others') then raise exception 'Choose how to handle SOPs' using errcode='23514'; end if;
   perform pg_catalog.pg_advisory_xact_lock(72441, 1);

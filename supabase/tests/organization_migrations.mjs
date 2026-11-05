@@ -107,7 +107,8 @@ try {
   started = true
   let ready = false
   for (let attempt = 0; attempt < 50; attempt++) {
-    try { docker(['exec', name, 'pg_isready', '-U', 'postgres']); ready = true; break } catch { await new Promise((resolve) => setTimeout(resolve, 100)) }
+    // TCP excludes the image's temporary Unix-socket initialization server.
+    try { docker(['exec', name, 'pg_isready', '-h', '127.0.0.1', '-U', 'postgres']); ready = true; break } catch { await new Promise((resolve) => setTimeout(resolve, 100)) }
   }
   assert(ready, 'Disposable PostgreSQL did not become ready')
   sql('postgres', 'create role anon; create role authenticated; create role organization_extra_executor;')

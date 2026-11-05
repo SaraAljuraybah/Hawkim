@@ -75,7 +75,7 @@ Deno.serve(async (request) => {
     auth: { persistSession: false, autoRefreshToken: false } })
   const { data: identity, error: authError } = await user.auth.getUser(authorization.slice(7))
   if (authError || !identity.user) return json(401, { errorCode: 'unauthorized' })
-  const { data: allowed, error: permissionError } = await user.rpc('can_read_organizational_structure')
+  const { data: allowed, error: permissionError } = await user.rpc('can_manage_organization')
   if (permissionError || allowed !== true) return json(403, { errorCode: 'forbidden' })
   let body: Record<string, unknown>
   try {

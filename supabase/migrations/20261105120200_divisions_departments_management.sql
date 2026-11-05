@@ -86,7 +86,7 @@ create function public.save_division(p_id text, p_name text, p_description text,
 returns text language plpgsql security definer set search_path = '' as $$
 declare target text; old public.divisions;
 begin
-  if not public.can_read_organizational_structure() then raise exception 'Administrator required' using errcode = '42501'; end if;
+  if not public.can_manage_organization() then raise exception 'Administrator required' using errcode = '42501'; end if;
   perform pg_catalog.pg_advisory_xact_lock(72441, 1);
   if exists(select 1 from public.divisions where is_active is not false and lower(btrim(name)) = lower(btrim(p_name)) and id is distinct from p_id) then
     raise exception 'Division name already exists' using errcode = '23505';
@@ -108,7 +108,7 @@ create function public.delete_division(p_id text, p_expected_updated_at timestam
 language plpgsql security definer set search_path = '' as $$
 declare old public.divisions;
 begin
-  if not public.can_read_organizational_structure() then raise exception 'Administrator required' using errcode = '42501'; end if;
+  if not public.can_manage_organization() then raise exception 'Administrator required' using errcode = '42501'; end if;
   perform pg_catalog.pg_advisory_xact_lock(72441, 1);
   select * into old from public.divisions where id=p_id and is_active is not false for update;
   if not found or old.updated_at is distinct from p_expected_updated_at then raise exception 'Organization changed; refresh and try again' using errcode = '40001'; end if;
@@ -123,7 +123,7 @@ create function public.save_department(p_id text,p_name text,p_initials text,p_d
 returns text language plpgsql security definer set search_path = '' as $$
 declare target text; old public.departments;
 begin
-  if not public.can_read_organizational_structure() then raise exception 'Administrator required' using errcode='42501'; end if;
+  if not public.can_manage_organization() then raise exception 'Administrator required' using errcode='42501'; end if;
   perform pg_catalog.pg_advisory_xact_lock(72441, 1);
   if p_name is null or length(btrim(p_name)) not between 1 and 60
     or p_initials is null or btrim(p_initials) !~ '^[A-Za-z]{2,3}$'
@@ -160,7 +160,7 @@ create function public.delete_department(p_id text,p_sop_action text,p_expected_
 language plpgsql security definer set search_path = '' as $$
 declare old public.departments; ids uuid[];
 begin
-  if not public.can_read_organizational_structure() then raise exception 'Administrator required' using errcode='42501'; end if;
+  if not public.can_manage_organization() then raise exception 'Administrator required' using errcode='42501'; end if;
   if p_sop_action is null or p_sop_action not in ('empty','delete','others') then raise exception 'Choose how to handle SOPs' using errcode='23514'; end if;
   perform pg_catalog.pg_advisory_xact_lock(72441, 1);
   select * into old from public.departments where id=p_id and removed_at is null for update;

@@ -95,7 +95,7 @@ create function public.set_employee_positions(p_profile_id uuid, p_titles text[]
 language plpgsql security definer set search_path = '' as $$
 declare person public.profiles; titles text[]; i integer;
 begin
-  if not public.can_read_organizational_structure() then raise exception 'Administrator required' using errcode = '42501'; end if;
+  if not public.can_manage_organization() then raise exception 'Administrator required' using errcode = '42501'; end if;
   select array_agg(t order by n) into titles from (
     select distinct on (lower(btrim(t))) btrim(t) as t, n
     from unnest(coalesce(p_titles, '{}')) with ordinality as x(t, n)

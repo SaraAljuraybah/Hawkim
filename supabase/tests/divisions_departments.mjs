@@ -4,6 +4,7 @@ import { execFileSync, spawn } from 'node:child_process'
 import { readFileSync, readdirSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import assert from 'node:assert/strict'
+import { hostedAccessFixture, hostedOrganizationDrift } from './hostedAccessFixture.mjs'
 const root = new URL('../../', import.meta.url)
 const read = (path) => readFileSync(new URL(path, root), 'utf8')
 const name = `hawkim-management-test-${process.pid}-${Date.now()}`
@@ -41,7 +42,22 @@ try {
     try {
       // Later management migrations are applied below, each followed by its own tests.
       if (file >= '20261105130000') continue
-      if (file.startsWith('20261105120000')) {
+      if (file.startsWith('20261105120100')) {
+        assert.throws(()=>sql(read('supabase/migrations/20261105120300_access_request_admin_decisions.sql')),/Missing access_requests baseline/)
+        sql(hostedAccessFixture()+hostedOrganizationDrift+`
+          insert into public.departments(id,name,initials) values('hosted-home','Observed-shape home','HH');
+          insert into auth.users(id) select ('e1000000-0000-4000-8000-'||lpad(n::text,12,'0'))::uuid from generate_series(1,9) n;
+          insert into public.profiles(id,full_name,email,initials,department_id)
+          select ('e1000000-0000-4000-8000-'||lpad(n::text,12,'0'))::uuid,'Fixture '||n,'hosted-fixture-'||n||'@test.invalid','HF','hosted-home' from generate_series(1,9) n;`)
+        const snapshot=`select jsonb_build_object('functions',(select jsonb_agg(pg_get_functiondef(oid) order by oid) from pg_proc where pronamespace='public'::regnamespace),
+          'policies',(select jsonb_agg(to_jsonb(p) order by policyname) from pg_policies p where schemaname='public' and tablename='divisions'),
+          'acl',(select relacl from pg_class where oid='public.divisions'::regclass));`
+        const before=sql(snapshot)
+        assert.throws(()=>sql(read('supabase/migrations/'+file).replace(/commit;\s*$/i,()=>"do $$ begin raise exception 'intentional authorization rollback'; end $$;commit;")),/intentional authorization rollback/)
+        assert.equal(sql(snapshot),before,'Authorization reconciliation must roll back definitions, policies and ACLs together')
+        console.log('PASS: observed hosted catalog fixture and active-user drift loaded; authorization migration failure rolls back atomically (not recovered migration history)')
+      }
+      if (file.startsWith('20261105120200')) {
         for (const regression of regressions) baseline.set(regression,regressionError(regression))
         sql(`insert into public.divisions(id,name) values('legacy','Existing division');
         insert into public.departments(id,name,initials,division_id) values('preserved','Preserved mapping','PM','legacy');`)
@@ -92,6 +108,8 @@ try {
   console.log('PASS: multiple employee positions (backfill, admin-only RPC, required position, home-department rule), server division totals, database-verified Storage absence')
   for (const file of later.filter((file) => file >= '20261105160000')) sql(read('supabase/migrations/'+file))
   sql(read('supabase/tests/user_management_and_consistency.sql'))
+  sql(`do $$ begin assert (select count(*)=9 from public.profiles p where p.department_id='hosted-home' and p.position is null
+    and not exists(select 1 from public.employee_positions e where e.profile_id=p.id)), 'Legacy titles were invented'; end $$;`)
   console.log('PASS: position sync keeps secondary titles, read-only missing-position audit, optional division email, persisted user create/permissions/delete with every database rule')
   // Deterministic latest round: the previously flaky regression must now pass every time.
   for (let run = 1; run <= 5; run++) {

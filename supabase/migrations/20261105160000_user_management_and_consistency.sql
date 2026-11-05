@@ -1,4 +1,4 @@
--- Follow-up to the Divisions & Departments migrations (20261105120000-20261105150000).
+-- Follow-up to the Divisions & Departments migrations (20261105120200-20261105150000).
 --
 -- 1. Positions: profiles.position (the primary title) and employee_positions stay consistent.
 --    Changing the primary title replaces the old primary row; secondary titles are never touched.
@@ -72,7 +72,7 @@ create or replace function public.set_employee_positions(p_profile_id uuid, p_ti
 language plpgsql security definer set search_path = '' as $$
 declare person public.profiles; titles text[]; i integer;
 begin
-  if not public.can_read_organizational_structure() then raise exception 'Administrator required' using errcode = '42501'; end if;
+  if not public.can_manage_organization() then raise exception 'Administrator required' using errcode = '42501'; end if;
   select array_agg(t order by n) into titles from (
     select distinct on (lower(btrim(t))) btrim(t) as t, n
     from unnest(coalesce(p_titles, '{}')) with ordinality as x(t, n)
@@ -159,7 +159,7 @@ declare
   v_phone text := regexp_replace(coalesce(p_phone, ''), '\s+', '', 'g');
   titles text[]; roles public.app_role[]; words text[]; v_initials text; quality boolean; i integer;
 begin
-  if not public.can_read_organizational_structure() then raise exception 'Administrator required' using errcode = '42501'; end if;
+  if not public.can_manage_organization() then raise exception 'Administrator required' using errcode = '42501'; end if;
   if v_phone ~ '^05[0-9]{8}$' then v_phone := '+966' || substr(v_phone, 2); end if;
   select array_agg(t order by n) into titles from (
     select distinct on (lower(btrim(t))) btrim(t) as t, n
@@ -214,7 +214,7 @@ create function public.set_user_roles(p_user_id uuid, p_roles public.app_role[])
 language plpgsql security definer set search_path = '' as $$
 declare person public.profiles; roles public.app_role[]; removed public.app_role;
 begin
-  if not public.can_read_organizational_structure() then raise exception 'Administrator required' using errcode = '42501'; end if;
+  if not public.can_manage_organization() then raise exception 'Administrator required' using errcode = '42501'; end if;
   select coalesce(array_agg(distinct r), '{}') into roles from unnest(coalesce(p_roles, '{}')) r where r is not null;
   if 'admin' = any(roles) and cardinality(roles) > 1 then
     raise exception 'An admin cannot have any other role' using errcode = '23514';
@@ -247,7 +247,7 @@ create function public.delete_user_profile(p_user_id uuid) returns uuid
 language plpgsql security definer set search_path = '' as $$
 declare person public.profiles;
 begin
-  if not public.can_read_organizational_structure() then raise exception 'Administrator required' using errcode = '42501'; end if;
+  if not public.can_manage_organization() then raise exception 'Administrator required' using errcode = '42501'; end if;
   if p_user_id = auth.uid() then raise exception 'You cannot delete your own account' using errcode = '23514'; end if;
   perform pg_catalog.pg_advisory_xact_lock(72441, 1);
   select * into person from public.profiles where id = p_user_id for update;
