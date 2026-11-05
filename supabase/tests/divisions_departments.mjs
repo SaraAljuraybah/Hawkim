@@ -21,7 +21,9 @@ try {
   docker(['run','--rm','-d','--network','none','--name',name,'-e','POSTGRES_HOST_AUTH_METHOD=trust','postgres:17-alpine'])
   started = true
   for (let attempt=0; ; attempt++) {
-    try { docker(['exec',name,'pg_isready','-U','postgres']); break }
+    // The image's initialization server accepts Unix sockets before it restarts.
+    // TCP becomes available only when the final server is ready.
+    try { docker(['exec',name,'pg_isready','-h','127.0.0.1','-U','postgres']); break }
     catch (error) { if (attempt > 40) throw error; await new Promise((resolve) => setTimeout(resolve,250)) }
   }
   sql(`create role anon; create role authenticated; create role service_role;
@@ -85,7 +87,7 @@ try {
   console.log('PASS: Storage deletion job authorization, complete path manifests, failure recovery, leases, pending-assignment guards, finalization and RPC bypass protection')
   // An existing single job title must be backfilled into employee_positions.
   sql(`update public.profiles set position='Administrator' where id='a1000000-0000-4000-8000-000000000001';`)
-  for (const file of later.filter((file) => file > '20261105130000' && file < '20261105160000')) sql(read('supabase/migrations/'+file))
+  for (const file of later.filter((file) => file > '20261105130000_department_storage_cleanup.sql' && file < '20261105160000')) sql(read('supabase/migrations/'+file))
   sql(read('supabase/tests/employee_positions_and_storage.sql'))
   console.log('PASS: multiple employee positions (backfill, admin-only RPC, required position, home-department rule), server division totals, database-verified Storage absence')
   for (const file of later.filter((file) => file >= '20261105160000')) sql(read('supabase/migrations/'+file))
