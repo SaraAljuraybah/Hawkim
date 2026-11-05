@@ -52,6 +52,7 @@ export interface DepartmentWorkflowConfiguration {
 }
 
 export interface Department extends DepartmentWorkflowConfiguration {
+  updatedAt?: string
   id: DepartmentId
   name: string
   /** Short abbreviation shown in the initials circle, e.g. "QA". */
@@ -70,6 +71,7 @@ export interface Department extends DepartmentWorkflowConfiguration {
  * the SOPs directory shows the published ones, My SOPs shows the author's own.
  */
 export interface Sop {
+  directoryGroup?: 'department' | 'others'
   id: string
   /** e.g. "SOP-017" */
   code: string

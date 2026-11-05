@@ -21,7 +21,7 @@ const chart = (value = hierarchy) => renderToStaticMarkup(<OrganizationChart hie
 describe('Organizational Structure', () => {
   it('puts Organizational Structure last after Regulations with its existing active indicator', () => {
     const html = renderToStaticMarkup(<MemoryRouter initialEntries={['/admin/organizational-structure']}><Sidebar content={adminEn.shell} /></MemoryRouter>)
-    expect(adminEn.shell.nav.map((item) => item.label)).toEqual(['Users', 'Departments', 'Requests', 'Regulations', 'Organizational Structure'])
+    expect(adminEn.shell.nav.map((item) => item.label)).toEqual(['Users', 'Divisions & Departments', 'Requests', 'Regulations', 'Organizational Structure'])
     expect(html.indexOf('>Regulations<')).toBeLessThan(html.indexOf('>Organizational Structure<'))
     expect(html.indexOf('>Organizational Structure<')).toBeLessThan(html.indexOf('>Sign Out<'))
     expect(html).toMatch(/<a[^>]*aria-current="page"[^>]*href="\/admin\/organizational-structure"/)

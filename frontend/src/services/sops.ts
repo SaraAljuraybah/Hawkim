@@ -38,7 +38,7 @@ import { supabase } from './supabase'
  * selected only while WORKING_DAY_DEADLINES_ACTIVE is on.
  */
 const REQUEST_POLICY_COLUMN = WORKING_DAY_DEADLINES_ACTIVE ? ' deadline_policy,' : ''
-const SOP_COLUMNS = `id, code, title, description, department_id, author_id, status, current_version, updated_at,
+const SOP_COLUMNS = `id, code, title, description, directory_group, department_id, author_id, status, current_version, updated_at,
   sop_versions!sop_versions_sop_id_fkey (version, file_name, file_type, storage_path, uploaded_by, uploaded_at, deleted_at, deleted_by),
   sop_co_authors!sop_co_authors_sop_id_fkey (user_id, added_at),
   timeline_events!timeline_events_sop_id_fkey (id, type, actor_id, version, recipient_ids, subject_id, note, created_at,
@@ -154,6 +154,7 @@ export interface ComplianceCheckRow {
 }
 
 export interface SopRow {
+  directory_group?: 'department' | 'others'
   id: string
   code: string
   title: string
@@ -305,6 +306,7 @@ export function toSop(row: SopRow): Sop {
     title: row.title,
     ...(row.description ? { description: row.description } : {}),
     departmentId: row.department_id,
+    ...(row.directory_group ? { directoryGroup: row.directory_group } : {}),
     authorId: row.author_id,
     version: String(row.current_version),
     status: row.status,

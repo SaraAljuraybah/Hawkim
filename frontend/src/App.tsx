@@ -126,7 +126,8 @@ function AppRoutes() {
         <Route path="users" element={<AdminUsersPage />} />
         <Route path="users/new" element={<AddUserPage />} />
         <Route path="users/:id" element={<UserDetailsPage />} />
-        <Route path="departments" element={<AdminDepartmentsPage />} />
+        <Route path="departments" element={<Navigate to="/admin/divisions-departments" replace />} />
+        <Route path="divisions-departments" element={<AdminDepartmentsPage />} />
         <Route path="organizational-structure" element={<OrganizationalStructurePage />} />
         <Route path="departments/new" element={<DepartmentFormPage />} />
         <Route path="departments/:id" element={<DepartmentDetailsPage />} />

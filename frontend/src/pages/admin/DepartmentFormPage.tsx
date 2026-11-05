@@ -1,6 +1,9 @@
+import { SelectField } from '../../components/ui/SelectField'
+import { useOrganizationManagement } from '../../hooks/useOrganizationManagement'
+import { organizationAdminEn } from '../../content/organizationAdmin.en'
 import { useRef, useState, type FormEvent } from 'react'
 import { flushSync } from 'react-dom'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
 import { TextAreaField } from '../../components/ui/TextAreaField'
@@ -48,8 +51,14 @@ function DepartmentForm({ department }: { department?: Department }) {
   const { users } = useUsers()
   const admin = useCurrentUser()
   const navigate = useNavigate()
+  const [params] = useSearchParams()
+  const management = useOrganizationManagement()
+  const parent = params.get('division')
+  const [busy, setBusy] = useState(false)
+  const [saveError, setSaveError] = useState('')
 
   const [values, setValues] = useState<DepartmentInput>({
+    divisionId: department?.divisionId ?? parent ?? undefined,
     name: department?.name ?? '',
     initials: department?.initials ?? '',
     description: department?.description ?? '',
@@ -82,8 +91,10 @@ function DepartmentForm({ department }: { department?: Department }) {
     if (submitAttempted) setErrors((prev) => ({ ...prev, [field]: errorsFor(values)[field] }))
   }
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    if (busy) return
+    setSaveError('')
     setSubmitAttempted(true)
     const next = errorsFor(values)
     // Render the messages before moving focus, so screen readers read them with the field.
@@ -94,18 +105,23 @@ function DepartmentForm({ department }: { department?: Department }) {
       refs[firstInvalid].current?.focus()
       return
     }
-    const actor = { actorId: admin.id, users }
-    let targetId: string
-    let state: DepartmentDetailsLocationState
-    if (department) {
-      updateDepartment(department.id, values, actor)
-      targetId = department.id
-      state = { notice: 'updated' }
-    } else {
-      targetId = addDepartment(values, actor).id
-      state = { notice: 'added' }
-    }
-    navigate(adminDepartmentPath(targetId), { state })
+    if (!department && !values.divisionId) { setSaveError(organizationAdminEn.requiredDivision); return }
+    setBusy(true)
+    try {
+      const actor = { actorId: admin.id, users }
+      let targetId: string
+      let state: DepartmentDetailsLocationState
+      if (department) {
+        await updateDepartment(department.id, values, actor)
+        targetId = department.id
+        state = { notice: 'updated' }
+      } else {
+        targetId = (await addDepartment(values, actor)).id
+        state = { notice: 'added' }
+      }
+      navigate(adminDepartmentPath(targetId), { state })
+    } catch (reason) { setSaveError((reason as Error).message) }
+    finally { setBusy(false) }
   }
 
   const back = department
@@ -125,6 +141,12 @@ function DepartmentForm({ department }: { department?: Department }) {
       <p className="mt-2 text-text-gray">{mode.subtitle.replace('{name}', department?.name ?? '')}</p>
 
       <form noValidate onSubmit={handleSubmit} className="mt-8 max-w-2xl rounded-xl border border-beige bg-white p-5 sm:p-6">
+        {management.data && (!parent || department) && <SelectField name="division" label={organizationAdminEn.division}
+          value={values.divisionId ?? ''} onChange={(event) => setValues({ ...values, divisionId: event.target.value || undefined })}
+          options={[{ value: '', label: department ? organizationAdminEn.noDivision : organizationAdminEn.selectDivision }, ...management.data.divisions.map((division) => ({ value: division.id, label: division.name }))]} className="mb-5" />}
+        {parent && !department && <p className="mb-5 text-sm text-text-gray">{organizationAdminEn.division}: {management.data?.divisions.find((division) => division.id === parent)?.name ?? parent}</p>}
+        {management.error && <p role="alert">{organizationAdminEn.loadFailed}</p>}
+        {saveError && <p role="alert" className="mb-4 text-sm text-status-rejected-fg">{saveError}</p>}
         <TextField
           ref={nameRef}
           name="name"
@@ -170,7 +192,7 @@ function DepartmentForm({ department }: { department?: Department }) {
           <Button variant="secondary" to={back.href}>
             {content.cancel}
           </Button>
-          <Button type="submit">{mode.submit}</Button>
+          <Button type="submit" disabled={busy}>{mode.submit}</Button>
         </div>
       </form>
     </>

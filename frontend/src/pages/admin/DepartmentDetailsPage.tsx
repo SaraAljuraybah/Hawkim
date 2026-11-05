@@ -1,22 +1,23 @@
-import { useRef, useState, type ReactNode } from 'react'
-import { flushSync } from 'react-dom'
+import { useState, type ReactNode } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, CircleAlert, CircleCheck, Pencil, Trash2 } from 'lucide-react'
+import { ArrowLeft, CircleCheck, Pencil, Trash2 } from 'lucide-react'
 import { DepartmentBadge } from '../../components/admin/DepartmentBadge'
 import { UserAvatar } from '../../components/admin/UserBits'
+import { PageLoading } from '../../components/ui/PageLoading'
 import { Button } from '../../components/ui/Button'
-import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
+import { DeleteDepartmentDialog } from '../../components/admin/DeleteDepartmentDialog'
+import { IconButton } from '../../components/ui/IconButton'
+import { PermissionBadges } from '../../components/admin/UserBits'
+import { useOrganizationManagement } from '../../hooks/useOrganizationManagement'
+import { organizationAdminEn as orgText } from '../../content/organizationAdmin.en'
 import { adminEn } from '../../content/admin.en'
 import { statusLabelsEn } from '../../content/status.en'
 import type { Department, User } from '../../data/mock/types'
 import { useDocumentTitle } from '../../hooks/useDocumentTitle'
-import { formatCount } from '../../lib/count'
-import { members, removalBlockers, sopsIn, withAccess } from '../../lib/departmentAdmin'
-import { ADMIN_DEPARTMENTS_PATH, adminDepartmentEditPath, adminUserPath } from '../../lib/routes'
+import { withAccess } from '../../lib/departmentAdmin'
+import { adminDepartmentEditPath, adminUserPath } from '../../lib/routes'
 import { useDepartments } from '../../state/departmentsContext'
 import { useRequests } from '../../state/requestsContext'
-import { useCurrentUser } from '../../state/sessionContext'
-import { useSops } from '../../state/sopsContext'
 import { useUsers } from '../../state/usersContext'
 import type { SopStatus } from '../../types/status'
 import { NotFoundPage } from '../NotFoundPage'
@@ -30,12 +31,7 @@ export interface DepartmentDetailsLocationState {
 /** SOP statuses, in lifecycle order. */
 const SOP_STATUSES: SopStatus[] = ['draft', 'in-review', 'in-approval', 'returned', 'approved', 'published']
 
-/**
- * A department's page in the admin portal ("/admin/departments/:id", PBI 13): its
- * details, members, users with access and SOP counts, with Edit and Remove. A
- * department that isn't empty can't be removed; what blocks it is listed.
- * Removed and unknown departments show Not Found.
- */
+/** Department details with authoritative employees, role badges and SOP statistics. */
 export function DepartmentDetailsPage() {
   const { id } = useParams()
   const { activeDepartments } = useDepartments()
@@ -98,47 +94,21 @@ function PeopleList({ people, empty, label }: { people: User[]; empty: string; l
 
 function DepartmentPanels({ department }: { department: Department }) {
   const text = adminEn.departmentDetails
-  const { removeDepartment } = useDepartments()
   const { users } = useUsers()
   const { requests } = useRequests()
-  const { sops } = useSops()
-  const admin = useCurrentUser()
+  const management = useOrganizationManagement()
+  const record = management.data?.departments.find((row) => row.id === department.id)
   const navigate = useNavigate()
   const location = useLocation()
 
   const [notice] = useState(() => (location.state as DepartmentDetailsLocationState | null)?.notice)
   const [showNotice, setShowNotice] = useState(!!notice)
-  const [blockers, setBlockers] = useState<string[]>([])
   const [confirming, setConfirming] = useState(false)
-  const blockersRef = useRef<HTMLDivElement>(null)
-  const removeButtonRef = useRef<HTMLButtonElement | null>(null)
-
-  const data = { users, sops, requests }
   const withCount = (title: string, count: number) =>
     text.titleWithCount.replace('{title}', title).replace('{count}', String(count))
-  const departmentMembers = members(department.id, users)
+  const departmentMembers = record?.people ?? []
   const departmentWithAccess = withAccess(department.id, users, requests)
-  const departmentSops = sopsIn(department.id, sops)
-
-  function startRemove() {
-    setShowNotice(false)
-    const found = removalBlockers(department.id, data)
-    if (found.length > 0) {
-      const labels = { members: 'members', sops: 'sops', 'with-access': 'withAccess', 'pending-requests': 'pendingRequests' } as const
-      flushSync(() => setBlockers(found.map((blocker) => formatCount(blocker.count, text.remove.blockers[labels[blocker.kind]]))))
-      blockersRef.current?.focus()
-      return
-    }
-    setBlockers([])
-    setConfirming(true)
-  }
-
-  function confirmRemove() {
-    setConfirming(false)
-    removeDepartment(department.id, { actorId: admin.id, ...data })
-    const state: AdminDepartmentsLocationState = { removed: text.remove.done.replace('{name}', department.name) }
-    navigate(ADMIN_DEPARTMENTS_PATH, { state })
-  }
+  const sopCount = record?.sops ?? 0
 
   return (
     <>
@@ -146,7 +116,8 @@ function DepartmentPanels({ department }: { department: Department }) {
       <div className="mt-5 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex min-w-0 items-center gap-4">
           <DepartmentBadge department={department} className="size-14 text-base" />
-          <h1 className="min-w-0 text-2xl tracking-tight break-words sm:text-3xl">{department.name}</h1>
+          <div><h1 className="min-w-0 text-2xl tracking-tight break-words sm:text-3xl">{department.name}</h1>
+          <p className="mt-2 text-sm text-text-gray">{department.description}</p></div>
         </div>
         <Button variant="secondary" to={adminDepartmentEditPath(department.id)} className="shrink-0 self-start sm:self-auto">
           <Pencil aria-hidden="true" className="size-4" strokeWidth={1.75} />
@@ -164,23 +135,13 @@ function DepartmentPanels({ department }: { department: Department }) {
       </div>
 
       <div className="mt-6 grid max-w-3xl gap-6">
-        <Panel id="details-title" title={text.details.title}>
-          <dl className="grid gap-x-8 gap-y-4 text-sm sm:grid-cols-[auto_1fr]">
-            <div>
-              <dt className="text-text-gray">{text.details.initials}</dt>
-              <dd className="mt-0.5 font-medium text-maroon">{department.initials}</dd>
-            </div>
-            <div className="min-w-0">
-              <dt className="text-text-gray">{text.details.description}</dt>
-              <dd className={`mt-0.5 ${department.description ? 'font-medium text-maroon' : 'text-text-gray'}`}>
-                {department.description || text.details.noDescription}
-              </dd>
-            </div>
-          </dl>
-        </Panel>
-
-        <Panel id="members-title" title={withCount(text.members.title, departmentMembers.length)}>
-          <PeopleList people={departmentMembers} empty={text.members.empty} label={text.members.title} />
+        <Panel id="members-title" title={record ? withCount(orgText.employees, record.employees) : orgText.employees}>
+          {!record ? <PageLoading /> : departmentMembers.length === 0 ? <p className="text-sm text-text-gray">{text.members.empty}</p> : <div className="overflow-x-auto"><table className="w-full text-left text-sm">
+            <thead><tr><th className="pb-3">{orgText.name}</th><th className="pb-3">{orgText.email}</th><th className="pb-3">{orgText.position}</th></tr></thead>
+            <tbody>{departmentMembers.map((person) => <tr key={person.id} className="border-t border-beige">
+              <th scope="row" className="py-3 pr-4 font-medium"><Link to={adminUserPath(person.id)} className="text-maroon hover:underline">{person.name}</Link></th>
+              <td className="py-3 pr-4">{person.email}</td><td className="py-3"><PermissionBadges user={person} /></td>
+            </tr>)}</tbody></table></div>}
         </Panel>
 
         <Panel id="access-title" title={withCount(text.withAccess.title, departmentWithAccess.length)}>
@@ -188,10 +149,10 @@ function DepartmentPanels({ department }: { department: Department }) {
           <PeopleList people={departmentWithAccess} empty={text.withAccess.empty} label={text.withAccess.title} />
         </Panel>
 
-        <Panel id="sops-title" title={withCount(text.sops.title, departmentSops.length)}>
-          <dl aria-label={text.sops.label} className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+        <Panel id="sops-title" title={record ? withCount(text.sops.title, sopCount) : text.sops.title}>
+          {!record ? management.error ? <div role="alert"><p>{orgText.loadFailed}</p><Button onClick={() => void management.refresh()}>{orgText.retry}</Button></div> : <PageLoading /> : <dl aria-label={text.sops.label} className="grid grid-cols-2 gap-3 sm:grid-cols-3">
             {SOP_STATUSES.map((status) => {
-              const count = departmentSops.filter((sop) => sop.status === status).length
+              const count = record?.status_counts[status] ?? 0
               return (
                 <div key={status} className="rounded-lg border border-beige p-3.5">
                   <dt className={`text-sm ${count ? 'text-maroon' : 'text-text-gray'}`}>{statusLabelsEn[status]}</dt>
@@ -201,55 +162,16 @@ function DepartmentPanels({ department }: { department: Department }) {
                 </div>
               )
             })}
-          </dl>
+          </dl>}
         </Panel>
 
-        <Panel id="remove-title" title={text.remove.title}>
-          <p className="text-sm text-text-gray">{text.remove.text}</p>
-          {blockers.length > 0 && (
-            <div
-              ref={blockersRef}
-              role="alert"
-              tabIndex={-1}
-              className="mt-4 rounded-lg border border-status-rejected-fg/25 bg-status-rejected-bg px-4 py-3 text-sm text-status-rejected-fg focus:outline-none"
-            >
-              <p className="flex items-start gap-2 font-semibold">
-                <CircleAlert aria-hidden="true" className="mt-0.5 size-4 shrink-0" strokeWidth={2} />
-                {text.remove.refused.replace('{name}', department.name)}
-              </p>
-              <ul className="mt-1.5 list-disc space-y-1 pl-11">
-                {blockers.map((blocker) => (
-                  <li key={blocker}>{blocker}</li>
-                ))}
-              </ul>
-            </div>
-          )}
-          <Button
-            variant="danger"
-            className="mt-4"
-            onClick={(event) => {
-              removeButtonRef.current = event.currentTarget
-              startRemove()
-            }}
-          >
-            <Trash2 aria-hidden="true" className="size-4" strokeWidth={1.75} />
-            {text.remove.button}
-          </Button>
-        </Panel>
+        <IconButton label={record?.deletion_job_id ? orgText.retryCleanup : orgText.delete} icon={Trash2} danger
+          disabledReason={(record?.employees ?? 0) > 0 ? orgText.departmentBlocked : !record ? orgText.loadFailed : undefined}
+          onClick={() => { setShowNotice(false); setConfirming(true) }} />
       </div>
+      {confirming && record && <DeleteDepartmentDialog department={record} onClose={() => setConfirming(false)}
+        onDeleted={() => { const state: AdminDepartmentsLocationState = { removed: text.remove.done.replace('{name}', department.name) }; navigate('/admin/divisions-departments', { state }) }} />}
 
-      <ConfirmDialog
-        open={confirming}
-        title={text.remove.dialog.title.replace('{name}', department.name)}
-        description={text.remove.dialog.description}
-        cancelLabel={text.remove.dialog.cancel}
-        confirmLabel={text.remove.dialog.confirm}
-        onConfirm={confirmRemove}
-        onCancel={() => {
-          setConfirming(false)
-          removeButtonRef.current?.focus()
-        }}
-      />
     </>
   )
 }

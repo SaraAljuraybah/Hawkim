@@ -267,6 +267,7 @@ export interface AppNavItem {
   icon: IconName
   /** Also show the item as active on pages below it (e.g. /requests/new under /requests). */
   matchSubpaths?: boolean
+  activePaths?: string[]
   /**
    * Only shown to users with this permission (e.g. 'author'), or any of several
    * (e.g. reviewer or approver); everyone sees items without one.

@@ -195,7 +195,7 @@ Then open the local URL printed in the terminal (usually http://localhost:5173).
 
 To sign in, use one of the test accounts in [DEMO_ACCOUNTS.md](DEMO_ACCOUNTS.md). Ask the project owner for the test password.
 
-Sign-in, people, departments, guideline versions, SOPs, files, co-authors, compliance checks and internal review are saved in Supabase. The compliance check applies only to Pharmacovigilance SOPs. Approval, the admin portal and access to other departments are not in the database yet: they stay in this browser tab and reset on reload.
+Sign-in, people, departments, guideline versions, SOPs, files, co-authors, compliance checks and internal review are saved in Supabase. The compliance check applies only to Pharmacovigilance SOPs. Division and department management is also persisted through administrator-only database functions; see [setup, retention rules and verification](docs/divisions-departments.md). Approval, user administration and access requests for other departments remain in this browser tab and reset on reload.
 
 ### Other commands
 

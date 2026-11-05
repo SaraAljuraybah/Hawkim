@@ -5,11 +5,11 @@ export type SopDocumentFilter = 'all' | SopFileType
 
 /** Search only inside the active department's published directory, ordered by the date shown on the card. */
 export function filterDirectorySops(
-  all: Sop[], departmentId: DepartmentId, query = '', documentType: SopDocumentFilter = 'all', sort: MySopSort = 'newest',
+  all: Sop[], departmentId: DepartmentId, query = '', documentType: SopDocumentFilter = 'all', sort: MySopSort = 'newest', group: 'department' | 'others' = 'department',
 ): Sop[] {
   const search = query.trim().toLowerCase()
   const visible = all.filter((sop) =>
-    sop.status === 'published' && sop.departmentId === departmentId &&
+    (group === 'others' ? sop.directoryGroup === 'others' : sop.status === 'published' && sop.directoryGroup !== 'others' && sop.departmentId === departmentId) &&
     (documentType === 'all' || sop.fileType === documentType) &&
     (!search || sop.code.toLowerCase().includes(search) || sop.title.toLowerCase().includes(search)),
   )

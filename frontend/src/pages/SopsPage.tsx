@@ -1,3 +1,4 @@
+import { organizationAdminEn as orgText } from '../content/organizationAdmin.en'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Building2, FileText, Search } from 'lucide-react'
 import { Button } from '../components/ui/Button'
@@ -44,6 +45,7 @@ export function SopsPage() {
   const requests = useMyRequests()
 
   const [tab, setTab] = useState<SopTabKey>('all')
+  const [group, setGroup] = useState<'department' | 'others'>('department')
   const [query, setQuery] = useState('')
   const searchRef = useRef<HTMLInputElement>(null)
   const [documentType, setDocumentType] = useState<SopDocumentFilter>('all')
@@ -65,8 +67,8 @@ export function SopsPage() {
     label: content.tabs[key],
   }))
   const visibleSops = useMemo(
-    () => filterDirectorySops(directorySopsFor(sops, user, requests), activeDepartment.id, query, documentType, sort),
-    [sops, user, requests, activeDepartment.id, query, documentType, sort],
+    () => filterDirectorySops(directorySopsFor(sops, user, requests), activeDepartment.id, query, documentType, sort, group),
+    [sops, user, requests, activeDepartment.id, query, documentType, sort, group],
   )
   function clearFilters() {
     setQuery('')
@@ -85,6 +87,9 @@ export function SopsPage() {
         {activeDepartment.name}
       </p>
 
+      <SelectField name="directorySection" label={orgText.directoryGroup} value={group}
+        onChange={(event) => setGroup(event.target.value as 'department' | 'others')}
+        options={[{ value: 'department', label: orgText.departmentSection }, { value: 'others', label: orgText.others }]} className="mt-5 max-w-xs" />
       <div role="search" aria-label={content.filters.label} className="mt-6 rounded-xl border border-beige bg-white p-4 sm:p-5">
         <div className="grid items-end gap-4 sm:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_12rem_12rem]">
           <TextField

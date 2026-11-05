@@ -1,3 +1,4 @@
+import { ORGANIZATION_CHANGED, organizationEvents } from '../services/organizationAdmin'
 import { useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { sops as seedSops } from '../data/mock/sops'
 import type { ClosedReviewRequest, Sop, UserRequest } from '../data/mock/types'
@@ -301,6 +302,19 @@ export function SopsProvider({ children }: { children: ReactNode }) {
       active = false
     }
   }, [userId, commit, scheduleCompletion, loadClosed, watchServiceCheck])
+  useEffect(() => {
+    let active = true
+    const reload = () => {
+      void sopsApi.fetchSops().then((rows) => {
+        if (!active || activeIdentity.current !== userId) return
+        const samples = latestRef.current.filter((sop) => !storedIds.current.has(sop.id))
+        storedIds.current = new Set(rows.map((sop) => sop.id))
+        commit(mergeSops(samples, rows))
+      }).catch(() => { if (active) setLoaded({ userId, status: 'error' }) })
+    }
+    organizationEvents.addEventListener(ORGANIZATION_CHANGED, reload)
+    return () => { active = false; organizationEvents.removeEventListener(ORGANIZATION_CHANGED, reload) }
+  }, [userId, commit])
   const closedRequests = useMemo(() => (closed.userId === userId ? closed.requests : []), [closed, userId])
   const status: LoadStatus = userId && loaded?.userId === userId ? loaded.status : 'loading'
 

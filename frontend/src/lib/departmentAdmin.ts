@@ -85,12 +85,13 @@ export function removalBlockers(departmentId: DepartmentId, data: DepartmentRule
 
 /** What the admin enters. */
 export interface DepartmentInput {
+  divisionId?: string
   name: string
   initials: string
   description: string
 }
 
-export type DepartmentField = keyof DepartmentInput
+export type DepartmentField = 'name' | 'initials' | 'description'
 export type DepartmentProblem =
   | 'name-required'
   | 'name-too-long'
@@ -101,7 +102,7 @@ export type DepartmentProblem =
 
 /** The input as it is saved: trimmed, initials uppercase. */
 export function normalizeDepartment(input: DepartmentInput): DepartmentInput {
-  return { name: input.name.trim(), initials: input.initials.trim().toUpperCase(), description: input.description.trim() }
+  return { ...(input.divisionId ? { divisionId: input.divisionId } : {}), name: input.name.trim(), initials: input.initials.trim().toUpperCase(), description: input.description.trim() }
 }
 
 /**

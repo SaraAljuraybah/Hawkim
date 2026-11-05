@@ -9,3 +9,6 @@ dist/
 Thumbs.db
 desktop.ini
 .idea/
+
+# Isolated local Supabase test data and credentials
+/.local-tests/

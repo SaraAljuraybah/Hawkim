@@ -33,12 +33,12 @@ export function SopDetailPage() {
   const content = sopsEn.detail
   const { id } = useParams()
   const { sops } = useSops()
-  const sop = sops.find((item) => item.id === id && item.status === 'published')
+  const user = useCurrentUser()
+  const requests = useMyRequests()
+  const sop = sops.find((item) => item.id === id && (item.status === 'published' || (item.directoryGroup === 'others' && getSopAccess(item, user, requests) === 'granted')))
   // An unknown id leaves the title to the embedded Not Found page.
   useDocumentTitle(sop ? content.pageTitle.replace('{title}', sop.title) : undefined)
 
-  const user = useCurrentUser()
-  const requests = useMyRequests()
   const departments = useDepartments()
   const fileUrl = useFileUrl(sop && getSopAccess(sop, user, requests) === 'granted' ? sop : undefined)
   const [fileError, setFileError] = useState('')

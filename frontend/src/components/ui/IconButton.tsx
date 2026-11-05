@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import { useId, useState, type KeyboardEvent, type MouseEvent, type Ref } from 'react'
 import type { LucideIcon } from 'lucide-react'
 
@@ -11,6 +12,8 @@ interface IconButtonProps {
    */
   disabledReason?: string
   /** A link (e.g. a download) instead of a button. */
+  to?: string
+  edit?: boolean
   href?: string
   download?: string
   onClick?: (event: MouseEvent<HTMLButtonElement>) => void
@@ -33,13 +36,13 @@ const iconOnly = 'size-6 rounded-sm'
  * can be hovered and is dismissed with Escape (WCAG 1.4.13). It opens to the left
  * of the button's right edge, so it stays inside the page at the end of a row.
  */
-export function IconButton({ label, icon: Icon, disabledReason, href, download, onClick, danger = false, bare = false, ref }: IconButtonProps) {
+export function IconButton({ label, icon: Icon, disabledReason, href, download, onClick, danger = false, bare = false, ref, to, edit = false }: IconButtonProps) {
   const [open, setOpen] = useState(false)
   const tooltipId = useId()
   const disabled = !!disabledReason
   const colours = bare
     ? 'text-text-gray hover:text-maroon'
-    : danger ? 'text-status-rejected-fg hover:bg-status-rejected-bg' : 'text-maroon hover:bg-beige'
+    : edit ? 'text-[color-mix(in_srgb,var(--color-gold)_70%,var(--color-maroon))] hover:bg-beige' : danger ? 'text-status-rejected-fg hover:bg-status-rejected-bg' : 'text-maroon hover:bg-beige'
   const shared = {
     'aria-label': label,
     // The reason is extra information; when enabled the tooltip only repeats the name.
@@ -58,7 +61,7 @@ export function IconButton({ label, icon: Icon, disabledReason, href, download, 
 
   return (
     <span className="relative inline-flex" onMouseEnter={() => setOpen(true)} onMouseLeave={() => setOpen(false)}>
-      {href && !disabled ? (
+      {to && !disabled ? (<Link to={to} {...shared}>{icon}</Link>) : href && !disabled ? (
         <a href={href} download={download} {...shared}>
           {icon}
         </a>

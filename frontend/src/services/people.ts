@@ -11,7 +11,7 @@ import { supabase } from './supabase'
 
 /** The columns read for a person, with their roles. */
 const PROFILE_COLUMNS = 'id, full_name, email, initials, department_id, phone, position, deleted_at, user_roles(role)'
-const DEPARTMENT_COLUMNS = 'id, name, initials, description, removed_at, requires_compliance_check'
+const DEPARTMENT_COLUMNS = 'id, name, initials, description, removed_at, requires_compliance_check, division_id, updated_at'
 
 export interface ProfileRow {
   id: string
@@ -28,6 +28,8 @@ export interface ProfileRow {
 }
 
 export interface DepartmentRow {
+  division_id?: string | null
+  updated_at?: string
   id: string
   name: string
   initials: string
@@ -74,6 +76,8 @@ export async function fetchPeople(): Promise<User[]> {
 export function toDepartment(row: DepartmentRow): Department {
   return {
     id: row.id,
+    ...(row.division_id ? { divisionId: row.division_id } : {}),
+    ...(row.updated_at ? { updatedAt: row.updated_at } : {}),
     name: row.name,
     initials: row.initials,
     description: row.description,

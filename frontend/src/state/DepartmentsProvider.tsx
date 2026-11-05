@@ -1,16 +1,16 @@
-import { useCallback, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { validateWorkflowConfiguration } from '../lib/reviewFlow'
 import type { Department, DepartmentId } from '../data/mock/types'
 import {
-  departmentIdFor,
   normalizeDepartment,
-  removalBlockers,
   validateDepartment,
   type DepartmentInput,
 } from '../lib/departmentAdmin'
 import { DepartmentsContext, type DepartmentActor, type DepartmentsStore } from './departmentsContext'
 import { useLoadAfterSignIn } from './useLoadAfterSignIn'
 import { fetchDepartments } from '../services/people'
+import { saveDepartment, deleteDepartment, ORGANIZATION_CHANGED, organizationEvents } from '../services/organizationAdmin'
+import { useSession } from './sessionContext'
 
 /** Refuses anyone who isn't an active admin. */
 function assertAdmin({ actorId, users }: DepartmentActor) {
@@ -18,13 +18,7 @@ function assertAdmin({ actorId, users }: DepartmentActor) {
   if (!actor?.permissions.includes('admin')) throw new Error('Only an admin can manage departments')
 }
 
-/**
- * Departments store shared by the employee screens and the admin portal. The
- * departments are loaded from the database after sign-in. The admin actions only
- * change this tab's copy (lost on reload).
- * TODO: Save admin changes once those features are connected.
- * Must be inside <SessionProvider>.
- */
+/** Shared database-backed department directory. */
 export function DepartmentsProvider({ children }: { children: ReactNode }) {
   const [departments, setDepartments] = useState<Department[]>([])
   // The latest list (as in the other stores): actions check against it, not the last render.
@@ -33,8 +27,17 @@ export function DepartmentsProvider({ children }: { children: ReactNode }) {
     latestRef.current = next
     setDepartments(next)
   }, [])
-  const status = useLoadAfterSignIn(fetchDepartments, commit)
+  const baseStatus = useLoadAfterSignIn(fetchDepartments, commit)
+  const [refreshError, setRefreshError] = useState<string>()
+  const identity = useSession().user?.id
+  useEffect(() => {
+    let active = true
+    const reload = () => { void fetchDepartments().then((rows) => { if (active) { commit(rows); setRefreshError(undefined) } }).catch(() => { if (active) setRefreshError(identity) }) }
+    organizationEvents.addEventListener(ORGANIZATION_CHANGED, reload)
+    return () => { active = false; organizationEvents.removeEventListener(ORGANIZATION_CHANGED, reload) }
+  }, [identity, commit])
 
+  const status = identity && refreshError === identity ? 'error' : baseStatus
   const activeDepartments = useMemo(() => departments.filter((department) => !department.removedAt), [departments])
   const getDepartment = useCallback(
     (id: DepartmentId | undefined) => departments.find((department) => department.id === id),
@@ -47,30 +50,24 @@ export function DepartmentsProvider({ children }: { children: ReactNode }) {
     if (Object.values(problems).some(Boolean)) throw new Error('The department is not valid')
   }
 
-  const addDepartment = useCallback(
-    (input: DepartmentInput, actor: DepartmentActor) => {
-      assertAdmin(actor)
-      assertValid(input)
-      const values = normalizeDepartment(input)
-      const created: Department = { id: departmentIdFor(values.name, latestRef.current), ...values }
-      commit([...latestRef.current, created])
-      return created
-    },
-    [commit],
-  )
+  const addDepartment = useCallback(async (input: DepartmentInput, actor: DepartmentActor) => {
+    assertAdmin(actor)
+    assertValid(input)
+    const values = normalizeDepartment(input)
+    const id = await saveDepartment(values)
+    const created: Department = { id, ...values }
+    commit(await fetchDepartments())
+    return created
+  }, [commit])
 
-  const updateDepartment = useCallback(
-    (id: DepartmentId, input: DepartmentInput, actor: DepartmentActor) => {
-      assertAdmin(actor)
-      if (!latestRef.current.some((department) => department.id === id && !department.removedAt)) {
-        throw new Error(`Unknown department ${id}`)
-      }
-      assertValid(input, id)
-      const values = normalizeDepartment(input)
-      commit(latestRef.current.map((department) => (department.id === id ? { ...department, ...values } : department)))
-    },
-    [commit],
-  )
+  const updateDepartment = useCallback(async (id: string, input: DepartmentInput, actor: DepartmentActor) => {
+    assertAdmin(actor)
+    assertValid(input, id)
+    const previous = latestRef.current.find((row) => row.id === id && !row.removedAt)
+    if (!previous) throw new Error('Unknown department')
+    await saveDepartment(input, id, previous.updatedAt)
+    commit(await fetchDepartments())
+  }, [commit])
 
   const configureWorkflow = useCallback<DepartmentsStore['configureWorkflow']>((id, input, actor) => {
     assertAdmin(actor)
@@ -79,18 +76,13 @@ export function DepartmentsProvider({ children }: { children: ReactNode }) {
     commit(latestRef.current.map((department) => department.id === id ? { ...department, ...values } : department))
   }, [commit])
 
-  const removeDepartment = useCallback<DepartmentsStore['removeDepartment']>(
-    (id, context) => {
-      assertAdmin(context)
-      if (!latestRef.current.some((department) => department.id === id && !department.removedAt)) {
-        throw new Error(`Unknown department ${id}`)
-      }
-      if (removalBlockers(id, context).length > 0) throw new Error('This department can’t be removed now')
-      const removedAt = new Date().toISOString()
-      commit(latestRef.current.map((department) => (department.id === id ? { ...department, removedAt } : department)))
-    },
-    [commit],
-  )
+  const removeDepartment = useCallback<DepartmentsStore['removeDepartment']>(async (id, context, disposition = 'empty') => {
+    assertAdmin(context)
+    const previous = latestRef.current.find((row) => row.id === id && !row.removedAt)
+    if (!previous?.updatedAt) throw new Error('Refresh the department before deleting')
+    await deleteDepartment({ id, updated_at: previous.updatedAt }, disposition)
+    commit(await fetchDepartments())
+  }, [commit])
 
   const store = useMemo<DepartmentsStore>(
     () => ({ status, departments, activeDepartments, getDepartment, nameOf, addDepartment, updateDepartment, configureWorkflow, removeDepartment }),

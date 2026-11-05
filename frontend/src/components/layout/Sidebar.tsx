@@ -1,4 +1,4 @@
-import { Link, NavLink } from 'react-router-dom'
+import { Link, useLocation, matchPath } from 'react-router-dom'
 import { X } from 'lucide-react'
 import type { AppShellContent, SidebarContent } from '../../content/types'
 import { useSession } from '../../state/sessionContext'
@@ -41,6 +41,7 @@ const itemIcon = 'size-5 shrink-0 text-gold-light'
 export function Sidebar({ content, onNavigate, onClose, departmentSwitcher, badges }: SidebarProps) {
   const SignOutIcon = icons[content.signOut.icon]
   const { signOut } = useSession()
+  const { pathname } = useLocation()
   const homeHref = content.homeHref
 
   return (
@@ -86,20 +87,21 @@ export function Sidebar({ content, onNavigate, onClose, departmentSwitcher, badg
         <ul className="space-y-1.5">
           {content.nav.map((item) => {
             const Icon = icons[item.icon]
+            const isActive = [item.href, ...(item.activePaths ?? [])].some((path) => !!matchPath({ path, end: !item.matchSubpaths }, pathname))
             return (
               <li key={item.href}>
-                {/* NavLink sets aria-current="page" on the active item */}
-                <NavLink
+                {/* Legacy child URLs share their parent navigation indicator. */}
+                <Link
                   to={item.href}
-                  end={!item.matchSubpaths}
+                  aria-current={isActive ? 'page' : undefined}
                   onClick={onNavigate}
-                  className={({ isActive }) =>
+                  className={
                     `${itemBase} ${
                       isActive ? 'bg-white/10 text-white' : itemIdle
                     }`
                   }
                 >
-                  {({ isActive }) => (
+                  {(
                     <>
                       {isActive && (
                         <span aria-hidden="true" className="absolute inset-y-2 left-0 w-[3px] rounded-full bg-gold" />
@@ -119,7 +121,7 @@ export function Sidebar({ content, onNavigate, onClose, departmentSwitcher, badg
                       )}
                     </>
                   )}
-                </NavLink>
+                </Link>
               </li>
             )
           })}

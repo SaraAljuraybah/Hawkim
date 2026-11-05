@@ -1,6 +1,7 @@
 import { createContext, useContext } from 'react'
 import type { Department, DepartmentId, DepartmentWorkflowConfiguration, User } from '../data/mock/types'
 import type { DepartmentInput, DepartmentRulesData } from '../lib/departmentAdmin'
+import type { SopDisposition } from '../services/organizationAdmin'
 import type { LoadStatus } from './useLoadAfterSignIn'
 
 /** Who is acting (must be an active admin among `users`). */
@@ -23,12 +24,12 @@ export interface DepartmentsStore {
 
   // Admin actions (PBI 13). Each checks the rules in lib/departmentAdmin.ts and throws if not allowed.
   /** Adds a department (valid, unique name and initials) and returns it. */
-  addDepartment: (input: DepartmentInput, actor: DepartmentActor) => Department
+  addDepartment: (input: DepartmentInput, actor: DepartmentActor) => Promise<Department>
   /** Changes the name, initials and description; the id never changes. */
-  updateDepartment: (id: DepartmentId, input: DepartmentInput, actor: DepartmentActor) => void
+  updateDepartment: (id: DepartmentId, input: DepartmentInput, actor: DepartmentActor) => Promise<void>
   configureWorkflow: (id: DepartmentId, input: DepartmentWorkflowConfiguration, actor: DepartmentActor) => void
-  /** Removes an empty department (no members, SOPs, access or pending requests). */
-  removeDepartment: (id: DepartmentId, actor: DepartmentActor & DepartmentRulesData) => void
+  /** Removes a department without employees; SOP handling is explicit and transactional. */
+  removeDepartment: (id: DepartmentId, actor: DepartmentActor & DepartmentRulesData, disposition?: SopDisposition) => Promise<void>
 }
 
 export const DepartmentsContext = createContext<DepartmentsStore | null>(null)

@@ -15,7 +15,7 @@ export const adminEn: AdminContent = {
     navAriaLabel: 'Admin',
     nav: [
       { label: 'Users', href: '/admin/users', icon: 'employees', matchSubpaths: true },
-      { label: 'Departments', href: '/admin/departments', icon: 'departments', matchSubpaths: true },
+      { label: 'Divisions & Departments', href: '/admin/divisions-departments', icon: 'departments', matchSubpaths: true, activePaths: ['/admin/departments'] },
       { label: 'Requests', href: '/admin/requests', icon: 'requests', matchSubpaths: true },
       { label: 'Regulations', href: '/admin/regulations', icon: 'regulatory', matchSubpaths: true },
       { label: 'Organizational Structure', href: '/admin/organizational-structure', icon: 'hierarchy', matchSubpaths: true },
@@ -171,7 +171,7 @@ export const adminEn: AdminContent = {
       subtitle: 'Change the name, initials or description of {name}.',
       submit: 'Save Changes',
     },
-    backToList: { label: 'Back to Departments', href: '/admin/departments' },
+    backToList: { label: 'Back to Divisions & Departments', href: '/admin/divisions-departments' },
     backToDepartment: 'Back to {name}',
     name: { label: 'Name' },
     initials: { label: 'Initials', hint: '2–3 letters, e.g. QA. Shown in the department badge.' },
@@ -337,7 +337,7 @@ export const adminEn: AdminContent = {
   },
 
   departmentDetails: {
-    back: { label: 'Back to Departments', href: '/admin/departments' },
+    back: { label: 'Back to Divisions & Departments', href: '/admin/divisions-departments' },
     added: 'Department added.',
     updated: 'Department updated.',
     titleWithCount: '{title} ({count})',

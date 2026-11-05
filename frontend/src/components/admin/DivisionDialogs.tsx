@@ -1,0 +1,48 @@
+import { useState } from 'react'
+import { Copy, Pencil } from 'lucide-react'
+import { FormDialog } from '../ui/FormDialog'
+import { Button } from '../ui/Button'
+import { IconButton } from '../ui/IconButton'
+import { TextField } from '../ui/TextField'
+import { TextAreaField } from '../ui/TextAreaField'
+import { organizationAdminEn as text } from '../../content/organizationAdmin.en'
+import { saveDivision, type DivisionRecord } from '../../services/organizationAdmin'
+
+export function DivisionForm({ division, onClose, onSaved }: { division?: DivisionRecord; onClose: () => void; onSaved?: () => void }) {
+  const [name, setName] = useState(division?.name ?? '')
+  const [email, setEmail] = useState(division?.email ?? '')
+  const [description, setDescription] = useState(division?.description ?? '')
+  const [attempted, setAttempted] = useState(false)
+  const [error, setError] = useState('')
+  const nameInvalid = !name.trim() || name.trim().length > 100
+  const emailInvalid = !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()) || email.trim().length > 254
+  const descriptionInvalid = description.trim().length > 500
+  return <FormDialog open title={division ? text.editDivision : text.addDivision} confirmLabel={text.save} cancelLabel={text.cancel}
+    onClose={onClose} onConfirm={async () => {
+      setAttempted(true)
+      if (nameInvalid || emailInvalid || descriptionInvalid) return false
+      try { await saveDivision({ name, email, description }, division); onSaved?.() }
+      catch (reason) { setError((reason as Error).message); return false }
+    }}>
+    <TextField name="divisionName" label={text.name} required requiredMark value={name} onChange={(event) => setName(event.target.value)} error={attempted && nameInvalid ? text.requiredName : undefined} />
+    <TextAreaField name="divisionDescription" label={text.description} value={description} onChange={(event) => setDescription(event.target.value)} error={attempted && descriptionInvalid ? text.descriptionLong : undefined} />
+    <TextField name="divisionEmail" type="email" label={text.email} required requiredMark value={email} onChange={(event) => setEmail(event.target.value)} error={attempted && emailInvalid ? text.requiredEmail : undefined} />
+    {error && <p role="alert" className="text-sm text-status-rejected-fg">{error}</p>}
+  </FormDialog>
+}
+
+export function DivisionPreview({ division, onEdit, onClose }: { division: DivisionRecord; onEdit: () => void; onClose: () => void }) {
+  const [feedback, setFeedback] = useState('')
+  return <FormDialog open title={division.name} confirmLabel={text.close} onConfirm={() => {}} onClose={onClose}>
+    <div className="flex justify-end"><Button size="sm" variant="secondary" onClick={onEdit}><Pencil className="size-4" aria-hidden="true" />{text.edit}</Button></div>
+    <p className="text-black">{division.description}</p>
+    <div><p className="text-sm text-text-gray">{text.email}</p>
+      <div className="mt-1 flex items-center gap-2"><span className="break-all text-black">{division.email || text.missingEmail}</span>
+        {division.email && <IconButton bare icon={Copy} label={text.copy} onClick={async () => {
+          try { await navigator.clipboard.writeText(division.email!); setFeedback(text.copied) }
+          catch { setFeedback(text.copyFailed) }
+        }} />}
+      </div><p role="status" className="mt-1 text-xs text-text-gray">{feedback}</p>
+    </div>
+  </FormDialog>
+}
