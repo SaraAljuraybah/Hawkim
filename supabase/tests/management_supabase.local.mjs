@@ -25,7 +25,7 @@ ok(await server.from('departments').insert({id:home,name:'Verification home '+ru
 async function person(label,roles) {
  const email=label+'-'+run+'@test.invalid'
  const data=ok(await server.auth.admin.createUser({email,password,email_confirm:true}))
- ok(await server.from('profiles').insert({id:data.user.id,full_name:label==='admin'?'Verification Admin':'Sara Verification',email,initials:label==='admin'?'VA':'SV',department_id:home}))
+ ok(await server.from('profiles').insert({id:data.user.id,full_name:label==='admin'?'Verification Admin':'Sara Verification',email,initials:label==='admin'?'VA':'SV',department_id:home,position:label==='admin'?'Systems Administrator':'Safety Officer'}))
  ok(await server.from('user_roles').insert(roles.map(role=>({user_id:data.user.id,role}))))
  return {id:data.user.id,email}
 }
@@ -54,6 +54,9 @@ const row=async(id)=>ok(await server.from('departments').select('*').eq('id',id)
 const snapshot=await rpc(admin,'get_divisions_departments')
 const employees=snapshot.departments.find(d=>d.id===employeeDepartment)
 assert.equal(employees.employees,1);assert.equal(employees.people[0].permissions.length,2);assert.equal(employees.sops,1)
+await rpc(admin,'set_employee_positions',{p_profile_id:authorUser.id,p_titles:['Safety Officer','QPPV Deputy']})
+assert.deepEqual((await rpc(admin,'get_divisions_departments')).departments.find(d=>d.id===employeeDepartment).people[0].positions,['Safety Officer','QPPV Deputy'])
+assert((await author.rpc('set_employee_positions',{p_profile_id:authorUser.id,p_titles:['Forged']})).error)
 assert.equal((await admin.rpc('delete_department',{p_id:employeeDepartment,p_sop_action:'empty',p_expected_updated_at:(await row(employeeDepartment)).updated_at})).error.code,'23503')
 assert((await author.rpc('save_division',{p_id:null,p_name:'Forbidden',p_description:'',p_email:'x@test.invalid'})).error)
 assert((await author.functions.invoke('delete-department',{body:{departmentId:employeeDepartment,expectedUpdatedAt:(await row(employeeDepartment)).updated_at,confirmDeleteSops:true}})).error)
@@ -82,7 +85,7 @@ const jobId=await rpc(admin,'begin_department_file_deletion',{p_id:failureDepart
 const failed=await cleanDepartmentFiles(jobId,{
  claim:id=>rpc(server,'claim_department_file_deletion',{p_job_id:id}),
  remove:async(bucket,paths)=>{ok(await author.storage.from(bucket).remove(paths))},
- exists:async(bucket,path)=>storageObjectExists(await server.storage.from(bucket).info(path)),
+ present:(id,paths)=>rpc(server,'department_file_paths_present',{p_job_id:id,p_paths:paths}),
  acknowledge:(id,token,paths,error)=>rpc(server,'ack_department_file_deletion',{p_job_id:id,p_lease_token:token,p_deleted_paths:paths,p_failed:error}),
 })
 assert.equal(failed,'failed');assert.equal((await row(failureDepartment)).removed_at,null)

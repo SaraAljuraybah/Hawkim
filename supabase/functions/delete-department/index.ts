@@ -1,5 +1,5 @@
 import { createClient } from 'npm:@supabase/supabase-js@2.118.0'
-import { cleanDepartmentFiles, storageObjectExists, type CleanupClaim } from './cleanup.ts'
+import { cleanDepartmentFilesUntilDone, type CleanupClaim } from './cleanup.ts'
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
@@ -30,8 +30,10 @@ Deno.serve(async (request) => {
   if (permissionError || allowed !== true) return json(403, { errorCode: 'forbidden' })
   let jobId: string | undefined
   try {
-    const body = await request.json()
-    if (body.jobId) {
+    let body: { jobId?: unknown; departmentId?: unknown; expectedUpdatedAt?: unknown; confirmDeleteSops?: unknown }
+    try { body = await request.json() } catch { return json(400, { errorCode: 'invalid-request' }) }
+    if (!body || typeof body !== 'object') return json(400, { errorCode: 'invalid-request' })
+    if (body.jobId !== undefined) {
       if (typeof body.jobId !== 'string' || !uuid.test(body.jobId)) return json(400, { errorCode: 'invalid-request' })
       jobId = body.jobId
       const { error } = await user.rpc('get_department_file_deletion', { p_job_id: jobId })
@@ -44,6 +46,7 @@ Deno.serve(async (request) => {
         p_id: body.departmentId, p_expected_updated_at: body.expectedUpdatedAt,
       })
       if (error) {
+        if (error.code === '42501') return json(403, { errorCode: 'forbidden' })
         const errorCode = error.code === '23503' ? 'employees-assigned' : error.code === '23514' ? 'active-workflow' : 'conflict'
         return json(409, { errorCode })
       }
@@ -51,7 +54,8 @@ Deno.serve(async (request) => {
     }
     if (!jobId || !uuid.test(jobId)) return json(500, { errorCode: 'invalid-job' })
     const server = createClient(url, serverKey, { auth: { persistSession: false, autoRefreshToken: false } })
-    const state = await cleanDepartmentFiles(jobId, {
+    // Several bounded batches per request (time-boxed); a large job resumes on the next call.
+    const state = await cleanDepartmentFilesUntilDone(jobId, {
       claim: async (id) => {
         const { data, error } = await server.rpc('claim_department_file_deletion', { p_job_id: id })
         if (error) throw error
@@ -61,8 +65,11 @@ Deno.serve(async (request) => {
         const { error } = await server.storage.from(bucket).remove(paths)
         if (error) throw error
       },
-      exists: async (bucket, path) => {
-        return storageObjectExists(await server.storage.from(bucket).info(path))
+      present: async (id, paths) => {
+        const { data, error } = await server.rpc('department_file_paths_present', { p_job_id: id, p_paths: paths })
+        if (error) throw error
+        if (!Array.isArray(data)) throw new Error('Invalid presence response')
+        return data as string[]
       },
       acknowledge: async (id, token, paths, failed) => {
         const { data, error } = await server.rpc('ack_department_file_deletion', {
@@ -71,7 +78,7 @@ Deno.serve(async (request) => {
         if (error) throw error
         return data as string
       },
-    })
+    }, 20000)
     return json(state === 'completed' ? 200 : state === 'failed' ? 503 : 202, { jobId, state })
   } catch {
     // Do not return Storage credentials, internal paths, SQL diagnostics, or exception bodies.

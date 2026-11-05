@@ -4,43 +4,54 @@ export interface CleanupClaim { state: string; leaseToken?: string; files?: Clea
 export interface CleanupDependencies {
   claim: (jobId: string) => Promise<CleanupClaim>
   remove: (bucket: string, paths: string[]) => Promise<void>
-  exists: (bucket: string, path: string) => Promise<boolean>
+  /** Paths of this job that the database still sees in Storage (storage.objects). */
+  present: (jobId: string, paths: string[]) => Promise<string[]>
   acknowledge: (jobId: string, token: string, paths: string[], failed: boolean) => Promise<string>
 }
 
+const unsafePath = (file: CleanupFile) =>
+  file.bucket !== 'sop-files' || !file.path || file.path.startsWith('/') || file.path.split('/').includes('..')
+
+/** Processes ONE claimed batch. Returns the job state: completed, pending, failed or busy. */
 export async function cleanDepartmentFiles(jobId: string, dependencies: CleanupDependencies): Promise<string> {
   const claim = await dependencies.claim(jobId)
   if (claim.state === 'completed' || claim.state === 'busy') return claim.state
   if (claim.state !== 'processing' || !claim.leaseToken || !Array.isArray(claim.files)) throw new Error('Invalid cleanup claim')
-  const deleted: string[] = []
+  const paths = claim.files.map((file) => file.path)
+  let deleted: string[] = []
   let failed = false
-  try {
-    if (claim.files.some((file) => file.bucket !== 'sop-files' || !file.path || file.path.startsWith('/') || file.path.split('/').includes('..'))) {
-      throw new Error('Invalid cleanup ownership')
+  if (claim.files.some(unsafePath)) {
+    failed = true
+  } else if (paths.length) {
+    // A Storage error (permissions, network, partial batch) is not trusted either way:
+    // what counts is which objects are verifiably gone afterwards.
+    try { await dependencies.remove('sop-files', paths) } catch { /* verified below */ }
+    try {
+      const remaining = new Set(await dependencies.present(jobId, paths))
+      deleted = paths.filter((path) => !remaining.has(path))
+      failed = remaining.size > 0
+    } catch {
+      // Verification unavailable: acknowledge nothing, keep the job retryable.
+      deleted = []
+      failed = true
     }
-    if (claim.files.length) {
-      await dependencies.remove('sop-files', claim.files.map((file) => file.path))
-      // Storage success alone is insufficient: verify absence, including retrying a path
-      // already removed by a prior worker whose acknowledgement was lost.
-      for (let start = 0; start < claim.files.length; start += 10) {
-        const checks = await Promise.allSettled(claim.files.slice(start, start + 10).map(async (file) => {
-          if (await dependencies.exists(file.bucket, file.path)) throw new Error('Object remains')
-          return file.path
-        }))
-        for (const result of checks) {
-          if (result.status === 'fulfilled') deleted.push(result.value)
-          else failed = true
-        }
-      }
-    }
-  } catch { failed = true }
-  // If this acknowledgement fails, the persisted lease eventually expires and a retry
-  // re-verifies files. Never report completion or guess which objects were deleted.
+  }
+  // If this acknowledgement fails, the persisted lease expires and a retry re-verifies files.
+  // The database re-checks Storage itself and refuses any path that is still present.
   return dependencies.acknowledge(jobId, claim.leaseToken, deleted, failed)
 }
 
-/** The Storage HEAD helper returns an error even for absence. Inspect GET metadata's
- * explicit NoSuchKey code instead; permission/network/bucket failures are never absence. */
+/** Runs batches until the job completes, fails, is busy elsewhere, or the time budget ends (then 'pending'). */
+export async function cleanDepartmentFilesUntilDone(jobId: string, dependencies: CleanupDependencies, budgetMs = 20000, now = () => Date.now()): Promise<string> {
+  const end = now() + budgetMs
+  for (;;) {
+    const state = await cleanDepartmentFiles(jobId, dependencies)
+    if (state !== 'pending' || now() >= end) return state
+  }
+}
+
+/** Test/diagnostic helper for Storage `info()` results: only an explicit NoSuchKey means absent;
+ * permission, network and bucket failures are never treated as absence. */
 export function storageObjectExists(result: { data: unknown; error: { code?: string } | null }): boolean {
   if (result.error?.code === 'NoSuchKey') return false
   if (result.error) throw result.error
