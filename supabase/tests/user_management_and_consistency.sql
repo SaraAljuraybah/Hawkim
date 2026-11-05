@@ -144,8 +144,13 @@ do $$ declare person public.profiles; titles text[]; begin
 end $$;
 
 -- ---------- Permissions ----------
+-- An SOP and its current version must commit together (sops_current_version_fkey is deferred).
+begin;
 insert into public.sops(id,title,department_id,author_id,current_version,status)
 values('c3000000-0000-4000-8000-000000000001','Draft by new user','staff','c2000000-0000-4000-8000-000000000002',1,'draft');
+insert into public.sop_versions(sop_id,version,file_name,file_type,storage_path,file_size,uploaded_by)
+values('c3000000-0000-4000-8000-000000000001',1,'draft.pdf','pdf','c3000000-0000-4000-8000-000000000001/1.pdf',100,'c2000000-0000-4000-8000-000000000002');
+commit;
 select set_config('request.jwt.claim.sub','a1000000-0000-4000-8000-000000000001',false);
 set role authenticated;
 do $$ begin

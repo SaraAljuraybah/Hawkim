@@ -65,7 +65,7 @@ end $$;
 -- A profile can be assigned with its position in one transaction.
 begin;
 insert into auth.users(id) values('a1000000-0000-4000-8000-000000000008');
-insert into public.profiles(id,full_name,email,initials,department_id,position) values('a1000000-0000-4000-8000-000000000008','New Hire','new@test.invalid','NH','home','Analyst');
+insert into public.profiles(id,full_name,email,initials,department_id,position) values('a1000000-0000-4000-8000-000000000008','New Hire','new-hire@test.invalid','NH','home','Analyst');
 commit;
 -- Moving department moves the primary position and drops the old department's positions.
 update public.profiles set department_id='employees' where id='a1000000-0000-4000-8000-000000000002';
