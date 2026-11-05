@@ -1,21 +1,20 @@
-import { useState } from 'react'
-import { CircleCheck, LoaderCircle, Lock } from 'lucide-react'
+import { useRef, useState } from 'react'
+import { ChangePasswordDialog } from '../components/profile/ChangePasswordDialog'
 import { Card } from '../components/ui/Card'
+import { controlClasses } from '../components/ui/useFieldIds'
 import { profileEn } from '../content/profile.en'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
-import { sendPasswordResetEmail, type PasswordEmailFailureReason } from '../services/auth'
 import { useActiveDepartment } from '../state/activeDepartmentContext'
 import { useCurrentUser } from '../state/sessionContext'
 
-/** My Profile ("/profile"): the signed-in employee's own information, read-only, and a password change by email link. */
+/** My Profile ("/profile"): the signed-in employee's own information, read-only, and Change Password (a dialog). */
 export function ProfilePage() {
   const content = profileEn
   useDocumentTitle(content.pageTitle)
   const user = useCurrentUser()
   const { homeDepartment } = useActiveDepartment()
-  const [sending, setSending] = useState(false)
-  const [sent, setSent] = useState(false)
-  const [failure, setFailure] = useState('')
+  const [changing, setChanging] = useState(false)
+  const changeRef = useRef<HTMLButtonElement>(null)
   const roles = user.permissions.flatMap((permission) => (permission === 'admin' ? [] : [content.roles[permission]]))
   // Same order as Add User. A value that is missing or blank shows content.none, the same way for every field.
   const details = [
@@ -27,22 +26,6 @@ export function ProfilePage() {
     [content.fields.position, user.position],
     [content.fields.roles, roles.join(', ')],
   ].map(([label, value]) => [label, value?.trim() || content.none] as const)
-  const failures: Record<PasswordEmailFailureReason, string> = {
-    'too-many-attempts': content.password.errors.tooManyAttempts,
-    'not-connected': content.password.errors.notConnected,
-    failed: content.password.errors.failed,
-  }
-
-  async function changePassword() {
-    if (sending) return
-    setSending(true)
-    setSent(false)
-    setFailure('')
-    const result = await sendPasswordResetEmail(user.email)
-    setSending(false)
-    if (result.ok) setSent(true)
-    else setFailure(failures[result.reason])
-  }
 
   return (
     <>
@@ -55,37 +38,34 @@ export function ProfilePage() {
               <dd className="min-w-0 break-words text-maroon max-sm:mb-1">{value}</dd>
             </div>
           ))}
-          {/* Last row, under a divider: the password change, as a text action */}
-          <div className="mt-1 grid gap-x-6 gap-y-3 border-t border-beige pt-4 sm:col-span-2 sm:grid-cols-subgrid">
+          {/* Last row, under a divider: a field-style box with hidden dots and the Change action */}
+          <div className="mt-1 grid gap-x-6 gap-y-3 border-t border-beige pt-4 sm:col-span-2 sm:grid-cols-subgrid sm:items-center">
             <dt className="font-bold text-maroon">{content.fields.password}</dt>
             <dd className="min-w-0">
-              <button
-                type="button"
-                aria-disabled={sending || undefined}
-                onClick={changePassword}
-                className="inline-flex items-center gap-1.5 rounded-sm font-medium text-maroon underline-offset-2 hover:underline aria-disabled:cursor-not-allowed"
-              >
-                {sending ? (
-                  <LoaderCircle aria-hidden="true" className="size-4 shrink-0 motion-safe:animate-spin" strokeWidth={1.75} />
-                ) : (
-                  <Lock aria-hidden="true" className="size-4 shrink-0" strokeWidth={1.75} />
-                )}
-                {content.password.change}
-              </button>
+              <div className={`flex h-11 items-center justify-between gap-3 ${controlClasses()}`}>
+                <span aria-hidden="true" className="tracking-widest">••••••••</span>
+                <button
+                  ref={changeRef}
+                  type="button"
+                  aria-label={content.password.changeLabel}
+                  onClick={() => setChanging(true)}
+                  className="rounded-sm px-2 py-1 font-medium text-maroon underline-offset-2 hover:underline"
+                >
+                  {content.password.change}
+                </button>
+              </div>
             </dd>
           </div>
         </dl>
-        {/* Live regions stay mounted, so the result is announced */}
-        <div role="status">
-          {sent && (
-            <p className="mt-4 flex items-center gap-2.5 rounded-lg border border-status-approved-fg/20 bg-status-approved-bg px-4 py-3 text-sm font-medium text-status-approved-fg">
-              <CircleCheck aria-hidden="true" className="size-4 shrink-0" strokeWidth={2} />
-              {content.password.sent}
-            </p>
-          )}
-        </div>
-        <div role="alert">{failure && <p className="mt-4 text-sm text-status-rejected-fg">{failure}</p>}</div>
       </Card>
+      <ChangePasswordDialog
+        open={changing}
+        content={content.password.dialog}
+        onClose={() => {
+          setChanging(false)
+          changeRef.current?.focus()
+        }}
+      />
     </>
   )
 }

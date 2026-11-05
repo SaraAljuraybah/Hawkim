@@ -18,6 +18,8 @@ interface FormDialogProps {
   onConfirm: () => boolean | void | Promise<boolean | void>
   /** Called whenever the dialog closes (cancel, Escape, backdrop or after confirming). */
   onClose: () => void
+  /** Decorative icon centred above the title, in a soft beige circle; the title and description are centred too. */
+  icon?: ReactNode
   children?: ReactNode
 }
 
@@ -35,6 +37,7 @@ export function FormDialog({
   closeLabel,
   onConfirm,
   onClose,
+  icon,
   children,
 }: FormDialogProps) {
   const dialogRef = useRef<HTMLDialogElement>(null)
@@ -92,11 +95,16 @@ export function FormDialog({
     >
       {open && (
         <form noValidate onSubmit={handleSubmit} className="p-6">
-          <h2 id={titleId} className={closeLabel ? 'pr-10 text-lg' : 'text-lg'}>
+          {icon && (
+            <div aria-hidden="true" className="mx-auto mb-4 flex size-14 items-center justify-center rounded-full bg-beige text-maroon">
+              {icon}
+            </div>
+          )}
+          <h2 id={titleId} className={icon ? 'px-10 text-center text-lg' : closeLabel ? 'pr-10 text-lg' : 'text-lg'}>
             {title}
           </h2>
           {description && (
-            <p id={descriptionId} className="mt-2 text-text-gray">
+            <p id={descriptionId} className={icon ? 'mt-2 text-center text-text-gray' : 'mt-2 text-text-gray'}>
               {description}
             </p>
           )}

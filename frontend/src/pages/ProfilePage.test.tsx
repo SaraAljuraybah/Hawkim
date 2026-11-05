@@ -14,7 +14,6 @@ const fixture = vi.hoisted(() => ({
 }))
 vi.mock('../state/sessionContext', () => ({ useCurrentUser: () => fixture.user }))
 vi.mock('../state/activeDepartmentContext', () => ({ useActiveDepartment: () => ({ homeDepartment: fixture.home, activeDepartment: { id: 'other', name: 'Another Directory' } }) }))
-vi.mock('../services/auth', () => ({ sendPasswordResetEmail: vi.fn() }))
 vi.mock('../components/layout/NotificationsBell', () => ({ NotificationsBell: () => null }))
 vi.mock('../components/layout/DepartmentSwitcher', () => ({ DepartmentSwitcher: () => <button type="button">Department Switcher</button> }))
 
@@ -73,33 +72,31 @@ describe('My Profile', () => {
     expect(render()).toContain('>Safety<')
   })
 
-  it('offers Change Password in the last row, under a divider, as a text-style button with a lock icon', () => {
+  it('shows the password as a field-style box with hidden dots and a Change button named Change Password', () => {
     const html = render()
     const row = html.match(/<div class="([^"]*)"><dt[^>]*>Password<\/dt><dd[^>]*>(.*?)<\/dd><\/div>/)!
     expect(row[1]).toContain('border-t border-beige')
-    const button = row[2]
-    expect(button).toMatch(/^<button type="button"/)
+    const box = row[2]
+    // The same look as the text inputs (controlClasses), but not an input.
+    const boxClasses = box.match(/^<div class="([^"]*)"/)![1]
+    for (const token of ['h-11', 'rounded-lg', 'border', 'bg-white', 'border-text-gray/70']) expect(boxClasses.split(' ')).toContain(token)
+    expect(box).toContain('<span aria-hidden="true" class="tracking-widest">••••••••</span>')
+    const button = box.match(/<button[^>]*>[^<]*<\/button>/)![0]
+    expect(button).toMatch(/^<button type="button" aria-label="Change Password"/)
     expect(button).toMatch(/class="[^"]*text-maroon[^"]*hover:underline/)
-    expect(button).not.toMatch(/class="[^"]*\bbg-/)
-    const icon = button.match(/<svg[^>]*>/)![0]
-    expect(icon).toContain('lucide-lock')
-    expect(icon).toContain('aria-hidden="true"')
-    // The icon is hidden, so the accessible name is the text alone.
-    expect(button.replace(/<svg.*?<\/svg>/g, '').replace(/<[^>]+>/g, '')).toBe('Change Password')
+    expect(button.match(/class="([^"]*)"/)![1].split(' ').some((token) => token.startsWith('bg-'))).toBe(false)
+    expect(button).toContain('>Change</button>')
+    expect(box).not.toContain('<input')
   })
 
-  it('drops the separate Password card and its sentence', () => {
+  it('no longer offers the email link on the profile, and keeps the dialog closed at first', () => {
     const html = render()
     expect(html).not.toContain('We will email you')
-    expect(html).not.toMatch(/<h2[^>]*>Password</)
-    expect(html.match(/<section|<h2/g) ?? []).toHaveLength(0)
-  })
-
-  it('keeps the live regions for the result right under the Password row, in the same card', () => {
-    const html = render()
-    const after = html.slice(html.indexOf('>Change Password<'))
-    expect(after).toMatch(/^>Change Password<\/button><\/dd><\/div><\/dl><div role="status"><\/div><div role="alert"><\/div>/)
     expect(html).not.toContain('Check your email')
+    expect(html).not.toContain('role="alert"')
+    expect(html).not.toMatch(/<h2[^>]*>/)
+    expect(html).toContain('<dialog')
+    expect(html).not.toContain('Current Password')
   })
 
   it('stays open while browsing a read-only department', () => {
