@@ -139,8 +139,8 @@ describe('the Delete User warning', () => {
 })
 
 describe('permission badges', () => {
-  it('use exactly the tokens of the sidebar\'s Admin tag everywhere, Employee included', () => {
-    const tag = ['rounded-md', 'bg-gold-light', 'px-1.5', 'py-0.5', 'text-xs', 'font-semibold', 'text-maroon']
+  it('use the sidebar Admin tag\'s tokens with a lighter gold (60%) everywhere, Employee included', () => {
+    const tag = ['rounded-md', 'bg-gold-light/60', 'px-1.5', 'py-0.5', 'text-xs', 'font-semibold', 'text-maroon']
     const html = render() + renderToStaticMarkup(<PermissionBadges user={{ permissions: [] }} />)
     const badges = [...html.matchAll(/<li class="([^"]*)">([^<]+)<\/li>/g)]
     expect(badges.map((match) => match[2])).toContain('Employee')
