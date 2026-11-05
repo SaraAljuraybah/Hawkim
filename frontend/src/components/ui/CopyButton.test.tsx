@@ -55,8 +55,8 @@ describe('CopyButton states', () => {
 })
 
 describe('message durations', () => {
-  it('shows "Copied" for 0.7 seconds and the error for 5 seconds', () => {
-    expect(COPIED_MS).toBe(700)
+  it('shows "Copied" for 0.5 seconds and the error for 5 seconds', () => {
+    expect(COPIED_MS).toBe(500)
     expect(FAILED_MS).toBe(5000)
   })
 })
