@@ -9,6 +9,7 @@ import { CheckboxGroup } from '../../components/ui/CheckboxGroup'
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
 import { StatusBadge } from '../../components/ui/StatusBadge'
 import { adminEn } from '../../content/admin.en'
+import { usersAdminEn } from '../../content/usersAdmin.en'
 import { usersEn } from '../../content/users.en'
 import type { Permission, User } from '../../data/mock/types'
 import { useDocumentTitle } from '../../hooks/useDocumentTitle'
@@ -113,6 +114,8 @@ function UserPanels({ user }: { user: User }) {
   const [permissionErrors, setPermissionErrors] = useState<string[]>([])
   const [deleteErrors, setDeleteErrors] = useState<string[]>([])
   const [confirming, setConfirming] = useState(false)
+  /** A permission change or deletion is being saved. */
+  const [pending, setPending] = useState(false)
   const permissionErrorRef = useRef<HTMLDivElement>(null)
   const deleteErrorRef = useRef<HTMLDivElement>(null)
   const deleteButtonRef = useRef<HTMLButtonElement | null>(null)
@@ -129,9 +132,21 @@ function UserPanels({ user }: { user: User }) {
       permissionErrorRef.current?.focus()
       return
     }
-    updatePermissions(user.id, selected, rules)
     setPermissionErrors([])
-    setSaved(true)
+    setSaved(false)
+    setPending(true)
+    // Saved by the database, which checks the same rules again (and its refusals are shown here).
+    updatePermissions(user.id, selected, rules).then(
+      () => {
+        setPending(false)
+        setSaved(true)
+      },
+      (reason: unknown) => {
+        setPending(false)
+        flushSync(() => setPermissionErrors([reason instanceof Error ? reason.message : usersAdminEn.failed]))
+        permissionErrorRef.current?.focus()
+      },
+    )
   }
 
   function startDelete() {
@@ -148,9 +163,18 @@ function UserPanels({ user }: { user: User }) {
 
   function confirmDelete() {
     setConfirming(false)
-    deleteUser(user.id, rules)
-    const state: AdminUsersLocationState = { deleted: text.delete.done.replace('{name}', user.name) }
-    navigate(ADMIN_USERS_PATH, { state })
+    setPending(true)
+    deleteUser(user.id, rules).then(
+      () => {
+        const state: AdminUsersLocationState = { deleted: text.delete.done.replace('{name}', user.name) }
+        navigate(ADMIN_USERS_PATH, { state })
+      },
+      (reason: unknown) => {
+        setPending(false)
+        flushSync(() => setDeleteErrors([reason instanceof Error ? reason.message : usersAdminEn.failed]))
+        deleteErrorRef.current?.focus()
+      },
+    )
   }
 
   const details = [
@@ -219,7 +243,7 @@ function UserPanels({ user }: { user: User }) {
             <RefusedBox ref={permissionErrorRef} title={text.permissions.refused} messages={permissionErrors} />
           )}
           <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2">
-            <Button onClick={savePermissions}>{text.permissions.save}</Button>
+            <Button onClick={savePermissions} disabled={pending} aria-busy={pending}>{pending ? usersAdminEn.saving : text.permissions.save}</Button>
             <p role="status" className="text-sm font-medium text-status-approved-fg">
               {saved && (
                 <span className="inline-flex items-center gap-1.5">
@@ -266,6 +290,7 @@ function UserPanels({ user }: { user: User }) {
           <Button
             variant="danger"
             className="mt-4"
+            disabled={pending}
             onClick={(event) => {
               deleteButtonRef.current = event.currentTarget
               startDelete()

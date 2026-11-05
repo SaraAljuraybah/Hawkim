@@ -23,10 +23,15 @@ const confirm = (element: Element) => (element.props.onConfirm as () => Promise<
 const change = (element: Element, value: string | boolean) => (element.props.onChange as (event: unknown) => void)({ target: { value, checked: value } })
 beforeEach(() => { host.states = []; host.index = 0; vi.clearAllMocks(); host.save.mockResolvedValue('v'); host.remove.mockResolvedValue(undefined) })
 describe('division create and edit form', () => {
-  it.each(['', 'invalid', 'a@b', 'a b@test.invalid'])('rejects missing or malformed email %s before saving', async (email) => {
+  it.each(['invalid', 'a@b', 'a b@test.invalid'])('rejects a malformed email %s before saving', async (email) => {
     const component = () => DivisionForm({ division: { ...division, email }, onClose: vi.fn() })
     await expect(confirm(render(component))).resolves.toBe(false)
     expect(host.save).not.toHaveBeenCalled()
+  })
+  it('saves without an email: it is optional (the database applies the same rule)', async () => {
+    const component = () => DivisionForm({ division: { ...division, email: '' }, onClose: vi.fn() })
+    await confirm(render(component))
+    expect(host.save).toHaveBeenCalledWith({ name: division.name, email: '', description: division.description }, { ...division, email: '' })
   })
   it('prefills every field and saves using the same revision for both edit entry points', async () => {
     const onSaved = vi.fn()

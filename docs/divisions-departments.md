@@ -36,6 +36,7 @@ tested against the hosted Supabase project.
 | `20261105130000_department_storage_cleanup.sql` | Durable deletion job (`department_file_deletions` + items), `begin_department_file_deletion`, `get_department_file_deletion` (admin), `claim_…`/`ack_…` (service role only), path-reuse policy |
 | `20261105140000_employee_positions.sql` (**new**) | `employee_positions` table, home-department guard, sync from `profiles.position`, commit-time "position required" rule, backfill, admin RPC `set_employee_positions`, snapshot with positions and server division totals |
 | `20261105150000_department_storage_verification.sql` (**new**) | `department_file_paths_present` (service role only); `ack_department_file_deletion` refuses any path still present in `storage.objects` |
+| `20261105160000_user_management_and_consistency.sql` (**new**) | Position sync fix; read-only `get_employees_missing_positions`; optional division email; persisted users (`create_employee_profile`, `set_user_roles`, `delete_user_profile`, internal `user_role_in_use`); deterministic `latest_round()` |
 
 Existing tables are reused (`divisions`, `departments.division_id`, `profiles.department_id`, `user_roles`,
 `sops`, `sop_versions`, review/compliance tables). No duplicate tables or conflicting foreign keys.
@@ -49,10 +50,15 @@ Existing tables are reused (`divisions`, `departments.division_id`, `profiles.de
   holds at least one position there (on profile insert/department change, and on position update/delete).
 - `profiles.position` remains the primary position (read by the profile/user pages) and is synced into the
   table; a department change drops the old department's positions and carries the primary one over.
+- Editing `profiles.position` directly **replaces** the primary row (renamed in place; if the new title is
+  already one of the employee's titles, that row becomes first and the old primary row goes). Secondary
+  titles are never touched. `set_employee_positions` and `create_employee_profile` write the whole ordered
+  list themselves and switch the profile trigger off for their own statements (`hawkim.positions_managed`).
 - Browser: read-only (active users, same as profiles). Writes only through `set_employee_positions`
   (admin, audited).
 - Legacy profiles that have a department but no `profiles.position` stay valid until their department or
-  positions change. Audit before/after rollout:
+  positions change; the department page shows them as "Position required". Nothing is invented. Audit
+  (admin RPC `get_employees_missing_positions()`, read only) or in SQL:
 
   ```sql
   select p.id, p.full_name, p.department_id from public.profiles p
@@ -76,6 +82,23 @@ Existing tables are reused (`divisions`, `departments.division_id`, `profiles.de
   signing keys; the in-function check is stricter than the gateway's (it also rejects banned/deleted
   users and non-admins). Setting `verify_jwt = true` is also safe with legacy keys if you prefer both. Invalid bodies get
   400; responses never include paths, SQL errors or credentials.
+
+## Users (Add User, permissions, delete) — persisted
+
+- **Add User** → Edge Function `manage-users` (`action: 'create'`): verifies the caller (as below), runs
+  `create_employee_profile` as the admin in **dry-run** mode (every rule checked before any account exists),
+  then `auth.admin.inviteUserByEmail` (service role, server only), then `create_employee_profile` with the
+  new Auth id: profile (email lower-cased, phone normalised to `+9665XXXXXXXX`, initials), ordered positions
+  and roles in one transaction. If that fails, the new Auth user is deleted again. The invitation opens
+  `/reset-password` (which now accepts `type=invite` links) to set the first password.
+- **Permissions** → admin RPC `set_user_roles`: own Admin can't be removed, at least one admin remains,
+  Admin is exclusive, Approver only in Quality, Author/Reviewer can't be removed while in use on SOPs
+  (same rule as `lib/userAdmin.ts`; Approver assignments aren't stored in the database yet).
+- **Delete** → `manage-users` (`action: 'delete'`): `delete_user_profile` (not self, not the last admin,
+  no work in progress) ends the profile (`deleted_at`; name and history kept), then the Auth account is
+  banned. A repeat is allowed, so a failed ban can be retried.
+- All three are audited in `organization_management_audit`. Counts on Divisions & Departments come only
+  from persisted profiles (`deleted_at is null`), so they change only after the database commits.
 
 ## Deletion rules
 
@@ -113,21 +136,23 @@ Existing tables are reused (`divisions`, `departments.division_id`, `profiles.de
 ## Deployment (requires your approval — nothing has been applied)
 
 1. Back up the hosted database and check the migration ledger (`supabase migration list`).
-2. Apply in order: `20261105120000`, `20261105130000`, `20261105140000`, `20261105150000`
-   (`supabase db push` after `supabase link --project-ref <ref>`).
-3. Run the legacy audits (division emails, profiles without positions) and fix data through the UI.
-4. Deploy the function: `supabase functions deploy delete-department` (its `config.toml` entry sets
-   `verify_jwt = false`; see Security).
-5. Function environment: `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` (provided
-   automatically by hosted Supabase). Frontend: `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`
-   (never a secret key).
-6. Deploy the frontend only after the migrations; it reads the new columns and RPCs.
+2. Apply in order: `20261105120000`, `20261105130000`, `20261105140000`, `20261105150000`, `20261105160000`
+   (`supabase db push --dry-run`, then `supabase db push`, after `supabase link --project-ref <ref>`).
+3. Run the legacy audit for profiles without positions and fix them through Edit positions.
+4. Deploy the functions: `supabase functions deploy delete-department` and
+   `supabase functions deploy manage-users` (both `verify_jwt = false` in `config.toml`; see Security).
+5. Auth settings: add `<site>/reset-password` (production and any preview/local origin used) to
+   Authentication → URL Configuration → Redirect URLs; confirm the Send Email hook (`send-email`) is
+   enabled, since it sends the `invite` email.
+6. Function environment: `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` (provided
+   automatically by hosted Supabase; if the legacy API keys are disabled, `SUPABASE_ANON_KEY` is missing and
+   both functions answer 503 `*-not-configured`). Frontend: `VITE_SUPABASE_URL`,
+   `VITE_SUPABASE_PUBLISHABLE_KEY` (never a secret key).
+7. Deploy the frontend only after the migrations: `services/sops.ts` selects `sops.directory_group`, so an
+   older schema breaks the whole SOP list, not just this page.
 
-Legacy division emails stay null (nothing is invented):
-
-```sql
-select id, name, email from public.divisions where is_active is not false and (email is null or btrim(email) = '');
-```
+Division email is **optional** (form and database agree: blank is stored as null; a given address must be
+valid, at most 254 characters).
 
 ## Tests executed (2026-11-05)
 
@@ -145,9 +170,11 @@ Notes:
 
 - The runners expect Docker `postgres:17-alpine`; Docker Hub was unreachable here, so a local disposable
   PostgreSQL 16 cluster stood in for the container. Re-run with Docker to confirm on PostgreSQL 17.
-- `other_department_reviewers.sql` is **flaky on every schema version, including before this feature**: it
-  creates review rounds in one transaction, so `latest_round()` ties on `requested_at` and falls back to
-  random uuid order. The runner now reports it instead of asserting on it.
+- `other_department_reviewers.sql` was flaky on every schema version: it creates review rounds in one
+  transaction, so `latest_round()` tied on `requested_at` and fell back to random uuid order (the frontend
+  sort had the same tie). Fixed in `20261105160000` (and `services/sops.ts`): the version breaks the tie.
+  The runner now **requires** it to pass 5 of 5 times on the final schema; it is informational only at the
+  mid-chain step, before the fix exists.
 - `supabase/tests/management_supabase.local.mjs` (real local Auth/PostgREST/Storage/Edge) was updated for
   positions and DB verification but **not run** here (needs `supabase start`).
 
@@ -160,7 +187,9 @@ screenshots.
 
 ## Remaining limitations
 
-- Hosted migrations, Edge deployment, real Storage delivery and real data are untested.
-- Add User is still in-memory in this repository (pre-existing), so new users do not get database
-  positions until user creation is persisted.
+- Hosted migrations, Edge deployment, real Storage delivery, real invitation emails and real data are untested.
+- An email that belonged to a deleted user can't be invited again: the old Auth account still holds it
+  (Add User reports "already has a Hawkim account").
+- Approver assignments aren't stored in the database yet, so the server can't block removing an Approver
+  permission that is in use (the browser check has the same limit today).
 - Files already downloaded or served through short-lived signed URLs cannot be revoked.

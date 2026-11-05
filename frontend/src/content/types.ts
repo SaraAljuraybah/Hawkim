@@ -1576,3 +1576,25 @@ export interface AdminUsersListContent {
   columns: { name: string; email: string; department: string; permissions: string }
   empty: string
 }
+
+/** Saving user administration to the database (services/users.ts): what failed and what to do. */
+export interface UsersAdminContent {
+  /** Shown on the submit button while the user is being created. */
+  adding: string
+  saving: string
+  deleting: string
+  emailTaken: string
+  departmentUnavailable: string
+  approverQuality: string
+  adminExclusive: string
+  selfAdmin: string
+  selfDelete: string
+  lastAdmin: string
+  inUse: string
+  inviteFailed: string
+  banFailed: string
+  forbidden: string
+  conflict: string
+  invalid: string
+  failed: string
+}

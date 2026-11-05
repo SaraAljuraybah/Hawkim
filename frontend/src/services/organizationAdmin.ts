@@ -23,10 +23,21 @@ export function managementError(error: { code?: string; message?: string }): Err
   if (error.code === '42501') return new Error(text.forbidden)
   if (error.code === '40001' || error.code === 'P0002') return new Error(text.conflict)
   if (error.code === '23505') return new Error(text.duplicate)
-  if (error.message === 'A position is required for a department assignment') return new Error(text.positionRequired)
-  const known = [text.divisionBlocked, text.departmentBlocked, text.activeWorkflow]
-  const match = known.find((message) => error.message === message)
-  return new Error(match ?? (error.code === '23514' ? text.invalid : text.failed))
+  const known = error.message ? DATABASE_MESSAGES[error.message] : undefined
+  return new Error(known ?? (error.code === '23514' ? text.invalid : text.failed))
+}
+
+/** The exact refusals raised in supabase/migrations/2026110512*–16*, as what the admin should do next. */
+const DATABASE_MESSAGES: Record<string, string> = {
+  'A position is required for a department assignment': text.positionRequired,
+  'Divisions with assigned departments cannot be deleted.': text.divisionBlocked,
+  'Departments with assigned employees cannot be deleted.': text.departmentBlocked,
+  'Settle active reviews and compliance checks before deleting this department.': text.activeWorkflow,
+  'Department has SOPs; choose Delete or Move to Others': text.departmentHasSops,
+  'Department file cleanup is pending': text.departmentPendingCleanup,
+  'Department is no longer available': text.departmentUnavailable,
+  'Select an active division': text.requiredDivision,
+  'Select a division': text.requiredDivision,
 }
 async function call<T>(name: string, args?: Record<string, unknown>): Promise<T> {
   const { data, error } = await supabase().rpc(name, args)

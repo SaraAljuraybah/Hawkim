@@ -418,3 +418,8 @@ enabled = true
 [functions.delete-department]
 # This endpoint verifies the bearer token through Auth.getUser and checks Admin in PostgreSQL.
 verify_jwt = false
+
+[functions.manage-users]
+# Same model as delete-department: the function verifies the bearer token through Auth.getUser
+# and checks the active Admin in PostgreSQL before any service-role call.
+verify_jwt = false

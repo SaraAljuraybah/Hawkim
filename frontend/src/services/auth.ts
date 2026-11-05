@@ -92,12 +92,15 @@ export async function sendPasswordResetEmail(email: string): Promise<{ ok: true 
   }
 }
 
-/** The session tokens in a recovery link's address hash, if it is one and it has no error. */
+/**
+ * The session tokens in a recovery or invitation link's address hash, if it is one and it has no
+ * error. Both open Set New Password: an invited user (Add User) sets their first password there.
+ */
 export function recoveryTokens(hash: string): { access_token: string; refresh_token: string } | undefined {
   const params = new URLSearchParams(hash.replace(/^#/, ''))
   const access_token = params.get('access_token')
   const refresh_token = params.get('refresh_token')
-  if (params.get('error') || params.get('error_code') || params.get('type') !== 'recovery' || !access_token || !refresh_token) return undefined
+  if (params.get('error') || params.get('error_code') || !['recovery', 'invite'].includes(params.get('type') ?? '') || !access_token || !refresh_token) return undefined
   return { access_token, refresh_token }
 }
 

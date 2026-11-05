@@ -105,3 +105,14 @@ describe('organization management RPC contract', () => {
     expect(error.message).not.toContain('sensitive')
   })
 })
+describe('department deletion messages', () => {
+  it.each([
+    ['Departments with assigned employees cannot be deleted.', /Move them to another department/],
+    ['Department has SOPs; choose Delete or Move to Others', /Move SOPs to Others or Delete associated SOPs/],
+    ['Settle active reviews and compliance checks before deleting this department.', /Finish or withdraw them first/],
+    ['Department file cleanup is pending', /Retry file cleanup/],
+    ['Department is no longer available', /Refresh the page/],
+  ])('explains "%s" with the action to take', (message, expected) => {
+    expect(managementError({ code: '23514', message }).message).toMatch(expected)
+  })
+})

@@ -1,3 +1,4 @@
+import { organizationAdminEn } from '../../content/organizationAdmin.en'
 import { describe, expect, it, vi } from 'vitest'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { MemoryRouter } from 'react-router-dom'
@@ -40,8 +41,8 @@ describe('unified divisions and departments table', () => {
   })
   it('uses focusable restricted-action tooltips for employee and division blockers', () => {
     const html = render('safety')
-    expect(html).toContain('Divisions with assigned departments cannot be deleted.')
-    expect(html).toContain('Departments with assigned employees cannot be deleted.')
+    expect(html).toContain(organizationAdminEn.divisionBlocked)
+    expect(html).toContain(organizationAdminEn.departmentBlocked)
     expect(html).toContain('aria-disabled="true"')
   })
   it('shows 0 for empty divisions and a meaningful search empty state', () => {

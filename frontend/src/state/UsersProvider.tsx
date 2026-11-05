@@ -1,11 +1,8 @@
-import { useCallback, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { usersEn } from '../content/users.en'
 import type { Permission, User } from '../data/mock/types'
 import {
   deleteBlockers,
-  initialsOf,
-  NO_DIVISION,
-  normalizePhone,
   PERMISSIONS,
   permissionChangeBlockers,
   validateNewUser,
@@ -15,12 +12,14 @@ import { useDepartments } from './departmentsContext'
 import { useLoadAfterSignIn } from './useLoadAfterSignIn'
 import { UsersContext, type AdminActionContext, type UsersStore } from './usersContext'
 import { fetchPeople } from '../services/people'
+import { ORGANIZATION_CHANGED, organizationEvents } from '../services/organizationAdmin'
+import { createUser, deleteUserAccount, setUserPermissions } from '../services/users'
 
 /**
  * Users store shared by the employee screens (names, people pickers) and the admin
  * portal. The people and their roles are loaded from the database after sign-in.
- * The admin actions only change this tab's copy (lost on reload): a user added here
- * has no sign-in account. TODO: Save admin changes once those features are connected.
+ * The admin actions are saved through services/users.ts (database + Auth, admin only), then
+ * the list is read back from the database, so nothing here is kept only in memory.
  * Must be inside <SessionProvider>.
  */
 export function UsersProvider({ children }: { children: ReactNode }) {
@@ -55,51 +54,56 @@ export function UsersProvider({ children }: { children: ReactNode }) {
     return { target, rules: { actorId: actor.id, users: active, sops: context.sops } }
   }, [])
 
+  /** Reads everyone again from the database (after a saved change, here or in organization admin). */
+  const reload = useCallback(async () => commit(await fetchPeople()), [commit])
+  useEffect(() => {
+    const refresh = () => { reload().catch(() => { /* keep the last list; the next load retries */ }) }
+    organizationEvents.addEventListener(ORGANIZATION_CHANGED, refresh)
+    return () => organizationEvents.removeEventListener(ORGANIZATION_CHANGED, refresh)
+  }, [reload])
+
   const addUser = useCallback(
-    (input: NewUser) => {
-      const current = latestRef.current
-      const problems = validateNewUser(input, current.filter((user) => !user.deletedAt), departments)
+    async (input: NewUser) => {
+      const problems = validateNewUser(input, latestRef.current.filter((user) => !user.deletedAt), departments)
       if (Object.values(problems).some(Boolean) || !input.departmentId) throw new Error('The user is not valid')
-      const name = input.name.trim()
-      const created: User = {
-        // Unique enough for an in-memory demo (the backend will assign real ids).
-        id: `user-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
-        name,
-        email: input.email.trim(),
-        initials: initialsOf(name),
+      // Saved by the database (with the Auth invitation); the list is then read back from it.
+      const id = await createUser({
+        name: input.name,
+        email: input.email,
+        phone: input.phone,
         departmentId: input.departmentId,
-        ...(input.divisionId && input.divisionId !== NO_DIVISION ? { divisionId: input.divisionId } : {}),
-        phone: normalizePhone(input.phone) ?? '',
-        position: input.position.trim(),
+        positions: [input.position],
         // Kept in display order, without duplicates.
         permissions: PERMISSIONS.filter((permission) => input.permissions.includes(permission)),
-      }
-      commit([...current, created])
+      })
+      await reload()
+      const created = latestRef.current.find((user) => user.id === id)
+      if (!created) throw new Error('The new user could not be loaded')
       return created
     },
-    [commit, departments],
+    [departments, reload],
   )
 
   const updatePermissions = useCallback(
-    (userId: string, permissions: Permission[], context: AdminActionContext) => {
+    async (userId: string, permissions: Permission[], context: AdminActionContext) => {
       const { target, rules } = resolve(userId, context)
       if (permissionChangeBlockers(target, permissions, rules).length > 0) {
         throw new Error('These permissions can’t be removed now')
       }
-      const next = PERMISSIONS.filter((permission) => permissions.includes(permission))
-      commit(latestRef.current.map((user) => (user.id === userId ? { ...user, permissions: next } : user)))
+      await setUserPermissions(userId, PERMISSIONS.filter((permission) => permissions.includes(permission)))
+      await reload()
     },
-    [commit, resolve],
+    [reload, resolve],
   )
 
   const deleteUser = useCallback(
-    (userId: string, context: AdminActionContext) => {
+    async (userId: string, context: AdminActionContext) => {
       const { target, rules } = resolve(userId, context)
       if (deleteBlockers(target, rules).length > 0) throw new Error('This user can’t be deleted now')
-      const deletedAt = new Date().toISOString()
-      commit(latestRef.current.map((user) => (user.id === userId ? { ...user, deletedAt } : user)))
+      await deleteUserAccount(userId)
+      await reload()
     },
-    [commit, resolve],
+    [reload, resolve],
   )
 
   const store = useMemo<UsersStore>(

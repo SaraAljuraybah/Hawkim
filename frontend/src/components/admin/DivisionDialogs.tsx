@@ -15,7 +15,8 @@ export function DivisionForm({ division, onClose, onSaved }: { division?: Divisi
   const [attempted, setAttempted] = useState(false)
   const [error, setError] = useState('')
   const nameInvalid = !name.trim() || name.trim().length > 100
-  const emailInvalid = !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()) || email.trim().length > 254
+  // Optional; when given it must be valid (the database applies the same rule).
+  const emailInvalid = email.trim() !== '' && (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()) || email.trim().length > 254)
   const descriptionInvalid = description.trim().length > 500
   return <FormDialog open title={division ? text.editDivision : text.addDivision} confirmLabel={text.save} cancelLabel={text.cancel}
     onClose={onClose} onConfirm={async () => {
@@ -26,7 +27,7 @@ export function DivisionForm({ division, onClose, onSaved }: { division?: Divisi
     }}>
     <TextField name="divisionName" label={text.name} required requiredMark value={name} onChange={(event) => setName(event.target.value)} error={attempted && nameInvalid ? text.requiredName : undefined} />
     <TextAreaField name="divisionDescription" label={text.description} value={description} onChange={(event) => setDescription(event.target.value)} error={attempted && descriptionInvalid ? text.descriptionLong : undefined} />
-    <TextField name="divisionEmail" type="email" label={text.email} required requiredMark value={email} onChange={(event) => setEmail(event.target.value)} error={attempted && emailInvalid ? text.requiredEmail : undefined} />
+    <TextField name="divisionEmail" type="email" label={text.email} value={email} onChange={(event) => setEmail(event.target.value)} error={attempted && emailInvalid ? text.invalidEmail : undefined} />
     {error && <p role="alert" className="text-sm text-status-rejected-fg">{error}</p>}
   </FormDialog>
 }

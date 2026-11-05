@@ -83,7 +83,8 @@ export function NewPasswordForm({ onSaved, onExpired }: { onSaved: () => void | 
 type Stage = 'checking' | 'ready' | 'invalid' | 'saved' | 'saved-signed-out'
 
 /**
- * Set New Password ("/reset-password"), opened from the recovery email. The Supabase client
+ * Set New Password ("/reset-password"), opened from the recovery email or the invitation email
+ * (a user added by an admin sets their first password here). The Supabase client
  * doesn't read the address itself (see services/supabase.ts), so this page starts the recovery
  * session from the link, once, and removes the tokens from the address straight away.
  */

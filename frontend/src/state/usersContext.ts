@@ -21,12 +21,13 @@ export interface UsersStore {
   /** A user's name for display; "(deleted)" is added for a deleted user. */
   nameOf: (id: string | undefined) => string
 
-  // Admin actions (PBI 15, 18, 19). Each checks the rules in lib/userAdmin.ts and throws if not allowed.
-  /** Adds a user (required fields, unique email) and returns them. */
-  addUser: (user: NewUser) => User
-  updatePermissions: (userId: string, permissions: Permission[], context: AdminActionContext) => void
+  // Admin actions (PBI 15, 18, 19). Each checks the rules in lib/userAdmin.ts, then saves to the
+  // database (which checks them again); rejects with a message for the admin if not saved.
+  /** Adds a user (required fields, unique email): saved with an Auth invitation; resolves to the saved user. */
+  addUser: (user: NewUser) => Promise<User>
+  updatePermissions: (userId: string, permissions: Permission[], context: AdminActionContext) => Promise<void>
   /** Deletes a user: they can no longer sign in, and their name stays on SOP history. */
-  deleteUser: (userId: string, context: AdminActionContext) => void
+  deleteUser: (userId: string, context: AdminActionContext) => Promise<void>
 }
 
 export const UsersContext = createContext<UsersStore | null>(null)

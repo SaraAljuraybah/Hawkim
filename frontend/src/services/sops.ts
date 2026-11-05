@@ -298,7 +298,9 @@ function toCheck(sopId: string, row: ComplianceCheckRow): ComplianceCheck {
 export function toSop(row: SopRow): Sop {
   const versions = [...row.sop_versions].sort((a, b) => a.version - b.version).map(toVersion)
   const current = versions.find((item) => item.version === String(row.current_version))
-  const rounds = [...row.review_rounds].sort((a, b) => a.requested_at.localeCompare(b.requested_at)).map(toRound)
+  // Rounds sent in the same moment tie on requested_at: the version (one round per version) decides,
+  // the same order as the database's latest_round().
+  const rounds = [...row.review_rounds].sort((a, b) => a.requested_at.localeCompare(b.requested_at) || a.version - b.version).map(toRound)
   const latestRound = rounds.at(-1)
   return {
     id: row.id,

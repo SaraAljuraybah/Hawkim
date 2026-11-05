@@ -9,6 +9,7 @@ import { SelectCombobox } from '../../components/ui/SelectCombobox'
 import { TextField } from '../../components/ui/TextField'
 import { adminEn } from '../../content/admin.en'
 import { usersEn } from '../../content/users.en'
+import { usersAdminEn } from '../../content/usersAdmin.en'
 import type { Permission } from '../../data/mock/types'
 import { useDocumentTitle } from '../../hooks/useDocumentTitle'
 import { adminUserPath } from '../../lib/routes'
@@ -36,8 +37,8 @@ type FieldErrors = Partial<Record<NewUserField, string>>
  * permissions are optional. Division comes first: the department list waits for it, and when "No
  * Division" is the only choice it is chosen from the start. Nothing is added while any required
  * information is missing. On success, the new user's page opens.
- * TODO: Create a real account (an invitation to set a password) once the backend
- * exists. There is no password field: the admin never chooses one.
+ * Saved through services/users.ts: the account gets an invitation email to set a password (the
+ * admin never chooses one), and the profile, position and permissions are stored in the database.
  */
 export function AddUserPage() {
   const content = adminEn.addUser
@@ -50,6 +51,9 @@ export function AddUserPage() {
   const [values, setValues] = useState<NewUser>({ name: '', email: '', phone: '', departmentId: '', position: '', permissions: [] })
   const [errors, setErrors] = useState<FieldErrors>({})
   const [submitAttempted, setSubmitAttempted] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState('')
+  const saveErrorRef = useRef<HTMLParagraphElement>(null)
   const nameRef = useRef<HTMLInputElement>(null)
   const emailRef = useRef<HTMLInputElement>(null)
   const phoneRef = useRef<HTMLInputElement>(null)
@@ -88,6 +92,7 @@ export function AddUserPage() {
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    if (saving) return
     setSubmitAttempted(true)
     const next = errorsFor(user)
     // Render the messages before moving focus, so screen readers read them with the field.
@@ -98,9 +103,19 @@ export function AddUserPage() {
       refs[firstInvalid].current?.focus()
       return
     }
-    const created = addUser(user)
-    const state: UserDetailsLocationState = { added: true }
-    navigate(adminUserPath(created.id), { state })
+    setSaveError('')
+    setSaving(true)
+    addUser(user).then(
+      (created) => {
+        const state: UserDetailsLocationState = { added: true }
+        navigate(adminUserPath(created.id), { state })
+      },
+      (reason: unknown) => {
+        setSaving(false)
+        flushSync(() => setSaveError(reason instanceof Error ? reason.message : usersAdminEn.failed))
+        saveErrorRef.current?.focus()
+      },
+    )
   }
 
   return (
@@ -222,11 +237,16 @@ export function AddUserPage() {
           className="mt-6"
         />
 
+        {saveError && (
+          <p ref={saveErrorRef} tabIndex={-1} role="alert" className="mt-6 text-sm text-status-rejected-fg">
+            {saveError}
+          </p>
+        )}
         <div className="mt-8 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
           <Button variant="secondary" to={content.back.href}>
             {content.cancel}
           </Button>
-          <Button type="submit">{content.submit}</Button>
+          <Button type="submit" disabled={saving} aria-busy={saving}>{saving ? usersAdminEn.adding : content.submit}</Button>
         </div>
       </form>
     </>

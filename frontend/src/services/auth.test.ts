@@ -118,8 +118,9 @@ describe('changing a password by email link', () => {
     vi.unstubAllGlobals()
   })
 
-  it('reads only a recovery link without an error', () => {
+  it('reads only a recovery or invitation link without an error', () => {
     expect(recoveryTokens(link)).toEqual({ access_token: 'access', refresh_token: 'refresh' })
+    expect(recoveryTokens('#access_token=access&refresh_token=refresh&type=invite')).toEqual({ access_token: 'access', refresh_token: 'refresh' })
     expect(recoveryTokens('')).toBeUndefined()
     expect(recoveryTokens('#access_token=access&refresh_token=refresh&type=signup')).toBeUndefined()
     expect(recoveryTokens('#error=access_denied&error_code=otp_expired&error_description=Email+link+is+invalid+or+has+expired')).toBeUndefined()

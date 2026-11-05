@@ -52,11 +52,11 @@ try {
   console.log(`PASS: initial ${files.length-later.length} migrations applied to a fresh disposable PostgreSQL database`)
   for (const regression of regressions) {
     const error = regressionError(regression)
-    // other_department_reviewers.sql is nondeterministic on every schema version: its rounds are
-    // created in ONE transaction, so latest_round()'s requested_at ties and falls back to random
-    // uuid order. Report it, but do not let a pre-existing coin flip decide this feature's run.
     if (regression === 'other_department_reviewers.sql') {
-      console.log(`KNOWN PRE-EXISTING FLAKY TEST ${regression}: before=${baseline.get(regression) ?? 'pass'} after=${error ?? 'pass'}`)
+      // Before 20261105160000, latest_round() broke requested_at ties (rounds created in one
+      // transaction) by random uuid, so this result is a coin flip here. It is informational only;
+      // the same test is REQUIRED to pass, repeatedly, on the final schema below.
+      console.log(`INFO (tie-break not applied yet) ${regression}: before=${baseline.get(regression) ?? 'pass'} after=${error ?? 'pass'}`)
     } else if (baseline.get(regression)) {
       assert.equal(error,baseline.get(regression),'Review regression changed after the management migration')
       console.log('KNOWN BASELINE FAILURE before and after migration: '+regression+': '+error)
@@ -85,9 +85,17 @@ try {
   console.log('PASS: Storage deletion job authorization, complete path manifests, failure recovery, leases, pending-assignment guards, finalization and RPC bypass protection')
   // An existing single job title must be backfilled into employee_positions.
   sql(`update public.profiles set position='Administrator' where id='a1000000-0000-4000-8000-000000000001';`)
-  for (const file of later.filter((file) => !file.startsWith('20261105130000'))) sql(read('supabase/migrations/'+file))
+  for (const file of later.filter((file) => file > '20261105130000' && file < '20261105160000')) sql(read('supabase/migrations/'+file))
   sql(read('supabase/tests/employee_positions_and_storage.sql'))
   console.log('PASS: multiple employee positions (backfill, admin-only RPC, required position, home-department rule), server division totals, database-verified Storage absence')
+  for (const file of later.filter((file) => file >= '20261105160000')) sql(read('supabase/migrations/'+file))
+  sql(read('supabase/tests/user_management_and_consistency.sql'))
+  console.log('PASS: position sync keeps secondary titles, read-only missing-position audit, optional division email, persisted user create/permissions/delete with every database rule')
+  // Deterministic latest round: the previously flaky regression must now pass every time.
+  for (let run = 1; run <= 5; run++) {
+    assert.equal(regressionError('other_department_reviewers.sql'),null,`other_department_reviewers.sql failed on run ${run} of the final schema`)
+  }
+  console.log('PASS: existing review regression other_department_reviewers.sql on the final schema (5 of 5 runs)')
   // Every later migration must replay-safely coexist with the existing review regressions.
   assert.equal(regressionError('internal_review_rpc.sql'),null,'internal_review_rpc.sql regressed on the final schema')
   console.log('PASS: existing review regression internal_review_rpc.sql on the final schema')
