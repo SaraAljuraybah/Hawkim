@@ -74,6 +74,10 @@ describe('directory selection never changes authoring or membership context', ()
     expect(html).toContain('Foreign Directory')
     expect(html).toContain('(Read-only)')
   })
+  it('keeps the top bar switcher\'s keyboard focus ring tight, so it never covers the name above', () => {
+    const html = render(<DepartmentSwitcher content={appShellEn.departmentSwitcher} variant="topbar" />)
+    expect(html.match(/<button[^>]*aria-haspopup="menu"[^>]*>/)![0]).toContain('focus-visible:outline-offset-0')
+  })
   it('never cuts the department name in the top bar, keeping the chevron', () => {
     const html = render(<DepartmentSwitcher content={appShellEn.departmentSwitcher} variant="topbar" />)
     expect(html).not.toContain('truncate')

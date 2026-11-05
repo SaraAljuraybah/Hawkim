@@ -127,7 +127,8 @@ export function DepartmentSwitcher({ content, variant, onSwitched }: DepartmentS
         className={
           isDrawer
             ? 'flex w-full items-center justify-between gap-2 rounded-lg border border-white/20 bg-white/10 px-3 py-2.5 text-left text-sm font-medium text-offwhite hover:bg-white/15'
-            : '-mx-1 inline-flex items-center gap-1 rounded-md px-1 text-left text-xs text-text-gray hover:text-maroon'
+            // The keyboard focus ring hugs the button, so it doesn't cover the name above.
+            : '-mx-1 inline-flex items-center gap-1 rounded-md px-1 text-left text-xs text-text-gray hover:text-maroon focus-visible:outline-offset-0'
         }
       >
         {/* The top bar never cuts the name: it wraps instead. */}

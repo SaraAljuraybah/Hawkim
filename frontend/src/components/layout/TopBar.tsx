@@ -55,12 +55,13 @@ export function TopBar({ content, user, menuOpen, onOpenMenu, menuButtonRef }: T
             <div className="min-w-0 leading-tight">
               {/* The same link for the mouse and touch, hidden on phones. Screen readers and the
                   keyboard use the avatar's link, so they don't meet it twice. The department
-                  switcher moves into the mobile drawer on phones. */}
+                  switcher moves into the mobile drawer on phones. It never takes keyboard focus, so a
+                  click shows no focus ring (which would cover the department line). */}
               <Link
                 to={content.profileLink.href}
                 tabIndex={-1}
                 aria-hidden="true"
-                className="hidden text-sm font-medium break-words text-maroon underline-offset-2 hover:underline sm:block"
+                className="hidden text-sm font-medium break-words text-maroon underline-offset-2 outline-none hover:underline sm:block"
               >
                 {user.name}
               </Link>

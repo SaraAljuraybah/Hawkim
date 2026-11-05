@@ -155,6 +155,18 @@ describe('top bar links to My Profile', () => {
     expect(markup).toMatch(/<div class="hidden flex-wrap[^"]*sm:flex">/)
   })
 
+  it('shows no focus ring on the mouse-only name link, so nothing covers the department line; the avatar keeps its ring', () => {
+    for (const position of [undefined, 'Pharmacovigilance Specialist']) {
+      fixture.user = { ...fixture.user, position }
+      const [avatar, name] = links()
+      expect(name).toContain('tabindex="-1"')
+      expect(name.match(/class="([^"]*)"/)![1].split(' ')).toContain('outline-none')
+      // The avatar uses the site's visible keyboard focus ring.
+      expect(avatar).not.toContain('outline-none')
+      expect(avatar).not.toContain('tabindex')
+    }
+  })
+
   it('keeps the department switcher outside the links, with no menu on the avatar', () => {
     expect(html()).toContain('>Department Switcher<')
     for (const link of links()) expect(link).not.toContain('<button')
