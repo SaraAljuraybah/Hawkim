@@ -30,7 +30,7 @@ export function ProfilePage() {
   return (
     <>
       <h1 className="text-2xl tracking-tight sm:text-3xl">{content.title}</h1>
-      <Card className="mt-6 max-w-2xl">
+      <Card className="mt-6">
         <dl className="grid gap-x-6 gap-y-3 text-sm sm:grid-cols-[10rem_minmax(0,1fr)]">
           {details.map(([label, value]) => (
             <div key={label} className="contents">
@@ -42,7 +42,7 @@ export function ProfilePage() {
           <div className="mt-1 grid gap-x-6 gap-y-3 border-t border-beige pt-4 sm:col-span-2 sm:grid-cols-subgrid sm:items-center">
             <dt className="font-bold text-maroon">{content.fields.password}</dt>
             <dd className="min-w-0">
-              <div className={`flex h-11 items-center justify-between gap-3 ${controlClasses()}`}>
+              <div className={`flex h-11 max-w-md items-center justify-between gap-3 ${controlClasses()}`}>
                 <span aria-hidden="true" className="tracking-widest">••••••••</span>
                 <button
                   ref={changeRef}

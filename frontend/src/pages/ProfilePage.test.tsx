@@ -99,6 +99,14 @@ describe('My Profile', () => {
     expect(html).not.toContain('Current Password')
   })
 
+  it('uses the full content width for the details card, but keeps the password box at a comfortable width', () => {
+    const html = render()
+    const card = html.match(/<div class="(rounded-xl border border-beige bg-white[^"]*)"><dl/)![1]
+    expect(card).not.toMatch(/max-w-/)
+    const box = html.match(/<dt[^>]*>Password<\/dt><dd[^>]*><div class="([^"]*)"/)![1]
+    expect(box.split(' ')).toContain('max-w-md')
+  })
+
   it('stays open while browsing a read-only department', () => {
     expect(isPathAllowed(PROFILE_PATH, true)).toBe(true)
   })
