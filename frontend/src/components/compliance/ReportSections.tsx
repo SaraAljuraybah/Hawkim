@@ -7,15 +7,13 @@ import {
   complianceScore,
   countResults,
   RESULT_ORDER,
-  topPriorities,
-  VERDICT_RANK,
   verdictOf,
   type NumberedFinding,
-  type RequirementChange,
   type Verdict,
 } from '../../lib/compliance'
 import { ComplianceBadge } from './ComplianceBadge'
 import { useReportRequirement } from './reportRequirements'
+import { summarySentence } from './summarySentence'
 
 type ReportText = ComplianceContent['report']
 
@@ -54,21 +52,6 @@ function requirementLabel(
 }
 
 // ---------- b) Executive summary ----------
-
-/** "1 conflict, 1 requirement not addressed and 1 partially compliant requirement need attention before submitting for review." */
-function summarySentence(check: ComplianceCheck, status: SopStatus, text: ReportText['summary']): string {
-  const counts = countResults(check)
-  const keys = ['conflict', 'not-addressed', 'partial'] as const
-  const parts = keys
-    .filter((key) => counts[key] > 0)
-    .map((key) => (counts[key] === 1 ? text.attention[key].one : text.attention[key].other).replace('{count}', String(counts[key])))
-  if (parts.length === 0) return text.allCompliant
-  const items = parts.length === 1 ? parts[0] : `${parts.slice(0, -1).join(', ')} ${text.and} ${parts[parts.length - 1]}`
-  const total = keys.reduce((sum, key) => sum + counts[key], 0)
-  // "…before submitting for review" only while the author can still (re)submit.
-  const template = status === 'draft' || status === 'returned' ? text.beforeSubmit : text.needsAttention
-  return (total === 1 ? template.one : template.other).replace('{items}', items)
-}
 
 /** The verdict's colours (the status colour pairs, all WCAG AA) and icon. */
 const VERDICT_STYLE: Record<Verdict, { classes: string; Icon: LucideIcon }> = {
@@ -113,23 +96,14 @@ function ScoreRing({ score, label, caption }: { score: number; label: string; ca
 
 export function ExecutiveSummary({
   check,
-  previous,
   status,
-  findings,
   content,
-  onJump,
 }: {
   check: ComplianceCheck
-  /** The previous version's report, if any (for the change line). */
-  previous?: ComplianceCheck
   status: SopStatus
-  /** The numbered findings (report order). */
-  findings: NumberedFinding[]
   content: ComplianceContent
-  onJump: (event: MouseEvent<HTMLAnchorElement>, number: string) => void
 }) {
   const text = content.report.summary
-  const getRequirement = useReportRequirement()
   const counts = countResults(check)
   const total = check.findings.length
   const score = complianceScore(check)
@@ -148,7 +122,6 @@ export function ExecutiveSummary({
             String(toAttention),
           )
         : text.allCompliant
-  const priorities = topPriorities(findings)
 
   return (
     <div>
@@ -162,7 +135,7 @@ export function ExecutiveSummary({
             .replace('{total}', String(total))}
           caption={text.ringCaption}
         />
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <p
             data-print-color
             className={`inline-flex items-center gap-2 rounded-full border border-current/20 px-3 py-1 text-sm font-semibold [print-color-adjust:exact] ${classes}`}
@@ -170,17 +143,17 @@ export function ExecutiveSummary({
             <Icon aria-hidden="true" className="size-4 shrink-0" strokeWidth={2.25} />
             {text.verdicts[verdict]}
           </p>
-          <p className="mt-2 max-w-[75ch] text-[0.9375rem] font-medium text-maroon">{explanation}</p>
+          <p className="mt-2 text-[0.9375rem] font-medium text-maroon">{explanation}</p>
           <p className="mt-1 text-sm text-text-gray">
             {content.summary.replace('{count}', String(counts.compliant)).replace('{total}', String(total))}
           </p>
-          <p className="mt-2 max-w-[75ch] text-sm text-text-gray">{text.scoreNote}</p>
+          <p className="mt-2 text-sm text-text-gray">{text.scoreNote}</p>
         </div>
       </div>
 
       {/* The summary sentence (not repeated when everything is compliant) */}
       {verdict !== 'fully-compliant' && (
-        <p className="mt-5 max-w-[75ch] rounded-lg bg-beige/60 px-4 py-3 text-[0.9375rem] text-maroon">{summarySentence(check, status, text)}</p>
+        <p className="mt-5 rounded-lg bg-beige/60 px-4 py-3 text-[0.9375rem] text-maroon">{summarySentence(check, status, text)}</p>
       )}
 
       {/* b) Metric tiles (problems first); 0 is shown but muted */}
@@ -201,94 +174,6 @@ export function ExecutiveSummary({
             </li>
           )
         })}
-      </ul>
-
-      {/* c) Top priorities */}
-      {priorities.length > 0 && (
-        <div className="mt-6">
-          <h3 className="text-base font-semibold text-maroon">{text.priorities.title}</h3>
-          <ol className="mt-2 space-y-1.5 text-sm">
-            {priorities.map((finding) => {
-              const requirement = getRequirement(finding.requirementId)
-              return (
-                <li key={finding.id}>
-                  <a
-                    href={`#finding-${finding.number}`}
-                    onClick={(event) => onJump(event, finding.number)}
-                    className="rounded-sm font-medium text-maroon underline underline-offset-2 hover:text-maroon-secondary"
-                  >
-                    {text.priorities.item
-                      .replace('{number}', finding.number)
-                      .replace('{result}', content.results[finding.result])
-                      .replace('{requirement}', finding.requirementId)
-                      .replace('{title}', requirement?.shortTitle ?? '')}
-                  </a>
-                </li>
-              )
-            })}
-          </ol>
-        </div>
-      )}
-
-      {/* d) Change since the previous version */}
-      {previous && <SummaryChange previous={previous} current={check} text={text.change} verdicts={text.verdicts} />}
-    </div>
-  )
-}
-
-/** "Score: 20% → 40% (+20 points since v1.1)" and "Verdict: … → … (unchanged)", in text. */
-function SummaryChange({
-  previous,
-  current,
-  text,
-  verdicts,
-}: {
-  previous: ComplianceCheck
-  current: ComplianceCheck
-  text: ReportText['summary']['change']
-  verdicts: ReportText['summary']['verdicts']
-}) {
-  const before = complianceScore(previous)
-  const after = complianceScore(current)
-  const points = after - before
-  const delta = (points > 0 ? text.delta.up : points < 0 ? text.delta.down : text.delta.same)
-    .replace('{points}', String(Math.abs(points)))
-    .replace('{version}', previous.version)
-  const verdictBefore = verdictOf(previous)
-  const verdictAfter = verdictOf(current)
-  const kind =
-    VERDICT_RANK[verdictAfter] > VERDICT_RANK[verdictBefore]
-      ? text.kinds.improved
-      : VERDICT_RANK[verdictAfter] < VERDICT_RANK[verdictBefore]
-        ? text.kinds.worsened
-        : text.kinds.unchanged
-
-  // The arrow is decorative; screen readers hear "changed to" instead.
-  const line = (template: string, values: Record<string, string>) => {
-    const [head, tail] = template.split('→')
-    const fill = (part: string) => Object.entries(values).reduce((out, [key, value]) => out.replace(`{${key}}`, value), part)
-    return (
-      <>
-        {fill(head)}
-        <span aria-hidden="true">→</span>
-        <span className="sr-only"> {text.changedTo} </span>
-        {fill(tail)}
-      </>
-    )
-  }
-
-  return (
-    <div className="mt-6">
-      <h3 className="text-base font-semibold text-maroon">{text.title}</h3>
-      <ul className="mt-2 space-y-1 text-sm text-maroon">
-        <li>
-          {line(text.score, {
-            before: text.percent.replace('{score}', String(before)),
-            after: text.percent.replace('{score}', String(after)),
-            delta,
-          })}
-        </li>
-        <li>{line(text.verdict, { before: verdicts[verdictBefore], after: verdicts[verdictAfter], kind })}</li>
       </ul>
     </div>
   )
@@ -393,7 +278,7 @@ export function FindingCard({ finding, content }: { finding: NumberedFinding; co
               .replace('{title}', requirement.sectionTitle)
               .replace('{page}', String(requirement.page))}
           </p>
-          <p className="mt-2 max-w-[75ch] text-[0.9375rem] text-maroon">{requirement.summary}</p>
+          <p className="mt-2 text-[0.9375rem] text-maroon">{requirement.summary}</p>
         </>
       )}
       <dl className="mt-4 space-y-3 text-sm">
@@ -403,12 +288,12 @@ export function FindingCard({ finding, content }: { finding: NumberedFinding; co
         </div>
         <div className="rounded-lg bg-beige/60 px-4 py-3 print:px-0 print:py-0">
           <dt className="font-medium text-maroon">{text.justification}</dt>
-          <dd className="mt-0.5 max-w-[75ch] text-maroon">{finding.justification}</dd>
+          <dd className="mt-0.5 text-maroon">{finding.justification}</dd>
         </div>
         {finding.recommendedAction && (
           <div>
             <dt className="font-medium text-maroon">{text.recommendedAction}</dt>
-            <dd className="mt-0.5 max-w-[75ch] text-maroon">{finding.recommendedAction}</dd>
+            <dd className="mt-0.5 text-maroon">{finding.recommendedAction}</dd>
           </div>
         )}
       </dl>
@@ -443,47 +328,5 @@ export function FindingGroup({
         </div>
       )}
     </section>
-  )
-}
-
-// ---------- e) Changes since the previous version ----------
-
-export function ChangesList({
-  changes,
-  previousLabel,
-  content,
-}: {
-  changes: RequirementChange[]
-  /** "Compared with the report for version 1.1 (CR-SOP-078-1.1-01)." */
-  previousLabel: string
-  content: ComplianceContent
-}) {
-  const text = content.report.changes
-  const getRequirement = useReportRequirement()
-  const result = (value?: ComplianceResult) => (value ? content.results[value] : '—')
-  return (
-    <>
-      <p className="text-sm text-text-gray">{previousLabel}</p>
-      <ul className="mt-3 divide-y divide-beige text-sm">
-        {changes.map((change) => (
-          <li key={change.requirementId} className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 py-2.5 first:pt-0 last:pb-0">
-            <span className="font-medium text-maroon">{requirementLabel(content.report, change.requirementId, getRequirement)}</span>
-            <span className="text-maroon">
-              {change.kind === 'new' ? (
-                result(change.after)
-              ) : change.kind === 'removed' ? (
-                result(change.before)
-              ) : (
-                <>
-                  {result(change.before)} <span aria-hidden="true">→</span>
-                  <span className="sr-only"> {text.changedTo} </span> {result(change.after)}
-                </>
-              )}
-            </span>
-            <span className="text-text-gray">({text.kinds[change.kind]})</span>
-          </li>
-        ))}
-      </ul>
-    </>
   )
 }

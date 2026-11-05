@@ -5,7 +5,6 @@ import { ArrowLeft, Download, RefreshCw } from 'lucide-react'
 import { SampleBanner } from '../components/compliance/ComplianceSummary'
 import { ReportRequirementsContext } from '../components/compliance/reportRequirements'
 import {
-  ChangesList,
   ExecutiveSummary,
   FindingGroup,
   ReportSection,
@@ -19,12 +18,10 @@ import { complianceEn } from '../content/compliance.en'
 import type { ComplianceResult, Sop } from '../data/mock/types'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import {
-  compareReports,
   currentCheck,
   isSampleCheck,
   latestCompletedChecksByVersion,
   numberedFindings,
-  previousReport,
   RESULT_ORDER,
 } from '../lib/compliance'
 import { formatDateTime } from '../lib/format'
@@ -45,9 +42,8 @@ type TabKey = 'all' | ComplianceResult
 
 /**
  * Compliance report ("/my-sops/:id/compliance", PBI 4, 5), laid out as a formal
- * report: report details, executive summary, requirements overview, findings
- * (with recommended actions), changes since the previous version, and the method
- * and its limitations. Reports of earlier versions stay viewable, and "Download
+ * report: report details, the method and its limitations, executive summary,
+ * requirements overview and findings (with recommended actions). Reports of earlier versions stay viewable, and "Download
  * PDF" prints it with a print stylesheet. Sample results for now.
  * - author:   "/my-sops/:id/compliance", for the SOP's author and co-authors;
  * - reviewer: "/reviews/:id/compliance", read-only, for its reviewers and approvers.
@@ -128,7 +124,6 @@ function Report({ sop, backPath }: { sop: Sop; backPath: string }) {
   const numbered = report ? numberedFindings(report) : []
   const needsAttention = numbered.filter((finding) => finding.result !== 'compliant')
   const compliant = numbered.filter((finding) => finding.result === 'compliant')
-  const previous = report ? previousReport(sop, report) : undefined
 
   /** Overview links: show the finding (switching to All if the filter hides it) and move focus to it. */
   function jumpTo(event: MouseEvent<HTMLAnchorElement>, number: string) {
@@ -255,24 +250,26 @@ function Report({ sop, backPath }: { sop: Sop; backPath: string }) {
             getRequirement(report.guideline.version, requirementId)
           }
         >
-          {/* b) Executive summary */}
-          <ReportSection id="summary-title" title={text.summary.title}>
-            <ExecutiveSummary
-              check={report}
-              previous={previous}
-              status={sop.status}
-              findings={numbered}
-              content={content}
-              onJump={jumpTo}
-            />
+          {/* b) Method and limitations */}
+          <ReportSection id="method-title" title={text.method.title}>
+            <ul className="list-disc space-y-1.5 pl-5 text-sm text-maroon">
+              {[...text.method.items, ...(isSampleCheck(report) ? [text.method.sampleNote] : [])].map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
           </ReportSection>
 
-          {/* c) Requirements overview */}
+          {/* c) Executive summary */}
+          <ReportSection id="summary-title" title={text.summary.title}>
+            <ExecutiveSummary check={report} status={sop.status} content={content} />
+          </ReportSection>
+
+          {/* d) Requirements overview */}
           <ReportSection id="overview-title" title={text.overview.title}>
             <RequirementsOverview findings={numbered} content={content} onJump={jumpTo} />
           </ReportSection>
 
-          {/* d) Findings */}
+          {/* e) Findings */}
           <section aria-labelledby="findings-title" className="mt-8 print:mt-6">
             <h2 id="findings-title" className="text-lg">
               {text.findings.title}
@@ -303,28 +300,6 @@ function Report({ sop, backPath }: { sop: Sop; backPath: string }) {
               )}
             </div>
           </section>
-
-          {/* e) Changes since the previous version */}
-          <ReportSection id="changes-title" title={text.changes.title}>
-            {previous ? (
-              <ChangesList
-                changes={compareReports(previous, report)}
-                previousLabel={text.changes.comparedWith.replace('{version}', previous.version)}
-                content={content}
-              />
-            ) : (
-              <p className="text-sm text-text-gray">{text.changes.none}</p>
-            )}
-          </ReportSection>
-
-          {/* f) Method and limitations */}
-          <ReportSection id="method-title" title={text.method.title}>
-            <ul className="max-w-[75ch] list-disc space-y-1.5 pl-5 text-sm text-maroon">
-              {[...text.method.items, ...(isSampleCheck(report) ? [text.method.sampleNote] : [])].map((item) => (
-                <li key={item}>{item}</li>
-              ))}
-            </ul>
-          </ReportSection>
         </ReportRequirementsContext>
       )}
     </div>

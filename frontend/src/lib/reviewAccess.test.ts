@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { InternalReviewRound, Sop } from '../data/mock/types'
 import { projectReviewers } from './internalReviewStatus'
-import { previousReport } from './compliance'
 import { reviewSopForUser } from './reviewAccess'
 
 function fixture(): Sop {
@@ -43,7 +42,6 @@ describe('review document access by assigned version', () => {
     expect(access.historical).toBe(false)
     expect(access.sop.fileUrl).toBe('/private-v2.pdf')
     expect(access.sop.complianceChecks.map((check) => check.version)).toEqual(['2'])
-    expect(previousReport(access.sop, access.sop.complianceChecks[0])).toBeUndefined()
   })
   it('does not reintroduce a deleted historical version or grant access to an outsider', () => {
     const sop = fixture()

@@ -77,26 +77,9 @@ export const complianceEn: ComplianceContent = {
         },
       },
       tilesLabel: 'Results by label',
-      priorities: {
-        title: 'Top Priorities',
-        item: '{number} · {result} · {requirement} · {title}',
-      },
-      change: {
-        title: 'Change Since the Previous Version',
-        score: 'Score: {before} → {after} ({delta})',
-        verdict: 'Verdict: {before} → {after} ({kind})',
-        percent: '{score}%',
-        delta: {
-          up: '+{points} points since v{version}',
-          down: '−{points} points since v{version}',
-          same: 'no change since v{version}',
-        },
-        kinds: { improved: 'improved', worsened: 'worsened', unchanged: 'unchanged' },
-        changedTo: 'changed to',
-      },
       attention: {
         conflict: { one: '{count} conflict', other: '{count} conflicts' },
-        'not-addressed': { one: '{count} requirement requires human review', other: '{count} requirements require human review' },
+        'not-addressed': { one: '{count} requirement needs human review.', other: '{count} requirements need human review.' },
         partial: { one: '{count} partially compliant requirement', other: '{count} partially compliant requirements' },
       },
       and: 'and',
@@ -133,20 +116,6 @@ export const complianceEn: ComplianceContent = {
       justification: 'Justification',
       recommendedAction: 'Recommended Action',
       empty: 'No findings with this result.',
-    },
-    changes: {
-      title: 'Changes Since the Previous Version',
-      comparedWith: 'Compared with the report for v{version}.',
-      none: 'No previous report.',
-      changedTo: 'changed to',
-      kinds: {
-        resolved: 'resolved',
-        improved: 'improved',
-        unchanged: 'unchanged',
-        worsened: 'worsened',
-        new: 'new',
-        removed: 'no longer checked',
-      },
     },
     method: {
       title: 'Method and Limitations',

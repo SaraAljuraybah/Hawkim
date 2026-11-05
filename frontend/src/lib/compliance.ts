@@ -199,40 +199,6 @@ export function complianceScore(check: ComplianceCheck): number {
   return Math.round((countResults(check).compliant / check.findings.length) * 100)
 }
 
-/** The newest completed report of the nearest earlier version that has one, if any. */
-export function previousReport(sop: Sop, check: ComplianceCheck): ComplianceCheck | undefined {
-  return latestCompletedChecksByVersion(sop).find((item) => Number(item.version) < Number(check.version))
-}
-
-/** How a requirement's result changed between two reports. */
-export type ChangeKind = 'resolved' | 'improved' | 'unchanged' | 'worsened' | 'new' | 'removed'
-
-export interface RequirementChange {
-  requirementId: string
-  before?: ComplianceResult
-  after?: ComplianceResult
-  kind: ChangeKind
-}
-
-/** Better results rank higher: Conflict < Not addressed < Partially compliant < Compliant. */
-const RANK: Record<ComplianceResult, number> = { conflict: 0, 'not-addressed': 1, partial: 2, compliant: 3 }
-
-/** Every requirement in either report, by requirement id, with how its result changed. */
-export function compareReports(previous: ComplianceCheck, current: ComplianceCheck): RequirementChange[] {
-  const ids = [...new Set([...previous.findings, ...current.findings].map((finding) => finding.requirementId))].sort()
-  return ids.map((requirementId) => {
-    const before = previous.findings.find((finding) => finding.requirementId === requirementId)?.result
-    const after = current.findings.find((finding) => finding.requirementId === requirementId)?.result
-    let kind: ChangeKind
-    if (!before) kind = 'new'
-    else if (!after) kind = 'removed'
-    else if (before === after) kind = 'unchanged'
-    else if (after === 'compliant') kind = 'resolved'
-    else kind = RANK[after] > RANK[before] ? 'improved' : 'worsened'
-    return { requirementId, before, after, kind }
-  })
-}
-
 // ---------- Executive summary ----------
 
 /**
@@ -246,12 +212,4 @@ export function verdictOf(check: ComplianceCheck): Verdict {
   if (counts.conflict > 0) return 'action-required'
   if (counts.partial > 0 || counts['not-addressed'] > 0) return 'needs-improvement'
   return 'fully-compliant'
-}
-
-/** Better verdicts rank higher (to describe a change as improved or worsened). */
-export const VERDICT_RANK: Record<Verdict, number> = { 'action-required': 0, 'needs-improvement': 1, 'fully-compliant': 2 }
-
-/** Up to `limit` findings that need attention, in report order (Conflict, Not addressed, Partially compliant). */
-export function topPriorities(findings: NumberedFinding[], limit = 3): NumberedFinding[] {
-  return findings.filter((finding) => finding.result !== 'compliant').slice(0, limit)
 }

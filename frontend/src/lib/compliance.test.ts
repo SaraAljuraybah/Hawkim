@@ -1,13 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import type { ComplianceCheck, ComplianceResult, Sop } from '../data/mock/types'
 import {
-  compareReports,
   completeCheck,
   latestCompletedChecksByVersion,
   complianceScore,
   failCheck,
   numberedFindings,
-  previousReport,
   reportId,
   startCheck,
   verdictOf,
@@ -134,43 +132,6 @@ describe('latestCompletedChecksByVersion', () => {
       })),
     }
     expect(latestCompletedChecksByVersion(withDeleted).map((item) => item.id)).toEqual(['v3', 'v1'])
-    expect(previousReport(withDeleted, v3)?.id).toBe('v1')
-  })
-})
-
-describe('previousReport', () => {
-  it('is the newest completed report of the nearest earlier version', () => {
-    const v10 = check(['conflict'], { id: 'v10', version: '1' })
-    const v11first = check(['conflict'], { id: 'v11a', version: '2' })
-    const v11second = check(['partial'], { id: 'v11b', version: '2' })
-    const v12 = check(['compliant'], { id: 'v12', version: '3' })
-    const sop = sopWith([v10, v11first, v11second, v12], '3')
-    expect(previousReport(sop, v12)?.id).toBe('v11b')
-    expect(previousReport(sop, v10)).toBeUndefined()
-  })
-})
-
-describe('compareReports', () => {
-  it('describes each requirement as resolved, improved, unchanged or worsened', () => {
-    const before = check(['partial', 'conflict', 'compliant', 'partial'])
-    const after = check(['compliant', 'partial', 'compliant', 'not-addressed'])
-    expect(compareReports(before, after).map((change) => `${change.requirementId} ${change.kind}`)).toEqual([
-      'R1 resolved', // partial → compliant
-      'R2 improved', // conflict → partial
-      'R3 unchanged', // compliant → compliant
-      'R4 worsened', // partial → not addressed
-    ])
-  })
-
-  it('marks requirements found in only one of the reports as new or removed', () => {
-    expect(compareReports(check(['compliant']), check(['compliant', 'partial'])).map((change) => change.kind)).toEqual([
-      'unchanged',
-      'new',
-    ])
-    expect(compareReports(check(['compliant', 'partial']), check(['compliant'])).map((change) => change.kind)).toEqual([
-      'unchanged',
-      'removed',
-    ])
   })
 })
 

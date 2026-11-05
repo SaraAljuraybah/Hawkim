@@ -936,30 +936,14 @@ export interface ComplianceContent {
       }
       /** Accessible name of the metric tiles. */
       tilesLabel: string
-      priorities: {
-        title: string
-        /** `{number}`, `{result}`, `{requirement}` and `{title}` are replaced. */
-        item: string
-      }
-      change: {
-        title: string
-        /** `{before}`, `{after}` and `{delta}` are replaced. */
-        score: string
-        /** `{before}`, `{after}` and `{kind}` are replaced. */
-        verdict: string
-        /** `{score}` is replaced. */
-        percent: string
-        /** `{points}` and `{version}` are replaced. */
-        delta: { up: string; down: string; same: string }
-        kinds: { improved: string; worsened: string; unchanged: string }
-        /** Visually hidden text for the arrow. */
-        changedTo: string
-      }
-      /** Parts of the summary sentence (one / several); `{count}` is replaced. */
+      /**
+       * Parts of the summary sentence (one / several); `{count}` is replaced.
+       * `not-addressed` is a sentence of its own, after the "need attention" one.
+       */
       attention: Record<'conflict' | 'not-addressed' | 'partial', { one: string; other: string }>
       /** Joins the last two parts, e.g. "and". */
       and: string
-      /** `{items}` is replaced; "one" when a single requirement needs attention. */
+      /** `{items}` (conflicts and partial results) is replaced; "one" when a single requirement needs attention. */
       beforeSubmit: { one: string; other: string }
       needsAttention: { one: string; other: string }
       allCompliant: string
@@ -988,15 +972,6 @@ export interface ComplianceContent {
       recommendedAction: string
       /** No findings in the selected tab. */
       empty: string
-    }
-    changes: {
-      title: string
-      /** `{version}` is replaced. */
-      comparedWith: string
-      none: string
-      /** Visually hidden text for the arrow. */
-      changedTo: string
-      kinds: Record<'resolved' | 'improved' | 'unchanged' | 'worsened' | 'new' | 'removed', string>
     }
     /** `sampleNote` is added to the items only for sample results. */
     method: { title: string; items: string[]; sampleNote: string }
