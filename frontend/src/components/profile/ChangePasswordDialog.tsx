@@ -68,13 +68,12 @@ export function ChangePasswordDialog({ open, content, onClose }: { open: boolean
     onClose()
   }
 
-  const eye = { showLabel: content.show, hideLabel: content.hide, lockIcon: true, required: true }
+  const eye = { showLabel: content.show, hideLabel: content.hide, required: true }
   return (
     <FormDialog
       open={open}
       icon={<KeyRound className="size-6" strokeWidth={1.75} />}
       title={content.title}
-      description={content.text}
       confirmLabel={content.save}
       cancelLabel={content.cancel}
       closeLabel={content.close}
@@ -87,8 +86,8 @@ export function ChangePasswordDialog({ open, content, onClose }: { open: boolean
         hint={content.hint.replace('{min}', min)} error={errors.next} value={values.next} onChange={(event) => change('next', event.target.value)} />
       <PasswordField ref={confirmRef} {...eye} name="confirmPassword" label={content.confirm} autoComplete="new-password"
         error={errors.confirm} value={values.confirm} onChange={(event) => change('confirm', event.target.value)} />
-      {/* Stays mounted while the dialog is open, so the message is announced */}
-      <div role="status" className="empty:-mt-5">
+      {/* Stays mounted while the dialog is open, so the message is announced; it also adds space above the buttons */}
+      <div role="status">
         {notice && <p className="rounded-lg border border-status-pending-fg/25 bg-status-pending-bg px-3.5 py-2.5 text-sm font-medium text-status-pending-fg">{notice}</p>}
       </div>
     </FormDialog>

@@ -201,7 +201,6 @@ export interface ProfileContent {
     changeLabel: string
     dialog: {
       title: string
-      text: string
       current: string
       next: string
       confirm: string

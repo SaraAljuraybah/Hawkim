@@ -16,7 +16,6 @@ export const profileEn: ProfileContent = {
     changeLabel: 'Change Password',
     dialog: {
       title: 'Change Password',
-      text: 'Enter your current and new password.',
       current: 'Current Password',
       next: 'New Password',
       confirm: 'Confirm New Password',

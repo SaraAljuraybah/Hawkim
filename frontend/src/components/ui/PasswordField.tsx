@@ -1,18 +1,16 @@
 import { useId, useState } from 'react'
-import { Eye, EyeOff, Lock } from 'lucide-react'
+import { Eye, EyeOff } from 'lucide-react'
 import { TextField, type TextFieldProps } from './TextField'
 
-export interface PasswordFieldProps extends Omit<TextFieldProps, 'type' | 'endAdornment' | 'startIcon'> {
+export interface PasswordFieldProps extends Omit<TextFieldProps, 'type' | 'endAdornment'> {
   /** Accessible label for the toggle while the password is hidden. */
   showLabel: string
   /** Accessible label for the toggle while the password is visible. */
   hideLabel: string
-  /** Shows a decorative lock icon at the start of the input. */
-  lockIcon?: boolean
 }
 
 /** Password input built on TextField, with a show/hide visibility toggle. */
-export function PasswordField({ showLabel, hideLabel, lockIcon = false, id, ...fieldProps }: PasswordFieldProps) {
+export function PasswordField({ showLabel, hideLabel, id, ...fieldProps }: PasswordFieldProps) {
   const [visible, setVisible] = useState(false)
   const generatedId = useId()
   const inputId = id ?? generatedId
@@ -34,13 +32,5 @@ export function PasswordField({ showLabel, hideLabel, lockIcon = false, id, ...f
     </button>
   )
 
-  return (
-    <TextField
-      {...fieldProps}
-      id={inputId}
-      type={visible ? 'text' : 'password'}
-      endAdornment={toggle}
-      startIcon={lockIcon ? <Lock aria-hidden="true" className="size-4" strokeWidth={1.75} /> : undefined}
-    />
-  )
+  return <TextField {...fieldProps} id={inputId} type={visible ? 'text' : 'password'} endAdornment={toggle} />
 }

@@ -19,8 +19,6 @@ export interface TextFieldProps extends Omit<InputHTMLAttributes<HTMLInputElemen
   counter?: string
   /** Element placed inside the input on the right, e.g. a visibility toggle. */
   endAdornment?: ReactNode
-  /** Decorative icon inside the input on the left (hide it from screen readers). */
-  startIcon?: ReactNode
   /** Forwarded to the `<input>` (React 19 passes refs as regular props). */
   ref?: Ref<HTMLInputElement>
   /** Classes for the outer wrapper. */
@@ -40,7 +38,6 @@ export function TextField({
   requiredMark = false,
   counter,
   endAdornment,
-  startIcon,
   ref,
   id,
   className = '',
@@ -71,15 +68,12 @@ export function TextField({
       }
     >
       <div className="relative">
-        {startIcon && (
-          <div className="pointer-events-none absolute inset-y-0 left-3.5 flex items-center text-text-gray">{startIcon}</div>
-        )}
         <input
           ref={ref}
           id={inputId}
           aria-invalid={error || invalid ? true : undefined}
           aria-describedby={describedByIds}
-          className={`h-11 ${controlClasses(error || (invalid ? 'invalid' : undefined))} ${endAdornment ? 'pr-12' : ''} ${startIcon ? 'pl-10' : ''}`}
+          className={`h-11 ${controlClasses(error || (invalid ? 'invalid' : undefined))} ${endAdornment ? 'pr-12' : ''}`}
           {...inputProps}
         />
         {endAdornment && (
