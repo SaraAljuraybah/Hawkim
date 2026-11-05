@@ -1,6 +1,5 @@
 import { useState } from 'react'
-import { CircleCheck, LoaderCircle } from 'lucide-react'
-import { Button } from '../components/ui/Button'
+import { CircleCheck, LoaderCircle, Lock } from 'lucide-react'
 import { Card } from '../components/ui/Card'
 import { profileEn } from '../content/profile.en'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
@@ -52,18 +51,30 @@ export function ProfilePage() {
         <dl className="grid gap-x-6 gap-y-3 text-sm sm:grid-cols-[10rem_minmax(0,1fr)]">
           {details.map(([label, value]) => (
             <div key={label} className="contents">
-              <dt className="font-bold text-text-gray">{label}</dt>
+              <dt className="font-bold text-maroon">{label}</dt>
               <dd className="min-w-0 break-words text-maroon max-sm:mb-1">{value}</dd>
             </div>
           ))}
+          {/* Last row, under a divider: the password change, as a text action */}
+          <div className="mt-1 grid gap-x-6 gap-y-3 border-t border-beige pt-4 sm:col-span-2 sm:grid-cols-subgrid">
+            <dt className="font-bold text-maroon">{content.fields.password}</dt>
+            <dd className="min-w-0">
+              <button
+                type="button"
+                aria-disabled={sending || undefined}
+                onClick={changePassword}
+                className="inline-flex items-center gap-1.5 rounded-sm font-medium text-maroon underline-offset-2 hover:underline aria-disabled:cursor-not-allowed"
+              >
+                {sending ? (
+                  <LoaderCircle aria-hidden="true" className="size-4 shrink-0 motion-safe:animate-spin" strokeWidth={1.75} />
+                ) : (
+                  <Lock aria-hidden="true" className="size-4 shrink-0" strokeWidth={1.75} />
+                )}
+                {content.password.change}
+              </button>
+            </dd>
+          </div>
         </dl>
-      </Card>
-      <Card title={content.password.title} titleId="profile-password-title" className="mt-6 max-w-2xl">
-        <p className="text-sm text-text-gray">{content.password.text}</p>
-        <Button size="sm" className="mt-4" aria-disabled={sending || undefined} onClick={changePassword}>
-          {sending && <LoaderCircle aria-hidden="true" className="size-4 motion-safe:animate-spin" strokeWidth={1.75} />}
-          {content.password.change}
-        </Button>
         {/* Live regions stay mounted, so the result is announced */}
         <div role="status">
           {sent && (

@@ -8,12 +8,10 @@ import type { ProfileContent, ResetPasswordContent } from './types'
 export const profileEn: ProfileContent = {
   pageTitle: 'My Profile | Hawkim',
   title: 'My Profile',
-  fields: { name: 'Name', email: 'Email', phone: 'Phone Number', position: 'Position', division: 'Division', department: 'Department', roles: 'Permission' },
+  fields: { name: 'Name', email: 'Email', phone: 'Phone Number', position: 'Position', division: 'Division', department: 'Department', roles: 'Permission', password: 'Password' },
   none: '—',
   roles: { author: 'Author', reviewer: 'Reviewer', approver: 'Approver' },
   password: {
-    title: 'Password',
-    text: 'We will email you a link to set a new password.',
     change: 'Change Password',
     sent: 'Check your email for a link to change your password.',
     errors: {

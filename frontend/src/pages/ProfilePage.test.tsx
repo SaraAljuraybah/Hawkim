@@ -37,11 +37,15 @@ describe('My Profile', () => {
     expect(html).not.toContain('<input')
   })
 
-  it('lists the fields in the Add User order, with bold labels', () => {
+  it('lists the fields in the Add User order, then Password, with bold labels in the heading colour', () => {
     const html = render()
     const labels = [...html.matchAll(/<dt[^>]*>([^<]+)<\/dt>/g)].map((match) => match[1])
-    expect(labels).toEqual(['Name', 'Email', 'Phone Number', 'Division', 'Department', 'Position', 'Permission'])
-    for (const dt of html.match(/<dt[^>]*>/g)!) expect(dt).toContain('font-bold')
+    expect(labels).toEqual(['Name', 'Email', 'Phone Number', 'Division', 'Department', 'Position', 'Permission', 'Password'])
+    for (const dt of html.match(/<dt[^>]*>/g)!) {
+      expect(dt).toContain('font-bold')
+      expect(dt).toContain('text-maroon')
+      expect(dt).not.toContain('text-text-gray')
+    }
   })
 
   it('shows every empty value as the same —, blank text included', () => {
@@ -69,11 +73,32 @@ describe('My Profile', () => {
     expect(render()).toContain('>Safety<')
   })
 
-  it('offers Change Password, with live regions ready for the result', () => {
+  it('offers Change Password in the last row, under a divider, as a text-style button with a lock icon', () => {
     const html = render()
-    expect(html).toContain('>Change Password<')
-    expect(html).toContain('role="status"')
-    expect(html).toContain('role="alert"')
+    const row = html.match(/<div class="([^"]*)"><dt[^>]*>Password<\/dt><dd[^>]*>(.*?)<\/dd><\/div>/)!
+    expect(row[1]).toContain('border-t border-beige')
+    const button = row[2]
+    expect(button).toMatch(/^<button type="button"/)
+    expect(button).toMatch(/class="[^"]*text-maroon[^"]*hover:underline/)
+    expect(button).not.toMatch(/class="[^"]*\bbg-/)
+    const icon = button.match(/<svg[^>]*>/)![0]
+    expect(icon).toContain('lucide-lock')
+    expect(icon).toContain('aria-hidden="true"')
+    // The icon is hidden, so the accessible name is the text alone.
+    expect(button.replace(/<svg.*?<\/svg>/g, '').replace(/<[^>]+>/g, '')).toBe('Change Password')
+  })
+
+  it('drops the separate Password card and its sentence', () => {
+    const html = render()
+    expect(html).not.toContain('We will email you')
+    expect(html).not.toMatch(/<h2[^>]*>Password</)
+    expect(html.match(/<section|<h2/g) ?? []).toHaveLength(0)
+  })
+
+  it('keeps the live regions for the result right under the Password row, in the same card', () => {
+    const html = render()
+    const after = html.slice(html.indexOf('>Change Password<'))
+    expect(after).toMatch(/^>Change Password<\/button><\/dd><\/div><\/dl><div role="status"><\/div><div role="alert"><\/div>/)
     expect(html).not.toContain('Check your email')
   })
 
