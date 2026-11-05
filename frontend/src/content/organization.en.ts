@@ -16,7 +16,7 @@ export const organizationEn = {
   copyFailed: "Couldn't copy. Please copy the email manually.",
   searchAndFilterLabel: (department: string) => `Search and filter ${department}`,
   searchLabel: 'Search by name',
-  searchPlaceholder: 'Search by name',
+  searchPlaceholder: 'Search',
   filterLabel: 'Filter by role',
   filterSelected: (count: number) => `Filter by role, ${count} selected`,
   filterEmpty: 'No roles to filter by',

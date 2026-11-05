@@ -126,11 +126,11 @@ describe('Organizational Structure', () => {
     expect(searches).toEqual(['<div role="search" aria-label="Search and filter Quality" class="flex items-center gap-2 border-b border-beige p-3">'])
     expect(html).not.toContain('@xs:grid-cols-2')
     expect(html).not.toContain('@container')
-    // The labels are kept for screen readers only; the placeholder says the same.
+    // The labels are kept for screen readers only; the placeholder is a short "Search".
     expect(html).toMatch(/<label for="[^"]+" class="sr-only">Search by name<\/label>/)
     const search = html.match(/<input[^>]*name="organization-search-department-1"[^>]*>/)![0]
     expect(search).toContain('type="search"')
-    expect(search).toContain('placeholder="Search by name"')
+    expect(search).toContain('placeholder="Search"')
     expect(search).toContain('class="h-10 ')
     expect(html).not.toContain('>Filter by role<')
     expect(html).not.toContain('All roles')
