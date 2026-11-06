@@ -26,6 +26,7 @@ import type { SopStatus } from '../types/status'
 import { todayIsoDate } from '../lib/format'
 import { projectReviewers } from '../lib/internalReviewStatus'
 import { WORKING_DAY_DEADLINES_ACTIVE } from '../lib/deadlinePolicy'
+import { isSopDeleteErrorCode, SopDeleteError, type SopDeleteErrorCode } from '../lib/mySops'
 import { sopTitleProblem } from '../lib/sopTitle'
 import { supabase } from './supabase'
 
@@ -373,8 +374,32 @@ export async function uploadSopVersion(sopId: string, file: StoredFile): Promise
 
 /** Marks a version deleted (its number and file are kept). */
 export async function deleteSopVersion(sopId: string, version: string): Promise<void> {
-  const { error } = await supabase().rpc('delete_sop_version', { p_sop_id: sopId, p_version: Number(version) })
-  if (error) throw new Error(error.message)
+  await callDeleteFunction({ action: 'delete-version', sopId, version: Number(version) })
+}
+
+/** Main author: permanently deletes the SOP, all its rows and its files, with a justification. */
+export async function deleteSop(sopId: string, reason: string): Promise<void> {
+  await callDeleteFunction({ action: 'delete-sop', sopId, reason })
+}
+
+/*
+ * Rows and files are deleted together by the delete-sop Edge Function
+ * (supabase/functions/delete-sop/): the browser can't call delete_sop or delete_sop_version,
+ * and can't remove files from sop-files. The signed-in user's token is sent automatically.
+ */
+async function callDeleteFunction(body: Record<string, unknown>): Promise<void> {
+  const { error } = await supabase().functions.invoke('delete-sop', { body })
+  if (!error) return
+  let code: SopDeleteErrorCode = 'failed'
+  let message: string = error.message
+  // A non-2xx answer carries the Response with { error, message? }.
+  const response: unknown = (error as { context?: unknown }).context
+  if (response instanceof Response) {
+    const parsed = (await response.json().catch(() => null)) as { error?: unknown; message?: unknown } | null
+    if (isSopDeleteErrorCode(parsed?.error)) code = parsed.error
+    if (typeof parsed?.message === 'string') message = parsed.message
+  }
+  throw new SopDeleteError(code, message)
 }
 
 /** Main author: adds co-authors (all or none). */

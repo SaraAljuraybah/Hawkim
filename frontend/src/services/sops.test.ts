@@ -1,11 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { SYSTEM_ACTOR } from '../data/mock/types'
-import { addCoAuthors, createSop, deleteSopVersion, fetchSop, fetchSops, removeCoAuthor, toSop, uploadSopVersion, type SopRow } from './sops'
+import { SopDeleteError } from '../lib/mySops'
+import { addCoAuthors, createSop, deleteSop, deleteSopVersion, fetchSop, fetchSops, removeCoAuthor, toSop, uploadSopVersion, type SopRow } from './sops'
 
 const rpc = vi.fn()
+const invoke = vi.fn()
 const query = { select: vi.fn(), eq: vi.fn(), order: vi.fn(), maybeSingle: vi.fn() }
 const from = vi.fn(() => query)
-vi.mock('./supabase', () => ({ supabase: () => ({ rpc, from }) }))
+vi.mock('./supabase', () => ({ supabase: () => ({ rpc, from, functions: { invoke } }) }))
+/** What supabase-js returns for a non-2xx answer from an Edge Function. */
+const refused = (status: number, body: unknown) => ({ message: 'Edge Function returned a non-2xx status code', context: new Response(JSON.stringify(body), { status }) })
 
 beforeEach(() => {
   vi.clearAllMocks()
@@ -233,9 +237,33 @@ describe('saving SOPs and versions', () => {
     rpc.mockResolvedValue({ data: 4, error: null })
     expect(await uploadSopVersion('uuid-sop', file)).toBe('4')
     expect(rpc).toHaveBeenCalledWith('upload_sop_version', { p_sop_id: 'uuid-sop', p_storage_path: 'uuid-sara/a.pdf', p_file_name: 'Backup.pdf' })
-    rpc.mockResolvedValue({ data: null, error: null })
+    // A version (row and file) is deleted by the Edge Function, never the RPC directly.
+    rpc.mockClear()
+    invoke.mockResolvedValue({ data: { deleted: true }, error: null })
     await deleteSopVersion('uuid-sop', '2')
-    expect(rpc).toHaveBeenCalledWith('delete_sop_version', { p_sop_id: 'uuid-sop', p_version: 2 })
+    expect(invoke).toHaveBeenCalledWith('delete-sop', { body: { action: 'delete-version', sopId: 'uuid-sop', version: 2 } })
+    expect(rpc).not.toHaveBeenCalled()
+  })
+
+  it('deletes a whole SOP with its justification through the Edge Function', async () => {
+    invoke.mockResolvedValue({ data: { deleted: true }, error: null })
+    await deleteSop('uuid-sop', 'No longer needed')
+    expect(invoke).toHaveBeenCalledWith('delete-sop', { body: { action: 'delete-sop', sopId: 'uuid-sop', reason: 'No longer needed' } })
+    expect(rpc).not.toHaveBeenCalled()
+  })
+
+  it.each(['not-found', 'not-allowed', 'not-deletable', 'check-running', 'invalid-reason'] as const)('passes on the %s refusal with its code', async (code) => {
+    invoke.mockResolvedValue({ data: null, error: refused(409, { error: code, message: 'From the database' }) })
+    const error = await deleteSop('uuid-sop', 'Reason').catch((caught: unknown) => caught)
+    expect(error).toBeInstanceOf(SopDeleteError)
+    expect(error).toMatchObject({ code, message: 'From the database' })
+  })
+
+  it('reports anything unexpected as failed', async () => {
+    invoke.mockResolvedValue({ data: null, error: refused(500, { error: 'failed' }) })
+    await expect(deleteSop('uuid-sop', 'Reason')).rejects.toMatchObject({ code: 'failed' })
+    invoke.mockResolvedValue({ data: null, error: { message: 'Failed to send a request to the Edge Function' } })
+    await expect(deleteSop('uuid-sop', 'Reason')).rejects.toMatchObject({ code: 'failed', message: 'Failed to send a request to the Edge Function' })
   })
 
   it('adds and removes co-authors through the database functions', async () => {
@@ -248,8 +276,8 @@ describe('saving SOPs and versions', () => {
     await expect(addCoAuthors('uuid-sop', ['uuid-omar'])).rejects.toThrow("SOP's department")
   })
 
-  it('throws when the database refuses', async () => {
-    rpc.mockResolvedValue({ data: null, error: { message: 'At least one version must remain' } })
+  it('throws the database message when it refuses a version delete', async () => {
+    invoke.mockResolvedValue({ data: null, error: refused(409, { error: 'not-deletable', message: 'At least one version must remain' }) })
     await expect(deleteSopVersion('uuid-sop', '1')).rejects.toThrow('At least one version must remain')
   })
 })

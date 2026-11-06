@@ -78,7 +78,7 @@ vi.mock('../lib/deadlinePolicy', () => ({ WORKING_DAY_DEADLINES_ACTIVE: true }))
  * transition as the browser rules to its own copy, as the RPCs do, and reading returns only the
  * rows the signed-in user may read (visibleSops stands in for row level security).
  */
-const backend = vi.hoisted(() => ({ rows: new Map<string, Sop>(), calls: [] as string[] }))
+const backend = vi.hoisted(() => ({ rows: new Map<string, Sop>(), calls: [] as string[], deleteError: null as Error | null }))
 vi.mock('../services/sops', async () => {
   const { visibleSops } = await import('./visibleSops')
   const workflow = await import('../lib/workflow')
@@ -102,6 +102,12 @@ vi.mock('../services/sops', async () => {
     }),
     uploadSopVersion: vi.fn(async (id: string, file: { fileName: string; fileType: 'pdf' | 'docx' }) => change(id, (sop) => workflow.uploadVersion(sop, fixture.user!.id, file))),
     deleteSopVersion: vi.fn(async (id: string, version: string) => change(id, (sop) => workflow.deleteVersion(sop, fixture.user!.id, version))),
+    // The delete-sop Edge Function: every row (and file) goes, or nothing when it refuses.
+    deleteSop: vi.fn(async (id: string) => {
+      backend.calls.push('deleteSop')
+      if (backend.deleteError) throw backend.deleteError
+      backend.rows.delete(id)
+    }),
     addCoAuthors: vi.fn(async (id: string, ids: string[]) => change(id, (sop) => workflow.addCoAuthors(sop, fixture.user!.id, ids))),
     removeCoAuthor: vi.fn(async (id: string, coAuthorId: string) => change(id, (sop) => workflow.removeCoAuthor(sop, fixture.user!.id, coAuthorId))),
     updateSopDescription: vi.fn(async (id: string, text: string) => change(id, (sop) => workflow.updateDescription(sop, fixture.user!.id, text))),
@@ -205,6 +211,7 @@ beforeEach(() => {
   fixture.fetchSop.mockReset()
   backend.rows.clear()
   backend.calls.splice(0)
+  backend.deleteError = null
 })
 afterEach(() => {
   fixture.slots.forEach((slot) => slot.cleanup?.())
@@ -460,5 +467,65 @@ describe('database row cache isolation between users (mocked services only)', ()
     first.resolve([draft('a-private', 'author')]); await settle()
     expect(render().sops.map((sop) => sop.id)).toEqual(['b-private'])
     expect(render().status).toBe('ready')
+  })
+})
+
+describe('deleting an SOP (main author, New SOPs and In Progress)', () => {
+  it('removes the SOP from the list at once, and no later read brings it back', async () => {
+    stored(draft('doomed', 'author'), draft('kept', 'author'))
+    const store = await signIn(fixture.people[0])
+    // A read of the whole list that started before the delete and answers after it.
+    const stale = structuredClone(backend.rows.get('doomed')!)
+    await store.deleteSop('doomed', '  No longer needed  ')
+    expect(render().sops.map((sop) => sop.id)).toEqual(['kept'])
+    fixture.useFetchMock = true
+    fixture.fetchSops.mockResolvedValue([stale, structuredClone(backend.rows.get('kept')!)])
+    fixture.user = null
+    render(); flushEffects(); await settle()
+    expect((await signIn(fixture.people[0])).sops.map((sop) => sop.id)).toEqual(['kept'])
+  })
+
+  it("sends the trimmed justification and forgets the SOP's approval memory", async () => {
+    const items = new Map<string, string>()
+    vi.stubGlobal('localStorage', { getItem: (key: string) => items.get(key) ?? null, setItem: (key: string, value: string) => { items.set(key, value) }, removeItem: (key: string) => { items.delete(key) } })
+    stored(draft('doomed', 'author'))
+    const store = await signIn(fixture.people[0])
+    rememberSentForApproval('doomed', '1')
+    const { deleteSop } = await import('../services/sops')
+    await store.deleteSop('doomed', '  No longer needed  ')
+    expect(deleteSop).toHaveBeenLastCalledWith('doomed', 'No longer needed')
+    expect(wasSentForApproval('doomed', '1')).toBe(false)
+  })
+
+  it('keeps the SOP when the database refuses', async () => {
+    stored(draft('doomed', 'author'))
+    const store = await signIn(fixture.people[0])
+    backend.deleteError = new Error('The SOP department is unavailable')
+    await expect(store.deleteSop('doomed', 'Reason')).rejects.toThrow('department is unavailable')
+    expect(render().sops.map((sop) => sop.id)).toEqual(['doomed'])
+  })
+
+  it('refuses co-authors, completed SOPs, an empty or too long justification and a running check before calling the database', async () => {
+    const coAuthored = { ...draft('co', 'other'), coAuthorIds: ['author'] }
+    const published: Sop = { ...draft('published', 'author'), status: 'published' }
+    const approved: Sop = { ...draft('approved', 'author'), status: 'approved' }
+    const checking: Sop = { ...draft('checking', 'author'), complianceChecks: [{ id: 'running', sopId: 'checking', version: '1', status: 'running', engine: 'sample', startedAt: '2026-10-29T08:58:00Z', guideline: { name: 'GVP', version: '4.0' }, findings: [] }] }
+    stored(coAuthored, published, approved, checking, draft('draft', 'author'))
+    const store = await signIn(fixture.people[0])
+    await expect(store.deleteSop('co', 'Reason')).rejects.toMatchObject({ code: 'not-allowed' })
+    await expect(store.deleteSop('published', 'Reason')).rejects.toMatchObject({ code: 'not-allowed' })
+    await expect(store.deleteSop('approved', 'Reason')).rejects.toMatchObject({ code: 'not-allowed' })
+    await expect(store.deleteSop('draft', '   ')).rejects.toMatchObject({ code: 'invalid-reason' })
+    await expect(store.deleteSop('draft', 'x'.repeat(1001))).rejects.toMatchObject({ code: 'invalid-reason' })
+    await expect(store.deleteSop('checking', 'Reason')).rejects.toMatchObject({ code: 'check-running' })
+    expect(backend.calls).not.toContain('deleteSop')
+    expect(render().sops).toHaveLength(5)
+  })
+
+  it('refuses the sample SOPs, which have no rows or files', async () => {
+    fixture.sops.push(draft('sample', 'author'))
+    const store = await signIn(fixture.people[0])
+    await expect(store.deleteSop('sample', 'Reason')).rejects.toMatchObject({ code: 'not-found' })
+    expect(backend.calls).not.toContain('deleteSop')
   })
 })

@@ -73,14 +73,16 @@ export function mergeSop(stored: Sop, kept: Sop | undefined): Sop {
 /**
  * The tab's SOPs after reading `stored` from the database: new ones first, known ones
  * merged in place, and every other SOP kept (sample SOPs, and SOPs read while someone
- * else was signed in in this tab).
+ * else was signed in in this tab). SOPs deleted in this tab (`deletedIds`) never come back,
+ * even from a read that started before the delete.
  */
-export function mergeSops(current: Sop[], stored: Sop[]): Sop[] {
-  const known = new Set(current.map((sop) => sop.id))
-  const storedById = new Map(stored.map((sop) => [sop.id, sop]))
+export function mergeSops(current: Sop[], stored: Sop[], deletedIds: ReadonlySet<string> = new Set()): Sop[] {
+  const kept = current.filter((sop) => !deletedIds.has(sop.id))
+  const known = new Set(kept.map((sop) => sop.id))
+  const storedById = new Map(stored.filter((sop) => !deletedIds.has(sop.id)).map((sop) => [sop.id, sop]))
   return [
-    ...stored.filter((sop) => !known.has(sop.id)),
-    ...current.map((sop) => {
+    ...stored.filter((sop) => !known.has(sop.id) && !deletedIds.has(sop.id)),
+    ...kept.map((sop) => {
       const update = storedById.get(sop.id)
       return update ? mergeSop(update, sop) : sop
     }),

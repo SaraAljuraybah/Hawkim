@@ -16,6 +16,8 @@ import * as workflow from '../lib/workflow'
 import { fileTypeOf } from '../lib/prototypeFiles'
 import { forgetSentForApproval, rememberSentForApproval, wasSentForApproval } from './approvalSentStorage'
 import { mergeSops } from './mergeSops'
+import { canDeleteSop, hasRunningCheck, SopDeleteError } from '../lib/mySops'
+import { REVIEW_TEXT_MAX } from '../lib/internalReview'
 import * as complianceApi from '../services/compliance'
 import * as filesApi from '../services/files'
 import * as reviewApi from '../services/review'
@@ -70,6 +72,8 @@ export function SopsProvider({ children }: { children: ReactNode }) {
   const latestRef = useRef<Sop[]>(seedSops)
   /** The SOPs read from the database (the others are the sample SOPs, kept only in this tab). */
   const storedIds = useRef(new Set<string>())
+  /** SOPs deleted in this tab: no read (even one started before the delete) brings them back. */
+  const deletedIds = useRef(new Set<string>())
   const cacheOwner = useRef(userId)
   const commit = useCallback((next: Sop[]) => {
     latestRef.current = next
@@ -92,6 +96,7 @@ export function SopsProvider({ children }: { children: ReactNode }) {
       const owner = userId
       const stored = await (await sopService()).fetchSop(sopId)
       if (!owner || activeIdentity.current !== owner) throw new Error('The signed-in user changed')
+      if (deletedIds.current.has(sopId)) return undefined
       if (!stored) {
         // They can no longer read it, e.g. an other-department reviewer who has just declined.
         if (!latestRef.current.some((sop) => sop.id === sopId)) throw new Error(`Unknown SOP ${sopId}`)
@@ -101,7 +106,7 @@ export function SopsProvider({ children }: { children: ReactNode }) {
         return undefined
       }
       storedIds.current.add(stored.id)
-      commit(mergeSops(latestRef.current, [stored]))
+      commit(mergeSops(latestRef.current, [stored], deletedIds.current))
       return latestRef.current.find((sop) => sop.id === sopId)!
     },
     [commit, userId, loadClosed],
@@ -275,8 +280,8 @@ export function SopsProvider({ children }: { children: ReactNode }) {
     sopService().then(({ fetchSops }) => fetchSops()).then(
       (stored) => {
         if (!active || activeIdentity.current !== userId) return
-        for (const sop of stored) storedIds.current.add(sop.id)
-        commit(mergeSops(latestRef.current, stored))
+        for (const sop of stored) if (!deletedIds.current.has(sop.id)) storedIds.current.add(sop.id)
+        commit(mergeSops(latestRef.current, stored, deletedIds.current))
         setLoaded({ userId, status: 'ready' })
         void loadClosed()
         // This person's sample checks still running (the page was reloaded meanwhile) are finished now;
@@ -435,6 +440,21 @@ export function SopsProvider({ children }: { children: ReactNode }) {
         await (await sopService()).deleteSopVersion(id, version)
         await refresh(id)
       },
+      // The browser's rules first (they also cover approval, which the database doesn't have yet).
+      deleteSop: async (id, reason) => {
+        const sop = current(id)
+        if (!canDeleteSop(sop, userId)) throw new SopDeleteError('not-allowed', 'Only the main author can delete an SOP in New SOPs or In Progress')
+        const trimmed = reason.trim()
+        if (!trimmed || trimmed.length > REVIEW_TEXT_MAX) throw new SopDeleteError('invalid-reason', 'A justification of up to 1000 characters is required to delete an SOP')
+        if (hasRunningCheck(sop)) throw new SopDeleteError('check-running', "This SOP can't be deleted while a compliance check is running. Try again when it finishes.")
+        // The sample SOPs exist only in this tab and have no rows or files to delete.
+        if (!storedIds.current.has(id)) throw new SopDeleteError('not-found', 'Only SOPs saved in the database can be deleted')
+        await (await sopService()).deleteSop(id, trimmed)
+        deletedIds.current.add(id)
+        storedIds.current.delete(id)
+        commit(latestRef.current.filter((item) => item.id !== id))
+        forgetSentForApproval(id)
+      },
       addResponse: async (id, text, requestId) => {
         const target = PER_REVIEWER_RESPONSE_ACTIVE ? requestId : undefined
         workflow.addResponse(current(id), userId, text, target)
@@ -512,7 +532,7 @@ export function SopsProvider({ children }: { children: ReactNode }) {
       failNextCheck,
       setFailNextCheck,
     }),
-    [status, exposedSops, closedRequests, addDraft, refresh, refreshIfExpired, current, update, runCheck, failNextCheck, setFailNextCheck, userId, guideline.version, users, environment, assertActor],
+    [status, exposedSops, closedRequests, addDraft, refresh, refreshIfExpired, current, update, runCheck, failNextCheck, setFailNextCheck, userId, guideline.version, users, environment, assertActor, commit],
   )
 
   return <SopsContext.Provider value={store}>{children}</SopsContext.Provider>

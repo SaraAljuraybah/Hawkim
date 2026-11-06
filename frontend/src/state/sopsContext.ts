@@ -55,6 +55,12 @@ export interface SopsStore {
   uploadVersion: (sopId: string, file: File) => Promise<void>
   /** Main author or its uploader: deletes a version (Draft or Returned; at least one remains). */
   deleteVersion: (sopId: string, version: string) => Promise<void>
+  /**
+   * Main author: permanently deletes an SOP in New SOPs or In Progress, with its rows and files,
+   * and a required justification. It is gone from this tab at once and never read back.
+   * Throws a SopDeleteError when refused.
+   */
+  deleteSop: (sopId: string, reason: string) => Promise<void>
   /** Author or co-author: replies to the latest round's comments. */
   /** `requestId`: the reviewer's request a comments dialog responds to (only used while PER_REVIEWER_RESPONSE_ACTIVE is on). */
   addResponse: (sopId: string, text: string, requestId?: string) => Promise<void>
