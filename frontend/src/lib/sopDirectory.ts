@@ -1,5 +1,7 @@
 import type { DepartmentId, Sop, SopFileType } from '../data/mock/types'
+import type { SopTabKey } from '../content/types'
 import type { MySopSort } from './mySops'
+import { parsePage, readChoice } from './pagination'
 
 export type SopDocumentFilter = 'all' | SopFileType
 
@@ -26,4 +28,26 @@ export function filterDirectorySops(
   // SOPs with the same date stay in code order in both directions.
   return visible.sort((a, b) =>
     direction * a.lastUpdated.localeCompare(b.lastUpdated) || a.code.localeCompare(b.code, 'en', { numeric: true }))
+}
+
+/** The SOP Directory in the URL: the tab, search, sort, file type and page (defaults add nothing). */
+export interface DirectoryUrlState {
+  tab: SopTabKey
+  query: string
+  sort: MySopSort
+  documentType: SopDocumentFilter
+  page: number
+}
+
+export const DIRECTORY_URL_DEFAULTS = { tab: 'all', q: '', sort: 'newest', type: 'all', page: '1' }
+
+/** Reads the directory from the URL; an invalid value means its default (Others falls back to All when it isn't shown). */
+export function readDirectoryUrl(params: URLSearchParams): DirectoryUrlState {
+  return {
+    tab: readChoice(params, 'tab', ['all', 'recent', 'others'] as const, 'all'),
+    query: params.get('q') ?? '',
+    sort: readChoice(params, 'sort', ['newest', 'oldest'] as const, 'newest'),
+    documentType: readChoice(params, 'type', ['all', 'pdf', 'docx'] as const, 'all'),
+    page: parsePage(params.get('page')),
+  }
 }

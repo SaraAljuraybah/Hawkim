@@ -1,8 +1,9 @@
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { Check, ChevronDown } from 'lucide-react'
 import type { AppShellContent } from '../../content/types'
 import type { DepartmentId } from '../../data/mock/types'
+import { searchWithoutPage } from '../../lib/pagination'
 import { useActiveDepartment } from '../../state/activeDepartmentContext'
 
 interface DepartmentSwitcherProps {
@@ -27,6 +28,7 @@ const AFTER_SWITCH_PATH = '/sops'
 export function DepartmentSwitcher({ content, variant, onSwitched }: DepartmentSwitcherProps) {
   const { activeDepartment, homeDepartment, directoryDepartments, setActiveDepartment } = useActiveDepartment()
   const navigate = useNavigate()
+  const location = useLocation()
   const [open, setOpen] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
   const buttonRef = useRef<HTMLButtonElement>(null)
@@ -80,7 +82,8 @@ export function DepartmentSwitcher({ content, variant, onSwitched }: DepartmentS
   function choose(id: DepartmentId) {
     setActiveDepartment(id)
     setOpen(false)
-    navigate(AFTER_SWITCH_PATH)
+    // Already in the directory: keep its tab, search, sort and file type; every tab starts again on page 1.
+    navigate(location.pathname === AFTER_SWITCH_PATH ? AFTER_SWITCH_PATH + searchWithoutPage(location.search) : AFTER_SWITCH_PATH)
     onSwitched?.()
   }
 

@@ -1,10 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { Building2, FileText, Search } from 'lucide-react'
 import { Button } from '../components/ui/Button'
+import { Pagination } from '../components/ui/Pagination'
 import { TextField } from '../components/ui/TextField'
 import { SelectField } from '../components/ui/SelectField'
 import type { MySopSort } from '../lib/mySops'
-import { filterDirectorySops, OTHERS_SECTION, type SopDocumentFilter } from '../lib/sopDirectory'
+import { clampPage, pageCount, pageSlice, rememberedPagesFor, resultsParams, tabSwitch, updateParams, type RememberedPages } from '../lib/pagination'
+import { DIRECTORY_URL_DEFAULTS, filterDirectorySops, OTHERS_SECTION, readDirectoryUrl, type SopDocumentFilter } from '../lib/sopDirectory'
+import { devSampleCount, devSampleSops } from '../lib/devSampleSops'
 import { directorySopsFor } from '../lib/sopAccess'
 import { useCurrentUser } from '../state/sessionContext'
 import { useMyRequests } from '../state/requestsContext'
@@ -13,6 +17,7 @@ import { SopList } from '../components/sops/SopList'
 import { Tabs, type TabItem } from '../components/ui/Tabs'
 import { tabIds } from '../components/ui/tabIds'
 import { ViewToggle, type ViewMode } from '../components/ui/ViewToggle'
+import { paginationEn } from '../content/pagination.en'
 import { sopsEn } from '../content/sops.en'
 import type { SopTabKey } from '../content/types'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
@@ -43,11 +48,12 @@ export function SopsPage() {
   const user = useCurrentUser()
   const requests = useMyRequests()
 
-  const [tab, setTab] = useState<SopTabKey>('all')
-  const [query, setQuery] = useState('')
+  // The tab, search, sort, file type and page are kept in the URL, so a refresh or Back restores them.
+  const [params, setParams] = useSearchParams()
+  const { tab, query, sort, documentType, page: urlPage } = useMemo(() => readDirectoryUrl(params), [params])
   const searchRef = useRef<HTMLInputElement>(null)
-  const [documentType, setDocumentType] = useState<SopDocumentFilter>('all')
-  const [sort, setSort] = useState<MySopSort>('newest')
+  // The page each other tab was left on, for this department only: switching department starts every tab on page 1.
+  const [memory, setMemory] = useState<RememberedPages<SopTabKey>>({ department: '', pages: {} })
   // The sort order isn't a filter: it doesn't show Clear Filters and isn't reset by it.
   const hasFilters = query.length > 0 || documentType !== 'all'
   const [view, setView] = useState<ViewMode>(readStoredView)
@@ -60,7 +66,13 @@ export function SopsPage() {
     }
   }, [view])
 
-  const authorized = useMemo(() => directorySopsFor(sops, user, requests), [sops, user, requests])
+  // DEVELOPMENT ONLY (?devSops=40): sample SOPs to try pagination; left out of the production build.
+  const listSops = useMemo(() => {
+    if (!import.meta.env.DEV) return sops
+    const count = devSampleCount(params)
+    return count ? [...sops, ...devSampleSops(count, user.id, activeDepartment.id, true)] : sops
+  }, [sops, params, user.id, activeDepartment.id])
+  const authorized = useMemo(() => directorySopsFor(listSops, user, requests), [listSops, user, requests])
   // Others (SOPs of deleted departments) is a tab only for people who may open some of them.
   const hasOthers = useMemo(() => filterDirectorySops(authorized, OTHERS_SECTION).length > 0, [authorized])
   const tabKeys: SopTabKey[] = hasOthers ? ['all', 'recent', 'others'] : ['all', 'recent']
@@ -73,14 +85,51 @@ export function SopsPage() {
     () => filterDirectorySops(authorized, showingOthers ? OTHERS_SECTION : activeDepartment.id, query, documentType, sort),
     [authorized, showingOthers, activeDepartment.id, query, documentType, sort],
   )
-  function clearFilters() {
-    setQuery('')
-    setDocumentType('all')
-    searchRef.current?.focus()
-  }
   // A remembered Others tab falls back to All once there is nothing in Others.
   const selectedTab: SopTabKey = showingOthers || tab !== 'others' ? tab : 'all'
   const ids = tabIds(TAB_ID_PREFIX, selectedTab)
+  // A page that's too high (an old link) shows the last page.
+  const pages = pageCount(visibleSops.length)
+  const page = clampPage(urlPage, pages)
+  const pageSops = pageSlice(visibleSops, page)
+  const tabPages = rememberedPagesFor(memory, activeDepartment.id)
+  const rememberPages = (next: Partial<Record<SopTabKey, number>>) => setMemory({ department: activeDepartment.id, pages: next })
+
+  // Replacing the URL: typing in search doesn't add a history entry per letter. Only a page change does.
+  function change(changes: Record<string, string | number | undefined>, replace = true) {
+    setParams((current) => updateParams(current, changes, DIRECTORY_URL_DEFAULTS), { replace })
+  }
+  // New results: every tab starts again on page 1.
+  function changeResults(changes: Record<string, string | undefined>) {
+    rememberPages({})
+    setParams((current) => resultsParams(current, changes, DIRECTORY_URL_DEFAULTS), { replace: true })
+  }
+  const setQuery = (value: string) => changeResults({ q: value })
+  const setDocumentType = (value: SopDocumentFilter) => changeResults({ type: value })
+  const setSort = (value: MySopSort) => changeResults({ sort: value })
+
+  // Each tab opens on the page it was left on.
+  function setTab(next: SopTabKey) {
+    if (next === selectedTab) return
+    const switched = tabSwitch(params, tabPages, selectedTab, page, next, DIRECTORY_URL_DEFAULTS)
+    rememberPages(switched.pages)
+    setParams(switched.params, { replace: true })
+  }
+
+  // A new page: back to the top of the list, with focus on it, so keyboard and screen-reader users land on the new results.
+  function goToPage(next: number) {
+    change({ page: next }, false)
+    requestAnimationFrame(() => {
+      const panel = document.getElementById(ids.panel)
+      panel?.scrollIntoView({ block: 'start' })
+      panel?.focus({ preventScroll: true })
+    })
+  }
+
+  function clearFilters() {
+    changeResults({ q: undefined, type: undefined })
+    searchRef.current?.focus()
+  }
 
   return (
     <>
@@ -153,11 +202,13 @@ export function SopsPage() {
             <p className="mt-4 text-text-gray">{hasFilters ? content.filters.empty : showingOthers ? content.othersEmpty : content.empty}</p>
           </div>
         ) : view === 'grid' ? (
-          <SopGrid sops={visibleSops} content={content} />
+          <SopGrid sops={pageSops} content={content} />
         ) : (
-          <SopList sops={visibleSops} content={content} />
+          <SopList sops={pageSops} content={content} />
         )}
       </div>
+
+      <Pagination page={page} count={pages} onChange={goToPage} content={paginationEn} className="mt-8" />
     </>
   )
 }

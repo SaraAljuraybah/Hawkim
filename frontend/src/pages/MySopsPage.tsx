@@ -1,19 +1,23 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useLocation, useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { CircleCheck, FileText, Upload } from 'lucide-react'
 import { AuthoredSopGrid } from '../components/mySops/AuthoredSopGrid'
 import { AuthoredSopList } from '../components/mySops/AuthoredSopList'
 import { DeleteSopDialog } from '../components/mySops/DeleteSopDialog'
 import { Button } from '../components/ui/Button'
+import { Pagination } from '../components/ui/Pagination'
 import { SearchCombobox } from '../components/ui/SearchCombobox'
 import { SelectField } from '../components/ui/SelectField'
 import { Tabs } from '../components/ui/Tabs'
 import { tabIds } from '../components/ui/tabIds'
 import { ViewToggle, type ViewMode } from '../components/ui/ViewToggle'
 import { mySopsEn } from '../content/mySops.en'
+import { paginationEn } from '../content/pagination.en'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
+import { devSampleCount, devSampleSops } from '../lib/devSampleSops'
 import { hasPermission } from '../lib/permissions'
-import { authoredSopsFor, filterMySops, mySopTitles, sortMySops, type MySopCategory, type MySopRole, type MySopSort } from '../lib/mySops'
+import { authoredSopsFor, filterMySops, MY_SOPS_URL_DEFAULTS, mySopTitles, readMySopsUrl, sortMySops, type MySopCategory, type MySopRole, type MySopSort } from '../lib/mySops'
+import { clampPage, pageAfterRemoval, pageCount, pageSlice, resultsParams, tabSwitch, updateParams } from '../lib/pagination'
 import { useActiveDepartment } from '../state/activeDepartmentContext'
 import { useCurrentUser } from '../state/sessionContext'
 import type { Sop } from '../data/mock/types'
@@ -47,10 +51,11 @@ export function MySopsPage() {
   const { sops, deleteSop } = useSops()
   const { homeDepartment } = useActiveDepartment()
   const [statusMessage, setStatusMessage] = useState('')
-  const [category, setCategory] = useState<MySopCategory>('new')
-  const [query, setQuery] = useState('')
-  const [sort, setSort] = useState<MySopSort>('newest')
-  const [role, setRole] = useState<MySopRole>('all')
+  // The tab, search, sort, My Role and page are kept in the URL, so a refresh or Back restores them.
+  const [params, setParams] = useSearchParams()
+  const { category, query, sort, role, page: urlPage } = useMemo(() => readMySopsUrl(params), [params])
+  // The page each other tab was left on, while the user stays on this page (the URL holds only the current tab's).
+  const [tabPages, setTabPages] = useState<Partial<Record<MySopCategory, number>>>({})
   const [view, setView] = useState<ViewMode>(readStoredView)
   const searchRef = useRef<HTMLInputElement>(null)
   // The SOP being deleted, and the button that opened the dialog (focus goes back to it).
@@ -78,9 +83,15 @@ export function MySopsPage() {
     }
   }, [view])
 
+  // DEVELOPMENT ONLY (?devSops=40): sample SOPs to try pagination; left out of the production build.
+  const listSops = useMemo(() => {
+    if (!import.meta.env.DEV) return sops
+    const count = devSampleCount(params)
+    return count ? [...sops, ...devSampleSops(count, user.id, homeDepartment.id)] : sops
+  }, [sops, params, user.id, homeDepartment.id])
   const authoredSops = useMemo(
-    () => authoredSopsFor(sops, user.id, homeDepartment.id),
-    [sops, user.id, homeDepartment.id],
+    () => authoredSopsFor(listSops, user.id, homeDepartment.id),
+    [listSops, user.id, homeDepartment.id],
   )
   const visibleSops = useMemo(
     () => sortMySops(filterMySops(authoredSops, user.id, { category, query, role }), sort),
@@ -94,10 +105,44 @@ export function MySopsPage() {
   // The sort order isn't a filter: it doesn't show Clear Filters and isn't reset by it.
   const hasFilters = query.length > 0 || role !== 'all'
   const ids = tabIds(TAB_ID_PREFIX, category)
+  // A page that's too high (an old link, or after a delete) shows the last page.
+  const pages = pageCount(visibleSops.length)
+  const page = clampPage(urlPage, pages)
+  const pageSops = pageSlice(visibleSops, page)
+
+  // Replacing the URL: typing in search doesn't add a history entry per letter. Only a page change does.
+  function change(changes: Record<string, string | number | undefined>, replace = true) {
+    setParams((current) => updateParams(current, changes, MY_SOPS_URL_DEFAULTS), { replace })
+  }
+  // New results: every tab starts again on page 1.
+  function changeResults(changes: Record<string, string | undefined>) {
+    setTabPages({})
+    setParams((current) => resultsParams(current, changes, MY_SOPS_URL_DEFAULTS), { replace: true })
+  }
+  const setQuery = (value: string) => changeResults({ q: value })
+  const setSort = (value: MySopSort) => changeResults({ sort: value })
+  const setRole = (value: MySopRole) => changeResults({ role: value })
+
+  // Each tab opens on the page it was left on.
+  function selectTab(next: MySopCategory) {
+    if (next === category) return
+    const switched = tabSwitch(params, tabPages, category, page, next, MY_SOPS_URL_DEFAULTS)
+    setTabPages(switched.pages)
+    setParams(switched.params, { replace: true })
+  }
+
+  // A new page: back to the top of the list, with focus on it, so keyboard and screen-reader users land on the new results.
+  function goToPage(next: number) {
+    change({ page: next }, false)
+    requestAnimationFrame(() => {
+      const panel = document.getElementById(ids.panel)
+      panel?.scrollIntoView({ block: 'start' })
+      panel?.focus({ preventScroll: true })
+    })
+  }
 
   function clearFilters() {
-    setQuery('')
-    setRole('all')
+    changeResults({ q: undefined, role: undefined })
     searchRef.current?.focus()
   }
 
@@ -110,6 +155,9 @@ export function MySopsPage() {
     if (!deleting) return
     await deleteSop(deleting.id, reason)
     setStatusMessage(content.deleteSop.deleted.replace('{title}', deleting.title))
+    // The page's last SOP was deleted: show the previous page.
+    const shownPage = pageAfterRemoval(page, visibleSops.length - 1)
+    if (shownPage !== page) change({ page: shownPage })
   }
 
   function closeDelete() {
@@ -187,7 +235,7 @@ export function MySopsPage() {
 
       <div className="mt-8 flex flex-wrap items-end justify-between gap-x-6 gap-y-3 border-b border-beige">
         <div className="max-w-full overflow-x-auto">
-          <Tabs items={(['new', 'progress', 'completed'] as const).map((key) => ({ key, label: content.tabs[key] }))} selected={category} onSelect={setCategory} label={content.tabsLabel} idPrefix={TAB_ID_PREFIX} />
+          <Tabs items={(['new', 'progress', 'completed'] as const).map((key) => ({ key, label: content.tabs[key] }))} selected={category} onSelect={selectTab} label={content.tabsLabel} idPrefix={TAB_ID_PREFIX} />
         </div>
         <div className="order-first flex w-full justify-end pb-2 sm:order-none sm:w-auto">
           <ViewToggle value={view} onChange={setView} labels={content.viewToggle} />
@@ -203,11 +251,13 @@ export function MySopsPage() {
             <p className="mt-4 text-text-gray">{hasFilters ? content.filters.empty : content.empty}</p>
           </div>
         ) : view === 'grid' ? (
-          <AuthoredSopGrid sops={visibleSops} content={content} userId={user.id} onDelete={askToDelete} />
+          <AuthoredSopGrid sops={pageSops} content={content} userId={user.id} onDelete={askToDelete} />
         ) : (
-          <AuthoredSopList sops={visibleSops} content={content} userId={user.id} onDelete={askToDelete} />
+          <AuthoredSopList sops={pageSops} content={content} userId={user.id} onDelete={askToDelete} />
         )}
       </div>
+
+      <Pagination page={page} count={pages} onChange={goToPage} content={paginationEn} className="mt-8" />
 
       {deleting && (
         <DeleteSopDialog title={deleting.title} content={content.deleteSop} onConfirm={confirmDelete} onClose={closeDelete} />

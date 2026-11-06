@@ -1,6 +1,7 @@
 import type { MySopsContent } from '../content/types'
 import type { Sop } from '../data/mock/types'
 import type { SopStatus } from '../types/status'
+import { parsePage, readChoice } from './pagination'
 import { isAuthorOrCoAuthor } from './workflow'
 
 export type MySopCategory = 'new' | 'progress' | 'completed'
@@ -87,4 +88,26 @@ export function sortMySops(sops: Sop[], sort: MySopSort): Sop[] {
 /** The distinct SOP titles to suggest in the search, A to Z. */
 export function mySopTitles(sops: Sop[]): string[] {
   return [...new Set(sops.map((sop) => sop.title))].sort((a, b) => a.localeCompare(b))
+}
+
+/** My SOPs in the URL: the tab, search, sort, My Role and page (defaults add nothing). */
+export interface MySopsUrlState {
+  category: MySopCategory
+  query: string
+  sort: MySopSort
+  role: MySopRole
+  page: number
+}
+
+export const MY_SOPS_URL_DEFAULTS = { tab: 'new', q: '', sort: 'newest', role: 'all', page: '1' }
+
+/** Reads My SOPs from the URL; an invalid value means its default. */
+export function readMySopsUrl(params: URLSearchParams): MySopsUrlState {
+  return {
+    category: readChoice(params, 'tab', ['new', 'progress', 'completed'] as const, 'new'),
+    query: params.get('q') ?? '',
+    sort: readChoice(params, 'sort', ['newest', 'oldest'] as const, 'newest'),
+    role: readChoice(params, 'role', ['all', 'main', 'coauthor'] as const, 'all'),
+    page: parsePage(params.get('page')),
+  }
 }
