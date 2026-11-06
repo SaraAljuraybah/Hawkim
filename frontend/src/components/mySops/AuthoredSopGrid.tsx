@@ -6,6 +6,7 @@ import { formatDate } from '../../lib/format'
 import { recheckRecommended } from '../../lib/guidelines'
 import { canDeleteSop } from '../../lib/mySops'
 import { mySopPath } from '../../lib/routes'
+import { authorStatus } from '../../lib/workflow'
 import { useGuidelines } from '../../state/guidelinesContext'
 import { RecheckBadge } from '../compliance/RecheckBadge'
 import { IconButton } from '../ui/IconButton'
@@ -36,7 +37,7 @@ export function AuthoredSopGrid({ sops, content, userId, onDelete }: AuthoredSop
                 </span>
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="rounded-full bg-beige px-2 py-0.5 text-xs font-medium text-maroon">{role}</span>
-                  <StatusBadge status={sop.status} />
+                  <StatusBadge status={authorStatus(sop)} />
                   {onDelete && canDeleteSop(sop, userId) && (
                     // Above the card's stretched link (z-10), outside it: its own clicks and focus, and it never opens the SOP.
                     <span className="relative z-10">

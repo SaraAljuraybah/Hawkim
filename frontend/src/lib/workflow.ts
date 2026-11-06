@@ -353,6 +353,15 @@ export function returnedStep(sop: Sop): 'in-review' | 'in-approval' | undefined 
 }
 
 /**
+ * The status the author sees on My SOPs: Returned whenever the Workflow status shows a returned
+ * step (returnedStep), so the badge and the steps always agree. Only for display: the SOP keeps
+ * its stored status (and its My SOPs tab).
+ */
+export function authorStatus(sop: Sop): SopStatus {
+  return returnedStep(sop) ? 'returned' : sop.status
+}
+
+/**
  * A returned SOP can be resubmitted only once its current version was uploaded AFTER
  * the latest return (PBI 6), so deleting back to an older version doesn't allow it.
  */

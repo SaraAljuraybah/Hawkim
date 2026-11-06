@@ -8,6 +8,7 @@ import { recheckRecommended } from '../../lib/guidelines'
 import { canDeleteSop } from '../../lib/mySops'
 import { useDepartments } from '../../state/departmentsContext'
 import { mySopPath } from '../../lib/routes'
+import { authorStatus } from '../../lib/workflow'
 import { useGuidelines } from '../../state/guidelinesContext'
 import { RecheckBadge } from '../compliance/RecheckBadge'
 import { IconButton } from '../ui/IconButton'
@@ -80,7 +81,7 @@ export function AuthoredSopList({ sops, content, userId, onDelete }: AuthoredSop
             <div className={`flex flex-wrap items-center gap-x-4 gap-y-2 pl-[3.25rem] sm:grid sm:gap-4 sm:pl-0 ${deleteColumn ? 'sm:grid-cols-[13rem_5.5rem_6.5rem_2.25rem]' : 'sm:grid-cols-[13rem_5.5rem_6.5rem]'}`}>
               <div className="flex flex-wrap items-center gap-2">
                 <span className="rounded-full bg-beige px-2 py-0.5 text-xs font-medium text-maroon">{roleLabel}</span>
-                <StatusBadge status={sop.status} />
+                <StatusBadge status={authorStatus(sop)} />
               </div>
               <span className="text-sm whitespace-nowrap text-text-gray">
                 {content.versionTemplate.replace('{version}', sop.version)}
