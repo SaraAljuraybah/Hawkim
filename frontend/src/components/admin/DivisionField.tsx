@@ -18,7 +18,7 @@ interface DivisionFieldProps {
 }
 
 /**
- * The required Division of a new user, chosen before the department: a searchable list of the
+ * The required Division of a user, chosen before the department: a searchable list of the
  * departments' divisions, plus "No Division" for departments without one.
  */
 export function DivisionField({ departments, content, value, error, onChange, onBlur, inputRef, className }: DivisionFieldProps) {
