@@ -17,6 +17,8 @@ export interface TextAreaFieldProps extends Omit<TextareaHTMLAttributes<HTMLText
   compact?: boolean
   /** Keeps the label for screen readers only (sr-only), so the field still has an accessible name. */
   hideLabel?: boolean
+  /** Shows a red asterisk after the label (hidden from screen readers; `required` announces it). */
+  requiredMark?: boolean
   ref?: Ref<HTMLTextAreaElement>
   className?: string
 }
@@ -30,6 +32,7 @@ export function TextAreaField({
   resizable = true,
   compact = false,
   hideLabel = false,
+  requiredMark = false,
   ref,
   id,
   rows = 5,
@@ -45,6 +48,7 @@ export function TextAreaField({
     <FieldShell
       label={label}
       hideLabel={hideLabel}
+      requiredMark={requiredMark}
       inputId={fieldIds.inputId}
       hint={hint}
       hintId={fieldIds.hintId}
