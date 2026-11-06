@@ -24,9 +24,10 @@ $$;
 -- People: 1 main author, 2 co-author, 3 other author, 4 deleted profile, 5 banned, 6 deleted Auth account, 7 reviewer.
 insert into public.departments (id, name, initials) values ('delete-test-home', 'Delete test home', 'DT');
 insert into auth.users (id) select ('93000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid from generate_series(1, 7) n;
-insert into public.profiles (id, full_name, email, initials, department_id, deleted_at)
+-- Every assigned employee holds a position (20261107120300_employee_positions.sql checks it at commit).
+insert into public.profiles (id, full_name, email, initials, department_id, deleted_at, "position")
 select ('93000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid, 'Delete person ' || n,
-       'delete-person-' || n || '@test.invalid', 'DP', 'delete-test-home', case when n = 4 then now() end
+       'delete-person-' || n || '@test.invalid', 'DP', 'delete-test-home', case when n = 4 then now() end, 'Tester'
 from generate_series(1, 7) n;
 insert into public.user_roles (user_id, role)
 select ('93000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid, 'author'::public.app_role from generate_series(1, 6) n;
@@ -161,6 +162,8 @@ begin
   v_result := public.delete_sop(author, sop, 'No longer needed');
   -- The deferred link from the SOP to its current version is checked now, not at the rollback.
   set constraints all immediate;
+  -- Back to deferred, so later SOPs can again be created before their first version.
+  set constraints all deferred;
   assert v_result->>'code' like 'SOP-%' and v_result->>'title' = 'Delete test SOP', 'The code and title are returned';
   assert v_result->'paths' = jsonb_build_array('del/' || sop || '/1.pdf', 'del/' || sop || '/2.pdf'),
     'Every non-empty file path is returned, deleted versions included: ' || (v_result->'paths')::text;

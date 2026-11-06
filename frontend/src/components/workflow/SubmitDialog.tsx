@@ -11,7 +11,7 @@ import { REVIEW_DURATION_CONFIRM_ABOVE, REVIEW_DURATION_MAX, REVIEW_DURATION_MIN
 import { reviewDueDateIfAcceptedNow } from '../../lib/reviewDeadline'
 import { refusesChoice, reviewDepartmentLock, type SubmitMode } from '../../lib/reviewDepartment'
 import { REVIEW_NOTE_EDITOR_MAX, prepareReviewSubmission } from '../../lib/reviewSubmission'
-import { departmentsInDivision, divisionOptions, NO_DIVISION } from '../../lib/userAdmin'
+import { departmentsInDivision, divisionNameIn, divisionOptions, NO_DIVISION } from '../../lib/userAdmin'
 import { useDepartments } from '../../state/departmentsContext'
 import type { SubmitOptions } from '../../state/sopsContext'
 import { useUsers } from '../../state/usersContext'
@@ -131,7 +131,7 @@ export function SubmitDialog({ sop, content, onSubmit, onClose, mode = 'submit' 
       {mode === 'version' && <p className="text-sm text-maroon">{text.versionIntro.replace('{version}', sop.version)}</p>}
       {failed && <p role="alert" className="text-sm text-status-rejected-fg">{failedText || fields.errors.submitFailed}</p>}
       <SelectCombobox name="reviewDivision" label={text.division} placeholder={text.divisionPicker.placeholder}
-        options={divisionOptions(choosable).map((item) => ({ value: item, label: item === NO_DIVISION ? text.noDivision : item }))}
+        options={divisionOptions(choosable).map((item) => ({ value: item, label: item === NO_DIVISION ? text.noDivision : divisionNameIn(choosable, item) }))}
         value={division} error={divisionError || undefined} toggleLabel={text.divisionPicker.toggle} noMatchesText={text.divisionPicker.noMatches}
         required requiredMark onChange={chooseDivision} />
       <SelectCombobox

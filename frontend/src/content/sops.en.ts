@@ -16,6 +16,7 @@ subtitle: 'Browse published SOPs available to you.',
   tabs: {
     all: 'All',
     recent: 'Recently Added',
+    others: 'Others',
   },
   filters: {
     label: 'Search and filter SOPs',
@@ -44,6 +45,8 @@ subtitle: 'Browse published SOPs available to you.',
     lastUpdated: 'Last Updated',
   },
   departmentLabel: 'Department',
+  othersSection: 'Others: SOPs of departments that no longer exist',
+  othersEmpty: 'No SOPs in Others.',
   versionTemplate: 'v{version}',
   empty: 'No SOPs in this department yet.',
 

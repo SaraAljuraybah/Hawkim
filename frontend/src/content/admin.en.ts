@@ -15,7 +15,7 @@ export const adminEn: AdminContent = {
     navAriaLabel: 'Admin',
     nav: [
       { label: 'Users', href: '/admin/users', icon: 'employees', matchSubpaths: true },
-      { label: 'Departments', href: '/admin/departments', icon: 'departments', matchSubpaths: true },
+      { label: 'Divisions & Departments', href: '/admin/departments', icon: 'departments', matchSubpaths: true },
       { label: 'Requests', href: '/admin/requests', icon: 'requests', matchSubpaths: true },
       { label: 'SFDA Regulatory Requirements', href: '/admin/regulations', icon: 'regulatory', matchSubpaths: true },
       { label: 'Organizational Structure', href: '/admin/organizational-structure', icon: 'hierarchy', matchSubpaths: true },
@@ -164,15 +164,15 @@ export const adminEn: AdminContent = {
   departmentForm: {
     add: {
       title: 'Add Department',
-      subtitle: 'Add a department of your organization.',
+      subtitle: 'Add a department to one of your organization’s divisions.',
       submit: 'Add Department',
     },
     edit: {
       title: 'Edit Department',
-      subtitle: 'Change the name, initials or description of {name}.',
+      subtitle: 'Change the division, name, initials or description of {name}.',
       submit: 'Save Changes',
     },
-    backToList: { label: 'Back to Departments', href: '/admin/departments' },
+    backToList: { label: 'Back to Divisions & Departments', href: '/admin/departments' },
     backToDepartment: 'Back to {name}',
     name: { label: 'Name' },
     initials: { label: 'Initials', hint: '2–3 letters, e.g. QA. Shown in the department badge.' },
@@ -377,7 +377,7 @@ export const adminEn: AdminContent = {
   },
 
   departmentDetails: {
-    back: { label: 'Back to Departments', href: '/admin/departments' },
+    back: { label: 'Back to Divisions & Departments', href: '/admin/departments' },
     added: 'Department added.',
     updated: 'Department updated.',
     titleWithCount: '{title} ({count})',
@@ -392,7 +392,7 @@ export const adminEn: AdminContent = {
     edit: 'Edit',
     remove: {
       title: 'Remove Department',
-      text: 'Only an empty department can be removed: no members, SOPs, users with access or pending access requests.',
+      text: 'A department can be removed once it has no members. If it has SOPs, you choose whether to move them to Others or delete them.',
       button: 'Remove Department',
       refused: "{name} can't be removed yet:",
       blockers: {

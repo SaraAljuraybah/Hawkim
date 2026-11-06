@@ -11,7 +11,9 @@ import { supabase } from './supabase'
 
 /** The columns read for a person, with their roles. */
 const PROFILE_COLUMNS = 'id, full_name, email, initials, department_id, phone, position, deleted_at, user_roles(role)'
-const DEPARTMENT_COLUMNS = 'id, name, initials, description, is_quality, removed_at, requires_compliance_check'
+// The division comes from departments.division_id (managed in Divisions & Departments) with its name,
+// through the departments_division_id_fkey relationship; every active user can read both.
+const DEPARTMENT_COLUMNS = 'id, name, initials, description, is_quality, removed_at, requires_compliance_check, division_id, division:divisions(name)'
 
 export interface ProfileRow {
   id: string
@@ -35,6 +37,8 @@ export interface DepartmentRow {
   is_quality: boolean
   removed_at: string | null
   requires_compliance_check: boolean
+  division_id?: string | null
+  division?: { name: string } | null
 }
 
 /** A profile row as a User: roles become permissions, in the usual display order. */
@@ -81,6 +85,7 @@ export function toDepartment(row: DepartmentRow): Department {
     ...(row.is_quality ? { isQuality: true } : {}),
     ...(row.removed_at ? { removedAt: row.removed_at } : {}),
     ...(row.requires_compliance_check ? { requiresComplianceCheck: true } : {}),
+    ...(row.division_id ? { divisionId: row.division_id, divisionName: row.division?.name ?? row.division_id } : {}),
   }
 }
 
@@ -88,5 +93,5 @@ export function toDepartment(row: DepartmentRow): Department {
 export async function fetchDepartments(): Promise<Department[]> {
   const { data, error } = await supabase().from('departments').select(DEPARTMENT_COLUMNS).order('name')
   if (error) throw new Error(error.message)
-  return (data as DepartmentRow[]).map(toDepartment)
+  return (data as unknown as DepartmentRow[]).map(toDepartment)
 }

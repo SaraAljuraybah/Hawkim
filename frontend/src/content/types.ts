@@ -352,7 +352,8 @@ export interface DashboardContent {
 
 /* ---------- Signed-in app: SOPs list ---------- */
 
-export type SopTabKey = 'all' | 'recent'
+/** 'others': SOPs of deleted departments (shown only to people who have some). */
+export type SopTabKey = 'all' | 'recent' | 'others'
 
 export interface SopsContent {
   /** Browser tab title. */
@@ -381,6 +382,10 @@ export interface SopsContent {
   columns: { code: string; title: string; department: string; version: string; lastUpdated: string }
   /** Screen-reader label before the active department's name, e.g. "Department: ". */
   departmentLabel: string
+  /** Shown instead of the department name on the Others tab. */
+  othersSection: string
+  /** Empty Others tab. */
+  othersEmpty: string
   /** `{version}` is replaced with the version number, e.g. "v3". */
   versionTemplate: string
   /** Shown when the list is empty. */

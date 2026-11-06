@@ -73,6 +73,15 @@ export function adminDepartmentPath(departmentId: string): string {
   return `${ADMIN_DEPARTMENTS_PATH}/${encodeURIComponent(departmentId)}`
 }
 
+/** The query parameter that presets the division of a new department. */
+export const NEW_DEPARTMENT_DIVISION_PARAM = 'division'
+
+/** The form to add a department, e.g. /admin/departments/new?division=division-123 */
+export function adminNewDepartmentPath(divisionId?: string): string {
+  const path = `${ADMIN_DEPARTMENTS_PATH}/new`
+  return divisionId ? `${path}?${new URLSearchParams({ [NEW_DEPARTMENT_DIVISION_PARAM]: divisionId })}` : path
+}
+
 /** The form to edit a department in the admin portal. */
 export function adminDepartmentEditPath(departmentId: string): string {
   return `${adminDepartmentPath(departmentId)}/edit`

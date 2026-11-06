@@ -3,9 +3,21 @@ import { hasDirectoryAccess } from './departments'
 
 export type SopAccess = 'granted' | 'requested' | 'locked'
 
-/** Published-directory access only. Authoring and review assignments are separate. */
-export function getSopAccess(sop: Pick<Sop, 'departmentId' | 'status'>, user: Pick<User, 'id' | 'departmentId' | 'deletedAt'>, requests: UserRequest[]): SopAccess {
+/**
+ * Published-directory access only. Authoring and review assignments are separate.
+ * An SOP moved to Others belongs to a deleted department: membership of, or access requests for, that
+ * department never open it. Only its main author and co-authors find it in the directory (the
+ * database, can_view_sop, keeps the same people able to read it).
+ */
+export function getSopAccess(
+  sop: Pick<Sop, 'departmentId' | 'status'> & Partial<Pick<Sop, 'directoryGroup' | 'authorId' | 'coAuthorIds'>>,
+  user: Pick<User, 'id' | 'departmentId' | 'deletedAt'>,
+  requests: UserRequest[],
+): SopAccess {
   if (sop.status !== 'published' || user.deletedAt) return 'locked'
+  if (sop.directoryGroup === 'others') {
+    return sop.authorId === user.id || !!sop.coAuthorIds?.includes(user.id) ? 'granted' : 'locked'
+  }
   if (hasDirectoryAccess(user, sop.departmentId, requests)) return 'granted'
   const pending = requests.some((request) => request.requesterId === user.id && request.type === 'department-access' && request.departmentId === sop.departmentId && request.status === 'pending')
   return pending ? 'requested' : 'locked'
