@@ -124,6 +124,13 @@ begin
   select * into closed from public.my_closed_review_requests();
   assert closed.status = 'removed' and closed.reason = 'Not needed', 'The closed request gives the removal reason';
 
+  -- In the app each send is its own request, so the next round is always requested later. In this one
+  -- test transaction now() never moves: date the earlier round back, or latest_round() would have to
+  -- choose between two rounds requested "at the same time" (it orders by requested_at, then id).
+  reset role;
+  update public.review_rounds set requested_at = requested_at - interval '1 minute' where sop_id = sop;
+  set local role authenticated;
+
   -- The first send of the next version is same-department only again.
   perform set_config('request.jwt.claim.sub', author::text, true);
   perform public.upload_sop_version(sop, author || '/b1000000-0000-4000-8000-000000000002.pdf', 'Procedure.pdf');
