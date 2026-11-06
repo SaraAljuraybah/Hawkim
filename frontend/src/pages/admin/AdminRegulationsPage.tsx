@@ -1,7 +1,7 @@
 import { useRef, useState, type ReactNode } from 'react'
 import { flushSync } from 'react-dom'
-import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { ArrowRight, CircleCheck, Eye, Pencil, Plus, Trash2 } from 'lucide-react'
+import { useLocation, useNavigate } from 'react-router-dom'
+import { CircleCheck, Eye, Pencil, Plus, Trash2 } from 'lucide-react'
 import { GuidelineVersionDetails } from '../../components/admin/GuidelineVersionDetails'
 import { Button } from '../../components/ui/Button'
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
@@ -53,7 +53,8 @@ export function AdminRegulationsPage() {
     <span className="rounded-full border border-maroon/20 bg-maroon/[0.06] px-2.5 py-0.5 text-xs font-medium text-maroon">{text.current.badge}</span>
   )
   const versionCell = (version: GuidelineVersion) => (
-    <span className="inline-flex flex-wrap items-center gap-2">
+    // The badge stays on the version's line.
+    <span className="inline-flex items-center gap-2 whitespace-nowrap">
       {version.version}
       {version.id === current.id && currentBadge}
     </span>
@@ -96,17 +97,6 @@ export function AdminRegulationsPage() {
     noticeRef.current?.focus()
   }
 
-  const viewLink = (version: GuidelineVersion): ReactNode => (
-    <Link
-      to={adminRegulationPath(version.id)}
-      aria-label={text.viewRequirementsLabel.replace('{version}', version.version)}
-      className="inline-flex items-center gap-1.5 rounded-sm text-sm font-medium text-maroon underline underline-offset-2 hover:text-maroon-secondary"
-    >
-      {text.viewRequirements}
-      <ArrowRight aria-hidden="true" className="size-4" strokeWidth={1.75} />
-    </Link>
-  )
-
   return (
     <>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
@@ -138,8 +128,7 @@ export function AdminRegulationsPage() {
             {text.versionName.replace('{version}', current.version)}
             {currentBadge}
           </p>
-          <GuidelineVersionDetails version={current} className="mt-5" />
-          <div className="mt-5">{viewLink(current)}</div>
+          <GuidelineVersionDetails version={current} actions={{ withoutFile: true }} className="mt-5" />
         </section>
 
         <section aria-labelledby="history-title">

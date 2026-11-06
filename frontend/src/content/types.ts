@@ -1296,9 +1296,6 @@ export interface AdminRegulationsContent {
   /** Read by screen readers after the Source link. */
   newTab: string
   requirementsCount: CountText
-  viewRequirements: string
-  /** Accessible name of each "View requirements" link; `{version}` is replaced. */
-  viewRequirementsLabel: string
   /** Every version, newest first; `columns.actions` is a visually hidden header. */
   history: {
     title: string

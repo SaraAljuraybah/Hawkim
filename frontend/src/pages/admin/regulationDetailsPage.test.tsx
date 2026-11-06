@@ -26,7 +26,7 @@ describe('a GVP version\'s requirements', () => {
     const html = render('gvp-4-0')
     const button = detail(html, 'Requirements')
     expect(button).toMatch(/^<button type="button" aria-expanded="false" aria-controls="guideline-requirements" class="[^"]*text-maroon[^"]*hover:underline/)
-    expect(button).toContain('>2 requirements<')
+    expect(button).toContain('>2 Requirements<')
     expect(button).toContain('lucide-chevron-down')
     expect(button).not.toContain('lucide-chevron-up')
   })
@@ -49,7 +49,7 @@ describe('a GVP version\'s requirements', () => {
 
   it('stays plain text where there is no table (the Current Version card)', () => {
     const html = renderToStaticMarkup(<GuidelineVersionDetails version={v40} />)
-    expect(detail(html, 'Requirements')).toBe('2 requirements')
+    expect(detail(html, 'Requirements')).toBe('2 Requirements')
     expect(detail(html, 'File')).toBe('<span class="break-all">Drug-GVP4_0.pdf</span>')
   })
 })

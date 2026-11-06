@@ -286,9 +286,7 @@ export const adminEn: AdminContent = {
     none: '—',
     /** After the Source link, for screen readers. */
     newTab: '(opens in a new tab)',
-    requirementsCount: { one: '{count} requirement', other: '{count} requirements' },
-    viewRequirements: 'View Requirements',
-    viewRequirementsLabel: 'View requirements of GVP version {version}',
+    requirementsCount: { one: '{count} Requirement', other: '{count} Requirements' },
     history: {
       title: 'Version History',
       tableLabel: 'GVP versions, newest first',
