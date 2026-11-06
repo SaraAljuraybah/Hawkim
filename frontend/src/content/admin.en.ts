@@ -360,13 +360,11 @@ export const adminEn: AdminContent = {
     back: { label: 'Back to SFDA Regulatory Requirements', href: '/admin/regulations' },
     details: { title: 'Details' },
     file: {
-      /** Accessible name of the file name button; `{fileName}` is replaced. */
-      preview: 'Preview {fileName}',
+      title: 'File',
+      /** Accessible name and tooltip of the Download button; `{fileName}` is replaced. */
       download: 'Download {fileName}',
       unavailable: "The file isn't available yet.",
-      previewTitle: '{fileName} preview',
       viewerTitle: '{fileName} (PDF)',
-      close: 'Close preview',
       fallback: {
         text: "Your browser can't display the PDF here. Open it in a new tab instead.",
         openPdf: 'Open PDF',

@@ -4,7 +4,7 @@ import { useGuidelineVersionValues, type GuidelineVersionActions } from './guide
 /**
  * A GVP version's details: title, version, issued by SFDA, added to Hawkim (and by whom), source,
  * file and number of requirements. "—" for what isn't known. `actions` (a version's own page) makes
- * the file openable and the requirements count a disclosure.
+ * the requirements count a disclosure and can leave out the file (shown in its own card).
  */
 export function GuidelineVersionDetails({ version, actions, className = '' }: { version: GuidelineVersion; actions?: GuidelineVersionActions; className?: string }) {
   const values = useGuidelineVersionValues(actions)

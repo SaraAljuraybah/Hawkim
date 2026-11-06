@@ -72,19 +72,39 @@ describe('the Requirements table', () => {
   })
 })
 
-describe('a GVP version\'s file', () => {
-  it('can be previewed and downloaded when this browser has it', () => {
-    const file = detail(render('gvp-4-1'), 'File')
-    expect(file).toMatch(/<button type="button" aria-label="Preview Drug-GVP4_1.pdf"[^>]*><span class="break-all">Drug-GVP4_1.pdf<\/span><\/button>/)
+describe('a GVP version\'s File card', () => {
+  const card = (html: string) => html.slice(html.indexOf('<section aria-labelledby="file-title"'), html.indexOf('</section>', html.indexOf('<section aria-labelledby="file-title"')))
+
+  it('replaces the File row in the Details card, and comes after the Requirements section', () => {
+    const html = render('gvp-4-1')
+    expect([...html.matchAll(/<dt[^>]*>([^<]+)<\/dt>/g)].map((match) => match[1])).not.toContain('File')
+    expect(card(html)).toContain('<h2 id="file-title" class="text-lg">File</h2>')
+    expect(html.indexOf('id="details-title"')).toBeLessThan(html.indexOf('id="guideline-requirements"'))
+    expect(html.indexOf('id="guideline-requirements"')).toBeLessThan(html.indexOf('id="file-title"'))
+  })
+
+  it('shows the file name, Download and the embedded PDF when this browser has the file', () => {
+    const file = card(render('gvp-4-1'))
+    expect(file).toContain('>Drug-GVP4_1.pdf</p>')
     expect(file).toMatch(/<a href="blob:http:\/\/localhost\/abc" download="Drug-GVP4_1.pdf" aria-label="Download Drug-GVP4_1.pdf"/)
+    expect(file).toMatch(/role="tooltip"[^>]*><span[^>]*>Download Drug-GVP4_1.pdf<\/span>/)
+    const viewer = file.match(/<iframe[^>]*>/)![0]
+    expect(viewer).toContain('src="blob:http://localhost/abc"')
+    expect(viewer).toContain('title="Drug-GVP4_1.pdf (PDF)"')
+    expect(viewer).toContain('w-full')
+    expect(viewer).toContain('h-[80vh]')
     expect(file).not.toContain('isn&#x27;t available')
   })
 
-  it('says it isn\'t available yet otherwise, with no preview or download', () => {
-    const file = detail(render('gvp-4-0'), 'File')
-    expect(file).toContain('Drug-GVP4_0.pdf')
+  it('says it isn\'t available yet otherwise, with no Download and no viewer', () => {
+    const file = card(render('gvp-4-0'))
+    expect(file).toContain('>Drug-GVP4_0.pdf</p>')
     expect(file).toContain('The file isn&#x27;t available yet.')
-    expect(file).not.toContain('<button')
     expect(file).not.toContain('download=')
+    expect(file).not.toContain('<iframe')
+  })
+
+  it('has no preview dialog any more', () => {
+    expect(render('gvp-4-1')).not.toContain('<dialog')
   })
 })

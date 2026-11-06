@@ -1,8 +1,9 @@
-import { useRef, useState } from 'react'
+import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, Download } from 'lucide-react'
 import { GuidelineVersionDetails } from '../../components/admin/GuidelineVersionDetails'
-import { PreviewDialog } from '../../components/workflow/PreviewDialog'
+import { PdfViewer } from '../../components/sops/PdfViewer'
+import { IconButton } from '../../components/ui/IconButton'
 import { tableStyles } from '../../components/ui/tableStyles'
 import { adminEn } from '../../content/admin.en'
 import { useDocumentTitle } from '../../hooks/useDocumentTitle'
@@ -13,8 +14,9 @@ import { NotFoundPage } from '../NotFoundPage'
 const REQUIREMENTS_SECTION = 'guideline-requirements'
 
 /**
- * A GVP version ("/admin/regulations/:id", PBI 20): its details, with its PDF to preview and
- * download when this browser has it, and its requirements, shown from the details' count.
+ * A GVP version ("/admin/regulations/:id", PBI 20): its details; its requirements, shown from the
+ * details' count; and its file in a card of its own, embedded with a Download button when this browser
+ * has it (versions added here, until reload).
  */
 export function RegulationDetailsPage() {
   const { id } = useParams()
@@ -25,19 +27,12 @@ export function RegulationDetailsPage() {
   const name = version ? names.versionName.replace('{version}', version.version) : ''
   useDocumentTitle(version ? adminEn.pageTitle.replace('{page}', name) : undefined)
   const [showRequirements, setShowRequirements] = useState(false)
-  const [previewing, setPreviewing] = useState(false)
-  const previewTrigger = useRef<HTMLElement | null>(null)
 
   if (!version) return <NotFoundPage embedded />
   const columns = text.requirements.columns
   const actions = {
     requirements: { expanded: showRequirements, controlsId: REQUIREMENTS_SECTION, onToggle: () => setShowRequirements((shown) => !shown) },
-    file: {
-      onPreview: () => {
-        previewTrigger.current = document.activeElement as HTMLElement | null
-        setPreviewing(true)
-      },
-    },
+    withoutFile: true,
   }
 
   return (
@@ -119,19 +114,29 @@ export function RegulationDetailsPage() {
         </div>
       </section>
 
-      {previewing && version.fileUrl && (
-        <PreviewDialog
-          title={text.file.previewTitle.replace('{fileName}', version.fileName)}
-          url={version.fileUrl}
-          viewerTitle={text.file.viewerTitle.replace('{fileName}', version.fileName)}
-          closeLabel={text.file.close}
-          fallback={text.file.fallback}
-          onClose={() => {
-            setPreviewing(false)
-            requestAnimationFrame(() => previewTrigger.current?.focus())
-          }}
-        />
-      )}
+      <section aria-labelledby="file-title" className="mt-8 rounded-xl border border-beige bg-white p-5 sm:p-6">
+        <h2 id="file-title" className="text-lg">
+          {text.file.title}
+        </h2>
+        <div className="mt-3 flex items-center justify-between gap-3">
+          <p className="min-w-0 text-sm font-medium break-all text-maroon">{version.fileName}</p>
+          {version.fileUrl && (
+            <IconButton label={text.file.download.replace('{fileName}', version.fileName)} icon={Download} href={version.fileUrl} download={version.fileName} />
+          )}
+        </div>
+        {version.fileUrl ? (
+          <div className="mt-4">
+            <PdfViewer
+              url={version.fileUrl}
+              title={text.file.viewerTitle.replace('{fileName}', version.fileName)}
+              fallback={text.file.fallback}
+              heightClassName="h-[80vh] min-h-[28rem]"
+            />
+          </div>
+        ) : (
+          <p className="mt-1 text-sm text-text-gray">{text.file.unavailable}</p>
+        )}
+      </section>
     </>
   )
 }

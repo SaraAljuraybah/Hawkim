@@ -10,15 +10,17 @@ interface PdfViewerProps {
   /** Accessible name of the embedded viewer, e.g. "SOP-078 Data Integrity Guidelines (PDF)". */
   title: string
   fallback: { text: string; openPdf: string; newTabHint: string }
+  /** The viewer's height (default 70% of the screen, at least 28rem). */
+  heightClassName?: string
 }
 
 /**
  * The PDF shown inline (SOP detail page, review page). Browsers without an inline
  * viewer get a button that opens it in a new tab instead.
  */
-export function PdfViewer({ url, title, fallback }: PdfViewerProps) {
+export function PdfViewer({ url, title, fallback, heightClassName = 'h-[70vh] min-h-[28rem]' }: PdfViewerProps) {
   return canShowPdfInline ? (
-    <iframe src={url} title={title} className="block h-[70vh] min-h-[28rem] w-full rounded-lg border-0 bg-beige" />
+    <iframe src={url} title={title} className={`block w-full rounded-lg border-0 bg-beige ${heightClassName}`} />
   ) : (
     <AccessPanel icon={<FileText className="size-6" strokeWidth={1.75} />} title={fallback.text}>
       <Button href={url} target="_blank" rel="noopener noreferrer" variant="secondary">

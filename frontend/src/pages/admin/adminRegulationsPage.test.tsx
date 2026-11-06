@@ -97,9 +97,9 @@ describe('SFDA Regulatory Requirements page', () => {
     expect(html).toContain('hidden md:block')
   })
 
-  it('shows the same fields on a version\'s own page', () => {
+  it('shows the same fields on a version\'s own page, the file in a card of its own', () => {
     const html = renderToStaticMarkup(<MemoryRouter><RegulationDetailsPage /></MemoryRouter>)
-    expect([...html.matchAll(/<dt[^>]*>([^<]+)<\/dt>/g)].map((match) => match[1])).toEqual(fields)
+    expect([...html.matchAll(/<dt[^>]*>([^<]+)<\/dt>/g)].map((match) => match[1])).toEqual(fields.filter((field) => field !== 'File'))
   })
 })
 
