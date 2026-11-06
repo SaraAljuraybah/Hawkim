@@ -10,6 +10,7 @@ import { useUsers } from '../../state/usersContext'
 import { IconButton } from '../ui/IconButton'
 import { RequestStatusBadge } from './ReviewRequestDetails'
 import { ReviewNotesDialog } from './ReviewNotesDialog'
+import { divisionLabel } from '../../lib/userAdmin'
 
 interface ReviewRequestsTableProps {
   sop: Sop
@@ -69,7 +70,7 @@ export function ReviewRequestsTable({ sop, canRemove, onRemove, canEditDeadline,
     return {
       name,
       department: department?.name ?? text.none,
-      division: department?.divisionId || text.none,
+      division: divisionLabel(department) || text.none,
       sent: <Timestamp value={request.assignedAt} format={formatReviewDate} />,
       status: <RequestStatusBadge sop={sop} request={request} />,
       decision: <Timestamp value={requestDecisionDate(request)} format={formatReviewDate} />,

@@ -58,6 +58,8 @@ export interface Department extends DepartmentWorkflowConfiguration {
   initials: string
   /** One-line description of the department's function (may be empty). */
   description: string
+  /** The name of its division (`divisionId`), as shown; loaded with the department. */
+  divisionName?: string
   /** The Quality department (database `is_quality`, only one): its Approvers approve every SOP. */
   isQuality?: boolean
   /**
@@ -77,6 +79,11 @@ export interface Sop {
   code: string
   title: string
   departmentId: DepartmentId
+  /**
+   * "others": its department was deleted and its SOPs were moved to SOP Directory > Others. It keeps
+   * departmentId (the removed department) for history; who may read it is unchanged (database rules).
+   */
+  directoryGroup?: 'others'
   /** Current version: a whole number without the "v", e.g. "3" (shown as "v3"). */
   version: string
   status: SopStatus

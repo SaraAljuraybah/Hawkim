@@ -4,7 +4,7 @@ import { Button } from '../components/ui/Button'
 import { TextField } from '../components/ui/TextField'
 import { SelectField } from '../components/ui/SelectField'
 import type { MySopSort } from '../lib/mySops'
-import { filterDirectorySops, type SopDocumentFilter } from '../lib/sopDirectory'
+import { filterDirectorySops, OTHERS_SECTION, type SopDocumentFilter } from '../lib/sopDirectory'
 import { directorySopsFor } from '../lib/sopAccess'
 import { useCurrentUser } from '../state/sessionContext'
 import { useMyRequests } from '../state/requestsContext'
@@ -60,20 +60,27 @@ export function SopsPage() {
     }
   }, [view])
 
-  const tabItems: TabItem<SopTabKey>[] = (['all', 'recent'] as const).map((key) => ({
+  const authorized = useMemo(() => directorySopsFor(sops, user, requests), [sops, user, requests])
+  // Others (SOPs of deleted departments) is a tab only for people who may open some of them.
+  const hasOthers = useMemo(() => filterDirectorySops(authorized, OTHERS_SECTION).length > 0, [authorized])
+  const tabKeys: SopTabKey[] = hasOthers ? ['all', 'recent', 'others'] : ['all', 'recent']
+  const tabItems: TabItem<SopTabKey>[] = tabKeys.map((key) => ({
     key,
     label: content.tabs[key],
   }))
+  const showingOthers = tab === 'others' && hasOthers
   const visibleSops = useMemo(
-    () => filterDirectorySops(directorySopsFor(sops, user, requests), activeDepartment.id, query, documentType, sort),
-    [sops, user, requests, activeDepartment.id, query, documentType, sort],
+    () => filterDirectorySops(authorized, showingOthers ? OTHERS_SECTION : activeDepartment.id, query, documentType, sort),
+    [authorized, showingOthers, activeDepartment.id, query, documentType, sort],
   )
   function clearFilters() {
     setQuery('')
     setDocumentType('all')
     searchRef.current?.focus()
   }
-  const ids = tabIds(TAB_ID_PREFIX, tab)
+  // A remembered Others tab falls back to All once there is nothing in Others.
+  const selectedTab: SopTabKey = showingOthers || tab !== 'others' ? tab : 'all'
+  const ids = tabIds(TAB_ID_PREFIX, selectedTab)
 
   return (
     <>
@@ -81,8 +88,7 @@ export function SopsPage() {
       <p className="mt-2 text-text-gray">{content.subtitle}</p>
       <p className="mt-3 inline-flex items-center gap-2 text-sm font-medium text-maroon">
         <Building2 aria-hidden="true" className="size-4 shrink-0" strokeWidth={1.75} />
-        <span className="sr-only">{content.departmentLabel}: </span>
-        {activeDepartment.name}
+        {showingOthers ? content.othersSection : <><span className="sr-only">{content.departmentLabel}: </span>{activeDepartment.name}</>}
       </p>
 
       <div role="search" aria-label={content.filters.label} className="mt-6 rounded-xl border border-beige bg-white p-4 sm:p-5">
@@ -125,7 +131,7 @@ export function SopsPage() {
       <div className="mt-8 flex flex-wrap items-end justify-between gap-x-6 gap-y-3 border-b border-beige">
         <Tabs
           items={tabItems}
-          selected={tab}
+          selected={selectedTab}
           onSelect={setTab}
           label={content.tabsLabel}
           idPrefix={TAB_ID_PREFIX}
@@ -144,7 +150,7 @@ export function SopsPage() {
             >
               <FileText className="size-6" strokeWidth={1.75} />
             </span>
-            <p className="mt-4 text-text-gray">{hasFilters ? content.filters.empty : content.empty}</p>
+            <p className="mt-4 text-text-gray">{hasFilters ? content.filters.empty : showingOthers ? content.othersEmpty : content.empty}</p>
           </div>
         ) : view === 'grid' ? (
           <SopGrid sops={visibleSops} content={content} />

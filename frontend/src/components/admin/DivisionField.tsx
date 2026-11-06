@@ -1,12 +1,12 @@
 import type { RefObject } from 'react'
 import type { AdminAddUserContent } from '../../content/types'
 import type { Department } from '../../data/mock/types'
-import { divisionOptions, NO_DIVISION } from '../../lib/userAdmin'
+import { divisionNameIn, divisionOptions, NO_DIVISION } from '../../lib/userAdmin'
 import { SelectCombobox } from '../ui/SelectCombobox'
 
 interface DivisionFieldProps {
   /** The departments a user can join (each division among them is a choice). */
-  departments: Pick<Department, 'divisionId'>[]
+  departments: Pick<Department, 'divisionId' | 'divisionName'>[]
   content: AdminAddUserContent['division']
   /** A division, NO_DIVISION or ''. */
   value: string
@@ -24,7 +24,7 @@ interface DivisionFieldProps {
 export function DivisionField({ departments, content, value, error, onChange, onBlur, inputRef, className }: DivisionFieldProps) {
   const options = divisionOptions(departments).map((division) => ({
     value: division,
-    label: division === NO_DIVISION ? content.noDivision : division,
+    label: division === NO_DIVISION ? content.noDivision : divisionNameIn(departments, division),
   }))
   return (
     <SelectCombobox

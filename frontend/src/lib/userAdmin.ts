@@ -46,8 +46,13 @@ export function normalizePhone(raw: string): string | null {
 }
 
 /** A department's division as shown (its name once divisions are loaded), or '' without one. */
-export function divisionLabel(department: Pick<Department, 'divisionId'> | undefined): string {
-  return department?.divisionId ?? ''
+export function divisionLabel(department: Pick<Department, 'divisionId' | 'divisionName'> | undefined): string {
+  return department?.divisionName ?? department?.divisionId ?? ''
+}
+
+/** The name shown for a division key (from divisionOptions), from the departments in it. */
+export function divisionNameIn(departments: Pick<Department, 'divisionId' | 'divisionName'>[], division: string): string {
+  return divisionLabel(departments.find((department) => department.divisionId === division)) || division
 }
 
 /** "All" in the Users list's Division and Department filters. */
@@ -83,9 +88,9 @@ export const NO_DIVISION = '__no-division__'
  * The divisions to choose from: each division of these departments, by name, then NO_DIVISION
  * when some department has none.
  */
-export function divisionOptions(departments: Pick<Department, 'divisionId'>[]): string[] {
+export function divisionOptions(departments: Pick<Department, 'divisionId' | 'divisionName'>[]): string[] {
   const divisions = [...new Set(departments.flatMap((department) => (department.divisionId ? [department.divisionId] : [])))]
-  divisions.sort((a, b) => a.localeCompare(b, 'en'))
+  divisions.sort((a, b) => divisionNameIn(departments, a).localeCompare(divisionNameIn(departments, b), 'en') || a.localeCompare(b, 'en'))
   return departments.some((department) => !department.divisionId) ? [...divisions, NO_DIVISION] : divisions
 }
 
