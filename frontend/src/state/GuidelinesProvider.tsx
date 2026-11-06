@@ -1,17 +1,23 @@
 import { useCallback, useMemo, useRef, useState, type ReactNode } from 'react'
 import { GVP_NAME, sampleGuidelineVersions } from '../data/mock/compliance'
-import type { GuidelineVersion } from '../data/mock/types'
-import { currentVersion, newGuidelineVersion, validateGuidelineVersion } from '../lib/guidelines'
+import type { GuidelineVersion, User } from '../data/mock/types'
+import { currentVersion, deleteVersionBlocker, editedGuidelineVersion, newGuidelineVersion, validateGuidelineEdit, validateGuidelineVersion } from '../lib/guidelines'
 import { GuidelinesContext, type GuidelinesStore } from './guidelinesContext'
 import { useLoadAfterSignIn } from './useLoadAfterSignIn'
 import { fetchGuidelineVersions } from '../services/compliance'
+
+/** Refuses anyone who isn't an active admin. */
+function assertAdmin(actorId: string, users: User[]) {
+  const actor = users.find((user) => user.id === actorId && !user.deletedAt)
+  if (!actor?.permissions.includes('admin')) throw new Error('Only an admin can manage guideline versions')
+}
 
 /**
  * Store of the GVP versions (shared, like departments): compliance checks use the
  * current one, and reports look up requirements in the version they were checked
  * against. The versions and their requirements are loaded from the database after
  * sign-in (until then the sample v4.0 stands in, but no page shows before they load).
- * Adding a version (admin portal) only changes this tab's copy, and checks in the
+ * Adding, editing and deleting a version (admin portal) only change this tab's copy, and checks in the
  * database always use the database's current version.
  * TODO: Save new versions once guideline upload is connected.
  * Must be inside <SessionProvider>.
@@ -38,8 +44,7 @@ export function GuidelinesProvider({ children }: { children: ReactNode }) {
   )
 
   const addVersion = useCallback<GuidelinesStore['addVersion']>((input, { actorId, users }) => {
-    const actor = users.find((user) => user.id === actorId && !user.deletedAt)
-    if (!actor?.permissions.includes('admin')) throw new Error('Only an admin can add guideline versions')
+    assertAdmin(actorId, users)
     const previous = currentVersion(latestRef.current)
     if (Object.values(validateGuidelineVersion(input, latestRef.current)).some(Boolean)) {
       throw new Error('The guideline version is not valid')
@@ -49,9 +54,27 @@ export function GuidelinesProvider({ children }: { children: ReactNode }) {
     return added
   }, [commit])
 
+  const updateVersion = useCallback<GuidelinesStore['updateVersion']>((id, input, { actorId, users }) => {
+    assertAdmin(actorId, users)
+    const version = latestRef.current.find((item) => item.id === id)
+    if (!version) throw new Error('Unknown guideline version')
+    if (Object.values(validateGuidelineEdit(input, version)).some(Boolean)) throw new Error('The guideline version is not valid')
+    const updated = editedGuidelineVersion(version, input)
+    commit(latestRef.current.map((item) => (item.id === id ? updated : item)))
+    return updated
+  }, [commit])
+
+  const deleteVersion = useCallback<GuidelinesStore['deleteVersion']>((id, { actorId, users, sops }) => {
+    assertAdmin(actorId, users)
+    const version = latestRef.current.find((item) => item.id === id)
+    if (!version) throw new Error('Unknown guideline version')
+    if (deleteVersionBlocker(version, latestRef.current, sops)) throw new Error('This guideline version can’t be deleted')
+    commit(latestRef.current.filter((item) => item.id !== id))
+  }, [commit])
+
   const store = useMemo<GuidelinesStore>(
-    () => ({ status, versions, current, currentGuideline, getVersion, getRequirement, addVersion }),
-    [status, versions, current, currentGuideline, getVersion, getRequirement, addVersion],
+    () => ({ status, versions, current, currentGuideline, getVersion, getRequirement, addVersion, updateVersion, deleteVersion }),
+    [status, versions, current, currentGuideline, getVersion, getRequirement, addVersion, updateVersion, deleteVersion],
   )
 
   return <GuidelinesContext.Provider value={store}>{children}</GuidelinesContext.Provider>

@@ -5,10 +5,13 @@ import { completeCheck, hasCurrentCheck, latestCompletedChecksByVersion, startCh
 import {
   compareVersions,
   currentVersion,
+  deleteVersionBlocker,
+  editedGuidelineVersion,
   isHttpsLink,
   isSfdaLink,
   newGuidelineVersion,
   recheckRecommended,
+  validateGuidelineEdit,
   validateGuidelineVersion,
   type GuidelineVersionInput,
 } from './guidelines'
@@ -169,6 +172,42 @@ describe('the other fields', () => {
     expect(currentVersion([v40, added])).toBe(added)
     expect(added.requirements).toEqual(v40.requirements)
     expect(added.requirements[0]).not.toBe(v40.requirements[0])
+  })
+})
+
+describe('editing a version', () => {
+  const v41: GuidelineVersion = { ...v40, id: 'gvp-4-1', version: '4.1', title: 'Old', issuedDate: '2026-10-01', source: 'https://www.sfda.gov.sa/old', addedAt: '2026-11-06T07:00:00Z' }
+
+  it('checks only the title, the issue date and the source, with the same rules as adding', () => {
+    expect(validateGuidelineEdit({ title: 'New', issuedDate: '', source: 'https://www.sfda.gov.sa/new' }, v41)).toEqual({ title: undefined, issuedDate: undefined, source: undefined })
+    expect(validateGuidelineEdit({ title: '', issuedDate: '2026-11-07', source: 'https://example.com' }, v41)).toEqual({
+      title: 'title-required', issuedDate: 'issued-after-added', source: 'source-not-sfda',
+    })
+  })
+
+  it('changes only those three; the version, the added date and the file stay', () => {
+    const edited = editedGuidelineVersion(v41, { title: '  New title ', issuedDate: '', source: 'https://www.sfda.gov.sa/new' })
+    expect(edited).toEqual({ ...v41, title: 'New title', source: 'https://www.sfda.gov.sa/new', issuedDate: undefined })
+    expect(edited).not.toHaveProperty('issuedDate')
+  })
+})
+
+describe('deleting a version', () => {
+  const v41: GuidelineVersion = { ...v40, id: 'gvp-4-1', version: '4.1' }
+  const v50: GuidelineVersion = { ...v40, id: 'gvp-5-0', version: '5.0' }
+
+  it('refuses the current version (the last added)', () => {
+    expect(deleteVersionBlocker(v50, [v40, v41, v50], [])).toBe('current')
+  })
+
+  it('refuses a version any SOP was checked against: running, completed or failed', () => {
+    for (const status of ['running', 'completed', 'failed'] as const) {
+      expect(deleteVersionBlocker(v40, [v40, v41, v50], [sop('draft', [check('1', '4.0', status)])]), status).toBe('checked')
+    }
+  })
+
+  it('allows an older version nobody was checked against', () => {
+    expect(deleteVersionBlocker(v41, [v40, v41, v50], [sop('draft', [check('1', '4.0')])])).toBeUndefined()
   })
 })
 

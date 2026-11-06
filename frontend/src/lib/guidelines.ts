@@ -1,5 +1,6 @@
 import type { GuidelineVersion, Sop } from '../data/mock/types'
 import type { SopStatus } from '../types/status'
+import { riyadhDate } from './riyadhWorkingDays'
 
 /*
  * Rules for the regulation SOPs are checked against (PBI 20, 29). Hawkim manages one
@@ -144,6 +145,49 @@ export function newGuidelineVersion(
     addedAt,
     requirements: previous.requirements.map((requirement) => ({ ...requirement })),
   }
+}
+
+/* ---------- Editing and deleting a version ---------- */
+
+/** What can be edited: the version number, the added date and the file stay. */
+export type GuidelineEditInput = Pick<GuidelineVersionInput, 'title' | 'issuedDate' | 'source'>
+
+/** The Riyadh date a version was added to Hawkim (ISO date), if known. */
+export function addedDateOf(version: GuidelineVersion): string {
+  return version.addedAt ? riyadhDate(new Date(version.addedAt)) : version.effectiveDate
+}
+
+/** What is wrong with an edit: the same rules as adding, for the fields that can change. */
+export function validateGuidelineEdit(input: GuidelineEditInput, version: GuidelineVersion): Partial<Record<GuidelineField, GuidelineProblem>> {
+  const problems = validateGuidelineVersion(
+    { ...input, version: version.version, addedDate: addedDateOf(version), fileName: version.fileName },
+    [],
+  )
+  return { title: problems.title, issuedDate: problems.issuedDate, source: problems.source }
+}
+
+/** The version with its new title, SFDA issue date and source. */
+export function editedGuidelineVersion(version: GuidelineVersion, input: GuidelineEditInput): GuidelineVersion {
+  const { issuedDate: _previous, ...rest } = version
+  return { ...rest, title: input.title.trim(), ...(input.issuedDate ? { issuedDate: input.issuedDate } : {}), source: input.source.trim() }
+}
+
+/** Whether any SOP's compliance check (running, completed or failed) used this guideline version. */
+export function checkedAgainst(version: GuidelineVersion, sops: Pick<Sop, 'complianceChecks'>[]): boolean {
+  return sops.some((sop) => sop.complianceChecks.some((check) => compareVersions(check.guideline.version, version.version) === 0))
+}
+
+/**
+ * Why a version can't be deleted: it is the current one, or SOPs were checked against it
+ * (their reports look up its requirements). Only the SOPs this browser has are known.
+ */
+export function deleteVersionBlocker(
+  version: GuidelineVersion,
+  versions: GuidelineVersion[],
+  sops: Pick<Sop, 'complianceChecks'>[],
+): 'current' | 'checked' | undefined {
+  if (currentVersion(versions)?.id === version.id) return 'current'
+  return checkedAgainst(version, sops) ? 'checked' : undefined
 }
 
 /* ---------- SOPs checked against an older version ---------- */

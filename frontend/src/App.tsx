@@ -136,6 +136,7 @@ function AppRoutes() {
         <Route path="regulations" element={<AdminRegulationsPage />} />
         <Route path="regulations/new" element={<RegulationFormPage />} />
         <Route path="regulations/:id" element={<RegulationDetailsPage />} />
+        <Route path="regulations/:id/edit" element={<RegulationFormPage mode="edit" />} />
         <Route path="*" element={<NotFoundPage embedded />} />
       </Route>
 

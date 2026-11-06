@@ -83,6 +83,11 @@ export function adminRequestPath(requestId: string): string {
 /** The admin portal's regulations page. */
 export const ADMIN_REGULATIONS_PATH = '/admin/regulations'
 
+/** Edit a GVP version, e.g. /admin/regulations/gvp-4-0/edit */
+export function adminRegulationEditPath(versionId: string): string {
+  return `${ADMIN_REGULATIONS_PATH}/${encodeURIComponent(versionId)}/edit`
+}
+
 /** A GVP version's page in the admin portal, e.g. /admin/regulations/gvp-4-0 */
 export function adminRegulationPath(versionId: string): string {
   return `${ADMIN_REGULATIONS_PATH}/${encodeURIComponent(versionId)}`

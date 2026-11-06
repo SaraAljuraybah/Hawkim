@@ -1,34 +1,100 @@
-import type { ReactNode } from 'react'
-import { Link, useLocation } from 'react-router-dom'
-import { ArrowRight, CircleCheck, Plus } from 'lucide-react'
+import { useRef, useState, type ReactNode } from 'react'
+import { flushSync } from 'react-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { ArrowRight, CircleCheck, Eye, Pencil, Plus, Trash2 } from 'lucide-react'
 import { GuidelineVersionDetails } from '../../components/admin/GuidelineVersionDetails'
-import { useGuidelineVersionValues } from '../../components/admin/guidelineVersionValues'
 import { Button } from '../../components/ui/Button'
+import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
+import { IconButton } from '../../components/ui/IconButton'
 import { adminEn } from '../../content/admin.en'
 import type { GuidelineVersion } from '../../data/mock/types'
 import { useDocumentTitle } from '../../hooks/useDocumentTitle'
-import { adminRegulationPath } from '../../lib/routes'
+import { formatDate } from '../../lib/format'
+import { addedDateOf, deleteVersionBlocker } from '../../lib/guidelines'
+import { adminRegulationEditPath, adminRegulationPath } from '../../lib/routes'
 import { useGuidelines } from '../../state/guidelinesContext'
+import { useCurrentUser } from '../../state/sessionContext'
+import { useSops } from '../../state/sopsContext'
+import { useUsers } from '../../state/usersContext'
 
-/** Set after adding a version, to say so here. */
+/** Set after adding a version (its number) or editing one (the notice), to say so here. */
 export interface AdminRegulationsLocationState {
   added?: string
+  updated?: string
 }
 
 /**
- * SFDA Regulatory Requirements ("/admin/regulations", PBI 20): the current GVP version, the earlier
- * versions as a read-only history table (newest first; stacked cards on narrow screens), and
- * "Add new version".
+ * SFDA Regulatory Requirements ("/admin/regulations", PBI 20): the current GVP version, every version
+ * in a Version History table (newest first: the current one is the first row) with View, Edit and
+ * Delete, and "Add new version". Editing and deleting only change this tab's copy.
  */
 export function AdminRegulationsPage() {
   const text = adminEn.regulations
+  const columns = text.history.columns
   useDocumentTitle(adminEn.pageTitle.replace('{page}', text.title))
-  const added = (useLocation().state as AdminRegulationsLocationState | null)?.added
-  const { versions, current } = useGuidelines()
-  const history = versions.filter((version) => version.id !== current.id).reverse()
-  const values = useGuidelineVersionValues()
+  const arrived = useLocation().state as AdminRegulationsLocationState | null
+  const navigate = useNavigate()
+  const { versions, current, deleteVersion } = useGuidelines()
+  const { sops } = useSops()
+  const { users } = useUsers()
+  const admin = useCurrentUser()
+  const history = [...versions].reverse()
 
-  const name = (version: GuidelineVersion) => text.versionName.replace('{version}', version.version)
+  const [notice, setNotice] = useState(() => (arrived?.added ? text.added.replace('{version}', arrived.added) : arrived?.updated ?? ''))
+  const [deleting, setDeleting] = useState<GuidelineVersion>()
+  const [refusal, setRefusal] = useState('')
+  const noticeRef = useRef<HTMLDivElement>(null)
+  const deleteTrigger = useRef<HTMLButtonElement | null>(null)
+
+  const label = (version: GuidelineVersion) => text.versionLabel.replace('{title}', version.title ?? '').replace('{version}', version.version)
+  const date = (isoDate: string | undefined): ReactNode => (isoDate ? <time dateTime={isoDate}>{formatDate(isoDate)}</time> : text.none)
+  const currentBadge = (
+    <span className="rounded-full border border-maroon/20 bg-maroon/[0.06] px-2.5 py-0.5 text-xs font-medium text-maroon">{text.current.badge}</span>
+  )
+  const versionCell = (version: GuidelineVersion) => (
+    <span className="inline-flex flex-wrap items-center gap-2">
+      {version.version}
+      {version.id === current.id && currentBadge}
+    </span>
+  )
+  const actions = (version: GuidelineVersion) => (
+    <div className="flex justify-end gap-1">
+      <IconButton label={text.actions.view.replace('{name}', label(version))} icon={Eye} onClick={() => navigate(adminRegulationPath(version.id))} />
+      <IconButton label={text.actions.edit.replace('{name}', label(version))} icon={Pencil} onClick={() => navigate(adminRegulationEditPath(version.id))} />
+      <IconButton
+        label={text.actions.delete.replace('{name}', label(version))}
+        icon={Trash2}
+        danger
+        onClick={(event) => {
+          deleteTrigger.current = event.currentTarget
+          setRefusal('')
+          setDeleting(version)
+        }}
+      />
+    </div>
+  )
+
+  /** Refuses the current version and versions SOPs were checked against; the dialog then stays open. */
+  function canDelete(): boolean {
+    if (!deleting) return false
+    const blocker = deleteVersionBlocker(deleting, versions, sops)
+    if (!blocker) return true
+    setRefusal(text.deleteDialog[blocker])
+    return false
+  }
+
+  function confirmDelete() {
+    if (!deleting) return
+    const name = label(deleting)
+    deleteVersion(deleting.id, { actorId: admin.id, users, sops })
+    flushSync(() => {
+      setDeleting(undefined)
+      setNotice(text.deleted.replace('{name}', name))
+    })
+    // The row is gone: focus the notice.
+    noticeRef.current?.focus()
+  }
+
   const viewLink = (version: GuidelineVersion): ReactNode => (
     <Link
       to={adminRegulationPath(version.id)}
@@ -53,25 +119,23 @@ export function AdminRegulationsPage() {
         </Button>
       </div>
 
-      <div role="status">
-        {added && (
+      <div role="status" ref={noticeRef} tabIndex={-1} className="rounded-lg focus:outline-none">
+        {notice && (
           <p className="mt-6 flex items-center gap-2 rounded-lg border border-status-approved-fg/25 bg-status-approved-bg px-4 py-3 text-sm font-medium text-status-approved-fg">
             <CircleCheck aria-hidden="true" className="size-4 shrink-0" strokeWidth={2} />
-            {text.added.replace('{version}', added)}
+            {notice}
           </p>
         )}
       </div>
 
-      <div className="mt-8 grid max-w-4xl gap-8">
-        <section aria-labelledby="current-title" className="rounded-xl border border-beige bg-white p-5 sm:p-6">
+      <div className="mt-8 grid gap-8">
+        <section aria-labelledby="current-title" className="max-w-4xl rounded-xl border border-beige bg-white p-5 sm:p-6">
           <h2 id="current-title" className="text-sm font-semibold tracking-wide text-text-gray uppercase">
             {text.current.title}
           </h2>
           <p className="mt-2 flex flex-wrap items-center gap-3 text-xl font-semibold text-maroon">
-            {name(current)}
-            <span className="rounded-full border border-maroon/20 bg-maroon/[0.06] px-2.5 py-0.5 text-xs font-medium">
-              {text.current.badge}
-            </span>
+            {text.versionName.replace('{version}', current.version)}
+            {currentBadge}
           </p>
           <GuidelineVersionDetails version={current} className="mt-5" />
           <div className="mt-5">{viewLink(current)}</div>
@@ -81,56 +145,71 @@ export function AdminRegulationsPage() {
           <h2 id="history-title" className="text-lg">
             {text.history.title}
           </h2>
-          {history.length === 0 ? (
-            <p className="mt-3 text-sm text-text-gray">{text.history.empty}</p>
-          ) : (
-            <div className="mt-3 rounded-xl border border-beige bg-white">
-              {/* Table — lg and up */}
-              <div className="hidden lg:block">
-                <table aria-label={text.history.tableLabel} className="w-full text-left text-sm">
-                  <thead className="text-offwhite [&_th]:bg-maroon">
-                    <tr>
-                      {values(history[0]).map((item, index) => (
-                        <th key={item.label} scope="col" className={`px-4 py-3 align-bottom font-semibold ${index === 0 ? 'rounded-tl-xl' : ''}`}>
-                          {item.label}
-                        </th>
-                      ))}
-                      <th scope="col" className="rounded-tr-xl px-4 py-3">
-                        <span className="sr-only">{text.history.actions}</span>
-                      </th>
+          <div className="mt-3 rounded-xl border border-beige bg-white">
+            {/* Table — md and up */}
+            <div className="hidden md:block">
+              <table aria-label={text.history.tableLabel} className="w-full text-left text-sm">
+                <thead className="text-offwhite [&_th]:bg-maroon">
+                  <tr>
+                    <th scope="col" className="rounded-tl-xl px-5 py-3 font-semibold">{columns.title}</th>
+                    <th scope="col" className="px-5 py-3 font-semibold whitespace-nowrap">{columns.version}</th>
+                    <th scope="col" className="px-5 py-3 font-semibold whitespace-nowrap">{columns.issued}</th>
+                    <th scope="col" className="px-5 py-3 font-semibold whitespace-nowrap">{columns.added}</th>
+                    <th scope="col" className="rounded-tr-xl px-5 py-3 text-right">
+                      <span className="sr-only">{columns.actions}</span>
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-beige">
+                  {history.map((version) => (
+                    <tr key={version.id}>
+                      <th scope="row" className="px-5 py-3.5 font-medium text-maroon">{version.title || text.none}</th>
+                      <td className="px-5 py-3.5 whitespace-nowrap text-maroon">{versionCell(version)}</td>
+                      <td className="px-5 py-3.5 whitespace-nowrap text-text-gray">{date(version.issuedDate)}</td>
+                      <td className="px-5 py-3.5 whitespace-nowrap text-text-gray">{date(version.addedAt ? addedDateOf(version) : undefined)}</td>
+                      <td className="px-5 py-3.5">{actions(version)}</td>
                     </tr>
-                  </thead>
-                  <tbody className="divide-y divide-beige">
-                    {history.map((version) => (
-                      <tr key={version.id}>
-                        {values(version).map((item, index) =>
-                          index === 0 ? (
-                            <th key={item.label} scope="row" className="px-4 py-3 align-top font-medium text-maroon">{item.value}</th>
-                          ) : (
-                            <td key={item.label} className="px-4 py-3 align-top text-maroon">{item.value}</td>
-                          ),
-                        )}
-                        <td className="px-4 py-3 align-top whitespace-nowrap">{viewLink(version)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Stacked cards — below lg */}
-              <ul aria-label={text.history.tableLabel} className="divide-y divide-beige lg:hidden">
-                {history.map((version) => (
-                  <li key={version.id} className="p-5">
-                    <h3 className="text-base font-semibold text-maroon">{name(version)}</h3>
-                    <GuidelineVersionDetails version={version} className="mt-4" />
-                    <div className="mt-4">{viewLink(version)}</div>
-                  </li>
-                ))}
-              </ul>
+                  ))}
+                </tbody>
+              </table>
             </div>
-          )}
+
+            {/* Stacked cards — below md */}
+            <ul aria-label={text.history.tableLabel} className="divide-y divide-beige md:hidden">
+              {history.map((version) => (
+                <li key={version.id} className="p-4">
+                  <p className="text-sm font-medium break-words text-maroon">{version.title || text.none}</p>
+                  <dl className="mt-1 grid grid-cols-[auto_minmax(0,1fr)] gap-x-2 gap-y-0.5 text-sm">
+                    <dt className="text-text-gray">{columns.version}</dt>
+                    <dd className="text-maroon">{versionCell(version)}</dd>
+                    <dt className="text-text-gray">{columns.issued}</dt>
+                    <dd className="text-maroon">{date(version.issuedDate)}</dd>
+                    <dt className="text-text-gray">{columns.added}</dt>
+                    <dd className="text-maroon">{date(version.addedAt ? addedDateOf(version) : undefined)}</dd>
+                  </dl>
+                  <div className="mt-3 flex justify-end">{actions(version)}</div>
+                </li>
+              ))}
+            </ul>
+          </div>
         </section>
       </div>
+
+      <ConfirmDialog
+        open={!!deleting}
+        title={text.deleteDialog.title}
+        description={deleting ? text.deleteDialog.description.replace('{name}', label(deleting)) : ''}
+        cancelLabel={text.deleteDialog.cancel}
+        confirmLabel={text.deleteDialog.confirm}
+        error={refusal || undefined}
+        canConfirm={canDelete}
+        onConfirm={confirmDelete}
+        onCancel={() => {
+          setDeleting(undefined)
+          setRefusal('')
+          deleteTrigger.current?.focus()
+        }}
+      />
     </>
   )
 }

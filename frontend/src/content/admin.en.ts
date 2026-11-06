@@ -289,11 +289,31 @@ export const adminEn: AdminContent = {
     requirementsCount: { one: '{count} requirement', other: '{count} requirements' },
     viewRequirements: 'View Requirements',
     viewRequirementsLabel: 'View requirements of GVP version {version}',
-    history: { title: 'Version History', empty: 'No earlier versions.', tableLabel: 'Earlier GVP versions', actions: 'Actions' },
+    history: {
+      title: 'Version History',
+      tableLabel: 'GVP versions, newest first',
+      columns: { title: 'Title', version: 'Version', issued: 'Issued by SFDA On', added: 'Added to Hawkim On', actions: 'Actions' },
+    },
+    /** "{title} v{version}", e.g. in button names and notices. */
+    versionLabel: '{title} v{version}',
+    actions: { view: 'View {name}', edit: 'Edit {name}', delete: 'Delete {name}' },
+    updated: '{name} updated.',
+    deleted: '{name} deleted.',
+    deleteDialog: {
+      title: 'Delete GVP Version?',
+      description: "Are you sure you want to delete {name}? This can't be undone.",
+      cancel: 'Cancel',
+      confirm: 'Delete',
+      current: "The current version can't be deleted.",
+      checked: "This version can't be deleted because SOPs have been checked against it.",
+    },
   },
 
   regulationForm: {
     title: 'Add GVP Version',
+    editTitle: 'Edit GVP Version',
+    editSubtitle: 'Change the title, the SFDA issue date or the source. The version number, the date it was added and the file stay the same.',
+    save: 'Save',
     subtitle: 'Add the latest SFDA Guideline on Good Pharmacovigilance Practices. It replaces the current version.',
     back: { label: 'Back to SFDA Regulatory Requirements', href: '/admin/regulations' },
     titleField: { label: 'Title' },

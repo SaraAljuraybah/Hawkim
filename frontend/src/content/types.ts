@@ -1299,12 +1299,28 @@ export interface AdminRegulationsContent {
   viewRequirements: string
   /** Accessible name of each "View requirements" link; `{version}` is replaced. */
   viewRequirementsLabel: string
-  /** `actions`: the visually hidden header of the View Requirements column. */
-  history: { title: string; empty: string; tableLabel: string; actions: string }
+  /** Every version, newest first; `columns.actions` is a visually hidden header. */
+  history: {
+    title: string
+    tableLabel: string
+    columns: { title: string; version: string; issued: string; added: string; actions: string }
+  }
+  /** `{title}` and `{version}` are replaced; the result is `{name}` below. */
+  versionLabel: string
+  /** Accessible names and tooltips of each row's icon buttons. */
+  actions: { view: string; edit: string; delete: string }
+  updated: string
+  deleted: string
+  /** `current` and `checked`: why Delete is refused, shown in the dialog. */
+  deleteDialog: { title: string; description: string; cancel: string; confirm: string; current: string; checked: string }
 }
 
 export interface AdminRegulationFormContent {
   title: string
+  /** Editing a version: its heading, subtitle and button. */
+  editTitle: string
+  editSubtitle: string
+  save: string
   subtitle: string
   back: LinkContent
   /** The Title field (`title` is the page's heading). */

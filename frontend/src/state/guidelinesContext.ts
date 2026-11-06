@@ -1,6 +1,6 @@
 import { createContext, useContext } from 'react'
-import type { Guideline, GuidelineVersion, Requirement, User } from '../data/mock/types'
-import type { GuidelineVersionInput } from '../lib/guidelines'
+import type { Guideline, GuidelineVersion, Requirement, Sop, User } from '../data/mock/types'
+import type { GuidelineEditInput, GuidelineVersionInput } from '../lib/guidelines'
 import type { LoadStatus } from './useLoadAfterSignIn'
 
 export interface GuidelinesStore {
@@ -21,6 +21,10 @@ export interface GuidelinesStore {
    * and that `actorId` is an active admin; throws if not allowed.
    */
   addVersion: (input: GuidelineVersionInput, actor: { actorId: string; users: User[] }) => GuidelineVersion
+  /** Changes a version's title, SFDA issue date and source (this tab only); returns it. Throws if not allowed. */
+  updateVersion: (id: string, input: GuidelineEditInput, actor: { actorId: string; users: User[] }) => GuidelineVersion
+  /** Deletes a version (this tab only), unless lib/guidelines.ts deleteVersionBlocker refuses it; throws then. */
+  deleteVersion: (id: string, actor: { actorId: string; users: User[]; sops: Sop[] }) => void
 }
 
 export const GuidelinesContext = createContext<GuidelinesStore | null>(null)
