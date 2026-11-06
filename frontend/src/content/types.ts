@@ -1317,9 +1317,8 @@ export interface AdminRegulationsContent {
 
 export interface AdminRegulationFormContent {
   title: string
-  /** Editing a version: its heading, subtitle and button. */
+  /** Editing a version: its heading (no subtitle) and button. */
   editTitle: string
-  editSubtitle: string
   save: string
   subtitle: string
   back: LinkContent

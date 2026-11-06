@@ -27,6 +27,9 @@ describe('Edit GVP version', () => {
   it('reuses the form, pre-filled, with Save and Cancel', () => {
     const html = render()
     expect(html).toContain('>Edit GVP Version</h1>')
+    // No subtitle under the heading.
+    expect(html).toMatch(/>Edit GVP Version<\/h1><form/)
+    expect(html).not.toContain('Change the title')
     expect(input(html, 'title')).toContain('value="SFDA Guideline on Good Pharmacovigilance Practices (GVP)"')
     expect(input(html, 'issuedDate')).toContain('value="2015-05-27"')
     expect(input(html, 'source')).toContain('value="https://www.sfda.gov.sa/en/regulations/gvp"')

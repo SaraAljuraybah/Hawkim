@@ -156,7 +156,7 @@ function GuidelineVersionForm({ editing }: { editing?: GuidelineVersion }) {
         {text.back.label}
       </Link>
       <h1 className="mt-5 text-2xl tracking-tight sm:text-3xl">{editing ? text.editTitle : text.title}</h1>
-      <p className="mt-2 text-text-gray">{editing ? text.editSubtitle : text.subtitle}</p>
+      {!editing && <p className="mt-2 text-text-gray">{text.subtitle}</p>}
 
       <form ref={formRef} noValidate onSubmit={handleSubmit} className="mt-8 max-w-2xl rounded-xl border border-beige bg-white p-5 sm:p-6">
         <TextField

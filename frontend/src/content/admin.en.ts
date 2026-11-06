@@ -312,7 +312,6 @@ export const adminEn: AdminContent = {
   regulationForm: {
     title: 'Add GVP Version',
     editTitle: 'Edit GVP Version',
-    editSubtitle: 'Change the title, the SFDA issue date or the source. The version number, the date it was added and the file stay the same.',
     save: 'Save',
     subtitle: 'Add the latest SFDA Guideline on Good Pharmacovigilance Practices. It replaces the current version.',
     back: { label: 'Back to SFDA Regulatory Requirements', href: '/admin/regulations' },
