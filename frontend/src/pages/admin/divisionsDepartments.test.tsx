@@ -15,7 +15,7 @@ describe('unified divisions and departments table', () => {
   it('renders exactly one table, three named columns and an unlabeled action column', () => {
     const html = render()
     expect(html.match(/<table /g)).toHaveLength(1)
-    expect(html).toContain('>Employees</th>'); expect(html).toContain('>SOPs</th>')
+    expect(html).toContain('>Users</th>'); expect(html).toContain('>SOPs</th>'); expect(html).not.toContain('Employees')
     expect(html).not.toContain('With Access'); expect(html).not.toContain('>Description</th>')
     expect(html).toContain('Departments (1)')
   })
@@ -32,9 +32,10 @@ describe('unified divisions and departments table', () => {
     expect(html).toContain('/admin/departments/new?division=v')
     expect(html).toContain('Departments (1)')
   })
-  it('keeps the internal header uncounted and preview limited to divisions', () => {
+  it('drops the inner Departments label (the count stays under the name) and limits preview to divisions', () => {
     const html = render('safety')
-    expect(html).toContain('>Departments</span>')
+    expect(html).not.toContain('>Departments</span>')
+    expect(html).toContain('Departments (1)')
     expect(html).toContain('aria-label="Preview Safety"')
     expect(html).not.toContain('Preview Medical')
     expect(html).toContain('href="/admin/departments/d"')

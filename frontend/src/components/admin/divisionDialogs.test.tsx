@@ -2,6 +2,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { isValidElement, type ReactElement, type ReactNode } from 'react'
 import { DivisionForm, DivisionPreview } from './DivisionDialogs'
 import { DeleteDepartmentDialog } from './DeleteDepartmentDialog'
+import { renderToStaticMarkup } from 'react-dom/server'
+import { CopyButton } from '../ui/CopyButton'
 const host = vi.hoisted(() => ({ states: [] as unknown[], index: 0, save: vi.fn(), remove: vi.fn() }))
 vi.mock('react', async (original) => ({ ...await original<typeof import('react')>(), useState: (initial: unknown) => {
   const index = host.index++
@@ -50,34 +52,52 @@ describe('division create and edit form', () => {
   })
 })
 describe('division preview', () => {
-  it('copies the exact email and announces successful copying', async () => {
-    const writeText = vi.fn().mockResolvedValue(undefined)
-    vi.stubGlobal('navigator', { clipboard: { writeText } })
-    const component = () => DivisionPreview({ division, onEdit: vi.fn(), onClose: vi.fn() })
-    const copy = elements(render(component)).find((item) => item.props.label === 'Copy email')!
-    await (copy.props.onClick as () => Promise<void>)()
-    expect(writeText).toHaveBeenCalledWith('safety@test.invalid')
-    expect(elements(render(component)).some((item) => item.props.role === 'status' && item.props.children === 'Copied!')).toBe(true)
-    vi.unstubAllGlobals()
+  const preview = (props: Partial<Parameters<typeof DivisionPreview>[0]> = {}) => render(() => DivisionPreview({ division, onEdit: vi.fn(), onClose: vi.fn(), ...props }))
+  const markup = (props: Partial<Parameters<typeof DivisionPreview>[0]> = {}) => { host.index = 0; return renderToStaticMarkup(<DivisionPreview division={division} onEdit={vi.fn()} onClose={vi.fn()} {...props} />) }
+
+  it('keeps the title, and puts Description then Email in one compact block (one gap under the title)', () => {
+    const element = preview()
+    expect(element.props.title).toBe('Safety')
+    expect(isValidElement(element.props.children)).toBe(true)
+    const html = markup()
+    expect(html.match(/<dt[^>]*>([^<]*)<\/dt>/g)!.map((tag) => tag.replace(/<[^>]+>/g, ''))).toEqual(['Description', 'Email'])
+    expect(html).toMatch(/>Description<\/dt><dd[^>]*>Safety work</)
+    // Plain text with the copy icon beside it, not a read-only input with a large Copy button.
+    expect(html).not.toContain('<input')
+    expect(html).not.toMatch(/>Copy</)
   })
-  it('reports clipboard failures and uses the provided shared edit entry point', async () => {
-    vi.stubGlobal('navigator', { clipboard: { writeText: vi.fn().mockRejectedValue(new Error('denied')) } })
+
+  it('puts a small copy icon right beside the email, copying exactly that address', () => {
+    const copy = elements(preview()).find((item) => item.type === CopyButton)!
+    expect(copy.props).toMatchObject({ text: 'safety@test.invalid', label: 'Copy email', copiedText: 'Email copied' })
+    expect(String(copy.props.failedText)).toContain('Could not copy')
+    expect(markup()).toMatch(/>safety@test.invalid<\/span><span class="contents"><span class="inline-flex shrink-0">(?:<span[^>]*>)?<button[^>]*aria-label="Copy email"/)
+  })
+
+  it('says No email recorded. without a copy icon when there is no email', () => {
+    const element = preview({ division: { ...division, email: null } })
+    expect(elements(element).some((item) => item.type === CopyButton)).toBe(false)
+    const html = markup({ division: { ...division, email: null } })
+    expect(html).toMatch(/>Email<\/dt><dd[^>]*>No email recorded.</)
+    expect(html).not.toContain('Copy email')
+  })
+
+  it('leaves out an empty description instead of leaving a gap', () => {
+    const html = markup({ division: { ...division, description: '' } })
+    expect(html).not.toContain('>Description<')
+    expect(html).toContain('>Email<')
+  })
+
+  it('keeps the Edit and Close actions', () => {
     const onEdit = vi.fn()
-    const component = () => DivisionPreview({ division, onEdit, onClose: vi.fn() })
-    let element = render(component)
-    await (elements(element).find((item) => item.props.label === 'Copy email')!.props.onClick as () => Promise<void>)()
-    element = render(component)
-    expect(elements(element).some((item) => item.props.role === 'status' && String(item.props.children).includes('Could not copy'))).toBe(true)
+    const onClose = vi.fn()
+    const element = preview({ onEdit, onClose })
     const edit = elements(element).find((item) => item.props.onClick === onEdit)!
     ;(edit.props.onClick as () => void)()
     expect(onEdit).toHaveBeenCalledOnce()
-    expect(element.props.title).toBe('Safety')
     expect(element.props.confirmLabel).toBe('Close')
-    // Edit sits inside the dialog content; the email is a read-only field.
-expect(element.props.headerAction).toBeUndefined()
-expect(elements(element.props.children as ReactNode).some((item) => item.props.onClick === onEdit)).toBe(true)
-    expect(elements(element).find((item) => item.props.name === 'divisionEmailPreview')?.props.readOnly).toBe(true)
-    vi.unstubAllGlobals()
+    ;(element.props.onClose as () => void)()
+    expect(onClose).toHaveBeenCalledOnce()
   })
 })
 describe('department SOP deletion choices', () => {

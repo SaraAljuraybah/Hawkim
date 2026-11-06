@@ -1,8 +1,8 @@
 import { useState } from 'react'
-import { Copy, Pencil } from 'lucide-react'
+import { Pencil } from 'lucide-react'
 import { FormDialog } from '../ui/FormDialog'
 import { Button } from '../ui/Button'
-import { IconButton } from '../ui/IconButton'
+import { CopyButton } from '../ui/CopyButton'
 import { TextField } from '../ui/TextField'
 import { TextAreaField } from '../ui/TextAreaField'
 import { organizationAdminEn as text } from '../../content/organizationAdmin.en'
@@ -33,37 +33,27 @@ export function DivisionForm({ division, onClose, onSaved }: { division?: Divisi
 }
 
 export function DivisionPreview({ division, onEdit, onClose }: { division: DivisionRecord; onEdit: () => void; onClose: () => void }) {
-  const [feedback, setFeedback] = useState('')
-  return <FormDialog
-  open
-  title={division.name}
-  confirmLabel={text.close}
-  onConfirm={() => {}}
-  onClose={onClose}
->
-  <div className="flex justify-end">
-    <Button
-      type="button"
-      size="sm"
-      variant="secondary"
-      onClick={onEdit}
-    >
-      <Pencil
-        className="size-4"
-        aria-hidden="true"
-        strokeWidth={1.75}
-      />
-      {text.edit}
-    </Button>
-  </div>
-    {division.description && <div><p className="mb-1.5 text-sm font-medium text-maroon">{text.description}</p>
-      <p className="text-black">{division.description}</p></div>}
-    {division.email ? <TextField name="divisionEmailPreview" type="email" label={text.email} value={division.email} readOnly
-      endAdornment={<IconButton bare icon={Copy} label={text.copy} onClick={async () => {
-        try { await navigator.clipboard.writeText(division.email!); setFeedback(text.copied) }
-        catch { setFeedback(text.copyFailed) }
-      }} />} />
-      : <div><p className="mb-1.5 text-sm font-medium text-maroon">{text.email}</p><p className="text-text-gray">{text.missingEmail}</p></div>}
-    <p role="status" className="-mt-3 text-xs text-text-gray">{feedback}</p>
+  // One block, so the dialog's gap between children doesn't separate the title, Description and Email.
+  return <FormDialog open title={division.name} confirmLabel={text.close} onConfirm={() => {}} onClose={onClose}>
+    <div className="-mt-1 flex items-start gap-4">
+      <dl className="min-w-0 flex-1 space-y-4 text-sm">
+        {division.description && <div>
+          <dt className="font-medium text-maroon">{text.description}</dt>
+          <dd className="mt-1 break-words text-black">{division.description}</dd>
+        </div>}
+        <div>
+          <dt className="font-medium text-maroon">{text.email}</dt>
+          {division.email
+            // The address and its copy icon stay together; the confirmation takes its own line below.
+            ? <dd className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-0.5"><span className="min-w-0 break-all text-black">{division.email}</span>
+              <CopyButton text={division.email} label={text.copy} copiedText={text.copied} failedText={text.copyFailed} /></dd>
+            : <dd className="mt-1 text-text-gray">{text.missingEmail}</dd>}
+        </div>
+      </dl>
+      <Button type="button" size="sm" variant="secondary" onClick={onEdit} className="shrink-0">
+        <Pencil className="size-4" aria-hidden="true" strokeWidth={1.75} />
+        {text.edit}
+      </Button>
+    </div>
   </FormDialog>
 }

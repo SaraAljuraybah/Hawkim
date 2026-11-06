@@ -31,7 +31,7 @@ describe('saveDepartment (save_department RPC)', () => {
   })
 
   it.each([
-    [{ code: '23505', message: 'Department name or initials already exists' }, 'That name or initials is already in use.'],
+    [{ code: '23505', message: 'Department name or initials already exists' }, 'That name is already in use, or another change was saved at the same time. Refresh the page and try again.'],
     [{ code: '40001', message: 'Organization changed; refresh and try again' }, 'Someone else changed this record. Refresh the page and try again.'],
     [{ code: '42501', message: 'Administrator required' }, 'Only an active administrator can manage divisions and departments.'],
     [{ code: '23514', message: 'Select an active division' }, 'Select a division.'],

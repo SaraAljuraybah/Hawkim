@@ -1459,15 +1459,12 @@ export interface AdminDepartmentFormContent {
   backToList: LinkContent
   backToDepartment: string
   name: { label: string }
-  initials: { label: string; hint: string }
   description: { label: string; hint: string }
   cancel: string
   errors: {
     nameRequired: string
     nameTooLong: string
     nameTaken: string
-    initialsInvalid: string
-    initialsTaken: string
     descriptionTooLong: string
   }
 }
@@ -1476,24 +1473,11 @@ export interface AdminDepartmentDetailsContent {
   back: LinkContent
   added: string
   updated: string
-  /** A section title with its count, e.g. "Members (5)"; `{title}` and `{count}` are replaced. */
+  /** A section title with its count, e.g. "Users (5)"; `{title}` and `{count}` are replaced. */
   titleWithCount: string
-  details: { title: string; initials: string; description: string; noDescription: string }
-  members: { title: string; empty: string }
-  withAccess: { title: string; hint: string; empty: string }
-  sops: { title: string; label: string }
+  details: { title: string; description: string; noDescription: string }
+  users: { title: string; empty: string }
   edit: string
-  remove: {
-    title: string
-    text: string
-    button: string
-    /** `{name}` is replaced. */
-    refused: string
-    blockers: { members: CountText; sops: CountText; withAccess: CountText; pendingRequests: CountText }
-    dialog: { title: string; description: string; confirm: string; cancel: string }
-    /** Shown on the list afterwards; `{name}` is replaced. */
-    done: string
-  }
 }
 
 export interface AdminDepartmentsListContent {

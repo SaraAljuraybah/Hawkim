@@ -15,6 +15,7 @@ import {
   DEPARTMENT_FORM_FIELDS,
   departmentFormProblems,
   divisionIsOptional,
+  formInitials,
   initialDivisionId,
   submitDepartmentForm,
   type DepartmentFormField,
@@ -32,7 +33,8 @@ type FieldErrors = Partial<Record<DepartmentFormField, string>>
  * Add department ("/admin/departments/new", optionally "?division=<id>") and Edit department
  * ("/admin/departments/:id/edit"), PBI 13. Reads the admin management snapshot
  * (get_divisions_departments) and saves through save_department, which enforces the same rules,
- * the active division and the expected version on the server. A new department needs a division;
+ * the active division and the expected version on the server. Initials
+ * are not a field: they are generated from the name (lib/departmentInitials.ts). A new department needs a division;
  * a legacy department without one may stay unassigned. On success, the department's page opens.
  */
 export function DepartmentFormPage() {
@@ -74,7 +76,6 @@ function DepartmentForm({ snapshot, department }: { snapshot: ManagementSnapshot
   const [values, setValues] = useState<DepartmentFormValues>({
     divisionId: initialDivisionId(snapshot, department, requestedDivision),
     name: department?.name ?? '',
-    initials: department?.initials ?? '',
     description: department?.description ?? '',
   })
   const [errors, setErrors] = useState<FieldErrors>({})
@@ -83,7 +84,6 @@ function DepartmentForm({ snapshot, department }: { snapshot: ManagementSnapshot
   const [saveError, setSaveError] = useState('')
   const divisionRef = useRef<HTMLSelectElement>(null)
   const nameRef = useRef<HTMLInputElement>(null)
-  const initialsRef = useRef<HTMLInputElement>(null)
   const descriptionRef = useRef<HTMLTextAreaElement>(null)
   const saveErrorRef = useRef<HTMLParagraphElement>(null)
 
@@ -92,8 +92,9 @@ function DepartmentForm({ snapshot, department }: { snapshot: ManagementSnapshot
     'name-required': content.errors.nameRequired,
     'name-too-long': content.errors.nameTooLong,
     'name-taken': content.errors.nameTaken,
-    'initials-invalid': content.errors.initialsInvalid,
-    'initials-taken': content.errors.initialsTaken,
+    // Initials are generated, so these can't happen; listed for completeness.
+    'initials-invalid': orgText.invalid,
+    'initials-taken': orgText.duplicate,
     'description-too-long': content.errors.descriptionTooLong,
   }
   function errorsFor(input: DepartmentFormValues): FieldErrors {
@@ -102,7 +103,7 @@ function DepartmentForm({ snapshot, department }: { snapshot: ManagementSnapshot
       const problem = problems[field]
       return problem && messages[problem]
     }
-    return { divisionId: errorOf('divisionId'), name: errorOf('name'), initials: errorOf('initials'), description: errorOf('description') }
+    return { divisionId: errorOf('divisionId'), name: errorOf('name'), description: errorOf('description') }
   }
 
   // Errors are first shown on submit; after that, each field re-validates on blur.
@@ -119,14 +120,14 @@ function DepartmentForm({ snapshot, department }: { snapshot: ManagementSnapshot
     flushSync(() => { setErrors(next); setSaveError('') })
     const firstInvalid = DEPARTMENT_FORM_FIELDS.find((field) => next[field])
     if (firstInvalid) {
-      const refs = { divisionId: divisionRef, name: nameRef, initials: initialsRef, description: descriptionRef }
+      const refs = { divisionId: divisionRef, name: nameRef, description: descriptionRef }
       refs[firstInvalid].current?.focus()
       return
     }
     setBusy(true)
     try {
       // The saved department is in the shared list before its page opens.
-      const { targetId, state } = await submitDepartmentForm(values, department, expectedUpdatedAt, { save: saveDepartment, reload })
+      const { targetId, state } = await submitDepartmentForm(values, formInitials(values, snapshot, department), department, expectedUpdatedAt, { save: saveDepartment, reload })
       navigate(adminDepartmentPath(targetId), { state })
     } catch (reason) {
       flushSync(() => { setBusy(false); setSaveError((reason as Error).message) })
@@ -186,22 +187,6 @@ function DepartmentForm({ snapshot, department }: { snapshot: ManagementSnapshot
           onChange={(event) => setValues({ ...values, name: event.target.value })}
           onBlur={() => blur('name')}
           className="mt-5"
-        />
-        <TextField
-          ref={initialsRef}
-          name="initials"
-          autoComplete="off"
-          autoCapitalize="characters"
-          spellCheck={false}
-          label={content.initials.label}
-          required
-          requiredMark
-          hint={content.initials.hint}
-          value={values.initials}
-          error={errors.initials}
-          onChange={(event) => setValues({ ...values, initials: event.target.value })}
-          onBlur={() => blur('initials')}
-          className="mt-5 max-w-xs"
         />
         <TextAreaField
           ref={descriptionRef}

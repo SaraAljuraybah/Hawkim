@@ -40,10 +40,17 @@ describe.each([['Add Department', '/admin/departments/new'], ['Edit Department',
   const label = (text: string) => html.match(new RegExp(`<label for="([^"]+)"[^>]*>${text}(.*?)</label>`))!
   const control = (id: string) => html.match(new RegExp(`<(?:input|textarea|select)[^>]*id="${id}"[^>]*>`))![0]
 
-  it.each(['Name', 'Initials'])('marks %s as required, visibly and for screen readers', (text) => {
-    const [, id, mark] = label(text)
+  it('marks Name as required, visibly and for screen readers', () => {
+    const [, id, mark] = label('Name')
     expect(mark).toContain('>*<')
     expect(control(id)).toContain('required=""')
+  })
+
+  it('has no Initials field: they are generated from the name and can’t be typed', () => {
+    expect(html).not.toMatch(/>Initials</)
+    expect(html).not.toContain('name="initials"')
+    expect(html).not.toContain('2–3 letters')
+    expect(html.match(/<(input|textarea|select)[^>]*name="([^"]+)"/g)!.map((tag) => tag.match(/name="([^"]+)"/)![1])).toEqual(['division', 'name', 'description'])
   })
 
   it('keeps Description optional, with no asterisk and no "(Optional)", and keeps the hints', () => {
@@ -51,7 +58,6 @@ describe.each([['Add Department', '/admin/departments/new'], ['Edit Department',
     expect(mark).not.toContain('>*<')
     expect(control(id)).not.toContain('required=""')
     expect(html).not.toContain('(Optional)')
-    expect(html).toContain('2–3 letters, e.g. QA.')
     expect(html).toContain('One line about what the department does')
   })
 
