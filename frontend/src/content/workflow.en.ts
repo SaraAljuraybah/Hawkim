@@ -53,6 +53,13 @@ export const sopWorkflowEn: SopWorkflowContent = {
     srCompleted: 'completed',
     srCurrent: 'current step',
     srReturned: 'returned to the author at this step',
+    srStates: {
+      completed: ', completed',
+      current: ', current step',
+      inProgress: ', in progress',
+      returned: ', returned',
+      notReached: ', not reached yet',
+    },
     due: 'Due {date}',
     overdue: 'Overdue',
     assignee: {

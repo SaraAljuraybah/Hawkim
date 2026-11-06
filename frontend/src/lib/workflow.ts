@@ -340,6 +340,17 @@ export function returnedFrom(sop: Sop): 'in-review' | 'in-approval' | undefined 
 }
 
 /**
+ * The step shown as returned in the coloured Workflow status: the step a returned SOP came back
+ * from, or In Review once every reviewer of the latest internal round has finished and someone
+ * returned it (Changes Requested; the SOP stays In Review). Sending a new version starts an open round.
+ */
+export function returnedStep(sop: Sop): 'in-review' | 'in-approval' | undefined {
+  if (sop.status === 'returned') return returnedFrom(sop) ?? 'in-review'
+  if (sop.status === 'in-review' && sop.internalReviewRounds?.at(-1)?.status === 'changes-requested') return 'in-review'
+  return undefined
+}
+
+/**
  * A returned SOP can be resubmitted only once its current version was uploaded AFTER
  * the latest return (PBI 6), so deleting back to an older version doesn't allow it.
  */

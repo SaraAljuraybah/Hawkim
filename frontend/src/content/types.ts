@@ -686,6 +686,8 @@ export interface SopWorkflowContent {
     srCompleted: string
     srCurrent: string
     srReturned: string
+    /** Screen-reader state after each step's label in the coloured steps (the SOP page). */
+    srStates: { completed: string; current: string; inProgress: string; returned: string; notReached: string }
     /** Under In Review / In Approval while open; `{date}` is replaced. */
     due: string
     overdue: string

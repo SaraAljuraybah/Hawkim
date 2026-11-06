@@ -280,7 +280,7 @@ export function SopWorkflowPage() {
       {/* 1. Workflow status */}
       <Section id="tracker-title" title={content.tracker.label} className="mt-6">
         {/* Only the steps: who returned it and why, and who's next, are in the Review timeline and the Reviewers box. */}
-        <StatusTracker sop={sop} content={content.tracker} stepsOnly />
+        <StatusTracker sop={sop} content={content.tracker} stepsOnly statusColours />
       </Section>
 
       {/* 2. Authors */}

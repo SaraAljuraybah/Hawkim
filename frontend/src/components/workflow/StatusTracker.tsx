@@ -8,6 +8,7 @@ import {
   isOverdue,
   pendingPeople,
   returnedFrom,
+  returnedStep as colouredReturnedStep,
 } from '../../lib/workflow'
 import { sopWorkflowEn } from '../../content/workflow.en'
 import { ReviewFlowSummary } from './ReviewFlowSummary'
@@ -22,11 +23,26 @@ interface StatusTrackerProps {
   /** Only the steps (the author's SOP page): no review summary and no current assignee below them. */
   stepsOnly?: boolean
   inactive?: boolean
+  /**
+   * Status colours (the author's SOP page): done steps green with a check, Draft grey, In Review /
+   * In Approval amber while open, a returned step red (also once a review round is Changes Requested),
+   * and Approved counts as done. Steps not reached yet keep the beige outline.
+   */
+  statusColours?: boolean
 }
 
 const STEPS = ['draft', 'in-review', 'in-approval', 'approved', 'published'] as const
 
 type StepState = 'done' | 'current' | 'returned' | 'upcoming'
+
+/** The coloured circles: a status token pair, each meeting WCAG AA on the white card. */
+const COLOURED_CIRCLE: Record<StepState | 'draft', string> = {
+  done: 'border-2 border-status-approved-fg bg-status-approved-bg text-status-approved-fg',
+  draft: 'border-2 border-status-cancelled-fg bg-status-cancelled-bg text-status-cancelled-fg',
+  current: 'border-2 border-status-pending-fg bg-status-pending-bg text-status-pending-fg',
+  returned: 'border-2 border-status-rejected-fg bg-status-rejected-bg text-status-rejected-fg',
+  upcoming: 'border-2 border-beige bg-white text-text-gray',
+}
 
 /**
  * Draft → In Review → In Approval → Approved → Published (PBI 22).
@@ -36,11 +52,14 @@ type StepState = 'done' | 'current' | 'returned' | 'upcoming'
  * once it has passed, an "Overdue" label. Every state is also given as text (never colour alone).
  * Horizontal from sm, vertical on phones.
  */
-export function StatusTracker({ sop, content, stepsOnly = false, inactive = false }: StatusTrackerProps) {
-  const returnedStep = sop.status === 'returned' ? (returnedFrom(sop) ?? 'in-review') : undefined
+export function StatusTracker({ sop, content, stepsOnly = false, inactive = false, statusColours = false }: StatusTrackerProps) {
+  const returnedStep = statusColours
+    ? colouredReturnedStep(sop)
+    : sop.status === 'returned' ? (returnedFrom(sop) ?? 'in-review') : undefined
   const currentIndex = STEPS.indexOf((returnedStep ?? sop.status) as (typeof STEPS)[number])
 
-  const published = sop.status === 'published'
+  // With status colours, an Approved SOP has passed Approved too (steps 1–4 done).
+  const published = sop.status === 'published' || (statusColours && sop.status === 'approved')
   const { nameOf } = useUsers()
 
   const internalRound = sop.internalReviewRounds?.at(-1)
@@ -98,14 +117,16 @@ export function StatusTracker({ sop, content, stepsOnly = false, inactive = fals
                 <span
                   aria-hidden="true"
                   className={`absolute top-4 right-1/2 hidden h-0.5 w-full sm:block ${
-                    index <= currentIndex ? 'bg-maroon' : 'bg-beige'
+                    index > currentIndex ? 'bg-beige' : statusColours ? 'bg-status-approved-fg' : 'bg-maroon'
                   }`}
                 />
               )}
               <span
                 aria-hidden="true"
                 className={`relative z-10 inline-flex size-8 shrink-0 items-center justify-center rounded-full text-sm font-semibold ${
-                  state === 'done'
+                  statusColours
+                    ? COLOURED_CIRCLE[state === 'current' && step === 'draft' ? 'draft' : state]
+                    : state === 'done'
                     ? 'bg-maroon text-offwhite'
                     : state === 'current'
                       ? 'border-2 border-maroon bg-white text-maroon'
@@ -151,11 +172,20 @@ export function StatusTracker({ sop, content, stepsOnly = false, inactive = fals
                     {content.returned}
                   </span>
                 )}
-                <span className="sr-only">
-                  {state === 'done' && ` (${content.srCompleted})`}
-                  {state === 'current' && ` (${content.srCurrent})`}
-                  {state === 'returned' && ` (${content.srReturned})`}
-                </span>
+                {statusColours ? (
+                  <span className="sr-only">
+                    {state === 'done' ? content.srStates.completed
+                      : state === 'returned' ? content.srStates.returned
+                        : state === 'upcoming' ? content.srStates.notReached
+                          : step === 'draft' ? content.srStates.current : content.srStates.inProgress}
+                  </span>
+                ) : (
+                  <span className="sr-only">
+                    {state === 'done' && ` (${content.srCompleted})`}
+                    {state === 'current' && ` (${content.srCurrent})`}
+                    {state === 'returned' && ` (${content.srReturned})`}
+                  </span>
+                )}
               </span>
             </li>
           )
