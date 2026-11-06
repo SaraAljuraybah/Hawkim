@@ -1666,3 +1666,20 @@ export interface ReviewRequestContent {
   rejected: { title: string; text: string }
   errors: { emailInUse: string; accountFailed: string; notConnected: string; failed: string }
 }
+
+/** The page controls under a long list. `{page}` is the page number. */
+export interface PaginationContent {
+  /** The accessible name of the controls (a nav landmark). */
+  label: string
+  previous: string
+  next: string
+  /** Accessible names of Previous and Next (they show only an arrow on small screens). */
+  previousPage: string
+  nextPage: string
+  page: string
+}
+
+/** DEVELOPMENT ONLY: the sample SOPs for trying pagination. `{n}` is the sample number. */
+export interface DevSamplesContent {
+  title: string
+}
