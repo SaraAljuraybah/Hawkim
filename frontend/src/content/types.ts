@@ -1308,7 +1308,7 @@ export interface AdminRegulationFormContent {
   subtitle: string
   back: LinkContent
   /** The Title field (`title` is the page's heading). */
-  titleField: { label: string; placeholder: string }
+  titleField: { label: string }
   version: { label: string; hint: string }
   issuedDate: { label: string }
   /** Read-only: today in Asia/Riyadh. */
@@ -1331,6 +1331,8 @@ export interface AdminRegulationFormContent {
     fileNotPdf: string
     sourceRequired: string
     sourceInvalid: string
+    /** Not a link from sfda.gov.sa. */
+    sourceNotSfda: string
     sourceTooLong: string
   }
   /** `{version}` is replaced. */

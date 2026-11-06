@@ -37,6 +37,18 @@ export function isHttpsLink(value: string): boolean {
   }
 }
 
+/**
+ * An official SFDA link: an https:// link whose host is sfda.gov.sa or one of its subdomains
+ * (www.sfda.gov.sa). The host is compared exactly, never with "contains", so look-alikes such as
+ * https://sfda.gov.sa.example.com or https://notsfda.gov.sa are refused.
+ */
+export function isSfdaLink(value: string): boolean {
+  if (!isHttpsLink(value)) return false
+  // URL gives the host in lower case, without any user name or port.
+  const { hostname } = new URL(value)
+  return hostname === 'sfda.gov.sa' || hostname.endsWith('.sfda.gov.sa')
+}
+
 /* ---------- Adding a version ---------- */
 
 /** What the admin enters (the file is only its name for now). */
@@ -50,7 +62,7 @@ export interface GuidelineVersionInput {
   addedDate: string
   /** '' when no file was chosen. */
   fileName: string
-  /** A link to the guideline at its source. */
+  /** A link to the guideline on the SFDA website. */
   source: string
 }
 
@@ -67,6 +79,7 @@ export type GuidelineProblem =
   | 'file-not-pdf'
   | 'source-required'
   | 'source-invalid'
+  | 'source-not-sfda'
   | 'source-too-long'
 
 /**
@@ -95,7 +108,15 @@ export function validateGuidelineVersion(
     // ISO dates compare correctly as strings.
     issuedDate: input.issuedDate && input.addedDate && input.issuedDate > input.addedDate ? 'issued-after-added' : undefined,
     fileName: !fileName ? 'file-required' : !fileName.toLowerCase().endsWith('.pdf') ? 'file-not-pdf' : undefined,
-    source: !source ? 'source-required' : source.length > SOURCE_MAX ? 'source-too-long' : !isHttpsLink(source) ? 'source-invalid' : undefined,
+    source: !source
+      ? 'source-required'
+      : source.length > SOURCE_MAX
+        ? 'source-too-long'
+        : !isHttpsLink(source)
+          ? 'source-invalid'
+          : !isSfdaLink(source)
+            ? 'source-not-sfda'
+            : undefined,
   }
 }
 

@@ -6,6 +6,7 @@ import {
   compareVersions,
   currentVersion,
   isHttpsLink,
+  isSfdaLink,
   newGuidelineVersion,
   recheckRecommended,
   validateGuidelineVersion,
@@ -131,6 +132,31 @@ describe('the other fields', () => {
     expect(validate({ source: long }).source).toBeUndefined()
     expect(validate({ source: long + 'x' }).source).toBe('source-too-long')
     expect(isHttpsLink('https://www.sfda.gov.sa/en/regulations?page=1')).toBe(true)
+  })
+
+  it('accepts only official SFDA links: sfda.gov.sa or one of its subdomains, over https', () => {
+    // Valid
+    for (const source of ['https://sfda.gov.sa', 'https://www.sfda.gov.sa/en/regulations/gvp', 'https://WWW.SFDA.GOV.SA/ar', 'https://pv.sfda.gov.sa/guide.pdf?v=4.1']) {
+      expect(validate({ source }).source, source).toBeUndefined()
+      expect(isSfdaLink(source), source).toBe(true)
+    }
+    // Other sites
+    for (const source of ['https://www.google.com', 'https://www.fda.gov/drugs', 'https://gov.sa']) {
+      expect(validate({ source }).source, source).toBe('source-not-sfda')
+    }
+    // Look-alike hosts: never a "contains" match
+    for (const source of [
+      'https://sfda.gov.sa.example.com', 'https://www.sfda.gov.sa.evil.com/gvp', 'https://notsfda.gov.sa', 'https://sfda-gov.sa',
+      'https://sfda.gov.sa@evil.com/gvp', 'https://evil.com/?next=https://www.sfda.gov.sa', 'https://evil.com/sfda.gov.sa',
+    ]) {
+      expect(validate({ source }).source, source).toBe('source-not-sfda')
+      expect(isSfdaLink(source), source).toBe(false)
+    }
+    // http links get the https error
+    for (const source of ['http://www.sfda.gov.sa', 'http://sfda.gov.sa/gvp']) {
+      expect(validate({ source }).source, source).toBe('source-invalid')
+      expect(isSfdaLink(source), source).toBe(false)
+    }
   })
 
   it('becomes current when added, with its title, source and added date; the requirements are copied', () => {

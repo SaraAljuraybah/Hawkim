@@ -33,7 +33,7 @@ type FieldErrors = Partial<Record<GuidelineField, string>>
 /**
  * Add GVP version ("/admin/regulations/new", PBI 20): title, version (entered by the admin: new and
  * higher than the current one), optional SFDA issue date, the date it's added to Hawkim (today in
- * Asia/Riyadh, read-only), the guideline PDF and the source link. After a confirmation it becomes
+ * Asia/Riyadh, read-only), the guideline PDF and the source link on sfda.gov.sa. After a confirmation it becomes
  * the current version.
  * TODO: Upload the guideline file to the backend; for now only its name is kept.
  */
@@ -74,6 +74,7 @@ export function RegulationFormPage() {
     'file-not-pdf': text.errors.fileNotPdf,
     'source-required': text.errors.sourceRequired,
     'source-invalid': text.errors.sourceInvalid,
+    'source-not-sfda': text.errors.sourceNotSfda,
     'source-too-long': text.errors.sourceTooLong,
   }
   function errorsFor(next: GuidelineVersionInput): FieldErrors {
@@ -129,7 +130,6 @@ export function RegulationFormPage() {
           name="title"
           autoComplete="off"
           label={text.titleField.label}
-          placeholder={text.titleField.placeholder}
           required
           requiredMark
           maxLength={TITLE_MAX}
