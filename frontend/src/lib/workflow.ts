@@ -341,12 +341,14 @@ export function returnedFrom(sop: Sop): 'in-review' | 'in-approval' | undefined 
 
 /**
  * The step shown as returned in the coloured Workflow status: the step a returned SOP came back
- * from, or In Review once every reviewer of the latest internal round has finished and someone
- * returned it (Changes Requested; the SOP stays In Review). Sending a new version starts an open round.
+ * from, or In Review as soon as one reviewer of the latest internal round returned it with comments
+ * (their latest request), even while others are still reviewing; the SOP stays In Review.
+ * Sending a new version starts a new open round.
  */
 export function returnedStep(sop: Sop): 'in-review' | 'in-approval' | undefined {
   if (sop.status === 'returned') return returnedFrom(sop) ?? 'in-review'
-  if (sop.status === 'in-review' && sop.internalReviewRounds?.at(-1)?.status === 'changes-requested') return 'in-review'
+  const round = sop.internalReviewRounds?.at(-1)
+  if (sop.status === 'in-review' && round && latestAssignments(round).some((request) => request.decision === 'returned')) return 'in-review'
   return undefined
 }
 

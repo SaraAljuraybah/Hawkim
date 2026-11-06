@@ -25,7 +25,7 @@ interface StatusTrackerProps {
   inactive?: boolean
   /**
    * Status colours (the author's SOP page): done steps green with a check, Draft grey, In Review /
-   * In Approval amber while open, a returned step red (also once a review round is Changes Requested),
+   * In Approval amber while open, a returned step red (also as soon as one reviewer of the round returned it),
    * and Approved counts as done. Steps not reached yet keep the beige outline.
    */
   statusColours?: boolean

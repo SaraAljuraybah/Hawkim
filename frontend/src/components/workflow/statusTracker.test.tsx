@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { renderToStaticMarkup } from 'react-dom/server'
 import type { ReactNode } from 'react'
 import { sopWorkflowEn } from '../../content/workflow.en'
-import type { InternalReviewRound, Sop, TimelineEvent } from '../../data/mock/types'
+import type { InternalReviewDecision, InternalReviewerAssignment, InternalReviewRound, Sop, TimelineEvent } from '../../data/mock/types'
 import { returnedStep } from '../../lib/workflow'
 import type { SopStatus } from '../../types/status'
 import { UsersContext, type UsersStore } from '../../state/usersContext'
@@ -14,9 +14,14 @@ const users: UsersStore = {
 }
 const render = (node: ReactNode) => renderToStaticMarkup(<UsersContext value={users}>{node}</UsersContext>)
 
-const round = (status: InternalReviewRound['status'], id = 'round-1'): InternalReviewRound => ({
-  id, scope: 'internal', version: '1', status, requestedById: 'author', requestedAt: '2026-11-01T09:00:00Z', assignedDueDays: null, assignments: [],
+/** A reviewer's request in a round (a later request for the same reviewer replaces an earlier one). */
+const request = (userId: string, decision: InternalReviewDecision): InternalReviewerAssignment =>
+  ({ id: `${userId}-${decision}`, userId, decision, assignedAt: '2026-11-01T09:00:00Z', assignedDueDays: null }) as InternalReviewerAssignment
+const round = (status: InternalReviewRound['status'], id = 'round-1', assignments: InternalReviewerAssignment[] = []): InternalReviewRound => ({
+  id, scope: 'internal', version: id === 'round-1' ? '1' : '2', status, requestedById: 'author', requestedAt: '2026-11-01T09:00:00Z', assignedDueDays: null, assignments,
 })
+/** One reviewer returned it with comments while another is still reviewing (the round stays open). */
+const oneReturned = () => round('open', 'round-1', [request('reviewer-a', 'returned'), request('reviewer-b', 'accepted')])
 const returnedBy = (actorId: string): TimelineEvent => ({ id: 'evt-return', type: 'returned', actorId, version: '1', createdAt: '2026-11-02T09:00:00Z' })
 
 function sop(status: SopStatus, extra: Partial<Sop> = {}): Sop {
@@ -80,8 +85,8 @@ describe('the coloured Workflow status steps (SOP page)', () => {
     expectStates(sop('in-review', { internalReviewRounds: [round('completed')] }), [[GREEN, 'check', 'Draft, completed'], [AMBER, '2', 'In Review, in progress']])
   })
 
-  it('shows In Review red with the return icon once the round is Changes Requested', () => {
-    const item = sop('in-review', { internalReviewRounds: [round('changes-requested')] })
+  it('shows In Review red with the return icon as soon as one reviewer returned it, while others are still reviewing', () => {
+    const item = sop('in-review', { internalReviewRounds: [oneReturned()] })
     expectStates(item, [
       [GREEN, 'check', 'Draft, completed'],
       [RED, 'return', 'In Review, returned'],
@@ -90,8 +95,18 @@ describe('the coloured Workflow status steps (SOP page)', () => {
     expect(steps(item)[1].current).toBe(true)
   })
 
+  it('keeps In Review red once the round is Changes Requested', () => {
+    const item = sop('in-review', { internalReviewRounds: [round('changes-requested', 'round-1', [request('reviewer-a', 'returned'), request('reviewer-b', 'completed')])] })
+    expectStates(item, [[GREEN, 'check', 'Draft, completed'], [RED, 'return', 'In Review, returned']])
+  })
+
+  it('keeps In Review amber while reviewers are working and nobody has returned it', () => {
+    const item = sop('in-review', { internalReviewRounds: [round('open', 'round-1', [request('reviewer-a', 'completed'), request('reviewer-b', 'accepted')])] })
+    expectStates(item, [[GREEN, 'check', 'Draft, completed'], [AMBER, '2', 'In Review, in progress']])
+  })
+
   it('shows In Review amber again once the author sends a new version to reviewers', () => {
-    const item = sop('in-review', { version: '2', internalReviewRounds: [round('changes-requested'), round('open', 'round-2')] })
+    const item = sop('in-review', { version: '2', internalReviewRounds: [oneReturned(), round('open', 'round-2', [request('reviewer-a', 'pending')])] })
     expectStates(item, [[GREEN, 'check', 'Draft, completed'], [AMBER, '2', 'In Review, in progress']])
   })
 
@@ -155,19 +170,23 @@ describe('the Workflow status steps without status colours (Review page)', () =>
     expect(item[3].circle).toContain(BEIGE)
   })
 
-  it("don't treat a Changes Requested round as returned, or Approved as done", () => {
-    expect(steps(sop('in-review', { internalReviewRounds: [round('changes-requested')] }), false)[1].spoken).toBe('In Review (current step)')
+  it("don't treat a reviewer's return in an open round as returned, or Approved as done", () => {
+    expect(steps(sop('in-review', { internalReviewRounds: [oneReturned()] }), false)[1].spoken).toBe('In Review (current step)')
     expect(steps(sop('approved'), false)[3].spoken).toBe('Approved (current step)')
   })
 })
 
 describe('returnedStep', () => {
-  it('gives the step a returned SOP came back from, or In Review for a Changes Requested round', () => {
+  it('gives the step a returned SOP came back from, or In Review once a reviewer of the latest round returned it', () => {
     expect(returnedStep(sop('returned', { timeline: [returnedBy('approver')] }))).toBe('in-approval')
     expect(returnedStep(sop('returned', { timeline: [returnedBy('reviewer')] }))).toBe('in-review')
     expect(returnedStep(sop('returned'))).toBe('in-review')
-    expect(returnedStep(sop('in-review', { internalReviewRounds: [round('changes-requested')] }))).toBe('in-review')
+    expect(returnedStep(sop('in-review', { internalReviewRounds: [oneReturned()] }))).toBe('in-review')
     expect(returnedStep(sop('in-review', { internalReviewRounds: [round('open')] }))).toBeUndefined()
+    // Only the latest round, and each reviewer's latest request, count.
+    expect(returnedStep(sop('in-review', { version: '2', internalReviewRounds: [oneReturned(), round('open', 'round-2')] }))).toBeUndefined()
+    const removed = { ...request('reviewer-a', 'removed'), id: 'reviewer-a-removed' }
+    expect(returnedStep(sop('in-review', { internalReviewRounds: [round('open', 'round-1', [request('reviewer-a', 'returned'), removed])] }))).toBeUndefined()
     expect(returnedStep(sop('in-approval'))).toBeUndefined()
   })
 })
