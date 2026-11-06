@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState, type ReactNode, type Ref } from 'react'
 import { flushSync } from 'react-dom'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, CircleAlert, CircleCheck } from 'lucide-react'
+import { ArrowLeft, CircleCheck } from 'lucide-react'
 import { blockerMessage } from '../../components/admin/blockerMessages'
 import { DeleteUserButton } from '../../components/admin/DeleteUserButton'
+import { RefusedBox } from '../../components/admin/RefusedBox'
 import { PermissionBadges, UserAvatar } from '../../components/admin/UserBits'
 import { Button } from '../../components/ui/Button'
 import { CheckboxGroup } from '../../components/ui/CheckboxGroup'
@@ -69,28 +70,6 @@ function Panel({ id, title, children, headingRef }: { id: string; title: string;
       </h2>
       <div className="mt-4">{children}</div>
     </section>
-  )
-}
-
-/** Reasons a change was refused (announced, and focused so keyboard users land on it). */
-function RefusedBox({ title, messages, ref }: { title: string; messages: string[]; ref: Ref<HTMLDivElement> }) {
-  return (
-    <div
-      ref={ref}
-      role="alert"
-      tabIndex={-1}
-      className="mt-4 rounded-lg border border-status-rejected-fg/25 bg-status-rejected-bg px-4 py-3 text-sm text-status-rejected-fg focus:outline-none"
-    >
-      <p className="flex items-start gap-2 font-semibold">
-        <CircleAlert aria-hidden="true" className="mt-0.5 size-4 shrink-0" strokeWidth={2} />
-        {title}
-      </p>
-      <ul className="mt-1.5 list-disc space-y-1 pl-11">
-        {messages.map((message) => (
-          <li key={message}>{message}</li>
-        ))}
-      </ul>
-    </div>
   )
 }
 
