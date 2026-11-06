@@ -46,6 +46,8 @@ describe('Edit GVP version', () => {
     // No drop area: the file can't be changed.
     expect(html).not.toContain('Drag and drop')
     for (const name of ['title', 'issuedDate', 'source']) expect(input(html, name)).not.toContain('readOnly')
+    // The issue date is required here too.
+    expect(input(html, 'issuedDate')).toContain('required=""')
   })
 
   it('shows Not Found for an unknown version', () => {

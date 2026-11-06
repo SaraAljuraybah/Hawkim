@@ -83,11 +83,12 @@ describe('a GVP version\'s File card', () => {
     expect(html.indexOf('id="guideline-requirements"')).toBeLessThan(html.indexOf('id="file-title"'))
   })
 
-  it('shows the file name, Download and the embedded PDF when this browser has the file', () => {
+  it('shows the file name and the embedded PDF (with its own download) when this browser has the file', () => {
     const file = card(render('gvp-4-1'))
     expect(file).toContain('>Drug-GVP4_1.pdf</p>')
-    expect(file).toMatch(/<a href="blob:http:\/\/localhost\/abc" download="Drug-GVP4_1.pdf" aria-label="Download Drug-GVP4_1.pdf"/)
-    expect(file).toMatch(/role="tooltip"[^>]*><span[^>]*>Download Drug-GVP4_1.pdf<\/span>/)
+    // No separate Download button.
+    expect(file).not.toContain('download=')
+    expect(file).not.toContain('role="tooltip"')
     const viewer = file.match(/<iframe[^>]*>/)![0]
     expect(viewer).toContain('src="blob:http://localhost/abc"')
     expect(viewer).toContain('title="Drug-GVP4_1.pdf (PDF)"')

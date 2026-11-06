@@ -337,6 +337,7 @@ export const adminEn: AdminContent = {
       versionExists: 'Version {version} already exists. Enter a new version number.',
       versionNotHigher: 'The new version must be higher than {current}.',
       addedRequired: 'The date it is added to Hawkim is missing. Reload the page.',
+      issuedRequired: 'Enter the date SFDA issued this version.',
       issuedAfterAdded: "The issue date can't be after the date it's added to Hawkim.",
       fileRequired: 'Upload the file (PDF).',
       fileNotPdf: 'Upload the guideline as a PDF file.',
@@ -359,8 +360,6 @@ export const adminEn: AdminContent = {
     details: { title: 'Details' },
     file: {
       title: 'File',
-      /** Accessible name and tooltip of the Download button; `{fileName}` is replaced. */
-      download: 'Download {fileName}',
       unavailable: "The file isn't available yet.",
       viewerTitle: '{fileName} (PDF)',
       fallback: {

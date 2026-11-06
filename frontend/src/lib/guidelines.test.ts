@@ -68,7 +68,7 @@ function sop(status: SopStatus, complianceChecks: ComplianceCheck[]): Sop {
 const input = (overrides: Partial<GuidelineVersionInput> = {}): GuidelineVersionInput => ({
   title: 'SFDA GVP Guideline',
   version: '4.1',
-  issuedDate: '',
+  issuedDate: '2026-10-01',
   addedDate: '2026-11-06',
   fileName: 'Drug-GVP4_1.pdf',
   source: 'https://www.sfda.gov.sa/en/regulations/gvp',
@@ -119,11 +119,11 @@ describe('the other fields', () => {
     expect(validate({ fileName: 'GVP.PDF' }).fileName).toBeUndefined()
   })
 
-  it('needs the added date, and an issue date on or before it', () => {
+  it('needs the added date, and an SFDA issue date on or before it', () => {
     expect(validate({ addedDate: '' }).addedDate).toBe('added-required')
+    expect(validate({ issuedDate: '' }).issuedDate).toBe('issued-required')
     expect(validate({ issuedDate: '2026-11-07' }).issuedDate).toBe('issued-after-added')
     expect(validate({ issuedDate: '2026-11-06' }).issuedDate).toBeUndefined()
-    expect(validate({ issuedDate: '' }).issuedDate).toBeUndefined()
   })
 
   it('requires the source as a valid https:// link of up to 300 characters', () => {
@@ -182,7 +182,8 @@ describe('editing a version', () => {
   const v41: GuidelineVersion = { ...v40, id: 'gvp-4-1', version: '4.1', title: 'Old', issuedDate: '2026-10-01', source: 'https://www.sfda.gov.sa/old', addedAt: '2026-11-06T07:00:00Z' }
 
   it('checks only the title, the issue date and the source, with the same rules as adding', () => {
-    expect(validateGuidelineEdit({ title: 'New', issuedDate: '', source: 'https://www.sfda.gov.sa/new' }, v41)).toEqual({ title: undefined, issuedDate: undefined, source: undefined })
+    expect(validateGuidelineEdit({ title: 'New', issuedDate: '2026-10-02', source: 'https://www.sfda.gov.sa/new' }, v41)).toEqual({ title: undefined, issuedDate: undefined, source: undefined })
+    expect(validateGuidelineEdit({ title: 'New', issuedDate: '', source: 'https://www.sfda.gov.sa/new' }, v41).issuedDate).toBe('issued-required')
     expect(validateGuidelineEdit({ title: '', issuedDate: '2026-11-07', source: 'https://example.com' }, v41)).toEqual({
       title: 'title-required', issuedDate: 'issued-after-added', source: 'source-not-sfda',
     })

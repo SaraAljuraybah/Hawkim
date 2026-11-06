@@ -15,6 +15,8 @@ export interface GuidelineVersionActions {
   requirements?: { expanded: boolean; controlsId: string; onToggle: () => void }
   /** Leave out the File row (shown in a card of its own). */
   withoutFile?: boolean
+  /** Leave out the Requirements row (the Current Version card: the count is on the version's page). */
+  withoutRequirements?: boolean
 }
 
 /** A date as shown ('—' when unknown). */
@@ -41,7 +43,7 @@ function requirementsCell(version: GuidelineVersion, actions: GuidelineVersionAc
 
 /**
  * A GVP version's values, in the order of GuidelineVersionFields: title, version, issued by SFDA,
- * added to Hawkim (the Riyadh date it was added) and by whom, source, file (unless `withoutFile`) and requirements.
+ * added to Hawkim (the Riyadh date it was added) and by whom, source, file and requirements (each unless left out).
  * Shared by the details list and the version history table.
  */
 export function useGuidelineVersionValues(actions: GuidelineVersionActions = {}) {
@@ -54,6 +56,6 @@ export function useGuidelineVersionValues(actions: GuidelineVersionActions = {})
     { label: text.fields.addedBy, value: (version.addedById && nameOf(version.addedById)) || text.none },
     { label: text.fields.source, value: <SourceLink source={version.source} /> },
     ...(actions.withoutFile ? [] : [{ label: text.fields.file, value: <span className="break-all">{version.fileName}</span> }]),
-    { label: text.fields.requirements, value: requirementsCell(version, actions) },
+    ...(actions.withoutRequirements ? [] : [{ label: text.fields.requirements, value: requirementsCell(version, actions) }]),
   ]
 }

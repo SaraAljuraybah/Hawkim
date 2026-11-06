@@ -38,7 +38,7 @@ type FieldErrors = Partial<Record<GuidelineField, string>>
 
 /**
  * Add GVP version ("/admin/regulations/new", PBI 20): title, version (entered by the admin: new and
- * higher than the current one), optional SFDA issue date, the date it's added to Hawkim (today in
+ * higher than the current one), the SFDA issue date, the date it's added to Hawkim (today in
  * Asia/Riyadh, read-only), the guideline PDF and the source link on sfda.gov.sa. After a confirmation
  * it becomes the current version.
  * Edit GVP version ("/admin/regulations/:id/edit"): the same form, pre-filled; only the title, the
@@ -94,6 +94,7 @@ function GuidelineVersionForm({ editing }: { editing?: GuidelineVersion }) {
     'version-exists': text.errors.versionExists.replace('{version}', values.version.trim()),
     'version-not-higher': text.errors.versionNotHigher.replace('{current}', current.version),
     'added-required': text.errors.addedRequired,
+    'issued-required': text.errors.issuedRequired,
     'issued-after-added': text.errors.issuedAfterAdded,
     'file-required': text.errors.fileRequired,
     'file-not-pdf': text.errors.fileNotPdf,
@@ -194,6 +195,8 @@ function GuidelineVersionForm({ editing }: { editing?: GuidelineVersion }) {
             name="issuedDate"
             type="date"
             label={text.issuedDate.label}
+            required
+            requiredMark
             max={addedDate}
             value={values.issuedDate}
             error={errors.issuedDate}

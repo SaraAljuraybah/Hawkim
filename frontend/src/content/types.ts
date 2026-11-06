@@ -1338,6 +1338,7 @@ export interface AdminRegulationFormContent {
     /** `{current}` is replaced with the current version. */
     versionNotHigher: string
     addedRequired: string
+    issuedRequired: string
     issuedAfterAdded: string
     fileRequired: string
     fileNotPdf: string
@@ -1357,7 +1358,6 @@ export interface AdminRegulationDetailsContent {
   /** The File card: `{fileName}` is replaced; `unavailable` when this browser doesn't have the PDF. */
   file: {
     title: string
-    download: string
     unavailable: string
     viewerTitle: string
     fallback: { text: string; openPdf: string; newTabHint: string }

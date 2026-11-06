@@ -128,7 +128,7 @@ export function AdminRegulationsPage() {
             {text.versionName.replace('{version}', current.version)}
             {currentBadge}
           </p>
-          <GuidelineVersionDetails version={current} actions={{ withoutFile: true }} className="mt-5" />
+          <GuidelineVersionDetails version={current} actions={{ withoutFile: true, withoutRequirements: true }} className="mt-5" />
         </section>
 
         <section aria-labelledby="history-title">

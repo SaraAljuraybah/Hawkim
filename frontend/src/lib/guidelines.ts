@@ -57,7 +57,7 @@ export interface GuidelineVersionInput {
   title: string
   /** Entered by the admin, e.g. "4.1". */
   version: string
-  /** ISO date, or '' when not given. */
+  /** When SFDA issued it (ISO date); required. */
   issuedDate: string
   /** Today in Asia/Riyadh when the form opened (ISO date); it can't be changed. */
   addedDate: string
@@ -76,6 +76,7 @@ export type GuidelineProblem =
   | 'version-invalid'
   | 'version-exists'
   | 'version-not-higher'
+  | 'issued-required'
   | 'issued-after-added'
   | 'added-required'
   | 'file-required'
@@ -109,7 +110,11 @@ export function validateGuidelineVersion(
           : undefined,
     addedDate: input.addedDate ? undefined : 'added-required',
     // ISO dates compare correctly as strings.
-    issuedDate: input.issuedDate && input.addedDate && input.issuedDate > input.addedDate ? 'issued-after-added' : undefined,
+    issuedDate: !input.issuedDate
+      ? 'issued-required'
+      : input.addedDate && input.issuedDate > input.addedDate
+        ? 'issued-after-added'
+        : undefined,
     fileName: !fileName ? 'file-required' : !fileName.toLowerCase().endsWith('.pdf') ? 'file-not-pdf' : undefined,
     source: !source
       ? 'source-required'

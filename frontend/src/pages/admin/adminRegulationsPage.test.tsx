@@ -42,13 +42,13 @@ describe('SFDA Regulatory Requirements page', () => {
     expect(adminEn.regulationDetails.back.label).toBe('Back to SFDA Regulatory Requirements')
   })
 
-  it('keeps the Current Version card with its fields but no File row or View Requirements link, and Source as a new-tab link', () => {
+  it('keeps the Current Version card with its fields but no File or Requirements row and no View Requirements link, and Source as a new-tab link', () => {
     const html = render()
     const card = html.slice(html.indexOf('id="current-title"'), html.indexOf('id="history-title"'))
-    expect([...card.matchAll(/<dt[^>]*>([^<]+)<\/dt>/g)].map((match) => match[1])).toEqual(fields.filter((field) => field !== 'File'))
+    expect([...card.matchAll(/<dt[^>]*>([^<]+)<\/dt>/g)].map((match) => match[1])).toEqual(fields.filter((field) => field !== 'File' && field !== 'Requirements'))
     expect(card).not.toContain('View Requirements')
     expect(card).not.toContain('Drug-GVP4_1.pdf')
-    expect(card).toMatch(/Requirements<\/dt><dd[^>]*>1 Requirement<\/dd>/)
+    expect(card).not.toContain('1 Requirement')
     // Added just after midnight in Riyadh: the Riyadh date.
     expect(card).toContain('<time dateTime="2026-11-06">Nov 6, 2026</time>')
     expect(card).toContain('>Nouf Admin<')
@@ -104,6 +104,7 @@ describe('SFDA Regulatory Requirements page', () => {
 
   it('shows the same fields on a version\'s own page, the file in a card of its own', () => {
     const html = renderToStaticMarkup(<MemoryRouter><RegulationDetailsPage /></MemoryRouter>)
+    // The requirements count (a disclosure) stays here.
     expect([...html.matchAll(/<dt[^>]*>([^<]+)<\/dt>/g)].map((match) => match[1])).toEqual(fields.filter((field) => field !== 'File'))
   })
 })

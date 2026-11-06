@@ -1,9 +1,8 @@
 import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { ArrowLeft, Download } from 'lucide-react'
+import { ArrowLeft } from 'lucide-react'
 import { GuidelineVersionDetails } from '../../components/admin/GuidelineVersionDetails'
 import { PdfViewer } from '../../components/sops/PdfViewer'
-import { IconButton } from '../../components/ui/IconButton'
 import { tableStyles } from '../../components/ui/tableStyles'
 import { adminEn } from '../../content/admin.en'
 import { useDocumentTitle } from '../../hooks/useDocumentTitle'
@@ -15,8 +14,8 @@ const REQUIREMENTS_SECTION = 'guideline-requirements'
 
 /**
  * A GVP version ("/admin/regulations/:id", PBI 20): its details; its requirements, shown from the
- * details' count; and its file in a card of its own, embedded with a Download button when this browser
- * has it (versions added here, until reload).
+ * details' count; and its file in a card of its own, embedded when this browser has it (versions
+ * added here, until reload).
  */
 export function RegulationDetailsPage() {
   const { id } = useParams()
@@ -118,12 +117,8 @@ export function RegulationDetailsPage() {
         <h2 id="file-title" className="text-lg">
           {text.file.title}
         </h2>
-        <div className="mt-3 flex items-center justify-between gap-3">
-          <p className="min-w-0 text-sm font-medium break-all text-maroon">{version.fileName}</p>
-          {version.fileUrl && (
-            <IconButton label={text.file.download.replace('{fileName}', version.fileName)} icon={Download} href={version.fileUrl} download={version.fileName} />
-          )}
-        </div>
+        {/* The PDF viewer has its own download; browsers without one get the fallback link */}
+        <p className="mt-3 text-sm font-medium break-all text-maroon">{version.fileName}</p>
         {version.fileUrl ? (
           <div className="mt-4">
             <PdfViewer

@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { MemoryRouter } from 'react-router-dom'
+import { adminEn } from '../../content/admin.en'
 import { riyadhDate } from '../../lib/riyadhWorkingDays'
 import { RegulationFormPage } from './RegulationFormPage'
 
@@ -21,7 +22,7 @@ describe('Add GVP version', () => {
     expect([...positions].sort((a, b) => a - b)).toEqual(positions)
   })
 
-  it.each(['Title', 'Version', 'Added to Hawkim On', 'Source'])('marks %s as required, visibly and for screen readers', (text) => {
+  it.each(['Title', 'Version', 'Issued by SFDA On', 'Added to Hawkim On', 'Source'])('marks %s as required, visibly and for screen readers', (text) => {
     const [, id, mark] = label(text)
     expect(mark).toContain('>*<')
     expect(control(id)).toContain('required=""')
@@ -34,10 +35,10 @@ describe('Add GVP version', () => {
     expect(file).toContain('<span class="sr-only"> (required)</span>')
   })
 
-  it('keeps Issued by SFDA On optional, with no asterisk', () => {
-    const [, id, mark] = label('Issued by SFDA On')
-    expect(mark).not.toContain('>*<')
-    expect(control(id)).not.toContain('required=""')
+  it('asks for the SFDA issue date with its own error, no later than the added date', () => {
+    const [, id] = label('Issued by SFDA On')
+    expect(control(id)).toContain(`max="${riyadhDate(new Date())}"`)
+    expect(adminEn.regulationForm.errors.issuedRequired).toBe('Enter the date SFDA issued this version.')
   })
 
   it('shows today in Riyadh as Added to Hawkim On, read-only, with no hint', () => {
