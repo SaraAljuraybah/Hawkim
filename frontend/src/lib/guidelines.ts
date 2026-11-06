@@ -172,9 +172,13 @@ export function editedGuidelineVersion(version: GuidelineVersion, input: Guideli
   return { ...rest, title: input.title.trim(), ...(input.issuedDate ? { issuedDate: input.issuedDate } : {}), source: input.source.trim() }
 }
 
-/** Whether any SOP's compliance check (running, completed or failed) used this guideline version. */
+/**
+ * Whether any SOP's running or completed compliance check used this guideline version. Failed
+ * checks produced no results, so they don't count.
+ */
 export function checkedAgainst(version: GuidelineVersion, sops: Pick<Sop, 'complianceChecks'>[]): boolean {
-  return sops.some((sop) => sop.complianceChecks.some((check) => compareVersions(check.guideline.version, version.version) === 0))
+  return sops.some((sop) => sop.complianceChecks.some((check) =>
+    check.status !== 'failed' && compareVersions(check.guideline.version, version.version) === 0))
 }
 
 /**

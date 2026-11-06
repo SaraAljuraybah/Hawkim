@@ -200,10 +200,16 @@ describe('deleting a version', () => {
     expect(deleteVersionBlocker(v50, [v40, v41, v50], [])).toBe('current')
   })
 
-  it('refuses a version any SOP was checked against: running, completed or failed', () => {
-    for (const status of ['running', 'completed', 'failed'] as const) {
+  it('refuses a version any SOP has a running or completed check against', () => {
+    for (const status of ['running', 'completed'] as const) {
       expect(deleteVersionBlocker(v40, [v40, v41, v50], [sop('draft', [check('1', '4.0', status)])]), status).toBe('checked')
     }
+  })
+
+  it('does not count failed checks: they produced no results', () => {
+    expect(deleteVersionBlocker(v40, [v40, v41, v50], [sop('draft', [check('1', '4.0', 'failed')])])).toBeUndefined()
+    // A failed check next to a completed one still blocks it.
+    expect(deleteVersionBlocker(v40, [v40, v41, v50], [sop('draft', [check('1', '4.0', 'failed'), check('2', '4.0')])])).toBe('checked')
   })
 
   it('allows an older version nobody was checked against', () => {
