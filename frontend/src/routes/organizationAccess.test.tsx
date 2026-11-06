@@ -8,6 +8,7 @@ import { isPathAllowed, visibleNavItems } from '../lib/departmentNavigation'
 import { ORGANIZATIONAL_STRUCTURE_PATH } from '../lib/routes'
 import { ActiveDepartmentProvider } from '../state/ActiveDepartmentProvider'
 import { AdminArea, EmployeeArea } from './guards'
+import { AdminAuthorizationGate } from '../components/admin/AdminAuthorizationGate'
 
 const session = vi.hoisted(() => ({ user: null as User | null }))
 vi.mock('../state/sessionContext', () => ({ useSession: () => ({ status: 'signed-in', user: session.user }) }))
@@ -30,9 +31,15 @@ describe('the Admin guard enclosing Organizational Structure', () => {
     expect(result.type).toBe(ActiveDepartmentProvider)
     expect(result.props.children.props.children.props.embedded).toBe(true)
   })
-  it('allows Admins into the lazy Admin portal', () => {
+  it('allows Admins into the lazy Admin portal, once the database confirms they are still an active Admin', () => {
     session.user!.permissions = ['admin']
-    expect(AdminArea().type).toBe(Suspense)
+    const result = AdminArea()
+    expect(result.type).toBe(AdminAuthorizationGate)
+    expect(result.props.permission).toBeUndefined() // the default: can_manage_organization()
+    expect(result.props.children.type).toBe(Suspense)
+    // Refused by the database: the same employee-shell Not Found as any non-Admin.
+    expect(result.props.denied.type).toBe(ActiveDepartmentProvider)
+    expect(result.props.denied.props.children.props.children.props.embedded).toBe(true)
   })
 })
 

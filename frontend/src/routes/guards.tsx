@@ -1,5 +1,6 @@
 import { lazy, Suspense, type ReactNode } from 'react'
 import { Navigate, useLocation } from 'react-router-dom'
+import { AdminAuthorizationGate } from '../components/admin/AdminAuthorizationGate'
 import { AppLayout } from '../components/layout/AppLayout'
 import { PageLoading } from '../components/ui/PageLoading'
 import { isPathAllowed, isReadOnlyDepartment, READ_ONLY_LANDING_PATH } from '../lib/departmentNavigation'
@@ -81,18 +82,21 @@ export function AdminArea() {
   if (!user) return <Navigate to={SIGN_IN_PATH} replace />
   if (data === 'error') return <LoadFailedPage />
   if (data === 'loading') return <PageLoading fullScreen />
-  if (!hasPermission(user, 'admin')) {
-    return (
-      <ActiveDepartmentProvider>
-        <AppLayout>
-          <NotFoundPage embedded />
-        </AppLayout>
-      </ActiveDepartmentProvider>
-    )
-  }
+  const notFound = (
+    <ActiveDepartmentProvider>
+      <AppLayout>
+        <NotFoundPage embedded />
+      </AppLayout>
+    </ActiveDepartmentProvider>
+  )
+  if (!hasPermission(user, 'admin')) return notFound
+  // The roles above were read at sign-in; the database confirms this is still an active,
+  // non-banned Admin before the portal (and its organization data) is shown.
   return (
-    <Suspense fallback={<PageLoading fullScreen />}>
-      <AdminLayout />
-    </Suspense>
+    <AdminAuthorizationGate denied={notFound}>
+      <Suspense fallback={<PageLoading fullScreen />}>
+        <AdminLayout />
+      </Suspense>
+    </AdminAuthorizationGate>
   )
 }
