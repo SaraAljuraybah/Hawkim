@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { CircleCheck, FileText, Upload } from 'lucide-react'
 import { AuthoredSopGrid } from '../components/mySops/AuthoredSopGrid'
 import { AuthoredSopList } from '../components/mySops/AuthoredSopList'
+import { DeleteSopDialog } from '../components/mySops/DeleteSopDialog'
 import { Button } from '../components/ui/Button'
 import { SearchCombobox } from '../components/ui/SearchCombobox'
 import { SelectField } from '../components/ui/SelectField'
@@ -15,6 +16,7 @@ import { hasPermission } from '../lib/permissions'
 import { authoredSopsFor, filterMySops, mySopTitles, sortMySops, type MySopCategory, type MySopRole, type MySopSort } from '../lib/mySops'
 import { useActiveDepartment } from '../state/activeDepartmentContext'
 import { useCurrentUser } from '../state/sessionContext'
+import type { Sop } from '../data/mock/types'
 import { useSops } from '../state/sopsContext'
 import { NotFoundPage } from './NotFoundPage'
 
@@ -42,7 +44,7 @@ export function MySopsPage() {
   // Non-authors get the Not Found page, which sets its own title.
   useDocumentTitle(isAuthor ? content.pageTitle : undefined)
 
-  const { sops } = useSops()
+  const { sops, deleteSop } = useSops()
   const { homeDepartment } = useActiveDepartment()
   const [statusMessage, setStatusMessage] = useState('')
   const [category, setCategory] = useState<MySopCategory>('new')
@@ -51,6 +53,9 @@ export function MySopsPage() {
   const [role, setRole] = useState<MySopRole>('all')
   const [view, setView] = useState<ViewMode>(readStoredView)
   const searchRef = useRef<HTMLInputElement>(null)
+  // The SOP being deleted, and the button that opened the dialog (focus goes back to it).
+  const [deleting, setDeleting] = useState<Sop | null>(null)
+  const deleteTriggerRef = useRef<HTMLElement | null>(null)
   const location = useLocation()
   const navigate = useNavigate()
 
@@ -96,6 +101,27 @@ export function MySopsPage() {
     searchRef.current?.focus()
   }
 
+  function askToDelete(sop: Sop, trigger: HTMLElement) {
+    deleteTriggerRef.current = trigger
+    setDeleting(sop)
+  }
+
+  async function confirmDelete(reason: string) {
+    if (!deleting) return
+    await deleteSop(deleting.id, reason)
+    setStatusMessage(content.deleteSop.deleted.replace('{title}', deleting.title))
+  }
+
+  function closeDelete() {
+    setDeleting(null)
+    // After a delete the button is gone: focus moves to the SOP list instead.
+    requestAnimationFrame(() => {
+      const trigger = deleteTriggerRef.current
+      if (trigger?.isConnected) trigger.focus()
+      else document.getElementById(ids.panel)?.focus()
+    })
+  }
+
   if (!isAuthor) return <NotFoundPage embedded />
 
 
@@ -112,7 +138,7 @@ export function MySopsPage() {
         </Button>
       </div>
 
-      {/* Success message after an upload (live region stays mounted) */}
+      {/* Success message after an upload or a delete (live region stays mounted) */}
       <div role="status">
         {statusMessage && (
           <p className="mt-6 flex items-center gap-2.5 rounded-lg border border-status-approved-fg/20 bg-status-approved-bg px-4 py-3 text-sm font-medium text-status-approved-fg">
@@ -177,11 +203,15 @@ export function MySopsPage() {
             <p className="mt-4 text-text-gray">{hasFilters ? content.filters.empty : content.empty}</p>
           </div>
         ) : view === 'grid' ? (
-          <AuthoredSopGrid sops={visibleSops} content={content} userId={user.id} />
+          <AuthoredSopGrid sops={visibleSops} content={content} userId={user.id} onDelete={askToDelete} />
         ) : (
-          <AuthoredSopList sops={visibleSops} content={content} userId={user.id} />
+          <AuthoredSopList sops={visibleSops} content={content} userId={user.id} onDelete={askToDelete} />
         )}
       </div>
+
+      {deleting && (
+        <DeleteSopDialog title={deleting.title} content={content.deleteSop} onConfirm={confirmDelete} onClose={closeDelete} />
+      )}
     </>
   )
 }

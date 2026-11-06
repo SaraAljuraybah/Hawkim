@@ -1,14 +1,16 @@
 import { Link } from 'react-router-dom'
-import { FileText } from 'lucide-react'
+import { FileText, Trash2 } from 'lucide-react'
 import type { MySopsContent } from '../../content/types'
 import type { Sop } from '../../data/mock/types'
 import { formatDate } from '../../lib/format'
 import { checkRequired } from '../../lib/compliance'
 import { recheckRecommended } from '../../lib/guidelines'
+import { canDeleteSop } from '../../lib/mySops'
 import { useDepartments } from '../../state/departmentsContext'
 import { mySopPath } from '../../lib/routes'
 import { useGuidelines } from '../../state/guidelinesContext'
 import { RecheckBadge } from '../compliance/RecheckBadge'
+import { IconButton } from '../ui/IconButton'
 import { StatusBadge } from '../ui/StatusBadge'
 
 interface AuthoredSopListProps {
@@ -16,6 +18,8 @@ interface AuthoredSopListProps {
   content: MySopsContent
   /** The signed-in user, used only to label existing SOP ownership. */
   userId: string
+  /** Shows a Delete button on the SOPs the user may delete (main author, New SOPs and In Progress). */
+  onDelete?: (sop: Sop, trigger: HTMLElement) => void
 }
 
 /* Visible focus for the row that contains a focused link. */
@@ -28,9 +32,11 @@ const focusRing =
  * Every row links to its SOP workflow page (one link stretched over the row).
  * Rows stack on phones; from sm the details line up in columns.
  */
-export function AuthoredSopList({ sops, content, userId }: AuthoredSopListProps) {
+export function AuthoredSopList({ sops, content, userId, onDelete }: AuthoredSopListProps) {
   const currentGuideline = useGuidelines().current.version
   const { departments } = useDepartments()
+  // A Delete column only when a row here has the button, so the columns stay aligned.
+  const deleteColumn = !!onDelete && sops.some((sop) => canDeleteSop(sop, userId))
   return (
     <ul className="divide-y divide-beige rounded-xl border border-beige bg-white">
       {sops.map((sop) => {
@@ -71,7 +77,7 @@ export function AuthoredSopList({ sops, content, userId }: AuthoredSopListProps)
             </div>
 
             {/* Role, status, version and date: wrap under the title on phones, aligned columns from sm */}
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 pl-[3.25rem] sm:grid sm:grid-cols-[13rem_5.5rem_6.5rem] sm:gap-4 sm:pl-0">
+            <div className={`flex flex-wrap items-center gap-x-4 gap-y-2 pl-[3.25rem] sm:grid sm:gap-4 sm:pl-0 ${deleteColumn ? 'sm:grid-cols-[13rem_5.5rem_6.5rem_2.25rem]' : 'sm:grid-cols-[13rem_5.5rem_6.5rem]'}`}>
               <div className="flex flex-wrap items-center gap-2">
                 <span className="rounded-full bg-beige px-2 py-0.5 text-xs font-medium text-maroon">{roleLabel}</span>
                 <StatusBadge status={sop.status} />
@@ -82,6 +88,13 @@ export function AuthoredSopList({ sops, content, userId }: AuthoredSopListProps)
               <time dateTime={sop.lastUpdated} className="text-sm whitespace-nowrap text-text-gray">
                 {formatDate(sop.lastUpdated)}
               </time>
+              {deleteColumn && (canDeleteSop(sop, userId) ? (
+                // Above the row's stretched link (z-10), outside it: its own clicks and focus, and it never opens the SOP.
+                <span className="relative z-10">
+                  <IconButton label={content.deleteSop.buttonLabel.replace('{title}', sop.title)} icon={Trash2} danger tooltip={false}
+                    onClick={(event) => onDelete!(sop, event.currentTarget)} />
+                </span>
+              ) : <span aria-hidden="true" className="hidden sm:block" />)}
             </div>
           </li>
         )

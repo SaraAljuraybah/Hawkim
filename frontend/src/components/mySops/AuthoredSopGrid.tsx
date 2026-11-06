@@ -1,22 +1,26 @@
-import { FileText } from 'lucide-react'
+import { FileText, Trash2 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import type { MySopsContent } from '../../content/types'
 import type { Sop } from '../../data/mock/types'
 import { formatDate } from '../../lib/format'
 import { recheckRecommended } from '../../lib/guidelines'
+import { canDeleteSop } from '../../lib/mySops'
 import { mySopPath } from '../../lib/routes'
 import { useGuidelines } from '../../state/guidelinesContext'
 import { RecheckBadge } from '../compliance/RecheckBadge'
+import { IconButton } from '../ui/IconButton'
 import { StatusBadge } from '../ui/StatusBadge'
 
 interface AuthoredSopGridProps {
   sops: Sop[]
   content: MySopsContent
   userId: string
+  /** Shows a Delete button on the SOPs the user may delete (main author, New SOPs and In Progress). */
+  onDelete?: (sop: Sop, trigger: HTMLElement) => void
 }
 
 /** The same ownership and lifecycle information as the list, in responsive cards. */
-export function AuthoredSopGrid({ sops, content, userId }: AuthoredSopGridProps) {
+export function AuthoredSopGrid({ sops, content, userId, onDelete }: AuthoredSopGridProps) {
   const currentGuideline = useGuidelines().current.version
   return (
     <ul className="grid gap-5 md:grid-cols-2 xl:grid-cols-3 3xl:grid-cols-4">
@@ -33,6 +37,13 @@ export function AuthoredSopGrid({ sops, content, userId }: AuthoredSopGridProps)
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="rounded-full bg-beige px-2 py-0.5 text-xs font-medium text-maroon">{role}</span>
                   <StatusBadge status={sop.status} />
+                  {onDelete && canDeleteSop(sop, userId) && (
+                    // Above the card's stretched link (z-10), outside it: its own clicks and focus, and it never opens the SOP.
+                    <span className="relative z-10">
+                      <IconButton label={content.deleteSop.buttonLabel.replace('{title}', sop.title)} icon={Trash2} danger tooltip={false}
+                        onClick={(event) => onDelete(sop, event.currentTarget)} />
+                    </span>
+                  )}
                 </div>
               </div>
               {recheck && (

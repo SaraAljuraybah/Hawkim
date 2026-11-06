@@ -13,7 +13,7 @@ const fixture = vi.hoisted(() => ({
 }))
 vi.mock('../state/sessionContext', () => ({ useCurrentUser: () => fixture.user }))
 vi.mock('../state/activeDepartmentContext', () => ({ useActiveDepartment: () => ({ homeDepartment: { id: 'home', name: 'Home department' }, activeDepartment: { id: 'foreign', name: 'Foreign directory' } }) }))
-vi.mock('../state/sopsContext', () => ({ useSops: () => ({ sops: fixture.sops }) }))
+vi.mock('../state/sopsContext', () => ({ useSops: () => ({ sops: fixture.sops, deleteSop: vi.fn() }) }))
 vi.mock('../state/guidelinesContext', () => ({ useGuidelines: () => ({ current: { version: '4.0' } }) }))
 vi.mock('../state/departmentsContext', () => ({ useDepartments: () => ({ departments: [{ id: 'home', name: 'Home department', requiresComplianceCheck: true }] }) }))
 
@@ -30,6 +30,13 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals())
 
 describe('My SOPs presentation and permissions', () => {
+  it("offers Delete on the main author's SOPs in the tab, not on co-authored ones, with no dialog open", () => {
+    const html = renderPage()
+    expect(html).toContain('aria-label="Delete Owned procedure"')
+    expect(html).not.toContain('aria-label="Delete Coauthored procedure"')
+    expect(html).not.toContain('<dialog')
+  })
+
   it('renders one view toggle, search, combined filter controls and the three categories', () => {
     const html = renderPage()
     expect(html.match(/aria-label="My SOPs view"/g)).toHaveLength(1)

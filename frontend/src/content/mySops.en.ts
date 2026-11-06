@@ -36,6 +36,25 @@ export const mySopsEn: MySopsContent = {
     empty: 'No SOPs match your search and filters in this category.',
   },
   recheckLabel: 'Recheck Recommended',
+  deleteSop: {
+    buttonLabel: 'Delete {title}',
+    title: 'Delete {title}',
+    warning: "This permanently deletes the SOP with all its versions and files, reviews, comments and history. This can't be undone.",
+    justificationLabel: 'Justification',
+    justificationRequired: 'Enter a justification for deleting this SOP.',
+    cancel: 'Cancel',
+    confirm: 'Delete',
+    deleting: 'Deleting…',
+    deleted: '{title} was deleted.',
+    errors: {
+      'not-found': 'This SOP no longer exists. Reload the page to see your current SOPs.',
+      'not-allowed': 'Only the main author can delete this SOP.',
+      'not-deletable': 'This SOP can no longer be deleted. Reload the page to see its current status.',
+      'check-running': "This SOP can't be deleted while a compliance check is running. Try again when it finishes.",
+      'invalid-reason': 'Enter a justification of up to 1,000 characters.',
+      failed: "The SOP couldn't be deleted. Please try again.",
+    },
+  },
 }
 
 export const uploadSopEn: UploadSopContent = {

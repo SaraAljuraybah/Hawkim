@@ -1,3 +1,4 @@
+import type { MySopsContent } from '../content/types'
 import type { Sop } from '../data/mock/types'
 import type { SopStatus } from '../types/status'
 import { isAuthorOrCoAuthor } from './workflow'
@@ -54,6 +55,11 @@ export class SopDeleteError extends Error {
     this.name = 'SopDeleteError'
     this.code = code
   }
+}
+
+/** The message for a refused delete (the content file has one per refusal code). */
+export function deleteErrorText(failure: unknown, content: MySopsContent['deleteSop']): string {
+  return content.errors[failure instanceof SopDeleteError ? failure.code : 'failed']
 }
 
 /** Home-department ownership is independent of the directory being browsed. */

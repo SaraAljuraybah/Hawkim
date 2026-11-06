@@ -7,6 +7,7 @@ import type {
   SopFileType,
   TimelineEventType,
 } from '../data/mock/types'
+import type { SopDeleteErrorCode } from '../lib/mySops'
 import type { SopStatus } from '../types/status'
 
 /*
@@ -572,6 +573,23 @@ export interface MySopsContent {
   }
   /** On SOPs last checked against an older GVP version. */
   recheckLabel: string
+  /** Deleting an SOP (main author, New SOPs and In Progress). */
+  deleteSop: {
+    /** Accessible name of the trash button: '{title}' is the SOP's title. */
+    buttonLabel: string
+    /** Dialog title: '{title}'. */
+    title: string
+    warning: string
+    justificationLabel: string
+    justificationRequired: string
+    cancel: string
+    confirm: string
+    deleting: string
+    /** Announced after a delete: '{title}'. */
+    deleted: string
+    /** Why the delete was refused, per refusal code. */
+    errors: Record<SopDeleteErrorCode, string>
+  }
 }
 
 export interface UploadSopContent {
