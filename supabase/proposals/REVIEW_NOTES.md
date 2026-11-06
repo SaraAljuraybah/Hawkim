@@ -131,7 +131,7 @@ previous code. Requests already sent again stay, and their event reads "submitte
 
 # Adding reviewers to a Changes Requested round
 
-**Status: NOT APPLIED yet.** `20261106140000_add_reviewers_changes_requested.sql`, undone by
+**Status: APPLIED to the live project on 6 November 2026.** `20261106140000_add_reviewers_changes_requested.sql`, undone by
 `supabase/scripts/rollback_add_reviewers_changes_requested.sql`.
 
 - **`add_reviewers` and `resend_review_request`** also accept a round that is `changes-requested`
