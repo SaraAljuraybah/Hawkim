@@ -20,6 +20,11 @@ export interface DepartmentsStore {
   getDepartment: (id: DepartmentId | undefined) => Department | undefined
   /** A department's name ('' if unknown). */
   nameOf: (id: DepartmentId | undefined) => string
+  /**
+   * Reloads the departments from the database. Called after an admin saves or deletes a
+   * department through the management RPCs, so every screen shows the saved list.
+   */
+  reload: () => Promise<void>
 
   // Admin actions (PBI 13). Each checks the rules in lib/departmentAdmin.ts and throws if not allowed.
   /** Adds a department (valid, unique name and initials) and returns it. */

@@ -2,21 +2,25 @@ import { useRef, useState, type ReactNode } from 'react'
 import { flushSync } from 'react-dom'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, CircleAlert, CircleCheck, Pencil, Trash2 } from 'lucide-react'
+import { DeleteDepartmentDialog } from '../../components/admin/DeleteDepartmentDialog'
 import { DepartmentBadge } from '../../components/admin/DepartmentBadge'
+import { EmployeePositionsDialog } from '../../components/admin/EmployeePositionsDialog'
 import { UserAvatar } from '../../components/admin/UserBits'
 import { Button } from '../../components/ui/Button'
-import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
+import { IconButton } from '../../components/ui/IconButton'
+import { PageLoading } from '../../components/ui/PageLoading'
 import { adminEn } from '../../content/admin.en'
+import { organizationAdminEn as orgText } from '../../content/organizationAdmin.en'
 import { statusLabelsEn } from '../../content/status.en'
 import type { Department, User } from '../../data/mock/types'
 import { useDocumentTitle } from '../../hooks/useDocumentTitle'
+import { useOrganizationManagement } from '../../hooks/useOrganizationManagement'
 import { formatCount } from '../../lib/count'
-import { members, removalBlockers, sopsIn, withAccess } from '../../lib/departmentAdmin'
+import { members, withAccess } from '../../lib/departmentAdmin'
 import { ADMIN_DEPARTMENTS_PATH, adminDepartmentEditPath, adminUserPath } from '../../lib/routes'
+import type { ManagedPerson } from '../../services/organizationAdmin'
 import { useDepartments } from '../../state/departmentsContext'
 import { useRequests } from '../../state/requestsContext'
-import { useCurrentUser } from '../../state/sessionContext'
-import { useSops } from '../../state/sopsContext'
 import { useUsers } from '../../state/usersContext'
 import type { SopStatus } from '../../types/status'
 import { NotFoundPage } from '../NotFoundPage'
@@ -32,9 +36,10 @@ const SOP_STATUSES: SopStatus[] = ['draft', 'in-review', 'in-approval', 'returne
 
 /**
  * A department's page in the admin portal ("/admin/departments/:id", PBI 13): its
- * details, members, users with access and SOP counts, with Edit and Remove. A
- * department that isn't empty can't be removed; what blocks it is listed.
- * Removed and unknown departments show Not Found.
+ * details and division, members (with their positions), users with access and SOP
+ * counts, with Edit and Delete. The division, positions, SOP counts and deletion come
+ * from the admin management snapshot (get_divisions_departments) and its RPCs, the same
+ * source as the Divisions & Departments list. Removed and unknown departments show Not Found.
  */
 export function DepartmentDetailsPage() {
   const { id } = useParams()
@@ -71,8 +76,8 @@ function Panel({ id, title, children }: { id: string; title: string; children: R
   )
 }
 
-/** Users, each linking to their admin page. */
-function PeopleList({ people, empty, label }: { people: User[]; empty: string; label: string }) {
+/** Users, each linking to their admin page, with optional details after the email. */
+function PeopleList({ people, empty, label, details }: { people: User[]; empty: string; label: string; details?: (person: User) => ReactNode }) {
   if (people.length === 0) return <p className="text-sm text-text-gray">{empty}</p>
   return (
     <ul aria-label={label} className="divide-y divide-beige">
@@ -81,7 +86,7 @@ function PeopleList({ people, empty, label }: { people: User[]; empty: string; l
         .map((person) => (
           <li key={person.id} className="flex items-center gap-3 py-2.5 first:pt-0 last:pb-0">
             <UserAvatar user={person} />
-            <div className="min-w-0 text-sm">
+            <div className="min-w-0 flex-1 text-sm">
               <Link
                 to={adminUserPath(person.id)}
                 className="rounded-sm font-medium text-maroon underline-offset-2 hover:underline"
@@ -90,19 +95,31 @@ function PeopleList({ people, empty, label }: { people: User[]; empty: string; l
               </Link>
               <p className="break-all text-text-gray">{person.email}</p>
             </div>
+            {details?.(person)}
           </li>
         ))}
     </ul>
   )
 }
 
+/** While the management snapshot loads or can't be loaded. */
+function SnapshotState({ error, onRetry }: { error?: string; onRetry: () => void }) {
+  if (!error) return <PageLoading />
+  return (
+    <div role="alert">
+      <p className="text-sm text-status-rejected-fg">{orgText.loadFailed}</p>
+      <Button variant="secondary" size="sm" className="mt-3" onClick={onRetry}>{orgText.retry}</Button>
+    </div>
+  )
+}
+
 function DepartmentPanels({ department }: { department: Department }) {
   const text = adminEn.departmentDetails
-  const { removeDepartment } = useDepartments()
   const { users } = useUsers()
   const { requests } = useRequests()
-  const { sops } = useSops()
-  const admin = useCurrentUser()
+  const management = useOrganizationManagement()
+  const record = management.data?.departments.find((row) => row.id === department.id)
+  const division = record?.division_id ? management.data?.divisions.find((item) => item.id === record.division_id) : undefined
   const navigate = useNavigate()
   const location = useLocation()
 
@@ -110,22 +127,25 @@ function DepartmentPanels({ department }: { department: Department }) {
   const [showNotice, setShowNotice] = useState(!!notice)
   const [blockers, setBlockers] = useState<string[]>([])
   const [confirming, setConfirming] = useState(false)
+  const [editingPerson, setEditingPerson] = useState<ManagedPerson>()
+  const [positionsSaved, setPositionsSaved] = useState(false)
   const blockersRef = useRef<HTMLDivElement>(null)
   const removeButtonRef = useRef<HTMLButtonElement | null>(null)
+  const retry = () => void management.refresh()
 
-  const data = { users, sops, requests }
   const withCount = (title: string, count: number) =>
     text.titleWithCount.replace('{title}', title).replace('{count}', String(count))
   const departmentMembers = members(department.id, users)
   const departmentWithAccess = withAccess(department.id, users, requests)
-  const departmentSops = sopsIn(department.id, sops)
+  const people = new Map((record?.people ?? []).map((person) => [person.id, person]))
 
+  // The server refuses to delete a department with employees; say so before asking.
   function startRemove() {
     setShowNotice(false)
-    const found = removalBlockers(department.id, data)
-    if (found.length > 0) {
-      const labels = { members: 'members', sops: 'sops', 'with-access': 'withAccess', 'pending-requests': 'pendingRequests' } as const
-      flushSync(() => setBlockers(found.map((blocker) => formatCount(blocker.count, text.remove.blockers[labels[blocker.kind]]))))
+    setPositionsSaved(false)
+    if (!record) return
+    if (record.employees > 0 && !record.deletion_job_id) {
+      flushSync(() => setBlockers([formatCount(record.employees, text.remove.blockers.members)]))
       blockersRef.current?.focus()
       return
     }
@@ -133,11 +153,23 @@ function DepartmentPanels({ department }: { department: Department }) {
     setConfirming(true)
   }
 
-  function confirmRemove() {
-    setConfirming(false)
-    removeDepartment(department.id, { actorId: admin.id, ...data })
-    const state: AdminDepartmentsLocationState = { removed: text.remove.done.replace('{name}', department.name) }
-    navigate(ADMIN_DEPARTMENTS_PATH, { state })
+  function positionsOf(person: User) {
+    const managed = people.get(person.id)
+    if (!managed) return null
+    return (
+      <div className="flex shrink-0 items-center gap-2">
+        <p className={`text-right text-sm ${managed.positions.length ? 'text-maroon' : 'text-text-gray'}`}>
+          <span className="sr-only">{orgText.positions}: </span>
+          {managed.positions.length ? managed.positions.join(', ') : orgText.noPositions}
+        </p>
+        <IconButton
+          icon={Pencil}
+          label={orgText.editPositions.replace('{name}', person.name)}
+          disabledReason={record?.deletion_job_id ? orgText.cleanupPending : undefined}
+          onClick={() => { setShowNotice(false); setPositionsSaved(false); setEditingPerson(managed) }}
+        />
+      </div>
+    )
   }
 
   return (
@@ -165,7 +197,13 @@ function DepartmentPanels({ department }: { department: Department }) {
 
       <div className="mt-6 grid max-w-3xl gap-6">
         <Panel id="details-title" title={text.details.title}>
-          <dl className="grid gap-x-8 gap-y-4 text-sm sm:grid-cols-[auto_1fr]">
+          <dl className="grid gap-x-8 gap-y-4 text-sm sm:grid-cols-[auto_auto_1fr]">
+            <div>
+              <dt className="text-text-gray">{orgText.division}</dt>
+              <dd className={`mt-0.5 ${division ? 'font-medium text-maroon' : 'text-text-gray'}`}>
+                {management.data ? (division?.name ?? orgText.divisionNone) : management.error ? orgText.loadFailed : '…'}
+              </dd>
+            </div>
             <div>
               <dt className="text-text-gray">{text.details.initials}</dt>
               <dd className="mt-0.5 font-medium text-maroon">{department.initials}</dd>
@@ -180,7 +218,8 @@ function DepartmentPanels({ department }: { department: Department }) {
         </Panel>
 
         <Panel id="members-title" title={withCount(text.members.title, departmentMembers.length)}>
-          <PeopleList people={departmentMembers} empty={text.members.empty} label={text.members.title} />
+          <PeopleList people={departmentMembers} empty={text.members.empty} label={text.members.title} details={positionsOf} />
+          <p role="status" className="mt-3 text-sm text-status-approved-fg">{positionsSaved ? orgText.positionsSaved : ''}</p>
         </Panel>
 
         <Panel id="access-title" title={withCount(text.withAccess.title, departmentWithAccess.length)}>
@@ -188,24 +227,26 @@ function DepartmentPanels({ department }: { department: Department }) {
           <PeopleList people={departmentWithAccess} empty={text.withAccess.empty} label={text.withAccess.title} />
         </Panel>
 
-        <Panel id="sops-title" title={withCount(text.sops.title, departmentSops.length)}>
-          <dl aria-label={text.sops.label} className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-            {SOP_STATUSES.map((status) => {
-              const count = departmentSops.filter((sop) => sop.status === status).length
-              return (
-                <div key={status} className="rounded-lg border border-beige p-3.5">
-                  <dt className={`text-sm ${count ? 'text-maroon' : 'text-text-gray'}`}>{statusLabelsEn[status]}</dt>
-                  <dd className={`mt-1 text-2xl leading-none font-semibold tabular-nums ${count ? 'text-maroon' : 'text-text-gray'}`}>
-                    {count}
-                  </dd>
-                </div>
-              )
-            })}
-          </dl>
+        <Panel id="sops-title" title={record ? withCount(text.sops.title, record.sops) : text.sops.title}>
+          {!record ? <SnapshotState error={management.error} onRetry={retry} /> : (
+            <dl aria-label={text.sops.label} className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+              {SOP_STATUSES.map((status) => {
+                const count = record.status_counts[status] ?? 0
+                return (
+                  <div key={status} className="rounded-lg border border-beige p-3.5">
+                    <dt className={`text-sm ${count ? 'text-maroon' : 'text-text-gray'}`}>{statusLabelsEn[status]}</dt>
+                    <dd className={`mt-1 text-2xl leading-none font-semibold tabular-nums ${count ? 'text-maroon' : 'text-text-gray'}`}>
+                      {count}
+                    </dd>
+                  </div>
+                )
+              })}
+            </dl>
+          )}
         </Panel>
 
         <Panel id="remove-title" title={text.remove.title}>
-          <p className="text-sm text-text-gray">{text.remove.text}</p>
+          <p className="text-sm text-text-gray">{record?.deletion_job_id ? orgText.cleanupDescription : text.remove.text}</p>
           {blockers.length > 0 && (
             <div
               ref={blockersRef}
@@ -224,32 +265,39 @@ function DepartmentPanels({ department }: { department: Department }) {
               </ul>
             </div>
           )}
-          <Button
-            variant="danger"
-            className="mt-4"
-            onClick={(event) => {
-              removeButtonRef.current = event.currentTarget
-              startRemove()
-            }}
-          >
-            <Trash2 aria-hidden="true" className="size-4" strokeWidth={1.75} />
-            {text.remove.button}
-          </Button>
+          {!record ? <div className="mt-4"><SnapshotState error={management.error} onRetry={retry} /></div> : (
+            <Button
+              variant="danger"
+              className="mt-4"
+              onClick={(event) => {
+                removeButtonRef.current = event.currentTarget
+                startRemove()
+              }}
+            >
+              <Trash2 aria-hidden="true" className="size-4" strokeWidth={1.75} />
+              {record.deletion_job_id ? orgText.retryCleanup : text.remove.button}
+            </Button>
+          )}
         </Panel>
       </div>
 
-      <ConfirmDialog
-        open={confirming}
-        title={text.remove.dialog.title.replace('{name}', department.name)}
-        description={text.remove.dialog.description}
-        cancelLabel={text.remove.dialog.cancel}
-        confirmLabel={text.remove.dialog.confirm}
-        onConfirm={confirmRemove}
-        onCancel={() => {
-          setConfirming(false)
-          removeButtonRef.current?.focus()
-        }}
-      />
+      {editingPerson && (
+        <EmployeePositionsDialog
+          person={editingPerson}
+          onClose={() => setEditingPerson(undefined)}
+          onSaved={() => { setPositionsSaved(true); void management.refresh() }}
+        />
+      )}
+      {confirming && record && (
+        <DeleteDepartmentDialog
+          department={record}
+          onClose={() => { setConfirming(false); removeButtonRef.current?.focus() }}
+          onDeleted={() => {
+            const state: AdminDepartmentsLocationState = { removed: text.remove.done.replace('{name}', department.name) }
+            navigate(ADMIN_DEPARTMENTS_PATH, { state })
+          }}
+        />
+      )}
     </>
   )
 }

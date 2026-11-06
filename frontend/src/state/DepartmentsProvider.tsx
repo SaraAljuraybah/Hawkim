@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { validateWorkflowConfiguration } from '../lib/reviewFlow'
 import type { Department, DepartmentId } from '../data/mock/types'
 import {
@@ -11,6 +11,8 @@ import {
 import { DepartmentsContext, type DepartmentActor, type DepartmentsStore } from './departmentsContext'
 import { useLoadAfterSignIn } from './useLoadAfterSignIn'
 import { fetchDepartments } from '../services/people'
+import { ORGANIZATION_CHANGED, organizationEvents } from '../services/organizationAdmin'
+import { useSession } from './sessionContext'
 
 /** Refuses anyone who isn't an active admin. */
 function assertAdmin({ actorId, users }: DepartmentActor) {
@@ -20,9 +22,10 @@ function assertAdmin({ actorId, users }: DepartmentActor) {
 
 /**
  * Departments store shared by the employee screens and the admin portal. The
- * departments are loaded from the database after sign-in. The admin actions only
- * change this tab's copy (lost on reload).
- * TODO: Save admin changes once those features are connected.
+ * departments are loaded from the database after sign-in, and again whenever an admin
+ * saves or deletes one through the management RPCs (see reload).
+ * The older admin actions below (add/update/configure/remove) still only change this
+ * tab's copy; the admin department pages no longer call add/update.
  * Must be inside <SessionProvider>.
  */
 export function DepartmentsProvider({ children }: { children: ReactNode }) {
@@ -34,6 +37,23 @@ export function DepartmentsProvider({ children }: { children: ReactNode }) {
     setDepartments(next)
   }, [])
   const status = useLoadAfterSignIn(fetchDepartments, commit)
+  const userId = useSession().user?.id ?? ''
+  const latestUserRef = useRef(userId)
+
+  // Departments saved or deleted through the management RPCs (services/organizationAdmin)
+  // are read back from the database, so this list never diverges from what was saved.
+  // A reply that arrives after sign-out or a user switch is ignored.
+  const reload = useCallback(async () => {
+    if (!userId) return
+    const loaded = await fetchDepartments()
+    if (latestUserRef.current === userId) commit(loaded)
+  }, [commit, userId])
+  useEffect(() => {
+    latestUserRef.current = userId
+    const changed = () => { void reload().catch(() => { /* the next change or sign-in loads again */ }) }
+    organizationEvents.addEventListener(ORGANIZATION_CHANGED, changed)
+    return () => organizationEvents.removeEventListener(ORGANIZATION_CHANGED, changed)
+  }, [reload, userId])
 
   const activeDepartments = useMemo(() => departments.filter((department) => !department.removedAt), [departments])
   const getDepartment = useCallback(
@@ -93,8 +113,8 @@ export function DepartmentsProvider({ children }: { children: ReactNode }) {
   )
 
   const store = useMemo<DepartmentsStore>(
-    () => ({ status, departments, activeDepartments, getDepartment, nameOf, addDepartment, updateDepartment, configureWorkflow, removeDepartment }),
-    [status, departments, activeDepartments, getDepartment, nameOf, addDepartment, updateDepartment, configureWorkflow, removeDepartment],
+    () => ({ status, departments, activeDepartments, getDepartment, nameOf, reload, addDepartment, updateDepartment, configureWorkflow, removeDepartment }),
+    [status, departments, activeDepartments, getDepartment, nameOf, reload, addDepartment, updateDepartment, configureWorkflow, removeDepartment],
   )
 
   return <DepartmentsContext.Provider value={store}>{children}</DepartmentsContext.Provider>
