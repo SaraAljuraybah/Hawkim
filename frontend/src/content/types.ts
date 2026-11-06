@@ -1551,15 +1551,6 @@ export interface AdminUserDetailsContent {
     permission: string
     notSet: string
   }
-  permissions: {
-    title: string
-    /** Visually hidden legend of the checkboxes; `{name}` is replaced. */
-    legend: string
-    save: string
-    saved: string
-    /** Above the reasons when saving is refused. */
-    refused: string
-  }
   involvement: {
     title: string
     empty: string

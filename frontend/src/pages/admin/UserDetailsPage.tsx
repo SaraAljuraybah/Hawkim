@@ -1,22 +1,18 @@
-import { useEffect, useRef, useState, type ReactNode, type Ref } from 'react'
+import { useRef, useState, type ReactNode } from 'react'
 import { flushSync } from 'react-dom'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, CircleCheck } from 'lucide-react'
-import { blockerMessage } from '../../components/admin/blockerMessages'
 import { DeleteUserButton } from '../../components/admin/DeleteUserButton'
 import { RefusedBox } from '../../components/admin/RefusedBox'
 import { PermissionBadges, UserAvatar } from '../../components/admin/UserBits'
-import { Button } from '../../components/ui/Button'
-import { CheckboxGroup } from '../../components/ui/CheckboxGroup'
 import { StatusBadge } from '../../components/ui/StatusBadge'
 import { adminEn } from '../../content/admin.en'
 import { usersEn } from '../../content/users.en'
-import type { Permission, User } from '../../data/mock/types'
+import type { User } from '../../data/mock/types'
 import { useDocumentTitle } from '../../hooks/useDocumentTitle'
-import { ADMIN_USERS_PATH, USER_PERMISSIONS_SECTION } from '../../lib/routes'
-import { divisionLabel, involvement, PERMISSIONS, permissionChangeBlockers } from '../../lib/userAdmin'
+import { ADMIN_USERS_PATH } from '../../lib/routes'
+import { divisionLabel, involvement } from '../../lib/userAdmin'
 import { useDepartments } from '../../state/departmentsContext'
-import { useCurrentUser } from '../../state/sessionContext'
 import { useSops } from '../../state/sopsContext'
 import { useUsers } from '../../state/usersContext'
 import { NotFoundPage } from '../NotFoundPage'
@@ -28,14 +24,13 @@ export interface UserDetailsLocationState {
 }
 
 /**
- * A user's page in the admin portal ("/admin/users/:id", PBI 17, 18, 19): their
- * details, their permissions (granted or revoked here; "#permissions-title" opens the page
- * there), the SOPs they are involved in, and Delete user in the header. Changes the rules
- * refuse are explained, naming the SOPs that block them. Deleted and unknown users show Not Found.
+ * A user's page in the admin portal ("/admin/users/:id", PBI 17, 19), read-only: their details,
+ * the SOPs they are involved in, and Delete user in the header. They are changed on Edit User.
+ * Deleted and unknown users show Not Found.
  */
 export function UserDetailsPage() {
   const { id } = useParams()
-  // Another user starts fresh (their permissions, no messages).
+  // Another user starts fresh (no messages).
   return <UserDetails key={id} id={id} />
 }
 
@@ -61,11 +56,11 @@ function UserDetails({ id }: { id: string | undefined }) {
   )
 }
 
-/** A white card with an h2 (focusable from script, to open the page at a section). */
-function Panel({ id, title, children, headingRef }: { id: string; title: string; children: ReactNode; headingRef?: Ref<HTMLHeadingElement> }) {
+/** A white card with an h2. */
+function Panel({ id, title, children }: { id: string; title: string; children: ReactNode }) {
   return (
-    <section aria-labelledby={id} className="scroll-mt-24 rounded-xl border border-beige bg-white p-5 sm:p-6">
-      <h2 ref={headingRef} id={id} tabIndex={headingRef ? -1 : undefined} className="rounded-sm text-lg">
+    <section aria-labelledby={id} className="rounded-xl border border-beige bg-white p-5 sm:p-6">
+      <h2 id={id} className="text-lg">
         {title}
       </h2>
       <div className="mt-4">{children}</div>
@@ -75,48 +70,17 @@ function Panel({ id, title, children, headingRef }: { id: string; title: string;
 
 function UserPanels({ user }: { user: User }) {
   const text = adminEn.userDetails
-  const { activeUsers, updatePermissions } = useUsers()
-  const admin = useCurrentUser()
   const { sops } = useSops()
   const { getDepartment } = useDepartments()
   const navigate = useNavigate()
   const location = useLocation()
-  const rules = { actorId: admin.id, users: activeUsers, sops }
 
   const [added, setAdded] = useState(() => !!(location.state as UserDetailsLocationState | null)?.added)
-  const [selected, setSelected] = useState<Permission[]>(user.permissions)
-  const [saved, setSaved] = useState(false)
-  const [permissionErrors, setPermissionErrors] = useState<string[]>([])
   const [deleteRefused, setDeleteRefused] = useState<{ title: string; reasons: string[] }>()
-  const permissionErrorRef = useRef<HTMLDivElement>(null)
   const deleteErrorRef = useRef<HTMLDivElement>(null)
-  const permissionsRef = useRef<HTMLHeadingElement>(null)
 
   const involved = involvement(user.id, sops)
   const department = getDepartment(user.departmentId)
-
-  // Opened from "Edit permissions" on the list: go to the Permission section.
-  const openAtPermissions = location.hash === '#' + USER_PERMISSIONS_SECTION
-  useEffect(() => {
-    if (!openAtPermissions) return
-    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    permissionsRef.current?.scrollIntoView({ block: 'start', behavior: reduceMotion ? 'auto' : 'smooth' })
-    permissionsRef.current?.focus({ preventScroll: true })
-  }, [openAtPermissions])
-
-  function savePermissions() {
-    setAdded(false)
-    const blockers = permissionChangeBlockers(user, selected, rules)
-    if (blockers.length > 0) {
-      setSaved(false)
-      flushSync(() => setPermissionErrors(blockers.map((blocker) => blockerMessage(blocker, user, text.blockers, true))))
-      permissionErrorRef.current?.focus()
-      return
-    }
-    updatePermissions(user.id, selected, rules)
-    setPermissionErrors([])
-    setSaved(true)
-  }
 
   function deleted(message: string) {
     const state: AdminUsersLocationState = { deleted: message }
@@ -173,38 +137,6 @@ function UserPanels({ user }: { user: User }) {
               </div>
             ))}
           </dl>
-        </Panel>
-
-        <Panel id={USER_PERMISSIONS_SECTION} title={text.permissions.title} headingRef={permissionsRef}>
-          <CheckboxGroup
-            name="permissions"
-            legend={text.permissions.legend.replace('{name}', user.name)}
-            hideLegend
-            options={PERMISSIONS.map((permission) => ({
-              value: permission,
-              label: usersEn.permissions[permission],
-              description: adminEn.permissionDescriptions[permission],
-            }))}
-            value={selected}
-            onChange={(next) => {
-              setSelected(PERMISSIONS.filter((permission) => next.includes(permission)))
-              setSaved(false)
-            }}
-          />
-          {permissionErrors.length > 0 && (
-            <RefusedBox ref={permissionErrorRef} title={text.permissions.refused} messages={permissionErrors} />
-          )}
-          <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2">
-            <Button onClick={savePermissions}>{text.permissions.save}</Button>
-            <p role="status" className="text-sm font-medium text-status-approved-fg">
-              {saved && (
-                <span className="inline-flex items-center gap-1.5">
-                  <CircleCheck aria-hidden="true" className="size-4 shrink-0" strokeWidth={2} />
-                  {text.permissions.saved}
-                </span>
-              )}
-            </p>
-          </div>
         </Panel>
 
         <Panel id="involvement-title" title={text.involvement.title}>

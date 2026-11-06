@@ -7,7 +7,7 @@ import { UserDetailsPage } from './UserDetailsPage'
 
 const fixture = vi.hoisted(() => ({ user: null as User | null, department: null as Department | null }))
 vi.mock('../../hooks/useDocumentTitle', () => ({ useDocumentTitle: () => {} }))
-vi.mock('../../state/usersContext', () => ({ useUsers: () => ({ activeUsers: [fixture.user], updatePermissions: vi.fn(), deleteUser: vi.fn() }) }))
+vi.mock('../../state/usersContext', () => ({ useUsers: () => ({ activeUsers: [fixture.user], deleteUser: vi.fn() }) }))
 vi.mock('../../state/sessionContext', () => ({ useCurrentUser: () => ({ id: 'admin' }) }))
 vi.mock('../../state/sopsContext', () => ({ useSops: () => ({ sops: [] }) }))
 vi.mock('../../state/departmentsContext', () => ({ useDepartments: () => ({ getDepartment: (id: string) => (fixture.department?.id === id ? fixture.department : undefined) }) }))
@@ -56,19 +56,20 @@ describe('a user\'s details page', () => {
     expect(html).not.toContain('delete-title')
   })
 
-  it('calls the permissions section Permission, with an anchor the list links to', () => {
+  it('is read-only: permissions are shown in Details, with no checkboxes or Save', () => {
     const html = render()
-    expect(html).toContain('id="permissions-title" tabindex="-1"')
-    expect(html).toContain('Permission of Rana')
-    expect(html).toContain('>Save Permission<')
+    expect(html).not.toContain('type="checkbox"')
+    expect(html).not.toContain('Save Permission')
+    expect(html).not.toContain('permissions-title')
+    expect(html).not.toContain('<input')
     expect(html).not.toContain('>Role<')
     expect(html).not.toContain('Permissions')
   })
 })
 
 describe('the Permission wording', () => {
-  it('reads Permission on the details page messages and the Users list', () => {
-    expect(adminEn.userDetails.permissions).toMatchObject({ saved: 'Permission updated.', refused: "Permission wasn't saved:" })
+  it('reads Permission on the Edit User message and the Users list', () => {
+    expect(adminEn.editUser.refused).toBe("Permission wasn't saved:")
     expect(adminEn.usersList.columns.permissions).toBe('Permission')
   })
 })

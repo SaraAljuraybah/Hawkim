@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useRef, useState, type ReactNode } from 'react'
 import { usersEn } from '../content/users.en'
-import type { Permission, User } from '../data/mock/types'
+import type { User } from '../data/mock/types'
 import {
   deleteBlockers,
   initialsOf,
@@ -87,18 +87,6 @@ export function UsersProvider({ children }: { children: ReactNode }) {
     [commit, departments],
   )
 
-  const updatePermissions = useCallback(
-    (userId: string, permissions: Permission[], context: AdminActionContext) => {
-      const { target, rules } = resolve(userId, context)
-      if (permissionChangeBlockers(target, permissions, rules).length > 0) {
-        throw new Error('These permissions can’t be removed now')
-      }
-      const next = PERMISSIONS.filter((permission) => permissions.includes(permission))
-      commit(latestRef.current.map((user) => (user.id === userId ? { ...user, permissions: next } : user)))
-    },
-    [commit, resolve],
-  )
-
   const updateUser = useCallback(
     (userId: string, input: NewUser, context: AdminActionContext) => {
       const { target, rules } = resolve(userId, context)
@@ -127,8 +115,8 @@ export function UsersProvider({ children }: { children: ReactNode }) {
   )
 
   const store = useMemo<UsersStore>(
-    () => ({ status, users, activeUsers, getUser, nameOf, addUser, updatePermissions, updateUser, deleteUser }),
-    [status, users, activeUsers, getUser, nameOf, addUser, updatePermissions, updateUser, deleteUser],
+    () => ({ status, users, activeUsers, getUser, nameOf, addUser, updateUser, deleteUser }),
+    [status, users, activeUsers, getUser, nameOf, addUser, updateUser, deleteUser],
   )
 
   return <UsersContext.Provider value={store}>{children}</UsersContext.Provider>

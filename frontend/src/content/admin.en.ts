@@ -125,13 +125,6 @@ export const adminEn: AdminContent = {
       permission: 'Permission',
       notSet: '—',
     },
-    permissions: {
-      title: 'Permission',
-      legend: 'Permission of {name}',
-      save: 'Save Permission',
-      saved: 'Permission updated.',
-      refused: "Permission wasn't saved:",
-    },
     involvement: {
       title: 'Involved in',
       empty: 'Not involved in any SOP.',
