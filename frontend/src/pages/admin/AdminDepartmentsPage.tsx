@@ -44,8 +44,8 @@ export function AdminDepartmentsPage() {
   return <>
     <div className="flex flex-wrap items-center justify-between gap-4"><h1 className="text-2xl tracking-tight sm:text-3xl">{text.title}</h1>
       <Button onClick={() => open(() => setEditing(null))}><Plus className="size-4" aria-hidden="true" />{text.addDivision}</Button></div>
-    {/* Search, filter and sort span the table's width; they stack on small screens. */}
-    <div className="mt-6 grid gap-4 lg:grid-cols-[minmax(0,1fr)_16rem_15rem] lg:items-end">
+    {/* Search, filter and sort span the table's width (about 60/20/20 on large screens); they stack on small screens. */}
+    <div className="mt-6 grid gap-4 lg:grid-cols-[minmax(0,3fr)_minmax(0,1fr)_minmax(0,1fr)] lg:items-end">
       <TextField className="min-w-0" name="organizationSearch" type="search" label={text.search} placeholder={text.searchPlaceholder} value={query} onChange={(event) => setQuery(event.target.value)} />
       <div className="min-w-0">
         {/* Visible label; the control's accessible name is the same text. */}
@@ -114,7 +114,7 @@ export function HierarchyTable({ snapshot, query = '', divisions = [], sort = 'd
   function child(row: ManagedDepartment) {
     return <tr key={row.id} className="border-t border-beige hover:bg-beige/20">
       <th scope="row" className="py-3 pr-4 pl-12 font-medium"><span className="flex items-center gap-3 border-l border-beige pl-5"><DepartmentBadge department={row} />
-        <Link className="text-maroon underline-offset-2 hover:underline" to={adminDepartmentPath(row.id)}>{row.name}</Link></span></th>
+        <Link className="text-maroon underline underline-offset-2 hover:decoration-2" to={adminDepartmentPath(row.id)}>{row.name}</Link></span></th>
       <td className={numberCell}>{row.employees}</td><td className={numberCell}>{row.sops}</td>
       <td className="p-3"><div className="flex justify-end gap-2"><IconButton
   label={`${text.edit} ${row.name}`}
@@ -139,7 +139,7 @@ export function HierarchyTable({ snapshot, query = '', divisions = [], sort = 'd
             <button type="button" aria-expanded={isExpanded} aria-controls={`children-${division.id}`}
               className="group flex items-start gap-3 rounded text-left" onClick={() => toggle(division.id)}>
               <span aria-hidden="true" className="mt-0.5 rounded p-1 text-maroon group-hover:bg-beige">{isExpanded ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}</span>
-              <span><span className="block font-semibold text-maroon group-hover:underline">{division.name}</span>
+              <span><span className="block font-semibold text-maroon underline underline-offset-2 group-hover:decoration-2">{division.name}</span>
                 <span className="mt-1 block text-xs font-normal text-text-gray">{text.departments} ({departmentCount})</span></span>
             </button></th>
           <td className={numberCell}>{employees}</td><td className={numberCell}>{sops}</td>

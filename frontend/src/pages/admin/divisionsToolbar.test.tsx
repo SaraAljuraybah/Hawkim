@@ -37,8 +37,10 @@ describe('the Divisions & Departments page', () => {
   it('has a full-width toolbar: Search, Filter by Division and Sort, in that order, above the table', () => {
     management.value = { data: snapshot, refresh: vi.fn() }
     const html = page()
-    const toolbar = html.match(/<div class="mt-6 grid gap-4 lg:grid-cols-\[minmax\(0,1fr\)_16rem_15rem\][^"]*">/)
+    // One column on small screens; on large screens about 60% / 20% / 20% (3fr : 1fr : 1fr).
+    const toolbar = html.match(/<div class="mt-6 grid gap-4 lg:grid-cols-\[minmax\(0,3fr\)_minmax\(0,1fr\)_minmax\(0,1fr\)\] lg:items-end">/)
     expect(toolbar).not.toBeNull()
+    expect(toolbar![0]).not.toMatch(/(?<!lg:)grid-cols/)
     expect(html).not.toContain('max-w-md')
     const order = ['name="organizationSearch"', '>Filter by Division<', 'name="divisionSort"', '<table']
     expect(order.map((text) => html.indexOf(text))).toEqual([...order.map((text) => html.indexOf(text))].sort((a, b) => a - b))
@@ -131,5 +133,19 @@ describe('the selected divisions', () => {
     const clear = nodes.find((node) => node.props.children === 'Clear Filters')!
     ;(clear.props.onClick as () => void)()
     expect(onChange).toHaveBeenLastCalledWith([])
+  })
+})
+
+describe('names in the table', () => {
+  it('underlines every division and department name, but not the count or the row', () => {
+    const html = table({ query: 'quality' })
+    // Division name: inside the expand toggle, which still toggles (aria-expanded).
+    expect(html).toMatch(/<button type="button" aria-expanded="true"[\s\S]*?<span class="block font-semibold text-maroon underline underline-offset-2[^"]*">Quality &amp; Compliance<\/span>/)
+    // Department name: still the link to its page.
+    const link = html.match(/<a [^>]*href="\/admin\/departments\/qa"[^>]*>Quality Assurance<\/a>/)![0]
+    expect(link).toMatch(/class="text-maroon underline underline-offset-2[^"]*"/)
+    expect(html).toMatch(/<span class="mt-1 block text-xs font-normal text-text-gray">Departments \((?:<!-- -->)?1(?:<!-- -->)?\)<\/span>/)
+    expect(html).not.toMatch(/<tr[^>]*underline/)
+    expect(html).not.toMatch(/<span class="[^"]*underline[^"]*">Departments/)
   })
 })

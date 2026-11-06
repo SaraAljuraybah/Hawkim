@@ -14,20 +14,25 @@ export function DivisionForm({ division, onClose, onSaved }: { division?: Divisi
   const [description, setDescription] = useState(division?.description ?? '')
   const [attempted, setAttempted] = useState(false)
   const [error, setError] = useState('')
+  // All three are required here (also when editing a division saved without an email or description).
+  // The database accepts an empty email or description, so this stricter rule needs no database change.
   const nameInvalid = !name.trim() || name.trim().length > 100
-  // Optional; when given it must be valid (the database applies the same rule).
-  const emailInvalid = email.trim() !== '' && (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()) || email.trim().length > 254)
+  const emailMissing = !email.trim()
+  const emailInvalid = !emailMissing && (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()) || email.trim().length > 254)
+  const descriptionMissing = !description.trim()
   const descriptionInvalid = description.trim().length > 500
   return <FormDialog open title={division ? text.editDivision : text.addDivision} confirmLabel={text.save} cancelLabel={text.cancel}
     onClose={onClose} onConfirm={async () => {
       setAttempted(true)
-      if (nameInvalid || emailInvalid || descriptionInvalid) return false
+      if (nameInvalid || emailMissing || emailInvalid || descriptionMissing || descriptionInvalid) return false
       try { await saveDivision({ name, email, description }, division); onSaved?.() }
       catch (reason) { setError((reason as Error).message); return false }
     }}>
     <TextField name="divisionName" label={text.name} required requiredMark value={name} onChange={(event) => setName(event.target.value)} error={attempted && nameInvalid ? text.requiredName : undefined} />
-    <TextAreaField name="divisionDescription" label={text.description} value={description} onChange={(event) => setDescription(event.target.value)} error={attempted && descriptionInvalid ? text.descriptionLong : undefined} />
-    <TextField name="divisionEmail" type="email" label={text.email} value={email} onChange={(event) => setEmail(event.target.value)} error={attempted && emailInvalid ? text.invalidEmail : undefined} />
+    <TextAreaField name="divisionDescription" label={text.description} required requiredMark value={description} onChange={(event) => setDescription(event.target.value)}
+      error={attempted ? (descriptionMissing ? text.requiredDescription : descriptionInvalid ? text.descriptionLong : undefined) : undefined} />
+    <TextField name="divisionEmail" type="email" label={text.email} required requiredMark value={email} onChange={(event) => setEmail(event.target.value)}
+      error={attempted ? (emailMissing ? text.requiredEmail : emailInvalid ? text.invalidEmail : undefined) : undefined} />
     {error && <p role="alert" className="text-sm text-status-rejected-fg">{error}</p>}
   </FormDialog>
 }

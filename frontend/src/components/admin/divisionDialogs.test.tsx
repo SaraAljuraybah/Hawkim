@@ -30,10 +30,43 @@ describe('division create and edit form', () => {
     await expect(confirm(render(component))).resolves.toBe(false)
     expect(host.save).not.toHaveBeenCalled()
   })
-  it('saves without an email: it is optional (the database applies the same rule)', async () => {
-    const component = () => DivisionForm({ division: { ...division, email: '' }, onClose: vi.fn() })
+  it('marks Name, Description and Email as required, with an asterisk', () => {
+    const fields = elements(render(() => DivisionForm({ onClose: vi.fn() })))
+    for (const name of ['divisionName', 'divisionDescription', 'divisionEmail']) {
+      expect(fields.find((item) => item.props.name === name)?.props).toMatchObject({ required: true, requiredMark: true })
+    }
+  })
+  it.each([
+    ['name', { name: '   ' }, 'divisionName', 'Enter a name (up to 100 characters).'],
+    ['description', { description: ' \n ' }, 'divisionDescription', 'Enter a description.'],
+    ['email', { email: '  ' }, 'divisionEmail', 'Enter an email address.'],
+    ['email (null)', { email: null }, 'divisionEmail', 'Enter an email address.'],
+  ])('refuses to save with an empty or whitespace-only %s and says why', async (_, change, field, message) => {
+    const component = () => DivisionForm({ division: { ...division, ...change }, onClose: vi.fn() })
+    await expect(confirm(render(component))).resolves.toBe(false)
+    expect(host.save).not.toHaveBeenCalled()
+    expect(elements(render(component)).find((item) => item.props.name === field)?.props.error).toBe(message)
+  })
+  it('requires an email when editing an existing division saved without one', async () => {
+    const legacy = { ...division, email: null }
+    const component = () => DivisionForm({ division: legacy, onClose: vi.fn() })
+    await expect(confirm(render(component))).resolves.toBe(false)
+    expect(host.save).not.toHaveBeenCalled()
+    change(elements(render(component)).find((item) => item.props.name === 'divisionEmail')!, 'legacy@test.invalid')
     await confirm(render(component))
-    expect(host.save).toHaveBeenCalledWith({ name: division.name, email: '', description: division.description }, { ...division, email: '' })
+    expect(host.save).toHaveBeenCalledWith({ name: division.name, email: 'legacy@test.invalid', description: division.description }, legacy)
+  })
+  it('says what is wrong with a malformed email', async () => {
+    const component = () => DivisionForm({ division: { ...division, email: 'invalid' }, onClose: vi.fn() })
+    await confirm(render(component))
+    expect(elements(render(component)).find((item) => item.props.name === 'divisionEmail')?.props.error).toBe('Enter a valid email address, e.g. name@example.com (up to 254 characters).')
+  })
+  it('refuses to save a new division until every field is filled', async () => {
+    const component = () => DivisionForm({ onClose: vi.fn() })
+    await expect(confirm(render(component))).resolves.toBe(false)
+    const fields = elements(render(component))
+    expect(['divisionName', 'divisionDescription', 'divisionEmail'].map((name) => Boolean(fields.find((item) => item.props.name === name)?.props.error))).toEqual([true, true, true])
+    expect(host.save).not.toHaveBeenCalled()
   })
   it('prefills every field and saves using the same revision for both edit entry points', async () => {
     const onSaved = vi.fn()
