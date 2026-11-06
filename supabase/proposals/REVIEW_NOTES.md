@@ -84,9 +84,7 @@ undone by `supabase/scripts/rollback_other_department_reviewers.sql`.
 - **Who can be asked:** the first send of each version goes only to the SOP's department. Other
   departments can be added, or sent an expired request again, once a reviewer from the SOP's department
   has finished that version (completed or returned, as their latest request). A batch can mix
-  departments from then on. Because a round where every reviewer has finished and one returned it is
-  `changes-requested`, and `add_reviewers` refuses that status, "returned" only helps while someone
-  else is still reviewing.
+  departments from then on, including in a `changes-requested` round (see below).
 - **`is_eligible_reviewer`** no longer looks at the department: the order is checked where requests are
   sent. `open_request` uses it, so other-department reviewers can accept and decide.
 - **Reading:** `reviewer_lost_access` is true for an other-department reviewer whose latest request on
@@ -130,3 +128,24 @@ deadline itself doesn't change, and neither does Overdue after acceptance.
 
 `supabase/scripts/rollback_review_request_expired.sql` undoes it, after the app is back on the
 previous code. Requests already sent again stay, and their event reads "submitted".
+
+# Adding reviewers to a Changes Requested round
+
+**Status: NOT APPLIED yet.** `20261106140000_add_reviewers_changes_requested.sql`, undone by
+`supabase/scripts/rollback_add_reviewers_changes_requested.sql`.
+
+- **`add_reviewers` and `resend_review_request`** also accept a round that is `changes-requested`
+  (everyone finished and someone returned it), on the current version, e.g. when a reviewer's comment
+  suggests a specialist. Every other check is unchanged.
+- **The round reopens** through `settle_review_round`, which both already call: the new or resent
+  reviewer is taking part. While they are, `upload_sop_version` refuses a new version. When everyone has
+  finished again, the round is recalculated as usual; the earlier returns are still those reviewers'
+  latest requests, so it is normally `changes-requested` again.
+- **Other departments:** a same-department reviewer who returned it has finished, so other departments
+  can be added in such a round.
+- **Not changed:** `settle_review_round`, `upload_sop_version`, `open_request`, `remove_reviewer` and the
+  response deadline (a resent request gets a new 2-working-day one, as before).
+
+The rollback restores both functions from `20261102130000_other_department_reviewers.sql` and deletes
+the migration's row from `supabase_migrations.schema_migrations`. Rounds already reopened stay open
+until they settle again.
