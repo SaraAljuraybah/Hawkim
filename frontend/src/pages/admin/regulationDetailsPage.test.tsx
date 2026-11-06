@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { GuidelineVersionDetails } from '../../components/admin/GuidelineVersionDetails'
+import { tableStyles } from '../../components/ui/tableStyles'
 import type { GuidelineVersion } from '../../data/mock/types'
 import { RegulationDetailsPage } from './RegulationDetailsPage'
 
@@ -50,6 +51,24 @@ describe('a GVP version\'s requirements', () => {
     const html = renderToStaticMarkup(<GuidelineVersionDetails version={v40} />)
     expect(detail(html, 'Requirements')).toBe('2 requirements')
     expect(detail(html, 'File')).toBe('<span class="break-all">Drug-GVP4_0.pdf</span>')
+  })
+})
+
+describe('the Requirements table', () => {
+  it('has the same style as the admin Users and Version History tables, with its columns and content', () => {
+    const html = render('gvp-4-0')
+    const table = html.slice(html.indexOf('<table'), html.indexOf('</table>'))
+    expect(table).toContain(`<table aria-label="Requirements" class="${tableStyles.table}">`)
+    expect(table).toContain(`<thead class="${tableStyles.head.replace('&', '&amp;')}">`)
+    const headers = [...table.matchAll(/<th scope="col" class="([^"]*)">([^<]+)<\/th>/g)]
+    expect(headers.map((match) => match[2])).toEqual(['ID', 'Module', 'Section', 'Title', 'Page', 'Summary'])
+    for (const [, classes] of headers) expect(classes).toBe(tableStyles.headCell)
+    expect(table).toContain(`<th scope="row" class="${tableStyles.rowHeader}">R1</th>`)
+    expect(table).toContain('Keep records.')
+    // The same frame, and stacked cards below md like the other tables.
+    expect(html).toContain(`<div class="mt-3 ${tableStyles.frame}"><div class="${tableStyles.wide} overflow-x-auto">`)
+    expect(html).toContain(`<ul aria-label="Requirements" class="${tableStyles.cards}">`)
+    expect(html).not.toContain('bg-beige/60')
   })
 })
 

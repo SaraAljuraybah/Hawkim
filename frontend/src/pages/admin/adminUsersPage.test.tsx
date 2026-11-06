@@ -43,8 +43,7 @@ describe('Users list', () => {
     expect(html).toContain('<span class="sr-only">Actions</span></th>')
     // The admin sidebar's maroon, with off-white text, on every header cell (keeping the rounded corners).
     expect(html).toContain('<thead class="text-offwhite [&amp;_th]:bg-maroon">')
-    expect(html).toMatch(/<th scope="col" class="rounded-tl-xl /)
-    expect(html).toMatch(/<th scope="col" class="rounded-tr-xl /)
+    for (const th of html.match(/<th scope="col" class="[^"]*"/g)!) expect(th).toContain('first:rounded-tl-xl last:rounded-tr-xl')
     expect(html).not.toContain('sara@example.test')
     // The division of the department, or — without one.
     expect(html).toContain('>Regulatory &amp; Drug Safety<')

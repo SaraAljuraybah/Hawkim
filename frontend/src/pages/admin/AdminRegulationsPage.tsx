@@ -6,6 +6,7 @@ import { GuidelineVersionDetails } from '../../components/admin/GuidelineVersion
 import { Button } from '../../components/ui/Button'
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
 import { IconButton } from '../../components/ui/IconButton'
+import { tableStyles } from '../../components/ui/tableStyles'
 import { adminEn } from '../../content/admin.en'
 import type { GuidelineVersion } from '../../data/mock/types'
 import { useDocumentTitle } from '../../hooks/useDocumentTitle'
@@ -145,29 +146,29 @@ export function AdminRegulationsPage() {
           <h2 id="history-title" className="text-lg">
             {text.history.title}
           </h2>
-          <div className="mt-3 rounded-xl border border-beige bg-white">
+          <div className={`mt-3 ${tableStyles.frame}`}>
             {/* Table — md and up */}
-            <div className="hidden md:block">
-              <table aria-label={text.history.tableLabel} className="w-full text-left text-sm">
-                <thead className="text-offwhite [&_th]:bg-maroon">
+            <div className={tableStyles.wide}>
+              <table aria-label={text.history.tableLabel} className={tableStyles.table}>
+                <thead className={tableStyles.head}>
                   <tr>
-                    <th scope="col" className="rounded-tl-xl px-5 py-3 font-semibold">{columns.title}</th>
-                    <th scope="col" className="px-5 py-3 font-semibold whitespace-nowrap">{columns.version}</th>
-                    <th scope="col" className="px-5 py-3 font-semibold whitespace-nowrap">{columns.issued}</th>
-                    <th scope="col" className="px-5 py-3 font-semibold whitespace-nowrap">{columns.added}</th>
-                    <th scope="col" className="rounded-tr-xl px-5 py-3 text-right">
+                    <th scope="col" className={tableStyles.headCell}>{columns.title}</th>
+                    <th scope="col" className={`${tableStyles.headCell} whitespace-nowrap`}>{columns.version}</th>
+                    <th scope="col" className={`${tableStyles.headCell} whitespace-nowrap`}>{columns.issued}</th>
+                    <th scope="col" className={`${tableStyles.headCell} whitespace-nowrap`}>{columns.added}</th>
+                    <th scope="col" className={`${tableStyles.headCell} text-right`}>
                       <span className="sr-only">{columns.actions}</span>
                     </th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-beige">
+                <tbody className={tableStyles.body}>
                   {history.map((version) => (
                     <tr key={version.id}>
-                      <th scope="row" className="px-5 py-3.5 font-medium text-maroon">{version.title || text.none}</th>
-                      <td className="px-5 py-3.5 whitespace-nowrap text-maroon">{versionCell(version)}</td>
-                      <td className="px-5 py-3.5 whitespace-nowrap text-text-gray">{date(version.issuedDate)}</td>
-                      <td className="px-5 py-3.5 whitespace-nowrap text-text-gray">{date(version.addedAt ? addedDateOf(version) : undefined)}</td>
-                      <td className="px-5 py-3.5">{actions(version)}</td>
+                      <th scope="row" className={tableStyles.rowHeader}>{version.title || text.none}</th>
+                      <td className={`${tableStyles.cell} whitespace-nowrap text-maroon`}>{versionCell(version)}</td>
+                      <td className={`${tableStyles.cell} whitespace-nowrap text-text-gray`}>{date(version.issuedDate)}</td>
+                      <td className={`${tableStyles.cell} whitespace-nowrap text-text-gray`}>{date(version.addedAt ? addedDateOf(version) : undefined)}</td>
+                      <td className={tableStyles.cell}>{actions(version)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -175,7 +176,7 @@ export function AdminRegulationsPage() {
             </div>
 
             {/* Stacked cards — below md */}
-            <ul aria-label={text.history.tableLabel} className="divide-y divide-beige md:hidden">
+            <ul aria-label={text.history.tableLabel} className={tableStyles.cards}>
               {history.map((version) => (
                 <li key={version.id} className="p-4">
                   <p className="text-sm font-medium break-words text-maroon">{version.title || text.none}</p>

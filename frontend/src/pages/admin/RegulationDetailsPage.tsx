@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
 import { GuidelineVersionDetails } from '../../components/admin/GuidelineVersionDetails'
 import { PreviewDialog } from '../../components/workflow/PreviewDialog'
+import { tableStyles } from '../../components/ui/tableStyles'
 import { adminEn } from '../../content/admin.en'
 import { useDocumentTitle } from '../../hooks/useDocumentTitle'
 import { useGuidelines } from '../../state/guidelinesContext'
@@ -69,39 +70,39 @@ export function RegulationDetailsPage() {
         <h2 id="requirements-title" className="text-lg">
           {text.requirements.title}
         </h2>
-        <div className="mt-3 overflow-hidden rounded-xl border border-beige bg-white">
-          {/* Table — lg and up (scrolls inside its own box if it is ever too wide) */}
-          <div className="hidden overflow-x-auto lg:block">
-            <table aria-label={text.requirements.tableLabel} className="w-full text-left text-sm">
-              <thead className="bg-beige/60 text-maroon">
+        <div className={`mt-3 ${tableStyles.frame}`}>
+          {/* Table — md and up, styled like the other admin tables (scrolls inside its frame if ever too wide) */}
+          <div className={`${tableStyles.wide} overflow-x-auto`}>
+            <table aria-label={text.requirements.tableLabel} className={tableStyles.table}>
+              <thead className={tableStyles.head}>
                 <tr>
-                  <th scope="col" className="px-5 py-3 font-semibold">{columns.id}</th>
-                  <th scope="col" className="px-5 py-3 font-semibold">{columns.module}</th>
-                  <th scope="col" className="px-5 py-3 font-semibold">{columns.section}</th>
-                  <th scope="col" className="px-5 py-3 font-semibold">{columns.title}</th>
-                  <th scope="col" className="px-5 py-3 font-semibold">{columns.page}</th>
-                  <th scope="col" className="px-5 py-3 font-semibold">{columns.summary}</th>
+                  <th scope="col" className={tableStyles.headCell}>{columns.id}</th>
+                  <th scope="col" className={tableStyles.headCell}>{columns.module}</th>
+                  <th scope="col" className={tableStyles.headCell}>{columns.section}</th>
+                  <th scope="col" className={tableStyles.headCell}>{columns.title}</th>
+                  <th scope="col" className={tableStyles.headCell}>{columns.page}</th>
+                  <th scope="col" className={tableStyles.headCell}>{columns.summary}</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-beige align-top">
+              <tbody className={`${tableStyles.body} align-top`}>
                 {version.requirements.map((requirement) => (
                   <tr key={requirement.id}>
-                    <th scope="row" className="px-5 py-3.5 font-semibold text-maroon">{requirement.id}</th>
-                    <td className="px-5 py-3.5 whitespace-nowrap text-text-gray">{requirement.module}</td>
-                    <td className="px-5 py-3.5 whitespace-nowrap text-text-gray">{requirement.section}</td>
-                    <td className="px-5 py-3.5 font-medium text-maroon">{requirement.sectionTitle}</td>
-                    <td className="px-5 py-3.5 whitespace-nowrap text-text-gray">
+                    <th scope="row" className={tableStyles.rowHeader}>{requirement.id}</th>
+                    <td className={`${tableStyles.cell} whitespace-nowrap text-text-gray`}>{requirement.module}</td>
+                    <td className={`${tableStyles.cell} whitespace-nowrap text-text-gray`}>{requirement.section}</td>
+                    <td className={`${tableStyles.cell} font-medium text-maroon`}>{requirement.sectionTitle}</td>
+                    <td className={`${tableStyles.cell} whitespace-nowrap text-text-gray`}>
                       {text.requirements.page.replace('{page}', String(requirement.page))}
                     </td>
-                    <td className="px-5 py-3.5 text-text-gray">{requirement.summary}</td>
+                    <td className={`${tableStyles.cell} text-text-gray`}>{requirement.summary}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
 
-          {/* Stacked cards — below lg */}
-          <ul aria-label={text.requirements.tableLabel} className="divide-y divide-beige lg:hidden">
+          {/* Stacked cards — below md */}
+          <ul aria-label={text.requirements.tableLabel} className={tableStyles.cards}>
             {version.requirements.map((requirement) => (
               <li key={requirement.id} className="p-4">
                 <p className="text-sm font-semibold text-maroon">

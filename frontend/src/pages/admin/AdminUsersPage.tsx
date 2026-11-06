@@ -8,6 +8,7 @@ import { Button } from '../../components/ui/Button'
 import { IconButton } from '../../components/ui/IconButton'
 import { SelectField } from '../../components/ui/SelectField'
 import { TextField } from '../../components/ui/TextField'
+import { tableStyles } from '../../components/ui/tableStyles'
 import { adminEn } from '../../content/admin.en'
 import { usersEn } from '../../content/users.en'
 import type { User } from '../../data/mock/types'
@@ -155,38 +156,38 @@ export function AdminUsersPage() {
           <p className="mt-4 text-text-gray">{content.empty}</p>
         </div>
       ) : (
-        <div className="mt-3 rounded-xl border border-beige bg-white">
+        <div className={`mt-3 ${tableStyles.frame}`}>
           {/* Table — md and up */}
-          <div className="hidden md:block">
-            <table aria-label={content.tableLabel} className="w-full text-left text-sm">
+          <div className={tableStyles.wide}>
+            <table aria-label={content.tableLabel} className={tableStyles.table}>
               {/* The admin sidebar's maroon, off-white text (about 16:1). The colour is on the cells, so the
                   first and last keep the table's rounded top corners. */}
-              <thead className="text-offwhite [&_th]:bg-maroon">
+              <thead className={tableStyles.head}>
                 <tr>
-                  <th scope="col" className="rounded-tl-xl px-5 py-3 font-semibold">{content.columns.name}</th>
-                  <th scope="col" className="px-5 py-3 font-semibold">{content.columns.division}</th>
-                  <th scope="col" className="px-5 py-3 font-semibold">{content.columns.department}</th>
-                  <th scope="col" className="px-5 py-3 font-semibold">{content.columns.permissions}</th>
-                  <th scope="col" className="rounded-tr-xl px-5 py-3 text-right font-semibold">
+                  <th scope="col" className={tableStyles.headCell}>{content.columns.name}</th>
+                  <th scope="col" className={tableStyles.headCell}>{content.columns.division}</th>
+                  <th scope="col" className={tableStyles.headCell}>{content.columns.department}</th>
+                  <th scope="col" className={tableStyles.headCell}>{content.columns.permissions}</th>
+                  <th scope="col" className={`${tableStyles.headCell} text-right`}>
                     <span className="sr-only">{content.columns.actions}</span>
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-beige">
+              <tbody className={tableStyles.body}>
                 {visible.map((user) => (
                   <tr key={user.id}>
-                    <th scope="row" className="px-5 py-3.5 font-medium text-maroon">
+                    <th scope="row" className={tableStyles.rowHeader}>
                       <span className="flex items-center gap-3">
                         <UserAvatar user={user} />
                         {user.name}
                       </span>
                     </th>
-                    <td className="px-5 py-3.5 text-text-gray">{divisionText(user)}</td>
-                    <td className="px-5 py-3.5 text-text-gray">{getDepartment(user.departmentId)?.name ?? content.none}</td>
-                    <td className="px-5 py-3.5">
+                    <td className={`${tableStyles.cell} text-text-gray`}>{divisionText(user)}</td>
+                    <td className={`${tableStyles.cell} text-text-gray`}>{getDepartment(user.departmentId)?.name ?? content.none}</td>
+                    <td className={tableStyles.cell}>
                       <PermissionBadges user={user} />
                     </td>
-                    <td className="px-5 py-3.5">{actions(user)}</td>
+                    <td className={tableStyles.cell}>{actions(user)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -194,7 +195,7 @@ export function AdminUsersPage() {
           </div>
 
           {/* Stacked cards — below md */}
-          <ul aria-label={content.tableLabel} className="divide-y divide-beige md:hidden">
+          <ul aria-label={content.tableLabel} className={tableStyles.cards}>
             {visible.map((user) => (
               <li key={user.id} className="flex gap-3 p-4">
                 <UserAvatar user={user} />
