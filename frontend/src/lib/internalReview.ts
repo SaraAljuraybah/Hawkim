@@ -162,10 +162,14 @@ export function addableReviewers(sop: Sop, env: ReviewEnvironment) {
     return !latest || (isInactiveDecision(latest.decision) && latest.decision !== 'expired')
   })
 }
-/** Whether the main author can add reviewers to the current version's review now (it reopens a settled round). */
+/**
+ * Whether the main author can add reviewers to the current version's review now, or send an expired
+ * request again: also once it settled as Completed or Changes Requested (it reopens the round).
+ */
 export function canAddReviewers(sop: Sop): boolean {
   const round = currentInternalRound(sop)
-  return sop.status === 'in-review' && !sop.reviewFlow && !!round && round.version === sop.version && (round.status === 'open' || round.status === 'completed')
+  return sop.status === 'in-review' && !sop.reviewFlow && !!round && round.version === sop.version &&
+    (round.status === 'open' || round.status === 'completed' || round.status === 'changes-requested')
 }
 /**
  * The main author sends the current version to more reviewers, e.g. to replace one who declined,

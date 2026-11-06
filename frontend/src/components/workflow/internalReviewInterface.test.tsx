@@ -3,7 +3,8 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import type { ReactNode } from 'react'
 import type { Sop, User } from '../../data/mock/types'
-import { acceptInternalReview, currentInternalRound, decideInternalReview, declineInternalReview, removeInternalReviewer, sendNewVersionForReview, startInternalReview } from '../../lib/internalReview'
+import { acceptInternalReview, currentInternalRound, decideInternalReview, declineInternalReview, expireUnanswered, removeInternalReviewer, sendNewVersionForReview, startInternalReview } from '../../lib/internalReview'
+import { endOfRiyadhDay } from '../../lib/riyadhWorkingDays'
 import { uploadVersion } from '../../lib/workflow'
 import { reviewTasks } from '../../lib/reviews'
 import { deriveNotifications } from '../../lib/notifications'
@@ -66,7 +67,8 @@ describe('internal parallel review across transitions and detail views', () => {
     const finished = decide(decide(start(), 'reviewer-a', 'completed', 'Fine'), 'reviewer-b', 'returned', 'Revise the safety section')
     fixture.sop = finished
     expect(render(<SopWorkflowPage />)).toContain('>' + sopWorkflowEn.history.upload + '<')
-    expect(render(<SopWorkflowPage />)).not.toContain('>' + sopWorkflowEn.actions.submit + '<')
+    // Changes Requested: more reviewers can still be asked about this version.
+    expect(render(<SopWorkflowPage />).match(/<button[^>]*>Add Reviewers<\/button>/)![0]).not.toMatch(/ (aria-)?disabled="/)
     vi.advanceTimersByTime(1000)
     const uploaded = uploadVersion(finished, 'author', { fileName: 'revised.pdf', fileType: 'pdf' })
     fixture.sop = uploaded
@@ -80,6 +82,22 @@ describe('internal parallel review across transitions and detail views', () => {
     expect(optionNames(html)).toEqual(['Reviewer Alpha', 'Reviewer Beta'])
     expect(html).not.toContain(' · ')
     expectSubmitTexts(html)
+  })
+  it('offers Add Reviewers and Send Again when one reviewer returned it and the other expired (Changes Requested)', () => {
+    const returned = decide(start(), 'reviewer-a', 'returned', 'Send it to the external reviewer, it is their specialty')
+    const sop = expireUnanswered(returned, Date.parse(endOfRiyadhDay('2026-10-26')))
+    expect(currentInternalRound(sop)!.status).toBe('changes-requested')
+    fixture.sop = sop
+    const html = render(<SopWorkflowPage />)
+    expect(html.match(/<button[^>]*>Add Reviewers<\/button>/)![0]).not.toMatch(/ (aria-)?disabled="/)
+    expect(html).toContain(internalReviewEn.panel.sendAgain.label.replace('{name}', 'Reviewer Beta'))
+    // Add Reviewers may include other departments: a reviewer from the SOP's department has finished,
+    // so the dialog doesn't say they have to wait.
+    const dialog = renderToStaticMarkup(<SubmitDialog mode="add" sop={sop} content={sopWorkflowEn.dialogs} onSubmit={() => {}} onClose={() => {}} />)
+    expect(dialog).toContain(internalReviewEn.submit.addIntro.replace('{version}', '1'))
+    expect(dialog).not.toContain(internalReviewEn.submit.homeFirst.split('{department}')[0])
+    fixture.userId = 'coauthor'
+    expect(render(<SopWorkflowPage />)).not.toContain('>Add Reviewers</button>')
   })
   it('offers the Submit for review dialog for the same version with only reviewers who can be asked again', () => {
     const started = start(), round = currentInternalRound(started)!

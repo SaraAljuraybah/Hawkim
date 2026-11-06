@@ -7,7 +7,7 @@ import { endOfRiyadhDay } from './riyadhWorkingDays'
 import { deriveNotifications } from './notifications'
 import { reviewTasks } from './reviews'
 import { deleteBlockers, permissionChangeBlockers, sopsUsing } from './userAdmin'
-import { checkBlocker, currentDueAt, deleteVersionBlocker, isOverdue, pendingPeople, requiredReviewsComplete, reviewerAssignedMilliseconds, reviewerDeadlinePassed, reviewerDueAt, reviewerRemainingMilliseconds, shiftDueDates, uploadVersion } from './workflow'
+import { authorStatus, checkBlocker, currentDueAt, deleteVersionBlocker, isOverdue, pendingPeople, requiredReviewsComplete, returnedStep, reviewerAssignedMilliseconds, reviewerDeadlinePassed, reviewerDueAt, reviewerRemainingMilliseconds, shiftDueDates, uploadVersion } from './workflow'
 // These tests cover the Riyadh working-day policy as it behaves once activated (lib/deadlinePolicy.ts).
 // The pending (currently active) backend-compatible behaviour is covered in lib/deadlinePolicy.test.tsx.
 vi.mock('./deadlinePolicy', () => ({ WORKING_DAY_DEADLINES_ACTIVE: true }))
@@ -628,5 +628,88 @@ describe('removing a reviewer who returned with comments', () => {
     expect(currentInternalRound(removed)!.status).toBe('completed')
     expect(requiredReviewsComplete(removed)).toBe(true)
     expect(removed.timeline.at(-1)).toMatchObject({ type: 'internal-review-completed' })
+  })
+})
+
+describe('adding reviewers and Send Again in a Changes Requested round', () => {
+  // v1 goes to Noura and Omar; Noura returns it with a comment and Omar's request expires.
+  const noura = 'a', omar = 'b', huda = 'c'
+  const endOfDay = (day: number) => Date.parse(endOfRiyadhDay(`2026-10-${day}`))
+  function changesRequested() {
+    const sent = startInternalReview(draft(), 'author', '4.0', { reviewerIds: [noura, omar] }, env())
+    return expireUnanswered(decide(sent, noura, 'returned', 'Send it to Huda, it is her specialty.'), endOfDay(26))
+  }
+  /** The stepper (returnedStep) and the My SOPs badge (authorStatus). */
+  const shownReturned = (sop: Sop) => returnedStep(sop) === 'in-review' && authorStatus(sop) === 'returned'
+
+  it('starts Changes Requested, with Add Reviewers and Send Again available', () => {
+    const sop = changesRequested()
+    const round = currentInternalRound(sop)!
+    expect(round.status).toBe('changes-requested')
+    expect(task(sop, noura).decision).toBe('returned')
+    expect(task(sop, omar).decision).toBe('expired')
+    expect(canAddReviewers(sop)).toBe(true)
+    expect(canResendRequest(sop, round, task(sop, omar))).toBe(true)
+    // Nobody is taking part, so a new version could be added now too.
+    expect(reviewAllowsNewVersion(sop)).toBe(true)
+    expect(shownReturned(sop)).toBe(true)
+  })
+
+  it('reopens the round when the author adds a reviewer, and refuses a new version while they take part', () => {
+    const sop = changesRequested()
+    // Noura, from the SOP's department, has finished: another department can be asked.
+    expect(addableReviewers(sop, env()).map((user) => user.id)).toContain(huda)
+    const added = addInternalReviewers(sop, 'author', { reviewerIds: [huda] }, env())
+    expect(currentInternalRound(added)).toMatchObject({ status: 'open', closedAt: undefined })
+    expect(task(added, huda).decision).toBe('pending')
+    expect(added.timeline.at(-1)).toMatchObject({ type: 'submitted', actorId: 'author', recipientIds: [huda] })
+    expect(reviewAllowsNewVersion(added)).toBe(false)
+    expect(() => uploadVersion(added, 'author', { fileName: 'revised.pdf', fileType: 'pdf' })).toThrow()
+    expect(shownReturned(added)).toBe(true)
+    // The other rules still apply: the main author only, and only people who can be asked.
+    for (const actor of ['coauthor', noura]) expect(() => addInternalReviewers(sop, actor, { reviewerIds: [huda] }, env())).toThrow()
+    expect(() => addInternalReviewers(sop, 'author', { reviewerIds: [noura] }, env())).toThrow(/already have a request/)
+    expect(() => addInternalReviewers(sop, 'author', { reviewerIds: [omar] }, env())).toThrow(/already have a request/)
+  })
+
+  it("reopens the round when the author sends Omar's request again, with a new 2-working-day response deadline", () => {
+    const sop = changesRequested()
+    const expired = task(sop, omar)
+    vi.setSystemTime(new Date('2026-10-27T10:00:00+03:00'))
+    const resent = resendInternalReview(sop, 'author', expired.id, env())
+    expect(currentInternalRound(resent)).toMatchObject({ status: 'open', closedAt: undefined })
+    const fresh = task(resent, omar)
+    expect(fresh).toMatchObject({ decision: 'pending', responseDueDate: '2026-10-29' })
+    expect(fresh.id).not.toBe(expired.id)
+    expect(currentInternalRound(resent)!.assignments.find((item) => item.id === expired.id)!.decision).toBe('expired')
+    expect(resent.timeline.at(-1)).toMatchObject({ type: 'review-request-resent', actorId: 'author', recipientIds: [omar] })
+    expect(reviewAllowsNewVersion(resent)).toBe(false)
+    expect(shownReturned(resent)).toBe(true)
+    for (const actor of ['coauthor', noura]) expect(() => resendInternalReview(sop, actor, expired.id, env())).toThrow()
+  })
+
+  it('is Changes Requested again once everyone has finished, then a new version starts an In Review round', () => {
+    let sop = accept(addInternalReviewers(changesRequested(), 'author', { reviewerIds: [huda] }, env()), huda)
+    vi.setSystemTime(new Date('2026-10-27T10:00:00+03:00'))
+    sop = resendInternalReview(sop, 'author', task(sop, omar).id, env())
+    sop = decide(sop, huda)
+    // Omar is still taking part: still open, still no new version.
+    expect(currentInternalRound(sop)!.status).toBe('open')
+    expect(reviewAllowsNewVersion(sop)).toBe(false)
+    sop = decide(sop, omar)
+    expect(currentInternalRound(sop)!.status).toBe('changes-requested')
+    expect(task(sop, noura).decision).toBe('returned')
+    expect(sop.timeline.some((item) => item.type === 'internal-review-completed')).toBe(false)
+    expect(reviewAllowsNewVersion(sop)).toBe(true)
+    expect(shownReturned(sop)).toBe(true)
+
+    const revised = revise(sop)
+    expect(revised.version).toBe('2')
+    // The v1 round can't be added to any more; the new version goes to reviewers as a new round.
+    expect(canAddReviewers(revised)).toBe(false)
+    const next = sendNewVersionForReview(revised, 'author', '4.0', { reviewerIds: [noura] }, env())
+    expect(currentInternalRound(next)).toMatchObject({ version: '2', status: 'open' })
+    expect(returnedStep(next)).toBeUndefined()
+    expect(authorStatus(next)).toBe('in-review')
   })
 })
