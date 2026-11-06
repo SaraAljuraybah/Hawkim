@@ -41,7 +41,7 @@ export function GuidelinesProvider({ children }: { children: ReactNode }) {
     const actor = users.find((user) => user.id === actorId && !user.deletedAt)
     if (!actor?.permissions.includes('admin')) throw new Error('Only an admin can add guideline versions')
     const previous = currentVersion(latestRef.current)
-    if (Object.values(validateGuidelineVersion(input, previous)).some(Boolean)) {
+    if (Object.values(validateGuidelineVersion(input, latestRef.current)).some(Boolean)) {
       throw new Error('The guideline version is not valid')
     }
     const added = newGuidelineVersion(input, previous, actorId)

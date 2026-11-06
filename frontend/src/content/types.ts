@@ -1269,13 +1269,16 @@ export interface AdminContent {
 }
 
 /** Labels shared by the regulations pages for a GVP version's details. */
+/** The details of a GVP version, in this order. */
 export interface GuidelineVersionFields {
+  title: string
+  version: string
   issued: string
-  effective: string
-  file: string
   added: string
+  addedBy: string
+  source: string
+  file: string
   requirements: string
-  summary: string
 }
 
 export interface AdminRegulationsContent {
@@ -1288,35 +1291,47 @@ export interface AdminRegulationsContent {
   added: string
   current: { title: string; badge: string }
   fields: GuidelineVersionFields
-  /** `{name}` and `{date}` are replaced. */
-  addedBy: string
+  /** An empty value. */
+  none: string
+  /** Read by screen readers after the Source link. */
+  newTab: string
   requirementsCount: CountText
   viewRequirements: string
   /** Accessible name of each "View requirements" link; `{version}` is replaced. */
   viewRequirementsLabel: string
-  history: { title: string; empty: string }
+  /** `actions`: the visually hidden header of the View Requirements column. */
+  history: { title: string; empty: string; tableLabel: string; actions: string }
 }
 
 export interface AdminRegulationFormContent {
   title: string
   subtitle: string
   back: LinkContent
+  /** The Title field (`title` is the page's heading). */
+  titleField: { label: string; placeholder: string }
   version: { label: string; hint: string }
   issuedDate: { label: string }
-  effectiveDate: { label: string; hint: string }
+  /** Read-only: today in Asia/Riyadh. */
+  addedDate: { label: string }
   file: FileDropzoneText
-  summary: { label: string; counter: string }
+  source: { label: string; placeholder: string }
   submit: string
   cancel: string
   errors: {
+    titleRequired: string
+    titleTooLong: string
     versionInvalid: string
+    /** `{version}` is replaced. */
+    versionExists: string
     /** `{current}` is replaced with the current version. */
     versionNotHigher: string
-    effectiveRequired: string
-    issuedAfterEffective: string
+    addedRequired: string
+    issuedAfterAdded: string
     fileRequired: string
     fileNotPdf: string
-    summaryTooLong: string
+    sourceRequired: string
+    sourceInvalid: string
+    sourceTooLong: string
   }
   /** `{version}` is replaced. */
   dialog: { title: string; description: string; confirm: string; cancel: string }

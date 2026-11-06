@@ -4,6 +4,8 @@ import type { SopStatus } from '../types/status'
 import { completeCheck, hasCurrentCheck, latestCompletedChecksByVersion, startCheck } from './compliance'
 import {
   compareVersions,
+  currentVersion,
+  isHttpsLink,
   newGuidelineVersion,
   recheckRecommended,
   validateGuidelineVersion,
@@ -60,13 +62,16 @@ function sop(status: SopStatus, complianceChecks: ComplianceCheck[]): Sop {
 }
 
 const input = (overrides: Partial<GuidelineVersionInput> = {}): GuidelineVersionInput => ({
+  title: 'SFDA GVP Guideline',
   version: '4.1',
   issuedDate: '',
-  effectiveDate: '2026-11-01',
+  addedDate: '2026-11-06',
   fileName: 'Drug-GVP4_1.pdf',
-  summary: '',
+  source: 'https://www.sfda.gov.sa/en/regulations/gvp',
   ...overrides,
 })
+const versions = [v40]
+const validate = (overrides: Partial<GuidelineVersionInput> = {}, list: GuidelineVersion[] = versions) => validateGuidelineVersion(input(overrides), list)
 
 describe('version numbers', () => {
   it('compares each part as a number', () => {
@@ -76,44 +81,66 @@ describe('version numbers', () => {
     expect(compareVersions('4.1', '4.2')).toBeLessThan(0)
   })
 
-  it('needs digits, a dot and digits', () => {
+  it('is entered by the admin: digits, a dot and digits', () => {
     for (const version of ['', '5', '4.', '.1', 'v4.1', '4.1.2', '4,1', 'four']) {
-      expect(validateGuidelineVersion(input({ version }), v40).version, version).toBe('version-invalid')
+      expect(validate({ version }).version, version).toBe('version-invalid')
     }
-    expect(validateGuidelineVersion(input({ version: ' 4.1 ' }), v40).version).toBeUndefined()
+    expect(validate({ version: ' 4.1 ' }).version).toBeUndefined()
   })
 
-  it('must be higher than the current version', () => {
-    expect(validateGuidelineVersion(input({ version: '4.0' }), v40).version).toBe('version-not-higher')
-    expect(validateGuidelineVersion(input({ version: '3.9' }), v40).version).toBe('version-not-higher')
-    expect(validateGuidelineVersion(input({ version: '4.10' }), { ...v40, version: '4.9' }).version).toBeUndefined()
+  it('must not exist already, even written differently', () => {
+    expect(validate({ version: '4.0' }).version).toBe('version-exists')
+    const older = { ...v40, id: 'gvp-3-0', version: '3.0' }
+    expect(validate({ version: '3.0' }, [older, v40]).version).toBe('version-exists')
+    expect(validate({ version: '4.00' }).version).toBe('version-exists')
+  })
+
+  it('must be higher than the current version (the latest added)', () => {
+    expect(validate({ version: '3.9' }).version).toBe('version-not-higher')
+    expect(validate({ version: '4.10' }, [{ ...v40, version: '4.9' }]).version).toBeUndefined()
+    expect(validate({ version: '5.0' })).toEqual({})
   })
 })
 
 describe('the other fields', () => {
-  it('requires an effective date and a PDF file', () => {
-    const problems = validateGuidelineVersion(input({ effectiveDate: '', fileName: '' }), v40)
-    expect(problems.effectiveDate).toBe('effective-required')
-    expect(problems.fileName).toBe('file-required')
-    expect(validateGuidelineVersion(input({ fileName: 'GVP.docx' }), v40).fileName).toBe('file-not-pdf')
-    expect(validateGuidelineVersion(input({ fileName: 'GVP.PDF' }), v40).fileName).toBeUndefined()
+  it('requires a title of up to 100 characters', () => {
+    expect(validate({ title: '  ' }).title).toBe('title-required')
+    expect(validate({ title: 'x'.repeat(100) }).title).toBeUndefined()
+    expect(validate({ title: 'x'.repeat(101) }).title).toBe('title-too-long')
   })
 
-  it('allows an issued date on or before the effective date, and a future effective date', () => {
-    expect(validateGuidelineVersion(input({ issuedDate: '2026-11-02' }), v40).issuedDate).toBe('issued-after-effective')
-    expect(validateGuidelineVersion(input({ issuedDate: '2026-11-01' }), v40).issuedDate).toBeUndefined()
-    expect(validateGuidelineVersion(input({ effectiveDate: '2099-01-01' }), v40)).toEqual({})
+  it('requires a PDF file', () => {
+    expect(validate({ fileName: '' }).fileName).toBe('file-required')
+    expect(validate({ fileName: 'GVP.docx' }).fileName).toBe('file-not-pdf')
+    expect(validate({ fileName: 'GVP.PDF' }).fileName).toBeUndefined()
   })
 
-  it('allows a summary of up to 500 characters', () => {
-    expect(validateGuidelineVersion(input({ summary: 'x'.repeat(500) }), v40).summary).toBeUndefined()
-    expect(validateGuidelineVersion(input({ summary: 'x'.repeat(501) }), v40).summary).toBe('summary-too-long')
+  it('needs the added date, and an issue date on or before it', () => {
+    expect(validate({ addedDate: '' }).addedDate).toBe('added-required')
+    expect(validate({ issuedDate: '2026-11-07' }).issuedDate).toBe('issued-after-added')
+    expect(validate({ issuedDate: '2026-11-06' }).issuedDate).toBeUndefined()
+    expect(validate({ issuedDate: '' }).issuedDate).toBeUndefined()
   })
 
-  it('copies the previous version’s requirements into the new version and records who added it', () => {
-    const added = newGuidelineVersion(input({ summary: '  New module.  ' }), v40, 'nouf', '2026-10-04T10:00:00Z')
-    expect(added).toMatchObject({ id: 'gvp-4-1', version: '4.1', summary: 'New module.', addedById: 'nouf' })
-    expect(added.issuedDate).toBeUndefined()
+  it('requires the source as a valid https:// link of up to 300 characters', () => {
+    expect(validate({ source: ' ' }).source).toBe('source-required')
+    for (const source of ['www.sfda.gov.sa', 'http://www.sfda.gov.sa', 'https://', 'https://sfda', 'https://www.sfda .gov.sa', 'ftp://sfda.gov.sa']) {
+      expect(validate({ source }).source, source).toBe('source-invalid')
+    }
+    const long = 'https://www.sfda.gov.sa/' + 'x'.repeat(300 - 'https://www.sfda.gov.sa/'.length)
+    expect(validate({ source: long }).source).toBeUndefined()
+    expect(validate({ source: long + 'x' }).source).toBe('source-too-long')
+    expect(isHttpsLink('https://www.sfda.gov.sa/en/regulations?page=1')).toBe(true)
+  })
+
+  it('becomes current when added, with its title, source and added date; the requirements are copied', () => {
+    const added = newGuidelineVersion(input({ issuedDate: '2026-10-01' }), v40, 'nouf', '2026-11-06T07:00:00Z')
+    expect(added).toMatchObject({
+      id: 'gvp-4-1', title: 'SFDA GVP Guideline', version: '4.1', issuedDate: '2026-10-01', effectiveDate: '2026-11-06',
+      source: 'https://www.sfda.gov.sa/en/regulations/gvp', addedById: 'nouf', addedAt: '2026-11-06T07:00:00Z',
+    })
+    expect(added).not.toHaveProperty('summary')
+    expect(currentVersion([v40, added])).toBe(added)
     expect(added.requirements).toEqual(v40.requirements)
     expect(added.requirements[0]).not.toBe(v40.requirements[0])
   })

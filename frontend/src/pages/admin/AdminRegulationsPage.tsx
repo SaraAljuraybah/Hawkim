@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { ArrowRight, CircleCheck, Plus } from 'lucide-react'
 import { GuidelineVersionDetails } from '../../components/admin/GuidelineVersionDetails'
+import { useGuidelineVersionValues } from '../../components/admin/guidelineVersionValues'
 import { Button } from '../../components/ui/Button'
 import { adminEn } from '../../content/admin.en'
 import type { GuidelineVersion } from '../../data/mock/types'
@@ -15,8 +16,9 @@ export interface AdminRegulationsLocationState {
 }
 
 /**
- * Regulations ("/admin/regulations", PBI 20): the current GVP version, the earlier
- * versions as read-only history (newest first), and "Add new version".
+ * SFDA Regulatory Requirements ("/admin/regulations", PBI 20): the current GVP version, the earlier
+ * versions as a read-only history table (newest first; stacked cards on narrow screens), and
+ * "Add new version".
  */
 export function AdminRegulationsPage() {
   const text = adminEn.regulations
@@ -24,6 +26,7 @@ export function AdminRegulationsPage() {
   const added = (useLocation().state as AdminRegulationsLocationState | null)?.added
   const { versions, current } = useGuidelines()
   const history = versions.filter((version) => version.id !== current.id).reverse()
+  const values = useGuidelineVersionValues()
 
   const name = (version: GuidelineVersion) => text.versionName.replace('{version}', version.version)
   const viewLink = (version: GuidelineVersion): ReactNode => (
@@ -81,15 +84,50 @@ export function AdminRegulationsPage() {
           {history.length === 0 ? (
             <p className="mt-3 text-sm text-text-gray">{text.history.empty}</p>
           ) : (
-            <ul className="mt-3 grid gap-4">
-              {history.map((version) => (
-                <li key={version.id} className="rounded-xl border border-beige bg-white p-5 sm:p-6">
-                  <h3 className="text-base font-semibold text-maroon">{name(version)}</h3>
-                  <GuidelineVersionDetails version={version} className="mt-4" />
-                  <div className="mt-4">{viewLink(version)}</div>
-                </li>
-              ))}
-            </ul>
+            <div className="mt-3 rounded-xl border border-beige bg-white">
+              {/* Table — lg and up */}
+              <div className="hidden lg:block">
+                <table aria-label={text.history.tableLabel} className="w-full text-left text-sm">
+                  <thead className="text-offwhite [&_th]:bg-maroon">
+                    <tr>
+                      {values(history[0]).map((item, index) => (
+                        <th key={item.label} scope="col" className={`px-4 py-3 align-bottom font-semibold ${index === 0 ? 'rounded-tl-xl' : ''}`}>
+                          {item.label}
+                        </th>
+                      ))}
+                      <th scope="col" className="rounded-tr-xl px-4 py-3">
+                        <span className="sr-only">{text.history.actions}</span>
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-beige">
+                    {history.map((version) => (
+                      <tr key={version.id}>
+                        {values(version).map((item, index) =>
+                          index === 0 ? (
+                            <th key={item.label} scope="row" className="px-4 py-3 align-top font-medium text-maroon">{item.value}</th>
+                          ) : (
+                            <td key={item.label} className="px-4 py-3 align-top text-maroon">{item.value}</td>
+                          ),
+                        )}
+                        <td className="px-4 py-3 align-top whitespace-nowrap">{viewLink(version)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Stacked cards — below lg */}
+              <ul aria-label={text.history.tableLabel} className="divide-y divide-beige lg:hidden">
+                {history.map((version) => (
+                  <li key={version.id} className="p-5">
+                    <h3 className="text-base font-semibold text-maroon">{name(version)}</h3>
+                    <GuidelineVersionDetails version={version} className="mt-4" />
+                    <div className="mt-4">{viewLink(version)}</div>
+                  </li>
+                ))}
+              </ul>
+            </div>
           )}
         </section>
       </div>

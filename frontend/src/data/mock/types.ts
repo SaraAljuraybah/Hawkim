@@ -446,15 +446,18 @@ export interface Guideline {
  */
 export interface GuidelineVersion {
   id: string
-  /** e.g. "4.0" */
+  /** e.g. "SFDA Guideline on Good Pharmacovigilance Practices (GVP)" (the database `name`). */
+  title?: string
+  /** e.g. "4.0", entered by the admin. */
   version: string
-  /** ISO dates. */
+  /** When SFDA issued it (ISO date), if known. */
   issuedDate?: string
+  /** Kept for the database; Hawkim no longer shows it (a new version gets its added date). */
   effectiveDate: string
   /** The guideline document, e.g. "Drug-GVP4_0.pdf". */
   fileName: string
-  /** What changed from the previous version. */
-  summary?: string
+  /** A link to the guideline at its source (https://…); not in the database yet. */
+  source?: string
   /** The admin who added it (User.id) and when (ISO date and time); unknown for the first version. */
   addedById?: string
   addedAt?: string

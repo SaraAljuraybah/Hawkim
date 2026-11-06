@@ -5,17 +5,18 @@ import { ArrowLeft } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
 import { FileDropzone } from '../../components/ui/FileDropzone'
-import { TextAreaField } from '../../components/ui/TextAreaField'
 import { TextField } from '../../components/ui/TextField'
 import { adminEn } from '../../content/admin.en'
 import { useDocumentTitle } from '../../hooks/useDocumentTitle'
 import {
-  SUMMARY_MAX,
+  SOURCE_MAX,
+  TITLE_MAX,
   validateGuidelineVersion,
   type GuidelineField,
   type GuidelineProblem,
   type GuidelineVersionInput,
 } from '../../lib/guidelines'
+import { riyadhDate } from '../../lib/riyadhWorkingDays'
 import { ADMIN_REGULATIONS_PATH } from '../../lib/routes'
 import { useGuidelines } from '../../state/guidelinesContext'
 import { useCurrentUser } from '../../state/sessionContext'
@@ -25,49 +26,58 @@ import type { AdminRegulationsLocationState } from './AdminRegulationsPage'
 const FILE_EXTENSIONS = ['.pdf']
 const FILE_MAX_BYTES = 20 * 1024 * 1024
 
-const FIELDS: GuidelineField[] = ['version', 'issuedDate', 'effectiveDate', 'fileName', 'summary']
+const FIELDS: GuidelineField[] = ['title', 'version', 'issuedDate', 'addedDate', 'fileName', 'source']
 
 type FieldErrors = Partial<Record<GuidelineField, string>>
 
 /**
- * Add GVP version ("/admin/regulations/new", PBI 20): version (higher than the
- * current one), optional issued date, effective date, the guideline PDF and an
- * optional summary of changes. After a confirmation it becomes the current version.
+ * Add GVP version ("/admin/regulations/new", PBI 20): title, version (entered by the admin: new and
+ * higher than the current one), optional SFDA issue date, the date it's added to Hawkim (today in
+ * Asia/Riyadh, read-only), the guideline PDF and the source link. After a confirmation it becomes
+ * the current version.
  * TODO: Upload the guideline file to the backend; for now only its name is kept.
  */
 export function RegulationFormPage() {
   const text = adminEn.regulationForm
   useDocumentTitle(adminEn.pageTitle.replace('{page}', text.title))
-  const { current, addVersion } = useGuidelines()
+  const { versions, current, addVersion } = useGuidelines()
   const { users } = useUsers()
   const admin = useCurrentUser()
   const navigate = useNavigate()
 
-  const [values, setValues] = useState({ version: '', issuedDate: '', effectiveDate: '', summary: '' })
+  // The day the admin opened the page, in Riyadh.
+  const [addedDate] = useState(() => riyadhDate(new Date()))
+  const [values, setValues] = useState({ title: '', version: '', issuedDate: '', source: '' })
   const [files, setFiles] = useState<File[]>([])
   const [errors, setErrors] = useState<FieldErrors>({})
   const [submitAttempted, setSubmitAttempted] = useState(false)
   const [confirming, setConfirming] = useState(false)
   const formRef = useRef<HTMLFormElement>(null)
+  const titleRef = useRef<HTMLInputElement>(null)
   const versionRef = useRef<HTMLInputElement>(null)
   const issuedRef = useRef<HTMLInputElement>(null)
-  const effectiveRef = useRef<HTMLInputElement>(null)
+  const addedRef = useRef<HTMLInputElement>(null)
   const browseRef = useRef<HTMLButtonElement>(null)
-  const summaryRef = useRef<HTMLTextAreaElement>(null)
+  const sourceRef = useRef<HTMLInputElement>(null)
 
-  const input = (fileList = files): GuidelineVersionInput => ({ ...values, fileName: fileList[0]?.name ?? '' })
+  const input = (fileList = files): GuidelineVersionInput => ({ ...values, addedDate, fileName: fileList[0]?.name ?? '' })
 
   const messages: Record<GuidelineProblem, string> = {
+    'title-required': text.errors.titleRequired,
+    'title-too-long': text.errors.titleTooLong,
     'version-invalid': text.errors.versionInvalid,
+    'version-exists': text.errors.versionExists.replace('{version}', values.version.trim()),
     'version-not-higher': text.errors.versionNotHigher.replace('{current}', current.version),
-    'effective-required': text.errors.effectiveRequired,
-    'issued-after-effective': text.errors.issuedAfterEffective,
+    'added-required': text.errors.addedRequired,
+    'issued-after-added': text.errors.issuedAfterAdded,
     'file-required': text.errors.fileRequired,
     'file-not-pdf': text.errors.fileNotPdf,
-    'summary-too-long': text.errors.summaryTooLong,
+    'source-required': text.errors.sourceRequired,
+    'source-invalid': text.errors.sourceInvalid,
+    'source-too-long': text.errors.sourceTooLong,
   }
   function errorsFor(next: GuidelineVersionInput): FieldErrors {
-    const problems = validateGuidelineVersion(next, current)
+    const problems = validateGuidelineVersion(next, versions)
     return Object.fromEntries(FIELDS.map((field) => [field, problems[field] && messages[problems[field]]]))
   }
 
@@ -87,7 +97,7 @@ export function RegulationFormPage() {
     flushSync(() => setErrors(next))
     const firstInvalid = FIELDS.find((field) => next[field])
     if (firstInvalid) {
-      const refs = { version: versionRef, issuedDate: issuedRef, effectiveDate: effectiveRef, fileName: browseRef, summary: summaryRef }
+      const refs = { title: titleRef, version: versionRef, issuedDate: issuedRef, addedDate: addedRef, fileName: browseRef, source: sourceRef }
       refs[firstInvalid].current?.focus()
       return
     }
@@ -115,6 +125,20 @@ export function RegulationFormPage() {
 
       <form ref={formRef} noValidate onSubmit={handleSubmit} className="mt-8 max-w-2xl rounded-xl border border-beige bg-white p-5 sm:p-6">
         <TextField
+          ref={titleRef}
+          name="title"
+          autoComplete="off"
+          label={text.titleField.label}
+          placeholder={text.titleField.placeholder}
+          required
+          requiredMark
+          maxLength={TITLE_MAX}
+          value={values.title}
+          error={errors.title}
+          onChange={(event) => setField('title', event.target.value)}
+          onBlur={() => blur('title')}
+        />
+        <TextField
           ref={versionRef}
           name="version"
           inputMode="decimal"
@@ -127,7 +151,7 @@ export function RegulationFormPage() {
           error={errors.version}
           onChange={(event) => setField('version', event.target.value)}
           onBlur={() => blur('version')}
-          className="max-w-xs"
+          className="mt-5 max-w-xs"
         />
         <div className="mt-5 grid gap-5 sm:grid-cols-2">
           <TextField
@@ -135,26 +159,24 @@ export function RegulationFormPage() {
             name="issuedDate"
             type="date"
             label={text.issuedDate.label}
+            max={addedDate}
             value={values.issuedDate}
             error={errors.issuedDate}
             onChange={(event) => setField('issuedDate', event.target.value)}
             onBlur={() => blur('issuedDate')}
           />
+          {/* Today in Riyadh, set when the page opened: shown, not edited */}
           <TextField
-            ref={effectiveRef}
-            name="effectiveDate"
+            ref={addedRef}
+            name="addedDate"
             type="date"
-            label={text.effectiveDate.label}
+            label={text.addedDate.label}
             required
             requiredMark
-            hint={text.effectiveDate.hint}
-            value={values.effectiveDate}
-            error={errors.effectiveDate}
-            onChange={(event) => setField('effectiveDate', event.target.value)}
-            onBlur={() => {
-              blur('effectiveDate')
-              blur('issuedDate')
-            }}
+            readOnly
+            value={addedDate}
+            error={errors.addedDate}
+            className="[&_input]:bg-beige/40"
           />
         </div>
         <FileDropzone
@@ -171,17 +193,22 @@ export function RegulationFormPage() {
           error={errors.fileName}
           className="mt-5"
         />
-        <TextAreaField
-          ref={summaryRef}
-          name="summary"
-          rows={4}
-          maxLength={SUMMARY_MAX}
-          label={text.summary.label}
-          counter={text.summary.counter.replace('{count}', String(values.summary.length)).replace('{max}', String(SUMMARY_MAX))}
-          value={values.summary}
-          error={errors.summary}
-          onChange={(event) => setField('summary', event.target.value)}
-          onBlur={() => blur('summary')}
+        <TextField
+          ref={sourceRef}
+          name="source"
+          type="url"
+          inputMode="url"
+          autoComplete="url"
+          spellCheck={false}
+          label={text.source.label}
+          placeholder={text.source.placeholder}
+          required
+          requiredMark
+          maxLength={SOURCE_MAX}
+          value={values.source}
+          error={errors.source}
+          onChange={(event) => setField('source', event.target.value)}
+          onBlur={() => blur('source')}
           className="mt-5"
         />
 

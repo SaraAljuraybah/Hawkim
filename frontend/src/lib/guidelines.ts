@@ -11,7 +11,8 @@ import type { SopStatus } from '../types/status'
 
 /** A version number: digits, a dot, digits (4.1, 5.0, 4.10). */
 const VERSION_PATTERN = /^\d+\.\d+$/
-export const SUMMARY_MAX = 500
+export const TITLE_MAX = 100
+export const SOURCE_MAX = 300
 
 /** Orders version numbers part by part, as numbers: 4.10 > 4.9 > 4.0. Negative when a < b. */
 export function compareVersions(a: string, b: string): number {
@@ -25,55 +26,82 @@ export function currentVersion(versions: GuidelineVersion[]): GuidelineVersion {
   return versions[versions.length - 1]
 }
 
+/** A web link starting with https://, with a host (e.g. https://www.sfda.gov.sa/...). */
+export function isHttpsLink(value: string): boolean {
+  if (!value.startsWith('https://')) return false
+  try {
+    const url = new URL(value)
+    return url.protocol === 'https:' && url.hostname.includes('.') && !/\s/.test(value)
+  } catch {
+    return false
+  }
+}
+
 /* ---------- Adding a version ---------- */
 
 /** What the admin enters (the file is only its name for now). */
 export interface GuidelineVersionInput {
+  title: string
+  /** Entered by the admin, e.g. "4.1". */
   version: string
   /** ISO date, or '' when not given. */
   issuedDate: string
-  /** ISO date. */
-  effectiveDate: string
+  /** Today in Asia/Riyadh when the form opened (ISO date); it can't be changed. */
+  addedDate: string
   /** '' when no file was chosen. */
   fileName: string
-  summary: string
+  /** A link to the guideline at its source. */
+  source: string
 }
 
-export type GuidelineField = 'version' | 'issuedDate' | 'effectiveDate' | 'fileName' | 'summary'
+export type GuidelineField = 'title' | 'version' | 'issuedDate' | 'addedDate' | 'fileName' | 'source'
 export type GuidelineProblem =
+  | 'title-required'
+  | 'title-too-long'
   | 'version-invalid'
+  | 'version-exists'
   | 'version-not-higher'
-  | 'issued-after-effective'
-  | 'effective-required'
+  | 'issued-after-added'
+  | 'added-required'
   | 'file-required'
   | 'file-not-pdf'
-  | 'summary-too-long'
+  | 'source-required'
+  | 'source-invalid'
+  | 'source-too-long'
 
-/** What is wrong with each field (nothing for a valid version). It must be higher than the current version. */
+/**
+ * What is wrong with each field (nothing for a valid version). The version must be new and
+ * higher than the current one (the latest added).
+ */
 export function validateGuidelineVersion(
   input: GuidelineVersionInput,
-  current: GuidelineVersion,
+  versions: GuidelineVersion[],
 ): Partial<Record<GuidelineField, GuidelineProblem>> {
+  const title = input.title.trim()
   const version = input.version.trim()
   const fileName = input.fileName.trim()
+  const source = input.source.trim()
+  const current = currentVersion(versions)
   return {
+    title: !title ? 'title-required' : title.length > TITLE_MAX ? 'title-too-long' : undefined,
     version: !VERSION_PATTERN.test(version)
       ? 'version-invalid'
-      : compareVersions(version, current.version) <= 0
-        ? 'version-not-higher'
-        : undefined,
-    effectiveDate: input.effectiveDate ? undefined : 'effective-required',
+      : versions.some((item) => compareVersions(item.version, version) === 0)
+        ? 'version-exists'
+        : current && compareVersions(version, current.version) <= 0
+          ? 'version-not-higher'
+          : undefined,
+    addedDate: input.addedDate ? undefined : 'added-required',
     // ISO dates compare correctly as strings.
-    issuedDate:
-      input.issuedDate && input.effectiveDate && input.issuedDate > input.effectiveDate ? 'issued-after-effective' : undefined,
+    issuedDate: input.issuedDate && input.addedDate && input.issuedDate > input.addedDate ? 'issued-after-added' : undefined,
     fileName: !fileName ? 'file-required' : !fileName.toLowerCase().endsWith('.pdf') ? 'file-not-pdf' : undefined,
-    summary: input.summary.trim().length > SUMMARY_MAX ? 'summary-too-long' : undefined,
+    source: !source ? 'source-required' : source.length > SOURCE_MAX ? 'source-too-long' : !isHttpsLink(source) ? 'source-invalid' : undefined,
   }
 }
 
 /**
  * The new version, which becomes current. Its requirements are copied from the
- * previous version for now.
+ * previous version for now. The database also needs an effective date: it is the added date.
  * TODO: The compliance service extracts the requirements from the uploaded PDF.
  */
 export function newGuidelineVersion(
@@ -83,14 +111,14 @@ export function newGuidelineVersion(
   addedAt = new Date().toISOString(),
 ): GuidelineVersion {
   const version = input.version.trim()
-  const summary = input.summary.trim()
   return {
     id: `gvp-${version.replace('.', '-')}`,
+    title: input.title.trim(),
     version,
     ...(input.issuedDate ? { issuedDate: input.issuedDate } : {}),
-    effectiveDate: input.effectiveDate,
+    effectiveDate: input.addedDate,
     fileName: input.fileName.trim(),
-    ...(summary ? { summary } : {}),
+    source: input.source.trim(),
     addedById,
     addedAt,
     requirements: previous.requirements.map((requirement) => ({ ...requirement })),
