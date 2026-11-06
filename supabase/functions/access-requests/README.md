@@ -2,7 +2,7 @@
 
 The public **Request Hawkim** form (`/request-hawkim`) and the Hawkim team's **review page**
 (`/review-request`) call this function. Requests are stored in `public.access_requests`
-(migration `20261105120000_access_requests.sql`).
+(migration `20261106130000_access_requests.sql`).
 
 1. A visitor sends the form → the request is stored; `requests@tryhawkim.com` gets an email with a
    **Review request** button; the requester gets a confirmation.

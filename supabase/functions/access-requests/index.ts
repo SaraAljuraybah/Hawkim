@@ -1,5 +1,5 @@
 // "Request Hawkim": requests to use Hawkim, reviewed by the Hawkim team (see the migration
-// 20261105120000_access_requests.sql). Called by the website with a JSON body { action, ... }:
+// 20261106130000_access_requests.sql). Called by the website with a JSON body { action, ... }:
 //   submit  the public form: stores the request, emails the team a review link, confirms to the requester
 //   view    the review page: the request, when the review link's id and token match
 //   accept  creates the requester's account as Admin and emails them a link to set their password
