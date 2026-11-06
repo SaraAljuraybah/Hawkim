@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { Permission, Sop, User } from '../data/mock/types'
 import type { SopStatus } from '../types/status'
-import { defaultDivision, deleteBlockers, departmentsInDivision, divisionOptions, NO_DIVISION, normalizePhone, permissionChangeBlockers, POSITION_MAX, validateNewUser, type AdminContext } from './userAdmin'
+import { defaultDivision, deleteBlockers, departmentsInDivision, divisionOptions, NO_DIVISION, normalizePhone, permissionChangeBlockers, POSITION_MAX, userFormValues, validateNewUser, type AdminContext } from './userAdmin'
 
 /** A user in IT with these permissions. */
 function user(id: string, permissions: Permission[]): User {
@@ -264,5 +264,35 @@ describe('validateNewUser', () => {
   it('accepts a valid user with no permissions', () => {
     const problems = validateNewUser(valid, active)
     expect(Object.values(problems).filter(Boolean)).toEqual([])
+  })
+})
+
+describe('editing a user', () => {
+  const grouped = { id: 'grouped', divisionId: 'medical' }
+  const plain = { id: 'plain' }
+  const edited: User = { ...user('rana', ['author']), departmentId: 'grouped', phone: '+966512345678', position: 'Specialist' }
+
+  it('starts the form from their details, with their department and its division', () => {
+    expect(userFormValues(edited, [grouped, plain])).toEqual({
+      name: 'rana', email: 'rana@hawkim.demo', phone: '+966512345678', position: 'Specialist', departmentId: 'grouped', divisionId: 'medical', permissions: ['author'],
+    })
+  })
+
+  it('chooses No Division for a department without one', () => {
+    expect(userFormValues({ ...edited, departmentId: 'plain' }, [grouped, plain]).divisionId).toBe(NO_DIVISION)
+  })
+
+  it('leaves what older profiles lack empty, and a department no longer active to be chosen', () => {
+    const values = userFormValues({ ...user('old', []), departmentId: 'removed' }, [grouped, plain])
+    expect(values).toMatchObject({ phone: '', position: '', departmentId: '' })
+    expect(values.divisionId).toBeUndefined()
+  })
+
+  it('accepts the user\'s own email, ignoring case, but not another user\'s', () => {
+    const others = [sara]
+    const values = userFormValues(edited, [grouped, plain])
+    expect(validateNewUser(values, others, [grouped, plain])).toEqual(expect.objectContaining({ email: undefined, phone: undefined, departmentId: undefined }))
+    expect(validateNewUser({ ...values, email: 'RANA@hawkim.demo' }, others, [grouped, plain]).email).toBeUndefined()
+    expect(validateNewUser({ ...values, email: 'SARA@hawkim.demo' }, others, [grouped, plain]).email).toBe('email-taken')
   })
 })

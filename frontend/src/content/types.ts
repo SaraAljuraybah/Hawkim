@@ -1278,9 +1278,10 @@ export interface AdminContent {
   /** Browser tab title of every admin page; `{page}` is replaced. */
   pageTitle: string
   usersList: AdminUsersListContent
-  /** One line about each permission (Add user, user page). */
+  /** One line about each permission (Add User, Edit User). */
   permissionDescriptions: Record<Permission, string>
   addUser: AdminAddUserContent
+  editUser: AdminEditUserContent
   userDetails: AdminUserDetailsContent
   deleteUser: AdminDeleteUserContent
   departmentsList: AdminDepartmentsListContent
@@ -1521,6 +1522,17 @@ export interface AdminAddUserContent {
     /** `{max}` is replaced. */
     positionTooLong: string
   }
+}
+
+/** Edit User: its fields, Cancel and the back link are Add User's. */
+export interface AdminEditUserContent {
+  title: string
+  subtitle: string
+  submit: string
+  /** Shown after saving. */
+  saved: string
+  /** Above the reasons when saving is refused. */
+  refused: string
 }
 
 export interface AdminUserDetailsContent {

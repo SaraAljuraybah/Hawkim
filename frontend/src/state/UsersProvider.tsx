@@ -16,6 +16,22 @@ import { useLoadAfterSignIn } from './useLoadAfterSignIn'
 import { UsersContext, type AdminActionContext, type UsersStore } from './usersContext'
 import { fetchPeople } from '../services/people'
 
+/** What the admin entered, as a user's saved fields. */
+function savedFields(input: NewUser, departmentId: string) {
+  const name = input.name.trim()
+  return {
+    name,
+    email: input.email.trim(),
+    initials: initialsOf(name),
+    departmentId,
+    divisionId: input.divisionId && input.divisionId !== NO_DIVISION ? input.divisionId : undefined,
+    phone: normalizePhone(input.phone) ?? '',
+    position: input.position.trim(),
+    // Kept in display order, without duplicates.
+    permissions: PERMISSIONS.filter((permission) => input.permissions.includes(permission)),
+  }
+}
+
 /**
  * Users store shared by the employee screens (names, people pickers) and the admin
  * portal. The people and their roles are loaded from the database after sign-in.
@@ -60,19 +76,10 @@ export function UsersProvider({ children }: { children: ReactNode }) {
       const current = latestRef.current
       const problems = validateNewUser(input, current.filter((user) => !user.deletedAt), departments)
       if (Object.values(problems).some(Boolean) || !input.departmentId) throw new Error('The user is not valid')
-      const name = input.name.trim()
       const created: User = {
         // Unique enough for an in-memory demo (the backend will assign real ids).
         id: `user-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
-        name,
-        email: input.email.trim(),
-        initials: initialsOf(name),
-        departmentId: input.departmentId,
-        ...(input.divisionId && input.divisionId !== NO_DIVISION ? { divisionId: input.divisionId } : {}),
-        phone: normalizePhone(input.phone) ?? '',
-        position: input.position.trim(),
-        // Kept in display order, without duplicates.
-        permissions: PERMISSIONS.filter((permission) => input.permissions.includes(permission)),
+        ...savedFields(input, input.departmentId),
       }
       commit([...current, created])
       return created
@@ -92,6 +99,23 @@ export function UsersProvider({ children }: { children: ReactNode }) {
     [commit, resolve],
   )
 
+  const updateUser = useCallback(
+    (userId: string, input: NewUser, context: AdminActionContext) => {
+      const { target, rules } = resolve(userId, context)
+      // The user's own email isn't a duplicate of itself.
+      const problems = validateNewUser(input, rules.users.filter((user) => user.id !== userId), departments)
+      if (Object.values(problems).some(Boolean) || !input.departmentId) throw new Error('The user is not valid')
+      if (permissionChangeBlockers(target, input.permissions, rules).length > 0) {
+        throw new Error('These permissions can’t be removed now')
+      }
+      const fields = savedFields(input, input.departmentId)
+      // The initials only follow a new name.
+      const initials = fields.name === target.name ? target.initials : fields.initials
+      commit(latestRef.current.map((user) => (user.id === userId ? { ...user, ...fields, initials } : user)))
+    },
+    [commit, departments, resolve],
+  )
+
   const deleteUser = useCallback(
     (userId: string, context: AdminActionContext) => {
       const { target, rules } = resolve(userId, context)
@@ -103,8 +127,8 @@ export function UsersProvider({ children }: { children: ReactNode }) {
   )
 
   const store = useMemo<UsersStore>(
-    () => ({ status, users, activeUsers, getUser, nameOf, addUser, updatePermissions, deleteUser }),
-    [status, users, activeUsers, getUser, nameOf, addUser, updatePermissions, deleteUser],
+    () => ({ status, users, activeUsers, getUser, nameOf, addUser, updatePermissions, updateUser, deleteUser }),
+    [status, users, activeUsers, getUser, nameOf, addUser, updatePermissions, updateUser, deleteUser],
   )
 
   return <UsersContext.Provider value={store}>{children}</UsersContext.Provider>

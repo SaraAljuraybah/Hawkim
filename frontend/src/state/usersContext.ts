@@ -25,6 +25,8 @@ export interface UsersStore {
   /** Adds a user (required fields, unique email) and returns them. */
   addUser: (user: NewUser) => User
   updatePermissions: (userId: string, permissions: Permission[], context: AdminActionContext) => void
+  /** Changes a user's details and permissions (the same checks as adding, and permissions in use can't be removed). */
+  updateUser: (userId: string, user: NewUser, context: AdminActionContext) => void
   /** Deletes a user: they can no longer sign in, and their name stays on SOP history. */
   deleteUser: (userId: string, context: AdminActionContext) => void
 }

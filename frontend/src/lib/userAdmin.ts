@@ -130,6 +130,23 @@ export function validateNewUser(user: NewUser, activeUsers: User[], departments:
   }
 }
 
+/**
+ * A user's details as the form's starting values. The division is their department's; without an
+ * active department, both wait to be chosen.
+ */
+export function userFormValues(user: User, activeDepartments: Pick<Department, 'id' | 'divisionId'>[]): NewUser {
+  const department = activeDepartments.find((item) => item.id === user.departmentId)
+  return {
+    name: user.name,
+    email: user.email,
+    phone: user.phone ?? '',
+    position: user.position ?? '',
+    departmentId: department?.id ?? '',
+    ...(department ? { divisionId: department.divisionId ?? NO_DIVISION } : {}),
+    permissions: user.permissions,
+  }
+}
+
 /** "Nouf Almutairi" → "NA": first letters of the first and last words. */
 export function initialsOf(name: string): string {
   const words = name.trim().split(/\s+/).filter(Boolean)

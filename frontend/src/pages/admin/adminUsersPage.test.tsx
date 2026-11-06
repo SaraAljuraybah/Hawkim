@@ -57,10 +57,10 @@ describe('Users list', () => {
     expect(html).toMatch(/<th scope="row"[^>]*><span[^>]*><span[^>]*>SA<\/span>Sara Aljuraybah<\/span><\/th>/)
   })
 
-  it('gives every user View, Edit permissions and Delete icon buttons, named and with tooltips', () => {
+  it('gives every user View, Edit and Delete icon buttons, named and with tooltips', () => {
     const html = table(render())
     for (const user of fixture.users) {
-      for (const label of [`View ${user.name}`, `Edit permissions for ${user.name}`, `Delete ${user.name}`]) {
+      for (const label of [`View ${user.name}`, `Edit ${user.name}`, `Delete ${user.name}`]) {
         expect(html).toContain(`aria-label="${label}"`)
         expect(html).toMatch(new RegExp(`role="tooltip"[^>]*><span[^>]*>${label}</span>`))
       }

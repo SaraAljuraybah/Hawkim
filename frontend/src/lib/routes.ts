@@ -120,3 +120,8 @@ export const USER_PERMISSIONS_SECTION = 'permissions-title'
 export function adminUserPermissionsPath(userId: string): string {
   return `${adminUserPath(userId)}#${USER_PERMISSIONS_SECTION}`
 }
+
+/** Edit User in the admin portal, e.g. /admin/users/user-sara/edit */
+export function adminUserEditPath(userId: string): string {
+  return `${adminUserPath(userId)}/edit`
+}

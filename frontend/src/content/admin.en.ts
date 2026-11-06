@@ -40,7 +40,7 @@ export const adminEn: AdminContent = {
     tableLabel: 'Users',
     columns: { name: 'Name', division: 'Division', department: 'Department', permissions: 'Permission', actions: 'Actions' },
     none: '—',
-    actions: { view: 'View {name}', edit: 'Edit permissions for {name}' },
+    actions: { view: 'View {name}', edit: 'Edit {name}' },
     empty: 'No users match your search.',
   },
 
@@ -101,6 +101,14 @@ export const adminEn: AdminContent = {
       positionRequired: "Enter the user's position.",
       positionTooLong: 'Position must be {max} characters or fewer.',
     },
+  },
+
+  editUser: {
+    title: 'Edit User',
+    subtitle: "Update this user's details and permissions.",
+    submit: 'Save',
+    saved: 'Changes saved.',
+    refused: "Permission wasn't saved:",
   },
 
   userDetails: {

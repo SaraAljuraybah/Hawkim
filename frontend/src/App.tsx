@@ -47,6 +47,7 @@ const AdminUsersPage = lazy(() => adminPortal().then((m) => ({ default: m.AdminU
 const OrganizationalStructurePage = lazy(() => adminPortal().then((m) => ({ default: m.OrganizationalStructurePage })))
 const DepartmentDetailsPage = lazy(() => adminPortal().then((m) => ({ default: m.DepartmentDetailsPage })))
 const DepartmentFormPage = lazy(() => adminPortal().then((m) => ({ default: m.DepartmentFormPage })))
+const EditUserPage = lazy(() => adminPortal().then((m) => ({ default: m.EditUserPage })))
 const RegulationDetailsPage = lazy(() => adminPortal().then((m) => ({ default: m.RegulationDetailsPage })))
 const RegulationFormPage = lazy(() => adminPortal().then((m) => ({ default: m.RegulationFormPage })))
 const RequestDetailsPage = lazy(() => adminPortal().then((m) => ({ default: m.RequestDetailsPage })))
@@ -130,6 +131,7 @@ function AppRoutes() {
         <Route path="users" element={<AdminUsersPage />} />
         <Route path="users/new" element={<AddUserPage />} />
         <Route path="users/:id" element={<UserDetailsPage />} />
+        <Route path="users/:id/edit" element={<EditUserPage />} />
         <Route path="departments" element={<AdminDepartmentsPage />} />
         <Route path="organizational-structure" element={<OrganizationalStructurePage admin />} />
         <Route path="departments/new" element={<DepartmentFormPage />} />

@@ -13,7 +13,7 @@ import { adminEn } from '../../content/admin.en'
 import { usersEn } from '../../content/users.en'
 import type { User } from '../../data/mock/types'
 import { useDocumentTitle } from '../../hooks/useDocumentTitle'
-import { adminUserPath, adminUserPermissionsPath } from '../../lib/routes'
+import { adminUserEditPath, adminUserPath } from '../../lib/routes'
 import { ALL_FILTER as ALL, departmentsInDivision, divisionLabel, divisionOptions, filterUsers, NO_DIVISION } from '../../lib/userAdmin'
 import { useDepartments } from '../../state/departmentsContext'
 import { useUsers } from '../../state/usersContext'
@@ -66,7 +66,7 @@ export function AdminUsersPage() {
   const actions = (user: User) => (
     <div className="flex justify-end gap-1">
       <IconButton label={content.actions.view.replace('{name}', user.name)} icon={Eye} onClick={() => navigate(adminUserPath(user.id))} />
-      <IconButton label={content.actions.edit.replace('{name}', user.name)} icon={Pencil} onClick={() => navigate(adminUserPermissionsPath(user.id))} />
+      <IconButton label={content.actions.edit.replace('{name}', user.name)} icon={Pencil} onClick={() => navigate(adminUserEditPath(user.id))} />
       <DeleteUserButton user={user} onDeleted={deleted} onRefused={refuse} />
     </div>
   )
