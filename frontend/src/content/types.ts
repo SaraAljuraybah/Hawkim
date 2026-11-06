@@ -1358,6 +1358,16 @@ export interface AdminRegulationFormContent {
 export interface AdminRegulationDetailsContent {
   back: LinkContent
   details: { title: string }
+  /** The guideline PDF: `{fileName}` is replaced; `unavailable` when it can't be opened. */
+  file: {
+    preview: string
+    download: string
+    unavailable: string
+    previewTitle: string
+    viewerTitle: string
+    close: string
+    fallback: { text: string; openPdf: string; newTabHint: string }
+  }
   requirements: {
     title: string
     tableLabel: string

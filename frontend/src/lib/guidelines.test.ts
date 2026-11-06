@@ -169,6 +169,9 @@ describe('the other fields', () => {
       source: 'https://www.sfda.gov.sa/en/regulations/gvp', addedById: 'nouf', addedAt: '2026-11-06T07:00:00Z',
     })
     expect(added).not.toHaveProperty('summary')
+    // Without a file kept in this browser there is no link; with one, it is kept for preview and download.
+    expect(added).not.toHaveProperty('fileUrl')
+    expect(newGuidelineVersion(input({ fileUrl: 'blob:http://localhost/x' }), v40, 'nouf').fileUrl).toBe('blob:http://localhost/x')
     expect(currentVersion([v40, added])).toBe(added)
     expect(added.requirements).toEqual(v40.requirements)
     expect(added.requirements[0]).not.toBe(v40.requirements[0])

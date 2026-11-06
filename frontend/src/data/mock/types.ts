@@ -456,6 +456,11 @@ export interface GuidelineVersion {
   effectiveDate: string
   /** The guideline document, e.g. "Drug-GVP4_0.pdf". */
   fileName: string
+  /**
+   * A temporary link to the PDF, only for versions added in this browser (lost on reload).
+   * TODO: A signed link to the file in storage once guideline files are saved.
+   */
+  fileUrl?: string
   /** A link to the guideline at its source (https://…); not in the database yet. */
   source?: string
   /** The admin who added it (User.id) and when (ISO date and time); unknown for the first version. */

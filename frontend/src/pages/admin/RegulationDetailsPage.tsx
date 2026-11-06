@@ -1,14 +1,19 @@
+import { useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
 import { GuidelineVersionDetails } from '../../components/admin/GuidelineVersionDetails'
+import { PreviewDialog } from '../../components/workflow/PreviewDialog'
 import { adminEn } from '../../content/admin.en'
 import { useDocumentTitle } from '../../hooks/useDocumentTitle'
 import { useGuidelines } from '../../state/guidelinesContext'
 import { NotFoundPage } from '../NotFoundPage'
 
+/** The id of the Requirements section, which the requirements count in the details shows and hides. */
+const REQUIREMENTS_SECTION = 'guideline-requirements'
+
 /**
- * A GVP version ("/admin/regulations/:id", PBI 20): its details and its requirements
- * (read-only; versions can't be edited or deleted).
+ * A GVP version ("/admin/regulations/:id", PBI 20): its details, with its PDF to preview and
+ * download when this browser has it, and its requirements, shown from the details' count.
  */
 export function RegulationDetailsPage() {
   const { id } = useParams()
@@ -18,9 +23,21 @@ export function RegulationDetailsPage() {
   const version = getVersion(id)
   const name = version ? names.versionName.replace('{version}', version.version) : ''
   useDocumentTitle(version ? adminEn.pageTitle.replace('{page}', name) : undefined)
+  const [showRequirements, setShowRequirements] = useState(false)
+  const [previewing, setPreviewing] = useState(false)
+  const previewTrigger = useRef<HTMLElement | null>(null)
 
   if (!version) return <NotFoundPage embedded />
   const columns = text.requirements.columns
+  const actions = {
+    requirements: { expanded: showRequirements, controlsId: REQUIREMENTS_SECTION, onToggle: () => setShowRequirements((shown) => !shown) },
+    file: {
+      onPreview: () => {
+        previewTrigger.current = document.activeElement as HTMLElement | null
+        setPreviewing(true)
+      },
+    },
+  }
 
   return (
     <>
@@ -44,10 +61,11 @@ export function RegulationDetailsPage() {
         <h2 id="details-title" className="text-lg">
           {text.details.title}
         </h2>
-        <GuidelineVersionDetails version={version} className="mt-4" />
+        <GuidelineVersionDetails version={version} actions={actions} className="mt-4" />
       </section>
 
-      <section aria-labelledby="requirements-title" className="mt-8">
+      {/* Hidden, heading included, until the requirements count is pressed */}
+      <section id={REQUIREMENTS_SECTION} aria-labelledby="requirements-title" hidden={!showRequirements} className="mt-8">
         <h2 id="requirements-title" className="text-lg">
           {text.requirements.title}
         </h2>
@@ -99,6 +117,20 @@ export function RegulationDetailsPage() {
           </ul>
         </div>
       </section>
+
+      {previewing && version.fileUrl && (
+        <PreviewDialog
+          title={text.file.previewTitle.replace('{fileName}', version.fileName)}
+          url={version.fileUrl}
+          viewerTitle={text.file.viewerTitle.replace('{fileName}', version.fileName)}
+          closeLabel={text.file.close}
+          fallback={text.file.fallback}
+          onClose={() => {
+            setPreviewing(false)
+            requestAnimationFrame(() => previewTrigger.current?.focus())
+          }}
+        />
+      )}
     </>
   )
 }

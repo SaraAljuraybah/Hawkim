@@ -63,6 +63,8 @@ export interface GuidelineVersionInput {
   addedDate: string
   /** '' when no file was chosen. */
   fileName: string
+  /** A temporary link to the chosen PDF in this browser, to open it later in this tab. */
+  fileUrl?: string
   /** A link to the guideline on the SFDA website. */
   source: string
 }
@@ -140,6 +142,7 @@ export function newGuidelineVersion(
     ...(input.issuedDate ? { issuedDate: input.issuedDate } : {}),
     effectiveDate: input.addedDate,
     fileName: input.fileName.trim(),
+    ...(input.fileUrl ? { fileUrl: input.fileUrl } : {}),
     source: input.source.trim(),
     addedById,
     addedAt,

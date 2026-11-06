@@ -140,7 +140,8 @@ function GuidelineVersionForm({ editing }: { editing?: GuidelineVersion }) {
 
   function confirm() {
     setConfirming(false)
-    const added = addVersion(input(), { actorId: admin.id, users })
+    // Keep the chosen PDF in this browser, so it can be opened from the version's page (until reload).
+    const added = addVersion({ ...input(), fileUrl: URL.createObjectURL(files[0]) }, { actorId: admin.id, users })
     const state: AdminRegulationsLocationState = { added: added.version }
     navigate(ADMIN_REGULATIONS_PATH, { state })
   }
