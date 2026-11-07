@@ -4,6 +4,7 @@ import type { User } from '../data/mock/types'
 import {
   deleteBlockers,
   initialsOf,
+  isDatabaseUser,
   NO_DIVISION,
   normalizePhone,
   PERMISSIONS,
@@ -14,7 +15,7 @@ import {
 import { useDepartments } from './departmentsContext'
 import { useLoadAfterSignIn } from './useLoadAfterSignIn'
 import { UsersContext, type AdminActionContext, type UsersStore } from './usersContext'
-import { fetchPeople } from '../services/people'
+import { fetchPeople, updateUserDetails } from '../services/people'
 
 /** What the admin entered, as a user's saved fields. */
 function savedFields(input: NewUser, departmentId: string) {
@@ -35,8 +36,9 @@ function savedFields(input: NewUser, departmentId: string) {
 /**
  * Users store shared by the employee screens (names, people pickers) and the admin
  * portal. The people and their roles are loaded from the database after sign-in.
- * The admin actions only change this tab's copy (lost on reload): a user added here
- * has no sign-in account. TODO: Save admin changes once those features are connected.
+ * A user's name, phone and position are saved to the database (updateUser). The other admin
+ * actions only change this tab's copy (lost on reload): a user added here has no sign-in
+ * account. TODO: Save the other admin changes once those features are connected.
  * Must be inside <SessionProvider>.
  */
 export function UsersProvider({ children }: { children: ReactNode }) {
@@ -88,7 +90,7 @@ export function UsersProvider({ children }: { children: ReactNode }) {
   )
 
   const updateUser = useCallback(
-    (userId: string, input: NewUser, context: AdminActionContext) => {
+    async (userId: string, input: NewUser, context: AdminActionContext) => {
       const { target, rules } = resolve(userId, context)
       // The user's own email isn't a duplicate of itself.
       const problems = validateNewUser(input, rules.users.filter((user) => user.id !== userId), departments)
@@ -98,7 +100,16 @@ export function UsersProvider({ children }: { children: ReactNode }) {
       }
       const fields = savedFields(input, input.departmentId)
       // The initials only follow a new name.
-      const initials = fields.name === target.name ? target.initials : fields.initials
+      let initials = fields.name === target.name ? target.initials : fields.initials
+      const detailsChanged = fields.name !== target.name || fields.phone !== target.phone || fields.position !== target.position
+      if (detailsChanged && isDatabaseUser(target)) {
+        // First, so that a failure leaves everything as it was. The database's values are what a reload shows.
+        const saved = await updateUserDetails(userId, { name: fields.name, phone: fields.phone, position: fields.position })
+        fields.name = saved.name
+        fields.phone = saved.phone
+        fields.position = saved.position
+        initials = saved.initials
+      }
       commit(latestRef.current.map((user) => (user.id === userId ? { ...user, ...fields, initials } : user)))
     },
     [commit, departments, resolve],

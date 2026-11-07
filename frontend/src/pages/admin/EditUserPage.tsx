@@ -11,7 +11,8 @@ import { adminEn } from '../../content/admin.en'
 import type { User } from '../../data/mock/types'
 import { useDocumentTitle } from '../../hooks/useDocumentTitle'
 import { ADMIN_USERS_PATH } from '../../lib/routes'
-import { permissionChangeBlockers, userFormValues, type NewUser } from '../../lib/userAdmin'
+import { changesBrowserOnlyFields, isDatabaseUser, permissionChangeBlockers, userFormValues, type NewUser } from '../../lib/userAdmin'
+import { UserDetailsError, type UserDetailsFailure } from '../../services/people'
 import { useDepartments } from '../../state/departmentsContext'
 import { useCurrentUser } from '../../state/sessionContext'
 import { useSops } from '../../state/sopsContext'
@@ -21,8 +22,9 @@ import type { AdminUsersLocationState } from './AdminUsersPage'
 
 /**
  * Edit user ("/admin/users/:id/edit"): the Add User form, filled in with the user's details, with
- * Delete user next to their name. Save stays here; a change the rules refuse saves nothing and is
- * explained. Deleted and unknown users show Not Found.
+ * Delete user next to their name. Save stays here; a change the rules or the database refuse saves
+ * nothing and is explained. Name, phone and position are saved to the database; the rest only lasts
+ * until reload, and the message says so. Deleted and unknown users show Not Found.
  */
 export function EditUserPage() {
   const { id } = useParams()
@@ -49,29 +51,42 @@ function EditUserContent({ user }: { user: User }) {
   const { sops } = useSops()
   const navigate = useNavigate()
 
-  const [saved, setSaved] = useState(false)
+  // The success message, or '' when there is none.
+  const [saved, setSaved] = useState('')
   // Starts the form again from the saved values (the phone as stored, no errors).
   const [savedCount, setSavedCount] = useState(0)
-  const [refusedReasons, setRefusedReasons] = useState<string[]>([])
+  const [refused, setRefused] = useState<{ title: string; reasons: string[] }>()
   const [deleteRefused, setDeleteRefused] = useState<{ title: string; reasons: string[] }>()
   const statusRef = useRef<HTMLDivElement>(null)
   const refusedRef = useRef<HTMLDivElement>(null)
   const deleteErrorRef = useRef<HTMLDivElement>(null)
 
-  function save(next: NewUser) {
+  function refuse(title: string, reasons: string[]) {
+    setSaved('')
+    flushSync(() => setRefused({ title, reasons }))
+    refusedRef.current?.focus()
+  }
+
+  async function save(next: NewUser) {
     setDeleteRefused(undefined)
     const rules = { actorId: admin.id, users: activeUsers, sops }
     const blockers = permissionChangeBlockers(user, next.permissions, rules)
     if (blockers.length > 0) {
-      setSaved(false)
-      flushSync(() => setRefusedReasons(blockers.map((blocker) => blockerMessage(blocker, user, adminEn.userDetails.blockers, true))))
-      refusedRef.current?.focus()
+      refuse(content.refused, blockers.map((blocker) => blockerMessage(blocker, user, adminEn.userDetails.blockers, true)))
       return
     }
-    updateUser(user.id, next, rules)
+    // Worked out first: saving changes the user these are compared with.
+    const message = !isDatabaseUser(user) ? content.savedInThisBrowser : changesBrowserOnlyFields(user, next) ? content.savedUntilReload : content.saved
+    try {
+      await updateUser(user.id, next, rules)
+    } catch (error) {
+      const reason: UserDetailsFailure = error instanceof UserDetailsError ? error.reason : 'failed'
+      refuse(content.notSaved, [content.failures[reason]])
+      return
+    }
     flushSync(() => {
-      setRefusedReasons([])
-      setSaved(true)
+      setRefused(undefined)
+      setSaved(message)
       setSavedCount((count) => count + 1)
     })
     // Save is at the bottom of the form: this also brings the message into view.
@@ -84,7 +99,7 @@ function EditUserContent({ user }: { user: User }) {
   }
 
   function refuseDelete(title: string, reasons: string[]) {
-    setSaved(false)
+    setSaved('')
     flushSync(() => setDeleteRefused({ title, reasons }))
     deleteErrorRef.current?.focus()
   }
@@ -106,7 +121,7 @@ function EditUserContent({ user }: { user: User }) {
         {saved && (
           <p className="mt-6 flex items-center gap-2.5 rounded-lg border border-status-approved-fg/20 bg-status-approved-bg px-4 py-3 text-sm font-medium text-status-approved-fg">
             <CircleCheck aria-hidden="true" className="size-4 shrink-0" strokeWidth={2} />
-            {content.saved}
+            {saved}
           </p>
         )}
       </div>
@@ -124,8 +139,9 @@ function EditUserContent({ user }: { user: User }) {
         // The user's own email isn't a duplicate of itself.
         otherUsers={activeUsers.filter((other) => other.id !== user.id)}
         submitLabel={content.submit}
-        notice={refusedReasons.length > 0 && <RefusedBox ref={refusedRef} title={content.refused} messages={refusedReasons} />}
-        onEdit={() => setSaved(false)}
+        busyLabel={content.saving}
+        notice={refused && <RefusedBox ref={refusedRef} title={refused.title} messages={refused.reasons} />}
+        onEdit={() => setSaved('')}
         onSubmit={save}
       />
     </>

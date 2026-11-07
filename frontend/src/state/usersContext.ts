@@ -24,8 +24,12 @@ export interface UsersStore {
   // Admin actions (PBI 15, 18, 19). Each checks the rules in lib/userAdmin.ts and throws if not allowed.
   /** Adds a user (required fields, unique email) and returns them. */
   addUser: (user: NewUser) => User
-  /** Changes a user's details and permissions (the same checks as adding, and permissions in use can't be removed). */
-  updateUser: (userId: string, user: NewUser, context: AdminActionContext) => void
+  /**
+   * Changes a user's details and permissions (the same checks as adding, and permissions in use can't
+   * be removed). Name, phone and position are saved to the database first: if that fails it rejects
+   * with a UserDetailsError and nothing changes. The rest only changes this tab's copy.
+   */
+  updateUser: (userId: string, user: NewUser, context: AdminActionContext) => Promise<void>
   /** Deletes a user: they can no longer sign in, and their name stays on SOP history. */
   deleteUser: (userId: string, context: AdminActionContext) => void
 }

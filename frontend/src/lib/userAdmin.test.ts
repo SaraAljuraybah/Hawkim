@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { Permission, Sop, User } from '../data/mock/types'
 import type { SopStatus } from '../types/status'
-import { defaultDivision, deleteBlockers, departmentsInDivision, divisionOptions, NO_DIVISION, normalizePhone, permissionChangeBlockers, POSITION_MAX, userFormValues, validateNewUser, type AdminContext } from './userAdmin'
+import { changesBrowserOnlyFields, defaultDivision, deleteBlockers, departmentsInDivision, divisionOptions, isDatabaseUser, NO_DIVISION, normalizePhone, permissionChangeBlockers, POSITION_MAX, userFormValues, validateNewUser, type AdminContext } from './userAdmin'
 
 /** A user in IT with these permissions. */
 function user(id: string, permissions: Permission[]): User {
@@ -294,5 +294,32 @@ describe('editing a user', () => {
     expect(validateNewUser(values, others, [grouped, plain])).toEqual(expect.objectContaining({ email: undefined, phone: undefined, departmentId: undefined }))
     expect(validateNewUser({ ...values, email: 'RANA@hawkim.demo' }, others, [grouped, plain]).email).toBeUndefined()
     expect(validateNewUser({ ...values, email: 'SARA@hawkim.demo' }, others, [grouped, plain]).email).toBe('email-taken')
+  })
+})
+
+describe('what is saved to the database when editing', () => {
+  const rana: User = { ...user('rana', ['author', 'reviewer']), departmentId: 'grouped', phone: '+966512345678', position: 'Specialist' }
+  const values = userFormValues(rana, [{ id: 'grouped', divisionId: 'medical' }])
+
+  it('tells people from the database from users added in this browser', () => {
+    expect(isDatabaseUser({ id: 'bce7540c-cf30-4ee7-be42-7426ef9562ea' })).toBe(true)
+    expect(isDatabaseUser({ id: 'user-mabc123-x1y2z3' })).toBe(false)
+  })
+
+  it('does not count name, phone or position as browser-only changes', () => {
+    expect(changesBrowserOnlyFields(rana, values)).toBe(false)
+    expect(changesBrowserOnlyFields(rana, { ...values, name: 'New', phone: '0598765432', position: 'New' })).toBe(false)
+  })
+
+  it('ignores the order permissions were ticked in', () => {
+    expect(changesBrowserOnlyFields(rana, { ...values, permissions: ['reviewer', 'author'] })).toBe(false)
+  })
+
+  it.each([
+    ['email', { email: 'new@example.test' }],
+    ['department', { departmentId: 'other' }],
+    ['permissions', { permissions: ['author'] }],
+  ])('counts a change of %s', (_, change) => {
+    expect(changesBrowserOnlyFields(rana, { ...values, ...change } as typeof values)).toBe(true)
   })
 })

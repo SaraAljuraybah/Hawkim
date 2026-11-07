@@ -1529,10 +1529,19 @@ export interface AdminEditUserContent {
   title: string
   subtitle: string
   submit: string
-  /** Shown after saving. */
+  /** The submit button while saving. */
+  saving: string
+  /** Shown after saving, when everything changed is in the database. */
   saved: string
-  /** Above the reasons when saving is refused. */
+  /** Shown after saving, when email, department or permissions changed too. */
+  savedUntilReload: string
+  /** Shown after saving a user who was added in this browser. */
+  savedInThisBrowser: string
+  /** Above the reasons when the permission rules refuse saving. */
   refused: string
+  /** Above the reason when the database couldn't save. */
+  notSaved: string
+  failures: Record<'forbidden' | 'not-found' | 'invalid' | 'failed', string>
 }
 
 export interface AdminUserDetailsContent {

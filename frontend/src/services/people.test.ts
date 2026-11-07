@@ -1,12 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { fetchDepartments, fetchPeople, fetchProfile, toDepartment, toUser, type ProfileRow } from './people'
+import { fetchDepartments, fetchPeople, fetchProfile, toDepartment, toUser, updateUserDetails, UserDetailsError, type ProfileRow } from './people'
 
 /** A query that resolves to `result` however it's narrowed (select, eq, order, maybeSingle). */
 const query = { select: vi.fn(), eq: vi.fn(), order: vi.fn(), maybeSingle: vi.fn() }
 let result: { data: unknown; error: { message: string } | null }
 const from = vi.fn(() => query)
+const rpc = vi.fn()
 
-vi.mock('./supabase', () => ({ supabase: () => ({ from }) }))
+vi.mock('./supabase', () => ({ supabase: () => ({ from, rpc }) }))
 
 beforeEach(() => {
   vi.clearAllMocks()
@@ -82,5 +83,38 @@ describe('departments from the database', () => {
       { id: 'pharmacovigilance', name: 'Pharmacovigilance', initials: 'PV', description: '', requiresComplianceCheck: true },
     ])
     expect(from).toHaveBeenCalledWith('departments')
+  })
+})
+
+describe('saving a user\'s details', () => {
+  const details = { name: 'Rana Saleh', phone: '+966512345678', position: 'Specialist' }
+
+  it('calls update_user_details and returns what the database saved', async () => {
+    rpc.mockResolvedValue({ data: { ...details, initials: 'RS' }, error: null })
+    await expect(updateUserDetails('uuid-rana', details)).resolves.toEqual({ ...details, initials: 'RS' })
+    expect(rpc).toHaveBeenCalledWith('update_user_details', {
+      p_user_id: 'uuid-rana', p_full_name: 'Rana Saleh', p_phone: '+966512345678', p_position: 'Specialist',
+    })
+  })
+
+  it.each([
+    ['42501', 'forbidden'],
+    ['PGRST301', 'forbidden'],
+    ['PGRST303', 'forbidden'],
+    ['P0002', 'not-found'],
+    ['23514', 'invalid'],
+    // The migration isn't applied yet.
+    ['PGRST202', 'failed'],
+    ['', 'failed'],
+  ])('reports the database error %s as %s', async (code, reason) => {
+    rpc.mockResolvedValue({ data: null, error: { code, message: 'refused' } })
+    await expect(updateUserDetails('uuid-rana', details)).rejects.toMatchObject({ reason })
+  })
+
+  it('reports a network failure, and an unexpected reply, as failed', async () => {
+    rpc.mockRejectedValue(new TypeError('Failed to fetch'))
+    await expect(updateUserDetails('uuid-rana', details)).rejects.toBeInstanceOf(UserDetailsError)
+    rpc.mockResolvedValue({ data: { name: 'Only a name' }, error: null })
+    await expect(updateUserDetails('uuid-rana', details)).rejects.toMatchObject({ reason: 'failed' })
   })
 })

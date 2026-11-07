@@ -10,7 +10,7 @@ import { StatusTracker } from './StatusTracker'
 
 const users: UsersStore = {
   status: 'ready', users: [], activeUsers: [], getUser: () => undefined, nameOf: (id) => id ?? '',
-  addUser: () => { throw new Error('unused') }, updateUser: () => {}, deleteUser: () => {},
+  addUser: () => { throw new Error('unused') }, updateUser: async () => {}, deleteUser: () => {},
 }
 const render = (node: ReactNode) => renderToStaticMarkup(<UsersContext value={users}>{node}</UsersContext>)
 

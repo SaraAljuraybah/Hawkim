@@ -1,5 +1,6 @@
 import { useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { flushSync } from 'react-dom'
+import { LoaderCircle } from 'lucide-react'
 import { adminEn } from '../../content/admin.en'
 import { usersEn } from '../../content/users.en'
 import type { Permission, User } from '../../data/mock/types'
@@ -30,12 +31,14 @@ interface UserFormProps {
   /** The active users whose emails are taken (when editing: everyone except that user). */
   otherUsers: User[]
   submitLabel: string
+  /** The submit button's text while waiting for onSubmit. Default: submitLabel. */
+  busyLabel?: string
   /** Shown above the buttons (e.g. why saving was refused). */
   notice?: ReactNode
   /** Called whenever a field changes. */
   onEdit?: () => void
-  /** Called with valid values only. */
-  onSubmit: (user: NewUser) => void
+  /** Called with valid values only; it may be async (shows a busy state, and can't be sent twice). */
+  onSubmit: (user: NewUser) => void | Promise<void>
 }
 
 /**
@@ -44,13 +47,14 @@ interface UserFormProps {
  * permissions are optional. Division comes first: the department list waits for it, and when "No
  * Division" is the only choice it is chosen from the start.
  */
-export function UserForm({ initial, otherUsers, submitLabel, notice, onEdit, onSubmit }: UserFormProps) {
+export function UserForm({ initial, otherUsers, submitLabel, busyLabel, notice, onEdit, onSubmit }: UserFormProps) {
   const content = adminEn.addUser
   const { activeDepartments } = useDepartments()
 
   const [values, setValues] = useState<NewUser>(initial)
   const [errors, setErrors] = useState<FieldErrors>({})
   const [submitAttempted, setSubmitAttempted] = useState(false)
+  const [busy, setBusy] = useState(false)
   const nameRef = useRef<HTMLInputElement>(null)
   const emailRef = useRef<HTMLInputElement>(null)
   const phoneRef = useRef<HTMLInputElement>(null)
@@ -92,8 +96,9 @@ export function UserForm({ initial, otherUsers, submitLabel, notice, onEdit, onS
     if (submitAttempted) setErrors((prev) => ({ ...prev, [field]: errorsFor(next)[field] }))
   }
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    if (busy) return
     setSubmitAttempted(true)
     const next = errorsFor(user)
     // Render the messages before moving focus, so screen readers read them with the field.
@@ -104,7 +109,14 @@ export function UserForm({ initial, otherUsers, submitLabel, notice, onEdit, onS
       refs[firstInvalid].current?.focus()
       return
     }
-    onSubmit(user)
+    const pending = onSubmit(user)
+    if (!(pending instanceof Promise)) return
+    setBusy(true)
+    try {
+      await pending
+    } finally {
+      setBusy(false)
+    }
   }
 
   return (
@@ -220,7 +232,10 @@ export function UserForm({ initial, otherUsers, submitLabel, notice, onEdit, onS
         <Button variant="secondary" to={content.back.href}>
           {content.cancel}
         </Button>
-        <Button type="submit">{submitLabel}</Button>
+        <Button type="submit" aria-disabled={busy || undefined}>
+          {busy && <LoaderCircle aria-hidden="true" className="size-4 motion-safe:animate-spin" strokeWidth={1.75} />}
+          {busy && busyLabel ? busyLabel : submitLabel}
+        </Button>
       </div>
     </form>
   )

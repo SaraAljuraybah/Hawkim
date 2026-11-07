@@ -19,7 +19,7 @@ vi.mock('../../lib/deadlinePolicy', () => ({ WORKING_DAY_DEADLINES_ACTIVE: true 
 
 const users: UsersStore = {
   status: 'ready', users: [], activeUsers: [], getUser: () => undefined, nameOf: (id) => id ?? '',
-  addUser: () => { throw new Error('unused') }, updateUser: () => {}, deleteUser: () => {},
+  addUser: () => { throw new Error('unused') }, updateUser: async () => {}, deleteUser: () => {},
 }
 const render = (node: ReactNode) => renderToStaticMarkup(<UsersContext value={users}>{node}</UsersContext>)
 function sop(): Sop {

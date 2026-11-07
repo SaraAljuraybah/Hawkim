@@ -107,8 +107,18 @@ export const adminEn: AdminContent = {
     title: 'Edit User',
     subtitle: "Update this user's details and permissions.",
     submit: 'Save',
+    saving: 'Saving…',
     saved: 'Changes saved.',
+    savedUntilReload: 'Changes saved. Email, department and permission changes last only until you reload.',
+    savedInThisBrowser: "Changes saved in this browser only. This user was added here, so they're lost on reload.",
     refused: "Permission wasn't saved:",
+    notSaved: "Changes weren't saved:",
+    failures: {
+      forbidden: "You don't have permission to change this user. Sign in again and retry.",
+      'not-found': 'This user no longer exists. Go back to the Users list.',
+      invalid: 'Check the name, phone number and position, then try again.',
+      failed: 'Check your connection and try again.',
+    },
   },
 
   userDetails: {
