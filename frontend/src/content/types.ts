@@ -1528,7 +1528,12 @@ export interface AdminAddUserContent {
   position: { label: string }
   permissions: { legend: string }
   submit: string
+  /** The submit button while adding. */
+  adding: string
   cancel: string
+  /** Above the reason when the server refused. */
+  notAdded: string
+  failures: Record<'forbidden' | 'email-taken' | 'invalid' | 'admin-exclusive' | 'approver-quality' | 'department-unavailable' | 'account-failed' | 'account-blocked' | 'failed', string>
   errors: {
     nameRequired: string
     emailInvalid: string
@@ -1555,8 +1560,6 @@ export interface AdminEditUserContent {
   saved: string
   /** Shown after saving, when the email changed too. */
   savedUntilReload: string
-  /** Shown after saving a user who was added in this browser. */
-  savedInThisBrowser: string
   /** Above the reasons when the permission rules refuse saving. */
   refused: string
   /** Above the reason when the database couldn't save. */
@@ -1570,6 +1573,8 @@ export interface AdminUserDetailsContent {
   back: LinkContent
   /** Shown after adding a user. */
   added: string
+  /** Shown after adding a user whose invitation email couldn't be sent. */
+  addedInvitationFailed: string
   /** The rows, in this order; `notSet` for an empty value. */
   details: {
     title: string

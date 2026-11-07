@@ -90,7 +90,20 @@ export const adminEn: AdminContent = {
     position: { label: 'Position' },
     permissions: { legend: 'Permission' },
     submit: 'Add User',
+    adding: 'Adding…',
     cancel: 'Cancel',
+    notAdded: "User wasn't added:",
+    failures: {
+      forbidden: "You don't have permission to add users. Sign in again and retry.",
+      'email-taken': 'A user with this email already exists.',
+      invalid: 'Check the details and try again.',
+      'admin-exclusive': "An Admin can't have any other permission.",
+      'approver-quality': 'Approver is only allowed in the Quality department.',
+      'department-unavailable': 'This department is no longer available. Choose another.',
+      'account-failed': "The account couldn't be created. Try again in a few minutes.",
+      'account-blocked': "This person's account is blocked. Ask the project owner to unblock it.",
+      failed: 'Check your connection and try again.',
+    },
     errors: {
       nameRequired: "Enter the user's full name.",
       emailInvalid: 'Enter a valid email address.',
@@ -112,7 +125,6 @@ export const adminEn: AdminContent = {
     saving: 'Saving…',
     saved: 'Changes saved.',
     savedUntilReload: 'Changes saved. Email changes last only until you reload.',
-    savedInThisBrowser: "Changes saved in this browser only. This user was added here, so they're lost on reload.",
     refused: "Permission wasn't saved:",
     notSaved: "Changes weren't saved:",
     failures: {
@@ -136,7 +148,8 @@ export const adminEn: AdminContent = {
 
   userDetails: {
     back: { label: 'Back to Users', href: '/admin/users' },
-    added: 'User added.',
+    added: "User added. We've emailed them an invitation to set their password.",
+    addedInvitationFailed: "User added, but the invitation email couldn't be sent. Ask them to use Forgot Password on the sign-in page.",
     details: {
       title: 'Details',
       name: 'Name',

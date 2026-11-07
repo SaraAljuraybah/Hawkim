@@ -1,13 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { fetchDepartments, fetchPeople, fetchProfile, toDepartment, saveUser, SaveUserError, toUser, type ProfileRow } from './people'
+import { FunctionsFetchError, FunctionsHttpError } from '@supabase/supabase-js'
+import { addUserAccount, AddUserError, fetchDepartments, fetchPeople, fetchProfile, toDepartment, saveUser, SaveUserError, toUser, type ProfileRow } from './people'
 
 /** A query that resolves to `result` however it's narrowed (select, eq, order, maybeSingle). */
 const query = { select: vi.fn(), eq: vi.fn(), order: vi.fn(), maybeSingle: vi.fn() }
 let result: { data: unknown; error: { message: string } | null }
 const from = vi.fn(() => query)
 const rpc = vi.fn()
+const invoke = vi.fn()
 
-vi.mock('./supabase', () => ({ supabase: () => ({ from, rpc }) }))
+vi.mock('./supabase', () => ({ supabase: () => ({ from, rpc, functions: { invoke } }) }))
 
 beforeEach(() => {
   vi.clearAllMocks()
@@ -134,5 +136,58 @@ describe('saving a user', () => {
     await expect(saveUser('uuid-rana', changes, expected)).rejects.toBeInstanceOf(SaveUserError)
     rpc.mockResolvedValue({ data: { name: 'Only a name' }, error: null })
     await expect(saveUser('uuid-rana', changes, expected)).rejects.toMatchObject({ reason: 'failed' })
+  })
+})
+
+describe('adding a user', () => {
+  const details = { name: 'Rana Saleh', email: 'Rana@Example.test', phone: '+966512345678', position: 'Specialist', departmentId: 'home', permissions: ['author' as const] }
+  const saved = { id: 'uuid-rana', email: 'rana@example.test', name: 'Rana Saleh', initials: 'RS', phone: '+966512345678', position: 'Specialist', departmentId: 'home', permissions: ['reviewer', 'author'] }
+  const refusal = (status: number, body: unknown) => invoke.mockResolvedValue({
+    data: null, error: new FunctionsHttpError(new Response(JSON.stringify(body), { status })),
+  })
+
+  it('calls the add-user function and returns the saved user, as the server stored the email', async () => {
+    invoke.mockResolvedValue({ data: { user: saved, emailSent: true }, error: null })
+    const added = await addUserAccount(details)
+    expect(invoke).toHaveBeenCalledWith('add-user', { body: details })
+    expect(added.emailSent).toBe(true)
+    expect(added.user).toEqual({ ...saved, permissions: ['author', 'reviewer'] })
+  })
+
+  it('reports that only the email failed', async () => {
+    invoke.mockResolvedValue({ data: { user: saved, emailSent: false }, error: null })
+    expect((await addUserAccount(details)).emailSent).toBe(false)
+  })
+
+  it.each(['email-taken', 'invalid', 'admin-exclusive', 'approver-quality', 'department-unavailable', 'account-failed', 'account-blocked'])('reports the refusal %s', async (errorCode) => {
+    refusal(409, { errorCode })
+    await expect(addUserAccount(details)).rejects.toMatchObject({ reason: errorCode, inUse: [] })
+  })
+
+  it('reads the permissions in use', async () => {
+    refusal(409, { errorCode: 'permission-in-use', inUse: 'author:2,reviewer:1,owner:3' })
+    await expect(addUserAccount(details)).rejects.toMatchObject({
+      reason: 'permission-in-use', inUse: [{ permission: 'author', count: 2 }, { permission: 'reviewer', count: 1 }],
+    })
+  })
+
+  it.each([401, 403])('reports %i as forbidden, with or without an errorCode', async (status) => {
+    refusal(status, { message: 'Invalid JWT' })
+    await expect(addUserAccount(details)).rejects.toMatchObject({ reason: 'forbidden' })
+    refusal(status, { errorCode: 'forbidden' })
+    await expect(addUserAccount(details)).rejects.toMatchObject({ reason: 'forbidden' })
+  })
+
+  it('reports anything else as failed: an unknown code, no body, no connection, an unexpected reply', async () => {
+    refusal(500, { errorCode: 'something-new' })
+    await expect(addUserAccount(details)).rejects.toMatchObject({ reason: 'failed' })
+    invoke.mockResolvedValue({ data: null, error: new FunctionsHttpError(new Response('not json', { status: 500 })) })
+    await expect(addUserAccount(details)).rejects.toMatchObject({ reason: 'failed' })
+    invoke.mockResolvedValue({ data: null, error: new FunctionsFetchError(new TypeError('Failed to fetch')) })
+    await expect(addUserAccount(details)).rejects.toBeInstanceOf(AddUserError)
+    invoke.mockRejectedValue(new TypeError('Failed to fetch'))
+    await expect(addUserAccount(details)).rejects.toMatchObject({ reason: 'failed' })
+    invoke.mockResolvedValue({ data: { user: { id: 'only-an-id' }, emailSent: true }, error: null })
+    await expect(addUserAccount(details)).rejects.toMatchObject({ reason: 'failed' })
   })
 })

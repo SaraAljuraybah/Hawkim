@@ -149,11 +149,6 @@ export function userFormValues(user: User, activeDepartments: Pick<Department, '
   }
 }
 
-/** Whether this is a person from the database (users added in this browser have a made-up id). */
-export function isDatabaseUser(user: Pick<User, 'id'>): boolean {
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(user.id)
-}
-
 /** Whether the entered email differs from the user's: it isn't saved to the database yet. */
 export function changesEmail(user: User, input: NewUser): boolean {
   return input.email.trim() !== user.email
@@ -162,15 +157,6 @@ export function changesEmail(user: User, input: NewUser): boolean {
 /** Whether the permissions differ, in whatever order they were ticked. */
 export function changesPermissions(user: User, permissions: Permission[]): boolean {
   return PERMISSIONS.some((permission) => permissions.includes(permission) !== user.permissions.includes(permission))
-}
-
-/** "Nouf Almutairi" → "NA": first letters of the first and last words. */
-export function initialsOf(name: string): string {
-  const words = name.trim().split(/\s+/).filter(Boolean)
-  if (words.length === 0) return ''
-  const first = words[0][0]
-  const last = words.length > 1 ? words[words.length - 1][0] : ''
-  return `${first}${last}`.toUpperCase()
 }
 
 /* ---------- What a user is doing on SOPs ---------- */

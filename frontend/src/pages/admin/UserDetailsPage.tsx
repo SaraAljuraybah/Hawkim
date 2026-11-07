@@ -1,7 +1,7 @@
 import { useRef, useState, type ReactNode } from 'react'
 import { flushSync } from 'react-dom'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, CircleCheck } from 'lucide-react'
+import { ArrowLeft, CircleAlert, CircleCheck } from 'lucide-react'
 import { DeleteUserButton } from '../../components/admin/DeleteUserButton'
 import { RefusedBox } from '../../components/admin/RefusedBox'
 import { PermissionBadges, UserAvatar } from '../../components/admin/UserBits'
@@ -18,9 +18,10 @@ import { useUsers } from '../../state/usersContext'
 import { NotFoundPage } from '../NotFoundPage'
 import type { AdminUsersLocationState } from './AdminUsersPage'
 
-/** Set by Add user, to show "User added." */
+/** Set by Add User, to say the user was added and whether their invitation went out. */
 export interface UserDetailsLocationState {
   added?: boolean
+  invitationFailed?: boolean
 }
 
 /**
@@ -76,6 +77,7 @@ function UserPanels({ user }: { user: User }) {
   const location = useLocation()
 
   const [added, setAdded] = useState(() => !!(location.state as UserDetailsLocationState | null)?.added)
+  const [invitationFailed] = useState(() => !!(location.state as UserDetailsLocationState | null)?.invitationFailed)
   const [deleteRefused, setDeleteRefused] = useState<{ title: string; reasons: string[] }>()
   const deleteErrorRef = useRef<HTMLDivElement>(null)
 
@@ -119,7 +121,13 @@ function UserPanels({ user }: { user: User }) {
       {deleteRefused && <RefusedBox ref={deleteErrorRef} title={deleteRefused.title} messages={deleteRefused.reasons} />}
 
       <div role="status">
-        {added && (
+        {added && invitationFailed && (
+          <p className="mt-6 flex items-center gap-2 rounded-lg border border-status-pending-fg/25 bg-status-pending-bg px-4 py-3 text-sm font-medium text-status-pending-fg">
+            <CircleAlert aria-hidden="true" className="size-4 shrink-0" strokeWidth={2} />
+            {text.addedInvitationFailed}
+          </p>
+        )}
+        {added && !invitationFailed && (
           <p className="mt-6 flex items-center gap-2 rounded-lg border border-status-approved-fg/25 bg-status-approved-bg px-4 py-3 text-sm font-medium text-status-approved-fg">
             <CircleCheck aria-hidden="true" className="size-4 shrink-0" strokeWidth={2} />
             {text.added}

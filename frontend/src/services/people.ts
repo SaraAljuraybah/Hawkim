@@ -3,9 +3,11 @@
  * departments; see supabase/migrations/). Rows are turned into the app's existing
  * User and Department types, so screens don't change. Row level security lets only
  * a signed-in person with an active profile read them; an admin changes a user through
- * save_user, which checks that and the rules in the database.
+ * save_user and adds one through the add-user Edge Function, which check that and the rules
+ * on the server.
  */
 
+import { FunctionsHttpError } from '@supabase/supabase-js'
 import type { Department, DepartmentId, Permission, User } from '../data/mock/types'
 import { PERMISSIONS } from '../lib/userAdmin'
 import { supabase } from './supabase'
@@ -108,16 +110,17 @@ export class SaveUserError extends Error {
 
 const SAVE_USER_HINTS: SaveUserFailure[] = ['invalid', 'self-admin', 'last-admin', 'admin-exclusive', 'approver-quality', 'department-unavailable', 'permission-in-use']
 
+/** "author:2,reviewer:1" as a list. */
+function permissionsInUse(details: string | null | undefined): PermissionInUse[] {
+  return (details ?? '').split(',').flatMap((item) => {
+    const [permission, count] = item.split(':')
+    return PERMISSIONS.includes(permission as Permission) && Number(count) > 0 ? [{ permission: permission as Permission, count: Number(count) }] : []
+  })
+}
+
 function saveUserError(error: { code?: string; hint?: string | null; details?: string | null }): SaveUserError {
   const hinted = SAVE_USER_HINTS.find((reason) => reason === error.hint)
-  if (hinted === 'permission-in-use') {
-    // "author:2,reviewer:1"
-    const inUse = (error.details ?? '').split(',').flatMap((item) => {
-      const [permission, count] = item.split(':')
-      return PERMISSIONS.includes(permission as Permission) && Number(count) > 0 ? [{ permission: permission as Permission, count: Number(count) }] : []
-    })
-    return new SaveUserError(hinted, inUse)
-  }
+  if (hinted === 'permission-in-use') return new SaveUserError(hinted, permissionsInUse(error.details))
   if (hinted) return new SaveUserError(hinted)
   // PGRST30x: the session's token has expired or isn't valid.
   if (error.code === '42501' || error.code?.startsWith('PGRST30')) return new SaveUserError('forbidden')
@@ -168,6 +171,70 @@ export async function saveUser(
     departmentId: saved.departmentId,
     // In the usual display order.
     permissions: PERMISSIONS.filter((permission) => permissions.includes(permission)),
+  }
+}
+
+/** What an admin enters to add a user. `phone` is as stored ("+9665XXXXXXXX"). */
+export type NewUserDetails = UserChanges & { email: string }
+
+/** Why a user could not be added. */
+export type AddUserFailure =
+  | 'forbidden' | 'email-taken' | 'invalid' | 'admin-exclusive' | 'approver-quality' | 'department-unavailable'
+  | 'permission-in-use' | 'account-failed' | 'account-blocked' | 'failed'
+
+export class AddUserError extends Error {
+  readonly reason: AddUserFailure
+  readonly inUse: PermissionInUse[]
+  constructor(reason: AddUserFailure, inUse: PermissionInUse[] = []) {
+    super(`The user was not added (${reason})`)
+    this.reason = reason
+    this.inUse = inUse
+  }
+}
+
+const ADD_USER_FAILURES: AddUserFailure[] = ['email-taken', 'invalid', 'admin-exclusive', 'approver-quality', 'department-unavailable', 'permission-in-use', 'account-failed', 'account-blocked']
+
+async function addUserError(error: unknown): Promise<AddUserError> {
+  if (!(error instanceof FunctionsHttpError)) return new AddUserError('failed')
+  const response = error.context as Response
+  const payload = (await response.json().catch(() => ({}))) as { errorCode?: string; inUse?: string }
+  // Refused by the platform (no errorCode) or the function: the session has expired, or isn't an admin's.
+  if (response.status === 401 || response.status === 403) return new AddUserError('forbidden')
+  const reason = ADD_USER_FAILURES.find((item) => item === payload.errorCode) ?? 'failed'
+  return new AddUserError(reason, reason === 'permission-in-use' ? permissionsInUse(payload.inUse) : [])
+}
+
+/**
+ * Adds a user through the add-user Edge Function: a real sign-in account, their profile and permissions,
+ * and an invitation email. `emailSent` is false when only the email failed: the user was added. Throws an AddUserError.
+ */
+export async function addUserAccount(details: NewUserDetails): Promise<{ user: User; emailSent: boolean }> {
+  let response
+  try {
+    response = await supabase().functions.invoke('add-user', { body: details })
+  } catch (error) {
+    throw await addUserError(error)
+  }
+  if (response.error) throw await addUserError(response.error)
+  const data = response.data as { user?: Record<string, unknown>; emailSent?: unknown } | null
+  const saved = data?.user
+  if (typeof saved?.id !== 'string' || typeof saved.email !== 'string' || typeof saved.name !== 'string' || typeof saved.initials !== 'string'
+    || typeof saved.phone !== 'string' || typeof saved.position !== 'string' || typeof saved.departmentId !== 'string' || !Array.isArray(saved.permissions)) {
+    throw new AddUserError('failed')
+  }
+  const permissions = saved.permissions as Permission[]
+  return {
+    user: {
+      id: saved.id,
+      name: saved.name,
+      email: saved.email,
+      initials: saved.initials,
+      departmentId: saved.departmentId,
+      phone: saved.phone,
+      position: saved.position,
+      permissions: PERMISSIONS.filter((permission) => permissions.includes(permission)),
+    },
+    emailSent: data?.emailSent === true,
   }
 }
 

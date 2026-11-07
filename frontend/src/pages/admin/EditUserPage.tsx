@@ -12,7 +12,7 @@ import { usersEn } from '../../content/users.en'
 import type { User } from '../../data/mock/types'
 import { useDocumentTitle } from '../../hooks/useDocumentTitle'
 import { ADMIN_USERS_PATH } from '../../lib/routes'
-import { changesEmail, isDatabaseUser, permissionChangeBlockers, userFormValues, type NewUser } from '../../lib/userAdmin'
+import { changesEmail, permissionChangeBlockers, userFormValues, type NewUser } from '../../lib/userAdmin'
 import { SaveUserError, type SaveUserFailure } from '../../services/people'
 import { useDepartments } from '../../state/departmentsContext'
 import { useCurrentUser } from '../../state/sessionContext'
@@ -88,7 +88,7 @@ function EditUserContent({ user }: { user: User }) {
       return
     }
     // Worked out first: saving changes the user these are compared with.
-    const message = !isDatabaseUser(user) ? content.savedInThisBrowser : changesEmail(user, next) ? content.savedUntilReload : content.saved
+    const message = changesEmail(user, next) ? content.savedUntilReload : content.saved
     try {
       await updateUser(user.id, next, rules)
     } catch (error) {

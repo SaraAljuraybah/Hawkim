@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { Permission, Sop, User } from '../data/mock/types'
 import type { SopStatus } from '../types/status'
-import { changesEmail, changesPermissions, defaultDivision, deleteBlockers, departmentsInDivision, divisionOptions, isDatabaseUser, NO_DIVISION, normalizePhone, permissionChangeBlockers, POSITION_MAX, userFormValues, validateNewUser, type AdminContext } from './userAdmin'
+import { changesEmail, changesPermissions, defaultDivision, deleteBlockers, departmentsInDivision, divisionOptions, NO_DIVISION, normalizePhone, permissionChangeBlockers, POSITION_MAX, userFormValues, validateNewUser, type AdminContext } from './userAdmin'
 
 /** A user in IT with these permissions. */
 function user(id: string, permissions: Permission[]): User {
@@ -301,11 +301,6 @@ describe('what is saved to the database when editing', () => {
   const rana: User = { ...user('rana', ['author', 'reviewer']), departmentId: 'grouped', phone: '+966512345678', position: 'Specialist' }
   const values = userFormValues(rana, [{ id: 'grouped', divisionId: 'medical' }])
 
-  it('tells people from the database from users added in this browser', () => {
-    expect(isDatabaseUser({ id: 'bce7540c-cf30-4ee7-be42-7426ef9562ea' })).toBe(true)
-    expect(isDatabaseUser({ id: 'user-mabc123-x1y2z3' })).toBe(false)
-  })
-
   it('only counts the email as lasting until reload', () => {
     expect(changesEmail(rana, values)).toBe(false)
     expect(changesEmail(rana, { ...values, email: ` ${rana.email} ` })).toBe(false)
@@ -338,5 +333,15 @@ describe('Approver outside the Quality department', () => {
     const problems = validateNewUser({ ...person, departmentId: '', permissions: ['approver'] }, [], departments)
     expect(problems.permissions).toBeUndefined()
     expect(problems.departmentId).toBe('department-required')
+  })
+})
+
+describe('an email with capitals', () => {
+  const person = { name: 'Rana', phone: '0512345678', position: 'P', divisionId: NO_DIVISION, departmentId: 'home', permissions: [] }
+
+  it('still counts as taken: the check ignores case', () => {
+    const taken = user('sara', ['author'])
+    expect(validateNewUser({ ...person, email: 'SARA@Hawkim.Demo' }, [taken], [{ id: 'home' }]).email).toBe('email-taken')
+    expect(validateNewUser({ ...person, email: 'Other@Hawkim.Demo' }, [taken], [{ id: 'home' }]).email).toBeUndefined()
   })
 })

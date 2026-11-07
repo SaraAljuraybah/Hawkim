@@ -73,3 +73,27 @@ describe('the Permission wording', () => {
     expect(adminEn.usersList.columns.permissions).toBe('Permission')
   })
 })
+
+describe('after Add User', () => {
+  const opened = (state: unknown) => renderToStaticMarkup(<MemoryRouter initialEntries={[{ pathname: '/admin/users/rana', state }]}><Routes><Route path="/admin/users/:id" element={<UserDetailsPage />} /></Routes></MemoryRouter>)
+
+  it('says the invitation went out, in green', () => {
+    const html = opened({ added: true, invitationFailed: false })
+    expect(html).toContain('User added. We&#x27;ve emailed them an invitation to set their password.')
+    expect(html).toContain('bg-status-approved-bg')
+    expect(html).not.toContain('bg-status-pending-bg')
+  })
+
+  it('says when the invitation could not be sent, in amber, pointing to Forgot Password', () => {
+    const html = opened({ added: true, invitationFailed: true })
+    expect(html).toContain('User added, but the invitation email couldn&#x27;t be sent. Ask them to use Forgot Password on the sign-in page.')
+    expect(html).toContain('bg-status-pending-bg')
+    expect(html).not.toContain('bg-status-approved-bg')
+  })
+
+  it('says nothing when just viewing the page', () => {
+    const html = opened(null)
+    expect(html).not.toContain('User added')
+    expect(html).toContain('<div role="status"></div>')
+  })
+})

@@ -4,8 +4,6 @@ import type { User } from '../data/mock/types'
 import {
   changesPermissions,
   deleteBlockers,
-  initialsOf,
-  isDatabaseUser,
   NO_DIVISION,
   normalizePhone,
   PERMISSIONS,
@@ -16,15 +14,13 @@ import {
 import { useDepartments } from './departmentsContext'
 import { useLoadAfterSignIn } from './useLoadAfterSignIn'
 import { UsersContext, type AdminActionContext, type UsersStore } from './usersContext'
-import { fetchPeople, saveUser } from '../services/people'
+import { addUserAccount, fetchPeople, saveUser } from '../services/people'
 
 /** What the admin entered, as a user's saved fields. */
 function savedFields(input: NewUser, departmentId: string) {
-  const name = input.name.trim()
   return {
-    name,
+    name: input.name.trim(),
     email: input.email.trim(),
-    initials: initialsOf(name),
     departmentId,
     divisionId: input.divisionId && input.divisionId !== NO_DIVISION ? input.divisionId : undefined,
     phone: normalizePhone(input.phone) ?? '',
@@ -37,9 +33,9 @@ function savedFields(input: NewUser, departmentId: string) {
 /**
  * Users store shared by the employee screens (names, people pickers) and the admin
  * portal. The people and their roles are loaded from the database after sign-in.
- * A user's name, phone, position, department and permissions are saved to the database (updateUser).
- * Their email and the other admin actions only change this tab's copy (lost on reload): a user added
- * here has no sign-in account. TODO: Save the other admin changes once those features are connected.
+ * Adding a user and changing their name, phone, position, department and permissions are saved on the
+ * server. Their email and deleting them only change this tab's copy (lost on reload).
+ * TODO: Save the other admin changes once those features are connected.
  * Must be inside <SessionProvider>.
  */
 export function UsersProvider({ children }: { children: ReactNode }) {
@@ -75,17 +71,14 @@ export function UsersProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const addUser = useCallback(
-    (input: NewUser) => {
-      const current = latestRef.current
-      const problems = validateNewUser(input, current.filter((user) => !user.deletedAt), departments)
+    async (input: NewUser) => {
+      const problems = validateNewUser(input, latestRef.current.filter((user) => !user.deletedAt), departments)
       if (Object.values(problems).some(Boolean) || !input.departmentId) throw new Error('The user is not valid')
-      const created: User = {
-        // Unique enough for an in-memory demo (the backend will assign real ids).
-        id: `user-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
-        ...savedFields(input, input.departmentId),
-      }
-      commit([...current, created])
-      return created
+      const fields = savedFields(input, input.departmentId)
+      const added = await addUserAccount({ name: fields.name, email: fields.email, phone: fields.phone, position: fields.position, departmentId: fields.departmentId, permissions: fields.permissions })
+      // Someone re-added replaces their old entry.
+      commit([...latestRef.current.filter((user) => user.id !== added.user.id), added.user])
+      return added
     },
     [commit, departments],
   )
@@ -100,11 +93,10 @@ export function UsersProvider({ children }: { children: ReactNode }) {
         throw new Error('These permissions can’t be removed now')
       }
       const fields = savedFields(input, input.departmentId)
-      // The initials only follow a new name.
-      let initials = fields.name === target.name ? target.initials : fields.initials
+      let initials = target.initials
       const changed = fields.name !== target.name || fields.phone !== target.phone || fields.position !== target.position
         || fields.departmentId !== target.departmentId || changesPermissions(target, fields.permissions)
-      if (changed && isDatabaseUser(target)) {
+      if (changed) {
         // First, so that a failure leaves everything as it was. The database's values are what a reload shows.
         const saved = await saveUser(
           userId,
