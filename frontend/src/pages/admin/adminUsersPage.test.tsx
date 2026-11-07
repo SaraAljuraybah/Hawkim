@@ -16,7 +16,7 @@ const fixture = vi.hoisted(() => ({
     { id: 'reem', name: 'Reem Alharbi', email: 'reem@example.test', initials: 'RA', departmentId: 'qa', permissions: ['approver'] },
   ] as User[],
   departments: [
-    { id: 'pv', name: 'Pharmacovigilance', initials: 'PV', description: '', divisionId: 'Regulatory & Drug Safety' },
+    { id: 'pv', name: 'Pharmacovigilance', initials: 'PV', description: '', divisionId: 'regulatory_drug_safety', divisionName: 'Regulatory & Drug Safety' },
     { id: 'qa', name: 'Quality Assurance', initials: 'QA', description: '' },
   ] as Department[],
 }))
@@ -86,7 +86,9 @@ describe('Users list', () => {
     expect(html).toContain('>Search Users<')
     expect(html).toContain('placeholder="Search by name, email, division, department or permission…"')
     expect(html).toContain('>All Divisions<')
-    expect(html).toContain('>Regulatory &amp; Drug Safety</option>')
+    // The division's name, with its id as the value.
+    expect(html).toMatch(/<option value="regulatory_drug_safety"[^>]*>Regulatory &amp; Drug Safety<\/option>/)
+    expect(html).not.toContain('>regulatory_drug_safety<')
     expect(html).toContain('>No Division</option>')
     expect(html).toContain('>All Departments<')
     expect(html).not.toContain('All Permissions')
@@ -107,7 +109,7 @@ describe('searching and filtering users', () => {
   })
 
   it('combines the search with the Division and Department filters', () => {
-    expect(search('', 'Regulatory & Drug Safety')).toEqual(['sara'])
+    expect(search('', 'regulatory_drug_safety')).toEqual(['sara'])
     expect(search('', NO_DIVISION)).toEqual(['admin', 'reem'])
     expect(search('', ALL_FILTER, 'qa')).toEqual(['admin', 'reem'])
     expect(search('reem', NO_DIVISION, 'qa')).toEqual(['reem'])

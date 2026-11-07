@@ -4,6 +4,7 @@ import { Card } from '../components/ui/Card'
 import { controlClasses } from '../components/ui/useFieldIds'
 import { profileEn } from '../content/profile.en'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
+import { divisionLabel } from '../lib/userAdmin'
 import { useActiveDepartment } from '../state/activeDepartmentContext'
 import { useCurrentUser } from '../state/sessionContext'
 
@@ -21,7 +22,7 @@ export function ProfilePage() {
     [content.fields.name, user.name],
     [content.fields.email, user.email],
     [content.fields.phone, user.phone],
-    [content.fields.division, homeDepartment.divisionId],
+    [content.fields.division, divisionLabel(homeDepartment)],
     [content.fields.department, homeDepartment.name],
     [content.fields.position, user.position],
     [content.fields.roles, roles.join(', ')],

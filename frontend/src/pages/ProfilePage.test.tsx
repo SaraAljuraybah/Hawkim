@@ -21,6 +21,7 @@ const render = () => renderToStaticMarkup(<MemoryRouter><ProfilePage /></MemoryR
 
 beforeEach(() => {
   fixture.home.divisionId = undefined
+  fixture.home.divisionName = undefined
   fixture.user = { ...fixture.user, phone: undefined, position: undefined, permissions: ['author', 'reviewer'] }
 })
 
@@ -66,10 +67,13 @@ describe('My Profile', () => {
     expect(html).not.toContain('<input')
   })
 
-  it('shows — without a division, and the division when configured', () => {
+  it('shows — without a division, and the division\'s name when configured, never its id', () => {
     expect(render()).toContain('>—<')
-    fixture.home.divisionId = 'Safety'
-    expect(render()).toContain('>Safety<')
+    fixture.home.divisionId = 'regulatory_drug_safety'
+    fixture.home.divisionName = 'Regulatory & Drug Safety'
+    const html = render()
+    expect(html).toContain('>Regulatory &amp; Drug Safety<')
+    expect(html).not.toContain('regulatory_drug_safety')
   })
 
   it('shows the password as a field-style box with hidden dots and a Change button named Change Password', () => {

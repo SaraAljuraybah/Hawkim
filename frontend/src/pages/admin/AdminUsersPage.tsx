@@ -14,7 +14,7 @@ import { usersEn } from '../../content/users.en'
 import type { User } from '../../data/mock/types'
 import { useDocumentTitle } from '../../hooks/useDocumentTitle'
 import { adminUserEditPath, adminUserPath } from '../../lib/routes'
-import { ALL_FILTER as ALL, departmentsInDivision, divisionLabel, divisionOptions, filterUsers, NO_DIVISION } from '../../lib/userAdmin'
+import { ALL_FILTER as ALL, departmentsInDivision, divisionLabel, divisionNameIn, divisionOptions, filterUsers, NO_DIVISION } from '../../lib/userAdmin'
 import { useDepartments } from '../../state/departmentsContext'
 import { useUsers } from '../../state/usersContext'
 
@@ -121,7 +121,7 @@ export function AdminUsersPage() {
           label={content.divisionFilter.label}
           options={[
             { value: ALL, label: content.divisionFilter.all },
-            ...divisionOptions(activeDepartments).map((item) => ({ value: item, label: item === NO_DIVISION ? content.divisionFilter.noDivision : item })),
+            ...divisionOptions(activeDepartments).map((item) => ({ value: item, label: item === NO_DIVISION ? content.divisionFilter.noDivision : divisionNameIn(activeDepartments, item) })),
           ]}
           value={division}
           onChange={(event) => {
