@@ -12,7 +12,7 @@ import { isAuthApiError, isAuthRetryableFetchError, isAuthSessionMissingError, t
 import type { User } from '../data/mock/types'
 import { RESET_PASSWORD_PATH } from '../lib/routes'
 import { fetchProfile } from './people'
-import { supabase } from './supabase'
+import { passwordCheckClient, supabase } from './supabase'
 
 /**
  * Why a sign-in attempt did not succeed:
@@ -129,11 +129,42 @@ export async function setNewPassword(password: string): Promise<{ ok: true } | {
     if (!error) return { ok: true }
     if (error.code === 'weak_password') return { ok: false, reason: 'weak-password' }
     if (error.code === 'same_password') return { ok: false, reason: 'same-password' }
-    if (isAuthSessionMissingError(error) || error.status === 401 || error.status === 403) return { ok: false, reason: 'expired' }
+    // reauthentication_needed: the project requires a recent sign-in to change a password.
+    if (isAuthSessionMissingError(error) || error.status === 401 || error.status === 403 || error.code === 'reauthentication_needed') return { ok: false, reason: 'expired' }
     return { ok: false, reason: limitOrConnection(error) ?? 'failed' }
   } catch {
     return { ok: false, reason: 'not-connected' }
   }
+}
+
+/** Why Change Password didn't save. 'wrong-current': the current password typed isn't the account's. */
+export type ChangePasswordFailureReason = NewPasswordFailureReason | 'wrong-current'
+
+/**
+ * Changes the signed-in person's password, only after Supabase Auth confirms the current password they
+ * typed is theirs. The check signs in on a separate client (see passwordCheckClient), so this tab's
+ * session isn't touched and that extra session is ended straight away. Guessing is limited by Auth's
+ * sign-in rate limit. A failed check saves nothing.
+ */
+export async function changePassword(current: string, next: string): Promise<{ ok: true } | { ok: false; reason: ChangePasswordFailureReason }> {
+  try {
+    const { data: { session } } = await supabase().auth.getSession()
+    if (!session?.user.email) return { ok: false, reason: 'expired' }
+    const checker = passwordCheckClient().auth
+    const { data, error } = await checker.signInWithPassword({ email: session.user.email, password: current })
+    if (error) {
+      if (error.code === 'invalid_credentials') return { ok: false, reason: 'wrong-current' }
+      return { ok: false, reason: limitOrConnection(error) ?? 'failed' }
+    }
+    // Only this account's password counts.
+    if (data.user?.id !== session.user.id) return { ok: false, reason: 'failed' }
+    await checker.signOut({ scope: 'local' }).catch(() => {
+      // It expires by itself, and only this client knows it.
+    })
+  } catch {
+    return { ok: false, reason: 'not-connected' }
+  }
+  return setNewPassword(next)
 }
 
 function limitOrConnection(error: AuthError): 'too-many-attempts' | 'not-connected' | undefined {

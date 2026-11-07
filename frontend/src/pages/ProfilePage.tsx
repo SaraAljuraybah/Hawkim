@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react'
+import { CircleCheck } from 'lucide-react'
 import { ChangePasswordDialog } from '../components/profile/ChangePasswordDialog'
 import { Card } from '../components/ui/Card'
 import { controlClasses } from '../components/ui/useFieldIds'
@@ -15,6 +16,7 @@ export function ProfilePage() {
   const user = useCurrentUser()
   const { homeDepartment } = useActiveDepartment()
   const [changing, setChanging] = useState(false)
+  const [changed, setChanged] = useState(false)
   const changeRef = useRef<HTMLButtonElement>(null)
   const roles = user.permissions.flatMap((permission) => (permission === 'admin' ? [] : [content.roles[permission]]))
   // Same order as Add User. A value that is missing or blank shows content.none, the same way for every field.
@@ -31,6 +33,15 @@ export function ProfilePage() {
   return (
     <>
       <h1 className="text-2xl tracking-tight sm:text-3xl">{content.title}</h1>
+      {/* After changing the password (live region stays mounted) */}
+      <div role="status">
+        {changed && (
+          <p className="mt-6 flex items-center gap-2.5 rounded-lg border border-status-approved-fg/20 bg-status-approved-bg px-4 py-3 text-sm font-medium text-status-approved-fg">
+            <CircleCheck aria-hidden="true" className="size-4 shrink-0" strokeWidth={2} />
+            {content.password.changed}
+          </p>
+        )}
+      </div>
       <Card className="mt-6">
         <dl className="grid gap-x-6 gap-y-3 text-sm sm:grid-cols-[10rem_minmax(0,1fr)]">
           {details.map(([label, value]) => (
@@ -49,7 +60,10 @@ export function ProfilePage() {
                   ref={changeRef}
                   type="button"
                   aria-label={content.password.changeLabel}
-                  onClick={() => setChanging(true)}
+                  onClick={() => {
+                    setChanged(false)
+                    setChanging(true)
+                  }}
                   className="rounded-sm px-2 py-1 font-medium text-maroon underline-offset-2 hover:underline"
                 >
                   {content.password.change}
@@ -62,6 +76,7 @@ export function ProfilePage() {
       <ChangePasswordDialog
         open={changing}
         content={content.password.dialog}
+        onChanged={() => setChanged(true)}
         onClose={() => {
           setChanging(false)
           changeRef.current?.focus()

@@ -200,6 +200,8 @@ export interface ProfileContent {
     change: string
     /** Its accessible name (contains the visible text). */
     changeLabel: string
+    /** Shown on the page after changing it. */
+    changed: string
     dialog: {
       title: string
       current: string
@@ -212,12 +214,25 @@ export interface ProfileContent {
       hide: string
       cancel: string
       save: string
+      /** The save button while saving. */
+      saving: string
       /** Accessible name of the × button. */
       close: string
-      /** A valid Save while changing passwords isn't connected. */
-      notConnected: string
       /** `{min}` is replaced in tooShort. */
-      errors: { currentRequired: string; nextRequired: string; tooShort: string; confirmRequired: string; mismatch: string; sameAsCurrent: string }
+      errors: {
+        currentRequired: string
+        currentIncorrect: string
+        nextRequired: string
+        tooShort: string
+        confirmRequired: string
+        mismatch: string
+        sameAsCurrent: string
+        weak: string
+        tooManyAttempts: string
+        notConnected: string
+        sessionEnded: string
+        failed: string
+      }
     }
   }
 }

@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { profileEn } from '../../content/profile.en'
 import { ChangePasswordDialog } from './ChangePasswordDialog'
 
-const render = () => renderToStaticMarkup(<ChangePasswordDialog open content={profileEn.password.dialog} onClose={() => {}} />)
+const render = () => renderToStaticMarkup(<ChangePasswordDialog open content={profileEn.password.dialog} onClose={() => {}} onChanged={() => {}} />)
 const input = (html: string, name: string) => html.match(new RegExp(`<input[^>]*name="${name}"[^>]*>`))![0]
 
 describe('Change Password dialog', () => {
@@ -38,13 +38,13 @@ describe('Change Password dialog', () => {
     expect(html).toContain('>At least 6 characters.<')
   })
 
-  it('offers Cancel, Save and a × close button, with a status area for the not-connected message that adds space above the buttons', () => {
+  it('offers Cancel, Save and a × close button, with an alert area for failures that adds space above the buttons', () => {
     const html = render()
     expect(html).toMatch(/<button type="button" class="[^"]*">Cancel<\/button>/)
     expect(html).toMatch(/<button type="submit" class="[^"]*bg-maroon[^"]*">Save<\/button>/)
     expect(html).toContain('aria-label="Close"')
-    // The status area is the last child, so the last field keeps its bottom margin above it.
-    expect(html).toMatch(/name="confirmPassword"[\s\S]*<\/div><div role="status"><\/div><\/div><div class="mt-6 flex/)
+    // The alert area is the last child, so the last field keeps its bottom margin above it.
+    expect(html).toMatch(/name="confirmPassword"[\s\S]*<\/div><div role="alert" tabindex="-1" class="[^"]*"><\/div><\/div><div class="mt-6 flex/)
     expect(html).not.toContain('isn’t connected yet')
   })
 })

@@ -74,6 +74,14 @@ const client = supabaseConfigProblem
   ? undefined
   : createClient(url!, key!, { auth: { storage: tabStorage, persistSession: true, autoRefreshToken: true, detectSessionInUrl: false } })
 
+/**
+ * A separate client for checking a password without touching this tab's session: it keeps its own
+ * session in memory only, so signing in with it can't sign this tab in or out.
+ */
+export function passwordCheckClient(): SupabaseClient {
+  return createClient(url!, key!, { auth: { storageKey: 'hawkim-password-check', persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } })
+}
+
 /** The client. Only called once the app is configured (App.tsx checks supabaseConfigProblem first). */
 export function supabase(): SupabaseClient {
   if (!client) throw new Error('Supabase is not configured: set VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY in frontend/.env.local')

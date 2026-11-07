@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { changePasswordProblems, PASSWORD_CHANGE_ACTIVE } from './newPassword'
+import { changePasswordProblems } from './newPassword'
 
 describe('changePasswordProblems', () => {
   it('requires all three fields', () => {
@@ -18,8 +18,4 @@ describe('changePasswordProblems', () => {
   it('accepts a different, long enough, confirmed password', () => {
     expect(changePasswordProblems('old-one', 'new-pass', 'new-pass')).toEqual({})
   })
-})
-
-it('keeps changing passwords switched off until it is connected', () => {
-  expect(PASSWORD_CHANGE_ACTIVE).toBe(false)
 })

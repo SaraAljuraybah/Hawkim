@@ -9,12 +9,6 @@ export interface NewPasswordProblems {
   confirm?: 'required' | 'mismatch'
 }
 
-/**
- * Changing the password from My Profile isn't connected yet: while this is false, a valid
- * Save only says so and changes nothing.
- */
-export const PASSWORD_CHANGE_ACTIVE = false
-
 export interface ChangePasswordProblems extends NewPasswordProblems {
   current?: 'required'
   /** Shown on the new password. */
