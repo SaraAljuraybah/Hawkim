@@ -5,11 +5,13 @@ import { Button } from '../components/ui/Button'
 import { Pagination } from '../components/ui/Pagination'
 import { TextField } from '../components/ui/TextField'
 import { SelectField } from '../components/ui/SelectField'
+import type { Department } from '../data/mock/types'
 import type { MySopSort } from '../lib/mySops'
 import { clampPage, pageCount, pageSlice, rememberedPagesFor, resultsParams, tabSwitch, updateParams, type RememberedPages } from '../lib/pagination'
 import { DIRECTORY_URL_DEFAULTS, filterDirectorySops, OTHERS_SECTION, readDirectoryUrl, type SopDocumentFilter } from '../lib/sopDirectory'
 import { devSampleCount, devSampleSops } from '../lib/devSampleSops'
 import { directorySopsFor } from '../lib/sopAccess'
+import { adminSopPath, sopPath } from '../lib/routes'
 import { useCurrentUser } from '../state/sessionContext'
 import { useMyRequests } from '../state/requestsContext'
 import { SopGrid } from '../components/sops/SopGrid'
@@ -22,6 +24,7 @@ import { sopsEn } from '../content/sops.en'
 import type { SopTabKey } from '../content/types'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { useActiveDepartment } from '../state/activeDepartmentContext'
+import { useDepartments } from '../state/departmentsContext'
 import { useSops } from '../state/sopsContext'
 
 const TAB_ID_PREFIX = 'sops'
@@ -37,13 +40,29 @@ function readStoredView(): ViewMode {
   }
 }
 
-/** SOPs list ("/sops"): the active department's SOPs, with tabs, Grid/List views and an empty state. */
+/** SOPs list ("/sops"): the active department's SOPs (chosen with the top bar's switcher), with tabs, Grid/List views and an empty state. */
 export function SopsPage() {
-  const content = sopsEn
-  useDocumentTitle(content.pageTitle)
-
-  // TODO: Load the active department's SOPs from the backend API.
   const { activeDepartment } = useActiveDepartment()
+  return <SopDirectory activeDepartment={activeDepartment} />
+}
+
+/**
+ * The SOP Directory in the admin portal ("/admin/sops"), read-only: the same page for the admin's own
+ * department, with no department switcher. The database decides which SOPs an admin can read.
+ */
+export function AdminSopsPage() {
+  const user = useCurrentUser()
+  const department = useDepartments().getDepartment(user.departmentId)
+  // The department list is loaded before the portal opens; this only covers a department that's gone.
+  const home: Department = department ?? { id: user.departmentId, name: user.departmentId, initials: '', description: '' }
+  return <SopDirectory activeDepartment={home} admin />
+}
+
+function SopDirectory({ activeDepartment, admin = false }: { activeDepartment: Department; admin?: boolean }) {
+  const content = sopsEn
+  useDocumentTitle(admin ? content.adminPageTitle : content.pageTitle)
+  const sopHref = admin ? adminSopPath : sopPath
+
   const { sops } = useSops()
   const user = useCurrentUser()
   const requests = useMyRequests()
@@ -202,9 +221,9 @@ export function SopsPage() {
             <p className="mt-4 text-text-gray">{hasFilters ? content.filters.empty : showingOthers ? content.othersEmpty : content.empty}</p>
           </div>
         ) : view === 'grid' ? (
-          <SopGrid sops={pageSops} content={content} />
+          <SopGrid sops={pageSops} content={content} sopHref={sopHref} />
         ) : (
-          <SopList sops={pageSops} content={content} />
+          <SopList sops={pageSops} content={content} sopHref={sopHref} />
         )}
       </div>
 

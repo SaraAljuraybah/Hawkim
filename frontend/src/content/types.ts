@@ -375,6 +375,8 @@ export type SopTabKey = 'all' | 'recent' | 'others'
 export interface SopsContent {
   /** Browser tab title. */
   pageTitle: string
+  /** Browser tab title in the admin portal. */
+  adminPageTitle: string
   title: string
   subtitle: string
   /** Accessible name of the tab list. */
@@ -415,6 +417,8 @@ export interface SopDetailContent {
   fileFailed: string
   /** `{title}` is replaced, e.g. "Data Integrity | Hawkim". */
   pageTitle: string
+  /** The same in the admin portal. */
+  adminPageTitle: string
   back: LinkContent
   exportPdf: string
   descriptionTitle: string
@@ -426,7 +430,8 @@ export interface SopDetailContent {
   /** Shown when a published SOP has no file available yet. */
   noFile: string
   /** `{department}` is replaced with the department name. */
-  noAccess: { title: string; text: string; requestAccess: string }
+  /** `adminText`: the same in the admin portal, where there is no Request Access. */
+  noAccess: { title: string; text: string; adminText: string; requestAccess: string }
   pendingAccess: { title: string; text: string }
 }
 

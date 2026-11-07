@@ -6,7 +6,7 @@ import { MyRequestsPage } from './pages/MyRequestsPage'
 import { MySopsPage } from './pages/MySopsPage'
 import { ReviewsPage } from './pages/ReviewsPage'
 import { UploadSopPage } from './pages/UploadSopPage'
-import { SopsPage } from './pages/SopsPage'
+import { AdminSopsPage, SopsPage } from './pages/SopsPage'
 import { SubmitRequestPage } from './pages/SubmitRequestPage'
 import { LandingPage } from './pages/LandingPage'
 import { NotConfiguredPage } from './pages/NotConfiguredPage'
@@ -138,6 +138,8 @@ function AppRoutes() {
         <Route path="departments/new" element={<DepartmentFormPage />} />
         <Route path="departments/:id" element={<DepartmentDetailsPage />} />
         <Route path="departments/:id/edit" element={<DepartmentFormPage />} />
+        <Route path="sops" element={<AdminSopsPage />} />
+        <Route path="sops/:id" element={<SopDetailPage admin />} />
         <Route path="requests" element={<AdminRequestsPage />} />
         <Route path="requests/:id" element={<RequestDetailsPage />} />
         <Route path="regulations" element={<AdminRegulationsPage />} />

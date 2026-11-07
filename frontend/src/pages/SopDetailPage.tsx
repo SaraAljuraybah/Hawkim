@@ -11,7 +11,7 @@ import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { currentVersionOf, useFileUrl } from '../hooks/useFileUrl'
 import { sopDownloadName } from '../lib/sopPresentation'
 import { formatDate } from '../lib/format'
-import { requestDepartmentAccessPath } from '../lib/routes'
+import { ADMIN_SOPS_PATH, requestDepartmentAccessPath } from '../lib/routes'
 import { getSopAccess } from '../lib/sopAccess'
 import { fileUrlOf } from '../services/files'
 import { useDepartments } from '../state/departmentsContext'
@@ -27,15 +27,17 @@ function downloadName(sop: Sop) {
 
 /**
  * SOP detail ("/sops/:id"): header, Export PDF and the document viewer (if the user has access).
- * Only published SOPs are in the directory; other ids show Not Found.
+ * Only published SOPs are in the directory; other ids show Not Found. In the admin portal
+ * ("/admin/sops/:id", `admin`) it is the same page, back to the admin directory, without Request
+ * Access: admins don't request department access.
  */
-export function SopDetailPage() {
+export function SopDetailPage({ admin = false }: { admin?: boolean }) {
   const content = sopsEn.detail
   const { id } = useParams()
   const { sops } = useSops()
   const sop = sops.find((item) => item.id === id && item.status === 'published')
   // An unknown id leaves the title to the embedded Not Found page.
-  useDocumentTitle(sop ? content.pageTitle.replace('{title}', sop.title) : undefined)
+  useDocumentTitle(sop ? (admin ? content.adminPageTitle : content.pageTitle).replace('{title}', sop.title) : undefined)
 
   const user = useCurrentUser()
   const requests = useMyRequests()
@@ -73,7 +75,7 @@ export function SopDetailPage() {
   return (
     <>
       <Link
-        to={content.back.href}
+        to={admin ? ADMIN_SOPS_PATH : content.back.href}
         className="inline-flex items-center gap-1.5 rounded-sm text-sm font-medium text-text-gray transition-colors hover:text-maroon"
       >
         <ArrowLeft aria-hidden="true" className="size-4" strokeWidth={1.75} />
@@ -109,9 +111,9 @@ export function SopDetailPage() {
           <AccessPanel
             icon={<Lock className="size-6" strokeWidth={1.75} />}
             title={content.noAccess.title}
-            text={content.noAccess.text.replace('{department}', departmentName)}
+            text={(admin ? content.noAccess.adminText : content.noAccess.text).replace('{department}', departmentName)}
           >
-            <Button to={requestDepartmentAccessPath(sop.departmentId)}>{content.noAccess.requestAccess}</Button>
+            {!admin && <Button to={requestDepartmentAccessPath(sop.departmentId)}>{content.noAccess.requestAccess}</Button>}
           </AccessPanel>
         )}
 

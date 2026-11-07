@@ -18,6 +18,7 @@ export const adminEn: AdminContent = {
       { label: 'Users', href: '/admin/users', icon: 'employees', matchSubpaths: true },
       { label: 'SFDA Regulatory Requirements', href: '/admin/regulations', icon: 'regulatory', matchSubpaths: true },
       { label: 'Requests', href: '/admin/requests', icon: 'requests', matchSubpaths: true },
+      { label: 'SOP Directory', href: '/admin/sops', icon: 'sops', matchSubpaths: true },
       { label: 'Organizational Structure', href: '/admin/organizational-structure', icon: 'hierarchy', matchSubpaths: true },
     ],
     signOut: { label: 'Sign Out', href: '/login', icon: 'signOut' },

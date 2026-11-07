@@ -8,6 +8,8 @@ import { useDepartments } from '../../state/departmentsContext'
 interface SopListProps {
   sops: Sop[]
   content: SopsContent
+  /** Where an SOP opens. Default: the employee SOP page. */
+  sopHref?: (sopId: string) => string
 }
 
 /* One link per row, stretched over the whole row with ::after. */
@@ -21,7 +23,7 @@ const focusRing =
  * From md up: a table with columns. Below md: compact stacked blocks, so the
  * page never scrolls sideways. Only one of the two is ever displayed.
  */
-export function SopList({ sops, content }: SopListProps) {
+export function SopList({ sops, content, sopHref = sopPath }: SopListProps) {
   const { columns } = content
   const { nameOf: departmentName } = useDepartments()
 
@@ -43,7 +45,7 @@ export function SopList({ sops, content }: SopListProps) {
             {sops.map((sop) => (
               <tr key={sop.id} className={`relative transition-colors hover:bg-beige/40 ${focusRing}`}>
                 <th scope="row" className="px-5 py-4 font-medium text-maroon">
-                  <Link to={sopPath(sop.id)} className={stretchedLink}>
+                  <Link to={sopHref(sop.id)} className={stretchedLink}>
                     {sop.title}
                   </Link>
                 </th>
@@ -68,7 +70,7 @@ export function SopList({ sops, content }: SopListProps) {
               </time>
             </div>
             <p className="mt-1 text-sm leading-snug font-medium text-maroon">
-              <Link to={sopPath(sop.id)} className={stretchedLink}>
+              <Link to={sopHref(sop.id)} className={stretchedLink}>
                 {sop.title}
               </Link>
             </p>

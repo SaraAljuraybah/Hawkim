@@ -26,6 +26,12 @@ export function sopPath(sopId: string): string {
   return `${SOP_DIRECTORY_PATH}/${encodeURIComponent(sopId)}`
 }
 
+/** The SOP Directory in the admin portal (read-only), and an SOP opened from it. */
+export const ADMIN_SOPS_PATH = '/admin/sops'
+export function adminSopPath(sopId: string): string {
+  return `${ADMIN_SOPS_PATH}/${encodeURIComponent(sopId)}`
+}
+
 /** Path of an SOP's workflow page (the author's view). */
 export function mySopPath(sopId: string): string {
   return `/my-sops/${encodeURIComponent(sopId)}`

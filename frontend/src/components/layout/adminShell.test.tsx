@@ -16,6 +16,7 @@ describe('the admin portal sidebar', () => {
       ['Users', '/admin/users', 'employees'],
       ['SFDA Regulatory Requirements', '/admin/regulations', 'regulatory'],
       ['Requests', '/admin/requests', 'requests'],
+      ['SOP Directory', '/admin/sops', 'sops'],
       ['Organizational Structure', '/admin/organizational-structure', 'hierarchy'],
     ])
   })
