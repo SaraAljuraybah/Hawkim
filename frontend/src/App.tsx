@@ -16,7 +16,7 @@ import { RequestHawkimPage } from './pages/RequestHawkimPage'
 import { ResetPasswordPage } from './pages/ResetPasswordPage'
 import { ReviewRequestPage } from './pages/ReviewRequestPage'
 import { SignInPage } from './pages/SignInPage'
-import { ADMIN_USERS_PATH } from './lib/routes'
+import { ADMIN_HOME_PATH } from './lib/routes'
 import { AdminArea, EmployeeArea } from './routes/guards'
 import { supabaseConfigProblem } from './services/supabase'
 import { DepartmentsProvider } from './state/DepartmentsProvider'
@@ -127,7 +127,7 @@ function AppRoutes() {
 
       {/* Admin portal: its own layout; only for admins (others see Not Found). */}
       <Route path="/admin" element={<AdminArea />}>
-        <Route index element={<Navigate to={ADMIN_USERS_PATH} replace />} />
+        <Route index element={<Navigate to={ADMIN_HOME_PATH} replace />} />
         <Route path="profile" element={<ProfilePage admin />} />
         <Route path="users" element={<AdminUsersPage />} />
         <Route path="users/new" element={<AddUserPage />} />

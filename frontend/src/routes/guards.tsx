@@ -5,7 +5,7 @@ import { AppLayout } from '../components/layout/AppLayout'
 import { PageLoading } from '../components/ui/PageLoading'
 import { isPathAllowed, isReadOnlyDepartment, READ_ONLY_LANDING_PATH } from '../lib/departmentNavigation'
 import { hasPermission } from '../lib/permissions'
-import { ADMIN_USERS_PATH } from '../lib/routes'
+import { ADMIN_HOME_PATH } from '../lib/routes'
 import { LoadFailedPage } from '../pages/LoadFailedPage'
 import { NotFoundPage } from '../pages/NotFoundPage'
 import { ActiveDepartmentProvider } from '../state/ActiveDepartmentProvider'
@@ -46,7 +46,7 @@ export function EmployeeArea() {
   if (data === 'error') return <LoadFailedPage />
   if (data === 'loading') return <PageLoading fullScreen />
   // Admins use only the admin portal.
-  if (hasPermission(user, 'admin')) return <Navigate to={ADMIN_USERS_PATH} replace />
+  if (hasPermission(user, 'admin')) return <Navigate to={ADMIN_HOME_PATH} replace />
   return (
     // The active department depends on the user's approved department-access requests.
     <ActiveDepartmentProvider>
