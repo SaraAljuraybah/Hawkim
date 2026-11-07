@@ -8,11 +8,12 @@ import { RefusedBox } from '../../components/admin/RefusedBox'
 import { UserAvatar } from '../../components/admin/UserBits'
 import { UserForm } from '../../components/admin/UserForm'
 import { adminEn } from '../../content/admin.en'
+import { usersEn } from '../../content/users.en'
 import type { User } from '../../data/mock/types'
 import { useDocumentTitle } from '../../hooks/useDocumentTitle'
 import { ADMIN_USERS_PATH } from '../../lib/routes'
-import { changesBrowserOnlyFields, isDatabaseUser, permissionChangeBlockers, userFormValues, type NewUser } from '../../lib/userAdmin'
-import { UserDetailsError, type UserDetailsFailure } from '../../services/people'
+import { changesEmail, isDatabaseUser, permissionChangeBlockers, userFormValues, type NewUser } from '../../lib/userAdmin'
+import { SaveUserError, type SaveUserFailure } from '../../services/people'
 import { useDepartments } from '../../state/departmentsContext'
 import { useCurrentUser } from '../../state/sessionContext'
 import { useSops } from '../../state/sopsContext'
@@ -23,7 +24,7 @@ import type { AdminUsersLocationState } from './AdminUsersPage'
 /**
  * Edit user ("/admin/users/:id/edit"): the Add User form, filled in with the user's details, with
  * Delete user next to their name. Save stays here; a change the rules or the database refuse saves
- * nothing and is explained. Name, phone and position are saved to the database; the rest only lasts
+ * nothing and is explained. Everything but the email is saved to the database; the email only lasts
  * until reload, and the message says so. Deleted and unknown users show Not Found.
  */
 export function EditUserPage() {
@@ -61,6 +62,17 @@ function EditUserContent({ user }: { user: User }) {
   const refusedRef = useRef<HTMLDivElement>(null)
   const deleteErrorRef = useRef<HTMLDivElement>(null)
 
+  /** What to tell the admin about a save the database refused. */
+  function failureMessages(error: unknown): string[] {
+    const reason: SaveUserFailure = error instanceof SaveUserError ? error.reason : 'failed'
+    if (reason !== 'permission-in-use' || !(error instanceof SaveUserError) || error.inUse.length === 0) {
+      return [reason === 'permission-in-use' ? content.failures.invalid : content.failures[reason]]
+    }
+    return error.inUse.map(({ permission, count }) =>
+      (count === 1 ? content.inUse.one : content.inUse.other).replace('{permission}', usersEn.permissions[permission]).replace('{count}', String(count)),
+    )
+  }
+
   function refuse(title: string, reasons: string[]) {
     setSaved('')
     flushSync(() => setRefused({ title, reasons }))
@@ -76,12 +88,11 @@ function EditUserContent({ user }: { user: User }) {
       return
     }
     // Worked out first: saving changes the user these are compared with.
-    const message = !isDatabaseUser(user) ? content.savedInThisBrowser : changesBrowserOnlyFields(user, next) ? content.savedUntilReload : content.saved
+    const message = !isDatabaseUser(user) ? content.savedInThisBrowser : changesEmail(user, next) ? content.savedUntilReload : content.saved
     try {
       await updateUser(user.id, next, rules)
     } catch (error) {
-      const reason: UserDetailsFailure = error instanceof UserDetailsError ? error.reason : 'failed'
-      refuse(content.notSaved, [content.failures[reason]])
+      refuse(content.notSaved, failureMessages(error))
       return
     }
     flushSync(() => {

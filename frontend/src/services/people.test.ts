@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { fetchDepartments, fetchPeople, fetchProfile, toDepartment, toUser, updateUserDetails, UserDetailsError, type ProfileRow } from './people'
+import { fetchDepartments, fetchPeople, fetchProfile, toDepartment, saveUser, SaveUserError, toUser, type ProfileRow } from './people'
 
 /** A query that resolves to `result` however it's narrowed (select, eq, order, maybeSingle). */
 const query = { select: vi.fn(), eq: vi.fn(), order: vi.fn(), maybeSingle: vi.fn() }
@@ -86,14 +86,18 @@ describe('departments from the database', () => {
   })
 })
 
-describe('saving a user\'s details', () => {
-  const details = { name: 'Rana Saleh', phone: '+966512345678', position: 'Specialist' }
+describe('saving a user', () => {
+  const changes = { name: 'Rana Saleh', phone: '+966512345678', position: 'Specialist', departmentId: 'home', permissions: ['author' as const] }
+  const expected = { departmentId: 'old', permissions: ['reviewer' as const] }
+  const failure = (error: Record<string, string>) => rpc.mockResolvedValue({ data: null, error: { message: 'refused', ...error } })
 
-  it('calls update_user_details and returns what the database saved', async () => {
-    rpc.mockResolvedValue({ data: { ...details, initials: 'RS' }, error: null })
-    await expect(updateUserDetails('uuid-rana', details)).resolves.toEqual({ ...details, initials: 'RS' })
-    expect(rpc).toHaveBeenCalledWith('update_user_details', {
+  it('calls save_user with what changed and what the form loaded, and returns what the database saved', async () => {
+    // The database sorts by name: the app keeps its usual display order.
+    rpc.mockResolvedValue({ data: { ...changes, initials: 'RS', permissions: ['reviewer', 'author'] }, error: null })
+    await expect(saveUser('uuid-rana', changes, expected)).resolves.toEqual({ ...changes, initials: 'RS', permissions: ['author', 'reviewer'] })
+    expect(rpc).toHaveBeenCalledWith('save_user', {
       p_user_id: 'uuid-rana', p_full_name: 'Rana Saleh', p_phone: '+966512345678', p_position: 'Specialist',
+      p_department_id: 'home', p_roles: ['author'], p_expected_department_id: 'old', p_expected_roles: ['reviewer'],
     })
   })
 
@@ -102,19 +106,33 @@ describe('saving a user\'s details', () => {
     ['PGRST301', 'forbidden'],
     ['PGRST303', 'forbidden'],
     ['P0002', 'not-found'],
+    ['40001', 'conflict'],
     ['23514', 'invalid'],
     // The migration isn't applied yet.
     ['PGRST202', 'failed'],
     ['', 'failed'],
   ])('reports the database error %s as %s', async (code, reason) => {
-    rpc.mockResolvedValue({ data: null, error: { code, message: 'refused' } })
-    await expect(updateUserDetails('uuid-rana', details)).rejects.toMatchObject({ reason })
+    failure({ code })
+    await expect(saveUser('uuid-rana', changes, expected)).rejects.toMatchObject({ reason })
+  })
+
+  it.each(['invalid', 'self-admin', 'last-admin', 'admin-exclusive', 'approver-quality', 'department-unavailable'])('reports the refusal %s', async (hint) => {
+    failure({ code: '23514', hint })
+    await expect(saveUser('uuid-rana', changes, expected)).rejects.toMatchObject({ reason: hint, inUse: [] })
+  })
+
+  it('reads the permissions in use from the error, ignoring anything it does not understand', async () => {
+    failure({ code: '23514', hint: 'permission-in-use', details: 'author:2,reviewer:1,owner:3,approver:x' })
+    await expect(saveUser('uuid-rana', changes, expected)).rejects.toMatchObject({
+      reason: 'permission-in-use',
+      inUse: [{ permission: 'author', count: 2 }, { permission: 'reviewer', count: 1 }],
+    })
   })
 
   it('reports a network failure, and an unexpected reply, as failed', async () => {
     rpc.mockRejectedValue(new TypeError('Failed to fetch'))
-    await expect(updateUserDetails('uuid-rana', details)).rejects.toBeInstanceOf(UserDetailsError)
+    await expect(saveUser('uuid-rana', changes, expected)).rejects.toBeInstanceOf(SaveUserError)
     rpc.mockResolvedValue({ data: { name: 'Only a name' }, error: null })
-    await expect(updateUserDetails('uuid-rana', details)).rejects.toMatchObject({ reason: 'failed' })
+    await expect(saveUser('uuid-rana', changes, expected)).rejects.toMatchObject({ reason: 'failed' })
   })
 })

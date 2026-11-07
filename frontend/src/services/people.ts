@@ -2,11 +2,11 @@
  * People and departments from the database (tables profiles, user_roles and
  * departments; see supabase/migrations/). Rows are turned into the app's existing
  * User and Department types, so screens don't change. Row level security lets only
- * a signed-in person with an active profile read them; an admin changes a user's name,
- * phone and position through update_user_details, which checks that in the database.
+ * a signed-in person with an active profile read them; an admin changes a user through
+ * save_user, which checks that and the rules in the database.
  */
 
-import type { Department, Permission, User } from '../data/mock/types'
+import type { Department, DepartmentId, Permission, User } from '../data/mock/types'
 import { PERMISSIONS } from '../lib/userAdmin'
 import { supabase } from './supabase'
 
@@ -77,47 +77,98 @@ export async function fetchPeople(): Promise<User[]> {
 }
 
 /** What an admin saves for a user. `phone` is as stored ("+9665XXXXXXXX"). */
-export interface UserDetails {
+export interface UserChanges {
   name: string
   phone: string
   position: string
+  departmentId: DepartmentId
+  permissions: Permission[]
 }
 
-/** Why a user's details could not be saved. */
-export type UserDetailsFailure = 'forbidden' | 'not-found' | 'invalid' | 'failed'
+/** Why a user's changes could not be saved. */
+export type SaveUserFailure =
+  | 'forbidden' | 'not-found' | 'conflict' | 'invalid' | 'self-admin' | 'last-admin' | 'admin-exclusive'
+  | 'approver-quality' | 'department-unavailable' | 'permission-in-use' | 'failed'
 
-export class UserDetailsError extends Error {
-  readonly reason: UserDetailsFailure
-  constructor(reason: UserDetailsFailure) {
-    super(`The user's details were not saved (${reason})`)
+/** A permission that can't be removed, and on how many SOPs it's used (their titles aren't sent: an admin may not see them). */
+export interface PermissionInUse {
+  permission: Permission
+  count: number
+}
+
+export class SaveUserError extends Error {
+  readonly reason: SaveUserFailure
+  readonly inUse: PermissionInUse[]
+  constructor(reason: SaveUserFailure, inUse: PermissionInUse[] = []) {
+    super(`The user's changes were not saved (${reason})`)
     this.reason = reason
+    this.inUse = inUse
   }
 }
 
-function detailsFailure(code: string | undefined): UserDetailsFailure {
+const SAVE_USER_HINTS: SaveUserFailure[] = ['invalid', 'self-admin', 'last-admin', 'admin-exclusive', 'approver-quality', 'department-unavailable', 'permission-in-use']
+
+function saveUserError(error: { code?: string; hint?: string | null; details?: string | null }): SaveUserError {
+  const hinted = SAVE_USER_HINTS.find((reason) => reason === error.hint)
+  if (hinted === 'permission-in-use') {
+    // "author:2,reviewer:1"
+    const inUse = (error.details ?? '').split(',').flatMap((item) => {
+      const [permission, count] = item.split(':')
+      return PERMISSIONS.includes(permission as Permission) && Number(count) > 0 ? [{ permission: permission as Permission, count: Number(count) }] : []
+    })
+    return new SaveUserError(hinted, inUse)
+  }
+  if (hinted) return new SaveUserError(hinted)
   // PGRST30x: the session's token has expired or isn't valid.
-  if (code === '42501' || code?.startsWith('PGRST30')) return 'forbidden'
-  if (code === 'P0002') return 'not-found'
-  if (code === '23514') return 'invalid'
-  return 'failed'
+  if (error.code === '42501' || error.code?.startsWith('PGRST30')) return new SaveUserError('forbidden')
+  if (error.code === 'P0002') return new SaveUserError('not-found')
+  if (error.code === '40001') return new SaveUserError('conflict')
+  // A rule of the database's triggers, or update_user_details refusing the details.
+  if (error.code === '23514') return new SaveUserError('invalid')
+  return new SaveUserError('failed')
 }
 
-/** Saves a user's name, phone and position; returns them as saved, with the initials. Throws a UserDetailsError. */
-export async function updateUserDetails(userId: string, details: UserDetails): Promise<UserDetails & { initials: string }> {
+/**
+ * Saves a user's name, phone, position, department and permissions, all or nothing; `expected` is what
+ * the form loaded, so another admin's change isn't overwritten. Returns them as saved, with the
+ * initials. Throws a SaveUserError.
+ */
+export async function saveUser(
+  userId: string,
+  changes: UserChanges,
+  expected: { departmentId: DepartmentId; permissions: Permission[] },
+): Promise<UserChanges & { initials: string }> {
   let response
   try {
-    response = await supabase().rpc('update_user_details', {
-      p_user_id: userId, p_full_name: details.name, p_phone: details.phone, p_position: details.position,
+    response = await supabase().rpc('save_user', {
+      p_user_id: userId,
+      p_full_name: changes.name,
+      p_phone: changes.phone,
+      p_position: changes.position,
+      p_department_id: changes.departmentId,
+      p_roles: changes.permissions,
+      p_expected_department_id: expected.departmentId,
+      p_expected_roles: expected.permissions,
     })
   } catch {
-    throw new UserDetailsError('failed')
+    throw new SaveUserError('failed')
   }
-  if (response.error) throw new UserDetailsError(detailsFailure(response.error.code))
-  const saved = response.data as { name?: unknown; initials?: unknown; phone?: unknown; position?: unknown } | null
-  if (typeof saved?.name !== 'string' || typeof saved.initials !== 'string' || typeof saved.phone !== 'string' || typeof saved.position !== 'string') {
-    throw new UserDetailsError('failed')
+  if (response.error) throw saveUserError(response.error)
+  const saved = response.data as { name?: unknown; initials?: unknown; phone?: unknown; position?: unknown; departmentId?: unknown; permissions?: unknown } | null
+  if (typeof saved?.name !== 'string' || typeof saved.initials !== 'string' || typeof saved.phone !== 'string'
+    || typeof saved.position !== 'string' || typeof saved.departmentId !== 'string' || !Array.isArray(saved.permissions)) {
+    throw new SaveUserError('failed')
   }
-  return { name: saved.name, initials: saved.initials, phone: saved.phone, position: saved.position }
+  const permissions = saved.permissions as Permission[]
+  return {
+    name: saved.name,
+    initials: saved.initials,
+    phone: saved.phone,
+    position: saved.position,
+    departmentId: saved.departmentId,
+    // In the usual display order.
+    permissions: PERMISSIONS.filter((permission) => permissions.includes(permission)),
+  }
 }
 
 /** A department row as a Department. */

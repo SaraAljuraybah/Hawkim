@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { Permission, Sop, User } from '../data/mock/types'
 import type { SopStatus } from '../types/status'
-import { changesBrowserOnlyFields, defaultDivision, deleteBlockers, departmentsInDivision, divisionOptions, isDatabaseUser, NO_DIVISION, normalizePhone, permissionChangeBlockers, POSITION_MAX, userFormValues, validateNewUser, type AdminContext } from './userAdmin'
+import { changesEmail, changesPermissions, defaultDivision, deleteBlockers, departmentsInDivision, divisionOptions, isDatabaseUser, NO_DIVISION, normalizePhone, permissionChangeBlockers, POSITION_MAX, userFormValues, validateNewUser, type AdminContext } from './userAdmin'
 
 /** A user in IT with these permissions. */
 function user(id: string, permissions: Permission[]): User {
@@ -306,20 +306,37 @@ describe('what is saved to the database when editing', () => {
     expect(isDatabaseUser({ id: 'user-mabc123-x1y2z3' })).toBe(false)
   })
 
-  it('does not count name, phone or position as browser-only changes', () => {
-    expect(changesBrowserOnlyFields(rana, values)).toBe(false)
-    expect(changesBrowserOnlyFields(rana, { ...values, name: 'New', phone: '0598765432', position: 'New' })).toBe(false)
+  it('only counts the email as lasting until reload', () => {
+    expect(changesEmail(rana, values)).toBe(false)
+    expect(changesEmail(rana, { ...values, email: ` ${rana.email} ` })).toBe(false)
+    expect(changesEmail(rana, { ...values, name: 'New', phone: '0598765432', position: 'New', departmentId: 'other', permissions: [] })).toBe(false)
+    expect(changesEmail(rana, { ...values, email: 'new@example.test' })).toBe(true)
   })
 
-  it('ignores the order permissions were ticked in', () => {
-    expect(changesBrowserOnlyFields(rana, { ...values, permissions: ['reviewer', 'author'] })).toBe(false)
+  it('compares permissions in any order', () => {
+    expect(changesPermissions(rana, ['reviewer', 'author'])).toBe(false)
+    expect(changesPermissions(rana, ['author'])).toBe(true)
+    expect(changesPermissions(rana, ['author', 'reviewer', 'approver'])).toBe(true)
+  })
+})
+
+describe('Approver outside the Quality department', () => {
+  const departments = [{ id: 'quality', isQuality: true }, { id: 'home' }]
+  const person = { name: 'Rana', email: 'rana@example.test', phone: '0512345678', position: 'P', divisionId: NO_DIVISION }
+
+  it('is refused for a department that is not Quality', () => {
+    expect(validateNewUser({ ...person, departmentId: 'home', permissions: ['approver'] }, [], departments).permissions).toBe('approver-outside-quality')
+    expect(validateNewUser({ ...person, departmentId: 'home', permissions: ['author', 'approver'] }, [], departments).permissions).toBe('approver-outside-quality')
   })
 
-  it.each([
-    ['email', { email: 'new@example.test' }],
-    ['department', { departmentId: 'other' }],
-    ['permissions', { permissions: ['author'] }],
-  ])('counts a change of %s', (_, change) => {
-    expect(changesBrowserOnlyFields(rana, { ...values, ...change } as typeof values)).toBe(true)
+  it('is allowed in Quality, and other permissions are allowed anywhere', () => {
+    expect(validateNewUser({ ...person, departmentId: 'quality', permissions: ['approver'] }, [], departments).permissions).toBeUndefined()
+    expect(validateNewUser({ ...person, departmentId: 'home', permissions: ['author', 'reviewer', 'admin'] }, [], departments).permissions).toBeUndefined()
+  })
+
+  it('waits for a department to be chosen', () => {
+    const problems = validateNewUser({ ...person, departmentId: '', permissions: ['approver'] }, [], departments)
+    expect(problems.permissions).toBeUndefined()
+    expect(problems.departmentId).toBe('department-required')
   })
 })

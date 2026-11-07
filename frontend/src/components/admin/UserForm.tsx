@@ -21,7 +21,7 @@ import { SelectCombobox } from '../ui/SelectCombobox'
 import { TextField } from '../ui/TextField'
 import { DivisionField } from './DivisionField'
 
-const FIELDS: NewUserField[] = ['name', 'email', 'phone', 'divisionId', 'departmentId', 'position']
+const FIELDS: NewUserField[] = ['name', 'email', 'phone', 'divisionId', 'departmentId', 'position', 'permissions']
 
 type FieldErrors = Partial<Record<NewUserField, string>>
 
@@ -61,6 +61,7 @@ export function UserForm({ initial, otherUsers, submitLabel, busyLabel, notice, 
   const divisionRef = useRef<HTMLInputElement>(null)
   const departmentRef = useRef<HTMLInputElement>(null)
   const positionRef = useRef<HTMLInputElement>(null)
+  const permissionsRef = useRef<HTMLInputElement>(null)
 
   const division = values.divisionId ?? defaultDivision(activeDepartments)
   const user: NewUser = { ...values, divisionId: division }
@@ -76,6 +77,7 @@ export function UserForm({ initial, otherUsers, submitLabel, busyLabel, notice, 
     'department-required': content.errors.departmentRequired,
     'position-required': content.errors.positionRequired,
     'position-too-long': content.errors.positionTooLong.replace('{max}', String(POSITION_MAX)),
+    'approver-outside-quality': content.errors.approverOutsideQuality,
   }
   function errorsFor(next: NewUser): FieldErrors {
     const problems = validateNewUser(next, otherUsers, activeDepartments)
@@ -89,6 +91,8 @@ export function UserForm({ initial, otherUsers, submitLabel, busyLabel, notice, 
   function change(next: NewUser) {
     setValues(next)
     onEdit?.()
+    // After a Save attempt: Approver and the department decide this together, and neither blurs to re-check it.
+    if (submitAttempted) setErrors((prev) => ({ ...prev, permissions: errorsFor(next).permissions }))
   }
 
   // Errors are first shown on submit; after that, each field re-validates on blur.
@@ -105,7 +109,7 @@ export function UserForm({ initial, otherUsers, submitLabel, busyLabel, notice, 
     flushSync(() => setErrors(next))
     const firstInvalid = FIELDS.find((field) => next[field])
     if (firstInvalid) {
-      const refs = { name: nameRef, email: emailRef, phone: phoneRef, divisionId: divisionRef, departmentId: departmentRef, position: positionRef }
+      const refs = { name: nameRef, email: emailRef, phone: phoneRef, divisionId: divisionRef, departmentId: departmentRef, position: positionRef, permissions: permissionsRef }
       refs[firstInvalid].current?.focus()
       return
     }
@@ -217,6 +221,8 @@ export function UserForm({ initial, otherUsers, submitLabel, busyLabel, notice, 
       <CheckboxGroup
         name="permissions"
         legend={content.permissions.legend}
+        error={errors.permissions}
+        firstRef={permissionsRef}
         options={PERMISSIONS.map((permission) => ({
           value: permission,
           label: usersEn.permissions[permission],

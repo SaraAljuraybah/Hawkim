@@ -26,8 +26,9 @@ export interface UsersStore {
   addUser: (user: NewUser) => User
   /**
    * Changes a user's details and permissions (the same checks as adding, and permissions in use can't
-   * be removed). Name, phone and position are saved to the database first: if that fails it rejects
-   * with a UserDetailsError and nothing changes. The rest only changes this tab's copy.
+   * be removed). Everything but the email is saved to the database first, all or nothing: if that fails
+   * it rejects with a SaveUserError and nothing changes. The email only changes this tab's copy, as do
+   * users added in this browser.
    */
   updateUser: (userId: string, user: NewUser, context: AdminActionContext) => Promise<void>
   /** Deletes a user: they can no longer sign in, and their name stays on SOP history. */

@@ -28,10 +28,10 @@ export interface NewUser {
   permissions: Permission[]
 }
 
-export type NewUserField = 'name' | 'email' | 'phone' | 'divisionId' | 'departmentId' | 'position'
+export type NewUserField = 'name' | 'email' | 'phone' | 'divisionId' | 'departmentId' | 'position' | 'permissions'
 export type NewUserProblem =
   | 'name-required' | 'email-invalid' | 'email-taken' | 'phone-required' | 'phone-invalid'
-  | 'division-required' | 'department-required' | 'position-required' | 'position-too-long'
+  | 'division-required' | 'department-required' | 'position-required' | 'position-too-long' | 'approver-outside-quality'
 
 /** Longest position (job title), in characters; the database checks the same limit. */
 export const POSITION_MAX = 100
@@ -109,9 +109,10 @@ export function departmentsInDivision<T extends Pick<Department, 'divisionId'>>(
 /**
  * What is wrong with each field (nothing for a valid user). Email must be unique among active
  * users, ignoring case; a division must be chosen (NO_DIVISION counts) and the department must be
- * in it; phone must be a Saudi mobile number; position is required, up to POSITION_MAX characters.
+ * in it; phone must be a Saudi mobile number; position is required, up to POSITION_MAX characters;
+ * Approver is only for the Quality department (the database refuses it too).
  */
-export function validateNewUser(user: NewUser, activeUsers: User[], departments: Pick<Department, 'id' | 'divisionId'>[] = []): Partial<Record<NewUserField, NewUserProblem>> {
+export function validateNewUser(user: NewUser, activeUsers: User[], departments: Pick<Department, 'id' | 'divisionId' | 'isQuality'>[] = []): Partial<Record<NewUserField, NewUserProblem>> {
   const email = user.email.trim().toLowerCase()
   const position = user.position.trim()
   const department = departments.find((item) => item.id === user.departmentId)
@@ -127,6 +128,7 @@ export function validateNewUser(user: NewUser, activeUsers: User[], departments:
     divisionId: user.divisionId ? undefined : 'division-required',
     departmentId: user.departmentId && !outsideDivision ? undefined : 'department-required',
     position: !position ? 'position-required' : position.length > POSITION_MAX ? 'position-too-long' : undefined,
+    permissions: department && !department.isQuality && user.permissions.includes('approver') ? 'approver-outside-quality' : undefined,
   }
 }
 
@@ -152,11 +154,14 @@ export function isDatabaseUser(user: Pick<User, 'id'>): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(user.id)
 }
 
-/** Whether the entered email, department or permissions differ from the user's: these aren't saved to the database yet. */
-export function changesBrowserOnlyFields(user: User, input: NewUser): boolean {
+/** Whether the entered email differs from the user's: it isn't saved to the database yet. */
+export function changesEmail(user: User, input: NewUser): boolean {
   return input.email.trim() !== user.email
-    || input.departmentId !== user.departmentId
-    || PERMISSIONS.some((permission) => input.permissions.includes(permission) !== user.permissions.includes(permission))
+}
+
+/** Whether the permissions differ, in whatever order they were ticked. */
+export function changesPermissions(user: User, permissions: Permission[]): boolean {
+  return PERMISSIONS.some((permission) => permissions.includes(permission) !== user.permissions.includes(permission))
 }
 
 /** "Nouf Almutairi" → "NA": first letters of the first and last words. */

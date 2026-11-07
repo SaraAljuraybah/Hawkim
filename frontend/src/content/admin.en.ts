@@ -100,6 +100,7 @@ export const adminEn: AdminContent = {
       departmentRequired: 'Select a department from the list.',
       positionRequired: "Enter the user's position.",
       positionTooLong: 'Position must be {max} characters or fewer.',
+      approverOutsideQuality: 'Approver is only allowed in the Quality department.',
     },
   },
 
@@ -109,15 +110,26 @@ export const adminEn: AdminContent = {
     submit: 'Save',
     saving: 'Saving…',
     saved: 'Changes saved.',
-    savedUntilReload: 'Changes saved. Email, department and permission changes last only until you reload.',
+    savedUntilReload: 'Changes saved. Email changes last only until you reload.',
     savedInThisBrowser: "Changes saved in this browser only. This user was added here, so they're lost on reload.",
     refused: "Permission wasn't saved:",
     notSaved: "Changes weren't saved:",
     failures: {
       forbidden: "You don't have permission to change this user. Sign in again and retry.",
       'not-found': 'This user no longer exists. Go back to the Users list.',
+      conflict: 'Someone else changed this user. Reload the page and try again.',
       invalid: 'Check the name, phone number and position, then try again.',
+      'self-admin': "You can't remove your own Admin permission.",
+      'last-admin': 'Hawkim must always have at least one admin.',
+      'admin-exclusive': "An Admin can't have any other permission.",
+      'approver-quality': 'Approver is only allowed in the Quality department.',
+      'department-unavailable': 'This department is no longer available. Choose another.',
       failed: 'Check your connection and try again.',
+    },
+    /** A permission still in use, with the number of SOPs; `{permission}` and `{count}` are replaced. */
+    inUse: {
+      one: "{permission} can't be removed: used on {count} SOP.",
+      other: "{permission} can't be removed: used on {count} SOPs.",
     },
   },
 

@@ -1521,6 +1521,7 @@ export interface AdminAddUserContent {
     positionRequired: string
     /** `{max}` is replaced. */
     positionTooLong: string
+    approverOutsideQuality: string
   }
 }
 
@@ -1533,7 +1534,7 @@ export interface AdminEditUserContent {
   saving: string
   /** Shown after saving, when everything changed is in the database. */
   saved: string
-  /** Shown after saving, when email, department or permissions changed too. */
+  /** Shown after saving, when the email changed too. */
   savedUntilReload: string
   /** Shown after saving a user who was added in this browser. */
   savedInThisBrowser: string
@@ -1541,7 +1542,9 @@ export interface AdminEditUserContent {
   refused: string
   /** Above the reason when the database couldn't save. */
   notSaved: string
-  failures: Record<'forbidden' | 'not-found' | 'invalid' | 'failed', string>
+  failures: Record<'forbidden' | 'not-found' | 'conflict' | 'invalid' | 'self-admin' | 'last-admin' | 'admin-exclusive' | 'approver-quality' | 'department-unavailable' | 'failed', string>
+  /** A permission still in use, with the number of SOPs; `{permission}` and `{count}` are replaced. */
+  inUse: { one: string; other: string }
 }
 
 export interface AdminUserDetailsContent {
