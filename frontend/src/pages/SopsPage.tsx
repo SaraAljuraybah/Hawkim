@@ -8,7 +8,7 @@ import { SelectField } from '../components/ui/SelectField'
 import type { Department } from '../data/mock/types'
 import type { MySopSort } from '../lib/mySops'
 import { clampPage, pageCount, pageSlice, rememberedPagesFor, resultsParams, tabSwitch, updateParams, type RememberedPages } from '../lib/pagination'
-import { DIRECTORY_URL_DEFAULTS, filterDirectorySops, OTHERS_SECTION, readDirectoryUrl, type SopDocumentFilter } from '../lib/sopDirectory'
+import { DIRECTORY_URL_DEFAULTS, filterDirectorySops, OTHERS_SECTION, readDirectoryUrl } from '../lib/sopDirectory'
 import { devSampleCount, devSampleSops } from '../lib/devSampleSops'
 import { directorySopsFor } from '../lib/sopAccess'
 import { adminSopPath, sopPath } from '../lib/routes'
@@ -67,14 +67,14 @@ function SopDirectory({ activeDepartment, admin = false }: { activeDepartment: D
   const user = useCurrentUser()
   const requests = useMyRequests()
 
-  // The tab, search, sort, file type and page are kept in the URL, so a refresh or Back restores them.
+  // The tab, search, sort and page are kept in the URL, so a refresh or Back restores them.
   const [params, setParams] = useSearchParams()
-  const { tab, query, sort, documentType, page: urlPage } = useMemo(() => readDirectoryUrl(params), [params])
+  const { tab, query, sort, page: urlPage } = useMemo(() => readDirectoryUrl(params), [params])
   const searchRef = useRef<HTMLInputElement>(null)
   // The page each other tab was left on, for this department only: switching department starts every tab on page 1.
   const [memory, setMemory] = useState<RememberedPages<SopTabKey>>({ department: '', pages: {} })
   // The sort order isn't a filter: it doesn't show Clear Filters and isn't reset by it.
-  const hasFilters = query.length > 0 || documentType !== 'all'
+  const hasFilters = query.length > 0
   const [view, setView] = useState<ViewMode>(readStoredView)
 
   useEffect(() => {
@@ -101,8 +101,8 @@ function SopDirectory({ activeDepartment, admin = false }: { activeDepartment: D
   }))
   const showingOthers = tab === 'others' && hasOthers
   const visibleSops = useMemo(
-    () => filterDirectorySops(authorized, showingOthers ? OTHERS_SECTION : activeDepartment.id, query, documentType, sort),
-    [authorized, showingOthers, activeDepartment.id, query, documentType, sort],
+    () => filterDirectorySops(authorized, showingOthers ? OTHERS_SECTION : activeDepartment.id, query, sort),
+    [authorized, showingOthers, activeDepartment.id, query, sort],
   )
   // A remembered Others tab falls back to All once there is nothing in Others.
   const selectedTab: SopTabKey = showingOthers || tab !== 'others' ? tab : 'all'
@@ -124,7 +124,6 @@ function SopDirectory({ activeDepartment, admin = false }: { activeDepartment: D
     setParams((current) => resultsParams(current, changes, DIRECTORY_URL_DEFAULTS), { replace: true })
   }
   const setQuery = (value: string) => changeResults({ q: value })
-  const setDocumentType = (value: SopDocumentFilter) => changeResults({ type: value })
   const setSort = (value: MySopSort) => changeResults({ sort: value })
 
   // Each tab opens on the page it was left on.
@@ -146,7 +145,7 @@ function SopDirectory({ activeDepartment, admin = false }: { activeDepartment: D
   }
 
   function clearFilters() {
-    changeResults({ q: undefined, type: undefined })
+    changeResults({ q: undefined })
     searchRef.current?.focus()
   }
 
@@ -160,7 +159,7 @@ function SopDirectory({ activeDepartment, admin = false }: { activeDepartment: D
       </p>
 
       <div role="search" aria-label={content.filters.label} className="mt-6 rounded-xl border border-beige bg-white p-4 sm:p-5">
-        <div className="grid items-end gap-4 sm:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_12rem_12rem]">
+        <div className="grid items-end gap-4 sm:grid-cols-[minmax(0,1fr)_12rem]">
           <TextField
             ref={searchRef}
             name="sopSearch"
@@ -170,14 +169,6 @@ function SopDirectory({ activeDepartment, admin = false }: { activeDepartment: D
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             endAdornment={<Search aria-hidden="true" className="mr-2 size-4 text-text-gray" />}
-            className="sm:col-span-2 xl:col-span-1"
-          />
-          <SelectField
-            name="documentType"
-            label={content.filters.typeLabel}
-            value={documentType}
-            onChange={(event) => setDocumentType(event.target.value as SopDocumentFilter)}
-            options={(['all', 'pdf', 'docx'] as const).map((value) => ({ value, label: content.filters.types[value] }))}
           />
           <SelectField
             name="sopSort"

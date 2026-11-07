@@ -56,10 +56,11 @@ describe('the SOP Directory in the admin portal', () => {
     expect(fixture.titles.at(-1)).toBe('SOP Directory · Admin | Hawkim')
   })
 
-  it('shows the admin\'s own department, with search, file type, sort and the views', () => {
+  it('shows the admin\'s own department, with search, sort and the views, and no File Type filter', () => {
     const html = directory()
     expect(html).toContain('Information Technology')
-    for (const name of ['sopSearch', 'documentType', 'sopSort']) expect(html).toContain(`name="${name}"`)
+    for (const name of ['sopSearch', 'sopSort']) expect(html).toContain(`name="${name}"`)
+    expect(html).not.toContain('name="documentType"')
     expect(html).toContain('role="tablist"')
   })
 

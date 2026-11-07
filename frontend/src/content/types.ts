@@ -386,8 +386,6 @@ export interface SopsContent {
     label: string
     searchLabel: string
     searchPlaceholder: string
-    typeLabel: string
-    types: { all: string; pdf: string; docx: string }
     sortLabel: string
     sortNewest: string
     sortOldest: string

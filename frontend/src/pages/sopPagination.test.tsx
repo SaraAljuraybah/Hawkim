@@ -147,19 +147,32 @@ describe('the SOP Directory tabs and filters in the URL', () => {
     fixture.sops = [...sops(20, 'published'), ...sops(20, 'published', (n) => ({ id: `word-${n}`, code: `W-${n}`, title: `Word ${n}`, fileType: 'docx' }))]
   })
 
-  it('restores the tab, the file type and the page from the URL', () => {
-    const html = render(<SopsPage />, '/sops?tab=recent&type=pdf&page=2')
+  it('restores the tab, the sort and the page from the URL', () => {
+    const html = render(<SopsPage />, '/sops?tab=recent&sort=oldest&page=2')
     expect(html).toContain('aria-labelledby="sops-tab-recent"')
-    expect(selected(html, 'documentType')).toBe('pdf')
-    expect(html).toContain('20 SOPs found')
-    expect(shown(html)).toEqual(numbers(8, 1))
+    expect(selected(html, 'sopSort')).toBe('oldest')
+    expect(html).toContain('40 SOPs found')
+    expect(currentPage(html)).toBe('2')
+  })
+
+  it('has no File Type filter, and ignores it in an old link: PDF and Word SOPs are both listed', () => {
+    for (const url of ['/sops', '/sops?type=pdf', '/sops?type=docx&page=1', '/sops?type=xls']) {
+      const html = render(<SopsPage />, url)
+      expect(html).not.toContain('name="documentType"')
+      expect(html).not.toContain('Document Type')
+      expect(html).toContain('40 SOPs found')
+      expect(html).not.toContain('Clear Filters')
+    }
+    // Search and Sort stay.
+    const html = render(<SopsPage />, '/sops')
+    expect(html).toContain('name="sopSearch"')
+    expect(html).toContain('name="sopSort"')
   })
 
   it('falls back to the defaults for invalid values, and to All when there is no Others tab', () => {
     for (const url of ['/sops?tab=mine&type=xls&sort=az', '/sops?tab=others']) {
       const html = render(<SopsPage />, url)
       expect(html).toContain('aria-labelledby="sops-tab-all"')
-      expect(selected(html, 'documentType')).toBe('all')
       expect(selected(html, 'sopSort')).toBe('newest')
       expect(html).toContain('40 SOPs found')
     }

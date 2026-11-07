@@ -123,9 +123,13 @@ describe('list state in the URL', () => {
   })
 
   it('restores the directory from the URL, with defaults for missing or invalid values', () => {
+    expect(readDirectoryUrl(url('tab=others&q=gmp&sort=oldest&page=3')))
+      .toEqual({ tab: 'others', query: 'gmp', sort: 'oldest', page: 3 })
+    expect(readDirectoryUrl(url('tab=mine&sort=&page=-2')))
+      .toEqual({ tab: 'all', query: '', sort: 'newest', page: 1 })
+    // An old link with the removed File Type filter: ignored.
     expect(readDirectoryUrl(url('tab=others&q=gmp&sort=oldest&type=docx&page=3')))
-      .toEqual({ tab: 'others', query: 'gmp', sort: 'oldest', documentType: 'docx', page: 3 })
-    expect(readDirectoryUrl(url('tab=mine&type=xls&sort=&page=-2')))
-      .toEqual({ tab: 'all', query: '', sort: 'newest', documentType: 'all', page: 1 })
+      .toEqual({ tab: 'others', query: 'gmp', sort: 'oldest', page: 3 })
+    expect(readDirectoryUrl(url('type=xls'))).toEqual({ tab: 'all', query: '', sort: 'newest', page: 1 })
   })
 })
