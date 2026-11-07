@@ -7,10 +7,11 @@ import type { ProfileContent, ResetPasswordContent } from './types'
 
 export const profileEn: ProfileContent = {
   pageTitle: 'My Profile | Hawkim',
+  adminPageTitle: 'My Profile · Admin | Hawkim',
   title: 'My Profile',
   fields: { name: 'Name', email: 'Email', phone: 'Phone Number', position: 'Position', division: 'Division', department: 'Department', roles: 'Permission', password: 'Password' },
   none: '—',
-  roles: { author: 'Author', reviewer: 'Reviewer', approver: 'Approver' },
+  roles: { author: 'Author', reviewer: 'Reviewer', approver: 'Approver', admin: 'Admin' },
   password: {
     change: 'Change',
     changeLabel: 'Change Password',
@@ -70,7 +71,7 @@ export const resetPasswordEn: ResetPasswordContent = {
   invalid: {
     title: 'This Link Can\'t Be Used',
     text: 'The link is invalid or has expired. Request a new one from your profile.',
-    action: { label: 'Go to My Profile', href: '/profile' },
+    action: { label: 'Go to My Profile' },
   },
   saved: {
     title: 'Password Changed',

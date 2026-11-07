@@ -189,12 +189,14 @@ export interface SignInContent {
 export interface ProfileContent {
   /** Browser tab title. */
   pageTitle: string
+  /** Browser tab title in the admin portal. */
+  adminPageTitle: string
   title: string
   /** Row labels; `password` is the last row, with the Change Password action. */
   fields: { name: string; email: string; phone: string; position: string; division: string; department: string; roles: string; password: string }
   /** Shown when a value isn't set. */
   none: string
-  roles: { author: string; reviewer: string; approver: string }
+  roles: { author: string; reviewer: string; approver: string; admin: string }
   password: {
     /** Visible text of the action in the Password row. */
     change: string
@@ -263,7 +265,7 @@ export interface ResetPasswordContent {
     failed: string
   }
   /** The link is missing, invalid or expired. */
-  invalid: { title: string; text: string; action: LinkContent }
+  invalid: { title: string; text: string; /** Goes to the person's own profile (see profilePathFor). */ action: { label: string } }
   saved: { title: string; text: string; dashboard: LinkContent; signIn: LinkContent }
 }
 
@@ -1282,6 +1284,8 @@ export interface AdminShellContent extends SidebarContent {
   skipLink: string
   openMenu: string
   drawerLabel: string
+  /** The admin's name and avatar in the top bar; `{name}` is replaced in the label. */
+  profileLink: LinkContent
   /** Shown under the admin's name in the top bar. */
   roleLabel: string
   /** Accessible text of the pending requests count in the sidebar; `{count}` is replaced. */

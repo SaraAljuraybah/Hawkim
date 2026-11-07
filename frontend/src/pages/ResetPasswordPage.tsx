@@ -8,6 +8,7 @@ import { PasswordField } from '../components/ui/PasswordField'
 import { resetPasswordEn } from '../content/profile.en'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { newPasswordProblems, PASSWORD_MIN_LENGTH } from '../lib/newPassword'
+import { profilePathFor } from '../lib/routes'
 import { restoreSession, setNewPassword, startPasswordRecovery, type NewPasswordFailureReason } from '../services/auth'
 import { useSession } from '../state/sessionContext'
 
@@ -124,7 +125,7 @@ export function ResetPasswordPage() {
   if (stage === 'invalid') {
     return (
       <MessageScreen titleRef={titleRef} title={content.invalid.title} text={content.invalid.text} logoAlt={content.logoAlt}>
-        <Button to={content.invalid.action.href} size="lg">{content.invalid.action.label}</Button>
+        <Button to={profilePathFor(session.user)} size="lg">{content.invalid.action.label}</Button>
       </MessageScreen>
     )
   }

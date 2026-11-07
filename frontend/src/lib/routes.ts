@@ -65,6 +65,14 @@ export function requestDepartmentAccessPath(departmentId: DepartmentId): string 
 /** The admin portal's home (its users list); admins opening an employee screen go here. */
 export const ADMIN_USERS_PATH = '/admin/users'
 
+/** My Profile in the admin portal: admins only use the portal. */
+export const ADMIN_PROFILE_PATH = '/admin/profile'
+
+/** Where this person's own profile is: admins' is in the admin portal. Signed out: the employee path, which leads to sign-in. */
+export function profilePathFor(user: { permissions: string[] } | null | undefined): string {
+  return user?.permissions.includes('admin') ? ADMIN_PROFILE_PATH : PROFILE_PATH
+}
+
 /** The admin portal's departments list. */
 export const ADMIN_DEPARTMENTS_PATH = '/admin/departments'
 

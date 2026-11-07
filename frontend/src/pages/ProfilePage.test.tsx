@@ -1,19 +1,23 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { MemoryRouter } from 'react-router-dom'
+import { AdminTopBar } from '../components/layout/AdminTopBar'
 import { TopBar } from '../components/layout/TopBar'
+import { adminEn } from '../content/admin.en'
 import { appShellEn } from '../content/app.en'
 import type { Department, User } from '../data/mock/types'
 import { isPathAllowed } from '../lib/departmentNavigation'
-import { PROFILE_PATH } from '../lib/routes'
+import { ADMIN_PROFILE_PATH, PROFILE_PATH, profilePathFor } from '../lib/routes'
 import { ProfilePage } from './ProfilePage'
 
 const fixture = vi.hoisted(() => ({
   user: { id: 'me', name: 'Sara Aljuraybah', initials: 'SA', email: 'sara@example.test', departmentId: 'home', permissions: ['author', 'reviewer'] } as User,
   home: { id: 'home', name: 'Pharmacovigilance', initials: 'PV', description: '' } as Department,
+  titles: [] as string[],
 }))
+vi.mock('../hooks/useDocumentTitle', () => ({ useDocumentTitle: (title: string) => { fixture.titles.push(title) } }))
 vi.mock('../state/sessionContext', () => ({ useCurrentUser: () => fixture.user }))
-vi.mock('../state/activeDepartmentContext', () => ({ useActiveDepartment: () => ({ homeDepartment: fixture.home, activeDepartment: { id: 'other', name: 'Another Directory' } }) }))
+vi.mock('../state/departmentsContext', () => ({ useDepartments: () => ({ getDepartment: (id: string) => (id === fixture.home.id ? fixture.home : undefined) }) }))
 vi.mock('../components/layout/NotificationsBell', () => ({ NotificationsBell: () => null }))
 vi.mock('../components/layout/DepartmentSwitcher', () => ({ DepartmentSwitcher: () => <button type="button">Department Switcher</button> }))
 
@@ -49,7 +53,7 @@ describe('My Profile', () => {
   })
 
   it('shows every empty value as the same —, blank text included', () => {
-    fixture.user = { ...fixture.user, permissions: ['admin'], position: '   ' }
+    fixture.user = { ...fixture.user, permissions: [], position: '   ' }
     const rows = [...render().matchAll(/<dt[^>]*>([^<]+)<\/dt>(<dd[^>]*>)([^<]*)<\/dd>/g)]
     const empty = rows.filter((match) => match[3] === '—')
     expect(empty.map((match) => match[1])).toEqual(['Phone Number', 'Division', 'Position', 'Permission'])
@@ -175,5 +179,52 @@ describe('top bar links to My Profile', () => {
     expect(html()).toContain('>Department Switcher<')
     for (const link of links()) expect(link).not.toContain('<button')
     expect(html()).not.toContain('aria-haspopup="menu"')
+  })
+})
+
+describe('My Profile in the admin portal', () => {
+  const admin = { ...fixture.user, name: 'Nouf Almutairi', initials: 'NA', permissions: ['admin'] } as User
+  const page = () => renderToStaticMarkup(<MemoryRouter><ProfilePage admin /></MemoryRouter>)
+  const value = (html: string, label: string) => html.match(new RegExp(`<dt[^>]*>${label}</dt><dd[^>]*>([^<]*)<`))![1]
+
+  beforeEach(() => { fixture.user = admin })
+
+  it('shows the same fields as an employee, in one h1 page, with Admin as the permission', () => {
+    const html = page()
+    expect([...html.matchAll(/<dt[^>]*>([^<]+)<\/dt>/g)].map((match) => match[1])).toEqual(['Name', 'Email', 'Phone Number', 'Division', 'Department', 'Position', 'Permission', 'Password'])
+    expect(value(html, 'Permission')).toBe('Admin')
+    expect(value(html, 'Department')).toBe('Pharmacovigilance')
+    expect(html.match(/<h1/g)).toHaveLength(1)
+    expect(html).toContain('aria-label="Change Password"')
+  })
+
+  it('only differs in the browser tab title', () => {
+    fixture.titles.length = 0
+    page()
+    expect(fixture.titles.at(-1)).toBe(adminEn.pageTitle.replace('{page}', 'My Profile'))
+    const html = page()
+    expect(html).toBe(renderToStaticMarkup(<MemoryRouter><ProfilePage /></MemoryRouter>))
+  })
+
+  it('is linked from the admin top bar: the avatar for everyone, the name for the mouse', () => {
+    const html = renderToStaticMarkup(<MemoryRouter><AdminTopBar content={adminEn.shell} user={admin} menuOpen={false} onOpenMenu={() => {}} menuButtonRef={{ current: null }} /></MemoryRouter>)
+    const links = html.match(/<a[^>]*href="\/admin\/profile"[^>]*>.*?<\/a>/g)!
+    expect(links).toHaveLength(2)
+    expect(links[0]).toContain('aria-label="My Profile, Nouf Almutairi"')
+    expect(links[0]).not.toContain('tabindex')
+    expect(links[0]).toContain('>NA<')
+    expect(links[1]).toContain('tabindex="-1"')
+    expect(links[1]).toContain('aria-hidden="true"')
+    expect(links[1]).toContain('>Nouf Almutairi<')
+    // Still shows the role, as plain text.
+    expect(html).toContain('>Administrator</p>')
+  })
+
+  it('knows where each person\'s profile is', () => {
+    expect(adminEn.shell.profileLink.href).toBe(ADMIN_PROFILE_PATH)
+    expect(profilePathFor(admin)).toBe(ADMIN_PROFILE_PATH)
+    expect(profilePathFor({ permissions: ['author'] })).toBe(PROFILE_PATH)
+    expect(profilePathFor({ permissions: [] })).toBe(PROFILE_PATH)
+    expect(profilePathFor(null)).toBe(PROFILE_PATH)
   })
 })

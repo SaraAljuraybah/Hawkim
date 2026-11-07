@@ -1,4 +1,5 @@
 import type { Ref } from 'react'
+import { Link } from 'react-router-dom'
 import { Menu } from 'lucide-react'
 import type { AdminShellContent } from '../../content/types'
 import type { User } from '../../data/mock/types'
@@ -29,16 +30,25 @@ export function AdminTopBar({ content, user, menuOpen, onOpenMenu, menuButtonRef
           <Menu aria-hidden="true" className="size-5" strokeWidth={1.75} />
         </button>
 
-        {/* Signed-in admin (display only) */}
+        {/* Signed-in admin: the avatar is the link to their profile, as in the employee top bar */}
         <div className="ml-auto flex items-center gap-3">
-          <span
-            aria-hidden="true"
-            className="inline-flex size-10 shrink-0 items-center justify-center rounded-full bg-maroon text-sm font-semibold text-offwhite"
+          <Link
+            to={content.profileLink.href}
+            aria-label={content.profileLink.label.replace('{name}', user.name)}
+            className="inline-flex size-10 shrink-0 items-center justify-center rounded-full bg-maroon text-sm font-semibold text-offwhite transition-colors hover:bg-maroon-secondary"
           >
-            {user.initials}
-          </span>
+            <span aria-hidden="true">{user.initials}</span>
+          </Link>
           <div className="leading-tight">
-            <p className="text-sm font-medium text-maroon">{user.name}</p>
+            {/* The same link for the mouse and touch. Screen readers and the keyboard use the avatar's, so they don't meet it twice. */}
+            <Link
+              to={content.profileLink.href}
+              tabIndex={-1}
+              aria-hidden="true"
+              className="block text-sm font-medium text-maroon underline-offset-2 outline-none hover:underline"
+            >
+              {user.name}
+            </Link>
             <p className="text-xs text-text-gray">{content.roleLabel}</p>
           </div>
         </div>

@@ -25,6 +25,7 @@ export const adminEn: AdminContent = {
     closeMenu: 'Close menu',
     drawerLabel: 'Navigation',
     roleLabel: 'Administrator',
+    profileLink: { label: 'My Profile, {name}', href: '/admin/profile' },
     pendingLabel: '{count} pending',
   },
   pageTitle: '{page} · Admin | Hawkim',

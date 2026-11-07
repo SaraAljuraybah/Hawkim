@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { MemoryRouter } from 'react-router-dom'
 import { resetPasswordEn } from '../content/profile.en'
 import { newPasswordProblems } from '../lib/newPassword'
-import { RESET_PASSWORD_PATH } from '../lib/routes'
+import { profilePathFor, RESET_PASSWORD_PATH } from '../lib/routes'
 import { NewPasswordForm, ResetPasswordPage } from './ResetPasswordPage'
 
 vi.mock('../services/auth', () => ({ restoreSession: vi.fn(), setNewPassword: vi.fn(), startPasswordRecovery: vi.fn() }))
@@ -36,8 +36,10 @@ describe('Set New Password', () => {
     expect(newPasswordProblems('long enough', 'long enough')).toEqual({})
   })
 
-  it('sends a new request to the profile page', () => {
-    expect(resetPasswordEn.invalid.action.href).toBe('/profile')
+  it('sends a new request to the person\'s own profile page', () => {
+    expect(profilePathFor({ permissions: ['author'] })).toBe('/profile')
+    expect(profilePathFor({ permissions: ['admin'] })).toBe('/admin/profile')
+    expect(resetPasswordEn.invalid.action.label).toBe('Go to My Profile')
     expect(RESET_PASSWORD_PATH).toBe('/reset-password')
   })
 })

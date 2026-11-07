@@ -128,6 +128,7 @@ function AppRoutes() {
       {/* Admin portal: its own layout; only for admins (others see Not Found). */}
       <Route path="/admin" element={<AdminArea />}>
         <Route index element={<Navigate to={ADMIN_USERS_PATH} replace />} />
+        <Route path="profile" element={<ProfilePage admin />} />
         <Route path="users" element={<AdminUsersPage />} />
         <Route path="users/new" element={<AddUserPage />} />
         <Route path="users/:id" element={<UserDetailsPage />} />

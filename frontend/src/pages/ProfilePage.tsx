@@ -6,26 +6,30 @@ import { controlClasses } from '../components/ui/useFieldIds'
 import { profileEn } from '../content/profile.en'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { divisionLabel } from '../lib/userAdmin'
-import { useActiveDepartment } from '../state/activeDepartmentContext'
+import { useDepartments } from '../state/departmentsContext'
 import { useCurrentUser } from '../state/sessionContext'
 
-/** My Profile ("/profile"): the signed-in employee's own information, read-only, and Change Password (a dialog). */
-export function ProfilePage() {
+/**
+ * My Profile: the signed-in person's own information, read-only, and Change Password (a dialog). The same
+ * page in the employee app ("/profile") and the admin portal ("/admin/profile", `admin`: only the tab
+ * title differs).
+ */
+export function ProfilePage({ admin = false }: { admin?: boolean }) {
   const content = profileEn
-  useDocumentTitle(content.pageTitle)
+  useDocumentTitle(admin ? content.adminPageTitle : content.pageTitle)
   const user = useCurrentUser()
-  const { homeDepartment } = useActiveDepartment()
+  const department = useDepartments().getDepartment(user.departmentId)
   const [changing, setChanging] = useState(false)
   const [changed, setChanged] = useState(false)
   const changeRef = useRef<HTMLButtonElement>(null)
-  const roles = user.permissions.flatMap((permission) => (permission === 'admin' ? [] : [content.roles[permission]]))
+  const roles = user.permissions.map((permission) => content.roles[permission])
   // Same order as Add User. A value that is missing or blank shows content.none, the same way for every field.
   const details = [
     [content.fields.name, user.name],
     [content.fields.email, user.email],
     [content.fields.phone, user.phone],
-    [content.fields.division, divisionLabel(homeDepartment)],
-    [content.fields.department, homeDepartment.name],
+    [content.fields.division, divisionLabel(department)],
+    [content.fields.department, department?.name],
     [content.fields.position, user.position],
     [content.fields.roles, roles.join(', ')],
   ].map(([label, value]) => [label, value?.trim() || content.none] as const)
