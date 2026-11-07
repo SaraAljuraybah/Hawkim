@@ -30,7 +30,7 @@ export const profileEn: ProfileContent = {
       close: 'Close',
       errors: {
         currentRequired: 'Enter your current password.',
-        currentIncorrect: 'Your current password is incorrect.',
+        currentIncorrect: 'Incorrect password.',
         nextRequired: 'Enter a new password.',
         tooShort: 'Enter at least {min} characters.',
         confirmRequired: 'Enter your new password again.',
