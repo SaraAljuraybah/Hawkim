@@ -1,7 +1,5 @@
 import { useState } from 'react'
-import { Pencil } from 'lucide-react'
 import { FormDialog } from '../ui/FormDialog'
-import { Button } from '../ui/Button'
 import { CopyButton } from '../ui/CopyButton'
 import { TextField } from '../ui/TextField'
 import { TextAreaField } from '../ui/TextAreaField'
@@ -41,22 +39,20 @@ export function DivisionForm({ division, onClose, onSaved }: { division?: Divisi
   </FormDialog>
 }
 
-export function DivisionPreview({ division, onEdit, onClose }: { division: DivisionRecord; onEdit: () => void; onClose: () => void }) {
+/** A division's details: Description ("Not provided." when empty) and Email, then Close. Read-only, like DepartmentPreview. */
+export function DivisionPreview({ division, onClose }: { division: DivisionRecord; onClose: () => void }) {
   // One block, so the dialog's gap between children doesn't separate the title, Description and Email.
   return <FormDialog open title={division.name} confirmLabel={text.close} onConfirm={() => {}} onClose={onClose}>
-    <div className="-mt-1 flex items-start gap-4">
-      <dl className="min-w-0 flex-1 space-y-4 text-sm">
-        {division.description && <div>
-          <dt className="font-medium text-maroon">{text.description}</dt>
-          <dd className="mt-1 break-words text-black">{division.description}</dd>
-        </div>}
-        <EmailDetail email={division.email} />
-      </dl>
-      <Button type="button" size="sm" variant="secondary" onClick={onEdit} className="shrink-0">
-        <Pencil className="size-4" aria-hidden="true" strokeWidth={1.75} />
-        {text.edit}
-      </Button>
-    </div>
+    <dl className="-mt-1 space-y-4 text-sm">
+      <div>
+        <dt className="font-medium text-maroon">{text.description}</dt>
+        {/* null (never set) and '' (saved empty) both count as none. */}
+        {division.description?.trim()
+          ? <dd className="mt-1 break-words text-black">{division.description}</dd>
+          : <dd className="mt-1 text-text-gray">{text.notProvided}</dd>}
+      </div>
+      <EmailDetail email={division.email} />
+    </dl>
   </FormDialog>
 }
 

@@ -99,8 +99,8 @@ describe('division create and edit form', () => {
   })
 })
 describe('division preview', () => {
-  const preview = (props: Partial<Parameters<typeof DivisionPreview>[0]> = {}) => render(() => DivisionPreview({ division, onEdit: vi.fn(), onClose: vi.fn(), ...props }))
-  const markup = (props: Partial<Parameters<typeof DivisionPreview>[0]> = {}) => { host.index = 0; return renderToStaticMarkup(<DivisionPreview division={division} onEdit={vi.fn()} onClose={vi.fn()} {...props} />) }
+  const preview = (props: Partial<Parameters<typeof DivisionPreview>[0]> = {}) => render(() => DivisionPreview({ division, onClose: vi.fn(), ...props }))
+  const markup = (props: Partial<Parameters<typeof DivisionPreview>[0]> = {}) => { host.index = 0; return renderToStaticMarkup(<DivisionPreview division={division} onClose={vi.fn()} {...props} />) }
 
   it('keeps the title, and puts Description then Email in one compact block (one gap under the title)', () => {
     const element = preview()
@@ -131,20 +131,19 @@ describe('division preview', () => {
     expect(html).not.toContain('Copy email')
   })
 
-  it('leaves out an empty description instead of leaving a gap', () => {
-    const html = markup({ division: { ...division, description: '' } })
-    expect(html).not.toContain('>Description<')
-    expect(html).toContain('>Email<')
+  it.each([['null', null], ['empty', ''], ['whitespace-only', '  \n ']])('says Not provided. (muted) when the description is %s', (_, description) => {
+    const html = markup({ division: { ...division, description } })
+    expect(html).toMatch(/>Description<\/dt><dd class="mt-1 text-text-gray">Not provided.</)
+    expect(html.match(/<dt[^>]*>([^<]*)<\/dt>/g)!.map((tag) => tag.replace(/<[^>]+>/g, ''))).toEqual(['Description', 'Email'])
   })
 
-  it('keeps the Edit and Close actions', () => {
-    const onEdit = vi.fn()
+  it('has only Close: no Edit button', () => {
     const onClose = vi.fn()
-    const element = preview({ onEdit, onClose })
-    const edit = elements(element).find((item) => item.props.onClick === onEdit)!
-    ;(edit.props.onClick as () => void)()
-    expect(onEdit).toHaveBeenCalledOnce()
+    const element = preview({ onClose })
+    expect(markup()).not.toMatch(/>Edit</)
+    expect(elements(element).some((item) => typeof item.props.onClick === 'function')).toBe(false)
     expect(element.props.confirmLabel).toBe('Close')
+    expect(element.props.cancelLabel).toBeUndefined()
     ;(element.props.onClose as () => void)()
     expect(onClose).toHaveBeenCalledOnce()
   })
