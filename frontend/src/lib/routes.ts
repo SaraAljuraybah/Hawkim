@@ -47,6 +47,11 @@ export function reviewCompliancePath(sopId: string): string {
   return `${reviewPath(sopId)}/compliance`
 }
 
+/** Path of the GVP version compliance checks use, read-only, from an SOP's Compliance Overview (its author's and co-authors' view). */
+export function sopGuidelinePath(sopId: string): string {
+  return `${mySopPath(sopId)}/guideline`
+}
+
 /** Path of an SOP's compliance report (the author's and co-authors' view). */
 export function complianceReportPath(sopId: string): string {
   return `${mySopPath(sopId)}/compliance`

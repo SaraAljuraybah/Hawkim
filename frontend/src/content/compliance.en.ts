@@ -34,6 +34,13 @@ export const complianceEn: ComplianceContent = {
       badge: 'Recheck Recommended',
       note: 'Last checked against GVP v{checked}. The current version is v{current}.',
     },
+    guideline: {
+      tableLabel: 'GVP version used for compliance checks',
+    },
+  },
+  guidelinePage: {
+    pageTitle: '{name} · {title} | Hawkim',
+    back: 'Back to {title}',
   },
   report: {
     pageTitle: 'Compliance Report · {title} | Hawkim',

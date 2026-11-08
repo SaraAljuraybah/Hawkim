@@ -6,6 +6,7 @@ import { FormDialog } from '../components/ui/FormDialog'
 import { Tooltip } from '../components/ui/Tooltip'
 import { AddCoAuthorsDialog } from '../components/workflow/AddCoAuthorsDialog'
 import { ComplianceCard } from '../components/workflow/ComplianceCard'
+import { ComplianceGuideline } from '../components/workflow/ComplianceGuideline'
 import { FileDialog } from '../components/workflow/FileDialog'
 import { InternalReviewPanel } from '../components/workflow/InternalReviewPanel'
 import { PeopleList } from '../components/workflow/PeopleList'
@@ -390,8 +391,10 @@ export function SopWorkflowPage() {
         />
       </Section>
 
-      {/* 4. Compliance overview (says so when the current version hasn't been checked yet) */}
+      {/* 4. Compliance overview: the GVP version checks use, then the results (or that the current version hasn't been checked yet).
+          This page is only for the SOP's author and co-authors, so only they see the GVP version here. */}
       {needsCheck && <Section id="compliance-title" title={complianceEn.card.title} className="mt-6">
+        <ComplianceGuideline sopId={sop.id} />
         <ComplianceCard sop={sop} content={complianceEn} />
       </Section>}
 

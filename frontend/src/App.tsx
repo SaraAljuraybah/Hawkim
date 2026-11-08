@@ -33,6 +33,7 @@ import { UsersProvider } from './state/UsersProvider'
  * The landing page, sign-in and dashboard stay in the main bundle.
  */
 const ComplianceReportPage = lazy(() => import('./pages/ComplianceReportPage').then((m) => ({ default: m.ComplianceReportPage })))
+const SopGuidelinePage = lazy(() => import('./pages/SopGuidelinePage').then((m) => ({ default: m.SopGuidelinePage })))
 const ReviewPage = lazy(() => import('./pages/ReviewPage').then((m) => ({ default: m.ReviewPage })))
 const SopDetailPage = lazy(() => import('./pages/SopDetailPage').then((m) => ({ default: m.SopDetailPage })))
 const SopWorkflowPage = lazy(() => import('./pages/SopWorkflowPage').then((m) => ({ default: m.SopWorkflowPage })))
@@ -117,6 +118,7 @@ function AppRoutes() {
         <Route path="/my-sops/upload" element={<UploadSopPage />} />
         <Route path="/my-sops/:id" element={<SopWorkflowPage />} />
         <Route path="/my-sops/:id/compliance" element={<ComplianceReportPage />} />
+        <Route path="/my-sops/:id/guideline" element={<SopGuidelinePage />} />
         <Route path="/reviews" element={<ReviewsPage />} />
         <Route path="/reviews/:id" element={<ReviewPage />} />
         <Route path="/reviews/:id/compliance" element={<ComplianceReportPage audience="reviewer" />} />

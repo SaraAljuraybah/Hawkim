@@ -1,17 +1,17 @@
-import { useRef, useState, type ReactNode } from 'react'
+import { useRef, useState } from 'react'
 import { flushSync } from 'react-dom'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { CircleAlert, CircleCheck, Eye, Pencil, Plus, Trash2 } from 'lucide-react'
 import { GuidelineVersionDetails } from '../../components/admin/GuidelineVersionDetails'
 import { Button } from '../../components/ui/Button'
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
+import { CurrentBadge } from '../../components/ui/CurrentBadge'
+import { GuidelineVersionsTable } from '../../components/ui/GuidelineVersionsTable'
 import { IconButton } from '../../components/ui/IconButton'
-import { tableStyles } from '../../components/ui/tableStyles'
 import { adminEn } from '../../content/admin.en'
 import type { GuidelineVersion } from '../../data/mock/types'
 import { useDocumentTitle } from '../../hooks/useDocumentTitle'
-import { formatDate } from '../../lib/format'
-import { addedDateOf, newestVersion } from '../../lib/guidelines'
+import { newestVersion } from '../../lib/guidelines'
 import { adminRegulationEditPath, adminRegulationPath } from '../../lib/routes'
 import { GuidelineError } from '../../services/guidelines'
 import { useGuidelines } from '../../state/guidelinesContext'
@@ -31,7 +31,6 @@ export interface AdminRegulationsLocationState {
  */
 export function AdminRegulationsPage() {
   const text = adminEn.regulations
-  const columns = text.history.columns
   useDocumentTitle(adminEn.pageTitle.replace('{page}', text.title))
   const arrived = useLocation().state as AdminRegulationsLocationState | null
   const navigate = useNavigate()
@@ -46,17 +45,6 @@ export function AdminRegulationsPage() {
   const deleteTrigger = useRef<HTMLButtonElement | null>(null)
 
   const label = (version: GuidelineVersion) => text.versionLabel.replace('{title}', version.title ?? '').replace('{version}', version.version)
-  const date = (isoDate: string | undefined): ReactNode => (isoDate ? <time dateTime={isoDate}>{formatDate(isoDate)}</time> : text.none)
-  const currentBadge = (
-    <span className="rounded-full border border-maroon/20 bg-maroon/[0.06] px-2.5 py-0.5 text-xs font-medium text-maroon">{text.current.badge}</span>
-  )
-  const versionCell = (version: GuidelineVersion) => (
-    // The badge stays on the version's line.
-    <span className="inline-flex items-center gap-2 whitespace-nowrap">
-      {version.version}
-      {version.id === shownCurrent.id && currentBadge}
-    </span>
-  )
   const actions = (version: GuidelineVersion) => (
     <div className="flex justify-end gap-1">
       <IconButton label={text.actions.view.replace('{name}', label(version))} icon={Eye} onClick={() => navigate(adminRegulationPath(version.id))} />
@@ -131,7 +119,7 @@ export function AdminRegulationsPage() {
           </h2>
           <p className="mt-2 flex flex-wrap items-center gap-3 text-xl font-semibold text-maroon">
             {text.versionName.replace('{version}', shownCurrent.version)}
-            {currentBadge}
+            <CurrentBadge label={text.current.badge} />
           </p>
           <GuidelineVersionDetails version={shownCurrent} actions={{ withoutFile: true, withoutRequirements: true }} className="mt-5" />
         </section>
@@ -155,53 +143,7 @@ export function AdminRegulationsPage() {
               </Button>
             </div>
           )}
-          <div className={`mt-3 ${tableStyles.frame}`}>
-            {/* Table — md and up */}
-            <div className={tableStyles.wide}>
-              <table aria-label={text.history.tableLabel} className={tableStyles.table}>
-                <thead className={tableStyles.head}>
-                  <tr>
-                    <th scope="col" className={tableStyles.headCell}>{columns.title}</th>
-                    <th scope="col" className={`${tableStyles.headCell} whitespace-nowrap`}>{columns.version}</th>
-                    <th scope="col" className={`${tableStyles.headCell} whitespace-nowrap`}>{columns.issued}</th>
-                    <th scope="col" className={`${tableStyles.headCell} whitespace-nowrap`}>{columns.added}</th>
-                    <th scope="col" className={`${tableStyles.headCell} text-right`}>
-                      <span className="sr-only">{columns.actions}</span>
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className={tableStyles.body}>
-                  {history.map((version) => (
-                    <tr key={version.id}>
-                      <th scope="row" className={tableStyles.rowHeader}>{version.title || text.none}</th>
-                      <td className={`${tableStyles.cell} whitespace-nowrap text-maroon`}>{versionCell(version)}</td>
-                      <td className={`${tableStyles.cell} whitespace-nowrap text-text-gray`}>{date(version.issuedDate)}</td>
-                      <td className={`${tableStyles.cell} whitespace-nowrap text-text-gray`}>{date(version.addedAt ? addedDateOf(version) : undefined)}</td>
-                      <td className={tableStyles.cell}>{actions(version)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Stacked cards — below md */}
-            <ul aria-label={text.history.tableLabel} className={tableStyles.cards}>
-              {history.map((version) => (
-                <li key={version.id} className="p-4">
-                  <p className="text-sm font-medium break-words text-maroon">{version.title || text.none}</p>
-                  <dl className="mt-1 grid grid-cols-[auto_minmax(0,1fr)] gap-x-2 gap-y-0.5 text-sm">
-                    <dt className="text-text-gray">{columns.version}</dt>
-                    <dd className="text-maroon">{versionCell(version)}</dd>
-                    <dt className="text-text-gray">{columns.issued}</dt>
-                    <dd className="text-maroon">{date(version.issuedDate)}</dd>
-                    <dt className="text-text-gray">{columns.added}</dt>
-                    <dd className="text-maroon">{date(version.addedAt ? addedDateOf(version) : undefined)}</dd>
-                  </dl>
-                  <div className="mt-3 flex justify-end">{actions(version)}</div>
-                </li>
-              ))}
-            </ul>
-          </div>
+          <GuidelineVersionsTable versions={history} currentId={shownCurrent.id} label={text.history.tableLabel} actions={actions} className="mt-3" />
         </section>
       </div>
 

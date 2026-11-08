@@ -936,6 +936,15 @@ export interface ComplianceContent {
     viewReport: string
     /** The SOP's newest check used an older GVP version (PBI 29). `{checked}` and `{current}` are replaced. */
     recheck: { badge: string; note: string }
+    /** The GVP version compliance checks use, in a one-row table before the card's text (authors' view). */
+    guideline: { tableLabel: string }
+  }
+  /** The authors' read-only page of that GVP version, from the card's View button. */
+  guidelinePage: {
+    /** `{name}` is the version's name (e.g. "GVP Version 4.0"), `{title}` the SOP's title. */
+    pageTitle: string
+    /** Back to the SOP; `{title}` is its title. */
+    back: string
   }
   /** The compliance report page ("/my-sops/:id/compliance"), laid out as a formal report. */
   report: {
