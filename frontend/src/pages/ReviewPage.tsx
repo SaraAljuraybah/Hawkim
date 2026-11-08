@@ -10,6 +10,7 @@ import { currentInternalRound, isInternalReviewPending } from '../lib/internalRe
 import { latestAssignmentOf } from '../lib/internalReviewStatus'
 import { ReviewFlowActions } from '../components/reviews/ReviewFlowActions'
 import { CommentDialog } from '../components/reviews/ReviewDialogs'
+import { DocxViewer } from '../components/sops/DocxViewer'
 import { PdfViewer } from '../components/sops/PdfViewer'
 import { Button } from '../components/ui/Button'
 import { ConfirmDialog } from '../components/ui/ConfirmDialog'
@@ -21,6 +22,7 @@ import { StatusTracker } from '../components/workflow/StatusTracker'
 import { ReviewTimelineTable } from '../components/workflow/ReviewTimelineTable'
 import { SopDescription } from '../components/workflow/SopDescription'
 import { complianceEn } from '../content/compliance.en'
+import { loadingEn } from '../content/loading.en'
 import { reviewsEn } from '../content/reviews.en'
 import { sopWorkflowEn } from '../content/workflow.en'
 import type { ApprovalDecisionSnapshot, Sop } from '../data/mock/types'
@@ -368,6 +370,17 @@ function Review({ sop, historical }: { sop: Sop; historical: boolean }) {
               url={fileUrl}
               title={text.file.viewerTitle.replace('{title}', sop.title)}
               fallback={text.file.fallback}
+            />
+          </div>
+        )}
+        {/* A Word file: shown in the browser (Download is above) */}
+        {fileUrl && sop.fileType === 'docx' && (
+          <div className="mt-4 rounded-xl border border-beige p-3 sm:p-4">
+            <DocxViewer
+              url={fileUrl}
+              fileKey={`${sop.id}\n${sop.version}\n${currentVersionOf(sop)?.storagePath ?? fileUrl}`}
+              label={text.file.docxViewerTitle.replace('{title}', sop.title)}
+              text={{ loading: loadingEn.label, failed: text.fileFailed }}
             />
           </div>
         )}

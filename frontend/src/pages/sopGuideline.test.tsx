@@ -95,6 +95,20 @@ describe('the GVP version on the author\'s Compliance Overview', () => {
   })
 })
 
+describe('a Word file on the review page', () => {
+  it('is shown in the Word preview, under the Download button, as a labelled region', () => {
+    fixture.sop = { ...fixture.sop!, status: 'in-review', fileName: 'a.docx', fileType: 'docx', reviewers: [{ userId: 'reviewer', decision: 'pending' }],
+      versions: [{ version: '1', fileName: 'a.docx', fileType: 'docx', uploadedAt: '2026-10-29T08:00:00Z', uploadedById: 'author', fileUrl: '/samples/a.docx' }],
+      timeline: [{ id: 'sent', type: 'submitted', actorId: 'author', recipientIds: ['reviewer'], createdAt: '2026-10-29T08:00:00Z', version: '1' }] }
+    fixture.userId = 'reviewer'
+    const html = at('/reviews/test', '/reviews/:id', <ReviewPage />)
+    expect(html).toContain('aria-label="Visible Procedure (Word document preview)"')
+    expect(html.indexOf('>Download<')).toBeLessThan(html.indexOf('role="region"'))
+    expect(html).not.toContain('<iframe')
+    expect(html.match(/<h1/g)).toHaveLength(1)
+  })
+})
+
 describe('the author\'s GVP page', () => {
   it('is at /my-sops/<id>/guideline', () => {
     expect(sopGuidelinePath('test')).toBe('/my-sops/test/guideline')

@@ -46,8 +46,8 @@ export function VersionHistory({ sop, content, userId, deleteReason, onPreview, 
   function actions(version: SopVersion) {
     // The download adapter resolves stored files; sample files may use a plain URL.
     const available = !!version.storagePath || !!version.fileUrl
-    const previewReason =
-      version.fileType !== 'pdf' ? text.unavailable.word : !available ? text.unavailable.demo : undefined
+    // PDF and Word files can both be previewed.
+    const previewReason = !available ? text.unavailable.demo : undefined
     return {
       preview: (
         <IconButton

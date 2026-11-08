@@ -63,8 +63,8 @@ subtitle: 'Browse published SOPs available to you.',
       newTabHint: '(opens in a new tab)',
     },
     docx: {
-      text: "Preview isn't available for Word documents yet.",
       download: 'Download Document',
+      viewerTitle: '{title} (Word document preview)',
     },
     noFile: "The file for this SOP isn't available yet.",
     noAccess: {

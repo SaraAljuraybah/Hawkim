@@ -23,6 +23,7 @@ import { VersionHistory } from '../components/workflow/VersionHistory'
 import { complianceEn } from '../content/compliance.en'
 import { approvalEn } from '../content/approval.en'
 import { internalReviewEn } from '../content/internalReview.en'
+import { loadingEn } from '../content/loading.en'
 import { sopWorkflowEn } from '../content/workflow.en'
 import type { SopVersion } from '../data/mock/types'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
@@ -596,11 +597,14 @@ export function SopWorkflowPage() {
         <PreviewDialog
           title={content.history.previewTitle.replace('{title}', sop.title).replace('{version}', previewing.version.version)}
           url={previewing.url}
-          viewerTitle={content.history.viewerTitle
+          viewerTitle={(previewing.version.fileType === 'docx' ? content.history.docxViewerTitle : content.history.viewerTitle)
             .replace('{title}', sop.title)
             .replace('{version}', previewing.version.version)}
           closeLabel={content.history.close}
           fallback={content.history.fallback}
+          {...(previewing.version.fileType === 'docx'
+            ? { docx: { fileKey: `${sop.id}\n${previewing.version.version}\n${previewing.version.storagePath ?? previewing.url}`, text: { loading: loadingEn.label, failed: content.messages.fileFailed } } }
+            : {})}
           onClose={closeOverlay}
         />
       )}

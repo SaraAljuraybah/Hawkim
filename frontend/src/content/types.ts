@@ -424,7 +424,8 @@ export interface SopDetailContent {
   viewerTitle: string
   /** Shown when the browser can't display PDFs inline (common on phones). */
   fallback: { text: string; openPdf: string; newTabHint: string }
-  docx: { text: string; download: string }
+  /** A Word file: shown in the browser; `viewerTitle` names the preview (`{title}` is replaced). */
+  docx: { download: string; viewerTitle: string }
   /** Shown when a published SOP has no file available yet. */
   noFile: string
   /** `{department}` is replaced with the department name. */
@@ -764,7 +765,7 @@ export interface SopWorkflowContent {
     downloadLabel: string
     deleteLabel: string
     /** Why Preview / Download aren't available: a Word file can't be previewed; the file isn't available (a sample, or no access). */
-    unavailable: { word: string; demo: string }
+    unavailable: { demo: string }
     /**
      * Why Delete isn't available: by the SOP's status (only Draft and Returned allow it),
      * not the user's version (`{name}` is the main author), previously submitted, or the last version left.
@@ -788,6 +789,8 @@ export interface SopWorkflowContent {
     previewTitle: string
     /** Accessible name of the embedded viewer; `{title}` and `{version}` are replaced. */
     viewerTitle: string
+    /** The same, for a Word file's preview. */
+    docxViewerTitle: string
     close: string
     fallback: { text: string; openPdf: string; newTabHint: string }
   }
@@ -1233,6 +1236,8 @@ export interface ReviewPageContent {
     download: string
     /** `{title}` is replaced. */
     viewerTitle: string
+    /** The same, for a Word file's preview. */
+    docxViewerTitle: string
     fallback: { text: string; openPdf: string; newTabHint: string }
   }
   compliance: {

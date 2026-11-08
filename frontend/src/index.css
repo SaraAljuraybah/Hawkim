@@ -143,3 +143,25 @@
     }
   }
 }
+
+/*
+ * Word preview (components/sops/DocxViewer.tsx). docx-preview scopes its own styles under the
+ * "hawkim-docx" class prefix; these only adjust them inside the preview: our beige behind the pages,
+ * and narrower page margins on phones (docx-preview sets the document's margins inline).
+ */
+.docx-preview .hawkim-docx-wrapper {
+  background: var(--color-beige);
+  padding: 1rem 1rem 0;
+}
+.docx-preview .hawkim-docx-wrapper > section.hawkim-docx {
+  margin-bottom: 1rem;
+  max-width: 100%;
+}
+@media (max-width: 40rem) {
+  .docx-preview .hawkim-docx-wrapper {
+    padding: 0.5rem 0.5rem 0;
+  }
+  .docx-preview .hawkim-docx-wrapper > section.hawkim-docx {
+    padding: 1.25rem !important;
+  }
+}

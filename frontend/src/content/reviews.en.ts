@@ -56,6 +56,7 @@ export const reviewsEn: ReviewsContent = {
       title: 'Current File',
       download: 'Download',
       viewerTitle: '{title} (PDF)',
+      docxViewerTitle: '{title} (Word document preview)',
       fallback: {
         text: "Your browser can't display the PDF here. Open it in a new tab instead.",
         openPdf: 'Open PDF',

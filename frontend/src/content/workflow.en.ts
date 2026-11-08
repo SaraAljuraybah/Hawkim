@@ -104,7 +104,6 @@ export const sopWorkflowEn: SopWorkflowContent = {
     downloadLabel: 'Download v{version}',
     deleteLabel: 'Delete v{version}',
     unavailable: {
-      word: 'Preview isn’t available for Word files',
       demo: 'File not available',
     },
     deleteBlocked: {
@@ -130,6 +129,7 @@ export const sopWorkflowEn: SopWorkflowContent = {
     checkCompleted: 'Add a new version to run another check.',
     previewTitle: '{title} · v{version}',
     viewerTitle: '{title}, v{version} (PDF)',
+    docxViewerTitle: '{title}, v{version} (Word document preview)',
     close: 'Close preview',
     fallback: {
       text: "Your browser can't display the PDF here. Open it in a new tab instead.",

@@ -1,10 +1,12 @@
 import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { ArrowLeft, Clock, Download, FileText, Lock } from 'lucide-react'
+import { DocxViewer } from '../components/sops/DocxViewer'
 import { AccessPanel, PdfViewer } from '../components/sops/PdfViewer'
 import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
 import { StatusBadge } from '../components/ui/StatusBadge'
+import { loadingEn } from '../content/loading.en'
 import { sopsEn } from '../content/sops.en'
 import type { Sop } from '../data/mock/types'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
@@ -131,14 +133,26 @@ export function SopDetailPage({ admin = false }: { admin?: boolean }) {
           <AccessPanel icon={<FileText className="size-6" strokeWidth={1.75} />} title={content.noFile} />
         )}
 
+        {/* A Word file: shown in the browser, with Download beside it */}
         {granted && fileUrl && sop.fileType === 'docx' && (
-          // TODO: Convert Word documents to PDF on the server so they can be previewed here.
-          <AccessPanel icon={<FileText className="size-6" strokeWidth={1.75} />} title={content.docx.text}>
-            <Button {...(stored ? { onClick: download, disabled: downloading } : { href: fileUrl, download: downloadName(sop) })}>
-              <Download aria-hidden="true" className="size-4" strokeWidth={2} />
-              {content.docx.download}
-            </Button>
-          </AccessPanel>
+          <>
+            <div className="mb-3 flex justify-end">
+              <Button
+                {...(stored ? { onClick: download, disabled: downloading } : { href: fileUrl, download: downloadName(sop) })}
+                variant="secondary"
+                size="sm"
+              >
+                <Download aria-hidden="true" className="size-4" strokeWidth={2} />
+                {content.docx.download}
+              </Button>
+            </div>
+            <DocxViewer
+              url={fileUrl}
+              fileKey={`${sop.id}\n${sop.version}\n${currentVersionOf(sop)?.storagePath ?? fileUrl}`}
+              label={content.docx.viewerTitle.replace('{title}', sop.title)}
+              text={{ loading: loadingEn.label, failed: content.fileFailed }}
+            />
+          </>
         )}
 
         {/* Without an inline viewer, the PDF opens in a new tab (Export PDF stays in the header). */}
