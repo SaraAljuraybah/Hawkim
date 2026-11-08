@@ -66,3 +66,24 @@ describe('the initials stored for the database', () => {
     expect(storedDepartmentInitials('Quality Assurance', departments, { id: 'qc', name: 'Quality Control', initials: 'QC' })).toBe('QAS')
   })
 })
+
+describe('the agreed examples (Divisions & Departments dialogs)', () => {
+  it.each([
+    ['Clinical Operations', 'CO'],
+    ['Research & Development', 'RD'],
+    ['Finance', 'FI'],
+    ['Sales and Marketing', 'SM'],
+    ['Department of Health', 'DH'],
+    ['Quality & Compliance', 'QC'],
+    ['Human Resources Management', 'HR'],
+  ])('%s → badge %s, and the same value is saved when it is free', (name, initials) => {
+    expect(departmentAbbreviation(name)).toBe(initials)
+    expect(storedDepartmentInitials(name, [])).toBe(initials)
+  })
+
+  it('saves the first free 3-letter variant when another department uses the abbreviation, while the badge stays QA', () => {
+    const others = [{ id: 'qa', name: 'Quality Assurance', initials: 'QA' }]
+    expect(departmentAbbreviation('Quality Audit')).toBe('QA')
+    expect(storedDepartmentInitials('Quality Audit', others)).toBe('QAU')
+  })
+})
