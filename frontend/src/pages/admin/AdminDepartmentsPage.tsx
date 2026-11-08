@@ -8,6 +8,7 @@ import { MultiSelectField } from '../../components/ui/MultiSelectField'
 import { IconButton } from '../../components/ui/IconButton'
 import { FormDialog } from '../../components/ui/FormDialog'
 import { PageLoading } from '../../components/ui/PageLoading'
+import { tableStyles } from '../../components/ui/tableStyles'
 import { DepartmentBadge } from '../../components/admin/DepartmentBadge'
 import { DivisionForm, DivisionPreview } from '../../components/admin/DivisionDialogs'
 import { DeleteDepartmentDialog } from '../../components/admin/DeleteDepartmentDialog'
@@ -128,7 +129,7 @@ export function HierarchyTable({ snapshot, query = '', divisions = [], sort = 'd
   return <div className="mt-3 overflow-x-auto rounded-xl border border-beige bg-white">
     <table aria-label={text.title} className="w-full min-w-[600px] table-fixed text-left text-sm">
     {/* Fixed column widths, so expanding, searching, filtering or sorting never shifts the columns. */}
-    <colgroup><col /><col className="w-28" /><col className="w-28" /><col className="w-44" /></colgroup><thead className="bg-beige/60 text-maroon"><tr>
+    <colgroup><col /><col className="w-28" /><col className="w-28" /><col className="w-44" /></colgroup><thead className={tableStyles.head}><tr>
       <th scope="col" className="p-4">{text.name}</th><th scope="col" className="px-3 py-4 text-center">{text.users}</th><th scope="col" className="px-3 py-4 text-center">{text.sops}</th><th scope="col"><span className="sr-only">{text.edit}</span></th>
     </tr></thead><tbody>
       {rows.map(({ division, children, departmentCount, employees, sops }) => {
