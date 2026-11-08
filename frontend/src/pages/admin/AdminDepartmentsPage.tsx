@@ -1,5 +1,5 @@
 import { Fragment, useMemo, useRef, useState } from 'react'
-import { useLocation, useNavigate } from 'react-router-dom'
+import { useLocation } from 'react-router-dom'
 import { ChevronDown, ChevronRight, Eye, Pencil, Plus, Trash2, X } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
 import { TextField } from '../../components/ui/TextField'
@@ -13,11 +13,12 @@ import { DepartmentBadge } from '../../components/admin/DepartmentBadge'
 import { DivisionForm, DivisionPreview } from '../../components/admin/DivisionDialogs'
 import { DeleteDepartmentDialog } from '../../components/admin/DeleteDepartmentDialog'
 import { DepartmentPreview } from '../../components/admin/DepartmentPreview'
+import { DepartmentForm } from '../../components/admin/DepartmentDialog'
+import { adminEn } from '../../content/admin.en'
 import { organizationAdminEn as text } from '../../content/organizationAdmin.en'
 import { useDocumentTitle } from '../../hooks/useDocumentTitle'
 import { useOrganizationManagement } from '../../hooks/useOrganizationManagement'
 import { DIVISION_SORTS, hierarchyRows, type DivisionSort } from '../../lib/organizationAdmin'
-import { adminDepartmentEditPath, adminNewDepartmentPath } from '../../lib/routes'
 import { deleteDivision, type DivisionRecord, type ManagedDepartment, type ManagementSnapshot } from '../../services/organizationAdmin'
 
 export interface AdminDepartmentsLocationState { removed?: string }
@@ -33,6 +34,8 @@ export function AdminDepartmentsPage() {
   const [deleting, setDeleting] = useState<DivisionRecord>()
   const [department, setDepartment] = useState<ManagedDepartment>()
   const [viewing, setViewing] = useState<ManagedDepartment>()
+  // Add Department (in a division) or Edit Department, in a dialog.
+  const [departmentForm, setDepartmentForm] = useState<{ department?: ManagedDepartment; divisionId?: string }>()
   const notice = (useLocation().state as AdminDepartmentsLocationState | null)?.removed
   const [feedback, setFeedback] = useState(notice ?? '')
   const [actionError, setActionError] = useState('')
@@ -43,7 +46,7 @@ export function AdminDepartmentsPage() {
     .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }) || a.id.localeCompare(b.id))
     .map((division) => ({ value: division.id, label: division.name })), [data])
   const selectedDivisions = divisionFilter.filter((id) => divisionOptions.some((option) => option.value === id))
-  const close = () => { setEditing(undefined); setPreview(undefined); setDeleting(undefined); setDepartment(undefined); setViewing(undefined); trigger.current?.focus() }
+  const close = () => { setEditing(undefined); setPreview(undefined); setDeleting(undefined); setDepartment(undefined); setViewing(undefined); setDepartmentForm(undefined); trigger.current?.focus() }
   return <>
     <div className="flex flex-wrap items-center justify-between gap-4"><h1 className="text-2xl tracking-tight sm:text-3xl">{text.title}</h1>
       <Button onClick={() => open(() => setEditing(null))}><Plus className="size-4" aria-hidden="true" />{text.addDivision}</Button></div>
@@ -65,6 +68,7 @@ export function AdminDepartmentsPage() {
     {error ? <div role="alert"><p>{text.loadFailed}</p><Button variant="secondary" onClick={() => void refresh()}>{text.retry}</Button></div>
       : !data ? <PageLoading /> : <HierarchyTable snapshot={data} query={query} divisions={selectedDivisions} sort={sort}
         onPreview={(row) => open(() => setPreview(row))} onViewDepartment={(row) => open(() => setViewing(row))} onEdit={(row) => open(() => setEditing(row))}
+        onAddDepartment={(divisionId) => open(() => setDepartmentForm({ divisionId }))} onEditDepartment={(row) => open(() => setDepartmentForm({ department: row }))}
         onDeleteDivision={(row) => open(() => setDeleting(row))} onDeleteDepartment={(row) => open(() => setDepartment(row))} />}
     {editing !== undefined && <DivisionForm onSaved={() => setFeedback(text.saved)} division={editing ?? undefined} onClose={() => { close(); void refresh() }} />}
     {preview && <DivisionPreview division={preview} onClose={close} onEdit={() => { setPreview(undefined); setEditing(preview) }} />}
@@ -73,6 +77,8 @@ export function AdminDepartmentsPage() {
         try { await deleteDivision(deleting); setFeedback(text.removed); void refresh() }
         catch (reason) { setActionError((reason as Error).message); void refresh(); return false }
       }}>{actionError && <p role="alert" className="text-sm text-status-rejected-fg">{actionError}</p>}</FormDialog>}
+    {departmentForm && data && <DepartmentForm snapshot={data} {...departmentForm} onClose={() => { close(); void refresh() }}
+      onSaved={(notice) => setFeedback(adminEn.departmentDetails[notice])} />}
     {viewing && <DepartmentPreview department={viewing} divisionName={data?.divisions.find((item) => item.id === viewing.division_id)?.name} onClose={close} />}
     {department && <DeleteDepartmentDialog department={department} onClose={close} onDeleted={() => { setFeedback(text.removed); void refresh() }} />}
   </>
@@ -96,13 +102,13 @@ export function ActiveFilters({ options, selected, onChange }: { options: { valu
 /** Number columns: centred under their headings, the same in division and department rows. */
 const numberCell = 'px-3 py-4 text-center tabular-nums'
 
-export function HierarchyTable({ snapshot, query = '', divisions = [], sort = 'default', onPreview, onViewDepartment, onEdit, onDeleteDivision, onDeleteDepartment }: {
+export function HierarchyTable({ snapshot, query = '', divisions = [], sort = 'default', onPreview, onViewDepartment, onEdit, onDeleteDivision, onAddDepartment, onEditDepartment, onDeleteDepartment }: {
   snapshot: ManagementSnapshot; query?: string; divisions?: string[]; sort?: DivisionSort; onPreview: (division: DivisionRecord) => void;
   onViewDepartment: (department: ManagedDepartment) => void;
   onEdit: (division: DivisionRecord) => void; onDeleteDivision: (division: DivisionRecord) => void;
+  onAddDepartment: (divisionId: string) => void; onEditDepartment: (department: ManagedDepartment) => void
   onDeleteDepartment: (department: ManagedDepartment) => void
 }) {
-  const navigate = useNavigate()
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
   // While searching, matching divisions open automatically but can still be collapsed.
   const [collapsedInSearch, setCollapsedInSearch] = useState<Set<string>>(new Set())
@@ -126,7 +132,7 @@ export function HierarchyTable({ snapshot, query = '', divisions = [], sort = 'd
   label={`${text.edit} ${row.name}`}
   icon={Pencil}
   disabledReason={row.deletion_job_id ? text.cleanupPending : undefined}
-  onClick={() => navigate(adminDepartmentEditPath(row.id))}
+  onClick={() => onEditDepartment(row)}
 />
         <IconButton label={`${row.deletion_job_id ? text.retryCleanup : text.delete} ${row.name}`} icon={Trash2} danger disabledReason={row.employees > 0 ? text.departmentBlocked : undefined} onClick={() => onDeleteDepartment(row)} /></div></td>
     </tr>
@@ -153,7 +159,7 @@ export function HierarchyTable({ snapshot, query = '', divisions = [], sort = 'd
             <IconButton label={`${text.edit} ${division.name}`} icon={Pencil} onClick={() => onEdit(division)} />
             <IconButton label={`${text.delete} ${division.name}`} icon={Trash2} danger disabledReason={departmentCount ? text.divisionBlocked : undefined} onClick={() => onDeleteDivision(division)} /></div></td>
         </tr><tr id={`children-${division.id}`} hidden={!isExpanded}><td colSpan={4} className="border-t border-beige bg-beige/20 py-1.5 pr-3 pl-12"><div className="flex items-center justify-end">
-          {isExpanded && <Button size="sm" to={adminNewDepartmentPath(division.id)}><Plus className="size-3.5" aria-hidden="true" />{text.addDepartment}</Button>}</div></td></tr>
+          {isExpanded && <Button size="sm" onClick={() => onAddDepartment(division.id)}><Plus className="size-3.5" aria-hidden="true" />{text.addDepartment}</Button>}</div></td></tr>
         {isExpanded && (children.length ? children.map(child) : <tr><td colSpan={4} className="py-4 pl-16 text-text-gray">{text.emptyDepartments}</td></tr>)}
         </Fragment>
       })}

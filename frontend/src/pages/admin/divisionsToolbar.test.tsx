@@ -22,7 +22,7 @@ const snapshot: ManagementSnapshot = {
 }
 const page = () => renderToStaticMarkup(<MemoryRouter><AdminDepartmentsPage /></MemoryRouter>)
 const table = (props: Partial<Parameters<typeof HierarchyTable>[0]> = {}) => renderToStaticMarkup(<MemoryRouter>
-  <HierarchyTable snapshot={snapshot} onEdit={vi.fn()} onPreview={vi.fn()} onViewDepartment={vi.fn()} onDeleteDivision={vi.fn()} onDeleteDepartment={vi.fn()} {...props} />
+  <HierarchyTable snapshot={snapshot} onEdit={vi.fn()} onPreview={vi.fn()} onViewDepartment={vi.fn()} onAddDepartment={vi.fn()} onEditDepartment={vi.fn()} onDeleteDivision={vi.fn()} onDeleteDepartment={vi.fn()} {...props} />
 </MemoryRouter>)
 
 describe('the Divisions & Departments page', () => {

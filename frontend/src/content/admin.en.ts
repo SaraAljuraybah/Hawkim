@@ -216,6 +216,7 @@ export const adminEn: AdminContent = {
     description: { label: 'Description', hint: 'One line about what the department does (up to 200 characters).' },
     email: { label: 'Email', placeholder: 'e.g. qa@example.com' },
     cancel: 'Cancel',
+    dialogSubmit: { add: 'Save', edit: 'Save Changes' },
     errors: {
       nameRequired: 'Enter a department name.',
       nameTooLong: 'Keep the name to 60 characters or fewer.',

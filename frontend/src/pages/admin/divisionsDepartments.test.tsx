@@ -10,7 +10,7 @@ vi.mock('../../state/sessionContext', () => ({ useSession: () => ({ signOut: vi.
 const snapshot: ManagementSnapshot = { divisions: [{ id: 'v', name: 'Safety', description: 'Work', email: 's@test.invalid', updated_at: 'revision' }], departments: [
   { id: 'd', name: 'Medical', initials: 'MD', description: '', division_id: 'v', updated_at: 'revision', employees: 5, sops: 1, status_counts: { draft: 1 } },
 ] }
-const render = (query = '', data = snapshot) => renderToStaticMarkup(<MemoryRouter><HierarchyTable snapshot={data} query={query} onEdit={vi.fn()} onPreview={vi.fn()} onViewDepartment={vi.fn()} onDeleteDivision={vi.fn()} onDeleteDepartment={vi.fn()} /></MemoryRouter>)
+const render = (query = '', data = snapshot) => renderToStaticMarkup(<MemoryRouter><HierarchyTable snapshot={data} query={query} onEdit={vi.fn()} onPreview={vi.fn()} onViewDepartment={vi.fn()} onAddDepartment={vi.fn()} onEditDepartment={vi.fn()} onDeleteDivision={vi.fn()} onDeleteDepartment={vi.fn()} /></MemoryRouter>)
 describe('unified divisions and departments table', () => {
   it('renders exactly one table, three named columns and an unlabeled action column', () => {
     const html = render()
@@ -29,7 +29,8 @@ describe('unified divisions and departments table', () => {
     const html = render(' medical ')
     expect(html).toContain('aria-expanded="true"')
     expect(html).toContain('>Medical</span>')
-    expect(html).toContain('/admin/departments/new?division=v')
+    expect(html).toMatch(/<button[^>]*>(?:(?!<\/button>)[\s\S])*Add Department<\/button>/)
+    expect(html).not.toContain('/admin/departments/new')
     expect(html).toContain('Departments (1)')
   })
   it('drops the inner Departments label (the count stays under the name) and previews divisions and departments', () => {

@@ -19,10 +19,12 @@ vi.mock('react-router-dom', async (original) => ({
 }))
 
 type Element = ReactElement<Record<string, unknown>>
+/** The "Add Department" button of an expanded division. */
+const isAdd = (node: Element) => Array.isArray(node.props.children) && (node.props.children as unknown[]).includes('Add Department')
 const flatten = (node: ReactNode): Element[] => Array.isArray(node) ? node.flatMap(flatten) : isValidElement<Record<string, unknown>>(node) ? [node,...flatten(node.props.children as ReactNode)] : []
 const props = {
   snapshot: { divisions: [{ id:'v', name:'Safety',email:null,description:'',updated_at:null }], departments: [{ id:'d',name:'Medical',initials:'MD',description:'',division_id:'v',updated_at:'revision',employees:0,sops:1,status_counts:{} }] },
-  onPreview:vi.fn(),onViewDepartment:vi.fn(),onEdit:vi.fn(),onDeleteDivision:vi.fn(),onDeleteDepartment:vi.fn(),
+  onPreview:vi.fn(),onViewDepartment:vi.fn(),onAddDepartment:vi.fn(),onEditDepartment:vi.fn(),onEdit:vi.fn(),onDeleteDivision:vi.fn(),onDeleteDepartment:vi.fn(),
 }
 beforeEach(() => { state.value = new Set(); vi.clearAllMocks() })
 it('expands and collapses using the chevron while leaving aggregate values unchanged', () => {
@@ -36,7 +38,11 @@ it('expands and collapses using the chevron while leaving aggregate values uncha
   ;(chevron().props.onClick as () => void)()
   nodes = render()
   expect(chevron().props['aria-expanded']).toBe(true)
-  expect(nodes.some((node) => node.props.to === '/admin/departments/new?division=v')).toBe(true)
+  // Add Department opens the dialog for this division (no page link).
+  const add = nodes.find(isAdd)!
+  expect(add.props.to).toBeUndefined()
+  ;(add.props.onClick as () => void)()
+  expect(props.onAddDepartment).toHaveBeenCalledWith('v')
   expect(totals()).toEqual([0,1,0,1])
   ;(chevron().props.onClick as () => void)()
   nodes = render()
@@ -45,7 +51,7 @@ it('expands and collapses using the chevron while leaving aggregate values uncha
 })
 it('dispatches preview/view/edit/delete to the selected record', () => {
   const nodes = flatten(HierarchyTable({ ...props,query:'safety' }))
-  for (const [label, callback] of [['Preview Safety',props.onPreview],['Edit Safety',props.onEdit],['Preview Medical',props.onViewDepartment],['Delete Medical',props.onDeleteDepartment]] as const) {
+  for (const [label, callback] of [['Preview Safety',props.onPreview],['Edit Safety',props.onEdit],['Preview Medical',props.onViewDepartment],['Edit Medical',props.onEditDepartment],['Delete Medical',props.onDeleteDepartment]] as const) {
     const action = nodes.find((node) => node.props.label === label)!
     ;(action.props.onClick as () => void)()
     expect(callback).toHaveBeenCalledOnce()
@@ -62,7 +68,7 @@ it('toggles from the division name (one control with the chevron) and shows the 
   expect(nodes.some((node) => node.props.children === 'Departments')).toBe(false)
   expect(flatten(toggle().props.children as ReactNode).some((node) => Array.isArray(node.props.children) && node.props.children.join('') === 'Departments (1)')).toBe(true)
   // A compact (small) primary button that keeps its plus icon and text.
-  const add = nodes.find((node) => node.props.to === '/admin/departments/new?division=v')!
+  const add = nodes.find(isAdd)!
   expect(add.props.size).toBe('sm')
   expect(add.props.variant).toBeUndefined()
   expect(flatten(add.props.children as ReactNode).some((node) => String(node.props.className).includes('size-3.5'))).toBe(true)
@@ -76,7 +82,7 @@ it('opens matching divisions while searching, and still lets them collapse', () 
   ;(toggle().props.onClick as () => void)()
   nodes = render()
   expect(toggle().props['aria-expanded']).toBe(false)
-  expect(nodes.some((node) => node.props.to === '/admin/departments/new?division=v')).toBe(false)
+  expect(nodes.some(isAdd)).toBe(false)
 })
 it('uses the server division totals rather than only the rendered rows', () => {
   const snapshot = { ...props.snapshot, divisions: [{ ...props.snapshot.divisions[0], department_count: 1, employees: 4, sops: 9 }] }

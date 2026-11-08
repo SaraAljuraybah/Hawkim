@@ -1520,6 +1520,8 @@ export interface AdminDepartmentFormContent {
   /** Optional. */
   email: { label: string; placeholder: string }
   cancel: string
+  /** The primary button of the Add and Edit Department dialogs on Divisions & Departments. */
+  dialogSubmit: { add: string; edit: string }
   errors: {
     nameRequired: string
     nameTooLong: string
