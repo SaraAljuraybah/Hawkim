@@ -159,12 +159,12 @@ describe('department row actions', () => {
       'Preview Quality Assurance', 'Edit Quality Assurance', 'Delete Quality Assurance',
     ])
   })
-  it('shows "Preview" as the tooltip of both eye buttons, with the name only in the accessible name', () => {
+  it('shows "Preview {name}" as the tooltip of both eye buttons, the same as the accessible name', () => {
     const html = table({ query: 'quality' })
     for (const name of ['Quality &amp; Compliance', 'Quality Assurance']) {
       // The tooltip that follows this button.
       const after = html.slice(html.indexOf(`aria-label="Preview ${name}"`))
-      expect(after.match(/role="tooltip"[^>]*><span[^>]*>([^<]*)</)![1]).toBe('Preview')
+      expect(after.match(/role="tooltip"[^>]*><span[^>]*>([^<]*)</)![1]).toBe(`Preview ${name}`)
     }
   })
 })
