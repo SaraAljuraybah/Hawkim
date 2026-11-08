@@ -4,11 +4,15 @@ import { DivisionForm, DivisionPreview, EmailDetail } from './DivisionDialogs'
 import { DeleteDepartmentDialog } from './DeleteDepartmentDialog'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { CopyButton } from '../ui/CopyButton'
-const host = vi.hoisted(() => ({ states: [] as unknown[], index: 0, save: vi.fn(), remove: vi.fn() }))
+const host = vi.hoisted(() => ({ states: [] as unknown[], index: 0, refs: [] as { current: unknown }[], refIndex: 0, save: vi.fn(), remove: vi.fn() }))
 vi.mock('react', async (original) => ({ ...await original<typeof import('react')>(), useState: (initial: unknown) => {
   const index = host.index++
   if (!(index in host.states)) host.states[index] = initial
   return [host.states[index], (value: unknown) => { host.states[index] = value }]
+}, useRef: (initial: unknown) => {
+  const index = host.refIndex++
+  if (!(index in host.refs)) host.refs[index] = { current: initial }
+  return host.refs[index]
 } }))
 vi.mock('../../services/organizationAdmin', () => ({ saveDivision: host.save, deleteDepartment: host.remove }))
 const division = { id: 'v', name: 'Safety', description: 'Safety work', email: 'safety@test.invalid', updated_at: 'revision' }
@@ -20,10 +24,12 @@ function elements(node: ReactNode): Element[] {
   const slots = Object.entries(node.props).filter(([key, value]) => key !== 'children' && isValidElement(value)).map(([, value]) => value as ReactNode)
   return [node, ...elements(node.props.children as ReactNode), ...slots.flatMap(elements)]
 }
-function render<T>(component: () => T): T { host.index = 0; return component() }
+function render<T>(component: () => T): T { host.index = 0; host.refIndex = 0; return component() }
+/** Stand-ins for the rendered fields, in the form's ref order: name, email, description. */
+const focusable = () => host.refs.slice(0, 3).map((ref) => { const focus = vi.fn(); ref.current = { focus }; return focus })
 const confirm = (element: Element) => (element.props.onConfirm as () => Promise<boolean | void>)()
 const change = (element: Element, value: string | boolean) => (element.props.onChange as (event: unknown) => void)({ target: { value, checked: value } })
-beforeEach(() => { host.states = []; host.index = 0; vi.clearAllMocks(); host.save.mockResolvedValue('v'); host.remove.mockResolvedValue(undefined) })
+beforeEach(() => { host.states = []; host.index = 0; host.refs = []; host.refIndex = 0; vi.clearAllMocks(); host.save.mockResolvedValue('v'); host.remove.mockResolvedValue(undefined) })
 describe('division create and edit form', () => {
   it.each(['invalid', 'a@b', 'a b@test.invalid'])('rejects a malformed email %s before saving', async (email) => {
     const component = () => DivisionForm({ division: { ...division, email }, onClose: vi.fn() })
@@ -44,43 +50,77 @@ describe('division create and edit form', () => {
     change(description(), 'x'.repeat(500))
     expect(description().props.counter).toBe('500 / 500')
   })
-  it('marks Name, Description and Email as required, with an asterisk', () => {
+  it('has Name, Email and Description, in that order', () => {
+    const html = renderToStaticMarkup(<DivisionForm onClose={vi.fn()} />)
+    expect([...html.matchAll(/<(?:input|textarea)[^>]*name="([^"]+)"/g)].map((match) => match[1])).toEqual(['divisionName', 'divisionEmail', 'divisionDescription'])
+  })
+  it('marks only Name as required (asterisk and for screen readers); Email and Description are optional', () => {
     const fields = elements(render(() => DivisionForm({ onClose: vi.fn() })))
-    for (const name of ['divisionName', 'divisionDescription', 'divisionEmail']) {
-      expect(fields.find((item) => item.props.name === name)?.props).toMatchObject({ required: true, requiredMark: true })
+    expect(fields.find((item) => item.props.name === 'divisionName')?.props).toMatchObject({ required: true, requiredMark: true })
+    for (const name of ['divisionEmail', 'divisionDescription']) {
+      expect(fields.find((item) => item.props.name === name)?.props.required).toBeFalsy()
+      expect(fields.find((item) => item.props.name === name)?.props.requiredMark).toBeFalsy()
     }
+    const html = renderToStaticMarkup(<DivisionForm onClose={vi.fn()} />)
+    expect(html.match(/<label[^>]*>Email(.*?)<\/label>/)![1]).not.toContain('>*<')
+    expect(html.match(/<label[^>]*>Description(.*?)<\/label>/)![1]).not.toContain('>*<')
   })
-  it.each([
-    ['name', { name: '   ' }, 'divisionName', 'Enter a name (up to 100 characters).'],
-    ['description', { description: ' \n ' }, 'divisionDescription', 'Enter a description.'],
-    ['email', { email: '  ' }, 'divisionEmail', 'Enter an email address.'],
-    ['email (null)', { email: null }, 'divisionEmail', 'Enter an email address.'],
-  ])('refuses to save with an empty or whitespace-only %s and says why', async (_, change, field, message) => {
-    const component = () => DivisionForm({ division: { ...division, ...change }, onClose: vi.fn() })
+  it('shows the email placeholder', () => {
+    expect(elements(render(() => DivisionForm({ onClose: vi.fn() }))).find((item) => item.props.name === 'divisionEmail')?.props.placeholder).toBe('e.g. qa@example.com')
+  })
+  it('uses Save for Add Division and Save Changes for Edit Division, with Cancel', () => {
+    expect(render(() => DivisionForm({ onClose: vi.fn() }))).toMatchObject({ props: { title: 'Add Division', confirmLabel: 'Save', cancelLabel: 'Cancel' } })
+    host.states = []
+    expect(render(() => DivisionForm({ division, onClose: vi.fn() }))).toMatchObject({ props: { title: 'Edit Division', confirmLabel: 'Save Changes', cancelLabel: 'Cancel' } })
+  })
+  it('refuses an empty or whitespace-only name, says why and focuses Name first', async () => {
+    const component = () => DivisionForm({ division: { ...division, name: '   ', email: 'bad' }, onClose: vi.fn() })
+    render(component)
+    const [name, email] = focusable()
     await expect(confirm(render(component))).resolves.toBe(false)
     expect(host.save).not.toHaveBeenCalled()
-    expect(elements(render(component)).find((item) => item.props.name === field)?.props.error).toBe(message)
+    expect(elements(render(component)).find((item) => item.props.name === 'divisionName')?.props.error).toBe('Enter a name (up to 100 characters).')
+    expect(name).toHaveBeenCalledOnce()
+    expect(email).not.toHaveBeenCalled()
   })
-  it('requires an email when editing an existing division saved without one', async () => {
-    const legacy = { ...division, email: null }
-    const component = () => DivisionForm({ division: legacy, onClose: vi.fn() })
+  it('focuses Email when it is the first invalid field', async () => {
+    const component = () => DivisionForm({ division: { ...division, email: 'bad', description: 'x'.repeat(501) }, onClose: vi.fn() })
+    render(component)
+    const [name, email, description] = focusable()
     await expect(confirm(render(component))).resolves.toBe(false)
+    expect(email).toHaveBeenCalledOnce()
+    expect(name).not.toHaveBeenCalled()
+    expect(description).not.toHaveBeenCalled()
+  })
+  it('focuses Description when only it is invalid (over 500 characters)', async () => {
+    const component = () => DivisionForm({ division: { ...division, description: 'x'.repeat(501) }, onClose: vi.fn() })
+    render(component)
+    const [, , description] = focusable()
+    await expect(confirm(render(component))).resolves.toBe(false)
+    expect(elements(render(component)).find((item) => item.props.name === 'divisionDescription')?.props.error).toBe('Use at most 500 characters.')
+    expect(description).toHaveBeenCalledOnce()
     expect(host.save).not.toHaveBeenCalled()
-    change(elements(render(component)).find((item) => item.props.name === 'divisionEmail')!, 'legacy@test.invalid')
-    await confirm(render(component))
-    expect(host.save).toHaveBeenCalledWith({ name: division.name, email: 'legacy@test.invalid', description: division.description }, legacy)
+  })
+  it.each([['empty', '', ''], ['whitespace-only', '  ', ' \n '], ['null', null, null]])('saves with a %s email and description (the database stores none)', async (_, email, description) => {
+    const saved = { ...division, email, description }
+    const component = () => DivisionForm({ division: saved, onClose: vi.fn() })
+    await expect(confirm(render(component))).resolves.toBeUndefined()
+    expect(host.save).toHaveBeenCalledWith({ name: division.name, email: email ?? '', description: description ?? '' }, saved)
+    expect(elements(render(component)).filter((item) => item.props.error)).toEqual([])
   })
   it('says what is wrong with a malformed email', async () => {
     const component = () => DivisionForm({ division: { ...division, email: 'invalid' }, onClose: vi.fn() })
     await confirm(render(component))
     expect(elements(render(component)).find((item) => item.props.name === 'divisionEmail')?.props.error).toBe('Enter a valid email address, e.g. name@example.com (up to 254 characters).')
   })
-  it('refuses to save a new division until every field is filled', async () => {
+  it('needs only a name to add a division', async () => {
     const component = () => DivisionForm({ onClose: vi.fn() })
     await expect(confirm(render(component))).resolves.toBe(false)
     const fields = elements(render(component))
-    expect(['divisionName', 'divisionDescription', 'divisionEmail'].map((name) => Boolean(fields.find((item) => item.props.name === name)?.props.error))).toEqual([true, true, true])
-    expect(host.save).not.toHaveBeenCalled()
+    expect(['divisionName', 'divisionEmail', 'divisionDescription'].map((name) => Boolean(fields.find((item) => item.props.name === name)?.props.error))).toEqual([true, false, false])
+    change(fields.find((item) => item.props.name === 'divisionName')!, 'Medical Affairs')
+    await expect(confirm(render(component))).resolves.toBeUndefined()
+    expect(host.save).toHaveBeenCalledWith({ name: 'Medical Affairs', email: '', description: '' }, undefined)
   })
   it('prefills every field and saves using the same revision for both edit entry points', async () => {
     const onSaved = vi.fn()
