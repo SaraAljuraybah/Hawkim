@@ -1,4 +1,5 @@
--- Tests for the Divisions & Departments migrations 20261107120000-20261107120300 and for the develop
+-- Tests for the Divisions & Departments migrations 20261107120000-20261107120300 (with 20261109120000:
+-- a department with SOPs can't be deleted) and for the develop
 -- behaviour they must keep. Only for a disposable LOCAL Supabase/PostgreSQL database with every migration
 -- applied; never run it against the shared Supabase project. Everything is rolled back.
 -- Optional: with the legacy rows from docs/divisions-departments.md ("Legacy fixtures") committed BEFORE
@@ -55,7 +56,6 @@ declare
   banned constant text := '94000000-0000-4000-8000-000000000003';
   employee constant uuid := '94000000-0000-4000-8000-000000000004';
   v_division text; v_department text; v_stamp timestamptz; v_snapshot jsonb; v_row jsonb; v_job uuid; v_sop uuid; v_kept uuid;
-  v_count integer;
 begin
   -- ---------- develop is preserved ----------
   assert (select pg_get_functiondef('public.latest_round(uuid)'::regprocedure) like '%order by r.requested_at desc, r.id desc limit 1%'),
@@ -151,13 +151,26 @@ begin
   -- Move the employee out (with a position in the new department) so the department can go.
   perform pg_temp.as_owner();
   update public.profiles set department_id = 'om-home' where id = employee;
+  -- Its SOP still blocks the deletion (20261109120000), through both entry points and every option.
   perform pg_temp.act_as(admin);
   select updated_at into v_stamp from public.departments where id = 'om-delete';
-  v_job := public.begin_department_file_deletion('om-delete', v_stamp);
+  perform pg_temp.expect_error(format($q$select public.begin_department_file_deletion('om-delete', %L)$q$, v_stamp), '23503');
+  perform pg_temp.expect_error(format($q$select public.delete_department('om-delete', 'others', %L)$q$, v_stamp), '23503');
+  perform pg_temp.expect_error(format($q$select public.delete_department('om-delete', 'empty', %L)$q$, v_stamp), '23503');
+  -- A deletion confirmed BEFORE 20261109120000 that is still waiting on file cleanup, as
+  -- 20261107120200's begin_department_file_deletion() left it (only the real path queued).
   perform pg_temp.as_owner();
-  select count(*) into v_count from public.department_file_deletion_items where job_id = v_job;
-  assert v_count = 1, 'Only the real path is queued: blank paths are excluded (got ' || v_count || ')';
-  assert not exists (select 1 from public.department_file_deletion_items where job_id = v_job and btrim(storage_path) = '');
+  insert into public.department_file_deletions(department_id, requested_by, sop_ids)
+    values ('om-delete', admin::uuid, array[v_sop]) returning id into v_job;
+  insert into public.department_file_deletion_items(job_id, bucket_id, storage_path) values (v_job, 'sop-files', 'om/' || v_sop || '/1.pdf');
+  update public.sop_versions set file_name = 'deleted', deleted_at = coalesce(deleted_at, now()), deleted_by = coalesce(deleted_by, admin::uuid) where sop_id = v_sop;
+  update public.sops set title = 'Deleted SOP', description = '', deleted_at = now(), updated_at = now() where id = v_sop;
+  update public.departments set deletion_job_id = v_job, updated_at = clock_timestamp() where id = 'om-delete';
+  -- Retrying it still works: the same job comes back, before the new SOP check.
+  perform pg_temp.act_as(admin);
+  select updated_at into v_stamp from public.departments where id = 'om-delete';
+  assert public.begin_department_file_deletion('om-delete', v_stamp) = v_job, 'A pending cleanup can still be retried';
+  perform pg_temp.as_owner();
   assert (select deleted_at is not null and title = 'Deleted SOP' from public.sops where id = v_sop), 'SOP retained as deleted';
 
   -- develop's delete_sop() can't erase the retained SOP; the attempt is rolled back as a whole.
@@ -186,7 +199,7 @@ begin
   perform pg_temp.as_owner();
   assert (select removed_at is not null and division_id is null from public.departments where id = 'om-delete'), 'Department removed after cleanup';
 
-  -- Move to Others keeps the SOP visible to its author, under Others.
+  -- Move to Others is refused while the department has SOPs (20261109120000).
   insert into public.sops(id, title, department_id, author_id, status, current_version)
     values (gen_random_uuid(), 'OM kept SOP', 'om-move', employee, 'draft', 1) returning id into v_kept;
   insert into public.sop_versions(sop_id, version, file_name, file_type, storage_path, file_size, uploaded_by)
@@ -194,8 +207,13 @@ begin
   perform pg_temp.act_as(admin);
   select updated_at into v_stamp from public.departments where id = 'om-move';
   perform pg_temp.expect_error(format($q$select public.delete_department('om-move', 'empty', %L)$q$, v_stamp), '23503');
-  perform public.delete_department('om-move', 'others', v_stamp);
+  perform pg_temp.expect_error(format($q$select public.delete_department('om-move', 'others', %L)$q$, v_stamp), '23503');
   perform pg_temp.as_owner();
+  assert (select directory_group = 'department' and deleted_at is null from public.sops where id = v_kept), 'The SOP stays in its department';
+  assert (select removed_at is null from public.departments where id = 'om-move'), 'The department stays';
+  -- An SOP moved to Others BEFORE 20261109120000 (as delete_department(..., 'others') left it) stays visible to its author.
+  update public.sops set directory_group = 'others', updated_at = now() where id = v_kept;
+  update public.departments set removed_at = now(), division_id = null, updated_at = clock_timestamp() where id = 'om-move';
   assert (select directory_group = 'others' and deleted_at is null from public.sops where id = v_kept);
   perform pg_temp.act_as(employee::text);
   assert public.can_view_sop(v_kept), 'Its author still sees an SOP moved to Others';
