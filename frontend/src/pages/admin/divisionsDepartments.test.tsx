@@ -28,7 +28,7 @@ describe('unified divisions and departments table', () => {
   it('opens matching departments under their parent and presets Add Department to that division', () => {
     const html = render(' medical ')
     expect(html).toContain('aria-expanded="true"')
-    expect(html).toContain('>Medical</a>')
+    expect(html).toContain('>Medical</span>')
     expect(html).toContain('/admin/departments/new?division=v')
     expect(html).toContain('Departments (1)')
   })
@@ -38,7 +38,8 @@ describe('unified divisions and departments table', () => {
     expect(html).toContain('Departments (1)')
     expect(html).toContain('aria-label="Preview Safety"')
     expect(html).not.toContain('Preview Medical')
-    expect(html).toContain('href="/admin/departments/d"')
+    expect(html).toContain('>Medical</span>')
+    expect(html).not.toContain('href="/admin/departments/d"')
   })
   it('uses focusable restricted-action tooltips for employee and division blockers', () => {
     const html = render('safety')

@@ -95,7 +95,7 @@ describe('the division filter on the table', () => {
     const sorted = table({ divisions: ['q', 'c'], sort: 'sops-desc' })
     expect(sorted.indexOf('Clinical Research')).toBeLessThan(sorted.indexOf('Quality &amp; Compliance'))
     const searched = table({ divisions: ['q', 'c'], query: 'operations' })
-    expect(searched).toContain('>Clinical Operations</a>')
+    expect(searched).toContain('>Clinical Operations</span>')
     expect(searched).not.toContain('Quality &amp; Compliance')
     expect(table({ divisions: ['q'], query: 'operations' })).toContain('No divisions or departments match your search and filters.')
   })
@@ -137,13 +137,14 @@ describe('the selected divisions', () => {
 })
 
 describe('names in the table', () => {
-  it('underlines every division and department name, but not the count or the row', () => {
+  it('shows division and department names as plain text: no links and no underline', () => {
     const html = table({ query: 'quality' })
     // Division name: inside the expand toggle, which still toggles (aria-expanded).
-    expect(html).toMatch(/<button type="button" aria-expanded="true"[\s\S]*?<span class="block font-semibold text-maroon underline underline-offset-2[^"]*">Quality &amp; Compliance<\/span>/)
-    // Department name: still the link to its page.
-    const link = html.match(/<a [^>]*href="\/admin\/departments\/qa"[^>]*>Quality Assurance<\/a>/)![0]
-    expect(link).toMatch(/class="text-maroon underline underline-offset-2[^"]*"/)
+    expect(html).toMatch(/<button type="button" aria-expanded="true"[\s\S]*?<span class="block font-semibold text-maroon">Quality &amp; Compliance<\/span>/)
+    // Department name: plain text, no longer a link to its page.
+    expect(html).toMatch(/<span class="min-w-0 break-words">Quality Assurance<\/span>/)
+    expect(html).not.toContain('href="/admin/departments/qa"')
+    expect(html).not.toContain('underline')
     expect(html).toMatch(/<span class="mt-1 block text-xs font-normal text-text-gray">Departments \((?:<!-- -->)?1(?:<!-- -->)?\)<\/span>/)
     expect(html).not.toMatch(/<tr[^>]*underline/)
     expect(html).not.toMatch(/<span class="[^"]*underline[^"]*">Departments/)

@@ -1,5 +1,5 @@
 import { Fragment, useMemo, useRef, useState } from 'react'
-import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { ChevronDown, ChevronRight, Eye, Pencil, Plus, Trash2, X } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
 import { TextField } from '../../components/ui/TextField'
@@ -17,7 +17,7 @@ import { organizationAdminEn as text } from '../../content/organizationAdmin.en'
 import { useDocumentTitle } from '../../hooks/useDocumentTitle'
 import { useOrganizationManagement } from '../../hooks/useOrganizationManagement'
 import { DIVISION_SORTS, hierarchyRows, type DivisionSort } from '../../lib/organizationAdmin'
-import { adminDepartmentEditPath, adminDepartmentPath, adminNewDepartmentPath } from '../../lib/routes'
+import { adminDepartmentEditPath, adminNewDepartmentPath } from '../../lib/routes'
 import { deleteDivision, type DivisionRecord, type ManagedDepartment, type ManagementSnapshot } from '../../services/organizationAdmin'
 
 export interface AdminDepartmentsLocationState { removed?: string }
@@ -119,7 +119,7 @@ export function HierarchyTable({ snapshot, query = '', divisions = [], sort = 'd
   function child(row: ManagedDepartment) {
     return <tr key={row.id} className="border-t border-beige hover:bg-beige/20">
       <th scope="row" className="py-3 pr-4 pl-12 font-medium"><span className="flex items-center gap-3 border-l border-beige pl-5"><DepartmentBadge department={row} />
-        <Link className="text-maroon underline underline-offset-2 hover:decoration-2" to={adminDepartmentPath(row.id)}>{row.name}</Link></span></th>
+        <span className="min-w-0 break-words">{row.name}</span></span></th>
       <td className={numberCell}>{row.employees}</td><td className={numberCell}>{row.sops}</td>
       <td className="p-3"><div className="flex justify-end gap-2"><IconButton label={text.viewDepartment.replace('{name}', row.name)} icon={Eye} onClick={() => onViewDepartment(row)} />
         <IconButton
@@ -145,7 +145,7 @@ export function HierarchyTable({ snapshot, query = '', divisions = [], sort = 'd
             <button type="button" aria-expanded={isExpanded} aria-controls={`children-${division.id}`}
               className="group flex items-start gap-3 rounded text-left" onClick={() => toggle(division.id)}>
               <span aria-hidden="true" className="mt-0.5 rounded p-1 text-maroon group-hover:bg-beige">{isExpanded ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}</span>
-              <span><span className="block font-semibold text-maroon underline underline-offset-2 group-hover:decoration-2">{division.name}</span>
+              <span><span className="block font-semibold text-maroon">{division.name}</span>
                 <span className="mt-1 block text-xs font-normal text-text-gray">{text.departments} ({departmentCount})</span></span>
             </button></th>
           <td className={numberCell}>{employees}</td><td className={numberCell}>{sops}</td>
