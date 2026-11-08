@@ -6,6 +6,7 @@ import { TextAreaField } from '../ui/TextAreaField'
 import { TextField } from '../ui/TextField'
 import { adminEn } from '../../content/admin.en'
 import { organizationAdminEn as orgText } from '../../content/organizationAdmin.en'
+import { DESCRIPTION_MAX } from '../../lib/departmentAdmin'
 import {
   departmentFormProblems,
   divisionIsOptional,
@@ -102,7 +103,8 @@ export function DepartmentForm({ snapshot, department, divisionId, onClose, onSa
       options={divisionOptions} value={values.divisionId} error={errors.divisionId} onChange={set('divisionId')} onBlur={() => blur('divisionId')} />
     <TextField ref={emailRef} name="departmentEmail" type="email" autoComplete="off" label={content.email.label} placeholder={content.email.placeholder}
       value={values.email} error={errors.email} onChange={set('email')} onBlur={() => blur('email')} />
-    <TextAreaField ref={descriptionRef} name="departmentDescription" rows={3} label={content.description.label} hint={content.description.hint}
+    <TextAreaField ref={descriptionRef} name="departmentDescription" rows={3} label={content.description.label} maxLength={DESCRIPTION_MAX}
+      counter={content.description.counter.replace('{count}', String(values.description.length)).replace('{max}', String(DESCRIPTION_MAX))}
       value={values.description} error={errors.description} onChange={set('description')} onBlur={() => blur('description')} />
     {error && <p role="alert" className="text-sm text-status-rejected-fg">{error}</p>}
   </FormDialog>

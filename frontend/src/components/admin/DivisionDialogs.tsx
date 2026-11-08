@@ -8,6 +8,9 @@ import { TextAreaField } from '../ui/TextAreaField'
 import { organizationAdminEn as text } from '../../content/organizationAdmin.en'
 import { saveDivision, type DivisionRecord } from '../../services/organizationAdmin'
 
+/** The most a division description may have; the database allows the same (validate_division_management). */
+export const DIVISION_DESCRIPTION_MAX = 500
+
 export function DivisionForm({ division, onClose, onSaved }: { division?: DivisionRecord; onClose: () => void; onSaved?: () => void }) {
   const [name, setName] = useState(division?.name ?? '')
   const [email, setEmail] = useState(division?.email ?? '')
@@ -20,7 +23,7 @@ export function DivisionForm({ division, onClose, onSaved }: { division?: Divisi
   const emailMissing = !email.trim()
   const emailInvalid = !emailMissing && (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()) || email.trim().length > 254)
   const descriptionMissing = !description.trim()
-  const descriptionInvalid = description.trim().length > 500
+  const descriptionInvalid = description.trim().length > DIVISION_DESCRIPTION_MAX
   return <FormDialog open title={division ? text.editDivision : text.addDivision} confirmLabel={text.save} cancelLabel={text.cancel}
     onClose={onClose} onConfirm={async () => {
       setAttempted(true)
@@ -30,6 +33,7 @@ export function DivisionForm({ division, onClose, onSaved }: { division?: Divisi
     }}>
     <TextField name="divisionName" label={text.name} required requiredMark value={name} onChange={(event) => setName(event.target.value)} error={attempted && nameInvalid ? text.requiredName : undefined} />
     <TextAreaField name="divisionDescription" label={text.description} required requiredMark value={description} onChange={(event) => setDescription(event.target.value)}
+      maxLength={DIVISION_DESCRIPTION_MAX} counter={text.descriptionCounter.replace('{count}', String(description.length)).replace('{max}', String(DIVISION_DESCRIPTION_MAX))}
       error={attempted ? (descriptionMissing ? text.requiredDescription : descriptionInvalid ? text.descriptionLong : undefined) : undefined} />
     <TextField name="divisionEmail" type="email" label={text.email} required requiredMark value={email} onChange={(event) => setEmail(event.target.value)}
       error={attempted ? (emailMissing ? text.requiredEmail : emailInvalid ? text.invalidEmail : undefined) : undefined} />

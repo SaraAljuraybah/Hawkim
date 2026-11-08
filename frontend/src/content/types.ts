@@ -1516,7 +1516,8 @@ export interface AdminDepartmentFormContent {
   backToList: LinkContent
   backToDepartment: string
   name: { label: string }
-  description: { label: string; hint: string }
+  /** `hint`: the Add/Edit Department page only. `counter`: the dialog; `{count}` and `{max}` are replaced. */
+  description: { label: string; hint: string; counter: string }
   /** Optional. */
   email: { label: string; placeholder: string }
   cancel: string

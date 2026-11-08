@@ -30,6 +30,20 @@ describe('division create and edit form', () => {
     await expect(confirm(render(component))).resolves.toBe(false)
     expect(host.save).not.toHaveBeenCalled()
   })
+  it('counts the description up to 500, linked to the field and updated as it changes', () => {
+    const html = renderToStaticMarkup(<DivisionForm onClose={vi.fn()} />)
+    const textarea = html.match(/<textarea[^>]*name="divisionDescription"[^>]*>/)![0]
+    expect(textarea).toContain('maxLength="500"')
+    const counterId = html.match(/<p id="([^"]+-counter)"[^>]*>0 \/ 500<\/p>/)![1]
+    expect(textarea.match(/aria-describedby="([^"]*)"/)![1].split(' ')).toContain(counterId)
+    expect(html).not.toContain('aria-live')
+    host.states = []
+    const component = () => DivisionForm({ division, onClose: vi.fn() })
+    const description = () => elements(render(component)).find((item) => item.props.name === 'divisionDescription')!
+    expect(description().props.counter).toBe('11 / 500')
+    change(description(), 'x'.repeat(500))
+    expect(description().props.counter).toBe('500 / 500')
+  })
   it('marks Name, Description and Email as required, with an asterisk', () => {
     const fields = elements(render(() => DivisionForm({ onClose: vi.fn() })))
     for (const name of ['divisionName', 'divisionDescription', 'divisionEmail']) {

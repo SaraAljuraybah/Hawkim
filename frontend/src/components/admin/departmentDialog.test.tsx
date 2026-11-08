@@ -114,6 +114,23 @@ describe('department dialog layout', () => {
       .toEqual(['Quality Assurance', 'quality', 'qa@test.invalid', 'Audits'])
   })
 
+  it('has no hint under Description, but a character counter linked to the field, up to 200', () => {
+    const html = markup({ divisionId: 'medical' })
+    expect(html).not.toContain('One line about what the department does')
+    const textarea = html.match(/<textarea[^>]*name="departmentDescription"[^>]*>/)![0]
+    expect(textarea).toContain('maxLength="200"')
+    const counterId = html.match(/<p id="([^"]+-counter)"[^>]*>0 \/ 200<\/p>/)![1]
+    expect(textarea.match(/aria-describedby="([^"]*)"/)![1].split(' ')).toContain(counterId)
+    // Not a live region: read with the field, not on every keystroke.
+    expect(html).not.toContain('aria-live')
+  })
+
+  it('counts the description as it changes, starting from the saved one when editing', () => {
+    expect(field(render({ department: qa }), 'departmentDescription').props.counter).toBe('6 / 200')
+    change(render({ department: qa }), 'departmentDescription', 'x'.repeat(200))
+    expect(field(render({ department: qa }), 'departmentDescription').props.counter).toBe('200 / 200')
+  })
+
   it('lets a legacy department without a division keep none (not required)', () => {
     const division = field(render({ department: legacy }), 'departmentDivision')
     expect(division.props).toMatchObject({ value: '', required: false, requiredMark: false })

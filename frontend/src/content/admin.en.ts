@@ -213,7 +213,7 @@ export const adminEn: AdminContent = {
     backToList: { label: 'Back to Divisions & Departments', href: '/admin/departments' },
     backToDepartment: 'Back to {name}',
     name: { label: 'Name' },
-    description: { label: 'Description', hint: 'One line about what the department does (up to 200 characters).' },
+    description: { label: 'Description', hint: 'One line about what the department does (up to 200 characters).', counter: '{count} / {max}' },
     email: { label: 'Email', placeholder: 'e.g. qa@example.com' },
     cancel: 'Cancel',
     dialogSubmit: { add: 'Save', edit: 'Save Changes' },
