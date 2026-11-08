@@ -42,7 +42,7 @@ type TabKey = 'all' | ComplianceResult
 
 /**
  * Compliance report ("/my-sops/:id/compliance", PBI 4, 5), laid out as a formal
- * report: report details, the method and its limitations, executive summary,
+ * report: report details, summary (each result's tile goes to its findings),
  * requirements overview and findings (with recommended actions). Reports of earlier versions stay viewable, and "Download
  * PDF" prints it with a print stylesheet. Sample results for now.
  * - author:   "/my-sops/:id/compliance", for the SOP's author and co-authors;
@@ -125,16 +125,26 @@ function Report({ sop, backPath }: { sop: Sop; backPath: string }) {
   const needsAttention = numbered.filter((finding) => finding.result !== 'compliant')
   const compliant = numbered.filter((finding) => finding.result === 'compliant')
 
+  /** Scrolls to an element (smoothly unless motion is reduced) and moves focus to it. */
+  function scrollAndFocus(target: HTMLElement | null) {
+    if (!target) return
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    target.scrollIntoView({ block: 'start', behavior: reduceMotion ? 'auto' : 'smooth' })
+    target.focus({ preventScroll: true })
+  }
+
   /** Overview links: show the finding (switching to All if the filter hides it) and move focus to it. */
   function jumpTo(event: MouseEvent<HTMLAnchorElement>, number: string) {
     event.preventDefault()
     const finding = numbered.find((item) => item.number === number)
     if (finding && tab !== 'all' && finding.result !== tab) flushSync(() => setTab('all'))
-    const target = document.getElementById(`finding-${number}`)
-    if (!target) return
-    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    target.scrollIntoView({ block: 'start', behavior: reduceMotion ? 'auto' : 'smooth' })
-    target.focus({ preventScroll: true })
+    scrollAndFocus(document.getElementById(`finding-${number}`))
+  }
+
+  /** Summary tiles: show that result's findings tab (its heading, and "No findings…" when there are none) and focus the heading. */
+  function showResult(result: ComplianceResult) {
+    flushSync(() => setTab(result))
+    scrollAndFocus(document.getElementById(`${result}-title`))
   }
 
   const tabItems: TabItem<TabKey>[] = (['all', ...RESULT_ORDER] as const).map((key) => ({ key, label: text.findings.tabs[key] }))
@@ -250,26 +260,17 @@ function Report({ sop, backPath }: { sop: Sop; backPath: string }) {
             getRequirement(report.guideline.version, requirementId)
           }
         >
-          {/* b) Method and limitations */}
-          <ReportSection id="method-title" title={text.method.title}>
-            <ul className="list-disc space-y-1.5 pl-5 text-sm text-maroon">
-              {[...text.method.items, ...(isSampleCheck(report) ? [text.method.sampleNote] : [])].map((item) => (
-                <li key={item}>{item}</li>
-              ))}
-            </ul>
-          </ReportSection>
-
-          {/* c) Executive summary */}
+          {/* b) Summary */}
           <ReportSection id="summary-title" title={text.summary.title}>
-            <ExecutiveSummary check={report} status={sop.status} content={content} />
+            <ExecutiveSummary check={report} content={content} onSelectResult={showResult} />
           </ReportSection>
 
-          {/* d) Requirements overview */}
+          {/* c) Requirements overview */}
           <ReportSection id="overview-title" title={text.overview.title}>
             <RequirementsOverview findings={numbered} content={content} onJump={jumpTo} />
           </ReportSection>
 
-          {/* e) Findings */}
+          {/* d) Findings */}
           <section aria-labelledby="findings-title" className="mt-8 print:mt-6">
             <h2 id="findings-title" className="text-lg">
               {text.findings.title}

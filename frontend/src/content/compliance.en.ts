@@ -56,9 +56,9 @@ export const complianceEn: ComplianceContent = {
       runBy: 'Run By',
     },
     summary: {
-      title: 'Executive Summary',
+      title: 'Summary',
       score: '{score}%',
-      scoreNote: 'Compliance score: compliant requirements out of all checked requirements. Partially compliant, not addressed and conflict findings don’t count toward the score.',
+      scoreNote: 'The Compliance Score shows the percentage of SOP procedures that fully comply with the GVP requirements.',
       ringLabel: 'Compliance score {score} percent, {count} of {total} requirements compliant',
       ringCaption: 'compliant',
       verdicts: {
@@ -66,29 +66,8 @@ export const complianceEn: ComplianceContent = {
         'needs-improvement': 'Needs Improvement',
         'action-required': 'Action Required',
       },
-      explanation: {
-        actionRequired: {
-          one: 'Action required: the SOP conflicts with {count} requirement.',
-          other: 'Action required: the SOP conflicts with {count} requirements.',
-        },
-        needsImprovement: {
-          one: 'Needs improvement: {count} requirement is partially compliant or not addressed.',
-          other: 'Needs improvement: {count} requirements are partially compliant or not addressed.',
-        },
-      },
       tilesLabel: 'Results by label',
-      attention: {
-        conflict: { one: '{count} conflict', other: '{count} conflicts' },
-        'not-addressed': { one: '{count} requirement needs human review.', other: '{count} requirements need human review.' },
-        partial: { one: '{count} partially compliant requirement', other: '{count} partially compliant requirements' },
-      },
-      and: 'and',
-      beforeSubmit: {
-        one: '{items} needs attention before submitting for review.',
-        other: '{items} need attention before submitting for review.',
-      },
-      needsAttention: { one: '{items} needs attention.', other: '{items} need attention.' },
-      allCompliant: 'All checked requirements are compliant.',
+      goToFindings: 'Go to {category} findings',
     },
     overview: {
       title: 'Requirements Overview',
@@ -116,14 +95,6 @@ export const complianceEn: ComplianceContent = {
       justification: 'Justification',
       recommendedAction: 'Recommended Action',
       empty: 'No findings with this result.',
-    },
-    method: {
-      title: 'Method and Limitations',
-      items: [
-        'Hawkim retrieves the GVP requirements most relevant to the SOP and assesses each one with a locally hosted language model.',
-        'This report supports human review. Final review, approval and publication remain the responsibility of the assigned reviewers and approvers.',
-      ],
-      sampleNote: 'These are sample results; the compliance service isn’t connected yet.',
     },
     outOfDate: 'A new compliance check is running for v{version}. This report may be out of date.',
     olderGuideline: 'This report used GVP v{checked}. The current version is v{current}.',

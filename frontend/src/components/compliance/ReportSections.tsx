@@ -1,19 +1,9 @@
 import type { CSSProperties, MouseEvent, ReactNode } from 'react'
-import { CircleCheck, OctagonAlert, TriangleAlert, type LucideIcon } from 'lucide-react'
 import type { ComplianceContent } from '../../content/types'
 import type { ComplianceCheck, ComplianceResult, Requirement } from '../../data/mock/types'
-import type { SopStatus } from '../../types/status'
-import {
-  complianceScore,
-  countResults,
-  RESULT_ORDER,
-  verdictOf,
-  type NumberedFinding,
-  type Verdict,
-} from '../../lib/compliance'
+import { complianceScore, countResults, RESULT_ORDER, type NumberedFinding } from '../../lib/compliance'
 import { ComplianceBadge } from './ComplianceBadge'
 import { useReportRequirement } from './reportRequirements'
-import { summarySentence } from './summarySentence'
 
 type ReportText = ComplianceContent['report']
 
@@ -51,14 +41,7 @@ function requirementLabel(
     .replace('{title}', requirement.sectionTitle)
 }
 
-// ---------- b) Executive summary ----------
-
-/** The verdict's colours (the status colour pairs, all WCAG AA) and icon. */
-const VERDICT_STYLE: Record<Verdict, { classes: string; Icon: LucideIcon }> = {
-  'fully-compliant': { classes: 'bg-status-approved-bg text-status-approved-fg', Icon: CircleCheck },
-  'needs-improvement': { classes: 'bg-status-pending-bg text-status-pending-fg', Icon: TriangleAlert },
-  'action-required': { classes: 'bg-status-rejected-bg text-status-rejected-fg', Icon: OctagonAlert },
-}
+// ---------- b) Summary ----------
 
 const RING_RADIUS = 52
 const RING_LENGTH = 2 * Math.PI * RING_RADIUS
@@ -67,7 +50,7 @@ const RING_LENGTH = 2 * Math.PI * RING_RADIUS
 function ScoreRing({ score, label, caption }: { score: number; label: string; caption: string }) {
   const offset = RING_LENGTH * (1 - score / 100)
   return (
-    <div role="img" aria-label={label} className="relative size-36 shrink-0">
+    <div role="img" aria-label={label} className="relative size-44 shrink-0 print:size-40">
       <svg viewBox="0 0 120 120" className="size-full -rotate-90" aria-hidden="true">
         <circle cx="60" cy="60" r={RING_RADIUS} fill="none" strokeWidth="12" className="stroke-beige" data-print-color />
         {score > 0 && (
@@ -87,46 +70,39 @@ function ScoreRing({ score, label, caption }: { score: number; label: string; ca
         )}
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="text-3xl leading-none font-semibold tracking-tight text-maroon">{score}%</span>
+        <span className="text-4xl leading-none font-semibold tracking-tight text-maroon">{score}%</span>
         <span className="mt-1 text-xs font-medium text-text-gray">{caption}</span>
       </div>
     </div>
   )
 }
 
+/**
+ * The Summary: what the score means (full width), then the score ring with a 2×2 square of tiles,
+ * one per result, beside it (stacked on phones; one tile per row when even two don't fit). Each
+ * tile (0 too) goes to that result's findings (`onSelectResult`).
+ */
 export function ExecutiveSummary({
   check,
-  status,
   content,
+  onSelectResult,
 }: {
   check: ComplianceCheck
-  status: SopStatus
   content: ComplianceContent
+  onSelectResult: (result: ComplianceResult) => void
 }) {
   const text = content.report.summary
   const counts = countResults(check)
   const total = check.findings.length
   const score = complianceScore(check)
-  const verdict = verdictOf(check)
-  const { classes, Icon } = VERDICT_STYLE[verdict]
-  const toAttention = counts.partial + counts['not-addressed']
-  const explanation =
-    verdict === 'action-required'
-      ? (counts.conflict === 1 ? text.explanation.actionRequired.one : text.explanation.actionRequired.other).replace(
-          '{count}',
-          String(counts.conflict),
-        )
-      : verdict === 'needs-improvement'
-        ? (toAttention === 1 ? text.explanation.needsImprovement.one : text.explanation.needsImprovement.other).replace(
-            '{count}',
-            String(toAttention),
-          )
-        : text.allCompliant
 
   return (
     <div>
-      {/* a) Score and verdict */}
-      <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:gap-8">
+      {/* a) What the score means */}
+      <p className="text-[0.9375rem] text-maroon">{text.scoreNote}</p>
+
+      {/* b) The ring, with the tiles beside it from sm (and when printed); stacked on phones */}
+      <div className="mt-5 flex flex-col gap-5 sm:flex-row sm:items-center sm:gap-8 print:flex-row print:items-center print:gap-6">
         <ScoreRing
           score={score}
           label={text.ringLabel
@@ -135,46 +111,35 @@ export function ExecutiveSummary({
             .replace('{total}', String(total))}
           caption={text.ringCaption}
         />
-        <div className="min-w-0 flex-1">
-          <p
-            data-print-color
-            className={`inline-flex items-center gap-2 rounded-full border border-current/20 px-3 py-1 text-sm font-semibold [print-color-adjust:exact] ${classes}`}
-          >
-            <Icon aria-hidden="true" className="size-4 shrink-0" strokeWidth={2.25} />
-            {text.verdicts[verdict]}
-          </p>
-          <p className="mt-2 text-[0.9375rem] font-medium text-maroon">{explanation}</p>
-          <p className="mt-1 text-sm text-text-gray">
-            {content.summary.replace('{count}', String(counts.compliant)).replace('{total}', String(total))}
-          </p>
-          <p className="mt-2 text-sm text-text-gray">{text.scoreNote}</p>
+        {/* Problems first, two per row: Conflict and Requires Human Review, then Partially Compliant and Compliant. 0 is shown but muted. */}
+        <div className="@container min-w-0 flex-1">
+          <ul aria-label={text.tilesLabel} className="grid grid-cols-1 gap-2.5 @2xs:grid-cols-2">
+            {RESULT_ORDER.map((result) => {
+              const muted = counts[result] === 0
+              return (
+                <li key={result} className="flex">
+                  <button
+                    type="button"
+                    onClick={() => onSelectResult(result)}
+                    className="w-full rounded-lg border border-beige p-3 text-left transition-colors hover:border-maroon/40 hover:bg-beige/40"
+                  >
+                    <span
+                      aria-hidden="true"
+                      data-print-color
+                      className={`block h-1.5 w-6 rounded-full [print-color-adjust:exact] ${muted ? 'bg-beige' : SEGMENT[result]}`}
+                    />
+                    <span className={`mt-2 block text-xl leading-none font-semibold tabular-nums ${muted ? 'text-text-gray' : 'text-maroon'}`}>
+                      {counts[result]}
+                    </span>
+                    <span className={`mt-1 block text-sm ${muted ? 'text-text-gray' : 'text-maroon'}`}>{content.results[result]}</span>
+                    <span className="sr-only"> {text.goToFindings.replace('{category}', content.results[result])}</span>
+                  </button>
+                </li>
+              )
+            })}
+          </ul>
         </div>
       </div>
-
-      {/* The summary sentence (not repeated when everything is compliant) */}
-      {verdict !== 'fully-compliant' && (
-        <p className="mt-5 rounded-lg bg-beige/60 px-4 py-3 text-[0.9375rem] text-maroon">{summarySentence(check, status, text)}</p>
-      )}
-
-      {/* b) Metric tiles (problems first); 0 is shown but muted */}
-      <ul aria-label={text.tilesLabel} className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
-        {RESULT_ORDER.map((result) => {
-          const muted = counts[result] === 0
-          return (
-            <li key={result} className="rounded-lg border border-beige p-3.5">
-              <span
-                aria-hidden="true"
-                data-print-color
-                className={`block h-1.5 w-8 rounded-full [print-color-adjust:exact] ${muted ? 'bg-beige' : SEGMENT[result]}`}
-              />
-              <p className={`mt-2.5 text-2xl leading-none font-semibold tabular-nums ${muted ? 'text-text-gray' : 'text-maroon'}`}>
-                {counts[result]}
-              </p>
-              <p className={`mt-1 text-sm ${muted ? 'text-text-gray' : 'text-maroon'}`}>{content.results[result]}</p>
-            </li>
-          )
-        })}
-      </ul>
     </div>
   )
 }
@@ -301,7 +266,7 @@ export function FindingCard({ finding, content }: { finding: NumberedFinding; co
   )
 }
 
-/** A titled group of finding cards (h3 over the h4 findings). */
+/** A titled group of finding cards (h3 over the h4 findings). The heading takes focus when a Summary tile leads here. */
 export function FindingGroup({
   id,
   title,
@@ -315,7 +280,7 @@ export function FindingGroup({
 }) {
   return (
     <section aria-labelledby={id} className="mt-6 first:mt-0">
-      <h3 id={id} className="text-base font-semibold text-maroon">
+      <h3 id={id} tabIndex={-1} className="scroll-mt-24 rounded-sm text-base font-semibold text-maroon">
         {title} <span className="font-normal text-text-gray">({findings.length})</span>
       </h3>
       {findings.length === 0 ? (

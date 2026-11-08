@@ -968,30 +968,18 @@ export interface ComplianceContent {
       title: string
       /** `{score}` is replaced, e.g. "40%". */
       score: string
+      /** How the score is worked out, beside the ring. */
       scoreNote: string
       /** Text alternative of the score ring; `{score}`, `{count}` and `{total}` are replaced. */
       ringLabel: string
       /** Under the percentage in the ring. */
       ringCaption: string
+      /** Shown on the review page next to the score (not in the report). */
       verdicts: Record<'fully-compliant' | 'needs-improvement' | 'action-required', string>
-      /** One line under the verdict; `{count}` is replaced (one / several). */
-      explanation: {
-        actionRequired: { one: string; other: string }
-        needsImprovement: { one: string; other: string }
-      }
       /** Accessible name of the metric tiles. */
       tilesLabel: string
-      /**
-       * Parts of the summary sentence (one / several); `{count}` is replaced.
-       * `not-addressed` is a sentence of its own, after the "need attention" one.
-       */
-      attention: Record<'conflict' | 'not-addressed' | 'partial', { one: string; other: string }>
-      /** Joins the last two parts, e.g. "and". */
-      and: string
-      /** `{items}` (conflicts and partial results) is replaced; "one" when a single requirement needs attention. */
-      beforeSubmit: { one: string; other: string }
-      needsAttention: { one: string; other: string }
-      allCompliant: string
+      /** Read by screen readers on each tile, which goes to that result's findings; `{category}` is replaced. */
+      goToFindings: string
     }
     overview: {
       title: string
@@ -1018,8 +1006,6 @@ export interface ComplianceContent {
       /** No findings in the selected tab. */
       empty: string
     }
-    /** `sampleNote` is added to the items only for sample results. */
-    method: { title: string; items: string[]; sampleNote: string }
     /** A new check is running for the shown (current) version; `{version}` is replaced. */
     outOfDate: string
     /** The report used an older GVP version; `{checked}` and `{current}` are replaced. */
