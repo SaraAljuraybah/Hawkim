@@ -107,6 +107,8 @@ describe('the author\'s GVP page', () => {
     expect(html).toMatch(/<h1[^>]*>GVP Version 4\.0<\/h1><span class="[^"]*">Current<\/span>/)
     expect(html.match(/<h1/g)).toHaveLength(1)
     expect([...html.matchAll(/<dt[^>]*>([^<]+)<\/dt>/g)].map((match) => match[1])).toEqual(['Title', 'Version', 'Issued by SFDA On', 'Added to Hawkim On', 'Added By', 'Source', 'Requirements'])
+    // v4.0 has no recorded uploader: the placeholder name, as plain text.
+    expect(html).toMatch(/<dt[^>]*>Added By<\/dt><dd[^>]*>Nouf Almutairi<\/dd>/)
     expect(html).toMatch(/<button type="button" aria-expanded="false" aria-controls="guideline-requirements"[^>]*>2 Requirements/)
     expect(html).toMatch(/<section id="guideline-requirements" aria-labelledby="requirements-title" hidden=""/)
     expect(html).toContain('Keep records.')

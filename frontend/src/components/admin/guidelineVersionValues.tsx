@@ -53,7 +53,8 @@ export function useGuidelineVersionValues(actions: GuidelineVersionActions = {})
     { label: text.fields.version, value: version.version },
     { label: text.fields.issued, value: dateCell(version.issuedDate) },
     { label: text.fields.added, value: dateCell(version.addedAt ? riyadhDate(new Date(version.addedAt)) : undefined) },
-    { label: text.fields.addedBy, value: (version.addedById && nameOf(version.addedById)) || text.none },
+    // No recorded uploader: the temporary placeholder name (a recorded one whose name is unknown stays "—").
+    { label: text.fields.addedBy, value: version.addedById ? nameOf(version.addedById) || text.none : text.addedByFallback },
     { label: text.fields.source, value: <SourceLink source={version.source} /> },
     ...(actions.withoutFile ? [] : [{ label: text.fields.file, value: <span className="break-all">{version.fileName}</span> }]),
     ...(actions.withoutRequirements ? [] : [{ label: text.fields.requirements, value: requirementsCell(version, actions) }]),

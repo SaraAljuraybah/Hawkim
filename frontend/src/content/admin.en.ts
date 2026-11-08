@@ -319,6 +319,9 @@ export const adminEn: AdminContent = {
       requirements: 'Requirements',
     },
     none: '—',
+    // TEMPORARY placeholder: v4.0 was added by a setup script, so it has no recorded uploader.
+    // Shown as "Added By" only when a version has none; remove once the real uploader is recorded.
+    addedByFallback: 'Nouf Almutairi',
     /** After the Source link, for screen readers. */
     newTab: '(opens in a new tab)',
     requirementsCount: { one: '{count} Requirement', other: '{count} Requirements' },

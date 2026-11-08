@@ -3,6 +3,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { MemoryRouter } from 'react-router-dom'
 import { adminEn } from '../../content/admin.en'
 import type { GuidelineVersion } from '../../data/mock/types'
+import { GuidelineVersionDetails } from '../../components/admin/GuidelineVersionDetails'
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
 import { AdminRegulationsPage } from './AdminRegulationsPage'
 import { RegulationDetailsPage } from './RegulationDetailsPage'
@@ -188,6 +189,30 @@ describe('when the versions admins added couldn\'t be loaded', () => {
 
   it('shows no message otherwise', () => {
     expect(render()).not.toContain('couldn&#x27;t be loaded')
+  })
+})
+
+describe('"Added By" for a version with no recorded uploader', () => {
+  const addedBy = (html: string) => html.match(/<dt[^>]*>Added By<\/dt><dd[^>]*>(.*?)<\/dd>/)![1]
+
+  it('shows the placeholder name from the content file, as plain text, instead of "—"', () => {
+    expect(adminEn.regulations.addedByFallback).toBe('Nouf Almutairi')
+    // The Current Version card: 5.0, the newest, has no recorded uploader.
+    const card = render().slice(0, render().indexOf('id="history-title"'))
+    expect(addedBy(card)).toBe('Nouf Almutairi')
+    // A version's details: 3.0 has none either.
+    expect(addedBy(renderToStaticMarkup(<GuidelineVersionDetails version={v30} />))).toBe('Nouf Almutairi')
+  })
+
+  it('keeps the real uploader of a version that has one, a newly added one included', () => {
+    const added: GuidelineVersion = { ...v50, addedById: 'nouf' }
+    expect(addedBy(renderToStaticMarkup(<GuidelineVersionDetails version={added} />))).toBe('Nouf Admin')
+    // 4.1's own page.
+    expect(addedBy(renderToStaticMarkup(<MemoryRouter><RegulationDetailsPage /></MemoryRouter>))).toBe('Nouf Admin')
+  })
+
+  it('stays "—" for a recorded uploader whose name is unknown', () => {
+    expect(addedBy(renderToStaticMarkup(<GuidelineVersionDetails version={{ ...v50, addedById: 'someone-else' }} />))).toBe('—')
   })
 })
 

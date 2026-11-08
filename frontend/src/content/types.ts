@@ -1353,6 +1353,8 @@ export interface AdminRegulationsContent {
   fields: GuidelineVersionFields
   /** An empty value. */
   none: string
+  /** "Added By" for a version with no recorded uploader (a temporary placeholder; see admin.en.ts). */
+  addedByFallback: string
   /** Read by screen readers after the Source link. */
   newTab: string
   requirementsCount: CountText
