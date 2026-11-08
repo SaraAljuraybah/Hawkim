@@ -5,11 +5,8 @@ import { completeCheck, hasCurrentCheck, latestCompletedChecksByVersion, startCh
 import {
   compareVersions,
   currentVersion,
-  deleteVersionBlocker,
-  editedGuidelineVersion,
   isHttpsLink,
   isSfdaLink,
-  newGuidelineVersion,
   recheckRecommended,
   validateGuidelineEdit,
   validateGuidelineVersion,
@@ -75,7 +72,7 @@ const input = (overrides: Partial<GuidelineVersionInput> = {}): GuidelineVersion
   ...overrides,
 })
 const versions = [v40]
-const validate = (overrides: Partial<GuidelineVersionInput> = {}, list: GuidelineVersion[] = versions) => validateGuidelineVersion(input(overrides), list)
+const validate = (overrides: Partial<GuidelineVersionInput> = {}, list: GuidelineVersion[] = versions) => validateGuidelineVersion(input(overrides), list, currentVersion(list))
 
 describe('version numbers', () => {
   it('compares each part as a number', () => {
@@ -151,6 +148,8 @@ describe('the other fields', () => {
     for (const source of [
       'https://sfda.gov.sa.example.com', 'https://www.sfda.gov.sa.evil.com/gvp', 'https://notsfda.gov.sa', 'https://sfda-gov.sa',
       'https://sfda.gov.sa@evil.com/gvp', 'https://evil.com/?next=https://www.sfda.gov.sa', 'https://evil.com/sfda.gov.sa',
+      // As the database: no user name and no port.
+      'https://user@www.sfda.gov.sa/gvp', 'https://www.sfda.gov.sa:8443/gvp',
     ]) {
       expect(validate({ source }).source, source).toBe('source-not-sfda')
       expect(isSfdaLink(source), source).toBe(false)
@@ -162,62 +161,45 @@ describe('the other fields', () => {
     }
   })
 
-  it('becomes current when added, with its title, source and added date; the requirements are copied', () => {
-    const added = newGuidelineVersion(input({ issuedDate: '2026-10-01' }), v40, 'nouf', '2026-11-06T07:00:00Z')
-    expect(added).toMatchObject({
-      id: 'gvp-4-1', title: 'SFDA GVP Guideline', version: '4.1', issuedDate: '2026-10-01', effectiveDate: '2026-11-06',
-      source: 'https://www.sfda.gov.sa/en/regulations/gvp', addedById: 'nouf', addedAt: '2026-11-06T07:00:00Z',
-    })
-    expect(added).not.toHaveProperty('summary')
-    // Without a file kept in this browser there is no link; with one, it is kept for preview and download.
-    expect(added).not.toHaveProperty('fileUrl')
-    expect(newGuidelineVersion(input({ fileUrl: 'blob:http://localhost/x' }), v40, 'nouf').fileUrl).toBe('blob:http://localhost/x')
-    expect(currentVersion([v40, added])).toBe(added)
-    expect(added.requirements).toEqual(v40.requirements)
-    expect(added.requirements[0]).not.toBe(v40.requirements[0])
+})
+
+describe('an added version (never current)', () => {
+  const v50: GuidelineVersion = { ...v40, id: 'uuid-50', version: '5.0', addedAt: '2026-11-07T07:00:00Z', requirements: [], neverCurrent: true }
+
+  it('takes its number: no other version may use it, but it doesn\'t raise the bar for the next one', () => {
+    expect(validateGuidelineVersion(input({ version: '5.0' }), [v40, v50], v40).version).toBe('version-exists')
+    expect(validateGuidelineVersion(input({ version: '5.00' }), [v40, v50], v40).version).toBe('version-exists')
+    // Only the current version (4.0) sets the minimum.
+    expect(validateGuidelineVersion(input({ version: '4.5' }), [v40, v50], v40).version).toBeUndefined()
+    expect(validateGuidelineVersion(input({ version: '3.9' }), [v40, v50], v40).version).toBe('version-not-higher')
   })
 })
 
 describe('editing a version', () => {
   const v41: GuidelineVersion = { ...v40, id: 'gvp-4-1', version: '4.1', title: 'Old', issuedDate: '2026-10-01', source: 'https://www.sfda.gov.sa/old', addedAt: '2026-11-06T07:00:00Z' }
+  const added: GuidelineVersion = { ...v41, id: 'uuid-50', version: '5.0', neverCurrent: true }
+  const v60: GuidelineVersion = { ...added, id: 'uuid-60', version: '6.0' }
+  const all = [v40, v41, added, v60]
+  const edit = (overrides: Partial<GuidelineVersionInput> = {}) => ({ title: 'New', version: '5.0', issuedDate: '2026-10-02', source: 'https://www.sfda.gov.sa/new', ...overrides })
 
-  it('checks only the title, the issue date and the source, with the same rules as adding', () => {
-    expect(validateGuidelineEdit({ title: 'New', issuedDate: '2026-10-02', source: 'https://www.sfda.gov.sa/new' }, v41)).toEqual({ title: undefined, issuedDate: undefined, source: undefined })
-    expect(validateGuidelineEdit({ title: 'New', issuedDate: '', source: 'https://www.sfda.gov.sa/new' }, v41).issuedDate).toBe('issued-required')
-    expect(validateGuidelineEdit({ title: '', issuedDate: '2026-11-07', source: 'https://example.com' }, v41)).toEqual({
+  it('checks the title, the issue date and the source of a published version, with the same rules as adding; its number stays', () => {
+    expect(validateGuidelineEdit(edit({ version: 'anything' }), v41, all, v41)).toEqual({ title: undefined, issuedDate: undefined, source: undefined })
+    expect(validateGuidelineEdit(edit({ issuedDate: '' }), v41, all, v41).issuedDate).toBe('issued-required')
+    expect(validateGuidelineEdit(edit({ title: '', issuedDate: '2026-11-07', source: 'https://example.com' }), v41, all, v41)).toEqual({
       title: 'title-required', issuedDate: 'issued-after-added', source: 'source-not-sfda',
     })
+    // An earlier version too.
+    expect(validateGuidelineEdit(edit(), { ...v40, addedAt: '2026-10-26T09:00:00Z' }, all, v41)).toEqual({ title: undefined, issuedDate: undefined, source: undefined })
   })
 
-  it('changes only those three; the version, the added date and the file stay', () => {
-    const edited = editedGuidelineVersion(v41, { title: '  New title ', issuedDate: '', source: 'https://www.sfda.gov.sa/new' })
-    expect(edited).toEqual({ ...v41, title: 'New title', source: 'https://www.sfda.gov.sa/new', issuedDate: undefined })
-    expect(edited).not.toHaveProperty('issuedDate')
-  })
-})
-
-describe('deleting a version', () => {
-  const v41: GuidelineVersion = { ...v40, id: 'gvp-4-1', version: '4.1' }
-  const v50: GuidelineVersion = { ...v40, id: 'gvp-5-0', version: '5.0' }
-
-  it('refuses the current version (the last added)', () => {
-    expect(deleteVersionBlocker(v50, [v40, v41, v50], [])).toBe('current')
-  })
-
-  it('refuses a version any SOP has a running or completed check against', () => {
-    for (const status of ['running', 'completed'] as const) {
-      expect(deleteVersionBlocker(v40, [v40, v41, v50], [sop('draft', [check('1', '4.0', status)])]), status).toBe('checked')
-    }
-  })
-
-  it('does not count failed checks: they produced no results', () => {
-    expect(deleteVersionBlocker(v40, [v40, v41, v50], [sop('draft', [check('1', '4.0', 'failed')])])).toBeUndefined()
-    // A failed check next to a completed one still blocks it.
-    expect(deleteVersionBlocker(v40, [v40, v41, v50], [sop('draft', [check('1', '4.0', 'failed'), check('2', '4.0')])])).toBe('checked')
-  })
-
-  it('allows an older version nobody was checked against', () => {
-    expect(deleteVersionBlocker(v41, [v40, v41, v50], [sop('draft', [check('1', '4.0')])])).toBeUndefined()
+  it('checks the number of a version that was never current: its own is fine, others\' and lower ones aren\'t', () => {
+    expect(validateGuidelineEdit(edit(), added, all, v41)).toEqual({ title: undefined, version: undefined, issuedDate: undefined, source: undefined })
+    expect(validateGuidelineEdit(edit({ version: '5.5' }), added, all, v41).version).toBeUndefined()
+    expect(validateGuidelineEdit(edit({ version: '6.0' }), added, all, v41).version).toBe('version-exists')
+    expect(validateGuidelineEdit(edit({ version: '4.1' }), added, all, v41).version).toBe('version-exists')
+    expect(validateGuidelineEdit(edit({ version: '4.0.1' }), added, all, v41).version).toBe('version-invalid')
+    expect(validateGuidelineEdit(edit({ version: '3.0' }), added, all, v41).version).toBe('version-not-higher')
+    expect(validateGuidelineEdit(edit({ issuedDate: '2026-11-07' }), added, all, v41).issuedDate).toBe('issued-after-added')
   })
 })
 

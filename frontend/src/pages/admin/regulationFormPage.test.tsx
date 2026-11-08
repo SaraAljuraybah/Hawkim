@@ -6,9 +6,7 @@ import { riyadhDate } from '../../lib/riyadhWorkingDays'
 import { RegulationFormPage } from './RegulationFormPage'
 
 vi.mock('../../hooks/useDocumentTitle', () => ({ useDocumentTitle: () => {} }))
-vi.mock('../../state/guidelinesContext', () => ({ useGuidelines: () => ({ versions: [{ version: '4.0' }], current: { version: '4.0' }, addVersion: vi.fn() }) }))
-vi.mock('../../state/usersContext', () => ({ useUsers: () => ({ users: [] }) }))
-vi.mock('../../state/sessionContext', () => ({ useCurrentUser: () => ({ id: 'admin' }) }))
+vi.mock('../../state/guidelinesContext', () => ({ useGuidelines: () => ({ allVersions: [{ version: '4.0' }], current: { version: '4.0' }, addVersion: vi.fn() }) }))
 
 const html = renderToStaticMarkup(<MemoryRouter><RegulationFormPage /></MemoryRouter>)
 const label = (text: string) => html.match(new RegExp(`<label for="([^"]+)"[^>]*>${text}(.*?)</label>`))!
@@ -67,6 +65,16 @@ describe('Add GVP version', () => {
     expect(title).toContain('value=""')
     expect(html).not.toContain('SFDA GVP Guideline')
     expect(title).toContain('maxLength="100"')
+  })
+
+  it('says what it does, without the word "draft", and that the PDF can\'t be changed later', () => {
+    const text = adminEn.regulationForm
+    expect(html).toContain('>Add a new version of the SFDA GVP guideline.</p>')
+    expect(text.dialog.title).toBe('Add GVP Version {version}?')
+    expect(text.dialog.description).toBe('You can change its title, version number, source and issue date later. To change the PDF, delete the version and add it again.')
+    expect(text.dialog.confirm).toBe('Add Version')
+    expect(adminEn.regulations.added).toBe('GVP version {version} added.')
+    expect(JSON.stringify({ text, list: adminEn.regulations, details: adminEn.regulationDetails })).not.toMatch(/draft/i)
   })
 
   it('has no Summary of Changes and no "(Optional)"', () => {

@@ -448,8 +448,8 @@ export interface Guideline {
 }
 
 /**
- * One version of the SFDA GVP guideline (PBI 20). The latest one added is current;
- * older versions are read-only history and can't be edited or deleted.
+ * One version of the SFDA GVP guideline (PBI 20). The published version added last is current.
+ * A version an admin adds is never current (`neverCurrent`) until it is made current (later).
  */
 export interface GuidelineVersion {
   id: string
@@ -463,18 +463,21 @@ export interface GuidelineVersion {
   effectiveDate: string
   /** The guideline document, e.g. "Drug-GVP4_0.pdf". */
   fileName: string
-  /**
-   * A temporary link to the PDF, only for versions added in this browser (lost on reload).
-   * TODO: A signed link to the file in storage once guideline files are saved.
-   */
+  /** A link to a sample PDF (prototype data only); stored PDFs use `storagePath`. */
   fileUrl?: string
-  /** A link to the guideline at its source (https://…); not in the database yet. */
+  /** The PDF in the private guideline-files bucket, opened through a signed link; none yet for some versions. */
+  storagePath?: string
+  /** The PDF's size in bytes, when stored. */
+  fileSize?: number
+  /** A link to the guideline on the SFDA website (https://…sfda.gov.sa…), if known. */
   source?: string
   /** The admin who added it (User.id) and when (ISO date and time); unknown for the first version. */
   addedById?: string
   addedAt?: string
-  /** The requirements SOPs are checked against. */
+  /** The requirements SOPs are checked against (none yet for a version an admin added). */
   requirements: Requirement[]
+  /** Added by an admin and never current: it can be deleted, and its version number changed. */
+  neverCurrent?: boolean
 }
 
 /** One compliance check of one SOP version; its report is kept (PBI 4). */

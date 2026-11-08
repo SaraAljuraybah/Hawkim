@@ -322,6 +322,10 @@ export const adminEn: AdminContent = {
     /** After the Source link, for screen readers. */
     newTab: '(opens in a new tab)',
     requirementsCount: { one: '{count} Requirement', other: '{count} Requirements' },
+    addedLoadFailed: {
+      text: "Some versions couldn't be loaded. Check your connection and try again.",
+      retry: 'Retry',
+    },
     history: {
       title: 'Version History',
       tableLabel: 'GVP versions, newest first',
@@ -330,6 +334,11 @@ export const adminEn: AdminContent = {
     /** "{title} v{version}", e.g. in button names and notices. */
     versionLabel: '{title} v{version}',
     actions: { view: 'View {name}', edit: 'Edit {name}', delete: 'Delete {name}' },
+    /** Why Delete is disabled, in its tooltip: on the current version, and on versions that were current before. */
+    deleteBlocked: {
+      current: "The current version can't be deleted.",
+      used: "Versions that were used for compliance checks can't be deleted.",
+    },
     updated: '{name} updated.',
     deleted: '{name} deleted.',
     deleteDialog: {
@@ -337,8 +346,8 @@ export const adminEn: AdminContent = {
       description: "Are you sure you want to delete {name}? This can't be undone.",
       cancel: 'Cancel',
       confirm: 'Delete',
-      current: "The current version can't be deleted.",
-      checked: "This version can't be deleted because SOPs have been checked against it.",
+      permission: "You don't have permission to do this. Sign in again and retry.",
+      failed: 'Check your connection and try again.',
     },
   },
 
@@ -346,7 +355,7 @@ export const adminEn: AdminContent = {
     title: 'Add GVP Version',
     editTitle: 'Edit GVP Version',
     save: 'Save',
-    subtitle: 'Add the latest SFDA Guideline on Good Pharmacovigilance Practices. It replaces the current version.',
+    subtitle: 'Add a new version of the SFDA GVP guideline.',
     back: { label: 'Back to SFDA Regulatory Requirements', href: '/admin/regulations' },
     titleField: { label: 'Title' },
     version: { label: 'Version', hint: 'For example 4.1 or 5.0.' },
@@ -362,6 +371,7 @@ export const adminEn: AdminContent = {
       typeError: "{name} isn't a PDF. Upload the guideline as a PDF file.",
       sizeError: '{name} is too large. Files must be {max} or smaller.',
     },
+    attachHint: "Add the PDF for this version. Once added, it can't be replaced.",
     source: { label: 'Source', placeholder: 'https://www.sfda.gov.sa/...' },
     submit: 'Add Version',
     cancel: 'Cancel',
@@ -380,11 +390,14 @@ export const adminEn: AdminContent = {
       sourceInvalid: 'Enter a valid link starting with https://.',
       sourceNotSfda: 'Enter a link from the SFDA website (sfda.gov.sa).',
       sourceTooLong: 'Keep the link to 300 characters or fewer.',
+      fileExists: 'This version already has a PDF.',
+      uploadFailed: "The file couldn't be uploaded. Check your connection and try again.",
+      permission: "You don't have permission to do this. Sign in again and retry.",
+      failed: 'Check your connection and try again.',
     },
     dialog: {
       title: 'Add GVP Version {version}?',
-      description:
-        'It will become the current version. New compliance checks will use it, and SOPs checked against older versions will be marked “Recheck recommended”.',
+      description: 'You can change its title, version number, source and issue date later. To change the PDF, delete the version and add it again.',
       confirm: 'Add Version',
       cancel: 'Cancel',
     },
@@ -396,6 +409,7 @@ export const adminEn: AdminContent = {
     file: {
       title: 'File',
       unavailable: "The file isn't available yet.",
+      openFailed: "The file couldn't be opened. Try again.",
       viewerTitle: '{fileName} (PDF)',
       fallback: {
         text: "Your browser can't display the PDF here. Open it in a new tab instead.",

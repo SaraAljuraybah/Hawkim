@@ -21,9 +21,8 @@ import {
 } from '../../lib/guidelines'
 import { riyadhDate } from '../../lib/riyadhWorkingDays'
 import { ADMIN_REGULATIONS_PATH } from '../../lib/routes'
+import { GuidelineError, type GuidelineFailure } from '../../services/guidelines'
 import { useGuidelines } from '../../state/guidelinesContext'
-import { useCurrentUser } from '../../state/sessionContext'
-import { useUsers } from '../../state/usersContext'
 import { NotFoundPage } from '../NotFoundPage'
 import type { AdminRegulationsLocationState } from './AdminRegulationsPage'
 
@@ -31,8 +30,6 @@ const FILE_EXTENSIONS = ['.pdf']
 const FILE_MAX_BYTES = 20 * 1024 * 1024
 
 const FIELDS: GuidelineField[] = ['title', 'version', 'issuedDate', 'addedDate', 'fileName', 'source']
-/** What can change when editing. */
-const EDIT_FIELDS: GuidelineField[] = ['title', 'issuedDate', 'source']
 
 type FieldErrors = Partial<Record<GuidelineField, string>>
 
@@ -40,11 +37,11 @@ type FieldErrors = Partial<Record<GuidelineField, string>>
  * Add GVP version ("/admin/regulations/new", PBI 20): title, version (entered by the admin: new and
  * higher than the current one), the SFDA issue date, the date it's added to Hawkim (today in
  * Asia/Riyadh, read-only), the guideline PDF and the source link on sfda.gov.sa. After a confirmation
- * it becomes the current version.
- * Edit GVP version ("/admin/regulations/:id/edit"): the same form, pre-filled; only the title, the
- * issue date and the source can change (the version, the added date and the file stay). Both only
- * change this tab's copy.
- * TODO: Upload the guideline file to the backend; for now only its name is kept.
+ * the PDF is uploaded and the version saved; it is not current (making it current comes later).
+ * Edit GVP version ("/admin/regulations/:id/edit"): the same form, pre-filled. The title, the issue
+ * date and the source can always change; the version number only for a version that was never
+ * current. The added date stays, and so does a PDF; a current or earlier version with no PDF can get
+ * one, once. The database checks every rule again when saving.
  */
 export function RegulationFormPage({ mode = 'add' }: { mode?: 'add' | 'edit' }) {
   const { id } = useParams()
@@ -59,11 +56,15 @@ function GuidelineVersionForm({ editing }: { editing?: GuidelineVersion }) {
   const text = adminEn.regulationForm
   const names = adminEn.regulations
   useDocumentTitle(adminEn.pageTitle.replace('{page}', editing ? text.editTitle : text.title))
-  const { versions, current, addVersion, updateVersion } = useGuidelines()
-  const { users } = useUsers()
-  const admin = useCurrentUser()
+  const { allVersions, current, addVersion, updateVersion } = useGuidelines()
   const navigate = useNavigate()
-  const fields = editing ? EDIT_FIELDS : FIELDS
+  // The version number can change until a version has been current.
+  const versionEditable = !editing || !!editing.neverCurrent
+  // A current or earlier version with no PDF can get one (never replacing one).
+  const canAddFile = !!editing && !editing.neverCurrent && !editing.storagePath
+  const fields: GuidelineField[] = editing
+    ? ['title', ...(versionEditable ? (['version'] as const) : []), 'issuedDate', ...(canAddFile ? (['fileName'] as const) : []), 'source']
+    : FIELDS
 
   // Adding: the day the admin opened the page, in Riyadh. Editing: the day the version was added.
   const [addedDate] = useState(() => (editing ? addedDateOf(editing) : riyadhDate(new Date())))
@@ -77,7 +78,11 @@ function GuidelineVersionForm({ editing }: { editing?: GuidelineVersion }) {
   const [errors, setErrors] = useState<FieldErrors>({})
   const [submitAttempted, setSubmitAttempted] = useState(false)
   const [confirming, setConfirming] = useState(false)
+  const [saving, setSaving] = useState(false)
+  // Saving failed for a reason no field shows.
+  const [formError, setFormError] = useState('')
   const formRef = useRef<HTMLFormElement>(null)
+  const formErrorRef = useRef<HTMLParagraphElement>(null)
   const titleRef = useRef<HTMLInputElement>(null)
   const versionRef = useRef<HTMLInputElement>(null)
   const issuedRef = useRef<HTMLInputElement>(null)
@@ -104,8 +109,61 @@ function GuidelineVersionForm({ editing }: { editing?: GuidelineVersion }) {
     'source-too-long': text.errors.sourceTooLong,
   }
   function errorsFor(next: GuidelineVersionInput): FieldErrors {
-    const problems = editing ? validateGuidelineEdit(next, editing) : validateGuidelineVersion(next, versions)
+    const problems = editing ? validateGuidelineEdit(next, editing, allVersions, current) : validateGuidelineVersion(next, allVersions, current)
     return Object.fromEntries(fields.map((field) => [field, problems[field] && messages[problems[field]]]))
+  }
+
+  /** Where a refusal from the database is shown: on its field, or for the whole form. */
+  function failureMessage(reason: GuidelineFailure): { field?: GuidelineField; message: string } {
+    switch (reason) {
+      case 'title-invalid':
+        return { field: 'title', message: values.title.trim() ? text.errors.titleTooLong : text.errors.titleRequired }
+      case 'version-invalid':
+      case 'version-exists':
+      case 'version-not-higher':
+      case 'issued-required':
+      case 'issued-after-added':
+        return { field: reason.startsWith('version') ? 'version' : 'issuedDate', message: messages[reason] }
+      case 'source-invalid':
+        return { field: 'source', message: text.errors.sourceNotSfda }
+      case 'file-not-pdf':
+        return { field: 'fileName', message: text.errors.fileNotPdf }
+      case 'file-exists':
+        return { field: 'fileName', message: text.errors.fileExists }
+      case 'file-too-large':
+      case 'file-missing':
+      case 'file-in-use':
+      case 'upload':
+        return { field: 'fileName', message: text.errors.uploadFailed }
+      case 'permission':
+        return { message: text.errors.permission }
+      default:
+        return { message: text.errors.failed }
+    }
+  }
+
+  const refs = { title: titleRef, version: versionRef, issuedDate: issuedRef, addedDate: addedRef, fileName: browseRef, source: sourceRef }
+
+  /** Saves, then goes back to the list with `state`; on failure, shows why and moves focus there. */
+  async function save(action: () => Promise<void>, state: AdminRegulationsLocationState) {
+    setSaving(true)
+    setFormError('')
+    try {
+      await action()
+    } catch (error) {
+      const { field, message } = failureMessage(error instanceof GuidelineError ? error.reason : 'other')
+      // A field only shown on another kind of version (it can't be fixed here) is a form error.
+      const shown = field && fields.includes(field) ? field : undefined
+      flushSync(() => {
+        setSaving(false)
+        if (shown) setErrors((prev) => ({ ...prev, [shown]: message }))
+        else setFormError(message)
+      })
+      if (shown) refs[shown].current?.focus()
+      else formErrorRef.current?.focus()
+      return
+    }
+    navigate(ADMIN_REGULATIONS_PATH, { state })
   }
 
   function setField(field: keyof typeof values, value: string) {
@@ -124,7 +182,6 @@ function GuidelineVersionForm({ editing }: { editing?: GuidelineVersion }) {
     flushSync(() => setErrors(next))
     const firstInvalid = fields.find((field) => next[field])
     if (firstInvalid) {
-      const refs = { title: titleRef, version: versionRef, issuedDate: issuedRef, addedDate: addedRef, fileName: browseRef, source: sourceRef }
       refs[firstInvalid].current?.focus()
       return
     }
@@ -132,19 +189,16 @@ function GuidelineVersionForm({ editing }: { editing?: GuidelineVersion }) {
       setConfirming(true)
       return
     }
-    // Editing saves at once: nothing becomes current and nothing else changes.
-    const updated = updateVersion(editing.id, values, { actorId: admin.id, users })
-    const name = names.versionLabel.replace('{title}', updated.title ?? '').replace('{version}', updated.version)
-    const state: AdminRegulationsLocationState = { updated: names.updated.replace('{name}', name) }
-    navigate(ADMIN_REGULATIONS_PATH, { state })
+    // Editing saves at once: nothing becomes current.
+    const saved = { ...values, version: versionEditable ? values.version.trim() : editing.version }
+    const name = names.versionLabel.replace('{title}', saved.title.trim()).replace('{version}', saved.version)
+    void save(() => updateVersion(editing.id, saved, canAddFile ? files[0] : undefined), { updated: names.updated.replace('{name}', name) })
   }
 
   function confirm() {
     setConfirming(false)
-    // Keep the chosen PDF in this browser, so it can be opened from the version's page (until reload).
-    const added = addVersion({ ...input(), fileUrl: URL.createObjectURL(files[0]) }, { actorId: admin.id, users })
-    const state: AdminRegulationsLocationState = { added: added.version }
-    navigate(ADMIN_REGULATIONS_PATH, { state })
+    const details = { title: values.title.trim(), version: values.version.trim(), issuedDate: values.issuedDate, source: values.source.trim() }
+    void save(() => addVersion(details, files[0]), { added: details.version })
   }
 
   return (
@@ -181,13 +235,13 @@ function GuidelineVersionForm({ editing }: { editing?: GuidelineVersion }) {
           label={text.version.label}
           required
           requiredMark
-          readOnly={!!editing}
-          hint={editing ? undefined : text.version.hint}
+          readOnly={!versionEditable}
+          hint={versionEditable ? text.version.hint : undefined}
           value={values.version}
           error={errors.version}
           onChange={(event) => setField('version', event.target.value)}
           onBlur={() => blur('version')}
-          className={`mt-5 max-w-xs ${editing ? '[&_input]:bg-beige/40' : ''}`}
+          className={`mt-5 max-w-xs ${versionEditable ? '' : '[&_input]:bg-beige/40'}`}
         />
         <div className="mt-5 grid gap-5 sm:grid-cols-2">
           <TextField
@@ -217,19 +271,20 @@ function GuidelineVersionForm({ editing }: { editing?: GuidelineVersion }) {
             className="[&_input]:bg-beige/40"
           />
         </div>
-        {editing ? (
-          // The file stays as it is.
+        {editing && !canAddFile ? (
+          // The PDF stays as it is.
           <TextField name="file" label={text.file.label} readOnly value={editing.fileName} className="mt-5 [&_input]:bg-beige/40" />
         ) : (
         <FileDropzone
           files={files}
           onChange={(next) => {
             setFiles(next)
-            if (submitAttempted) setErrors((prev) => ({ ...prev, fileName: errorsFor(input(next)).fileName }))
+            if (submitAttempted || errors.fileName) setErrors((prev) => ({ ...prev, fileName: errorsFor(input(next)).fileName }))
           }}
           extensions={FILE_EXTENSIONS}
           maxSizeBytes={FILE_MAX_BYTES}
-          text={text.file}
+          // Adding the PDF to a version that has none is optional.
+          text={canAddFile ? { ...text.file, requiredTag: undefined, hint: text.attachHint } : text.file}
           browseRef={browseRef}
           multiple={false}
           error={errors.fileName}
@@ -255,11 +310,22 @@ function GuidelineVersionForm({ editing }: { editing?: GuidelineVersion }) {
           className="mt-5"
         />
 
+        {formError && (
+          <p
+            ref={formErrorRef}
+            role="alert"
+            tabIndex={-1}
+            className="mt-6 rounded-lg border border-status-rejected-fg/25 bg-status-rejected-bg px-4 py-3 text-sm text-status-rejected-fg focus:outline-none"
+          >
+            {formError}
+          </p>
+        )}
+
         <div className="mt-8 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
           <Button variant="secondary" to={text.back.href}>
             {text.cancel}
           </Button>
-          <Button type="submit">{editing ? text.save : text.submit}</Button>
+          <Button type="submit" disabled={saving}>{editing ? text.save : text.submit}</Button>
         </div>
       </form>
 

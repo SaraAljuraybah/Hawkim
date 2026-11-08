@@ -1,0 +1,165 @@
+/*
+ * Managing GVP versions in the admin portal (supabase/migrations/20261108120000_guideline_versions_admin.sql).
+ * A version an admin adds is kept apart from the published ones (guideline_version_drafts), so it is
+ * never current. PDFs go to the private guideline-files bucket as "files/<random id>.pdf" and are
+ * opened through signed links that last 10 minutes. Published versions are read in services/compliance.ts.
+ */
+
+import type { GuidelineVersion } from '../data/mock/types'
+import { riyadhDate } from '../lib/riyadhWorkingDays'
+import { SIGNED_URL_SECONDS } from './files'
+import { supabase } from './supabase'
+
+const BUCKET = 'guideline-files'
+
+/** Why saving failed: a rule the database refused (its hint), or what went wrong around it. */
+export type GuidelineFailure =
+  | 'title-invalid'
+  | 'version-invalid'
+  | 'version-exists'
+  | 'version-not-higher'
+  | 'issued-required'
+  | 'issued-after-added'
+  | 'source-invalid'
+  | 'file-not-pdf'
+  | 'file-too-large'
+  | 'file-missing'
+  | 'file-in-use'
+  | 'file-exists'
+  | 'upload'
+  | 'permission'
+  | 'other'
+
+const HINTS: GuidelineFailure[] = [
+  'title-invalid', 'version-invalid', 'version-exists', 'version-not-higher', 'issued-required', 'issued-after-added',
+  'source-invalid', 'file-not-pdf', 'file-too-large', 'file-missing', 'file-in-use', 'file-exists',
+]
+
+export class GuidelineError extends Error {
+  readonly reason: GuidelineFailure
+  constructor(reason: GuidelineFailure, message: string) {
+    super(message)
+    this.name = 'GuidelineError'
+    this.reason = reason
+  }
+}
+
+/** A database error as a GuidelineError: its hint, no permission (42501), or anything else. */
+export function guidelineError(error: { message: string; code?: string; hint?: string | null }): GuidelineError {
+  const hint = HINTS.find((item) => item === error.hint)
+  if (hint) return new GuidelineError(hint, error.message)
+  return new GuidelineError(error.code === '42501' ? 'permission' : 'other', error.message)
+}
+
+/** The details an admin saves. */
+export interface GuidelineDetails {
+  title: string
+  version: string
+  issuedDate: string
+  source: string
+}
+
+interface AddedVersionRow {
+  id: string
+  name: string
+  version: string
+  issued_date: string
+  source: string
+  file_name: string
+  storage_path: string
+  file_size: number
+  created_by: string
+  created_at: string
+}
+
+/** An added version as a GuidelineVersion: never current, with no requirements yet. */
+export function toAddedGuidelineVersion(row: AddedVersionRow): GuidelineVersion {
+  return {
+    id: row.id,
+    title: row.name,
+    version: row.version,
+    issuedDate: row.issued_date,
+    effectiveDate: riyadhDate(new Date(row.created_at)),
+    fileName: row.file_name,
+    storagePath: row.storage_path,
+    fileSize: row.file_size,
+    source: row.source,
+    addedById: row.created_by,
+    addedAt: row.created_at,
+    requirements: [],
+    neverCurrent: true,
+  }
+}
+
+/** The versions admins added (only admins can read them), oldest first. */
+export async function fetchAddedGuidelineVersions(): Promise<GuidelineVersion[]> {
+  const { data, error } = await supabase()
+    .from('guideline_version_drafts')
+    .select('id, name, version, issued_date, source, file_name, storage_path, file_size, created_by, created_at')
+    .order('created_at')
+  if (error) throw new Error(error.message)
+  return (data as AddedVersionRow[]).map(toAddedGuidelineVersion)
+}
+
+/** Uploads a PDF under a new random name (never replacing a file); returns where it is. */
+export async function uploadGuidelineFile(file: File): Promise<string> {
+  const storagePath = `files/${crypto.randomUUID()}.pdf`
+  const { error } = await supabase().storage.from(BUCKET).upload(storagePath, file, { contentType: 'application/pdf', upsert: false })
+  if (error) throw new GuidelineError('upload', error.message)
+  return storagePath
+}
+
+/**
+ * Removes a file no version uses (after a failed save, or of a deleted version). Best effort: a file
+ * left behind is only unused storage, so a failure here isn't reported.
+ */
+export async function removeGuidelineFile(storagePath: string): Promise<void> {
+  try {
+    await supabase().storage.from(BUCKET).remove([storagePath])
+  } catch {
+    // Left in the bucket; nothing refers to it.
+  }
+}
+
+async function call<T>(name: string, args: Record<string, unknown>): Promise<T> {
+  const { data, error } = await supabase().rpc(name, args)
+  if (error) throw guidelineError(error)
+  return data as T
+}
+
+/** Adds a version with the PDF just uploaded. It is not current. Returns its id. */
+export function createGuidelineVersion(details: GuidelineDetails, storagePath: string, fileName: string): Promise<string> {
+  return call<string>('create_guideline_draft', {
+    p_name: details.title, p_version: details.version, p_issued_date: details.issuedDate, p_source: details.source,
+    p_storage_path: storagePath, p_file_name: fileName,
+  })
+}
+
+/** Edits a version that was never current: title, version number, issue date and source. */
+export async function updateAddedGuidelineVersion(id: string, details: GuidelineDetails): Promise<void> {
+  await call('update_guideline_draft', {
+    p_id: id, p_name: details.title, p_version: details.version, p_issued_date: details.issuedDate, p_source: details.source,
+  })
+}
+
+/** Edits a published version: only its title, issue date and source. */
+export async function updatePublishedGuidelineVersion(id: string, details: Omit<GuidelineDetails, 'version'>): Promise<void> {
+  await call('update_guideline_version', { p_id: id, p_name: details.title, p_issued_date: details.issuedDate, p_source: details.source })
+}
+
+/** Adds the PDF just uploaded to a published version that has none. */
+export async function attachGuidelineFile(id: string, storagePath: string): Promise<void> {
+  await call('attach_guideline_file', { p_id: id, p_storage_path: storagePath })
+}
+
+/** Deletes a version that was never current; returns its file's path. */
+export function deleteAddedGuidelineVersion(id: string): Promise<string> {
+  return call<string>('delete_guideline_draft', { p_id: id })
+}
+
+/** A link to a version's PDF that works for 10 minutes. */
+export async function signedGuidelineFileUrl(storagePath: string): Promise<string> {
+  const { data, error } = await supabase().storage.from(BUCKET).createSignedUrl(storagePath, SIGNED_URL_SECONDS)
+  if (error || !data) throw new Error(error?.message ?? 'No link was created')
+  return data.signedUrl
+}

@@ -1344,6 +1344,8 @@ export interface AdminRegulationsContent {
   /** Read by screen readers after the Source link. */
   newTab: string
   requirementsCount: CountText
+  /** The versions admins added couldn't be loaded (the published ones are still listed). */
+  addedLoadFailed: { text: string; retry: string }
   /** Every version, newest first; `columns.actions` is a visually hidden header. */
   history: {
     title: string
@@ -1354,10 +1356,12 @@ export interface AdminRegulationsContent {
   versionLabel: string
   /** Accessible names and tooltips of each row's icon buttons. */
   actions: { view: string; edit: string; delete: string }
+  /** Why Delete is disabled (its tooltip, and read after its name): the current version, or one that was current before. */
+  deleteBlocked: { current: string; used: string }
   updated: string
   deleted: string
-  /** `current` and `checked`: why Delete is refused, shown in the dialog. */
-  deleteDialog: { title: string; description: string; cancel: string; confirm: string; current: string; checked: string }
+  /** `permission` and `failed`: why deleting didn't work, shown in the dialog. */
+  deleteDialog: { title: string; description: string; cancel: string; confirm: string; permission: string; failed: string }
 }
 
 export interface AdminRegulationFormContent {
@@ -1374,6 +1378,8 @@ export interface AdminRegulationFormContent {
   /** Read-only: today in Asia/Riyadh. */
   addedDate: { label: string }
   file: FileDropzoneText
+  /** Editing a published version with no PDF: the File field's hint (the PDF is optional there). */
+  attachHint: string
   source: { label: string; placeholder: string }
   submit: string
   cancel: string
@@ -1395,6 +1401,12 @@ export interface AdminRegulationFormContent {
     /** Not a link from sfda.gov.sa. */
     sourceNotSfda: string
     sourceTooLong: string
+    fileExists: string
+    uploadFailed: string
+    /** Saving was refused: not an admin (any more). */
+    permission: string
+    /** Anything else, e.g. no connection. */
+    failed: string
   }
   /** `{version}` is replaced. */
   dialog: { title: string; description: string; confirm: string; cancel: string }
@@ -1403,10 +1415,11 @@ export interface AdminRegulationFormContent {
 export interface AdminRegulationDetailsContent {
   back: LinkContent
   details: { title: string }
-  /** The File card: `{fileName}` is replaced; `unavailable` when this browser doesn't have the PDF. */
+  /** The File card: `{fileName}` is replaced; `unavailable` when the version has no PDF, `openFailed` when its link couldn't be made. */
   file: {
     title: string
     unavailable: string
+    openFailed: string
     viewerTitle: string
     fallback: { text: string; openPdf: string; newTabHint: string }
   }

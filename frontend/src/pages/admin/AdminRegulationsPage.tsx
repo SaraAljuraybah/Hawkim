@@ -1,7 +1,7 @@
 import { useRef, useState, type ReactNode } from 'react'
 import { flushSync } from 'react-dom'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { CircleCheck, Eye, Pencil, Plus, Trash2 } from 'lucide-react'
+import { CircleAlert, CircleCheck, Eye, Pencil, Plus, Trash2 } from 'lucide-react'
 import { GuidelineVersionDetails } from '../../components/admin/GuidelineVersionDetails'
 import { Button } from '../../components/ui/Button'
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
@@ -11,12 +11,10 @@ import { adminEn } from '../../content/admin.en'
 import type { GuidelineVersion } from '../../data/mock/types'
 import { useDocumentTitle } from '../../hooks/useDocumentTitle'
 import { formatDate } from '../../lib/format'
-import { addedDateOf, deleteVersionBlocker } from '../../lib/guidelines'
+import { addedDateOf, newestVersion } from '../../lib/guidelines'
 import { adminRegulationEditPath, adminRegulationPath } from '../../lib/routes'
+import { GuidelineError } from '../../services/guidelines'
 import { useGuidelines } from '../../state/guidelinesContext'
-import { useCurrentUser } from '../../state/sessionContext'
-import { useSops } from '../../state/sopsContext'
-import { useUsers } from '../../state/usersContext'
 
 /** Set after adding a version (its number) or editing one (the notice), to say so here. */
 export interface AdminRegulationsLocationState {
@@ -25,9 +23,11 @@ export interface AdminRegulationsLocationState {
 }
 
 /**
- * SFDA Regulatory Requirements ("/admin/regulations", PBI 20): the current GVP version, every version
- * in a Version History table (newest first: the current one is the first row) with View, Edit and
- * Delete, and "Add new version". Editing and deleting only change this tab's copy.
+ * SFDA Regulatory Requirements ("/admin/regulations", PBI 20): the Current Version card, every version in a Version History table (newest first by
+ * when it was added, the versions admins added included) with View and Edit, Delete for a version
+ * that was never current, and "Add new version".
+ * Here the newest version shows as current (display only, `newestVersion`); Delete follows the
+ * database's current version, like compliance checks and every other page.
  */
 export function AdminRegulationsPage() {
   const text = adminEn.regulations
@@ -35,11 +35,9 @@ export function AdminRegulationsPage() {
   useDocumentTitle(adminEn.pageTitle.replace('{page}', text.title))
   const arrived = useLocation().state as AdminRegulationsLocationState | null
   const navigate = useNavigate()
-  const { versions, current, deleteVersion } = useGuidelines()
-  const { sops } = useSops()
-  const { users } = useUsers()
-  const admin = useCurrentUser()
-  const history = [...versions].reverse()
+  const { allVersions, addedStatus, retryAdded, current, deleteVersion } = useGuidelines()
+  const history = [...allVersions].reverse()
+  const shownCurrent = newestVersion(allVersions, current)
 
   const [notice, setNotice] = useState(() => (arrived?.added ? text.added.replace('{version}', arrived.added) : arrived?.updated ?? ''))
   const [deleting, setDeleting] = useState<GuidelineVersion>()
@@ -56,18 +54,21 @@ export function AdminRegulationsPage() {
     // The badge stays on the version's line.
     <span className="inline-flex items-center gap-2 whitespace-nowrap">
       {version.version}
-      {version.id === current.id && currentBadge}
+      {version.id === shownCurrent.id && currentBadge}
     </span>
   )
   const actions = (version: GuidelineVersion) => (
     <div className="flex justify-end gap-1">
       <IconButton label={text.actions.view.replace('{name}', label(version))} icon={Eye} onClick={() => navigate(adminRegulationPath(version.id))} />
       <IconButton label={text.actions.edit.replace('{name}', label(version))} icon={Pencil} onClick={() => navigate(adminRegulationEditPath(version.id))} />
+      {/* Only a version that was never current can be deleted; on the others Delete is disabled, saying why. */}
       <IconButton
         label={text.actions.delete.replace('{name}', label(version))}
         icon={Trash2}
         danger
+        disabledReason={deleteBlocked(version)}
         onClick={(event) => {
+          if (!version.neverCurrent) return
           deleteTrigger.current = event.currentTarget
           setRefusal('')
           setDeleting(version)
@@ -76,23 +77,27 @@ export function AdminRegulationsPage() {
     </div>
   )
 
-  /** Refuses the current version and versions SOPs were checked against; the dialog then stays open. */
-  function canDelete(): boolean {
-    if (!deleting) return false
-    const blocker = deleteVersionBlocker(deleting, versions, sops)
-    if (!blocker) return true
-    setRefusal(text.deleteDialog[blocker])
-    return false
+  /** Why a version can't be deleted: it is current in the database, or was current before (and so used for checks). */
+  function deleteBlocked(version: GuidelineVersion): string | undefined {
+    if (version.neverCurrent) return undefined
+    return version.id === current.id ? text.deleteBlocked.current : text.deleteBlocked.used
   }
 
-  function confirmDelete() {
-    if (!deleting) return
-    const name = label(deleting)
-    deleteVersion(deleting.id, { actorId: admin.id, users, sops })
-    flushSync(() => {
-      setDeleting(undefined)
-      setNotice(text.deleted.replace('{name}', name))
-    })
+  /** Deletes it in the database; if that fails, the dialog opens again with the reason. */
+  async function confirmDelete() {
+    if (!deleting?.neverCurrent) return
+    const version = deleting
+    const name = label(version)
+    setDeleting(undefined)
+    try {
+      await deleteVersion(version.id)
+    } catch (error) {
+      const permission = error instanceof GuidelineError && error.reason === 'permission'
+      setRefusal(permission ? text.deleteDialog.permission : text.deleteDialog.failed)
+      setDeleting(version)
+      return
+    }
+    flushSync(() => setNotice(text.deleted.replace('{name}', name)))
     // The row is gone: focus the notice.
     noticeRef.current?.focus()
   }
@@ -125,16 +130,31 @@ export function AdminRegulationsPage() {
             {text.current.title}
           </h2>
           <p className="mt-2 flex flex-wrap items-center gap-3 text-xl font-semibold text-maroon">
-            {text.versionName.replace('{version}', current.version)}
+            {text.versionName.replace('{version}', shownCurrent.version)}
             {currentBadge}
           </p>
-          <GuidelineVersionDetails version={current} actions={{ withoutFile: true, withoutRequirements: true }} className="mt-5" />
+          <GuidelineVersionDetails version={shownCurrent} actions={{ withoutFile: true, withoutRequirements: true }} className="mt-5" />
         </section>
 
         <section aria-labelledby="history-title">
           <h2 id="history-title" className="text-lg">
             {text.history.title}
           </h2>
+          {/* The published versions are still listed below; only the added ones are missing. */}
+          {addedStatus === 'error' && (
+            <div
+              role="alert"
+              className="mt-3 flex flex-col gap-3 rounded-lg border border-status-rejected-fg/25 bg-status-rejected-bg px-4 py-3 text-sm text-status-rejected-fg sm:flex-row sm:items-center sm:justify-between"
+            >
+              <p className="flex items-start gap-2">
+                <CircleAlert aria-hidden="true" className="mt-0.5 size-4 shrink-0" strokeWidth={2} />
+                {text.addedLoadFailed.text}
+              </p>
+              <Button variant="secondary" onClick={retryAdded} className="shrink-0 self-start sm:self-auto">
+                {text.addedLoadFailed.retry}
+              </Button>
+            </div>
+          )}
           <div className={`mt-3 ${tableStyles.frame}`}>
             {/* Table — md and up */}
             <div className={tableStyles.wide}>
@@ -192,8 +212,7 @@ export function AdminRegulationsPage() {
         cancelLabel={text.deleteDialog.cancel}
         confirmLabel={text.deleteDialog.confirm}
         error={refusal || undefined}
-        canConfirm={canDelete}
-        onConfirm={confirmDelete}
+        onConfirm={() => void confirmDelete()}
         onCancel={() => {
           setDeleting(undefined)
           setRefusal('')

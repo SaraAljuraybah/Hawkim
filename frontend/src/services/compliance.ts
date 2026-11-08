@@ -15,7 +15,7 @@ import { supabase } from './supabase'
 /** The hint start_compliance_check raises when this version already has a completed check. */
 export const CHECK_ALREADY_COMPLETED_HINT = 'check-already-completed'
 
-const GUIDELINE_COLUMNS = `id, name, version, issued_date, effective_date, file_name, added_by, added_at,
+const GUIDELINE_COLUMNS = `id, name, version, issued_date, effective_date, file_name, added_by, added_at, source, storage_path, file_size,
   guideline_requirements!guideline_requirements_guideline_version_id_fkey (code, module, section, section_title, short_title, page, summary)`
 
 export interface GuidelineVersionRow {
@@ -27,6 +27,9 @@ export interface GuidelineVersionRow {
   file_name: string
   added_by: string | null
   added_at: string
+  source: string | null
+  storage_path: string | null
+  file_size: number | null
   guideline_requirements: {
     code: string
     module: string
@@ -49,6 +52,9 @@ export function toGuidelineVersion(row: GuidelineVersionRow): GuidelineVersion {
     fileName: row.file_name,
     ...(row.added_by ? { addedById: row.added_by } : {}),
     addedAt: row.added_at,
+    ...(row.source ? { source: row.source } : {}),
+    ...(row.storage_path ? { storagePath: row.storage_path } : {}),
+    ...(row.file_size ? { fileSize: row.file_size } : {}),
     requirements: [...row.guideline_requirements]
       .sort((a, b) => a.code.localeCompare(b.code, 'en', { numeric: true }))
       .map((item) => ({
@@ -63,7 +69,7 @@ export function toGuidelineVersion(row: GuidelineVersionRow): GuidelineVersion {
   }
 }
 
-/** Every guideline version, oldest first (the last one added is current). */
+/** Every published guideline version, oldest first (the last one added is current). */
 export async function fetchGuidelineVersions(): Promise<GuidelineVersion[]> {
   const { data, error } = await supabase().from('guideline_versions').select(GUIDELINE_COLUMNS).order('added_at')
   if (error) throw new Error(error.message)

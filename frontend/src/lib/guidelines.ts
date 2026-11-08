@@ -4,10 +4,10 @@ import { riyadhDate } from './riyadhWorkingDays'
 
 /*
  * Rules for the regulation SOPs are checked against (PBI 20, 29). Hawkim manages one
- * regulation, the SFDA GVP; the admin adds new versions, and the latest one added is
- * current at once. Old versions stay as read-only history. Pure functions: the
- * guidelines store refuses what they don't allow, and the pages use them to explain why.
- * TODO: The backend must enforce these same rules.
+ * regulation, the SFDA GVP. The current version is the database's (the published version added
+ * last); a version an admin adds is never current (`neverCurrent`): making one current comes
+ * later. Pure functions: the forms use them to explain what's wrong before saving, and the
+ * database (supabase/migrations/20261108120000_guideline_versions_admin.sql) enforces the same rules.
  */
 
 /** A version number: digits, a dot, digits (4.1, 5.0, 4.10). */
@@ -27,6 +27,16 @@ export function currentVersion(versions: GuidelineVersion[]): GuidelineVersion {
   return versions[versions.length - 1]
 }
 
+/**
+ * The version the SFDA Regulatory Requirements tab shows as current: the newest one by when it was
+ * added, the versions admins added included (`allVersions` is oldest first). Display only: compliance
+ * checks, reports and every other page use the database's current version (`currentVersion`), and
+ * Delete and Edit keep following the database too.
+ */
+export function newestVersion(allVersions: GuidelineVersion[], fallback: GuidelineVersion): GuidelineVersion {
+  return allVersions[allVersions.length - 1] ?? fallback
+}
+
 /** A web link starting with https://, with a host (e.g. https://www.sfda.gov.sa/...). */
 export function isHttpsLink(value: string): boolean {
   if (!value.startsWith('https://')) return false
@@ -38,13 +48,16 @@ export function isHttpsLink(value: string): boolean {
   }
 }
 
+/** As the database checks it: https://, sfda.gov.sa or a subdomain (no user name or port), then a path, query or nothing. */
+const SFDA_LINK_PATTERN = /^https:\/\/([a-z0-9-]+\.)*sfda\.gov\.sa([/?#]\S*)?$/i
+
 /**
  * An official SFDA link: an https:// link whose host is sfda.gov.sa or one of its subdomains
  * (www.sfda.gov.sa). The host is compared exactly, never with "contains", so look-alikes such as
- * https://sfda.gov.sa.example.com or https://notsfda.gov.sa are refused.
+ * https://sfda.gov.sa.example.com or https://notsfda.gov.sa are refused, and so are a user name or a port.
  */
 export function isSfdaLink(value: string): boolean {
-  if (!isHttpsLink(value)) return false
+  if (!isHttpsLink(value) || !SFDA_LINK_PATTERN.test(value)) return false
   // URL gives the host in lower case, without any user name or port.
   const { hostname } = new URL(value)
   return hostname === 'sfda.gov.sa' || hostname.endsWith('.sfda.gov.sa')
@@ -52,7 +65,7 @@ export function isSfdaLink(value: string): boolean {
 
 /* ---------- Adding a version ---------- */
 
-/** What the admin enters (the file is only its name for now). */
+/** What the admin enters. The PDF itself is uploaded when the version is saved. */
 export interface GuidelineVersionInput {
   title: string
   /** Entered by the admin, e.g. "4.1". */
@@ -63,8 +76,6 @@ export interface GuidelineVersionInput {
   addedDate: string
   /** '' when no file was chosen. */
   fileName: string
-  /** A temporary link to the chosen PDF in this browser, to open it later in this tab. */
-  fileUrl?: string
   /** A link to the guideline on the SFDA website. */
   source: string
 }
@@ -87,23 +98,23 @@ export type GuidelineProblem =
   | 'source-too-long'
 
 /**
- * What is wrong with each field (nothing for a valid version). The version must be new and
- * higher than the current one (the latest added).
+ * What is wrong with each field (nothing for a valid version). The version number must not be used
+ * by any version (`versions`: every version, added ones included) and must be higher than `current`.
  */
 export function validateGuidelineVersion(
   input: GuidelineVersionInput,
   versions: GuidelineVersion[],
+  current: GuidelineVersion | undefined,
 ): Partial<Record<GuidelineField, GuidelineProblem>> {
   const title = input.title.trim()
   const version = input.version.trim()
   const fileName = input.fileName.trim()
   const source = input.source.trim()
-  const current = currentVersion(versions)
   return {
     title: !title ? 'title-required' : title.length > TITLE_MAX ? 'title-too-long' : undefined,
     version: !VERSION_PATTERN.test(version)
       ? 'version-invalid'
-      : versions.some((item) => compareVersions(item.version, version) === 0)
+      : versions.some((item) => VERSION_PATTERN.test(item.version) && compareVersions(item.version, version) === 0)
         ? 'version-exists'
         : current && compareVersions(version, current.version) <= 0
           ? 'version-not-higher'
@@ -128,78 +139,41 @@ export function validateGuidelineVersion(
   }
 }
 
+/* ---------- Editing a version ---------- */
+
 /**
- * The new version, which becomes current. Its requirements are copied from the
- * previous version for now. The database also needs an effective date: it is the added date.
- * TODO: The compliance service extracts the requirements from the uploaded PDF.
+ * What can be edited: the title, SFDA issue date and source of every version, and the version number
+ * of one that was never current. The added date and the PDF stay (a PDF can only be added where none is).
  */
-export function newGuidelineVersion(
-  input: GuidelineVersionInput,
-  previous: GuidelineVersion,
-  addedById: string,
-  addedAt = new Date().toISOString(),
-): GuidelineVersion {
-  const version = input.version.trim()
-  return {
-    id: `gvp-${version.replace('.', '-')}`,
-    title: input.title.trim(),
-    version,
-    ...(input.issuedDate ? { issuedDate: input.issuedDate } : {}),
-    effectiveDate: input.addedDate,
-    fileName: input.fileName.trim(),
-    ...(input.fileUrl ? { fileUrl: input.fileUrl } : {}),
-    source: input.source.trim(),
-    addedById,
-    addedAt,
-    requirements: previous.requirements.map((requirement) => ({ ...requirement })),
-  }
-}
-
-/* ---------- Editing and deleting a version ---------- */
-
-/** What can be edited: the version number, the added date and the file stay. */
-export type GuidelineEditInput = Pick<GuidelineVersionInput, 'title' | 'issuedDate' | 'source'>
+export type GuidelineEditInput = Pick<GuidelineVersionInput, 'title' | 'version' | 'issuedDate' | 'source'>
 
 /** The Riyadh date a version was added to Hawkim (ISO date), if known. */
 export function addedDateOf(version: GuidelineVersion): string {
   return version.addedAt ? riyadhDate(new Date(version.addedAt)) : version.effectiveDate
 }
 
-/** What is wrong with an edit: the same rules as adding, for the fields that can change. */
-export function validateGuidelineEdit(input: GuidelineEditInput, version: GuidelineVersion): Partial<Record<GuidelineField, GuidelineProblem>> {
-  const problems = validateGuidelineVersion(
-    { ...input, version: version.version, addedDate: addedDateOf(version), fileName: version.fileName },
-    [],
-  )
-  return { title: problems.title, issuedDate: problems.issuedDate, source: problems.source }
-}
-
-/** The version with its new title, SFDA issue date and source. */
-export function editedGuidelineVersion(version: GuidelineVersion, input: GuidelineEditInput): GuidelineVersion {
-  const { issuedDate: _previous, ...rest } = version
-  return { ...rest, title: input.title.trim(), ...(input.issuedDate ? { issuedDate: input.issuedDate } : {}), source: input.source.trim() }
-}
-
 /**
- * Whether any SOP's running or completed compliance check used this guideline version. Failed
- * checks produced no results, so they don't count.
+ * What is wrong with an edit: the same rules as adding, for the fields that can change. The version
+ * number is checked only for a version that was never current (against the other versions); the
+ * issue date can't be after the day the version was added.
  */
-export function checkedAgainst(version: GuidelineVersion, sops: Pick<Sop, 'complianceChecks'>[]): boolean {
-  return sops.some((sop) => sop.complianceChecks.some((check) =>
-    check.status !== 'failed' && compareVersions(check.guideline.version, version.version) === 0))
-}
-
-/**
- * Why a version can't be deleted: it is the current one, or SOPs were checked against it
- * (their reports look up its requirements). Only the SOPs this browser has are known.
- */
-export function deleteVersionBlocker(
+export function validateGuidelineEdit(
+  input: GuidelineEditInput,
   version: GuidelineVersion,
   versions: GuidelineVersion[],
-  sops: Pick<Sop, 'complianceChecks'>[],
-): 'current' | 'checked' | undefined {
-  if (currentVersion(versions)?.id === version.id) return 'current'
-  return checkedAgainst(version, sops) ? 'checked' : undefined
+  current: GuidelineVersion | undefined,
+): Partial<Record<GuidelineField, GuidelineProblem>> {
+  const problems = validateGuidelineVersion(
+    { ...input, version: version.neverCurrent ? input.version : version.version, addedDate: addedDateOf(version), fileName: version.fileName },
+    versions.filter((item) => item.id !== version.id),
+    current?.id === version.id ? undefined : current,
+  )
+  return {
+    title: problems.title,
+    ...(version.neverCurrent ? { version: problems.version } : {}),
+    issuedDate: problems.issuedDate,
+    source: problems.source,
+  }
 }
 
 /* ---------- SOPs checked against an older version ---------- */

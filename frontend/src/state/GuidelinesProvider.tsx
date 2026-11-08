@@ -1,40 +1,113 @@
-import { useCallback, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { GVP_NAME, sampleGuidelineVersions } from '../data/mock/compliance'
-import type { GuidelineVersion, User } from '../data/mock/types'
-import { currentVersion, deleteVersionBlocker, editedGuidelineVersion, newGuidelineVersion, validateGuidelineEdit, validateGuidelineVersion } from '../lib/guidelines'
-import { GuidelinesContext, type GuidelinesStore } from './guidelinesContext'
-import { useLoadAfterSignIn } from './useLoadAfterSignIn'
+import type { GuidelineVersion } from '../data/mock/types'
+import { currentVersion } from '../lib/guidelines'
+import { hasPermission } from '../lib/permissions'
 import { fetchGuidelineVersions } from '../services/compliance'
+import {
+  attachGuidelineFile,
+  createGuidelineVersion,
+  deleteAddedGuidelineVersion,
+  fetchAddedGuidelineVersions,
+  removeGuidelineFile,
+  updateAddedGuidelineVersion,
+  updatePublishedGuidelineVersion,
+  uploadGuidelineFile,
+} from '../services/guidelines'
+import { GuidelinesContext, type GuidelinesStore } from './guidelinesContext'
+import { useSession } from './sessionContext'
+import { useLoadAfterSignIn, type LoadStatus } from './useLoadAfterSignIn'
 
-/** Refuses anyone who isn't an active admin. */
-function assertAdmin(actorId: string, users: User[]) {
-  const actor = users.find((user) => user.id === actorId && !user.deletedAt)
-  if (!actor?.permissions.includes('admin')) throw new Error('Only an admin can manage guideline versions')
+/** The versions admins added, for one signed-in admin (`key`), and whether they loaded. */
+interface Added {
+  key: string
+  status: LoadStatus
+  versions: GuidelineVersion[]
+}
+
+/** Oldest first by the time each was added. */
+function byAddedTime(versions: GuidelineVersion[]): GuidelineVersion[] {
+  return [...versions].sort((a, b) => (a.addedAt ?? '').localeCompare(b.addedAt ?? ''))
+}
+
+/** Uploads the file, then saves with it; removes the file again if saving fails. */
+async function withUploadedFile(file: File, save: (storagePath: string) => Promise<unknown>): Promise<void> {
+  const storagePath = await uploadGuidelineFile(file)
+  try {
+    await save(storagePath)
+  } catch (error) {
+    await removeGuidelineFile(storagePath)
+    throw error
+  }
 }
 
 /**
  * Store of the GVP versions (shared, like departments): compliance checks use the
  * current one, and reports look up requirements in the version they were checked
- * against. The versions and their requirements are loaded from the database after
+ * against. The published versions and their requirements are loaded from the database after
  * sign-in (until then the sample v4.0 stands in, but no page shows before they load).
- * Adding, editing and deleting a version (admin portal) only change this tab's copy, and checks in the
- * database always use the database's current version.
- * TODO: Save new versions once guideline upload is connected.
+ * For admins, the versions admins added (never current) are loaded separately: if that fails,
+ * only the SFDA Regulatory Requirements tab says so (`addedStatus`, `retryAdded`), and the rest
+ * of the portal keeps working. Each change is saved in the database (which checks the rules and
+ * that the caller is an admin), then everything is loaded again.
  * Must be inside <SessionProvider>.
  */
 export function GuidelinesProvider({ children }: { children: ReactNode }) {
-  const [versions, setVersions] = useState<GuidelineVersion[]>(sampleGuidelineVersions)
-  // The latest list (as in the other stores): actions check against it, not the last render.
-  const latestRef = useRef<GuidelineVersion[]>(sampleGuidelineVersions)
-  const commit = useCallback((next: GuidelineVersion[]) => {
-    latestRef.current = next
-    setVersions(next)
-  }, [])
-  const status = useLoadAfterSignIn(fetchGuidelineVersions, commit)
+  const user = useSession().user
+  // Only admins read the added versions.
+  const addedKey = user && hasPermission(user, 'admin') ? user.id : ''
 
+  const [published, setPublished] = useState<GuidelineVersion[]>(sampleGuidelineVersions)
+  const publishedRef = useRef(published)
+  const commitPublished = useCallback((next: GuidelineVersion[]) => {
+    publishedRef.current = next
+    setPublished(next)
+  }, [])
+  // What every page waits for: the published versions only, as before.
+  const status = useLoadAfterSignIn(fetchGuidelineVersions, commitPublished)
+
+  const [added, setAdded] = useState<Added>({ key: '', status: 'loading', versions: [] })
+  const addedRef = useRef(added)
+  // The admin whose added versions are wanted now: a reply for anyone else is ignored.
+  const addedKeyRef = useRef(addedKey)
+  const loadAdded = useCallback(async (key: string) => {
+    let next: Added
+    try {
+      next = { key, status: 'ready', versions: await fetchAddedGuidelineVersions() }
+    } catch {
+      // Keep any versions already shown for this admin, and say they couldn't be refreshed.
+      next = { key, status: 'error', versions: addedRef.current.key === key ? addedRef.current.versions : [] }
+    }
+    if (addedKeyRef.current !== key) return
+    addedRef.current = next
+    setAdded(next)
+  }, [])
+  useEffect(() => {
+    addedKeyRef.current = addedKey
+    if (addedKey) void loadAdded(addedKey)
+  }, [addedKey, loadAdded])
+  const retryAdded = useCallback(() => {
+    const key = addedKeyRef.current
+    if (!key) return
+    setAdded((prev) => (prev.key === key ? { ...prev, status: 'loading' } : prev))
+    void loadAdded(key)
+  }, [loadAdded])
+
+  const addedVersions = useMemo(() => (added.key === addedKey ? added.versions : []), [added, addedKey])
+  const addedStatus: LoadStatus = !addedKey ? 'ready' : added.key === addedKey ? added.status : 'loading'
+
+  const reload = useCallback(async () => {
+    await Promise.all([
+      fetchGuidelineVersions().then(commitPublished, () => {}),
+      addedKeyRef.current ? loadAdded(addedKeyRef.current) : Promise.resolve(),
+    ])
+  }, [commitPublished, loadAdded])
+
+  const versions = published
   const current = currentVersion(versions)
+  const allVersions = useMemo(() => byAddedTime([...published, ...addedVersions]), [published, addedVersions])
   const currentGuideline = useMemo(() => ({ name: GVP_NAME, version: current.version }), [current.version])
-  const getVersion = useCallback((id: string | undefined) => versions.find((item) => item.id === id), [versions])
+  const getVersion = useCallback((id: string | undefined) => allVersions.find((item) => item.id === id), [allVersions])
   const getRequirement = useCallback(
     (guidelineVersion: string, requirementId: string) =>
       versions
@@ -43,38 +116,38 @@ export function GuidelinesProvider({ children }: { children: ReactNode }) {
     [versions],
   )
 
-  const addVersion = useCallback<GuidelinesStore['addVersion']>((input, { actorId, users }) => {
-    assertAdmin(actorId, users)
-    const previous = currentVersion(latestRef.current)
-    if (Object.values(validateGuidelineVersion(input, latestRef.current)).some(Boolean)) {
-      throw new Error('The guideline version is not valid')
+  /** Saves, then loads the versions again, whether or not saving worked (another admin may have changed them). */
+  const thenReload = useCallback(async (save: () => Promise<void>) => {
+    try {
+      await save()
+    } finally {
+      await reload()
     }
-    const added = newGuidelineVersion(input, previous, actorId)
-    commit([...latestRef.current, added])
-    return added
-  }, [commit])
+  }, [reload])
 
-  const updateVersion = useCallback<GuidelinesStore['updateVersion']>((id, input, { actorId, users }) => {
-    assertAdmin(actorId, users)
-    const version = latestRef.current.find((item) => item.id === id)
-    if (!version) throw new Error('Unknown guideline version')
-    if (Object.values(validateGuidelineEdit(input, version)).some(Boolean)) throw new Error('The guideline version is not valid')
-    const updated = editedGuidelineVersion(version, input)
-    commit(latestRef.current.map((item) => (item.id === id ? updated : item)))
-    return updated
-  }, [commit])
+  const addVersion = useCallback<GuidelinesStore['addVersion']>((details, file) => thenReload(() =>
+    withUploadedFile(file, (storagePath) => createGuidelineVersion(details, storagePath, file.name)),
+  ), [thenReload])
 
-  const deleteVersion = useCallback<GuidelinesStore['deleteVersion']>((id, { actorId, users, sops }) => {
-    assertAdmin(actorId, users)
-    const version = latestRef.current.find((item) => item.id === id)
+  const updateVersion = useCallback<GuidelinesStore['updateVersion']>((id, input, file) => thenReload(async () => {
+    const version = [...publishedRef.current, ...addedRef.current.versions].find((item) => item.id === id)
     if (!version) throw new Error('Unknown guideline version')
-    if (deleteVersionBlocker(version, latestRef.current, sops)) throw new Error('This guideline version can’t be deleted')
-    commit(latestRef.current.filter((item) => item.id !== id))
-  }, [commit])
+    if (version.neverCurrent) {
+      await updateAddedGuidelineVersion(id, input)
+      return
+    }
+    await updatePublishedGuidelineVersion(id, input)
+    if (file && !version.storagePath) await withUploadedFile(file, (storagePath) => attachGuidelineFile(id, storagePath))
+  }), [thenReload])
+
+  const deleteVersion = useCallback<GuidelinesStore['deleteVersion']>((id) => thenReload(async () => {
+    const storagePath = await deleteAddedGuidelineVersion(id)
+    if (storagePath) await removeGuidelineFile(storagePath)
+  }), [thenReload])
 
   const store = useMemo<GuidelinesStore>(
-    () => ({ status, versions, current, currentGuideline, getVersion, getRequirement, addVersion, updateVersion, deleteVersion }),
-    [status, versions, current, currentGuideline, getVersion, getRequirement, addVersion, updateVersion, deleteVersion],
+    () => ({ status, versions, current, currentGuideline, allVersions, addedStatus, retryAdded, getVersion, getRequirement, addVersion, updateVersion, deleteVersion }),
+    [status, versions, current, currentGuideline, allVersions, addedStatus, retryAdded, getVersion, getRequirement, addVersion, updateVersion, deleteVersion],
   )
 
   return <GuidelinesContext.Provider value={store}>{children}</GuidelinesContext.Provider>

@@ -7,13 +7,16 @@ import type { GuidelineVersion } from '../../data/mock/types'
 import { RegulationDetailsPage } from './RegulationDetailsPage'
 
 const requirement = { id: 'R1', module: 'Module I', section: 'I.B.10', sectionTitle: 'Record management', shortTitle: 'Access', page: 22, summary: 'Keep records.' }
-// 4.0 as loaded from the database: only its file name. 4.1 added in this browser: its PDF too.
+// 4.0: only its file name, no PDF yet. 4.1: a sample PDF. 5.0: a PDF in storage.
 const v40: GuidelineVersion = { id: 'gvp-4-0', title: 'SFDA GVP', version: '4.0', effectiveDate: '2015-09-01', fileName: 'Drug-GVP4_0.pdf', requirements: [requirement, { ...requirement, id: 'R2' }] }
 const v41: GuidelineVersion = { ...v40, id: 'gvp-4-1', version: '4.1', fileName: 'Drug-GVP4_1.pdf', fileUrl: 'blob:http://localhost/abc' }
+const v50: GuidelineVersion = { ...v40, id: 'uuid-50', version: '5.0', fileName: 'Drug-GVP5_0.pdf', storagePath: 'files/50.pdf', requirements: [], neverCurrent: true }
 vi.mock('../../hooks/useDocumentTitle', () => ({ useDocumentTitle: () => {} }))
+vi.mock('../../state/sessionContext', () => ({ useSession: () => ({ user: { id: 'nouf' } }) }))
 vi.mock('../../state/usersContext', () => ({ useUsers: () => ({ nameOf: () => '' }) }))
 vi.mock('../../state/guidelinesContext', () => ({
-  useGuidelines: () => ({ current: v41, getVersion: (id: string) => [v40, v41].find((item) => item.id === id) }),
+  // 4.1 is current in the database; 5.0, added later, is the newest.
+  useGuidelines: () => ({ current: v41, allVersions: [v40, v41, v50], getVersion: (id: string) => [v40, v41, v50].find((item) => item.id === id) }),
 }))
 
 const render = (id: string) => renderToStaticMarkup(
@@ -103,6 +106,24 @@ describe('a GVP version\'s File card', () => {
     expect(file).toContain('The file isn&#x27;t available yet.')
     expect(file).not.toContain('download=')
     expect(file).not.toContain('<iframe')
+  })
+
+  it('makes a signed link for a stored PDF, saying nothing while it is being made', () => {
+    const file = card(render('uuid-50'))
+    expect(file).toContain('>Drug-GVP5_0.pdf</p>')
+    expect(file).not.toContain('isn&#x27;t available')
+    expect(file).not.toContain('couldn&#x27;t be opened')
+    expect(file).not.toContain('<iframe')
+  })
+
+  it('shows the Current badge on the newest version, though an admin added it, with no requirements yet', () => {
+    const html = render('uuid-50')
+    expect(html).toMatch(/>GVP Version 5\.0<\/h1><span class="[^"]*">Current<\/span>/)
+    expect(detail(html, 'Requirements')).toContain('>0 Requirements<')
+  })
+
+  it('shows no Current badge on the others, the database\'s current version included', () => {
+    for (const id of ['gvp-4-1', 'gvp-4-0']) expect(render(id), id).not.toContain('>Current<')
   })
 
   it('has no preview dialog any more', () => {
