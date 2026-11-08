@@ -267,7 +267,7 @@ function Report({ sop, backPath }: { sop: Sop; backPath: string }) {
 
           {/* c) Requirements overview */}
           <ReportSection id="overview-title" title={text.overview.title}>
-            <RequirementsOverview findings={numbered} content={content} onJump={jumpTo} />
+            <RequirementsOverview findings={numbered} stepsChecked={report.stepsChecked} content={content} onJump={jumpTo} />
           </ReportSection>
 
           {/* d) Findings */}

@@ -983,11 +983,19 @@ export interface ComplianceContent {
     }
     overview: {
       title: string
+      /**
+       * Under the title: how many SOP procedures were checked. `one` and `other` (`{count}` is
+       * replaced) when the compliance service recorded it; `unknown` otherwise (sample results).
+       */
+      procedures: { one: string; other: string; unknown: string }
       findingId: string
-      requirement: string
+      requirementTitle: string
+      requirementReference: string
       result: string
-      /** `{id}`, `{section}` and `{title}` are replaced. */
-      requirementLabel: string
+      /** The reference under the title in the phone list; `{reference}` is replaced. */
+      referenceLine: string
+      /** A requirement with no title of its own. */
+      none: string
     }
     findings: {
       title: string

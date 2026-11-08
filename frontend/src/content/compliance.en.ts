@@ -71,10 +71,17 @@ export const complianceEn: ComplianceContent = {
     },
     overview: {
       title: 'Requirements Overview',
+      procedures: {
+        one: 'For this specific SOP, AI checked the 1 procedure against the relevant GVP requirements. The results are presented as findings, with each finding linked to the corresponding GVP requirement.',
+        other: 'For this specific SOP, AI checked each of the {count} procedures against the relevant GVP requirements. The results are presented as findings, with each finding linked to the corresponding GVP requirement.',
+        unknown: 'For this specific SOP, AI checked each procedure against the relevant GVP requirements. The results are presented as findings, with each finding linked to the corresponding GVP requirement.',
+      },
       findingId: 'Finding ID',
-      requirement: 'Requirement',
+      requirementTitle: 'Requirement Title',
+      requirementReference: 'Requirement Reference',
       result: 'Result',
-      requirementLabel: '{id} · {section} {title}',
+      referenceLine: 'Requirement Reference: {reference}',
+      none: '—',
     },
     findings: {
       title: 'Findings',

@@ -5,6 +5,7 @@ import type { ReactNode } from 'react'
 import { complianceEn } from '../content/compliance.en'
 import type { ComplianceCheck, ComplianceResult, Sop, User } from '../data/mock/types'
 import { sops } from '../data/mock/sops'
+import { overviewCells } from '../components/compliance/overviewCells'
 import { ComplianceReportPage } from './ComplianceReportPage'
 import { ReviewPage } from './ReviewPage'
 import { SopWorkflowPage } from './SopWorkflowPage'
@@ -55,6 +56,12 @@ describe('the compliance report layout', () => {
     expect(html.match(/<h1/g)).toHaveLength(1)
     const h2s = [...html.matchAll(/<h2 id="([^"]+)"/g)].map((match) => match[1])
     expect(h2s).toEqual(['report-details-title', 'summary-title', 'overview-title', 'findings-title'])
+  })
+
+  it('starts the Requirements Overview with the procedures sentence, without the old description', () => {
+    const overview = section(render(<ComplianceReportPage />), 'overview-title')
+    expect(overview).not.toContain('Hawkim uses AI to check')
+    expect(overview).toMatch(/>Requirements Overview<\/h2><p class="-mt-3 mb-4 text-sm text-maroon">For this specific SOP, AI checked each procedure/)
   })
 
   it('calls the summary "Summary" and keeps only the ring, the score sentence in maroon and the four tiles', () => {
@@ -123,6 +130,81 @@ describe('the compliance report layout', () => {
     expect(html).toContain('size-44')
     expect(html).not.toContain('Method and Limitations')
     expect(html).toContain('Go to Conflict findings')
+  })
+})
+
+describe('the Requirements Overview', () => {
+  const text = complianceEn.report
+  const requirement = (id: string, section: string, sectionTitle: string) => ({ id, module: 'Module V', section, sectionTitle, shortTitle: sectionTitle, page: 12, summary: 'Text.' })
+  /** A service check: the findings carry their requirement (code "V.B.2#4"…). */
+  function serviceCheck(stepsChecked?: number): ComplianceCheck {
+    return {
+      ...check(['conflict', 'compliant', 'partial']), engine: 'hawkim', ...(stepsChecked === undefined ? {} : { stepsChecked }),
+      findings: [
+        { id: 'a', requirementId: 'V.B.2#4', result: 'conflict', justification: 'x', requirement: requirement('V.B.2#4', 'V.B.2', 'Responsibilities for risk management within an organization') },
+        { id: 'b', requirementId: 'VII.C.1#2', result: 'compliant', justification: 'x', requirement: requirement('VII.C.1#2', 'VII.C.1', 'VII.C.1') },
+        { id: 'c', requirementId: 'VII.B.5#1', result: 'partial', justification: 'x', requirement: requirement('VII.B.5#1', 'VII.B.5', '') },
+      ],
+    }
+  }
+  const overview = (html: string) => section(html, 'overview-title')
+
+  it('has the columns Finding ID, Requirement Title, Requirement Reference and Result, as column headers', () => {
+    fixture.sop = { ...fixture.sop!, complianceChecks: [serviceCheck(7)] }
+    const table = overview(render(<ComplianceReportPage />))
+    expect([...table.matchAll(/<th scope="col"[^>]*>([^<]+)<\/th>/g)].map((match) => match[1])).toEqual(['Finding ID', 'Requirement Title', 'Requirement Reference', 'Result'])
+  })
+
+  it('shows the title without the code and the reference without the "#" part; the links keep the finding ids', () => {
+    fixture.sop = { ...fixture.sop!, complianceChecks: [serviceCheck(7)] }
+    const html = render(<ComplianceReportPage />)
+    const rows = [...overview(html).matchAll(/<tr class="border-b[^"]*">(.*?)<\/tr>/g)].map((match) =>
+      [...match[1].matchAll(/<td[^>]*>(.*?)<\/td>/g)].slice(0, 3).map((cell) => cell[1].replace(/<[^>]+>/g, ''))).filter((cells) => cells.length)
+    expect(rows).toEqual([
+      ['F-01', 'Responsibilities for risk management within an organization', 'V.B.2'],
+      // No title of its own (the service stored the section again), or an empty one: "—".
+      ['F-02', '—', 'VII.B.5'],
+      ['F-03', '—', 'VII.C.1'],
+    ])
+    expect(overview(html)).not.toContain('#4')
+    expect(overview(html)).toContain('href="#finding-F-01"')
+    // The finding cards further down keep the finding ids (and look requirements up by the full code).
+    expect(html).toContain('id="finding-F-01"')
+  })
+
+  it('shows the title and "Requirement Reference: …" in the phone list', () => {
+    fixture.sop = { ...fixture.sop!, complianceChecks: [serviceCheck(7)] }
+    const list = overview(render(<ComplianceReportPage />))
+    expect(list).toContain('<p class="mt-1 text-sm text-maroon">Responsibilities for risk management within an organization</p><p class="mt-0.5 text-sm text-text-gray">Requirement Reference: V.B.2</p>')
+  })
+
+  it('falls back to "—" and the code before "#" for a requirement it can\'t find', () => {
+    const none = () => undefined
+    expect(overviewCells(text, 'V.B.2#4', none)).toEqual({ title: '—', reference: 'V.B.2' })
+    expect(overviewCells(text, 'R7', none)).toEqual({ title: '—', reference: 'R7' })
+    expect(overviewCells(text, '#4', none)).toEqual({ title: '—', reference: '#4' })
+    expect(overviewCells(text, 'R1', () => requirement('R1', 'I.B.10', 'Record management'))).toEqual({ title: 'Record management', reference: 'I.B.10' })
+    expect(overviewCells(text, 'X#1', () => requirement('X#1', '', 'Title'))).toEqual({ title: 'Title', reference: 'X' })
+  })
+
+  it('says how many procedures were checked, right under the title, in maroon', () => {
+    const sentence = (stepsChecked?: number) => {
+      fixture.sop = { ...fixture.sop!, complianceChecks: [serviceCheck(stepsChecked)] }
+      return overview(render(<ComplianceReportPage />))
+    }
+    const title = 'Requirements Overview</h2>'
+    const end = ' against the relevant GVP requirements. The results are presented as findings, with each finding linked to the corresponding GVP requirement.</p>'
+    expect(sentence(7)).toContain(`${title}<p class="-mt-3 mb-4 text-sm text-maroon">For this specific SOP, AI checked each of the 7 procedures${end}`)
+    expect(sentence(1)).toContain(`${title}<p class="-mt-3 mb-4 text-sm text-maroon">For this specific SOP, AI checked the 1 procedure${end}`)
+    expect(sentence(undefined)).toContain(`${title}<p class="-mt-3 mb-4 text-sm text-maroon">For this specific SOP, AI checked each procedure${end}`)
+  })
+
+  it('reads the same for reviewers', () => {
+    fixture.sop = { ...fixture.sop!, complianceChecks: [serviceCheck(7)], status: 'in-review', reviewers: [{ userId: 'reviewer', decision: 'pending' }], timeline: [{ id: 'sent', type: 'submitted', actorId: 'author', recipientIds: ['reviewer'], createdAt: '2026-10-29T08:00:00Z', version: '1' }] }
+    fixture.userId = 'reviewer'
+    const table = overview(render(<ComplianceReportPage audience="reviewer" />))
+    expect(table).toContain('>Requirement Reference</th>')
+    expect(table).toContain('AI checked each of the 7 procedures')
   })
 })
 

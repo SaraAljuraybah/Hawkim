@@ -1,11 +1,10 @@
 import type { CSSProperties, MouseEvent, ReactNode } from 'react'
 import type { ComplianceContent } from '../../content/types'
-import type { ComplianceCheck, ComplianceResult, Requirement } from '../../data/mock/types'
+import type { ComplianceCheck, ComplianceResult } from '../../data/mock/types'
 import { complianceScore, countResults, RESULT_ORDER, type NumberedFinding } from '../../lib/compliance'
 import { ComplianceBadge } from './ComplianceBadge'
+import { overviewCells } from './overviewCells'
 import { useReportRequirement } from './reportRequirements'
-
-type ReportText = ComplianceContent['report']
 
 /** Indicator colours per result (the darker status tokens, so they stand out on white). */
 const SEGMENT: Record<ComplianceResult, string> = {
@@ -15,30 +14,20 @@ const SEGMENT: Record<ComplianceResult, string> = {
   compliant: 'bg-status-approved-fg',
 }
 
-/** A report section: a card with an h2, kept on one page when printed (so a heading is never left alone). */
-export function ReportSection({ id, title, children }: { id: string; title: string; children: ReactNode }) {
+/**
+ * A report section: a card with an h2 (and a short description under it, if given), kept on one page
+ * when printed (so a heading is never left alone).
+ */
+export function ReportSection({ id, title, description, children }: { id: string; title: string; description?: string; children: ReactNode }) {
   return (
     <section aria-labelledby={id} className="mt-6 rounded-xl border border-beige bg-white p-5 break-inside-avoid sm:p-6 print:mt-5 print:border-0 print:p-0">
-      <h2 id={id} className="mb-4 text-lg">
+      <h2 id={id} className={description ? 'text-lg' : 'mb-4 text-lg'}>
         {title}
       </h2>
+      {description && <p className="mt-1 mb-4 text-sm text-text-gray">{description}</p>}
       {children}
     </section>
   )
-}
-
-/** "R2 · I.B.10 Record management" */
-function requirementLabel(
-  text: ReportText,
-  requirementId: string,
-  getRequirement: (id: string) => Requirement | undefined,
-): string {
-  const requirement = getRequirement(requirementId)
-  if (!requirement) return requirementId
-  return text.overview.requirementLabel
-    .replace('{id}', requirement.id)
-    .replace('{section}', requirement.section)
-    .replace('{title}', requirement.sectionTitle)
 }
 
 // ---------- b) Summary ----------
@@ -148,16 +137,23 @@ export function ExecutiveSummary({
 
 export function RequirementsOverview({
   findings,
+  stepsChecked,
   content,
   onJump,
 }: {
   findings: NumberedFinding[]
+  /** How many SOP procedures the compliance service checked; undefined for sample results. */
+  stepsChecked?: number
   content: ComplianceContent
   /** Shows the finding (switching the filter to All if needed) and moves focus to it. */
   onJump: (event: MouseEvent<HTMLAnchorElement>, number: string) => void
 }) {
   const text = content.report.overview
   const getRequirement = useReportRequirement()
+  const procedures =
+    stepsChecked === undefined
+      ? text.procedures.unknown
+      : (stepsChecked === 1 ? text.procedures.one : text.procedures.other).replace('{count}', String(stepsChecked))
   const link = (finding: NumberedFinding) => (
     <a
       href={`#finding-${finding.number}`}
@@ -170,6 +166,9 @@ export function RequirementsOverview({
 
   return (
     <>
+      {/* Right under the section's title */}
+      <p className="-mt-3 mb-4 text-sm text-maroon">{procedures}</p>
+
       {/* Table from sm (and when printed) */}
       <table className="hidden w-full text-left text-sm sm:table print:table">
         <thead>
@@ -178,7 +177,10 @@ export function RequirementsOverview({
               {text.findingId}
             </th>
             <th scope="col" className="py-2 pr-4 font-medium">
-              {text.requirement}
+              {text.requirementTitle}
+            </th>
+            <th scope="col" className="py-2 pr-4 font-medium">
+              {text.requirementReference}
             </th>
             <th scope="col" className="py-2 font-medium">
               {text.result}
@@ -186,29 +188,37 @@ export function RequirementsOverview({
           </tr>
         </thead>
         <tbody>
-          {findings.map((finding) => (
-            <tr key={finding.id} className="border-b border-beige last:border-0 break-inside-avoid">
-              <td className="py-2.5 pr-4 whitespace-nowrap">{link(finding)}</td>
-              <td className="py-2.5 pr-4 text-maroon">{requirementLabel(content.report, finding.requirementId, getRequirement)}</td>
-              <td className="py-2.5">
-                <ComplianceBadge result={finding.result} labels={content.results} />
-              </td>
-            </tr>
-          ))}
+          {findings.map((finding) => {
+            const { title, reference } = overviewCells(content.report, finding.requirementId, getRequirement)
+            return (
+              <tr key={finding.id} className="border-b border-beige last:border-0 break-inside-avoid">
+                <td className="py-2.5 pr-4 whitespace-nowrap">{link(finding)}</td>
+                <td className="py-2.5 pr-4 text-maroon">{title}</td>
+                <td className="py-2.5 pr-4 whitespace-nowrap text-maroon">{reference}</td>
+                <td className="py-2.5">
+                  <ComplianceBadge result={finding.result} labels={content.results} />
+                </td>
+              </tr>
+            )
+          })}
         </tbody>
       </table>
 
       {/* Stacked list on phones */}
       <ul className="divide-y divide-beige sm:hidden print:hidden">
-        {findings.map((finding) => (
-          <li key={finding.id} className="py-3 first:pt-0 last:pb-0">
-            <div className="flex items-center justify-between gap-3">
-              {link(finding)}
-              <ComplianceBadge result={finding.result} labels={content.results} />
-            </div>
-            <p className="mt-1 text-sm text-maroon">{requirementLabel(content.report, finding.requirementId, getRequirement)}</p>
-          </li>
-        ))}
+        {findings.map((finding) => {
+          const { title, reference } = overviewCells(content.report, finding.requirementId, getRequirement)
+          return (
+            <li key={finding.id} className="py-3 first:pt-0 last:pb-0">
+              <div className="flex items-center justify-between gap-3">
+                {link(finding)}
+                <ComplianceBadge result={finding.result} labels={content.results} />
+              </div>
+              <p className="mt-1 text-sm text-maroon">{title}</p>
+              <p className="mt-0.5 text-sm text-text-gray">{text.referenceLine.replace('{reference}', reference)}</p>
+            </li>
+          )
+        })}
       </ul>
     </>
   )

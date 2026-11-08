@@ -49,7 +49,7 @@ const SOP_COLUMNS = `id, code, title, description, department_id, author_id, sta
       review_duration_days, accepted_at, review_due_date, review_due_at,${REQUEST_POLICY_COLUMN} decided_at, decline_reason, comment_id, withdrawn_at, expired_at,
       removed_at, removed_by, removal_reason, status_before_removal)),
   sop_comments!sop_comments_sop_id_fkey (id, version, author_id, role, text, review_round_id, review_request_id, created_at),
-  compliance_checks!compliance_checks_sop_id_fkey (id, sop_version, status, engine, triggered_by, started_at, completed_at,
+  compliance_checks!compliance_checks_sop_id_fkey (id, sop_version, status, engine, triggered_by, started_at, completed_at, steps_checked:metadata->steps_checked,
     guideline_versions!compliance_checks_guideline_version_id_fkey (name, version),
     compliance_findings!compliance_findings_check_id_fkey (id, result, justification, sop_reference, recommended_action, position,
       guideline_requirements!compliance_findings_requirement_id_fkey (code, module, section, section_title, short_title, page, summary)))`
@@ -134,6 +134,8 @@ export interface ComplianceCheckRow {
   triggered_by: string
   started_at: string
   completed_at: string | null
+  /** Only this value of the check's metadata (the rest is the service's audit copy): how many SOP procedures it checked. */
+  steps_checked?: unknown
   guideline_versions: { name: string; version: string }
   compliance_findings: {
     id: string
@@ -271,6 +273,10 @@ function toCheck(sopId: string, row: ComplianceCheckRow): ComplianceCheck {
     engine: row.engine,
     startedAt: row.started_at,
     ...(row.completed_at ? { completedAt: row.completed_at } : {}),
+    // Recorded by the compliance service only; sample checks have none.
+    ...(typeof row.steps_checked === 'number' && Number.isInteger(row.steps_checked) && row.steps_checked > 0
+      ? { stepsChecked: row.steps_checked }
+      : {}),
     triggeredById: row.triggered_by,
     guideline: { name: row.guideline_versions.name, version: row.guideline_versions.version },
     findings: [...row.compliance_findings]

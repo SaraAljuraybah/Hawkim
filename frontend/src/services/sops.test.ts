@@ -183,6 +183,27 @@ describe('reading SOPs', () => {
     expect(query.select).toHaveBeenCalledTimes(2)
   })
 
+  it('reads how many procedures the compliance service checked, and nothing else from the check\'s metadata', async () => {
+    const service = (steps: unknown) => toSop({ ...row, compliance_checks: [{ ...row.compliance_checks[1], engine: 'hawkim', steps_checked: steps }] }).complianceChecks[0]
+    expect(service(7).stepsChecked).toBe(7)
+    expect(service(1).stepsChecked).toBe(1)
+    for (const invalid of [null, undefined, 0, -3, 2.5, '7', {}]) expect(service(invalid), String(invalid)).not.toHaveProperty('stepsChecked')
+    // Sample checks have none.
+    expect(toSop(row).complianceChecks[0]).not.toHaveProperty('stepsChecked')
+    await fetchSops()
+    const [columns] = query.select.mock.calls.at(-1)!
+    expect(columns).toContain('steps_checked:metadata->steps_checked')
+    // Never the whole metadata (it holds the service's large audit copy).
+    expect(columns.replace('steps_checked:metadata->steps_checked', '')).not.toMatch(/\bmetadata\b/)
+  })
+
+  it('doesn\'t read the findings\' evidence (the report shows the stored SOP reference)', async () => {
+    await fetchSops()
+    const [columns] = query.select.mock.calls.at(-1)!
+    expect(columns).not.toMatch(/\bevidence\b/)
+    expect(columns).toContain('sop_reference')
+  })
+
   it('names the relationship of each embedded table, since sops and sop_versions are linked twice', async () => {
     await fetchSops()
     await fetchSop('uuid-sop')

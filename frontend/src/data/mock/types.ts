@@ -497,6 +497,8 @@ export interface ComplianceCheck {
   triggeredById?: string
   /** What produced the result, for checks from the database: 'sample' (sample findings) or the compliance service's name ('hawkim'). */
   engine?: string
+  /** How many SOP procedures (steps) the compliance service checked; unknown for sample results. */
+  stepsChecked?: number
   guideline: Guideline
   /** Empty until the check completes. */
   findings: Finding[]
