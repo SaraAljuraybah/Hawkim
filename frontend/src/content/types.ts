@@ -1003,14 +1003,23 @@ export interface ComplianceContent {
       tabs: Record<'all' | ComplianceResult, string>
       needsAttention: string
       compliant: string
-      /** Heading of each finding; `{number}` and `{requirement}` are replaced. */
+      /** Heading of each finding; `{number}` is replaced. */
       heading: string
-      /** `{module}`, `{section}`, `{title}` and `{page}` are replaced. */
-      requirementReference: string
+      /** Labels of the requirement's Module, Section and Page lines. */
+      module: string
+      section: string
+      page: string
+      /** A missing Module, Section or Page. */
+      none: string
+      /** Label above the requirement text. */
+      requirement: string
       sopReference: string
+      /** One SOP section behind the finding; `{section}` is replaced (e.g. "5-4-1"). */
+      stepSection: string
+      /** A step without a numbered SOP section. */
+      noSectionNumber: string
       noSopReference: string
       justification: string
-      recommendedAction: string
       /** No findings in the selected tab. */
       empty: string
     }

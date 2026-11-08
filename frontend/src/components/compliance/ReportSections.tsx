@@ -3,6 +3,8 @@ import type { ComplianceContent } from '../../content/types'
 import type { ComplianceCheck, ComplianceResult } from '../../data/mock/types'
 import { complianceScore, countResults, RESULT_ORDER, type NumberedFinding } from '../../lib/compliance'
 import { ComplianceBadge } from './ComplianceBadge'
+import { FindingText } from './FindingText'
+import { requirementLines, sectionLabels, withoutContextLabel } from './findingDetails'
 import { overviewCells } from './overviewCells'
 import { useReportRequirement } from './reportRequirements'
 
@@ -230,6 +232,8 @@ export function FindingCard({ finding, content }: { finding: NumberedFinding; co
   const text = content.report.findings
   const requirement = useReportRequirement()(finding.requirementId)
   const headingId = `finding-${finding.number}-title`
+  const lines = requirement && requirementLines(requirement, text.none)
+  const labels = finding.sopReference ? sectionLabels(finding.sopReference, text) : undefined
 
   return (
     <article
@@ -240,37 +244,55 @@ export function FindingCard({ finding, content }: { finding: NumberedFinding; co
     >
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
         <h4 id={headingId} className="text-base font-semibold text-maroon">
-          {text.heading.replace('{number}', finding.number).replace('{requirement}', finding.requirementId)}
+          {text.heading.replace('{number}', finding.number)}
         </h4>
         <ComplianceBadge result={finding.result} labels={content.results} />
       </div>
-      {requirement && (
-        <>
-          <p className="mt-2 text-sm text-text-gray">
-            {text.requirementReference
-              .replace('{module}', requirement.module)
-              .replace('{section}', requirement.section)
-              .replace('{title}', requirement.sectionTitle)
-              .replace('{page}', String(requirement.page))}
-          </p>
-          <p className="mt-2 text-[0.9375rem] text-maroon">{requirement.summary}</p>
-        </>
+      {/* Module, Section and Page, one per line */}
+      {lines && (
+        <dl className="mt-2 space-y-0.5 text-sm text-maroon">
+          {([
+            [text.module, lines.module],
+            [text.section, lines.section],
+            [text.page, lines.page],
+          ] as const).map(([label, value]) => (
+            <div key={label}>
+              <dt className="inline">{label}</dt> <dd className="inline">{value}</dd>
+            </div>
+          ))}
+        </dl>
       )}
       <dl className="mt-4 space-y-3 text-sm">
+        {requirement && (
+          <div>
+            <dt className="font-medium text-maroon">{text.requirement}</dt>
+            <dd className="mt-0.5">
+              <FindingText text={withoutContextLabel(requirement.summary)} className="text-[0.9375rem] text-maroon" />
+            </dd>
+          </div>
+        )}
         <div>
           <dt className="font-medium text-maroon">{text.sopReference}</dt>
-          <dd className="mt-0.5 text-text-gray">{finding.sopReference ?? text.noSopReference}</dd>
+          <dd className="mt-0.5">
+            {labels?.length === 1 ? (
+              <p className="text-text-gray">{labels[0]}</p>
+            ) : labels && labels.length > 1 ? (
+              <ul className="list-disc space-y-1 pl-5 text-text-gray">
+                {labels.map((label) => (
+                  <li key={label}>{label}</li>
+                ))}
+              </ul>
+            ) : (
+              <FindingText text={finding.sopReference ?? text.noSopReference} className="text-text-gray" />
+            )}
+          </dd>
         </div>
         <div className="rounded-lg bg-beige/60 px-4 py-3 print:px-0 print:py-0">
           <dt className="font-medium text-maroon">{text.justification}</dt>
-          <dd className="mt-0.5 text-maroon">{finding.justification}</dd>
+          <dd className="mt-0.5">
+            <FindingText text={finding.justification} className="text-maroon" />
+          </dd>
         </div>
-        {finding.recommendedAction && (
-          <div>
-            <dt className="font-medium text-maroon">{text.recommendedAction}</dt>
-            <dd className="mt-0.5 text-maroon">{finding.recommendedAction}</dd>
-          </div>
-        )}
       </dl>
     </article>
   )

@@ -6,6 +6,7 @@ import { complianceEn } from '../content/compliance.en'
 import type { ComplianceCheck, ComplianceResult, Sop, User } from '../data/mock/types'
 import { sops } from '../data/mock/sops'
 import { overviewCells } from '../components/compliance/overviewCells'
+import { requirementLines, sectionLabels, textBlocks, withoutContextLabel } from '../components/compliance/findingDetails'
 import { ComplianceReportPage } from './ComplianceReportPage'
 import { ReviewPage } from './ReviewPage'
 import { SopWorkflowPage } from './SopWorkflowPage'
@@ -205,6 +206,143 @@ describe('the Requirements Overview', () => {
     const table = overview(render(<ComplianceReportPage audience="reviewer" />))
     expect(table).toContain('>Requirement Reference</th>')
     expect(table).toContain('AI checked each of the 7 procedures')
+  })
+})
+
+describe('the finding cards', () => {
+  const text = complianceEn.report.findings
+  const none = text.none
+  const gvp = 'Marketing authorisation holders should have a system.\n• that records the risks\n• that is reviewed'
+  const base = { id: 'V.B.2#4', module: 'Module V', section: 'V.B.2', sectionTitle: 'Responsibilities for risk management within an organization', shortTitle: '', page: 107, summary: gvp }
+  type Finding = ComplianceCheck['findings'][number]
+  /** One service finding (conflict) with these details. */
+  function card(finding: Partial<Finding>, requirement: Partial<typeof base> = {}) {
+    fixture.sop = { ...fixture.sop!, complianceChecks: [{ ...check(['conflict']), engine: 'hawkim', findings: [
+      { id: 'a', requirementId: 'V.B.2#4', result: 'conflict', justification: 'Because.', requirement: { ...base, ...requirement }, ...finding },
+    ] }] }
+    const html = render(<ComplianceReportPage />)
+    return html.slice(html.indexOf('<article id="finding-F-01"'), html.indexOf('</article>', html.indexOf('<article id="finding-F-01"')))
+  }
+  const sopReference = (html: string) => html.slice(html.indexOf('>SOP Reference</dt>'), html.indexOf('</dd>', html.indexOf('>SOP Reference</dt>')))
+
+  it('shows only the finding id in the heading, with the result badge after it', () => {
+    const html = card({})
+    expect(html).toMatch(/<h4 id="finding-F-01-title" class="[^"]*">F-01<\/h4><span[^>]*>.*Conflict/)
+    expect(html).not.toContain('· Requirement')
+    expect(html).not.toContain('V.B.2#4')
+    expect(text.heading).toBe('{number}')
+  })
+
+  it('shows Module, Section and Page on three maroon lines, without "GVP"', () => {
+    const html = card({})
+    expect(html).toContain('<dl class="mt-2 space-y-0.5 text-sm text-maroon">'
+      + '<div><dt class="inline">Module:</dt> <dd class="inline">V</dd></div>'
+      + '<div><dt class="inline">Section:</dt> <dd class="inline">V.B.2 Responsibilities for risk management within an organization</dd></div>'
+      + '<div><dt class="inline">Page:</dt> <dd class="inline">107</dd></div></dl>')
+    expect(html).not.toContain('GVP')
+    expect(html).not.toContain('p. 107')
+  })
+
+  it('shows "—" for a missing Module, Section or Page', () => {
+    const lines = (requirement: Partial<typeof base>) => requirementLines({ ...base, ...requirement }, none)
+    expect(lines({})).toEqual({ module: 'V', section: 'V.B.2 Responsibilities for risk management within an organization', page: '107' })
+    // The module from the section when it's empty; the title left off when it repeats the section or is empty.
+    expect(lines({ module: '', sectionTitle: 'V.B.2' })).toEqual({ module: 'V', section: 'V.B.2', page: '107' })
+    expect(lines({ sectionTitle: '  ' })).toEqual({ module: 'V', section: 'V.B.2', page: '107' })
+    expect(lines({ section: '', sectionTitle: 'Title' })).toEqual({ module: 'V', section: 'Title', page: '107' })
+    expect(lines({ module: '', section: '', sectionTitle: '', page: 0 })).toEqual({ module: '—', section: '—', page: '—' })
+    expect(lines({ module: 'Module I', page: Number.NaN })).toMatchObject({ module: 'I', page: '—' })
+    expect(card({}, { module: '', section: '', sectionTitle: '', page: 0 })).toContain('<dt class="inline">Page:</dt> <dd class="inline">—</dd>')
+  })
+
+  it('labels the requirement text "Requirement" and shows its "•" items as a real list', () => {
+    const html = card({})
+    expect(html).toContain('<dt class="font-medium text-maroon">Requirement</dt><dd class="mt-0.5"><div class="space-y-1.5 text-[0.9375rem] text-maroon">'
+      + '<p>Marketing authorisation holders should have a system.</p>'
+      + '<ul class="list-disc space-y-1 pl-5"><li>that records the risks</li><li>that is reviewed</li></ul></div></dd>')
+    expect(html).not.toContain('•')
+  })
+
+  it('removes the "[Context: …]" label and brackets but keeps the sentence, first', () => {
+    const html = card({}, { summary: '[Context: The MAH should assess the risks.]\nThis should include third parties.' })
+    expect(html).toContain('<p>The MAH should assess the risks.</p><p>This should include third parties.</p>')
+    expect(html).not.toContain('Context')
+    expect(withoutContextLabel('[Context: A. [see 2]]\nB.')).toBe('A. [see 2]\nB.')
+    expect(withoutContextLabel('[Context: ]\nB.')).toBe('B.')
+    // Only at the start.
+    expect(withoutContextLabel('B. [Context: A.]')).toBe('B. [Context: A.]')
+  })
+
+  it('shows "•" items as lists in the justification too', () => {
+    const html = card({ justification: 'Two gaps: • no owner • no review' })
+    expect(html).toContain('<ul class="list-disc space-y-1 pl-5"><li>no owner</li><li>no review</li></ul>')
+    expect(html).not.toContain('•')
+  })
+
+  it('has no Recommended Action, whatever the result', () => {
+    for (const result of ['conflict', 'not-addressed', 'partial', 'compliant'] as const) {
+      const html = card({ result, recommendedAction: 'Add an owner.' })
+      expect(html, result).not.toContain('Recommended Action')
+      expect(html, result).not.toContain('Add an owner.')
+    }
+    expect(text).not.toHaveProperty('recommendedAction')
+  })
+
+  it('splits text into paragraphs and lists', () => {
+    expect(textBlocks('')).toEqual([])
+    expect(textBlocks('Just text.')).toEqual([{ kind: 'paragraph', text: 'Just text.' }])
+    expect(textBlocks('Lead:\n• a\n• b\nAfter.')).toEqual([
+      { kind: 'paragraph', text: 'Lead:' }, { kind: 'list', items: ['a', 'b'] }, { kind: 'paragraph', text: 'After.' },
+    ])
+    expect(textBlocks('• a • b')).toEqual([{ kind: 'list', items: ['a', 'b'] }])
+    // Dashes and numbers stay text.
+    expect(textBlocks('Step 1 - do it.')).toEqual([{ kind: 'paragraph', text: 'Step 1 - do it.' }])
+  })
+
+  it('shows only the section label for one step, with no SOP text', () => {
+    const html = sopReference(card({ sopReference: 'Section 5-4-1' }))
+    expect(html).toBe('>SOP Reference</dt><dd class="mt-0.5"><p class="text-text-gray">Section 5-4-1</p>')
+  })
+
+  it('lists several sections, and "Section number not found" (once) for steps without a number', () => {
+    const html = sopReference(card({ sopReference: 'Sections 5-4-1, 5-4-2, (start of document), Training' }))
+    expect(html).toBe('>SOP Reference</dt><dd class="mt-0.5"><ul class="list-disc space-y-1 pl-5 text-text-gray">'
+      + '<li>Section 5-4-1</li><li>Section 5-4-2</li><li>Section number not found</li></ul>')
+    expect(sopReference(card({ sopReference: 'Section (start of document)' }))).toBe('>SOP Reference</dt><dd class="mt-0.5"><p class="text-text-gray">Section number not found</p>')
+  })
+
+  it('reads the labels from the reference the service writes', () => {
+    expect(sectionLabels('Section 5-4-1', text)).toEqual(['Section 5-4-1'])
+    expect(sectionLabels(' Sections 5.1, 5.1.2 ', text)).toEqual(['Section 5.1', 'Section 5.1.2'])
+    expect(sectionLabels('Section (start of document)', text)).toEqual(['Section number not found'])
+    expect(sectionLabels('Sections Scope, Training', text)).toEqual(['Section number not found'])
+    // Another form is shown as it is.
+    expect(sectionLabels('Appendix A', text)).toBeUndefined()
+    expect(sectionLabels('Sections', text)).toBeUndefined()
+  })
+
+  it('keeps the sample references, and "None …" when there is no reference', () => {
+    expect(sopReference(card({ sopReference: 'Section 4.2' }))).toContain('<p class="text-text-gray">Section 4.2</p>')
+    expect(sopReference(card({ sopReference: 'Appendix A' }))).toContain('<div class="space-y-1.5 text-text-gray"><p>Appendix A</p></div>')
+    expect(sopReference(card({}))).toContain('<p>None — the SOP doesn’t cover this requirement.</p>')
+  })
+
+  it('keeps every card unsplit when printed, with its lists shown', () => {
+    const html = card({ justification: '• a • b' })
+    expect(html).toMatch(/^<article id="finding-F-01" tabindex="-1" aria-labelledby="finding-F-01-title" class="[^"]*break-inside-avoid[^"]*print:p-4"/)
+    expect(html).not.toMatch(/<(ul|dl)[^>]*print:hidden/)
+  })
+
+  it('reads the same for reviewers', () => {
+    fixture.userId = 'reviewer'
+    fixture.sop = { ...fixture.sop!, status: 'in-review', reviewers: [{ userId: 'reviewer', decision: 'pending' }], timeline: [{ id: 'sent', type: 'submitted', actorId: 'author', recipientIds: ['reviewer'], createdAt: '2026-10-29T08:00:00Z', version: '1' }],
+      complianceChecks: [{ ...check(['conflict']), engine: 'hawkim', findings: [{ id: 'a', requirementId: 'V.B.2#4', result: 'conflict', justification: 'Because.', requirement: base, sopReference: 'Section 5-4-1', recommendedAction: 'Add an owner.' }] }] }
+    const html = render(<ComplianceReportPage audience="reviewer" />)
+    expect(html).toContain('>F-01</h4>')
+    expect(html).toContain('<dt class="inline">Module:</dt> <dd class="inline">V</dd>')
+    expect(html).toContain('<dt class="font-medium text-maroon">Requirement</dt>')
+    expect(html).toContain('<p class="text-text-gray">Section 5-4-1</p>')
+    expect(html).not.toContain('Recommended Action')
   })
 })
 
