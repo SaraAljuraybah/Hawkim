@@ -20,6 +20,11 @@ interface IconButtonProps {
   bare?: boolean
   /** Show the label as a tooltip on hover and focus (default). False: accessible name only. */
   tooltip?: boolean
+  /**
+   * Shorter tooltip text when the accessible name says more, e.g. "Preview" for "Preview Clinical
+   * Operations". The name should start with it (WCAG 2.5.3). Default: the label.
+   */
+  tooltipText?: string
   /** The button element, e.g. to move focus back to it. Not used for links. */
   ref?: Ref<HTMLButtonElement>
 }
@@ -35,7 +40,7 @@ const iconOnly = 'size-6 rounded-sm'
  * can be hovered and is dismissed with Escape (WCAG 1.4.13). It opens to the left
  * of the button's right edge, so it stays inside the page at the end of a row.
  */
-export function IconButton({ label, icon: Icon, disabledReason, href, download, onClick, danger = false, bare = false, tooltip = true, ref }: IconButtonProps) {
+export function IconButton({ label, icon: Icon, disabledReason, href, download, onClick, danger = false, bare = false, tooltip = true, tooltipText, ref }: IconButtonProps) {
   const [open, setOpen] = useState(false)
   const tooltipId = useId()
   const disabled = !!disabledReason
@@ -73,7 +78,7 @@ export function IconButton({ label, icon: Icon, disabledReason, href, download, 
       {tooltip && (
         <span id={tooltipId} role="tooltip" hidden={!open} className="absolute right-0 bottom-full z-20 w-max max-w-[15rem] pb-1.5">
           <span className="block rounded-md bg-maroon px-2 py-1 text-left text-xs leading-snug font-medium text-offwhite shadow-md">
-            {disabledReason ?? label}
+            {disabledReason ?? tooltipText ?? label}
           </span>
         </span>
       )}

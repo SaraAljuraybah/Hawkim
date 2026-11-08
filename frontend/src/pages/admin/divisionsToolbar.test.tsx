@@ -152,11 +152,19 @@ describe('names in the table', () => {
 })
 
 describe('department row actions', () => {
-  it('has a View details eye button before Edit and Delete, like the division row', () => {
+  it('has a Preview eye button before Edit and Delete, like the division row', () => {
     const html = table({ query: 'quality' })
     const row = html.match(/<tr[^>]*>(?:(?!<\/tr>)[\s\S])*?Quality Assurance[\s\S]*?<\/tr>/)![0]
     expect([...row.matchAll(/aria-label="([^"]+)"/g)].map((match) => match[1])).toEqual([
-      'View details for Quality Assurance', 'Edit Quality Assurance', 'Delete Quality Assurance',
+      'Preview Quality Assurance', 'Edit Quality Assurance', 'Delete Quality Assurance',
     ])
+  })
+  it('shows "Preview" as the tooltip of both eye buttons, with the name only in the accessible name', () => {
+    const html = table({ query: 'quality' })
+    for (const name of ['Quality &amp; Compliance', 'Quality Assurance']) {
+      // The tooltip that follows this button.
+      const after = html.slice(html.indexOf(`aria-label="Preview ${name}"`))
+      expect(after.match(/role="tooltip"[^>]*><span[^>]*>([^<]*)</)![1]).toBe('Preview')
+    }
   })
 })

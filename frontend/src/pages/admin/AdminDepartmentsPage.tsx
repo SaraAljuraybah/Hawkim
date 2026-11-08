@@ -121,7 +121,7 @@ export function HierarchyTable({ snapshot, query = '', divisions = [], sort = 'd
       <th scope="row" className="py-3 pr-4 pl-12 font-medium"><span className="flex items-center gap-3 border-l border-beige pl-5"><DepartmentBadge department={row} />
         <span className="min-w-0 break-words">{row.name}</span></span></th>
       <td className={numberCell}>{row.employees}</td><td className={numberCell}>{row.sops}</td>
-      <td className="p-3"><div className="flex justify-end gap-2"><IconButton label={text.viewDepartment.replace('{name}', row.name)} icon={Eye} onClick={() => onViewDepartment(row)} />
+      <td className="p-3"><div className="flex justify-end gap-2"><IconButton label={text.previewName.replace('{name}', row.name)} tooltipText={text.preview} icon={Eye} onClick={() => onViewDepartment(row)} />
         <IconButton
   label={`${text.edit} ${row.name}`}
   icon={Pencil}
@@ -149,7 +149,7 @@ export function HierarchyTable({ snapshot, query = '', divisions = [], sort = 'd
                 <span className="mt-1 block text-xs font-normal text-text-gray">{text.departments} ({departmentCount})</span></span>
             </button></th>
           <td className={numberCell}>{employees}</td><td className={numberCell}>{sops}</td>
-          <td className="p-3"><div className="flex justify-end gap-2"><IconButton label={`${text.preview} ${division.name}`} icon={Eye} onClick={() => onPreview(division)} />
+          <td className="p-3"><div className="flex justify-end gap-2"><IconButton label={text.previewName.replace('{name}', division.name)} tooltipText={text.preview} icon={Eye} onClick={() => onPreview(division)} />
             <IconButton label={`${text.edit} ${division.name}`} icon={Pencil} onClick={() => onEdit(division)} />
             <IconButton label={`${text.delete} ${division.name}`} icon={Trash2} danger disabledReason={departmentCount ? text.divisionBlocked : undefined} onClick={() => onDeleteDivision(division)} /></div></td>
         </tr><tr id={`children-${division.id}`} hidden={!isExpanded}><td colSpan={4} className="border-t border-beige bg-beige/20 py-1.5 pr-3 pl-12"><div className="flex items-center justify-end">

@@ -45,7 +45,7 @@ it('expands and collapses using the chevron while leaving aggregate values uncha
 })
 it('dispatches preview/view/edit/delete to the selected record', () => {
   const nodes = flatten(HierarchyTable({ ...props,query:'safety' }))
-  for (const [label, callback] of [['Preview Safety',props.onPreview],['Edit Safety',props.onEdit],['View details for Medical',props.onViewDepartment],['Delete Medical',props.onDeleteDepartment]] as const) {
+  for (const [label, callback] of [['Preview Safety',props.onPreview],['Edit Safety',props.onEdit],['Preview Medical',props.onViewDepartment],['Delete Medical',props.onDeleteDepartment]] as const) {
     const action = nodes.find((node) => node.props.label === label)!
     ;(action.props.onClick as () => void)()
     expect(callback).toHaveBeenCalledOnce()

@@ -32,12 +32,12 @@ describe('unified divisions and departments table', () => {
     expect(html).toContain('/admin/departments/new?division=v')
     expect(html).toContain('Departments (1)')
   })
-  it('drops the inner Departments label (the count stays under the name) and limits preview to divisions', () => {
+  it('drops the inner Departments label (the count stays under the name) and previews divisions and departments', () => {
     const html = render('safety')
     expect(html).not.toContain('>Departments</span>')
     expect(html).toContain('Departments (1)')
     expect(html).toContain('aria-label="Preview Safety"')
-    expect(html).not.toContain('Preview Medical')
+    expect(html).toContain('aria-label="Preview Medical"')
     expect(html).toContain('>Medical</span>')
     expect(html).not.toContain('href="/admin/departments/d"')
   })

@@ -17,7 +17,7 @@ export const organizationAdminEn = {
   preview: 'Preview', edit: 'Edit', delete: 'Delete', save: 'Save', cancel: 'Cancel', close: 'Close',
   copy: 'Copy email', copyUserEmail: 'Copy {name}’s email', copied: 'Email copied', copyFailed: 'Could not copy email. Select and copy the address.',
   missingEmail: 'No email recorded.', notProvided: 'Not provided.',
-  viewDepartment: 'View details for {name}',
+  previewName: 'Preview {name}',
   editDivision: 'Edit Division', empty: 'No divisions or departments match your search.',
   emptyFiltered: 'No divisions or departments match your search and filters.',
   emptyDepartments: 'No departments in this division.',
