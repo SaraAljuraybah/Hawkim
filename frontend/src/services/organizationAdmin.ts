@@ -12,6 +12,8 @@ export interface DivisionRecord {
 export type ManagedPerson = User & { positions: string[] }
 export interface ManagedDepartment {
   id: string; name: string; initials: string; description: string; division_id: string | null;
+  /** Optional contact email, admin-only (null when none; missing before migration 20261108150000). */
+  email?: string | null
   updated_at: string; deletion_job_id?: string | null; people?: ManagedPerson[]; employees: number; sops: number; status_counts: Record<string, number>
 }
 export interface ManagementSnapshot { divisions: DivisionRecord[]; departments: ManagedDepartment[] }
@@ -59,6 +61,7 @@ function isSnapshot(value: unknown): value is ManagementSnapshot {
   }) && value.departments.every((row: unknown) => {
     if (!object(row) || typeof row.id !== 'string' || departmentIds.has(row.id) || typeof row.name !== 'string' ||
       typeof row.initials !== 'string' || typeof row.description !== 'string' || typeof row.updated_at !== 'string' ||
+      !(row.email === undefined || row.email === null || typeof row.email === 'string') ||
       !(row.division_id === null || typeof row.division_id === 'string') || !count(row.employees) || !count(row.sops) ||
       !object(row.status_counts) || !Object.values(row.status_counts).every(count) || !Array.isArray(row.people)) return false
     departmentIds.add(row.id)
@@ -86,13 +89,15 @@ export async function deleteDivision(division: DivisionRecord) {
   await call('delete_division', { p_id: division.id, p_expected_updated_at: division.updated_at }); changed()
 }
 export async function saveDepartment(
-  input: DepartmentInput & { divisionId?: string | null },
+  input: DepartmentInput & { divisionId?: string | null; email?: string },
   id?: string,
   expected?: string
 ) {
   const result = await call<string>('save_department', { p_id: id ?? null, p_name: input.name.trim(),
     p_initials: input.initials.trim().toUpperCase(), p_description: input.description.trim(),
-    p_division_id: input.divisionId ?? null, p_expected_updated_at: expected ?? null })
+    p_division_id: input.divisionId ?? null, p_expected_updated_at: expected ?? null,
+    // Optional: empty is saved as none.
+    p_email: input.email?.trim() || null })
   changed(); return result
 }
 /** Replaces an employee's positions in their department (admin only, enforced by the database). */

@@ -76,7 +76,7 @@ begin
   perform pg_temp.as_owner();
 
   -- ---------- authorization ----------
-  assert not has_function_privilege('anon', 'public.save_department(text,text,text,text,text,timestamptz)', 'execute');
+  assert not has_function_privilege('anon', 'public.save_department(text,text,text,text,text,timestamptz,text)', 'execute');
   assert not has_function_privilege('anon', 'public.get_divisions_departments()', 'execute');
   perform pg_temp.act_as(author);
   assert not public.can_manage_organization(), 'An author is not an organization manager';

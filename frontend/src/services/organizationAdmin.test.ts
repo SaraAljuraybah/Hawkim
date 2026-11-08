@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { ORGANIZATION_CHANGED, organizationEvents, saveDepartment } from './organizationAdmin'
+import { fetchManagement, ORGANIZATION_CHANGED, organizationEvents, saveDepartment } from './organizationAdmin'
 
 const rpc = vi.hoisted(() => vi.fn())
 vi.mock('./supabase', () => ({ supabase: () => ({ rpc }) }))
@@ -11,8 +11,16 @@ describe('saveDepartment (save_department RPC)', () => {
     expect(await saveDepartment({ name: ' Pharmacovigilance ', initials: ' pv ', description: ' Safety ', divisionId: 'medical' })).toBe('department-1')
     expect(rpc).toHaveBeenCalledWith('save_department', {
       p_id: null, p_name: 'Pharmacovigilance', p_initials: 'PV', p_description: 'Safety',
-      p_division_id: 'medical', p_expected_updated_at: null,
+      p_division_id: 'medical', p_expected_updated_at: null, p_email: null,
     })
+  })
+
+  it('sends the email trimmed, and an empty email as none', async () => {
+    rpc.mockResolvedValue({ data: 'qa', error: null })
+    await saveDepartment({ name: 'QA', initials: 'QA', description: '', divisionId: 'medical', email: ' qa@hawkim.test ' }, 'qa', 'r1')
+    expect(rpc).toHaveBeenLastCalledWith('save_department', expect.objectContaining({ p_email: 'qa@hawkim.test' }))
+    await saveDepartment({ name: 'QA', initials: 'QA', description: '', divisionId: 'medical', email: '   ' }, 'qa', 'r1')
+    expect(rpc).toHaveBeenLastCalledWith('save_department', expect.objectContaining({ p_email: null }))
   })
 
   it('edits with the department id and the expected version', async () => {
@@ -43,5 +51,18 @@ describe('saveDepartment (save_department RPC)', () => {
     await expect(saveDepartment({ name: 'QA', initials: 'QA', description: '', divisionId: 'medical' })).rejects.toThrow(message)
     organizationEvents.removeEventListener(ORGANIZATION_CHANGED, listener)
     expect(listener).not.toHaveBeenCalled()
+  })
+})
+
+describe('fetchManagement (department email)', () => {
+  const department = { id: 'qa', name: 'QA', initials: 'QA', description: '', division_id: null, updated_at: 'r1',
+    people: [], employees: 0, sops: 0, status_counts: {} }
+  it.each([['an email', { email: 'qa@hawkim.test' }], ['no email', { email: null }], ['no email column yet', {}]])('accepts a department with %s', async (_, email) => {
+    rpc.mockResolvedValue({ data: { divisions: [], departments: [{ ...department, ...email }] }, error: null })
+    expect((await fetchManagement()).departments).toHaveLength(1)
+  })
+  it('refuses a snapshot whose department email is not text', async () => {
+    rpc.mockResolvedValue({ data: { divisions: [], departments: [{ ...department, email: 42 }] }, error: null })
+    await expect(fetchManagement()).rejects.toThrow()
   })
 })
