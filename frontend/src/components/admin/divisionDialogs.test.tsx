@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { isValidElement, type ReactElement, type ReactNode } from 'react'
-import { DivisionForm, DivisionPreview } from './DivisionDialogs'
+import { DivisionForm, DivisionPreview, EmailDetail } from './DivisionDialogs'
 import { DeleteDepartmentDialog } from './DeleteDepartmentDialog'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { CopyButton } from '../ui/CopyButton'
@@ -101,7 +101,8 @@ describe('division preview', () => {
   })
 
   it('puts a small copy icon right beside the email, copying exactly that address', () => {
-    const copy = elements(preview()).find((item) => item.type === CopyButton)!
+    expect(elements(preview()).find((item) => item.type === EmailDetail)?.props.email).toBe('safety@test.invalid')
+    const copy = elements(EmailDetail({ email: 'safety@test.invalid' })).find((item) => item.type === CopyButton)!
     expect(copy.props).toMatchObject({ text: 'safety@test.invalid', label: 'Copy email', copiedText: 'Email copied' })
     expect(String(copy.props.failedText)).toContain('Could not copy')
     expect(markup()).toMatch(/>safety@test.invalid<\/span><span class="contents"><span class="inline-flex shrink-0">(?:<span[^>]*>)?<button[^>]*aria-label="Copy email"/)
@@ -109,7 +110,8 @@ describe('division preview', () => {
 
   it('says No email recorded. without a copy icon when there is no email', () => {
     const element = preview({ division: { ...division, email: null } })
-    expect(elements(element).some((item) => item.type === CopyButton)).toBe(false)
+    expect(elements(element).find((item) => item.type === EmailDetail)?.props.email).toBeNull()
+    expect(elements(EmailDetail({ email: null })).some((item) => item.type === CopyButton)).toBe(false)
     const html = markup({ division: { ...division, email: null } })
     expect(html).toMatch(/>Email<\/dt><dd[^>]*>No email recorded.</)
     expect(html).not.toContain('Copy email')

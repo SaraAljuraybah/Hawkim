@@ -22,7 +22,7 @@ type Element = ReactElement<Record<string, unknown>>
 const flatten = (node: ReactNode): Element[] => Array.isArray(node) ? node.flatMap(flatten) : isValidElement<Record<string, unknown>>(node) ? [node,...flatten(node.props.children as ReactNode)] : []
 const props = {
   snapshot: { divisions: [{ id:'v', name:'Safety',email:null,description:'',updated_at:null }], departments: [{ id:'d',name:'Medical',initials:'MD',description:'',division_id:'v',updated_at:'revision',employees:0,sops:1,status_counts:{} }] },
-  onPreview:vi.fn(),onEdit:vi.fn(),onDeleteDivision:vi.fn(),onDeleteDepartment:vi.fn(),
+  onPreview:vi.fn(),onViewDepartment:vi.fn(),onEdit:vi.fn(),onDeleteDivision:vi.fn(),onDeleteDepartment:vi.fn(),
 }
 beforeEach(() => { state.value = new Set(); vi.clearAllMocks() })
 it('expands and collapses using the chevron while leaving aggregate values unchanged', () => {
@@ -43,9 +43,9 @@ it('expands and collapses using the chevron while leaving aggregate values uncha
   expect(chevron().props['aria-expanded']).toBe(false)
   expect(totals()).toEqual([0,1])
 })
-it('dispatches preview/edit/delete to the selected record', () => {
+it('dispatches preview/view/edit/delete to the selected record', () => {
   const nodes = flatten(HierarchyTable({ ...props,query:'safety' }))
-  for (const [label, callback] of [['Preview Safety',props.onPreview],['Edit Safety',props.onEdit],['Delete Medical',props.onDeleteDepartment]] as const) {
+  for (const [label, callback] of [['Preview Safety',props.onPreview],['Edit Safety',props.onEdit],['View details for Medical',props.onViewDepartment],['Delete Medical',props.onDeleteDepartment]] as const) {
     const action = nodes.find((node) => node.props.label === label)!
     ;(action.props.onClick as () => void)()
     expect(callback).toHaveBeenCalledOnce()

@@ -22,7 +22,7 @@ const snapshot: ManagementSnapshot = {
 }
 const page = () => renderToStaticMarkup(<MemoryRouter><AdminDepartmentsPage /></MemoryRouter>)
 const table = (props: Partial<Parameters<typeof HierarchyTable>[0]> = {}) => renderToStaticMarkup(<MemoryRouter>
-  <HierarchyTable snapshot={snapshot} onEdit={vi.fn()} onPreview={vi.fn()} onDeleteDivision={vi.fn()} onDeleteDepartment={vi.fn()} {...props} />
+  <HierarchyTable snapshot={snapshot} onEdit={vi.fn()} onPreview={vi.fn()} onViewDepartment={vi.fn()} onDeleteDivision={vi.fn()} onDeleteDepartment={vi.fn()} {...props} />
 </MemoryRouter>)
 
 describe('the Divisions & Departments page', () => {
@@ -147,5 +147,15 @@ describe('names in the table', () => {
     expect(html).toMatch(/<span class="mt-1 block text-xs font-normal text-text-gray">Departments \((?:<!-- -->)?1(?:<!-- -->)?\)<\/span>/)
     expect(html).not.toMatch(/<tr[^>]*underline/)
     expect(html).not.toMatch(/<span class="[^"]*underline[^"]*">Departments/)
+  })
+})
+
+describe('department row actions', () => {
+  it('has a View details eye button before Edit and Delete, like the division row', () => {
+    const html = table({ query: 'quality' })
+    const row = html.match(/<tr[^>]*>(?:(?!<\/tr>)[\s\S])*?Quality Assurance[\s\S]*?<\/tr>/)![0]
+    expect([...row.matchAll(/aria-label="([^"]+)"/g)].map((match) => match[1])).toEqual([
+      'View details for Quality Assurance', 'Edit Quality Assurance', 'Delete Quality Assurance',
+    ])
   })
 })

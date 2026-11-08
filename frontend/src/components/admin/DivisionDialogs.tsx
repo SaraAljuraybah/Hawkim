@@ -46,14 +46,7 @@ export function DivisionPreview({ division, onEdit, onClose }: { division: Divis
           <dt className="font-medium text-maroon">{text.description}</dt>
           <dd className="mt-1 break-words text-black">{division.description}</dd>
         </div>}
-        <div>
-          <dt className="font-medium text-maroon">{text.email}</dt>
-          {division.email
-            // The address and its copy icon stay together; the confirmation takes its own line below.
-            ? <dd className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-0.5"><span className="min-w-0 break-all text-black">{division.email}</span>
-              <CopyButton text={division.email} label={text.copy} copiedText={text.copied} failedText={text.copyFailed} /></dd>
-            : <dd className="mt-1 text-text-gray">{text.missingEmail}</dd>}
-        </div>
+        <EmailDetail email={division.email} />
       </dl>
       <Button type="button" size="sm" variant="secondary" onClick={onEdit} className="shrink-0">
         <Pencil className="size-4" aria-hidden="true" strokeWidth={1.75} />
@@ -61,4 +54,16 @@ export function DivisionPreview({ division, onEdit, onClose }: { division: Divis
       </Button>
     </div>
   </FormDialog>
+}
+
+/** The Email row of a details dialog: the address with its copy icon, or "No email recorded." (muted, no copy icon). */
+export function EmailDetail({ email }: { email?: string | null }) {
+  return <div>
+    <dt className="font-medium text-maroon">{text.email}</dt>
+    {email
+      // The address and its copy icon stay together; the confirmation takes its own line below.
+      ? <dd className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-0.5"><span className="min-w-0 break-all text-black">{email}</span>
+        <CopyButton text={email} label={text.copy} copiedText={text.copied} failedText={text.copyFailed} /></dd>
+      : <dd className="mt-1 text-text-gray">{text.missingEmail}</dd>}
+  </div>
 }

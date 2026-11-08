@@ -12,6 +12,7 @@ import { tableStyles } from '../../components/ui/tableStyles'
 import { DepartmentBadge } from '../../components/admin/DepartmentBadge'
 import { DivisionForm, DivisionPreview } from '../../components/admin/DivisionDialogs'
 import { DeleteDepartmentDialog } from '../../components/admin/DeleteDepartmentDialog'
+import { DepartmentPreview } from '../../components/admin/DepartmentPreview'
 import { organizationAdminEn as text } from '../../content/organizationAdmin.en'
 import { useDocumentTitle } from '../../hooks/useDocumentTitle'
 import { useOrganizationManagement } from '../../hooks/useOrganizationManagement'
@@ -31,6 +32,7 @@ export function AdminDepartmentsPage() {
   const [preview, setPreview] = useState<DivisionRecord>()
   const [deleting, setDeleting] = useState<DivisionRecord>()
   const [department, setDepartment] = useState<ManagedDepartment>()
+  const [viewing, setViewing] = useState<ManagedDepartment>()
   const notice = (useLocation().state as AdminDepartmentsLocationState | null)?.removed
   const [feedback, setFeedback] = useState(notice ?? '')
   const [actionError, setActionError] = useState('')
@@ -41,7 +43,7 @@ export function AdminDepartmentsPage() {
     .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }) || a.id.localeCompare(b.id))
     .map((division) => ({ value: division.id, label: division.name })), [data])
   const selectedDivisions = divisionFilter.filter((id) => divisionOptions.some((option) => option.value === id))
-  const close = () => { setEditing(undefined); setPreview(undefined); setDeleting(undefined); setDepartment(undefined); trigger.current?.focus() }
+  const close = () => { setEditing(undefined); setPreview(undefined); setDeleting(undefined); setDepartment(undefined); setViewing(undefined); trigger.current?.focus() }
   return <>
     <div className="flex flex-wrap items-center justify-between gap-4"><h1 className="text-2xl tracking-tight sm:text-3xl">{text.title}</h1>
       <Button onClick={() => open(() => setEditing(null))}><Plus className="size-4" aria-hidden="true" />{text.addDivision}</Button></div>
@@ -62,7 +64,7 @@ export function AdminDepartmentsPage() {
     <p role="status" className="mt-4 text-sm text-status-approved-fg">{feedback}</p>
     {error ? <div role="alert"><p>{text.loadFailed}</p><Button variant="secondary" onClick={() => void refresh()}>{text.retry}</Button></div>
       : !data ? <PageLoading /> : <HierarchyTable snapshot={data} query={query} divisions={selectedDivisions} sort={sort}
-        onPreview={(row) => open(() => setPreview(row))} onEdit={(row) => open(() => setEditing(row))}
+        onPreview={(row) => open(() => setPreview(row))} onViewDepartment={(row) => open(() => setViewing(row))} onEdit={(row) => open(() => setEditing(row))}
         onDeleteDivision={(row) => open(() => setDeleting(row))} onDeleteDepartment={(row) => open(() => setDepartment(row))} />}
     {editing !== undefined && <DivisionForm onSaved={() => setFeedback(text.saved)} division={editing ?? undefined} onClose={() => { close(); void refresh() }} />}
     {preview && <DivisionPreview division={preview} onClose={close} onEdit={() => { setPreview(undefined); setEditing(preview) }} />}
@@ -71,6 +73,7 @@ export function AdminDepartmentsPage() {
         try { await deleteDivision(deleting); setFeedback(text.removed); void refresh() }
         catch (reason) { setActionError((reason as Error).message); void refresh(); return false }
       }}>{actionError && <p role="alert" className="text-sm text-status-rejected-fg">{actionError}</p>}</FormDialog>}
+    {viewing && <DepartmentPreview department={viewing} divisionName={data?.divisions.find((item) => item.id === viewing.division_id)?.name} onClose={close} />}
     {department && <DeleteDepartmentDialog department={department} onClose={close} onDeleted={() => { setFeedback(text.removed); void refresh() }} />}
   </>
 }
@@ -93,8 +96,9 @@ export function ActiveFilters({ options, selected, onChange }: { options: { valu
 /** Number columns: centred under their headings, the same in division and department rows. */
 const numberCell = 'px-3 py-4 text-center tabular-nums'
 
-export function HierarchyTable({ snapshot, query = '', divisions = [], sort = 'default', onPreview, onEdit, onDeleteDivision, onDeleteDepartment }: {
+export function HierarchyTable({ snapshot, query = '', divisions = [], sort = 'default', onPreview, onViewDepartment, onEdit, onDeleteDivision, onDeleteDepartment }: {
   snapshot: ManagementSnapshot; query?: string; divisions?: string[]; sort?: DivisionSort; onPreview: (division: DivisionRecord) => void;
+  onViewDepartment: (department: ManagedDepartment) => void;
   onEdit: (division: DivisionRecord) => void; onDeleteDivision: (division: DivisionRecord) => void;
   onDeleteDepartment: (department: ManagedDepartment) => void
 }) {
@@ -117,7 +121,8 @@ export function HierarchyTable({ snapshot, query = '', divisions = [], sort = 'd
       <th scope="row" className="py-3 pr-4 pl-12 font-medium"><span className="flex items-center gap-3 border-l border-beige pl-5"><DepartmentBadge department={row} />
         <Link className="text-maroon underline underline-offset-2 hover:decoration-2" to={adminDepartmentPath(row.id)}>{row.name}</Link></span></th>
       <td className={numberCell}>{row.employees}</td><td className={numberCell}>{row.sops}</td>
-      <td className="p-3"><div className="flex justify-end gap-2"><IconButton
+      <td className="p-3"><div className="flex justify-end gap-2"><IconButton label={text.viewDepartment.replace('{name}', row.name)} icon={Eye} onClick={() => onViewDepartment(row)} />
+        <IconButton
   label={`${text.edit} ${row.name}`}
   icon={Pencil}
   disabledReason={row.deletion_job_id ? text.cleanupPending : undefined}
