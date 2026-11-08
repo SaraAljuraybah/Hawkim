@@ -9,12 +9,26 @@ import { storedDepartmentInitials } from './departmentInitials'
  * Initials aren't a form field: they are generated from the name (lib/departmentInitials.ts).
  */
 
-export type DepartmentFormField = 'divisionId' | 'name' | 'description'
-export type DepartmentFormProblem = DepartmentProblem | 'division-required'
-export type DepartmentFormValues = Omit<DepartmentInput, 'initials'> & { divisionId: string }
+export type DepartmentFormField = 'divisionId' | 'name' | 'description' | 'email'
+export type DepartmentFormProblem = DepartmentProblem | 'division-required' | 'email-invalid'
+export type DepartmentFormValues = Omit<DepartmentInput, 'initials'> & { divisionId: string; email: string }
 
 /** Field order, for moving focus to the first problem. */
-export const DEPARTMENT_FORM_FIELDS: DepartmentFormField[] = ['divisionId', 'name', 'description']
+export const DEPARTMENT_FORM_FIELDS: DepartmentFormField[] = ['divisionId', 'name', 'description', 'email']
+
+export const EMAIL_MAX = 254
+/** name@domain.tld, the same pattern as division emails and the database check. */
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+/**
+ * The department email is optional (empty is saved as none). When given, it is trimmed and must
+ * look like name@domain.tld, up to 254 characters. Not unique: departments may share an address.
+ */
+export function departmentEmailProblem(email: string): 'email-invalid' | undefined {
+  const value = email.trim()
+  if (!value) return undefined
+  return value.length > EMAIL_MAX || !EMAIL_PATTERN.test(value) ? 'email-invalid' : undefined
+}
 
 /** A legacy department without a division may keep none; every other department needs one. */
 export function divisionIsOptional(department?: Pick<ManagedDepartment, 'division_id'>): boolean {
@@ -58,6 +72,7 @@ export function departmentFormProblems(
     divisionId: (input.divisionId ? !known : !options.divisionOptional) ? 'division-required' : undefined,
     name,
     description,
+    email: departmentEmailProblem(input.email),
   }
 }
 
@@ -71,7 +86,7 @@ export async function submitDepartmentForm(
   editing: Pick<ManagedDepartment, 'id'> | undefined,
   expectedUpdatedAt: string | undefined,
   deps: {
-    save: (input: DepartmentInput & { divisionId: string | null }, id?: string, expected?: string) => Promise<string>
+    save: (input: DepartmentInput & { divisionId: string | null; email: string }, id?: string, expected?: string) => Promise<string>
     reload: () => Promise<void>
   },
 ): Promise<{ targetId: string; state: { notice: 'added' | 'updated' } }> {

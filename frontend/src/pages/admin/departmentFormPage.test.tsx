@@ -11,7 +11,7 @@ const snapshot: ManagementSnapshot = {
     { id: 'quality', name: 'Quality Division', description: '', email: null, updated_at: 'v1' },
   ],
   departments: [
-    { id: 'home', name: 'Home', initials: 'HM', description: 'Our work', division_id: 'quality', updated_at: 'r1', people: [], employees: 0, sops: 0, status_counts: {} },
+    { id: 'home', name: 'Home', initials: 'HM', description: 'Our work', email: 'home@hawkim.test', division_id: 'quality', updated_at: 'r1', people: [], employees: 0, sops: 0, status_counts: {} },
     { id: 'legacy', name: 'Legacy', initials: 'LG', description: '', division_id: null, updated_at: 'r1', people: [], employees: 0, sops: 0, status_counts: {} },
     { id: 'pending', name: 'Pending', initials: 'PD', description: '', division_id: 'medical', updated_at: 'r1', deletion_job_id: 'job', people: [], employees: 0, sops: 0, status_counts: {} },
   ],
@@ -50,7 +50,16 @@ describe.each([['Add Department', '/admin/departments/new'], ['Edit Department',
     expect(html).not.toMatch(/>Initials</)
     expect(html).not.toContain('name="initials"')
     expect(html).not.toContain('2–3 letters')
-    expect(html.match(/<(input|textarea|select)[^>]*name="([^"]+)"/g)!.map((tag) => tag.match(/name="([^"]+)"/)![1])).toEqual(['division', 'name', 'description'])
+    expect(html.match(/<(input|textarea|select)[^>]*name="([^"]+)"/g)!.map((tag) => tag.match(/name="([^"]+)"/)![1])).toEqual(['division', 'name', 'description', 'email'])
+  })
+
+  it('has an optional Email field after Description, with its placeholder', () => {
+    const [, id, mark] = label('Email')
+    expect(mark).not.toContain('>*<')
+    const input = control(id)
+    expect(input).not.toContain('required=""')
+    expect(input).toContain('type="email"')
+    expect(input).toContain('placeholder="e.g. qa@example.com"')
   })
 
   it('keeps Description optional, with no asterisk and no "(Optional)", and keeps the hints', () => {
@@ -129,5 +138,16 @@ describe('loading, errors and unavailable departments', () => {
     const html = render('/admin/departments/pending/edit')
     expect(html).not.toContain('<form')
     expect(html).toContain('File cleanup for this department is still in progress.')
+  })
+})
+
+describe('the Email field’s starting value', () => {
+  const email = (html: string) => html.match(/<input[^>]*name="email"[^>]*>/)![0].match(/value="([^"]*)"/)?.[1] ?? ''
+  it('is empty when adding a department', () => {
+    expect(email(render('/admin/departments/new'))).toBe('')
+  })
+  it('is the saved email when editing, and empty for a department without one', () => {
+    expect(email(render('/admin/departments/home/edit'))).toBe('home@hawkim.test')
+    expect(email(render('/admin/departments/legacy/edit'))).toBe('')
   })
 })

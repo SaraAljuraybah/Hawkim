@@ -77,6 +77,7 @@ function DepartmentForm({ snapshot, department }: { snapshot: ManagementSnapshot
     divisionId: initialDivisionId(snapshot, department, requestedDivision),
     name: department?.name ?? '',
     description: department?.description ?? '',
+    email: department?.email ?? '',
   })
   const [errors, setErrors] = useState<FieldErrors>({})
   const [submitAttempted, setSubmitAttempted] = useState(false)
@@ -85,6 +86,7 @@ function DepartmentForm({ snapshot, department }: { snapshot: ManagementSnapshot
   const divisionRef = useRef<HTMLSelectElement>(null)
   const nameRef = useRef<HTMLInputElement>(null)
   const descriptionRef = useRef<HTMLTextAreaElement>(null)
+  const emailRef = useRef<HTMLInputElement>(null)
   const saveErrorRef = useRef<HTMLParagraphElement>(null)
 
   const messages: Record<DepartmentFormProblem, string> = {
@@ -96,6 +98,7 @@ function DepartmentForm({ snapshot, department }: { snapshot: ManagementSnapshot
     'initials-invalid': orgText.invalid,
     'initials-taken': orgText.duplicate,
     'description-too-long': content.errors.descriptionTooLong,
+    'email-invalid': content.errors.emailInvalid,
   }
   function errorsFor(input: DepartmentFormValues): FieldErrors {
     const problems = departmentFormProblems(input, snapshot, { editingId: department?.id, divisionOptional })
@@ -103,7 +106,7 @@ function DepartmentForm({ snapshot, department }: { snapshot: ManagementSnapshot
       const problem = problems[field]
       return problem && messages[problem]
     }
-    return { divisionId: errorOf('divisionId'), name: errorOf('name'), description: errorOf('description') }
+    return { divisionId: errorOf('divisionId'), name: errorOf('name'), description: errorOf('description'), email: errorOf('email') }
   }
 
   // Errors are first shown on submit; after that, each field re-validates on blur.
@@ -120,7 +123,7 @@ function DepartmentForm({ snapshot, department }: { snapshot: ManagementSnapshot
     flushSync(() => { setErrors(next); setSaveError('') })
     const firstInvalid = DEPARTMENT_FORM_FIELDS.find((field) => next[field])
     if (firstInvalid) {
-      const refs = { divisionId: divisionRef, name: nameRef, description: descriptionRef }
+      const refs = { divisionId: divisionRef, name: nameRef, description: descriptionRef, email: emailRef }
       refs[firstInvalid].current?.focus()
       return
     }
@@ -198,6 +201,19 @@ function DepartmentForm({ snapshot, department }: { snapshot: ManagementSnapshot
           error={errors.description}
           onChange={(event) => setValues({ ...values, description: event.target.value })}
           onBlur={() => blur('description')}
+          className="mt-5"
+        />
+        <TextField
+          ref={emailRef}
+          name="email"
+          type="email"
+          autoComplete="off"
+          label={content.email.label}
+          placeholder={content.email.placeholder}
+          value={values.email}
+          error={errors.email}
+          onChange={(event) => setValues({ ...values, email: event.target.value })}
+          onBlur={() => blur('email')}
           className="mt-5"
         />
 

@@ -214,12 +214,14 @@ export const adminEn: AdminContent = {
     backToDepartment: 'Back to {name}',
     name: { label: 'Name' },
     description: { label: 'Description', hint: 'One line about what the department does (up to 200 characters).' },
+    email: { label: 'Email', placeholder: 'e.g. qa@example.com' },
     cancel: 'Cancel',
     errors: {
       nameRequired: 'Enter a department name.',
       nameTooLong: 'Keep the name to 60 characters or fewer.',
       nameTaken: 'A department with this name already exists.',
       descriptionTooLong: 'Keep the description to 200 characters or fewer.',
+      emailInvalid: 'Enter a valid email address, e.g. name@example.com (up to 254 characters).',
     },
   },
 

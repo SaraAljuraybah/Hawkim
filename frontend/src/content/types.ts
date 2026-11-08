@@ -1517,12 +1517,15 @@ export interface AdminDepartmentFormContent {
   backToDepartment: string
   name: { label: string }
   description: { label: string; hint: string }
+  /** Optional. */
+  email: { label: string; placeholder: string }
   cancel: string
   errors: {
     nameRequired: string
     nameTooLong: string
     nameTaken: string
     descriptionTooLong: string
+    emailInvalid: string
   }
 }
 

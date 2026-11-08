@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { ManagementSnapshot } from '../services/organizationAdmin'
-import { DEPARTMENT_FORM_FIELDS, departmentFormProblems, divisionIsOptional, formInitials, initialDivisionId, submitDepartmentForm } from './departmentForm'
+import { DEPARTMENT_FORM_FIELDS, departmentEmailProblem, departmentFormProblems, divisionIsOptional, formInitials, initialDivisionId, submitDepartmentForm } from './departmentForm'
 
 const snapshot: ManagementSnapshot = {
   divisions: [{ id: 'medical', name: 'Medical', description: '', email: null, updated_at: 'v1' }],
@@ -9,7 +9,7 @@ const snapshot: ManagementSnapshot = {
     { id: 'legacy', name: 'Legacy', initials: 'LG', description: '', division_id: null, updated_at: 'r1', people: [], employees: 0, sops: 0, status_counts: {} },
   ],
 }
-const values = { divisionId: 'medical', name: 'Pharmacovigilance', description: ' Safety ' }
+const values = { divisionId: 'medical', name: 'Pharmacovigilance', description: ' Safety ', email: '' }
 
 describe('the division a department form starts with', () => {
   it('uses ?division only for a new department and only when it is an active division', () => {
@@ -29,8 +29,8 @@ describe('the division a department form starts with', () => {
 })
 
 describe('department form problems', () => {
-  it('has no Initials field: only division, name and description', () => {
-    expect(DEPARTMENT_FORM_FIELDS).toEqual(['divisionId', 'name', 'description'])
+  it('has no Initials field: only division, name, description and email', () => {
+    expect(DEPARTMENT_FORM_FIELDS).toEqual(['divisionId', 'name', 'description', 'email'])
   })
   it('accepts a valid new department in an active division', () => {
     expect(Object.values(departmentFormProblems(values, snapshot, { divisionOptional: false })).filter(Boolean)).toEqual([])
@@ -41,7 +41,7 @@ describe('department form problems', () => {
     expect(departmentFormProblems({ ...values, divisionId: '' }, snapshot, { editingId: 'legacy', divisionOptional: true }).divisionId).toBeUndefined()
   })
   it('keeps the existing name and description rules against active departments', () => {
-    const problems = departmentFormProblems({ divisionId: 'medical', name: 'quality assurance', description: 'x'.repeat(201) }, snapshot, { divisionOptional: false })
+    const problems = departmentFormProblems({ divisionId: 'medical', name: 'quality assurance', description: 'x'.repeat(201), email: '' }, snapshot, { divisionOptional: false })
     expect(problems).toMatchObject({ name: 'name-taken', description: 'description-too-long' })
     expect(departmentFormProblems({ ...values, name: 'Quality Assurance' }, snapshot, { editingId: 'qa', divisionOptional: false }).name).toBeUndefined()
   })
@@ -49,6 +49,33 @@ describe('department form problems', () => {
     const problems = departmentFormProblems({ ...values, name: 'Quality Audit' }, snapshot, { divisionOptional: false })
     expect(Object.values(problems).filter(Boolean)).toEqual([])
     expect(Object.keys(problems)).not.toContain('initials')
+  })
+  it('reports an invalid email on the email field', () => {
+    expect(departmentFormProblems({ ...values, email: 'not-an-email' }, snapshot, { divisionOptional: false }).email).toBe('email-invalid')
+    expect(departmentFormProblems({ ...values, email: 'qa@hawkim.test' }, snapshot, { divisionOptional: false }).email).toBeUndefined()
+  })
+})
+
+describe('the department email', () => {
+  it('is optional: empty or only spaces is fine', () => {
+    expect(departmentEmailProblem('')).toBeUndefined()
+    expect(departmentEmailProblem('   ')).toBeUndefined()
+  })
+  it('accepts name@domain.tld, ignoring surrounding spaces', () => {
+    expect(departmentEmailProblem('qa@hawkim.test')).toBeUndefined()
+    expect(departmentEmailProblem('  first.last+qa@mail.hawkim.sa  ')).toBeUndefined()
+  })
+  it.each(['qa', 'qa@hawkim', '@hawkim.test', 'qa@.test', 'q a@hawkim.test', 'qa@hawkim.test@x', 'qa@hawkim.'])('refuses %s', (email) => {
+    expect(departmentEmailProblem(email)).toBe('email-invalid')
+  })
+  it('allows up to 254 characters', () => {
+    const domain = '@hawkim.test'
+    expect(departmentEmailProblem('a'.repeat(254 - domain.length) + domain)).toBeUndefined()
+    expect(departmentEmailProblem('a'.repeat(255 - domain.length) + domain)).toBe('email-invalid')
+  })
+  it('does not need to be unique', () => {
+    const shared = { ...snapshot, departments: snapshot.departments.map((department) => ({ ...department, email: 'team@hawkim.test' })) }
+    expect(departmentFormProblems({ ...values, email: 'team@hawkim.test' }, shared, { divisionOptional: false }).email).toBeUndefined()
   })
 })
 
