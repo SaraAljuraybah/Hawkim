@@ -12,6 +12,10 @@ import { ReviewPage } from './ReviewPage'
 import { DashboardPage } from './DashboardPage'
 import { DepartmentSwitcher } from '../components/layout/DepartmentSwitcher'
 import { appShellEn } from '../content/app.en'
+import { approvalEn } from '../content/approval.en'
+import { internalReviewEn } from '../content/internalReview.en'
+import { reviewsEn } from '../content/reviews.en'
+import { sopWorkflowEn } from '../content/workflow.en'
 
 const fixture = vi.hoisted(() => ({
   user: { id: 'visitor', name: 'Visitor', initials: 'VV', email: 'v@example.test', departmentId: 'home', permissions: ['author', 'reviewer', 'approver'] } as User,
@@ -19,7 +23,7 @@ const fixture = vi.hoisted(() => ({
   other: { id: 'other', name: 'Foreign Directory', initials: 'OT', description: '' } as Department,
   requests: [] as UserRequest[], sops: [] as Sop[],
 }))
-vi.mock('../state/sessionContext', () => ({ useCurrentUser: () => fixture.user }))
+vi.mock('../state/sessionContext', () => ({ useCurrentUser: () => fixture.user, useSession: () => ({ status: 'signed-in', user: fixture.user }) }))
 vi.mock('../state/activeDepartmentContext', () => ({ useActiveDepartment: () => ({
   activeDepartment: fixture.other, homeDepartment: fixture.home, directoryDepartments: [fixture.home, fixture.other], setActiveDepartment: vi.fn(),
 }) }))
@@ -70,6 +74,16 @@ describe('directory selection never changes authoring or membership context', ()
     expect(html).toContain('Foreign Directory')
     expect(html).toContain('(Read-only)')
   })
+  it('keeps the top bar switcher\'s keyboard focus ring tight, so it never covers the name above', () => {
+    const html = render(<DepartmentSwitcher content={appShellEn.departmentSwitcher} variant="topbar" />)
+    expect(html.match(/<button[^>]*aria-haspopup="menu"[^>]*>/)![0]).toContain('focus-visible:outline-offset-0')
+  })
+  it('never cuts the department name in the top bar, keeping the chevron', () => {
+    const html = render(<DepartmentSwitcher content={appShellEn.departmentSwitcher} variant="topbar" />)
+    expect(html).not.toContain('truncate')
+    expect(html).toContain('break-words')
+    expect(html.match(/<button[^>]*aria-haspopup="menu"[^>]*>.*?<\/button>/)![0]).toContain('lucide-chevron-down')
+  })
   it('lists only authorized published data, regardless of the selected context', () => {
     const html = render(<SopsPage />)
     expect(html).toContain('foreign-published')
@@ -80,6 +94,16 @@ describe('directory selection never changes authoring or membership context', ()
     fixture.requests = [grant('rejected')]
     expect(render(<SopsPage />)).not.toContain('foreign-published')
   })
+  it('offers Sort By next to the search, Newest to Oldest by default, and stacks on small screens', () => {
+    fixture.sops = [{ ...sop('older-sop', 'other', 'published'), lastUpdated: '2026-01-01' }, { ...sop('newer-sop', 'other', 'published'), lastUpdated: '2026-10-01' }]
+    const html = render(<SopsPage />)
+    for (const text of ['Sort By', 'Newest to Oldest', 'Oldest to Newest']) expect(html).toContain(text)
+    expect(html.indexOf('Search SOPs')).toBeLessThan(html.indexOf('Sort By'))
+    expect(html).not.toContain('Document Type')
+    expect(html).toMatch(/<option value="newest"[^>]* selected="">Newest to Oldest<\/option>/)
+    expect(html).toContain('grid items-end gap-4 sm:grid-cols-[minmax(0,1fr)_12rem]')
+    expect(html.indexOf('newer-sop')).toBeLessThan(html.indexOf('older-sop'))
+  })
 })
 
 describe('published directory access remains separate from internal views', () => {
@@ -87,7 +111,13 @@ describe('published directory access remains separate from internal views', () =
     const html = render(<SopDetailPage />, '/foreign-published')
     expect(html).toContain('Confidential multiline description')
     expect(html).toContain('/files/foreign-published.docx')
-    for (const label of ['Cancel review request', 'Complete Review', 'Reject SOP', 'Upload a New Version']) expect(html).not.toContain(label)
+    for (const label of [
+      internalReviewEn.actions.accept, internalReviewEn.actions.decline,
+      internalReviewEn.actions.complete, internalReviewEn.actions.returnToAuthor,
+      reviewsEn.page.actions.approve, reviewsEn.page.actions.publish,
+      sopWorkflowEn.actions.submit, sopWorkflowEn.history.upload,
+      sopWorkflowEn.people.addAuthor, approvalEn.action,
+    ]) expect(html).not.toContain(`>${label}</button>`)
   })
   it.each(['pending', 'rejected', 'cancelled'] as const)('does not expose document content for a %s request', (status) => {
     fixture.requests = [grant(status)]

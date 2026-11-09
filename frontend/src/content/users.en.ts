@@ -11,6 +11,5 @@ export const usersEn: UsersContent = {
     approver: 'Approver',
     admin: 'Admin',
   },
-  employee: 'Employee',
   deletedName: '{name} (deleted)',
 }

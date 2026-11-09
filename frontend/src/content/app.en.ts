@@ -20,7 +20,7 @@ export const appShellEn: AppShellContent = {
     { label: 'My Reviews', href: '/reviews', icon: 'reviews', matchSubpaths: true, permission: ['reviewer', 'approver'] },
     { label: 'My Requests', href: '/requests', icon: 'requests', matchSubpaths: true },
     { label: 'SOP Directory', href: '/sops', icon: 'sops', matchSubpaths: true },
-    { label: 'Organization Structure', href: '/departments', icon: 'departments' },
+    { label: 'Organizational Structure', href: '/organizational-structure', icon: 'hierarchy' },
   ],
 
   signOut: { label: 'Sign Out', href: '/login', icon: 'signOut' },
@@ -28,6 +28,8 @@ export const appShellEn: AppShellContent = {
   closeMenu: 'Close menu',
   drawerLabel: 'Navigation',
   reviewsToDoLabel: '{count} to do',
+  profileLink: { label: 'My Profile, {name}', href: '/profile' },
+  positionSeparator: '|',
   departmentSwitcher: {
     label: 'SOP Directory',
     menuLabel: 'Available SOP directories',
@@ -54,7 +56,7 @@ export const dashboardEn: DashboardContent = {
     primary: { label: 'Submit a Request', href: '/requests/new', icon: 'submitRequest' },
     secondary: [
       // Author permission only (placed right after "Submit a Request")
-      { label: 'Upload SOP', href: '/my-sops/upload', icon: 'upload', permission: 'author' },
+      { label: 'Add SOP', href: '/my-sops/upload', icon: 'upload', permission: 'author' },
       // Reviewer or Approver permission only
       { label: 'My Reviews', href: '/reviews', icon: 'reviews', permission: ['reviewer', 'approver'] },
     ],

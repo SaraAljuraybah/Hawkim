@@ -1,9 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { renderToStaticMarkup } from 'react-dom/server'
 import type { Sop, User } from '../data/mock/types'
-import { SAMPLE_CHECK_DURATION_MS } from '../lib/compliance'
+import { CheckAlreadyCompletedError, SAMPLE_CHECK_DURATION_MS, SERVICE_CHECK_POLL_MS } from '../lib/compliance'
+import { fetchSop } from '../services/sops'
 import { SopsProvider } from './SopsProvider'
 import { useSops, type SopsStore } from './sopsContext'
+
 
 const { sara, own } = vi.hoisted(() => {
   const sara: User = { id: 'uuid-sara', name: 'Sara', email: 'sara@hawkim.test', initials: 'SA', departmentId: 'it', permissions: ['author'] }
@@ -63,9 +65,53 @@ describe('running a compliance check', () => {
     expect(service.finish).toHaveBeenLastCalledWith('uuid-check', 'completed')
   })
 
+  it('reads the SOP again when the database refuses a repeat check, and passes the refusal on', async () => {
+    const sops = store()
+    vi.mocked(fetchSop).mockClear()
+    service.start.mockRejectedValue(new CheckAlreadyCompletedError('Already completed'))
+    await expect(sops.runCheck('uuid-sop')).rejects.toBeInstanceOf(CheckAlreadyCompletedError)
+    expect(fetchSop).toHaveBeenCalledWith('uuid-sop')
+    await vi.advanceTimersByTimeAsync(SAMPLE_CHECK_DURATION_MS)
+    expect(service.finish).not.toHaveBeenCalled()
+  })
+
+  it('still reports the refusal if reading the SOP again fails', async () => {
+    const sops = store()
+    vi.mocked(fetchSop).mockRejectedValueOnce(new Error('Offline'))
+    service.start.mockRejectedValue(new CheckAlreadyCompletedError('Already completed'))
+    await expect(sops.runCheck('uuid-sop')).rejects.toBeInstanceOf(CheckAlreadyCompletedError)
+  })
+
+  it('does not read the SOP again after any other failure to start', async () => {
+    const sops = store()
+    vi.mocked(fetchSop).mockClear()
+    service.start.mockRejectedValue(new Error('Connection lost'))
+    await expect(sops.runCheck('uuid-sop')).rejects.toThrow('Connection lost')
+    expect(fetchSop).not.toHaveBeenCalled()
+  })
+
   it('refuses a check the person may not run, without asking the database', async () => {
     const sops = store()
     await expect(sops.runCheck('unknown')).rejects.toThrow()
     expect(service.start).not.toHaveBeenCalled()
+  })
+
+  it('leaves a check of the compliance service to the service and reads the SOP again until it ends', async () => {
+    const check = { id: 'uuid-check', sopId: 'uuid-sop', version: '1', engine: 'hawkim', triggeredById: 'uuid-sara', guideline: { name: 'GVP', version: '4.0' }, findings: [] }
+    const running: Sop = { ...own, complianceChecks: [{ ...check, status: 'running', startedAt: '2026-11-02T09:05:00Z' }] }
+    const done: Sop = { ...own, complianceChecks: [{ ...check, status: 'completed', startedAt: '2026-11-02T09:05:00Z', completedAt: '2026-11-02T09:20:00Z' }] }
+    const sops = store()
+    vi.mocked(fetchSop).mockReset().mockResolvedValueOnce(running).mockResolvedValueOnce(running).mockResolvedValue(done)
+    await sops.runCheck('uuid-sop')
+    expect(fetchSop).toHaveBeenCalledTimes(1)
+    await vi.advanceTimersByTimeAsync(SERVICE_CHECK_POLL_MS)
+    expect(fetchSop).toHaveBeenCalledTimes(2)
+    await vi.advanceTimersByTimeAsync(SERVICE_CHECK_POLL_MS)
+    expect(fetchSop).toHaveBeenCalledTimes(3)
+    // Completed: no more reading, and the browser never finishes a service check.
+    await vi.advanceTimersByTimeAsync(SERVICE_CHECK_POLL_MS * 3)
+    expect(fetchSop).toHaveBeenCalledTimes(3)
+    expect(service.finish).not.toHaveBeenCalled()
+    vi.mocked(fetchSop).mockReset().mockResolvedValue(own)
   })
 })

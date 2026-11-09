@@ -9,20 +9,27 @@
  */
 
 import type { GuidelineVersion } from '../data/mock/types'
+import { CheckAlreadyCompletedError } from '../lib/compliance'
 import { supabase } from './supabase'
 
-const GUIDELINE_COLUMNS = `id, version, issued_date, effective_date, file_name, summary, added_by, added_at,
+/** The hint start_compliance_check raises when this version already has a completed check. */
+export const CHECK_ALREADY_COMPLETED_HINT = 'check-already-completed'
+
+const GUIDELINE_COLUMNS = `id, name, version, issued_date, effective_date, file_name, added_by, added_at, source, storage_path, file_size,
   guideline_requirements!guideline_requirements_guideline_version_id_fkey (code, module, section, section_title, short_title, page, summary)`
 
 export interface GuidelineVersionRow {
   id: string
+  name: string
   version: string
   issued_date: string | null
   effective_date: string
   file_name: string
-  summary: string
   added_by: string | null
   added_at: string
+  source: string | null
+  storage_path: string | null
+  file_size: number | null
   guideline_requirements: {
     code: string
     module: string
@@ -38,13 +45,16 @@ export interface GuidelineVersionRow {
 export function toGuidelineVersion(row: GuidelineVersionRow): GuidelineVersion {
   return {
     id: row.id,
+    title: row.name,
     version: row.version,
     ...(row.issued_date ? { issuedDate: row.issued_date } : {}),
     effectiveDate: row.effective_date,
     fileName: row.file_name,
-    ...(row.summary ? { summary: row.summary } : {}),
     ...(row.added_by ? { addedById: row.added_by } : {}),
     addedAt: row.added_at,
+    ...(row.source ? { source: row.source } : {}),
+    ...(row.storage_path ? { storagePath: row.storage_path } : {}),
+    ...(row.file_size ? { fileSize: row.file_size } : {}),
     requirements: [...row.guideline_requirements]
       .sort((a, b) => a.code.localeCompare(b.code, 'en', { numeric: true }))
       .map((item) => ({
@@ -59,7 +69,7 @@ export function toGuidelineVersion(row: GuidelineVersionRow): GuidelineVersion {
   }
 }
 
-/** Every guideline version, oldest first (the last one added is current). */
+/** Every published guideline version, oldest first (the last one added is current). */
 export async function fetchGuidelineVersions(): Promise<GuidelineVersion[]> {
   const { data, error } = await supabase().from('guideline_versions').select(GUIDELINE_COLUMNS).order('added_at')
   if (error) throw new Error(error.message)
@@ -69,6 +79,7 @@ export async function fetchGuidelineVersions(): Promise<GuidelineVersion[]> {
 /** Starts a check of the SOP's current version against the current guideline; returns its id. */
 export async function startComplianceCheck(sopId: string): Promise<string> {
   const { data, error } = await supabase().rpc('start_compliance_check', { p_sop_id: sopId })
+  if (error?.hint === CHECK_ALREADY_COMPLETED_HINT) throw new CheckAlreadyCompletedError(error.message)
   if (error) throw new Error(error.message)
   return data as string
 }

@@ -1,17 +1,19 @@
 import type { GuidelineVersion, Sop } from '../data/mock/types'
 import type { SopStatus } from '../types/status'
+import { riyadhDate } from './riyadhWorkingDays'
 
 /*
  * Rules for the regulation SOPs are checked against (PBI 20, 29). Hawkim manages one
- * regulation, the SFDA GVP; the admin adds new versions, and the latest one added is
- * current at once. Old versions stay as read-only history. Pure functions: the
- * guidelines store refuses what they don't allow, and the pages use them to explain why.
- * TODO: The backend must enforce these same rules.
+ * regulation, the SFDA GVP. The current version is the database's (the published version added
+ * last); a version an admin adds is never current (`neverCurrent`): making one current comes
+ * later. Pure functions: the forms use them to explain what's wrong before saving, and the
+ * database (supabase/migrations/20261108120000_guideline_versions_admin.sql) enforces the same rules.
  */
 
 /** A version number: digits, a dot, digits (4.1, 5.0, 4.10). */
 const VERSION_PATTERN = /^\d+\.\d+$/
-export const SUMMARY_MAX = 500
+export const TITLE_MAX = 100
+export const SOURCE_MAX = 300
 
 /** Orders version numbers part by part, as numbers: 4.10 > 4.9 > 4.0. Negative when a < b. */
 export function compareVersions(a: string, b: string): number {
@@ -25,75 +27,153 @@ export function currentVersion(versions: GuidelineVersion[]): GuidelineVersion {
   return versions[versions.length - 1]
 }
 
-/* ---------- Adding a version ---------- */
-
-/** What the admin enters (the file is only its name for now). */
-export interface GuidelineVersionInput {
-  version: string
-  /** ISO date, or '' when not given. */
-  issuedDate: string
-  /** ISO date. */
-  effectiveDate: string
-  /** '' when no file was chosen. */
-  fileName: string
-  summary: string
+/**
+ * The version the SFDA Regulatory Requirements tab shows as current: the newest published one by when
+ * it was added (`allVersions` is oldest first). A version an admin added isn't current until an admin
+ * makes it current (GVP phase 2: processing, then Make Current), so it never gets the Current badge.
+ * Compliance checks, reports and every other page use the database's current version (`currentVersion`).
+ */
+export function newestVersion(allVersions: GuidelineVersion[], fallback: GuidelineVersion): GuidelineVersion {
+  // An added version (phase 2) becomes current only when an admin makes it current, so it isn't shown as current.
+  return allVersions.filter((version) => !version.neverCurrent).at(-1) ?? fallback
 }
 
-export type GuidelineField = 'version' | 'issuedDate' | 'effectiveDate' | 'fileName' | 'summary'
-export type GuidelineProblem =
-  | 'version-invalid'
-  | 'version-not-higher'
-  | 'issued-after-effective'
-  | 'effective-required'
-  | 'file-required'
-  | 'file-not-pdf'
-  | 'summary-too-long'
-
-/** What is wrong with each field (nothing for a valid version). It must be higher than the current version. */
-export function validateGuidelineVersion(
-  input: GuidelineVersionInput,
-  current: GuidelineVersion,
-): Partial<Record<GuidelineField, GuidelineProblem>> {
-  const version = input.version.trim()
-  const fileName = input.fileName.trim()
-  return {
-    version: !VERSION_PATTERN.test(version)
-      ? 'version-invalid'
-      : compareVersions(version, current.version) <= 0
-        ? 'version-not-higher'
-        : undefined,
-    effectiveDate: input.effectiveDate ? undefined : 'effective-required',
-    // ISO dates compare correctly as strings.
-    issuedDate:
-      input.issuedDate && input.effectiveDate && input.issuedDate > input.effectiveDate ? 'issued-after-effective' : undefined,
-    fileName: !fileName ? 'file-required' : !fileName.toLowerCase().endsWith('.pdf') ? 'file-not-pdf' : undefined,
-    summary: input.summary.trim().length > SUMMARY_MAX ? 'summary-too-long' : undefined,
+/** A web link starting with https://, with a host (e.g. https://www.sfda.gov.sa/...). */
+export function isHttpsLink(value: string): boolean {
+  if (!value.startsWith('https://')) return false
+  try {
+    const url = new URL(value)
+    return url.protocol === 'https:' && url.hostname.includes('.') && !/\s/.test(value)
+  } catch {
+    return false
   }
 }
 
+/** As the database checks it: https://, sfda.gov.sa or a subdomain (no user name or port), then a path, query or nothing. */
+const SFDA_LINK_PATTERN = /^https:\/\/([a-z0-9-]+\.)*sfda\.gov\.sa([/?#]\S*)?$/i
+
 /**
- * The new version, which becomes current. Its requirements are copied from the
- * previous version for now.
- * TODO: The compliance service extracts the requirements from the uploaded PDF.
+ * An official SFDA link: an https:// link whose host is sfda.gov.sa or one of its subdomains
+ * (www.sfda.gov.sa). The host is compared exactly, never with "contains", so look-alikes such as
+ * https://sfda.gov.sa.example.com or https://notsfda.gov.sa are refused, and so are a user name or a port.
  */
-export function newGuidelineVersion(
+export function isSfdaLink(value: string): boolean {
+  if (!isHttpsLink(value) || !SFDA_LINK_PATTERN.test(value)) return false
+  // URL gives the host in lower case, without any user name or port.
+  const { hostname } = new URL(value)
+  return hostname === 'sfda.gov.sa' || hostname.endsWith('.sfda.gov.sa')
+}
+
+/* ---------- Adding a version ---------- */
+
+/** What the admin enters. The PDF itself is uploaded when the version is saved. */
+export interface GuidelineVersionInput {
+  title: string
+  /** Entered by the admin, e.g. "4.1". */
+  version: string
+  /** When SFDA issued it (ISO date); required. */
+  issuedDate: string
+  /** Today in Asia/Riyadh when the form opened (ISO date); it can't be changed. */
+  addedDate: string
+  /** '' when no file was chosen. */
+  fileName: string
+  /** A link to the guideline on the SFDA website. */
+  source: string
+}
+
+export type GuidelineField = 'title' | 'version' | 'issuedDate' | 'addedDate' | 'fileName' | 'source'
+export type GuidelineProblem =
+  | 'title-required'
+  | 'title-too-long'
+  | 'version-invalid'
+  | 'version-exists'
+  | 'version-not-higher'
+  | 'issued-required'
+  | 'issued-after-added'
+  | 'added-required'
+  | 'file-required'
+  | 'file-not-pdf'
+  | 'source-required'
+  | 'source-invalid'
+  | 'source-not-sfda'
+  | 'source-too-long'
+
+/**
+ * What is wrong with each field (nothing for a valid version). The version number must not be used
+ * by any version (`versions`: every version, added ones included) and must be higher than `current`.
+ */
+export function validateGuidelineVersion(
   input: GuidelineVersionInput,
-  previous: GuidelineVersion,
-  addedById: string,
-  addedAt = new Date().toISOString(),
-): GuidelineVersion {
+  versions: GuidelineVersion[],
+  current: GuidelineVersion | undefined,
+): Partial<Record<GuidelineField, GuidelineProblem>> {
+  const title = input.title.trim()
   const version = input.version.trim()
-  const summary = input.summary.trim()
+  const fileName = input.fileName.trim()
+  const source = input.source.trim()
   return {
-    id: `gvp-${version.replace('.', '-')}`,
-    version,
-    ...(input.issuedDate ? { issuedDate: input.issuedDate } : {}),
-    effectiveDate: input.effectiveDate,
-    fileName: input.fileName.trim(),
-    ...(summary ? { summary } : {}),
-    addedById,
-    addedAt,
-    requirements: previous.requirements.map((requirement) => ({ ...requirement })),
+    title: !title ? 'title-required' : title.length > TITLE_MAX ? 'title-too-long' : undefined,
+    version: !VERSION_PATTERN.test(version)
+      ? 'version-invalid'
+      : versions.some((item) => VERSION_PATTERN.test(item.version) && compareVersions(item.version, version) === 0)
+        ? 'version-exists'
+        : current && compareVersions(version, current.version) <= 0
+          ? 'version-not-higher'
+          : undefined,
+    addedDate: input.addedDate ? undefined : 'added-required',
+    // ISO dates compare correctly as strings.
+    issuedDate: !input.issuedDate
+      ? 'issued-required'
+      : input.addedDate && input.issuedDate > input.addedDate
+        ? 'issued-after-added'
+        : undefined,
+    fileName: !fileName ? 'file-required' : !fileName.toLowerCase().endsWith('.pdf') ? 'file-not-pdf' : undefined,
+    source: !source
+      ? 'source-required'
+      : source.length > SOURCE_MAX
+        ? 'source-too-long'
+        : !isHttpsLink(source)
+          ? 'source-invalid'
+          : !isSfdaLink(source)
+            ? 'source-not-sfda'
+            : undefined,
+  }
+}
+
+/* ---------- Editing a version ---------- */
+
+/**
+ * What can be edited: the title, SFDA issue date and source of every version, and the version number
+ * of one that was never current. The added date and the PDF stay (a PDF can only be added where none is).
+ */
+export type GuidelineEditInput = Pick<GuidelineVersionInput, 'title' | 'version' | 'issuedDate' | 'source'>
+
+/** The Riyadh date a version was added to Hawkim (ISO date), if known. */
+export function addedDateOf(version: GuidelineVersion): string {
+  return version.addedAt ? riyadhDate(new Date(version.addedAt)) : version.effectiveDate
+}
+
+/**
+ * What is wrong with an edit: the same rules as adding, for the fields that can change. The version
+ * number is checked only for a version that was never current (against the other versions); the
+ * issue date can't be after the day the version was added.
+ */
+export function validateGuidelineEdit(
+  input: GuidelineEditInput,
+  version: GuidelineVersion,
+  versions: GuidelineVersion[],
+  current: GuidelineVersion | undefined,
+): Partial<Record<GuidelineField, GuidelineProblem>> {
+  const problems = validateGuidelineVersion(
+    { ...input, version: version.neverCurrent ? input.version : version.version, addedDate: addedDateOf(version), fileName: version.fileName },
+    versions.filter((item) => item.id !== version.id),
+    current?.id === version.id ? undefined : current,
+  )
+  return {
+    title: problems.title,
+    ...(version.neverCurrent ? { version: problems.version } : {}),
+    issuedDate: problems.issuedDate,
+    source: problems.source,
   }
 }
 

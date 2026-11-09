@@ -1,0 +1,69 @@
+/* Respond to the content width remaining after the Admin sidebar and padding. */
+.org-chart {
+  container-type: inline-size;
+  overflow-wrap: anywhere;
+  --org-gap: 1rem;
+}
+.org-chart .org-root { position: relative; }
+.org-chart .org-root--connected::after {
+  content: ''; position: absolute; left: 50%; top: 100%; height: 1.5rem;
+  border-left: 1px solid var(--color-gold);
+}
+.org-chart .org-branches {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1.5rem var(--org-gap);
+  margin-top: 1.5rem;
+  padding-left: var(--org-gap);
+  border-left: 1px solid var(--color-gold);
+}
+/* Wrapped rows connect through a rail outside the cards, never across text. */
+.org-chart .org-branches::before {
+  content: ''; position: absolute; left: 0; right: 50%; top: 0;
+  border-top: 1px solid var(--color-gold);
+}
+.org-chart .org-branch {
+  position: relative;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  min-width: 0;
+  padding-top: var(--org-gap);
+}
+.org-chart .org-branch::before {
+  content: ''; position: absolute; left: calc(-1 * var(--org-gap)); right: 50%; top: 0;
+  border-top: 1px solid var(--color-gold);
+}
+.org-chart .org-branch::after {
+  content: ''; position: absolute; left: 50%; top: 0; height: var(--org-gap);
+  border-left: 1px solid var(--color-gold);
+}
+.org-chart .org-division-header { min-height: 6rem; }
+.org-chart .org-departments { min-width: 0; margin-left: 0.5rem; }
+.org-chart .org-departments > li {
+  position: relative; padding-top: 1rem; padding-left: 0.75rem;
+  border-left: 1px solid var(--color-gold);
+  min-width: 0;
+}
+.org-chart .org-departments > li::before {
+  content: ''; position: absolute; left: 0; top: 3rem; width: 0.75rem;
+  border-top: 1px solid var(--color-gold);
+}
+@container (min-width: 30rem) {
+  .org-chart .org-branches { grid-template-columns: repeat(var(--org-columns-small), minmax(0, 1fr)); }
+  .org-chart .org-branch::before { right: 0; }
+  .org-chart .org-branch:nth-child(2n)::before,
+  .org-chart .org-branch:last-child::before { right: 50%; }
+}
+@container (min-width: 48rem) {
+  .org-chart .org-branches { grid-template-columns: repeat(var(--org-columns-wide), minmax(0, 1fr)); }
+  .org-chart .org-branch:nth-child(2n)::before { right: 0; }
+  .org-chart .org-branch:nth-child(4n)::before,
+  .org-chart .org-branch:last-child::before { right: 50%; }
+  /* Up to four desktop branches share the centered horizontal tree connector. */
+  .org-chart .org-branches--single-row { padding-left: 0; border-left: 0; }
+  .org-chart .org-branches--single-row::before { display: none; }
+  .org-chart .org-branches--single-row > .org-branch::before { right: 0; }
+  .org-chart .org-branches--single-row > .org-branch:first-child::before { left: 50%; }
+  .org-chart .org-branches--single-row > .org-branch:last-child::before { right: 50%; }
+}

@@ -15,6 +15,7 @@ export function PasswordField({ showLabel, hideLabel, id, ...fieldProps }: Passw
   const generatedId = useId()
   const inputId = id ?? generatedId
 
+  // The icon shows the current state: a crossed-out eye while hidden, an open eye while visible.
   const toggle = (
     <button
       type="button"
@@ -24,9 +25,9 @@ export function PasswordField({ showLabel, hideLabel, id, ...fieldProps }: Passw
       className="inline-flex size-9 items-center justify-center rounded-md text-text-gray transition-colors hover:bg-beige hover:text-maroon"
     >
       {visible ? (
-        <EyeOff aria-hidden="true" className="size-5" strokeWidth={1.75} />
-      ) : (
         <Eye aria-hidden="true" className="size-5" strokeWidth={1.75} />
+      ) : (
+        <EyeOff aria-hidden="true" className="size-5" strokeWidth={1.75} />
       )}
     </button>
   )

@@ -1,14 +1,20 @@
 import type { InternalReviewDecision, InternalReviewRound, InternalReviewerAssignment, ReviewerAssignment, ReviewerDecision, Sop } from '../data/mock/types'
-import { todayIsoDate } from './format'
+import { addRiyadhCalendarDays, riyadhDate } from './riyadhWorkingDays'
 
 /*
  * Status and deadline rules for internal review requests, shared by the workflow helpers
  * and the internal review transitions (no imports from either, so both can use them). Pure functions.
  */
 
-/** A review duration is a whole number of calendar days in this range. */
+/**
+ * A review duration is a whole number of working days in this range. The maximum is a technical
+ * limit, far above real use, so the date stays one the database and the browser can handle.
+ */
 export const REVIEW_DURATION_MIN = 1
-export const REVIEW_DURATION_MAX = 30
+export const REVIEW_DURATION_MAX = 3650
+
+/** Above this many working days the author confirms the number, in case of a typing mistake. */
+export const REVIEW_DURATION_CONFIRM_ABOVE = 60
 
 /** Whether a review duration is allowed (blank, i.e. undefined, means no review deadline). */
 export function isValidReviewDuration(days: number | undefined): boolean {
@@ -20,10 +26,13 @@ export function endOfLocalDay(isoDate: string): string {
   return new Date(`${isoDate}T23:59:59.999`).toISOString()
 }
 
-/** The last day of the review: the local date of acceptance plus the duration (accepted Oct 25 at 3 PM + 5 days → "Oct 30"). */
+/**
+ * The last day of the review: the Riyadh date of acceptance plus the duration in calendar days
+ * (accepted Oct 25 at 3 PM + 5 days → "Oct 30"), as the approved accept_review does
+ * (riyadh_today() + review_duration_days). Independent of the device's time zone.
+ */
 export function reviewDueDateFrom(acceptedAt: string, days: number): string {
-  const accepted = new Date(acceptedAt)
-  return todayIsoDate(new Date(accepted.getFullYear(), accepted.getMonth(), accepted.getDate() + days))
+  return addRiyadhCalendarDays(riyadhDate(new Date(acceptedAt)), days)
 }
 
 export type RequestDeadline = { phase: 'response' | 'review'; dueAt: string }
@@ -32,10 +41,30 @@ export type RequestDeadline = { phase: 'response' | 'review'; dueAt: string }
  * The deadline that applies to a request: accepting or declining until it's accepted,
  * then finishing the review. Undefined when that deadline wasn't set.
  */
-export function requestDeadline(assignment: Pick<InternalReviewerAssignment, 'acceptedAt' | 'responseDueDate' | 'reviewDueDate'>): RequestDeadline | undefined {
-  if (assignment.acceptedAt) return assignment.reviewDueDate ? { phase: 'review', dueAt: endOfLocalDay(assignment.reviewDueDate) } : undefined
-  return assignment.responseDueDate ? { phase: 'response', dueAt: endOfLocalDay(assignment.responseDueDate) } : undefined
+export function requestDeadline(assignment: Pick<InternalReviewerAssignment, 'acceptedAt' | 'responseDueDate' | 'reviewDueDate' | 'responseDueAt' | 'reviewDueAt'>): RequestDeadline | undefined {
+  if (assignment.acceptedAt) {
+    const dueAt = assignment.reviewDueAt ?? (assignment.reviewDueDate ? endOfLocalDay(assignment.reviewDueDate) : undefined)
+    return dueAt ? { phase: 'review', dueAt } : undefined
+  }
+  const dueAt = assignment.responseDueAt ?? (assignment.responseDueDate ? endOfLocalDay(assignment.responseDueDate) : undefined)
+  return dueAt ? { phase: 'response', dueAt } : undefined
 }
+
+/**
+ * Changing a saved review deadline, through change_review_deadline
+ * (supabase/migrations/20261101170100_change_review_deadline.sql, applied first). Off: the author's
+ * Reviewers table has no action for it. To roll back, set it to false before running
+ * supabase/scripts/rollback_change_review_deadline.sql.
+ */
+export const REVIEW_DEADLINE_EDITING_ACTIVE: boolean = true
+
+/**
+ * A response to one reviewer's request, through respond_to_comments' p_request_id
+ * (supabase/migrations/20261101150000_respond_to_one_reviewer.sql, applied first). Off: a response
+ * reaches all current recipients (responseRecipients). To roll back, set it to false before running
+ * supabase/scripts/rollback_respond_to_one_reviewer.sql.
+ */
+export const PER_REVIEWER_RESPONSE_ACTIVE: boolean = true
 
 /** Waiting for the reviewer: to accept or decline (pending), or to decide (accepted). */
 export function isOpenDecision(decision: InternalReviewDecision): boolean {
@@ -44,7 +73,22 @@ export function isOpenDecision(decision: InternalReviewDecision): boolean {
 
 /** The reviewer no longer takes part in this round, so they don't count against completing it. */
 export function isInactiveDecision(decision: InternalReviewDecision): boolean {
-  return decision === 'declined' || decision === 'withdrawn' || decision === 'removed'
+  return decision === 'declined' || decision === 'withdrawn' || decision === 'expired' || decision === 'removed'
+}
+
+/** The database refused a reviewer's action because the request expired: this tab was behind. */
+export class RequestExpiredError extends Error {}
+
+/** The database refused Send Again: this tab was behind (the request isn't the latest any more, say). */
+export class RequestNotResendableError extends Error {}
+
+/** Why the database refused the department of a reviewer: this tab was behind. */
+export class ReviewerOrderError extends Error {
+  readonly reason: 'first-send' | 'must-finish'
+  constructor(reason: 'first-send' | 'must-finish', message: string) {
+    super(message)
+    this.reason = reason
+  }
 }
 
 /**
@@ -72,18 +116,18 @@ export function isActiveRequest(sop: Pick<Sop, 'status' | 'version' | 'internalR
 
 /**
  * THE ONLY AUTOMATIC STEP in internal review: a request that is still pending when its
- * response due date has ended (the end of that local day) is withdrawn. Without a response
+ * response due date has ended (the end of that local day) expires. Without a response
  * due date it never expires; once accepted, nothing happens automatically.
  * Returns when that happens, or undefined when it can't.
- * TODO: The real withdrawal must run on the backend (a scheduled job), not in the browser.
+ * The database expires it when anyone who can see the SOP loads it or acts on it.
  */
-export function withdrawalDueAt(assignment: Pick<InternalReviewerAssignment, 'decision' | 'responseDueDate'>): string | undefined {
-  return assignment.decision === 'pending' && assignment.responseDueDate ? endOfLocalDay(assignment.responseDueDate) : undefined
+export function expiryDueAt(assignment: Pick<InternalReviewerAssignment, 'decision' | 'responseDueDate' | 'responseDueAt'>): string | undefined {
+  return assignment.decision === 'pending' ? assignment.responseDueAt ?? (assignment.responseDueDate ? endOfLocalDay(assignment.responseDueDate) : undefined) : undefined
 }
 
-/** Whether the request is due to be withdrawn at `now`. */
-export function isWithdrawalDue(assignment: Pick<InternalReviewerAssignment, 'decision' | 'responseDueDate'>, now: number): boolean {
-  const dueAt = withdrawalDueAt(assignment)
+/** Whether the request is due to expire at `now`. */
+export function isExpiryDue(assignment: Pick<InternalReviewerAssignment, 'decision' | 'responseDueDate' | 'responseDueAt'>, now: number): boolean {
+  const dueAt = expiryDueAt(assignment)
   return dueAt !== undefined && new Date(dueAt).getTime() <= now
 }
 
@@ -110,7 +154,7 @@ export function activeAssignments(round: InternalReviewRound): InternalReviewerA
 /** The decision shared views (people list, user administration, legacy helpers) understand. */
 export function legacyDecision(decision: InternalReviewDecision): ReviewerDecision {
   if (decision === 'accepted') return 'pending'
-  if (decision === 'declined' || decision === 'withdrawn' || decision === 'removed') return 'cancelled'
+  if (decision === 'declined' || decision === 'withdrawn' || decision === 'expired' || decision === 'removed') return 'cancelled'
   return decision
 }
 

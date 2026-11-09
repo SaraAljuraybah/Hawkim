@@ -5,6 +5,7 @@ import { getDirectoryDepartments } from '../lib/departments'
 import { SopsProvider } from './SopsProvider'
 import { useSops, type NewDraft, type SopsStore } from './sopsContext'
 
+
 const fixture = vi.hoisted(() => ({ userId: 'visitor', users: [] as User[], departments: [] as Department[], sops: [] as Sop[] }))
 vi.mock('../data/mock/sops', () => ({ sops: fixture.sops }))
 vi.mock('./sessionContext', () => ({ useSession: () => ({ user: fixture.users.find((user) => user.id === fixture.userId) ?? null }) }))
@@ -31,6 +32,7 @@ vi.mock('../services/sops', () => ({
   deleteSopVersion: vi.fn(async () => {}),
   addCoAuthors: vi.fn(async () => {}),
   removeCoAuthor: vi.fn(async () => {}),
+  updateSopDescription: vi.fn(async () => {}),
 }))
 
 function person(id: string, departmentId: string, permissions: User['permissions']): User {
@@ -60,6 +62,16 @@ beforeEach(() => {
 })
 
 describe('directory access never authorizes authoring', () => {
+  it('enforces the required 50-character title limit before uploading or saving a direct draft mutation', async () => {
+    const store = storeFor('visitor')
+    for (const title of ['', '   ', 'x'.repeat(51)]) {
+      await expect(store.addDraft({ ...draft(), title })).rejects.toThrow(/1 to 50/)
+      expect(database.created).toEqual([])
+    }
+    const title = 'x'.repeat(50)
+    await expect(store.addDraft({ ...draft(), title })).resolves.toMatchObject({ title, authorId: 'visitor', departmentId: 'home' })
+    await expect(store.addDraft({ ...draft(), title: '  Trimmed title  ' })).resolves.toMatchObject({ title: 'Trimmed title' })
+  })
   it('preserves home-department authoring, descriptions and permissions', async () => {
     const user = fixture.users[0], before = structuredClone(user)
     expect(getDirectoryDepartments(user, [grant()], fixture.departments).map((department) => department.id)).toEqual(['home', 'other'])
@@ -90,6 +102,7 @@ describe('directory access never authorizes authoring', () => {
       () => store.uploadVersion(foreign.id, pdf('replacement.pdf')),
       () => store.deleteVersion(foreign.id, '1'), () => store.addCoAuthors(foreign.id, ['route-target']),
       () => store.removeCoAuthor(foreign.id, 'writer'), () => store.runCheck(foreign.id),
+      () => store.updateDescription(foreign.id, 'Changed by a visitor'),
       () => store.shiftDueDates(foreign.id, 3),
     ]
     for (const action of actions) await refused(action)

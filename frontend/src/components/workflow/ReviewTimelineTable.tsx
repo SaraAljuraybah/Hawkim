@@ -2,7 +2,8 @@ import { useId, useState, type ReactNode } from 'react'
 import { reviewFlowEn } from '../../content/reviewFlow.en'
 import type { SopWorkflowContent } from '../../content/types'
 import type { Sop, TimelineEvent } from '../../data/mock/types'
-import { formatDateTime } from '../../lib/format'
+import { formatReviewDate, formatReviewDateTime as formatDateTime, formatReviewDateTimeNoZone } from '../../lib/format'
+import { visibleTimelineEvents } from '../../lib/releaseScope'
 import { commentForEvent, timelineRecipients } from '../../lib/workflow'
 import { useDepartments } from '../../state/departmentsContext'
 import { useUsers } from '../../state/usersContext'
@@ -13,6 +14,8 @@ interface ReviewTimelineTableProps {
   content: SopWorkflowContent
   /** The author's page: returns are shown as sent to the main author only (in "To"). */
   mainAuthorOnly?: boolean
+  /** The author's page: only the actions in the current release's scope (see lib/releaseScope). */
+  releaseScoped?: boolean
 }
 
 /** Comments longer than this are shortened, with View more / View less. */
@@ -60,16 +63,16 @@ function Comment({ text, content }: { text: string | undefined; content: SopWork
 }
 
 /**
- * Review timeline (PBI 24) as a table: every action, newest first, with who did it,
+ * Review timeline (PBI 24) as a table: every action, oldest first, with who did it,
  * to whom, when, the version and the comment (a return's or decision's comment, a
  * note or a response). Stacked cards on phones. Used on the author's workflow page
  * (where a return's "To" shows only the main author) and on the review page.
  */
-export function ReviewTimelineTable({ sop, content, mainAuthorOnly = false }: ReviewTimelineTableProps) {
+export function ReviewTimelineTable({ sop, content, mainAuthorOnly = false, releaseScoped = false }: ReviewTimelineTableProps) {
   const { timeline, versionTemplate, roles } = content
   const { nameOf } = useUsers()
   const { nameOf: departmentName } = useDepartments()
-  const events = [...sop.timeline].reverse()
+  const events = releaseScoped ? visibleTimelineEvents(sop.timeline) : sop.timeline
 
   const action = (event: TimelineEvent) =>
     event.type === 'stage-due-date-set' && event.stage ? timeline.stageDue[event.stage] : timeline.events[event.type]
@@ -78,9 +81,12 @@ export function ReviewTimelineTable({ sop, content, mainAuthorOnly = false }: Re
     timelineRecipients(sop, event, mainAuthorOnly)
       .map((id) => personWithRole(sop, id, roles, nameOf))
       .join(', ')
-  const comment = (event: TimelineEvent) => event.note ?? commentForEvent(sop, event)?.text
+  const deadlineChange = (event: TimelineEvent) => timeline.deadlineChange
+    .replace('{old}', event.previousReviewDueAt ? formatReviewDate(event.previousReviewDueAt) : timeline.noDeadline)
+    .replace('{new}', event.newReviewDueAt ? formatReviewDate(event.newReviewDueAt) : timeline.noDeadline)
+  const comment = (event: TimelineEvent) => event.type === 'review-deadline-changed' ? deadlineChange(event) : event.note ?? commentForEvent(sop, event)?.text
   const version = (event: TimelineEvent) => versionTemplate.replace('{version}', event.version)
-  const date = (event: TimelineEvent) => <time dateTime={event.createdAt}>{formatDateTime(event.createdAt)}</time>
+  const date = (event: TimelineEvent) => <time dateTime={event.createdAt}>{formatReviewDateTimeNoZone(event.createdAt)}</time>
   const empty = (
     <>
       <span aria-hidden="true">—</span>

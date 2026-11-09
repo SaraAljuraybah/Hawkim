@@ -1,11 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { SYSTEM_ACTOR } from '../data/mock/types'
-import { addCoAuthors, createSop, deleteSopVersion, fetchSop, fetchSops, removeCoAuthor, toSop, uploadSopVersion, type SopRow } from './sops'
+import { SopDeleteError } from '../lib/mySops'
+import { addCoAuthors, createSop, deleteSop, deleteSopVersion, fetchSop, fetchSops, removeCoAuthor, toSop, toSopEvidence, uploadSopVersion, type SopRow } from './sops'
 
 const rpc = vi.fn()
+const invoke = vi.fn()
 const query = { select: vi.fn(), eq: vi.fn(), order: vi.fn(), maybeSingle: vi.fn() }
 const from = vi.fn(() => query)
-vi.mock('./supabase', () => ({ supabase: () => ({ rpc, from }) }))
+vi.mock('./supabase', () => ({ supabase: () => ({ rpc, from, functions: { invoke } }) }))
+/** What supabase-js returns for a non-2xx answer from an Edge Function. */
+const refused = (status: number, body: unknown) => ({ message: 'Edge Function returned a non-2xx status code', context: new Response(JSON.stringify(body), { status }) })
 
 beforeEach(() => {
   vi.clearAllMocks()
@@ -36,8 +40,8 @@ const row: SopRow = {
       id: 'chk-1', sop_version: 1, status: 'completed', engine: 'sample', triggered_by: 'uuid-sara', started_at: '2026-10-24T09:05:00Z', completed_at: '2026-10-24T09:05:03Z',
       guideline_versions: { name: 'GVP', version: '4.0' },
       compliance_findings: [
-        { id: 'f2', result: 'partial', justification: 'Second', sop_reference: null, recommended_action: 'Fix it', position: 2, guideline_requirements: { code: 'R2' } },
-        { id: 'f1', result: 'compliant', justification: 'First', sop_reference: 'Section 4.2', recommended_action: null, position: 1, guideline_requirements: { code: 'R1' } },
+        { id: 'f2', result: 'partial', justification: 'Second', sop_reference: null, recommended_action: 'Fix it', position: 2, guideline_requirements: { code: 'R2', module: 'Module I', section: 'I.B.10', section_title: 'Record management', short_title: 'Retention of records', page: 22, summary: 'Records are protected.' } },
+        { id: 'f1', result: 'compliant', justification: 'First', sop_reference: 'Section 4.2', recommended_action: null, position: 1, guideline_requirements: { code: 'R1', module: 'Module I', section: 'I.B.10', section_title: 'Record management', short_title: 'Access to records', page: 22, summary: 'Access is limited.' } },
       ],
     },
   ],
@@ -46,10 +50,10 @@ const row: SopRow = {
       id: 'round-1', version: 1, status: 'open', requested_by: 'uuid-sara', requested_at: '2026-10-24T10:00:00Z', closed_at: null,
       review_requests: [
         { id: 'req-2', seq: 2, reviewer_id: 'uuid-lulwah', status: 'removed', assigned_at: '2026-10-24T10:00:00Z', response_due_date: null, review_duration_days: null,
-          accepted_at: '2026-10-24T11:00:00Z', review_due_date: null, decided_at: '2026-10-24T12:00:00Z', decline_reason: null, comment_id: 'c-1', withdrawn_at: null,
+          accepted_at: '2026-10-24T11:00:00Z', review_due_date: null, decided_at: '2026-10-24T12:00:00Z', decline_reason: null, comment_id: 'c-1', withdrawn_at: null, expired_at: null,
           removed_at: '2026-10-25T09:00:00Z', removed_by: 'uuid-sara', removal_reason: 'Not needed', status_before_removal: 'completed' },
         { id: 'req-1', seq: 1, reviewer_id: 'uuid-noura', status: 'accepted', assigned_at: '2026-10-24T10:00:00Z', response_due_date: '2026-10-26', review_duration_days: 5,
-          accepted_at: '2026-10-24T11:00:00Z', review_due_date: '2026-10-29', decided_at: null, decline_reason: null, comment_id: null, withdrawn_at: null,
+          accepted_at: '2026-10-24T11:00:00Z', review_due_date: '2026-10-29', decided_at: null, decline_reason: null, comment_id: null, withdrawn_at: null, expired_at: null,
           removed_at: null, removed_by: null, removal_reason: null, status_before_removal: null },
       ],
     },
@@ -82,12 +86,58 @@ describe('SOPs from the database', () => {
       id: 'chk-1', sopId: 'uuid-sop', version: '1', status: 'completed', engine: 'sample', startedAt: '2026-10-24T09:05:00Z', completedAt: '2026-10-24T09:05:03Z',
       triggeredById: 'uuid-sara', guideline: { name: 'GVP', version: '4.0' },
       findings: [
-        { id: 'f1', requirementId: 'R1', result: 'compliant', justification: 'First', sopReference: 'Section 4.2' },
-        { id: 'f2', requirementId: 'R2', result: 'partial', justification: 'Second', recommendedAction: 'Fix it' },
+        { id: 'f1', requirementId: 'R1', result: 'compliant', justification: 'First', sopReference: 'Section 4.2', requirement: { id: 'R1', module: 'Module I', section: 'I.B.10', sectionTitle: 'Record management', shortTitle: 'Access to records', page: 22, summary: 'Access is limited.' } },
+        { id: 'f2', requirementId: 'R2', result: 'partial', justification: 'Second', recommendedAction: 'Fix it', requirement: { id: 'R2', module: 'Module I', section: 'I.B.10', sectionTitle: 'Record management', shortTitle: 'Retention of records', page: 22, summary: 'Records are protected.' } },
       ],
     })
     expect(second).toMatchObject({ id: 'chk-2', version: '3', status: 'running', findings: [] })
     expect(second.completedAt).toBeUndefined()
+  })
+
+  it('keeps the SOP text of a finding\'s evidence, in the steps\' order, with section and page', () => {
+    const stored = structuredClone(row)
+    stored.compliance_checks[1].compliance_findings[1].evidence = {
+      requirement_text: 'The requirement.',
+      steps: [
+        { section: '5-4-2', heading: '5 Procedures > 5-4-2', page: 4, result: 'compliant', sop_evidence: '  Update RMP Summary (Part VI). ' },
+        { section: '(start of document)', heading: '', result: 'partial', sop_evidence: 'Second quote.' },
+        { section: '6-1', page: 7, result: 'not-addressed', sop_evidence: '   ' },
+      ],
+    }
+    expect(toSop(stored).complianceChecks[0].findings[0].sopEvidence).toEqual([
+      { section: '5-4-2', page: 4, text: 'Update RMP Summary (Part VI).' },
+      { section: '(start of document)', text: 'Second quote.' },
+    ])
+  })
+
+  it('uses the step\'s whole text when the model quoted nothing, and the quote when both exist', () => {
+    expect(toSopEvidence({ steps: [
+      { section: '5-1-3', page: 4, result: 'not-addressed', sop_evidence: null, sop_text: ' The whole step. ' },
+      { section: '5-2', page: 5, result: 'compliant', sop_evidence: 'The quote.', sop_text: 'The whole step 2.' },
+      { section: '5-3', result: 'partial', sop_evidence: '  ', sop_text: 'The whole step 3.' },
+      { section: '5-4', result: 'not-addressed', sop_evidence: '', sop_text: '  ' },
+      { section: '5-5', result: 'not-addressed', sop_text: 42 },
+    ] })).toEqual([
+      { section: '5-1-3', page: 4, text: 'The whole step.' },
+      { section: '5-2', page: 5, text: 'The quote.' },
+      { section: '5-3', text: 'The whole step 3.' },
+    ])
+  })
+
+  it('ignores missing or malformed evidence without errors', () => {
+    expect(toSopEvidence(null)).toBeUndefined()
+    expect(toSopEvidence(undefined)).toBeUndefined()
+    expect(toSopEvidence('steps')).toBeUndefined()
+    expect(toSopEvidence({ requirement_text: 'Only this.' })).toBeUndefined()
+    expect(toSopEvidence({ steps: 'not a list' })).toBeUndefined()
+    expect(toSopEvidence({ steps: [] })).toBeUndefined()
+    expect(toSopEvidence({ steps: [null, 3, 'text', [], { sop_evidence: '' }, { sop_evidence: 42 }, { section: '1' }] })).toBeUndefined()
+    // A malformed section or page is dropped, the quote kept.
+    expect(toSopEvidence({ steps: [{ section: 5, page: '4', sop_evidence: 'Quote.' }, { section: '1', page: 0, sop_evidence: 'B.' }, { section: '2', page: 1.5, sop_evidence: 'C.' }] })).toEqual([
+      { section: '', text: 'Quote.' }, { section: '1', text: 'B.' }, { section: '2', text: 'C.' },
+    ])
+    // Sample findings (no evidence) get no SOP text.
+    expect(toSop(row).complianceChecks[0].findings.every((finding) => !('sopEvidence' in finding))).toBe(true)
   })
 
   it('keeps the review rounds with their requests in the order they were sent, only with the fields that are set', () => {
@@ -100,6 +150,33 @@ describe('SOPs from the database', () => {
       responseDueDate: '2026-10-26', reviewDurationDays: 5, acceptedAt: '2026-10-24T11:00:00Z', reviewDueDate: '2026-10-29',
     })
     expect(round.assignments[1]).toMatchObject({ decision: 'removed', removedById: 'uuid-sara', removalReason: 'Not needed', decisionBeforeRemoval: 'completed', commentId: 'c-1' })
+  })
+
+  it('preserves the authoritative server deadlines and the per-request policy without recalculating history', () => {
+    const stored = structuredClone(row)
+    const request = stored.review_rounds[0].review_requests[1]
+    request.response_due_at = '2026-10-26T20:59:59.999Z'
+    request.review_due_at = '2026-10-29T20:59:59.999Z'
+    request.deadline_policy = 'riyadh-working-days-v1'
+    expect(toSop(stored).internalReviewRounds![0].assignments[0]).toMatchObject({
+      responseDueDate: '2026-10-26', responseDueAt: '2026-10-26T20:59:59.999Z',
+      reviewDueDate: '2026-10-29', reviewDueAt: '2026-10-29T20:59:59.999Z', deadlinePolicy: 'riyadh-working-days-v1',
+    })
+    request.deadline_policy = 'calendar-v1'
+    expect(toSop(stored).internalReviewRounds![0].assignments[0]).toMatchObject({
+      responseDueAt: request.response_due_at,
+      reviewDueAt: request.review_due_at, deadlinePolicy: 'calendar-v1',
+    })
+  })
+
+  it('leaves missing legacy allocation metadata unset instead of deriving new working-day values', () => {
+    const stored = structuredClone(row)
+    const request = stored.review_rounds[0].review_requests[1]
+    request.deadline_policy = null
+    const assignment = toSop(stored).internalReviewRounds![0].assignments[0]
+    expect(assignment.deadlinePolicy).toBeUndefined()
+    expect(assignment.responseDueDate).toBe('2026-10-26')
+    expect(assignment.reviewDueDate).toBe('2026-10-29')
   })
 
   it('shows the latest round\'s reviewers in the shared views, and keeps the reviewer comments', () => {
@@ -121,7 +198,57 @@ describe('SOPs from the database', () => {
   })
 })
 
+describe('a changed review deadline in the timeline', () => {
+  it('keeps the old and new deadlines, and leaves out an old deadline that was empty', () => {
+    const event = (previous: string | null) => ({ ...row.timeline_events[0], type: 'review-deadline-changed' as const, previous_review_due_at: previous, new_review_due_at: '2026-11-03T20:59:59.999Z' })
+    const stored = { ...row, timeline_events: [event('2026-11-05T20:59:59.999Z')] }
+    expect(toSop(stored).timeline[0]).toMatchObject({ previousReviewDueAt: '2026-11-05T20:59:59.999Z', newReviewDueAt: '2026-11-03T20:59:59.999Z' })
+    expect(toSop({ ...row, timeline_events: [event(null)] }).timeline[0].previousReviewDueAt).toBeUndefined()
+  })
+})
+
 describe('reading SOPs', () => {
+  it('selects the saved deadlines and their policy, but no column outside the schema', async () => {
+    await fetchSops()
+    await fetchSop('uuid-sop')
+    expect(query.select).toHaveBeenCalledTimes(2)
+    for (const [columns] of query.select.mock.calls) {
+      expect(columns).toContain('response_due_at')
+      expect(columns).toContain('review_due_at')
+      expect(columns).toContain('deadline_policy')
+      expect(columns).not.toContain('response_counts_from')
+    }
+  })
+
+  it('reports a failed read instead of retrying with different columns', async () => {
+    const error = { message: 'column review_requests.example does not exist', code: '42703' }
+    query.order.mockResolvedValueOnce({ data: null, error })
+    query.maybeSingle.mockResolvedValueOnce({ data: null, error })
+    await expect(fetchSops()).rejects.toThrow(error.message)
+    await expect(fetchSop('uuid-sop')).rejects.toThrow(error.message)
+    expect(query.select).toHaveBeenCalledTimes(2)
+  })
+
+  it('reads how many procedures the compliance service checked, and nothing else from the check\'s metadata', async () => {
+    const service = (steps: unknown) => toSop({ ...row, compliance_checks: [{ ...row.compliance_checks[1], engine: 'hawkim', steps_checked: steps }] }).complianceChecks[0]
+    expect(service(7).stepsChecked).toBe(7)
+    expect(service(1).stepsChecked).toBe(1)
+    for (const invalid of [null, undefined, 0, -3, 2.5, '7', {}]) expect(service(invalid), String(invalid)).not.toHaveProperty('stepsChecked')
+    // Sample checks have none.
+    expect(toSop(row).complianceChecks[0]).not.toHaveProperty('stepsChecked')
+    await fetchSops()
+    const [columns] = query.select.mock.calls.at(-1)!
+    expect(columns).toContain('steps_checked:metadata->steps_checked')
+    // Never the whole metadata (it holds the service's large audit copy).
+    expect(columns.replace('steps_checked:metadata->steps_checked', '')).not.toMatch(/\bmetadata\b/)
+  })
+
+  it('reads the findings\' evidence (for the SOP text) next to the SOP reference', async () => {
+    await fetchSops()
+    const [columns] = query.select.mock.calls.at(-1)!
+    expect(columns).toContain('sop_reference, evidence,')
+  })
+
   it('names the relationship of each embedded table, since sops and sop_versions are linked twice', async () => {
     await fetchSops()
     await fetchSop('uuid-sop')
@@ -152,13 +279,57 @@ describe('saving SOPs and versions', () => {
     })
   })
 
+  it('refuses blank or overlong titles before calling the database and trims accepted titles', async () => {
+    for (const title of ['', '  ', 'x'.repeat(51)]) {
+      await expect(createSop({ title, departmentId: 'information-technology', file })).rejects.toThrow(/1 to 50/)
+    }
+    expect(rpc).not.toHaveBeenCalled()
+    rpc.mockResolvedValue({ data: 'uuid-new', error: null })
+    await createSop({ title: '  Backup  ', departmentId: 'information-technology', file })
+    expect(rpc).toHaveBeenLastCalledWith('create_sop', expect.objectContaining({ p_title: 'Backup' }))
+  })
+
+  it('uses the existing 50 UTF-16-unit title limit for supplementary Unicode characters', async () => {
+    const title = '😀'.repeat(25)
+    rpc.mockResolvedValue({ data: 'uuid-new', error: null })
+    await createSop({ title, departmentId: 'information-technology', file })
+    expect(rpc).toHaveBeenLastCalledWith('create_sop', expect.objectContaining({ p_title: title }))
+    rpc.mockClear()
+    await expect(createSop({ title: title + 'x', departmentId: 'information-technology', file })).rejects.toThrow(/1 to 50/)
+    expect(rpc).not.toHaveBeenCalled()
+  })
+
   it('uploads and deletes versions through the database functions', async () => {
     rpc.mockResolvedValue({ data: 4, error: null })
     expect(await uploadSopVersion('uuid-sop', file)).toBe('4')
     expect(rpc).toHaveBeenCalledWith('upload_sop_version', { p_sop_id: 'uuid-sop', p_storage_path: 'uuid-sara/a.pdf', p_file_name: 'Backup.pdf' })
-    rpc.mockResolvedValue({ data: null, error: null })
+    // A version (row and file) is deleted by the Edge Function, never the RPC directly.
+    rpc.mockClear()
+    invoke.mockResolvedValue({ data: { deleted: true }, error: null })
     await deleteSopVersion('uuid-sop', '2')
-    expect(rpc).toHaveBeenCalledWith('delete_sop_version', { p_sop_id: 'uuid-sop', p_version: 2 })
+    expect(invoke).toHaveBeenCalledWith('delete-sop', { body: { action: 'delete-version', sopId: 'uuid-sop', version: 2 } })
+    expect(rpc).not.toHaveBeenCalled()
+  })
+
+  it('deletes a whole SOP with its justification through the Edge Function', async () => {
+    invoke.mockResolvedValue({ data: { deleted: true }, error: null })
+    await deleteSop('uuid-sop', 'No longer needed')
+    expect(invoke).toHaveBeenCalledWith('delete-sop', { body: { action: 'delete-sop', sopId: 'uuid-sop', reason: 'No longer needed' } })
+    expect(rpc).not.toHaveBeenCalled()
+  })
+
+  it.each(['not-found', 'not-allowed', 'not-deletable', 'check-running', 'invalid-reason'] as const)('passes on the %s refusal with its code', async (code) => {
+    invoke.mockResolvedValue({ data: null, error: refused(409, { error: code, message: 'From the database' }) })
+    const error = await deleteSop('uuid-sop', 'Reason').catch((caught: unknown) => caught)
+    expect(error).toBeInstanceOf(SopDeleteError)
+    expect(error).toMatchObject({ code, message: 'From the database' })
+  })
+
+  it('reports anything unexpected as failed', async () => {
+    invoke.mockResolvedValue({ data: null, error: refused(500, { error: 'failed' }) })
+    await expect(deleteSop('uuid-sop', 'Reason')).rejects.toMatchObject({ code: 'failed' })
+    invoke.mockResolvedValue({ data: null, error: { message: 'Failed to send a request to the Edge Function' } })
+    await expect(deleteSop('uuid-sop', 'Reason')).rejects.toMatchObject({ code: 'failed', message: 'Failed to send a request to the Edge Function' })
   })
 
   it('adds and removes co-authors through the database functions', async () => {
@@ -171,8 +342,8 @@ describe('saving SOPs and versions', () => {
     await expect(addCoAuthors('uuid-sop', ['uuid-omar'])).rejects.toThrow("SOP's department")
   })
 
-  it('throws when the database refuses', async () => {
-    rpc.mockResolvedValue({ data: null, error: { message: 'At least one version must remain' } })
+  it('throws the database message when it refuses a version delete', async () => {
+    invoke.mockResolvedValue({ data: null, error: refused(409, { error: 'not-deletable', message: 'At least one version must remain' }) })
     await expect(deleteSopVersion('uuid-sop', '1')).rejects.toThrow('At least one version must remain')
   })
 })

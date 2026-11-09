@@ -17,7 +17,7 @@ import {
 import { notificationsEn } from '../../content/notifications.en'
 import type { NotificationType } from '../../lib/notifications'
 import { isReadOnlyDepartment, needsHomeDepartment } from '../../lib/departmentNavigation'
-import { formatRelativeTime } from '../../lib/format'
+import { formatRelativeTime, formatReviewDate } from '../../lib/format'
 import { useActiveDepartment } from '../../state/activeDepartmentContext'
 import { useDepartments } from '../../state/departmentsContext'
 import { useNotifications, type NotificationItem } from '../../state/notificationsContext'
@@ -32,6 +32,7 @@ const ICONS: Record<NotificationType, LucideIcon> = {
   'internal-review-completed': CircleCheck,
   'review-declined': CircleX,
   'review-withdrawn': AlarmClock,
+  'review-expired': AlarmClock,
   'reviewer-removed': CircleX,
   'review-completed': CircleCheck,
   'review-returned': Undo2,
@@ -40,6 +41,7 @@ const ICONS: Record<NotificationType, LucideIcon> = {
   'ready-to-publish': Upload,
   'sop-returned': Undo2,
   response: MessageSquareReply,
+  'review-deadline-changed': Clock,
   'sop-approved': BadgeCheck,
   'sop-published': BookOpen,
   'due-soon': Clock,
@@ -98,19 +100,20 @@ export function NotificationsBell() {
     const fill = (template: string) =>
       template
         .replace('{name}', nameOf(item.actorId))
-        .replace('{code}', item.sopCode ?? '')
+        .replace('{title}', item.sopTitle ?? '')
         .replace('{version}', item.version ?? '')
         .replace('{reason}', item.reason ?? '')
     switch (item.type) {
       case 'internal-review-completed': return fill(t.internalReviewCompleted)
       case 'review-declined': return fill(t.reviewDeclined)
       case 'review-withdrawn': return fill(item.forReviewer ? t.reviewWithdrawn.reviewer : t.reviewWithdrawn.author)
-      case 'reviewer-removed': return fill(t.reviewerRemoved)
+      case 'review-expired': return fill(item.forReviewer ? t.reviewExpired.reviewer : t.reviewExpired.author)
+      case 'reviewer-removed': return fill(item.forReviewer ? t.reviewerRemovedClosed : t.reviewerRemoved)
       case 'review-completed': return fill(t.reviewCompleted)
       case 'review-returned': return fill(t.reviewReturned)
       case 'review-overdue': return fill(t.reviewOverdue)
       case 'assigned-review':
-        return fill(item.via === 'handoff' ? t.handoff : item.via === 'routed' ? t.routed : item.via === 'resubmitted' ? t.resubmitted : t.submitted)
+        return fill(item.via === 'handoff' ? t.handoff : item.via === 'routed' ? t.routed : item.via === 'resubmitted' ? t.resubmitted : item.via === 'resent' ? t.resent : t.submitted)
       case 'assigned-approval':
         return fill(t.assignedApproval)
       case 'ready-to-publish':
@@ -119,6 +122,8 @@ export function NotificationsBell() {
         return fill(t.returned)
       case 'response':
         return fill(t.response)
+      case 'review-deadline-changed':
+        return fill(t.reviewDeadlineChanged).replace('{date}', item.dueAt ? formatReviewDate(item.dueAt) : '')
       case 'sop-approved':
         return fill(t.approved)
       case 'sop-published':
@@ -126,7 +131,7 @@ export function NotificationsBell() {
       case 'due-soon': {
         // Within 24 hours: today, or tomorrow (local dates).
         const today = new Date(now).toDateString() === new Date(item.dueAt ?? '').toDateString()
-        // An internal request not yet accepted is reminded to accept or decline before it's withdrawn.
+        // An internal request not yet accepted is reminded to accept or decline before it expires.
         return fill(item.phase === 'response' ? t.dueSoon.response : t.dueSoon[item.stage ?? 'review']).replace('{day}', today ? t.days.today : t.days.tomorrow)
       }
       case 'overdue':

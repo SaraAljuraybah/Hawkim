@@ -15,6 +15,8 @@ export interface SelectFieldProps extends Omit<SelectHTMLAttributes<HTMLSelectEl
   placeholder?: string
   hint?: string
   error?: string
+  /** Shows a red asterisk after the label (visual only; pass `required` too). */
+  requiredMark?: boolean
   ref?: Ref<HTMLSelectElement>
   className?: string
 }
@@ -26,6 +28,7 @@ export function SelectField({
   placeholder,
   hint,
   error,
+  requiredMark = false,
   ref,
   id,
   value,
@@ -37,7 +40,7 @@ export function SelectField({
   const showingPlaceholder = value === '' || value === undefined
 
   return (
-    <FieldShell label={label} inputId={inputId} hint={hint} hintId={hintId} error={error} errorId={errorId} className={className}>
+    <FieldShell label={label} inputId={inputId} hint={hint} hintId={hintId} error={error} errorId={errorId} requiredMark={requiredMark} className={className}>
       <div className="relative">
         <select
           ref={ref}

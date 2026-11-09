@@ -1,0 +1,20 @@
+GVP REQUIREMENT
+ID: $req_id
+Section: $req_section
+Text:
+$req_text
+
+SOP PASSAGE
+Source: $sop_file
+Heading: $sop_heading
+Text:
+$sop_text
+
+Return this JSON object:
+{
+  "label": "COMPLIANT | PARTIAL | CONFLICT | NOT_ADDRESSED",
+  "sop_evidence": "exact sentence(s) copied from the SOP passage that support the label, or an empty string if none",
+  "missing_or_conflicting_elements": "essential elements that are missing or contradicted, or an empty string",
+  "recommended_action": "one sentence telling the SOP author what to add or change, or an empty string if COMPLIANT",
+  "justification": "one or two short sentences explaining the label"
+}

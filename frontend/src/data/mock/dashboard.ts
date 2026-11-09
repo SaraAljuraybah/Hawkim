@@ -49,7 +49,7 @@ export const recentActivity: ActivityItem[] = [
   {
     id: 'activity-3',
     kind: 'sopRequest',
-    message: 'Your request to access SOP-045 is under review',
+    message: 'Your request to access the SOP Directory is under review',
     timeAgo: '2 days ago',
     status: 'pending',
   },

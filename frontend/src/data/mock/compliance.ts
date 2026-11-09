@@ -66,6 +66,7 @@ const gvp4Requirements: Requirement[] = [
 export const sampleGuidelineVersions: GuidelineVersion[] = [
   {
     id: 'gvp-4-0',
+    title: GVP_NAME,
     version: '4.0',
     issuedDate: '2015-05-27',
     effectiveDate: '2015-09-01',

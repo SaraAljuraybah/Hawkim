@@ -9,6 +9,7 @@ import type { SopsContent } from './types'
 export const sopsEn: SopsContent = {
   
 pageTitle: 'SOP Directory | Hawkim',
+adminPageTitle: 'SOP Directory · Admin | Hawkim',
 title: 'SOP Directory',
 subtitle: 'Browse published SOPs available to you.',
 
@@ -16,13 +17,15 @@ subtitle: 'Browse published SOPs available to you.',
   tabs: {
     all: 'All',
     recent: 'Recently Added',
+    others: 'Others',
   },
   filters: {
     label: 'Search and filter SOPs',
     searchLabel: 'Search SOPs',
-    searchPlaceholder: 'Search by SOP code or title',
-    typeLabel: 'Document Type',
-    types: { all: 'All Document Types', pdf: 'PDF', docx: 'Word' },
+    searchPlaceholder: 'Search by SOP title',
+    sortLabel: 'Sort By',
+    sortNewest: 'Newest to Oldest',
+    sortOldest: 'Oldest to Newest',
     clear: 'Clear Filters',
     empty: 'No SOPs match your search and filters. Try another search or clear the filters.',
     oneResult: '1 SOP found',
@@ -41,28 +44,33 @@ subtitle: 'Browse published SOPs available to you.',
     lastUpdated: 'Last Updated',
   },
   departmentLabel: 'Department',
+  othersSection: 'Others: SOPs of departments that no longer exist',
+  othersEmpty: 'No SOPs in Others.',
   versionTemplate: 'v{version}',
   empty: 'No SOPs in this department yet.',
 
   detail: {
-    pageTitle: '{code} | Hawkim',
+    fileFailed: "The file couldn't be opened. Try again.",
+    pageTitle: '{title} | Hawkim',
+    adminPageTitle: '{title} · Admin | Hawkim',
    back: { label: 'Back to SOP Directory', href: '/sops' },
     exportPdf: 'Export PDF',
     descriptionTitle: 'SOP Description',
-    viewerTitle: '{code} {title} (PDF)',
+    viewerTitle: '{title} (PDF)',
     fallback: {
       text: "Your browser can't display the PDF here. Open it in a new tab or export it instead.",
       openPdf: 'Open PDF',
       newTabHint: '(opens in a new tab)',
     },
     docx: {
-      text: "Preview isn't available for Word documents yet.",
       download: 'Download Document',
+      viewerTitle: '{title} (Word document preview)',
     },
     noFile: "The file for this SOP isn't available yet.",
     noAccess: {
       title: "You don't have access to this SOP",
       text: 'This SOP belongs to {department}. Request access to that department to view it.',
+      adminText: 'This SOP belongs to {department}.',
       requestAccess: 'Request Access',
     },
     pendingAccess: {

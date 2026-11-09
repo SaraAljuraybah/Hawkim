@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { InternalReviewRound, Sop } from '../data/mock/types'
 import { projectReviewers } from './internalReviewStatus'
-import { previousReport } from './compliance'
 import { reviewSopForUser } from './reviewAccess'
 
 function fixture(): Sop {
@@ -28,12 +27,21 @@ describe('review document access by assigned version', () => {
     expect(JSON.stringify(access)).not.toContain('private-v2')
     expect(JSON.stringify(source)).toBe(before)
   })
+  it('keeps a response addressed to the reviewer, even on a version they never received, and no one else\'s', () => {
+    const source = fixture()
+    const response = (id: string, recipient: string) => ({ id, version: '2', type: 'response' as const, actorId: 'author', recipientIds: [recipient], note: 'Thanks', createdAt: '2026-10-24T09:00:00Z' })
+    source.timeline.push(response('to-a', 'a'), response('to-b', 'b'))
+    const events = reviewSopForUser(source, 'a')!.sop.timeline
+    expect(events.map((event) => event.id)).toContain('to-a')
+    expect(events.map((event) => event.id)).not.toContain('to-b')
+    expect(events.map((event) => event.id)).not.toContain('event-2')
+  })
+
   it('allows current work but omits reports of versions the reviewer never received', () => {
     const access = reviewSopForUser(fixture(), 'b')!
     expect(access.historical).toBe(false)
     expect(access.sop.fileUrl).toBe('/private-v2.pdf')
     expect(access.sop.complianceChecks.map((check) => check.version)).toEqual(['2'])
-    expect(previousReport(access.sop, access.sop.complianceChecks[0])).toBeUndefined()
   })
   it('does not reintroduce a deleted historical version or grant access to an outsider', () => {
     const sop = fixture()

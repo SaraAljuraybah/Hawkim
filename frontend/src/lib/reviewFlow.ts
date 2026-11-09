@@ -1,7 +1,7 @@
 import type { Department, DepartmentReview, DepartmentWorkflowConfiguration, ReviewFlow, ReviewScope, Sop, TimelineEvent, User } from '../data/mock/types'
 import { hasCurrentCheck } from './compliance'
 import { todayIsoDate } from './format'
-import { currentReviewer, isApprover, isAuthor, isAuthorOrCoAuthor, parseDueDate, requiredReviewsComplete, returnAsReviewer } from './workflow'
+import { currentReviewer, isApprover, isAuthor, isAuthorOrCoAuthor, parseDueDate, requiredReviewsComplete, returnAsReviewer, reviewDateDueAt, SUBMIT_COMMENT_MAX } from './workflow'
 
 export interface ReviewEnvironment { users: User[]; departments: Department[] }
 export type ReviewAction =
@@ -35,6 +35,15 @@ export function eligibleReviewers(sop: Sop, departmentId: string, users: User[],
     !isAuthorOrCoAuthor(sop, user.id) && !isApprover(sop, user.id) && !excluded.includes(user.id))
 }
 /**
+ * Who can be sent an SOP in internal review: eligible reviewers of any department that still
+ * exists, without the Quality Document Controller of its department, who approves it.
+ */
+export function assignableReviewers(sop: Sop, { users, departments }: ReviewEnvironment): User[] {
+  const controllerId = departments.find((department) => department.id === sop.departmentId)?.qualityControllerId
+  const open = departments.filter((department) => !department.removedAt).map((department) => department.id)
+  return users.filter((user) => user.id !== controllerId && open.includes(user.departmentId) && eligibleReviewers(sop, user.departmentId, [user]).length > 0)
+}
+/**
  * Within a review round, a reviewer keeps the deadline already set (e.g. when Reviewer 2
  * returns it to Reviewer 1 and it's forwarded again). Resubmit clears every deadline, so
  * in a new round the next reviewer can be given a new one.
@@ -45,11 +54,13 @@ export function keepsRoundDeadline(sop: Sop, userId: string): boolean {
 function assign(sop: Sop, userId: string, dueDate?: string): Sop {
   const existing = sop.reviewers.find((p) => p.userId === userId)
   const date = dueDate?.trim()
-  const parsed = parseDueDate(date ?? '')
-  assert(!keepsRoundDeadline(sop, userId) || !date || date === existing?.dueDate, 'A reviewer keeps the deadline already set in this review round')
+  const keepsDeadline = keepsRoundDeadline(sop, userId)
+  const assignedAt = new Date()
+  const parsed = parseDueDate(keepsDeadline ? '' : date ?? '', assignedAt)
+  assert(!keepsDeadline || !date || date === existing?.dueDate, 'A reviewer keeps the deadline already set in this review round')
   assert(parsed.valid, 'Choose an optional review deadline of today or a future date')
   const assignment = { ...existing, userId, decision: 'pending' as const, decidedAt: undefined,
-    ...(date ? { dueDate: date, assignedDueDays: parsed.days } : existing ? {} : { assignedDueDays: null }) }
+    ...(date && !keepsDeadline ? { dueDate: date, reviewDueAt: reviewDateDueAt(date), assignedAt: assignedAt.toISOString(), assignedDueDays: parsed.days } : existing ? {} : { assignedDueDays: null }) }
   return { ...sop, reviewers: existing ? sop.reviewers.map((p) => p.userId === userId ? assignment : p) : [...sop.reviewers, assignment] }
 }
 function handoff(sop: Sop, flow: ReviewFlow, actorId: string, userId: string, departmentId?: string): Sop {
@@ -62,7 +73,7 @@ export function startReview(sop: Sop, actorId: string, guidelineVersion: string,
   assert(hasCurrentCheck(sop, guidelineVersion), 'Run a compliance check against the current guideline first')
   assert(env.departments.some((d) => d.id === sop.departmentId && !d.removedAt), 'The SOP department is unavailable')
   assert(eligibleReviewers(sop, sop.departmentId, env.users).some((u) => u.id === reviewerId), 'Select exactly one eligible reviewer from the SOP department')
-  assert(!note || note.trim().length <= 500, 'Submission comments must be at most 500 characters')
+  assert(!note || note.trim().length <= SUBMIT_COMMENT_MAX, `Submission comments must be at most ${SUBMIT_COMMENT_MAX} characters`)
   const flow: ReviewFlow = { stage: 'reviewer-1', reviewer1Id: reviewerId, activeReviewerId: reviewerId, sameDivision: 'pending', crossDivision: 'pending', departments: [] }
   const submitted = assign({ ...sop, status: 'in-review', reviewFlow: flow, reviewers: [], approvers: [], reviewDueDays: undefined, approvalDueDays: undefined, reviewDueAt: undefined, approvalDueAt: undefined }, reviewerId, dueDate)
   return record(submitted, 'submitted', actorId, { recipientIds: [reviewerId], ...(note?.trim() ? { note: note.trim() } : {}) })

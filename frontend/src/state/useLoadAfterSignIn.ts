@@ -6,32 +6,32 @@ export type LoadStatus = 'loading' | 'ready' | 'error'
 
 /**
  * Loads data from the database once this tab has a signed-in user (row level security
- * shows nothing before that), then keeps it for the rest of the tab, also across signing
- * out and in, like the other in-memory stores. After an error, reloading the page tries again.
+ * shows nothing before that), separately for each identity, ignoring late replies after
+ * sign-out or a user switch. A prior user's ready state never carries over.
  * `load` and `onLoaded` must be stable (module functions or useCallback).
  * Must be inside <SessionProvider>.
  */
 export function useLoadAfterSignIn<T>(load: () => Promise<T>, onLoaded: (data: T) => void): LoadStatus {
-  const signedIn = useSession().status === 'signed-in'
-  const [status, setStatus] = useState<'idle' | 'ready' | 'error'>('idle')
+  const userId = useSession().user?.id ?? ''
+  const [loaded, setLoaded] = useState<{ userId: string; status: LoadStatus } | null>(null)
 
   useEffect(() => {
-    if (!signedIn || status !== 'idle') return
+    if (!userId) return
     let active = true
     load().then(
       (data) => {
         if (!active) return
         onLoaded(data)
-        setStatus('ready')
+        setLoaded({ userId, status: 'ready' })
       },
       () => {
-        if (active) setStatus('error')
+        if (active) setLoaded({ userId, status: 'error' })
       },
     )
     return () => {
       active = false
     }
-  }, [signedIn, status, load, onLoaded])
+  }, [userId, load, onLoaded])
 
-  return status === 'idle' ? 'loading' : status
+  return userId && loaded?.userId === userId ? loaded.status : 'loading'
 }

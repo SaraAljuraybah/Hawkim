@@ -12,6 +12,17 @@ export function formatDate(isoDate: string, locale = 'en-US'): string {
   }).format(new Date(isoDate))
 }
 
+/** A date-only value with its weekday, e.g. "Mon, Nov 9, 2026" (in UTC, as formatDate). */
+export function formatDateWithWeekday(isoDate: string, locale = 'en-US'): string {
+  return new Intl.DateTimeFormat(locale, {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    timeZone: 'UTC',
+  }).format(new Date(isoDate))
+}
+
 /** Today's date in the user's local time zone as an ISO date ("2024-01-12"). */
 export function todayIsoDate(date = new Date()): string {
   const month = String(date.getMonth() + 1).padStart(2, '0')
@@ -41,6 +52,28 @@ export function formatDateTime(isoDateTime: string, locale = 'en-US'): string {
     year: 'numeric',
     hour: 'numeric',
     minute: '2-digit',
+  }).format(new Date(isoDateTime))
+}
+
+/** Review timestamps always use Riyadh time (as the database does), including saved older deadlines. */
+export function formatReviewDateTime(isoDateTime: string, locale = 'en-US'): string {
+  return new Intl.DateTimeFormat(locale, {
+    month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit',
+    timeZone: 'Asia/Riyadh', timeZoneName: 'short',
+  }).format(new Date(isoDateTime))
+}
+
+/** The same Riyadh date and time without the time zone label, e.g. "Nov 1, 2026, 12:46 AM". */
+export function formatReviewDateTimeNoZone(isoDateTime: string, locale = 'en-US'): string {
+  return new Intl.DateTimeFormat(locale, {
+    month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Riyadh',
+  }).format(new Date(isoDateTime))
+}
+
+/** A review timestamp's date in Riyadh, e.g. "Nov 1, 2026" (formatDate is for date-only values). */
+export function formatReviewDate(isoDateTime: string, locale = 'en-US'): string {
+  return new Intl.DateTimeFormat(locale, {
+    month: 'short', day: 'numeric', year: 'numeric', timeZone: 'Asia/Riyadh',
   }).format(new Date(isoDateTime))
 }
 

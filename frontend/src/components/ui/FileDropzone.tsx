@@ -32,7 +32,7 @@ interface FileDropzoneProps {
   browseRef?: Ref<HTMLButtonElement>
   /** Allow several files (default). When false, a new file replaces the current one. */
   multiple?: boolean
-  /** Validation error from the form (e.g. "Upload an SOP file."), shown under the zone. */
+  /** Validation error from the form (e.g. "Add an SOP file."), shown under the zone. */
   error?: string
   className?: string
 }

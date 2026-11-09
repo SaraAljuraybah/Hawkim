@@ -1,8 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Sop, User } from '../data/mock/types'
-import { acceptInternalReview, currentInternalRound, decideInternalReview, declineInternalReview, removeInternalReviewer, startInternalReview, withdrawUnanswered } from './internalReview'
+import { acceptInternalReview, currentInternalRound, decideInternalReview, declineInternalReview, removeInternalReviewer, startInternalReview, expireUnanswered, resendInternalReview } from './internalReview'
 import { latestAssignmentOf } from './internalReviewStatus'
-import { deriveNotifications, isDueNotification, type AppNotification } from './notifications'
+import { endOfRiyadhDay } from './riyadhWorkingDays'
+import { deriveNotifications, isDueNotification, isRead, type AppNotification } from './notifications'
+// These tests cover the Riyadh working-day policy as it behaves once activated (lib/deadlinePolicy.ts).
+// The pending (currently active) backend-compatible behaviour is covered in lib/deadlinePolicy.test.tsx.
+vi.mock('./deadlinePolicy', () => ({ WORKING_DAY_DEADLINES_ACTIVE: true }))
 
 function person(id: string, permissions: User['permissions']): User {
   return { id, name: id, email: id + '@example.test', initials: 'TT', permissions, departmentId: 'home' }
@@ -11,13 +15,13 @@ const env = () => ({ users: [person('author', ['author']), person('coauthor', ['
 function draft(): Sop {
   return { id: 'test', code: 'TEST', title: 'Notifications', version: '1', departmentId: 'home', authorId: 'author', coAuthorIds: ['coauthor'], status: 'draft', lastUpdated: '2026-10-23', fileName: 'test.pdf', fileType: 'pdf', versions: [{ version: '1', fileName: 'test.pdf', fileType: 'pdf', uploadedAt: new Date().toISOString() }], reviewers: [], approvers: [], comments: [], timeline: [], complianceChecks: [{ id: 'check', sopId: 'test', version: '1', status: 'completed', startedAt: new Date().toISOString(), guideline: { name: 'GVP', version: '4.0' }, findings: [] }] }
 }
-const start = () => startInternalReview(draft(), 'author', '4.0', { reviewerIds: ['a', 'b'], responseDueDate: '2026-10-25', reviewDurationDays: 2 }, env())
+const start = () => startInternalReview(draft(), 'author', '4.0', { reviewerIds: ['a', 'b'], reviewDurationDays: 2 }, env())
 const id = (sop: Sop, userId: string) => latestAssignmentOf(currentInternalRound(sop), userId)!.id
 const accept = (sop: Sop, userId: string) => acceptInternalReview(sop, userId, currentInternalRound(sop)!.id, id(sop, userId), env())
 function of(userId: string, sop: Sop, type: AppNotification['type'], now = Date.now()) {
   return deriveNotifications(userId, { sops: [sop], requests: [], now }).filter((item) => item.type === type)
 }
-beforeEach(() => vi.useFakeTimers({ now: new Date(2026, 9, 23, 12) }))
+beforeEach(() => vi.useFakeTimers({ now: new Date('2026-10-23T12:00:00+03:00') }))
 afterEach(() => vi.useRealTimers())
 
 describe('internal review request notifications', () => {
@@ -27,11 +31,30 @@ describe('internal review request notifications', () => {
     for (const user of ['author', 'coauthor']) expect(of(user, sop, 'review-declined')).toEqual([expect.objectContaining({ actorId: 'a', reason: 'On leave', link: '/my-sops/test' })])
     expect(of('b', sop, 'review-declined')).toEqual([])
   })
-  it('tells the author and the reviewer when a request is withdrawn', () => {
-    const sop = withdrawUnanswered(start(), new Date(2026, 9, 25, 23, 59, 59, 999).getTime())
-    expect(of('author', sop, 'review-withdrawn')).toEqual(expect.arrayContaining([expect.objectContaining({ actorId: 'a', forReviewer: false }), expect.objectContaining({ actorId: 'b', forReviewer: false })]))
-    expect(of('a', sop, 'review-withdrawn')).toEqual([expect.objectContaining({ actorId: 'a', forReviewer: true, link: '/reviews/test' })])
-    expect(of('coauthor', sop, 'review-withdrawn')).toEqual([])
+  it('tells the main author and the reviewer when a request expires, not co-authors', () => {
+    const sop = expireUnanswered(start(), Date.parse(endOfRiyadhDay('2026-10-26')))
+    expect(of('author', sop, 'review-expired')).toEqual(expect.arrayContaining([expect.objectContaining({ actorId: 'a', forReviewer: false }), expect.objectContaining({ actorId: 'b', forReviewer: false })]))
+    expect(of('a', sop, 'review-expired')).toEqual([expect.objectContaining({ actorId: 'a', forReviewer: true, link: '/reviews/test' })])
+    expect(of('coauthor', sop, 'review-expired')).toEqual([])
+    expect(of('b', sop, 'review-expired')).toEqual([expect.objectContaining({ actorId: 'b', forReviewer: true })])
+  })
+  it('tells only the reviewer when a request is sent again, and the first notification stops counting as unresolved', () => {
+    const sop = expireUnanswered(start(), Date.parse(endOfRiyadhDay('2026-10-26')))
+    const sent = resendInternalReview(sop, 'author', id(sop, 'a'), env())
+    expect(of('a', sent, 'assigned-review').filter((item) => item.via === 'resent')).toEqual([expect.objectContaining({ link: '/reviews/test' })])
+    for (const user of ['author', 'coauthor', 'b']) expect(of(user, sent, 'assigned-review').filter((item) => item.via === 'resent')).toEqual([])
+    expect(isRead(of('a', sent, 'review-expired')[0], new Set(), Date.parse('2026-11-30T00:00:00Z'))).toBe(true)
+  })
+  it('keeps an expired request unread however old, until someone acts on it', () => {
+    const sop = expireUnanswered(start(), Date.parse(endOfRiyadhDay('2026-10-26')))
+    const later = Date.parse('2026-11-30T00:00:00Z')
+    const [notification] = of('a', sop, 'review-expired')
+    expect(isRead(notification, new Set(), later)).toBe(false)
+    expect(isRead(notification, new Set([notification.id]), later)).toBe(true)
+    const round = currentInternalRound(sop)!
+    const removed = removeInternalReviewer(sop, 'author', round.id, id(sop, 'a'), 'Asked someone else', env())
+    expect(isRead(of('a', removed, 'review-expired')[0], new Set(), later)).toBe(true)
+    expect(isRead(of('b', removed, 'review-expired')[0], new Set(), later)).toBe(false)
   })
   it('tells a removed reviewer who removed them and why', () => {
     const started = start()
@@ -53,14 +76,14 @@ describe('internal review request notifications', () => {
   })
   it('reminds reviewers 24 hours before the response due date and before the review due date', () => {
     const sop = start()
-    expect(of('a', sop, 'due-soon', new Date(2026, 9, 24, 23).getTime())).toHaveLength(0)
-    expect(of('a', sop, 'due-soon', new Date(2026, 9, 25, 8).getTime())).toEqual([expect.objectContaining({ phase: 'response' })])
+    expect(of('a', sop, 'due-soon', new Date('2026-10-25T23:00:00+03:00').getTime())).toHaveLength(0)
+    expect(of('a', sop, 'due-soon', new Date('2026-10-26T08:00:00+03:00').getTime())).toEqual([expect.objectContaining({ phase: 'response' })])
     const accepted = accept(sop, 'a')
-    expect(of('a', accepted, 'due-soon', new Date(2026, 9, 25, 8).getTime())).toEqual([expect.objectContaining({ phase: 'review' })])
+    expect(of('a', accepted, 'due-soon', new Date('2026-10-26T08:00:00+03:00').getTime())).toEqual([expect.objectContaining({ phase: 'review' })])
   })
   it('tells the author and the reviewer once an accepted review is overdue', () => {
     const accepted = accept(start(), 'a')
-    const late = new Date(2026, 9, 25, 23, 59, 59, 999).getTime()
+    const late = Date.parse(endOfRiyadhDay('2026-10-26'))
     expect(of('author', accepted, 'review-overdue', late)).toEqual([expect.objectContaining({ actorId: 'a', link: '/my-sops/test' })])
     expect(of('a', accepted, 'overdue', late)).toEqual([expect.objectContaining({ phase: 'review' })])
     expect(of('author', accepted, 'review-overdue', late - 1)).toEqual([])

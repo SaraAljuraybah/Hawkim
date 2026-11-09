@@ -1,13 +1,13 @@
 import { createContext, useContext } from 'react'
-import type { ApprovalDecisionSnapshot, Sop } from '../data/mock/types'
+import type { ApprovalDecisionSnapshot, Sop, ClosedReviewRequest } from '../data/mock/types'
 import type { ApprovalSubmissionOptions } from '../lib/approval'
 import type { ReviewAction } from '../lib/reviewFlow'
 import type { InternalReviewOptions } from '../lib/internalReview'
 import type { LoadStatus } from './useLoadAfterSignIn'
 
 /**
- * What the author provides when uploading; everything else is set by the store and
- * the database. A new SOP has no co-authors (they're added later from the SOP page).
+ * What the author provides when uploading; the local store sets everything else.
+ * A new SOP has no co-authors (they're added later from the SOP page).
  */
 export type NewDraft = Pick<Sop, 'title' | 'departmentId' | 'description'> & { file: File }
 
@@ -22,11 +22,13 @@ export interface ResubmitOptions {
 }
 
 export interface SopsStore {
-  /** Whether the signed-in person's SOPs have been read from the database. */
+  /** Whether the SOPs have been read from the database for the signed-in user. */
   status: LoadStatus
-  /** Every SOP, at every lifecycle stage (the directory shows the published ones). */
+  /** Only this identity's authorized SOP views (the directory further limits published access). */
   sops: Sop[]
-  /** Uploads the file and saves a new draft by the current user (the database gives it its number and v1); returns it. */
+  /** The signed-in reviewer's own closed requests on SOPs they can no longer read, for their notifications. */
+  closedRequests: ClosedReviewRequest[]
+  /** Creates a local draft and file preview by the current user; lost on reload. */
   addDraft: (draft: NewDraft) => Promise<Sop>
 
   // Actions by the current user (author or co-author). Each throws if not allowed.
@@ -44,18 +46,30 @@ export interface SopsStore {
   addInternalReviewers: (sopId: string, options: SubmitOptions) => Promise<void>
   /** Main author: remove a reviewer from the current round at any time, with a required reason. */
   removeInternalReviewer: (sopId: string, roundId: string, assignmentId: string, reason: string) => Promise<void>
+  /** Main author: send an expired request to the same reviewer again, with a new response deadline. */
+  resendInternalReview: (sopId: string, assignmentId: string) => Promise<void>
+  changeReviewDeadline: (sopId: string, roundId: string, assignmentId: string, days: number) => Promise<void>
   /** Main author: legacy resubmission with an optional new date and comments (internal reviews use submitForReview). */
   resubmit: (sopId: string, options?: ResubmitOptions) => void
   /** Uploads the file as the next version (Draft or Returned). It isn't checked until someone runs a compliance check. */
   uploadVersion: (sopId: string, file: File) => Promise<void>
   /** Main author or its uploader: deletes a version (Draft or Returned; at least one remains). */
   deleteVersion: (sopId: string, version: string) => Promise<void>
+  /**
+   * Main author: permanently deletes an SOP in New SOPs or In Progress, with its rows and files,
+   * and a required justification. It is gone from this tab at once and never read back.
+   * Throws a SopDeleteError when refused.
+   */
+  deleteSop: (sopId: string, reason: string) => Promise<void>
   /** Author or co-author: replies to the latest round's comments. */
-  addResponse: (sopId: string, text: string) => Promise<void>
+  /** `requestId`: the reviewer's request a comments dialog responds to (only used while PER_REVIEWER_RESPONSE_ACTIVE is on). */
+  addResponse: (sopId: string, text: string, requestId?: string) => Promise<void>
   /** Main author: adds one or more co-authors in a single update (all or none). */
   addCoAuthors: (sopId: string, userIds: string[]) => Promise<void>
   /** Main author: removes a co-author. */
   removeCoAuthor: (sopId: string, userId: string) => Promise<void>
+  /** Main author: changes the description any time before the SOP is published. */
+  updateDescription: (sopId: string, text: string) => Promise<void>
   /**
    * Runs a compliance check of the current version (PBI 4, 29). It is "running"
    * for a moment, then saves its report. Refused if a check is already running.
@@ -66,7 +80,7 @@ export interface SopsStore {
   // demo panel). Complete review and Approve take an optional comment.
   completeReview: (sopId: string, reviewerId: string, text?: string) => void
   returnAsReviewer: (sopId: string, reviewerId: string, text: string) => void
-  /** An assigned reviewer adds a reviewer from another department (PBI 23). */
+  /** Cross-department routing (PBI 23); pending: reviewer assignment is Author-controlled, so this always refuses. */
   routeToReviewer: (sopId: string, reviewerId: string, newReviewerId: string, note?: string) => void
   approveAs: (sopId: string, approverId: string, text?: string, snapshot?: ApprovalDecisionSnapshot) => void
   returnAsApprover: (sopId: string, approverId: string, text: string, snapshot?: ApprovalDecisionSnapshot) => void

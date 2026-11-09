@@ -8,12 +8,14 @@
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "test": "vitest run",
+    "test:calendar": "node --test ../supabase/tests/calendar_parity.test.mjs",
     "test:watch": "vitest",
     "preview": "vite preview",
     "generate:sample-sops": "node scripts/generate-sample-sops.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.118.0",
+    "docx-preview": "0.4.1",
     "lucide-react": "^1.50.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",

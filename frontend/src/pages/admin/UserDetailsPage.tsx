@@ -1,42 +1,39 @@
-import { useRef, useState, type ReactNode, type Ref } from 'react'
+import { useRef, useState, type ReactNode } from 'react'
 import { flushSync } from 'react-dom'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, CircleAlert, CircleCheck, Trash2 } from 'lucide-react'
-import { blockerMessage } from '../../components/admin/blockerMessages'
+import { ArrowLeft, CircleAlert, CircleCheck, Pencil } from 'lucide-react'
+import { DeleteUserButton } from '../../components/admin/DeleteUserButton'
+import { RefusedBox } from '../../components/admin/RefusedBox'
 import { PermissionBadges, UserAvatar } from '../../components/admin/UserBits'
 import { Button } from '../../components/ui/Button'
-import { CheckboxGroup } from '../../components/ui/CheckboxGroup'
-import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
 import { StatusBadge } from '../../components/ui/StatusBadge'
 import { adminEn } from '../../content/admin.en'
 import { usersEn } from '../../content/users.en'
-import type { Permission, User } from '../../data/mock/types'
+import type { User } from '../../data/mock/types'
 import { useDocumentTitle } from '../../hooks/useDocumentTitle'
-import { getDirectoryDepartments } from '../../lib/departments'
-import { ADMIN_USERS_PATH } from '../../lib/routes'
-import { deleteBlockers, involvement, PERMISSIONS, permissionChangeBlockers } from '../../lib/userAdmin'
+import { ADMIN_USERS_PATH, adminUserEditPath } from '../../lib/routes'
+import { divisionLabel, involvement, isSystemAdmin } from '../../lib/userAdmin'
 import { useDepartments } from '../../state/departmentsContext'
-import { useRequests } from '../../state/requestsContext'
-import { useCurrentUser } from '../../state/sessionContext'
 import { useSops } from '../../state/sopsContext'
 import { useUsers } from '../../state/usersContext'
 import { NotFoundPage } from '../NotFoundPage'
 import type { AdminUsersLocationState } from './AdminUsersPage'
 
-/** Set by Add user, to show "User added." */
+/** Set by Add User, to say the user was added and whether their invitation went out. */
 export interface UserDetailsLocationState {
   added?: boolean
+  invitationFailed?: boolean
 }
 
 /**
- * A user's page in the admin portal ("/admin/users/:id", PBI 17, 18, 19): their
- * details and departments, their permissions (granted or revoked here), the SOPs
- * they are involved in, and Delete user. Changes the rules refuse are explained,
- * naming the SOPs that block them. Deleted and unknown users show Not Found.
+ * A staff member's page in the admin portal ("/admin/users/:id", PBI 17, 19): their details, the SOPs
+ * they are involved in, and Edit Staff and Delete in the header. Edit Staff opens the edit form, which
+ * saves to the database. A System Admin has no division, department or position, so those aren't
+ * listed for them. Deleted and unknown staff show Not Found.
  */
 export function UserDetailsPage() {
   const { id } = useParams()
-  // Another user starts fresh (their permissions, no messages).
+  // Another user starts fresh (no messages).
   return <UserDetails key={id} id={id} />
 }
 
@@ -74,108 +71,76 @@ function Panel({ id, title, children }: { id: string; title: string; children: R
   )
 }
 
-/** Reasons a change was refused (announced, and focused so keyboard users land on it). */
-function RefusedBox({ title, messages, ref }: { title: string; messages: string[]; ref: Ref<HTMLDivElement> }) {
-  return (
-    <div
-      ref={ref}
-      role="alert"
-      tabIndex={-1}
-      className="mt-4 rounded-lg border border-status-rejected-fg/25 bg-status-rejected-bg px-4 py-3 text-sm text-status-rejected-fg focus:outline-none"
-    >
-      <p className="flex items-start gap-2 font-semibold">
-        <CircleAlert aria-hidden="true" className="mt-0.5 size-4 shrink-0" strokeWidth={2} />
-        {title}
-      </p>
-      <ul className="mt-1.5 list-disc space-y-1 pl-11">
-        {messages.map((message) => (
-          <li key={message}>{message}</li>
-        ))}
-      </ul>
-    </div>
-  )
-}
-
 function UserPanels({ user }: { user: User }) {
   const text = adminEn.userDetails
-  const { activeUsers, updatePermissions, deleteUser } = useUsers()
-  const admin = useCurrentUser()
   const { sops } = useSops()
-  const { requests } = useRequests()
-  const { activeDepartments, nameOf: departmentName } = useDepartments()
+  const { getDepartment } = useDepartments()
   const navigate = useNavigate()
   const location = useLocation()
-  const rules = { actorId: admin.id, users: activeUsers, sops }
 
   const [added, setAdded] = useState(() => !!(location.state as UserDetailsLocationState | null)?.added)
-  const [selected, setSelected] = useState<Permission[]>(user.permissions)
-  const [saved, setSaved] = useState(false)
-  const [permissionErrors, setPermissionErrors] = useState<string[]>([])
-  const [deleteErrors, setDeleteErrors] = useState<string[]>([])
-  const [confirming, setConfirming] = useState(false)
-  const permissionErrorRef = useRef<HTMLDivElement>(null)
+  const [invitationFailed] = useState(() => !!(location.state as UserDetailsLocationState | null)?.invitationFailed)
+  const [deleteRefused, setDeleteRefused] = useState<{ title: string; reasons: string[] }>()
   const deleteErrorRef = useRef<HTMLDivElement>(null)
-  const deleteButtonRef = useRef<HTMLButtonElement | null>(null)
 
-  const directoryAccess = getDirectoryDepartments(user, requests, activeDepartments).filter((department) => department.id !== user.departmentId)
   const involved = involvement(user.id, sops)
+  const department = getDepartment(user.departmentId)
 
-  function savePermissions() {
-    setAdded(false)
-    const blockers = permissionChangeBlockers(user, selected, rules)
-    if (blockers.length > 0) {
-      setSaved(false)
-      flushSync(() => setPermissionErrors(blockers.map((blocker) => blockerMessage(blocker, user, text.blockers, true))))
-      permissionErrorRef.current?.focus()
-      return
-    }
-    updatePermissions(user.id, selected, rules)
-    setPermissionErrors([])
-    setSaved(true)
-  }
-
-  function startDelete() {
-    setAdded(false)
-    const blockers = deleteBlockers(user, rules)
-    if (blockers.length > 0) {
-      flushSync(() => setDeleteErrors(blockers.map((blocker) => blockerMessage(blocker, user, text.blockers, false))))
-      deleteErrorRef.current?.focus()
-      return
-    }
-    setDeleteErrors([])
-    setConfirming(true)
-  }
-
-  function confirmDelete() {
-    setConfirming(false)
-    deleteUser(user.id, rules)
-    const state: AdminUsersLocationState = { deleted: text.delete.done.replace('{name}', user.name) }
+  function deleted(message: string) {
+    const state: AdminUsersLocationState = { deleted: message }
     navigate(ADMIN_USERS_PATH, { state })
   }
 
-  const details = [
-    { label: text.details.email, value: <span className="break-all">{user.email}</span> },
-    { label: text.details.homeDepartment, value: departmentName(user.departmentId) },
-    {
-      label: text.details.directoryAccess,
-      value: directoryAccess.length > 0 ? directoryAccess.map((department) => department.name).join(', ') : text.details.none,
-      hint: text.details.directoryHint,
-    },
+  function refuseDelete(title: string, reasons: string[]) {
+    setAdded(false)
+    flushSync(() => setDeleteRefused({ title, reasons }))
+    deleteErrorRef.current?.focus()
+  }
+
+  // Same order and look as My Profile; an empty value shows notSet. A System Admin has no
+  // organizational fields.
+  const details: [string, string | undefined][] = [
+    [text.details.name, user.name],
+    [text.details.email, user.email],
+    [text.details.phone, user.phone],
+    ...(isSystemAdmin(user)
+      ? []
+      : ([
+          [text.details.division, divisionLabel(department)],
+          [text.details.department, department?.name],
+          [text.details.position, user.position],
+        ] as [string, string | undefined][])),
+    [text.details.permission, user.permissions.map((permission) => usersEn.permissions[permission]).join(', ')],
   ]
 
   return (
     <>
-      {/* Header */}
-      <div className="mt-5 flex items-center gap-4">
+      {/* Header, with Edit Staff and Delete at the top right */}
+      <div className="mt-5 flex items-start gap-4">
         <UserAvatar user={user} className="size-14 text-base" />
-        <div className="min-w-0">
-          <h1 className="text-2xl tracking-tight sm:text-3xl">{user.name}</h1>
+        <div className="min-w-0 flex-1">
+          <h1 className="text-2xl break-words tracking-tight sm:text-3xl">{user.name}</h1>
           <PermissionBadges user={user} className="mt-2" />
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
+          <Button variant="secondary" size="sm" to={adminUserEditPath(user.id)}>
+            <Pencil aria-hidden="true" className="size-4" strokeWidth={1.75} />
+            {text.edit}
+          </Button>
+          <DeleteUserButton user={user} onDeleted={deleted} onRefused={refuseDelete} />
         </div>
       </div>
 
+      {deleteRefused && <RefusedBox ref={deleteErrorRef} title={deleteRefused.title} messages={deleteRefused.reasons} />}
+
       <div role="status">
-        {added && (
+        {added && invitationFailed && (
+          <p className="mt-6 flex items-center gap-2 rounded-lg border border-status-pending-fg/25 bg-status-pending-bg px-4 py-3 text-sm font-medium text-status-pending-fg">
+            <CircleAlert aria-hidden="true" className="size-4 shrink-0" strokeWidth={2} />
+            {text.addedInvitationFailed}
+          </p>
+        )}
+        {added && !invitationFailed && (
           <p className="mt-6 flex items-center gap-2 rounded-lg border border-status-approved-fg/25 bg-status-approved-bg px-4 py-3 text-sm font-medium text-status-approved-fg">
             <CircleCheck aria-hidden="true" className="size-4 shrink-0" strokeWidth={2} />
             {text.added}
@@ -185,47 +150,14 @@ function UserPanels({ user }: { user: User }) {
 
       <div className="mt-6 grid max-w-3xl gap-6">
         <Panel id="details-title" title={text.details.title}>
-          <dl className="grid gap-x-8 gap-y-4 text-sm sm:grid-cols-2">
-            {details.map((detail) => (
-              <div key={detail.label} className="min-w-0">
-                <dt className="text-text-gray">{detail.label}</dt>
-                <dd className="mt-0.5 font-medium text-maroon">{detail.value}</dd>
-                {detail.hint && <dd className="mt-0.5 text-xs text-text-gray">{detail.hint}</dd>}
+          <dl className="grid gap-x-6 gap-y-3 text-sm sm:grid-cols-[10rem_minmax(0,1fr)]">
+            {details.map(([label, value]) => (
+              <div key={label} className="contents">
+                <dt className="font-bold text-maroon">{label}</dt>
+                <dd className="min-w-0 break-words text-maroon max-sm:mb-1">{value?.trim() || text.details.notSet}</dd>
               </div>
             ))}
           </dl>
-        </Panel>
-
-        <Panel id="permissions-title" title={text.permissions.title}>
-          <CheckboxGroup
-            name="permissions"
-            legend={text.permissions.legend.replace('{name}', user.name)}
-            hideLegend
-            options={PERMISSIONS.map((permission) => ({
-              value: permission,
-              label: usersEn.permissions[permission],
-              description: adminEn.permissionDescriptions[permission],
-            }))}
-            value={selected}
-            onChange={(next) => {
-              setSelected(PERMISSIONS.filter((permission) => next.includes(permission)))
-              setSaved(false)
-            }}
-          />
-          {permissionErrors.length > 0 && (
-            <RefusedBox ref={permissionErrorRef} title={text.permissions.refused} messages={permissionErrors} />
-          )}
-          <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2">
-            <Button onClick={savePermissions}>{text.permissions.save}</Button>
-            <p role="status" className="text-sm font-medium text-status-approved-fg">
-              {saved && (
-                <span className="inline-flex items-center gap-1.5">
-                  <CircleCheck aria-hidden="true" className="size-4 shrink-0" strokeWidth={2} />
-                  {text.permissions.saved}
-                </span>
-              )}
-            </p>
-          </div>
         </Panel>
 
         <Panel id="involvement-title" title={text.involvement.title}>
@@ -237,7 +169,7 @@ function UserPanels({ user }: { user: User }) {
                 <li key={sop.id} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1.5 py-3 first:pt-0 last:pb-0">
                   <div className="min-w-0 text-sm">
                     <p className="font-medium text-maroon">
-                      {sop.code} · {sop.title}
+                      {sop.title}
                     </p>
                     <p className="mt-0.5 text-text-gray">
                       <span className="sr-only">{text.involvement.rolesLabel} </span>
@@ -250,42 +182,7 @@ function UserPanels({ user }: { user: User }) {
             </ul>
           )}
         </Panel>
-
-        <Panel id="delete-title" title={text.delete.title}>
-          <p className="text-sm text-text-gray">{text.delete.text}</p>
-          {deleteErrors.length > 0 && (
-            <RefusedBox
-              ref={deleteErrorRef}
-              title={text.delete.refused.replace('{name}', user.name)}
-              messages={deleteErrors}
-            />
-          )}
-          <Button
-            variant="danger"
-            className="mt-4"
-            onClick={(event) => {
-              deleteButtonRef.current = event.currentTarget
-              startDelete()
-            }}
-          >
-            <Trash2 aria-hidden="true" className="size-4" strokeWidth={1.75} />
-            {text.delete.button}
-          </Button>
-        </Panel>
       </div>
-
-      <ConfirmDialog
-        open={confirming}
-        title={text.delete.dialog.title.replace('{name}', user.name)}
-        description={text.delete.dialog.description}
-        cancelLabel={text.delete.dialog.cancel}
-        confirmLabel={text.delete.dialog.confirm}
-        onConfirm={confirmDelete}
-        onCancel={() => {
-          setConfirming(false)
-          deleteButtonRef.current?.focus()
-        }}
-      />
     </>
   )
 }

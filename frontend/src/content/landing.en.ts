@@ -27,7 +27,8 @@ export const landingEn: LandingContent = {
   },
 
   // Hawkim is installed in each organization's own environment, so organizations
-  // request it by email; there's no public sign-up.
+  // request it with the Request Hawkim form (pages/RequestHawkimPage.tsx); there's no
+  // public sign-up. The email, subject and body below are the team's contact details.
   request: {
     label: 'Request Hawkim',
     email: 'hawkimgp@gmail.com',
@@ -89,7 +90,7 @@ export const landingEn: LandingContent = {
             status: 'Pending',
           },
           { title: 'Your access request to Pharmacovigilance was approved', meta: '1 day ago' },
-          { title: 'Your request to access SOP-045 is under review', meta: '2 days ago', status: 'Pending' },
+          { title: 'Your request to access the SOP Directory is under review', meta: '2 days ago', status: 'Pending' },
         ],
       },
       quickActions: {

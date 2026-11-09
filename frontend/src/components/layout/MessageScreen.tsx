@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import type { ReactNode, Ref } from 'react'
 import { Link } from 'react-router-dom'
 import { HexFragment } from '../ui/HexFragment'
 import { Logo } from '../ui/Logo'
@@ -11,13 +11,15 @@ interface MessageScreenProps {
   embedded?: boolean
   /** The action under the text, e.g. a button back to a page. */
   children?: ReactNode
+  /** Lets the heading take focus when the page's content changes. */
+  titleRef?: Ref<HTMLHeadingElement>
 }
 
 /**
  * A centred page with the logo, a title, one short text and an action: Not Found,
- * Forgot password, and the app's "not configured" and "couldn't load" screens.
+ * Forgot password, Set New Password, and the app's "not configured" and "couldn't load" screens.
  */
-export function MessageScreen({ title, text, logoAlt, embedded = false, children }: MessageScreenProps) {
+export function MessageScreen({ title, text, logoAlt, embedded = false, children, titleRef }: MessageScreenProps) {
   const Wrapper = embedded ? 'div' : 'main'
 
   return (
@@ -37,7 +39,7 @@ export function MessageScreen({ title, text, logoAlt, embedded = false, children
           <Logo variant="mark" alt={logoAlt} className="h-12" />
         </Link>
         <span aria-hidden="true" className="mt-8 block h-0.5 w-10 bg-gold" />
-        <h1 className="mt-6 text-3xl tracking-tight sm:text-4xl">{title}</h1>
+        <h1 ref={titleRef} tabIndex={titleRef ? -1 : undefined} className="mt-6 text-3xl tracking-tight focus:outline-none sm:text-4xl">{title}</h1>
         <p className="mt-3 text-balance text-text-gray">{text}</p>
         {children && <div className="mt-8">{children}</div>}
       </div>

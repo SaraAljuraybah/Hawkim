@@ -1,24 +1,27 @@
 import { useEffect, useId, useRef } from 'react'
 import { X } from 'lucide-react'
+import { DocxViewer } from '../sops/DocxViewer'
 import { PdfViewer } from '../sops/PdfViewer'
 
 interface PreviewDialogProps {
-  /** Heading, e.g. "SOP-081 · v2". */
+  /** Accessible name of the dialog (for screen readers only), e.g. "SOP-081 · v2". */
   title: string
   url: string
   /** Accessible name of the embedded viewer. */
   viewerTitle: string
   closeLabel: string
   fallback: { text: string; openPdf: string; newTabHint: string }
+  /** For a Word file: shown with the Word preview instead of the PDF viewer (`viewerTitle` names it). */
+  docx?: { fileKey: string; text: { loading: string; failed: string } }
   /** Called whenever the dialog closes (Close, Escape or backdrop); the caller returns focus. */
   onClose: () => void
 }
 
 /**
- * A large modal with the PDF of one version, built on the native <dialog> like the
+ * A large modal with the PDF (or Word document) of one version, built on the native <dialog> like the
  * other dialogs: dims and inerts the page and closes on Escape. Focus starts on Close.
  */
-export function PreviewDialog({ title, url, viewerTitle, closeLabel, fallback, onClose }: PreviewDialogProps) {
+export function PreviewDialog({ title, url, viewerTitle, closeLabel, fallback, docx, onClose }: PreviewDialogProps) {
   const dialogRef = useRef<HTMLDialogElement>(null)
   const closeRef = useRef<HTMLButtonElement>(null)
   const titleId = useId()
@@ -40,8 +43,8 @@ export function PreviewDialog({ title, url, viewerTitle, closeLabel, fallback, o
       onClick={(event) => event.target === dialogRef.current && dialogRef.current?.close()}
       className="m-auto max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-5xl overflow-y-auto rounded-xl border border-beige bg-white p-0 shadow-xl backdrop:bg-maroon/40"
     >
-      <div className="flex items-center justify-between gap-3 border-b border-beige px-5 py-3">
-        <h2 id={titleId} className="min-w-0 text-lg break-words">
+      <div className="flex items-center justify-end gap-3 border-b border-beige px-5 py-3">
+        <h2 id={titleId} className="sr-only">
           {title}
         </h2>
         <button
@@ -55,7 +58,11 @@ export function PreviewDialog({ title, url, viewerTitle, closeLabel, fallback, o
         </button>
       </div>
       <div className="p-3 sm:p-4">
-        <PdfViewer url={url} title={viewerTitle} fallback={fallback} />
+        {docx ? (
+          <DocxViewer url={url} fileKey={docx.fileKey} label={viewerTitle} text={docx.text} />
+        ) : (
+          <PdfViewer url={url} title={viewerTitle} fallback={fallback} />
+        )}
       </div>
     </dialog>
   )

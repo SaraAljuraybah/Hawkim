@@ -5,7 +5,6 @@ import { ArrowLeft, Download, RefreshCw } from 'lucide-react'
 import { SampleBanner } from '../components/compliance/ComplianceSummary'
 import { ReportRequirementsContext } from '../components/compliance/reportRequirements'
 import {
-  ChangesList,
   ExecutiveSummary,
   FindingGroup,
   ReportSection,
@@ -19,11 +18,10 @@ import { complianceEn } from '../content/compliance.en'
 import type { ComplianceResult, Sop } from '../data/mock/types'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import {
-  compareReports,
   currentCheck,
+  isSampleCheck,
   latestCompletedChecksByVersion,
   numberedFindings,
-  previousReport,
   RESULT_ORDER,
 } from '../lib/compliance'
 import { formatDateTime } from '../lib/format'
@@ -44,9 +42,8 @@ type TabKey = 'all' | ComplianceResult
 
 /**
  * Compliance report ("/my-sops/:id/compliance", PBI 4, 5), laid out as a formal
- * report: report details, executive summary, requirements overview, findings
- * (with recommended actions), changes since the previous version, and the method
- * and its limitations. Reports of earlier versions stay viewable, and "Download
+ * report: report details, summary (each result's tile goes to its findings),
+ * requirements overview and findings (with recommended actions). Reports of earlier versions stay viewable, and "Download
  * PDF" prints it with a print stylesheet. Sample results for now.
  * - author:   "/my-sops/:id/compliance", for the SOP's author and co-authors;
  * - reviewer: "/reviews/:id/compliance", read-only, for its reviewers and approvers.
@@ -64,7 +61,7 @@ function ComplianceReport({ id, audience }: { id: string | undefined; audience: 
   const source = sops.find((item) => item.id === id)
   const sop = audience === 'reviewer' && source ? reviewSopForUser(source, user.id)?.sop : source
   const allowed = !!sop && (audience === 'reviewer' || hasPermission(user, 'author') && isAuthorOrCoAuthor(sop, user.id))
-  useDocumentTitle(allowed ? text.pageTitle.replace('{code}', sop.code) : undefined)
+  useDocumentTitle(allowed ? text.pageTitle.replace('{title}', sop.title) : undefined)
 
   if (!allowed) return <NotFoundPage embedded />
   return <Report key={`${sop.version}:${user.id}`} sop={sop} backPath={audience === 'author' ? mySopPath(sop.id) : reviewPath(sop.id)} />
@@ -98,7 +95,7 @@ function Report({ sop, backPath }: { sop: Sop; backPath: string }) {
    * Printing (Download PDF or Ctrl+P): every finding is shown (the filter is set to
    * All) and the document title becomes the PDF's default name; both are restored after.
    */
-  const printTitle = text.printTitle.replace('{code}', sop.code).replace('{version}', version)
+  const printTitle = text.printTitle.replace('{title}', sop.title).replace('{version}', version)
   const tabRef = useRef<TabKey>(tab)
   useEffect(() => {
     tabRef.current = tab
@@ -127,18 +124,27 @@ function Report({ sop, backPath }: { sop: Sop; backPath: string }) {
   const numbered = report ? numberedFindings(report) : []
   const needsAttention = numbered.filter((finding) => finding.result !== 'compliant')
   const compliant = numbered.filter((finding) => finding.result === 'compliant')
-  const previous = report ? previousReport(sop, report) : undefined
+
+  /** Scrolls to an element (smoothly unless motion is reduced) and moves focus to it. */
+  function scrollAndFocus(target: HTMLElement | null) {
+    if (!target) return
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    target.scrollIntoView({ block: 'start', behavior: reduceMotion ? 'auto' : 'smooth' })
+    target.focus({ preventScroll: true })
+  }
 
   /** Overview links: show the finding (switching to All if the filter hides it) and move focus to it. */
   function jumpTo(event: MouseEvent<HTMLAnchorElement>, number: string) {
     event.preventDefault()
     const finding = numbered.find((item) => item.number === number)
     if (finding && tab !== 'all' && finding.result !== tab) flushSync(() => setTab('all'))
-    const target = document.getElementById(`finding-${number}`)
-    if (!target) return
-    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    target.scrollIntoView({ block: 'start', behavior: reduceMotion ? 'auto' : 'smooth' })
-    target.focus({ preventScroll: true })
+    scrollAndFocus(document.getElementById(`finding-${number}`))
+  }
+
+  /** Summary tiles: show that result's findings tab (its heading, and "No findings…" when there are none) and focus the heading. */
+  function showResult(result: ComplianceResult) {
+    flushSync(() => setTab(result))
+    scrollAndFocus(document.getElementById(`${result}-title`))
   }
 
   const tabItems: TabItem<TabKey>[] = (['all', ...RESULT_ORDER] as const).map((key) => ({ key, label: text.findings.tabs[key] }))
@@ -148,7 +154,7 @@ function Report({ sop, backPath }: { sop: Sop; backPath: string }) {
 
   const details = report
     ? [
-        { label: text.header.sop, value: `${sop.code} · ${sop.title}` },
+        { label: text.header.sop, value: sop.title },
         { label: text.header.version, value: content.versionLabel.replace('{version}', report.version) },
         { label: text.header.author, value: author },
         ...(coAuthors ? [{ label: text.header.coAuthors, value: coAuthors }] : []),
@@ -173,7 +179,7 @@ function Report({ sop, backPath }: { sop: Sop; backPath: string }) {
         className="inline-flex items-center gap-1.5 rounded-sm text-sm font-medium text-text-gray transition-colors hover:text-maroon print:hidden"
       >
         <ArrowLeft aria-hidden="true" className="size-4" strokeWidth={1.75} />
-        {text.back.replace('{code}', sop.code)}
+        {text.back.replace('{title}', sop.title)}
       </Link>
 
       {/* Title and export */}
@@ -228,7 +234,7 @@ function Report({ sop, backPath }: { sop: Sop; backPath: string }) {
         </section>
       )}
 
-      <SampleBanner text={content.sampleBanner} className="mt-4" />
+      {report && isSampleCheck(report) && <SampleBanner text={content.sampleBanner} className="mt-4" />}
 
       {report && latest?.status === 'running' && (
         <p
@@ -247,22 +253,21 @@ function Report({ sop, backPath }: { sop: Sop; backPath: string }) {
 
       {report && (
         // Requirements as in the GVP version this report was checked against.
-        <ReportRequirementsContext value={(requirementId) => getRequirement(report.guideline.version, requirementId)}>
-          {/* b) Executive summary */}
+        <ReportRequirementsContext
+          value={(requirementId) =>
+            // The details read with the findings first (the compliance service adds requirements while checks run).
+            report.findings.find((finding) => finding.requirementId === requirementId)?.requirement ??
+            getRequirement(report.guideline.version, requirementId)
+          }
+        >
+          {/* b) Summary */}
           <ReportSection id="summary-title" title={text.summary.title}>
-            <ExecutiveSummary
-              check={report}
-              previous={previous}
-              status={sop.status}
-              findings={numbered}
-              content={content}
-              onJump={jumpTo}
-            />
+            <ExecutiveSummary check={report} content={content} onSelectResult={showResult} />
           </ReportSection>
 
           {/* c) Requirements overview */}
           <ReportSection id="overview-title" title={text.overview.title}>
-            <RequirementsOverview findings={numbered} content={content} onJump={jumpTo} />
+            <RequirementsOverview findings={numbered} stepsChecked={report.stepsChecked} content={content} onJump={jumpTo} />
           </ReportSection>
 
           {/* d) Findings */}
@@ -296,28 +301,6 @@ function Report({ sop, backPath }: { sop: Sop; backPath: string }) {
               )}
             </div>
           </section>
-
-          {/* e) Changes since the previous version */}
-          <ReportSection id="changes-title" title={text.changes.title}>
-            {previous ? (
-              <ChangesList
-                changes={compareReports(previous, report)}
-                previousLabel={text.changes.comparedWith.replace('{version}', previous.version)}
-                content={content}
-              />
-            ) : (
-              <p className="text-sm text-text-gray">{text.changes.none}</p>
-            )}
-          </ReportSection>
-
-          {/* f) Method and limitations */}
-          <ReportSection id="method-title" title={text.method.title}>
-            <ul className="max-w-[75ch] list-disc space-y-1.5 pl-5 text-sm text-maroon">
-              {text.method.items.map((item) => (
-                <li key={item}>{item}</li>
-              ))}
-            </ul>
-          </ReportSection>
         </ReportRequirementsContext>
       )}
     </div>

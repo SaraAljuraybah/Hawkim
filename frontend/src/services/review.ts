@@ -4,17 +4,44 @@
  * Rounds, requests and comments are read with each SOP (services/sops.ts).
  */
 
+import type { ClosedReviewRequest, InternalReviewDecision } from '../data/mock/types'
 import type { InternalReviewOptions } from '../lib/internalReview'
+import { isValidReviewDuration, RequestExpiredError, RequestNotResendableError, ReviewerOrderError } from '../lib/internalReviewStatus'
+import { ReviewDeadlineUnavailableError } from '../lib/reviewDeadline'
+import { ResponseNotAvailableError } from '../lib/reviewRequestRows'
+import { SUBMIT_COMMENT_MAX } from '../lib/workflow'
 import { supabase } from './supabase'
+
+/** The hint respond_to_comments raises when a request can't receive a response. */
+export const RESPONSE_NOT_AVAILABLE_HINT = 'response-not-available'
+
+/** The hint change_review_deadline raises when the request can't be changed any more. */
+export const REVIEW_DEADLINE_UNAVAILABLE_HINT = 'review-deadline-unavailable'
+
+/** The hint the reviewer's actions raise when their request has expired. */
+export const REQUEST_EXPIRED_HINT = 'request-expired'
+
+/** The hint resend_review_request raises when the request can't be sent again. */
+export const REQUEST_NOT_RESENDABLE_HINT = 'request-not-resendable'
+
+/** The hints when the department of a reviewer isn't allowed yet. */
+export const HOME_REVIEWERS_FIRST_HINT = 'home-reviewers-first'
+export const HOME_REVIEWER_MUST_FINISH_HINT = 'home-reviewer-must-finish'
 
 async function call(name: string, args: Record<string, unknown>): Promise<unknown> {
   const { data, error } = await supabase().rpc(name, args)
+  if (error?.hint === REQUEST_EXPIRED_HINT) throw new RequestExpiredError(error.message)
+  if (error?.hint === REQUEST_NOT_RESENDABLE_HINT) throw new RequestNotResendableError(error.message)
+  if (error?.hint === HOME_REVIEWERS_FIRST_HINT) throw new ReviewerOrderError('first-send', error.message)
+  if (error?.hint === HOME_REVIEWER_MUST_FINISH_HINT) throw new ReviewerOrderError('must-finish', error.message)
   if (error) throw new Error(error.message)
   return data
 }
 
 /** The options as the database functions take them (blank ones as null). */
 function options(o: InternalReviewOptions) {
+  if (!isValidReviewDuration(o.reviewDurationDays)) throw new Error('The review duration must be from 1 to 3,650 working days')
+  if ((o.note?.trim().length ?? 0) > SUBMIT_COMMENT_MAX) throw new Error('The review request comments are too long')
   return {
     p_reviewer_ids: o.reviewerIds,
     p_response_due_date: o.responseDueDate || null,
@@ -38,6 +65,18 @@ export async function removeReviewer(requestId: string, reason: string): Promise
   await call('remove_reviewer', { p_request_id: requestId, p_reason: reason })
 }
 
+/** Main author: sends an expired request to the same reviewer again, as a new request. */
+export async function resendReviewRequest(requestId: string): Promise<void> {
+  await call('resend_review_request', { p_request_id: requestId })
+}
+
+/** Main author: changes a reviewer's review deadline, to a number of working days from their acceptance. */
+export async function changeReviewDeadline(requestId: string, days: number): Promise<void> {
+  const { error } = await supabase().rpc('change_review_deadline', { p_request_id: requestId, p_review_duration_days: days })
+  if (error?.hint === REVIEW_DEADLINE_UNAVAILABLE_HINT) throw new ReviewDeadlineUnavailableError(error.message)
+  if (error) throw new Error(error.message)
+}
+
 /** Reviewer: takes the task. */
 export async function acceptReview(requestId: string): Promise<void> {
   await call('accept_review', { p_request_id: requestId })
@@ -53,12 +92,23 @@ export async function decideReview(requestId: string, decision: 'completed' | 'r
   await call('decide_review', { p_request_id: requestId, p_decision: decision, p_text: text?.trim() || null })
 }
 
-/** Author or co-author: replies to the latest comments. */
-export async function respondToComments(sopId: string, text: string): Promise<void> {
-  await call('respond_to_comments', { p_sop_id: sopId, p_text: text })
+/** Author or co-author: replies to the latest comments, or only to the reviewer of `requestId`. */
+export async function respondToComments(sopId: string, text: string, requestId?: string): Promise<void> {
+  const { error } = await supabase().rpc('respond_to_comments', { p_sop_id: sopId, p_text: text, ...(requestId ? { p_request_id: requestId } : {}) })
+  if (error?.hint === RESPONSE_NOT_AVAILABLE_HINT) throw new ResponseNotAvailableError(error.message)
+  if (error) throw new Error(error.message)
 }
 
-/** Withdraws the SOP's requests whose response due date has ended (nothing happens when none are due). */
-export async function withdrawDueRequests(sopId: string): Promise<void> {
-  await call('withdraw_due_requests', { p_sop_id: sopId })
+/** The signed-in reviewer's own closed requests on SOPs they can no longer read. */
+export async function fetchClosedReviewRequests(): Promise<ClosedReviewRequest[]> {
+  const rows = await call('my_closed_review_requests', {}) as { request_id: string; sop_title: string; version: number; status: InternalReviewDecision; reason: string | null; closed_at: string }[] | null
+  return (rows ?? []).map((row) => ({
+    id: row.request_id, sopTitle: row.sop_title, version: String(row.version), status: row.status,
+    closedAt: row.closed_at, ...(row.reason ? { reason: row.reason } : {}),
+  }))
+}
+
+/** Expires the SOP's requests whose response due date has ended (nothing happens when none are due). */
+export async function expireDueRequests(sopId: string): Promise<void> {
+  await call('expire_due_requests', { p_sop_id: sopId })
 }

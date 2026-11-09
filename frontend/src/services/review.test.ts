@@ -1,5 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { acceptReview, addReviewers, declineReview, decideReview, removeReviewer, respondToComments, submitReview, withdrawDueRequests } from './review'
+import { RequestExpiredError, RequestNotResendableError, ReviewerOrderError } from '../lib/internalReviewStatus'
+import { ReviewDeadlineUnavailableError } from '../lib/reviewDeadline'
+import { ResponseNotAvailableError } from '../lib/reviewRequestRows'
+import { fetchClosedReviewRequests, HOME_REVIEWER_MUST_FINISH_HINT, HOME_REVIEWERS_FIRST_HINT, REQUEST_EXPIRED_HINT, REQUEST_NOT_RESENDABLE_HINT, resendReviewRequest, acceptReview, addReviewers, changeReviewDeadline, declineReview, decideReview, removeReviewer, respondToComments, RESPONSE_NOT_AVAILABLE_HINT, REVIEW_DEADLINE_UNAVAILABLE_HINT, submitReview, expireDueRequests } from './review'
 
 const rpc = vi.fn()
 vi.mock('./supabase', () => ({ supabase: () => ({ rpc }) }))
@@ -34,11 +37,86 @@ describe('the internal review in the database', () => {
     expect(rpc).toHaveBeenLastCalledWith('remove_reviewer', { p_request_id: 'req-1', p_reason: 'Not needed' })
   })
 
-  it('sends responses and asks for due withdrawals', async () => {
+  it('sends the entire supported 500-character comment and rejects longer text before an RPC', async () => {
+    await submitReview('uuid-sop', { reviewerIds: ['uuid-noura'], reviewDurationDays: 30, note: 'x'.repeat(500) })
+    expect(rpc).toHaveBeenLastCalledWith('submit_for_review', expect.objectContaining({ p_note: 'x'.repeat(500), p_review_duration_days: 30 }))
+    rpc.mockClear()
+    await expect(addReviewers('uuid-sop', { reviewerIds: ['uuid-noura'], note: 'x'.repeat(501) })).rejects.toThrow(/too long/)
+    expect(rpc).not.toHaveBeenCalled()
+  })
+
+  it.each([0, -1, 3651, 1.5, NaN])('rejects an invalid working-day allocation %s without an RPC', async (reviewDurationDays) => {
+    await expect(submitReview('uuid-sop', { reviewerIds: ['uuid-noura'], reviewDurationDays })).rejects.toThrow(/1 to 3,650/)
+    expect(rpc).not.toHaveBeenCalled()
+  })
+
+  it.each([undefined, 1, 30])('preserves the optional duration and its boundaries (%s) in the RPC contract', async (reviewDurationDays) => {
+    await submitReview('uuid-sop', { reviewerIds: ['uuid-noura'], reviewDurationDays })
+    expect(rpc).toHaveBeenLastCalledWith('submit_for_review', expect.objectContaining({
+      p_review_duration_days: reviewDurationDays ?? null, p_response_due_date: null,
+    }))
+  })
+
+  it('preserves a full Unicode submission comment and rejects excess UTF-16 units before calling the server', async () => {
+    const note = '😀'.repeat(250) // 500 UTF-16 units: the agreed limit
+    await submitReview('uuid-sop', { reviewerIds: ['uuid-noura'], note: `  ${note}  ` })
+    expect(rpc).toHaveBeenLastCalledWith('submit_for_review', expect.objectContaining({ p_note: note }))
+    rpc.mockClear()
+    await expect(addReviewers('uuid-sop', { reviewerIds: ['uuid-noura'], note: note + 'x' })).rejects.toThrow(/too long/)
+    expect(rpc).not.toHaveBeenCalled()
+  })
+
+  it('changes a review deadline, and recognises a stale request by its hint, and only by that', async () => {
+    await changeReviewDeadline('uuid-request', 7)
+    expect(rpc).toHaveBeenLastCalledWith('change_review_deadline', { p_request_id: 'uuid-request', p_review_duration_days: 7 })
+    rpc.mockResolvedValueOnce({ data: null, error: { message: 'Any wording', code: '23514', hint: REVIEW_DEADLINE_UNAVAILABLE_HINT } })
+    await expect(changeReviewDeadline('uuid-request', 7)).rejects.toBeInstanceOf(ReviewDeadlineUnavailableError)
+    rpc.mockResolvedValueOnce({ data: null, error: { message: 'Another refusal', code: '23514', hint: null } })
+    await expect(changeReviewDeadline('uuid-request', 7)).rejects.not.toBeInstanceOf(ReviewDeadlineUnavailableError)
+  })
+
+  it('recognises a response the database refused by its hint, and only by that', async () => {
+    rpc.mockResolvedValueOnce({ data: null, error: { message: 'Any wording', code: '23514', hint: RESPONSE_NOT_AVAILABLE_HINT } })
+    await expect(respondToComments('uuid-sop', 'Done', 'uuid-request')).rejects.toBeInstanceOf(ResponseNotAvailableError)
+    rpc.mockResolvedValueOnce({ data: null, error: { message: 'Another refusal', code: '23514', hint: null } })
+    await expect(respondToComments('uuid-sop', 'Done', 'uuid-request')).rejects.not.toBeInstanceOf(ResponseNotAvailableError)
+  })
+
+  it('sends responses and asks for due expiries', async () => {
     await respondToComments('uuid-sop', 'Done')
     expect(rpc).toHaveBeenLastCalledWith('respond_to_comments', { p_sop_id: 'uuid-sop', p_text: 'Done' })
-    await withdrawDueRequests('uuid-sop')
-    expect(rpc).toHaveBeenLastCalledWith('withdraw_due_requests', { p_sop_id: 'uuid-sop' })
+    await respondToComments('uuid-sop', 'Done', 'uuid-request')
+    expect(rpc).toHaveBeenLastCalledWith('respond_to_comments', { p_sop_id: 'uuid-sop', p_text: 'Done', p_request_id: 'uuid-request' })
+    await expireDueRequests('uuid-sop')
+    expect(rpc).toHaveBeenLastCalledWith('expire_due_requests', { p_sop_id: 'uuid-sop' })
+  })
+
+  it('sends an expired request again, and recognises a refusal by its hint', async () => {
+    rpc.mockResolvedValueOnce({ data: null, error: null })
+    await resendReviewRequest('uuid-request')
+    expect(rpc).toHaveBeenLastCalledWith('resend_review_request', { p_request_id: 'uuid-request' })
+    rpc.mockResolvedValueOnce({ data: null, error: { message: 'Any wording', code: '23514', hint: REQUEST_NOT_RESENDABLE_HINT } })
+    await expect(resendReviewRequest('uuid-request')).rejects.toBeInstanceOf(RequestNotResendableError)
+  })
+
+  it('reads the reviewer\'s own closed requests', async () => {
+    rpc.mockResolvedValueOnce({ data: [{ request_id: 'uuid-request', sop_title: 'Backup', version: 2, status: 'removed', reason: 'Not needed', closed_at: '2026-10-20T00:00:00Z' }], error: null })
+    await expect(fetchClosedReviewRequests()).resolves.toEqual([{ id: 'uuid-request', sopTitle: 'Backup', version: '2', status: 'removed', reason: 'Not needed', closedAt: '2026-10-20T00:00:00Z' }])
+    expect(rpc).toHaveBeenLastCalledWith('my_closed_review_requests', {})
+  })
+
+  it('recognises a reviewer refused for their department by its hint', async () => {
+    rpc.mockResolvedValueOnce({ data: null, error: { message: 'Any wording', code: '23514', hint: HOME_REVIEWERS_FIRST_HINT } })
+    await expect(submitReview('uuid-sop', { reviewerIds: ['uuid-reviewer'] })).rejects.toMatchObject({ reason: 'first-send' })
+    rpc.mockResolvedValueOnce({ data: null, error: { message: 'Any wording', code: '23514', hint: HOME_REVIEWER_MUST_FINISH_HINT } })
+    await expect(addReviewers('uuid-sop', { reviewerIds: ['uuid-reviewer'] })).rejects.toBeInstanceOf(ReviewerOrderError)
+  })
+
+  it('recognises an expired request by its hint, and only by that', async () => {
+    rpc.mockResolvedValueOnce({ data: null, error: { message: 'Any wording', code: '23514', hint: REQUEST_EXPIRED_HINT } })
+    await expect(acceptReview('uuid-request')).rejects.toBeInstanceOf(RequestExpiredError)
+    rpc.mockResolvedValueOnce({ data: null, error: { message: 'Another refusal', code: '23514', hint: null } })
+    await expect(acceptReview('uuid-request')).rejects.not.toBeInstanceOf(RequestExpiredError)
   })
 
   it('throws what the database refuses', async () => {

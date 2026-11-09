@@ -1,43 +1,67 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { sops as seedSops } from '../data/mock/sops'
-import type { Sop } from '../data/mock/types'
+import type { ClosedReviewRequest, Sop, UserRequest } from '../data/mock/types'
 import * as compliance from '../lib/compliance'
 import { assertCanCreateSop } from '../lib/sopAccess'
+import { sopTitleProblem } from '../lib/sopTitle'
 import { submitForApproval } from '../lib/approval'
 import { applyReviewAction } from '../lib/reviewFlow'
-import { acceptInternalReview, addInternalReviewers, decideInternalReview, declineInternalReview, nextWithdrawalAt, removeInternalReviewer, sendNewVersionForReview, startInternalReview, withdrawUnanswered } from '../lib/internalReview'
+import { RequestExpiredError, RequestNotResendableError } from '../lib/internalReviewStatus'
+import { PER_REVIEWER_RESPONSE_ACTIVE } from '../lib/internalReviewStatus'
+import { ReviewDeadlineUnavailableError } from '../lib/reviewDeadline'
+import { ResponseNotAvailableError } from '../lib/reviewRequestRows'
+import { acceptInternalReview, addInternalReviewers, changeInternalReviewDeadline, decideInternalReview, declineInternalReview, resendInternalReview, nextExpiryAt, removeInternalReviewer, sendNewVersionForReview, startInternalReview, expireUnanswered } from '../lib/internalReview'
 import { useDepartments } from './departmentsContext'
 import * as workflow from '../lib/workflow'
-import { finishSampleCheck, startComplianceCheck } from '../services/compliance'
-import { acceptReview, addReviewers, declineReview, decideReview, removeReviewer, respondToComments, submitReview, withdrawDueRequests } from '../services/review'
-import { fileTypeOf, uploadSopFile } from '../services/files'
-import { addCoAuthors, createSop, deleteSopVersion, fetchSop, fetchSops, removeCoAuthor, uploadSopVersion } from '../services/sops'
+import { fileTypeOf } from '../lib/prototypeFiles'
+import { forgetSentForApproval, rememberSentForApproval, wasSentForApproval } from './approvalSentStorage'
 import { mergeSops } from './mergeSops'
+import { canDeleteSop, hasRunningCheck, SopDeleteError } from '../lib/mySops'
+import { REVIEW_TEXT_MAX } from '../lib/internalReview'
+import * as complianceApi from '../services/compliance'
+import * as filesApi from '../services/files'
+import * as reviewApi from '../services/review'
+import * as sopsApi from '../services/sops'
 import { useGuidelines } from './guidelinesContext'
 import { useSession } from './sessionContext'
 import { useUsers } from './usersContext'
+import { RequestsContext } from './requestsContext'
+import { visibleSops } from './visibleSops'
 import { SopsContext, type NewDraft, type SopsStore } from './sopsContext'
 import type { LoadStatus } from './useLoadAfterSignIn'
 
 const DAY_MS = 24 * 60 * 60 * 1000
+const NO_REQUESTS: UserRequest[] = []
+// The database services (each call goes through the browser rules first, then the RPC).
+const sopService = async () => sopsApi
+const reviewService = async () => reviewApi
+const complianceService = async () => complianceApi
+const fileService = async () => filesApi
 
 /**
  * Store of every SOP (one list for the directory, My SOPs and the workflow).
  * The SOPs and everything about them (versions, files, co-authors, compliance checks,
  * status, review rounds and requests, comments, responses and their timeline) come from
  * the database: they're read after each sign-in (merged with what this tab already has,
- * see mergeSops.ts), and every action on them is saved there. Approval isn't part of this
- * delivery: it is still kept in this tab only and lost on reload, like the sample SOPs.
+ * see mergeSops.ts), and every action on them is saved there. Approval isn't in the
+ * database yet: it is still kept in this tab only and lost on reload, like the sample SOPs.
+ * Consumers see only the signed-in identity's authorized projection (visibleSops).
  * Workflow rules live in lib/workflow.ts. Actions are by the signed-in user.
  * Must be inside <SessionProvider>.
- * TODO: Save the remaining actions in the database, phase by phase.
  */
 export function SopsProvider({ children }: { children: ReactNode }) {
   // The signed-in user's id ('' when nobody is: their actions are then refused by the workflow rules).
-  const userId = useSession().user?.id ?? ''
+  const user = useSession().user
+  const userId = user?.id ?? ''
+  const activeIdentity = useRef(userId)
+  useLayoutEffect(() => {
+    activeIdentity.current = userId
+    return () => { activeIdentity.current = '' }
+  }, [userId])
+  const requests = useContext(RequestsContext)?.requests ?? NO_REQUESTS
   // New checks use the current GVP version; Submit and Resubmit need a check against it.
   const guideline = useGuidelines().currentGuideline
-  const { getUser, users } = useUsers()
+  const { users } = useUsers()
   const { departments } = useDepartments()
   const [sops, setSops] = useState<Sop[]>(seedSops)
   /*
@@ -48,29 +72,66 @@ export function SopsProvider({ children }: { children: ReactNode }) {
   const latestRef = useRef<Sop[]>(seedSops)
   /** The SOPs read from the database (the others are the sample SOPs, kept only in this tab). */
   const storedIds = useRef(new Set<string>())
+  /** SOPs deleted in this tab: no read (even one started before the delete) brings them back. */
+  const deletedIds = useRef(new Set<string>())
+  const cacheOwner = useRef(userId)
   const commit = useCallback((next: Sop[]) => {
     latestRef.current = next
     setSops(next)
   }, [])
 
   /** Reads one SOP again after a change saved in the database, keeping what this tab has for it. */
+  const [closed, setClosed] = useState<{ userId?: string; requests: ClosedReviewRequest[] }>({ requests: [] })
+  /** Optional for the app: without it, someone who lost access only misses these notifications. */
+  const loadClosed = useCallback(() => {
+    const owner = userId
+    return reviewService().then(({ fetchClosedReviewRequests }) => fetchClosedReviewRequests()).then(
+      (requests) => { if (owner && activeIdentity.current === owner) setClosed({ userId: owner, requests }) },
+      () => undefined,
+    )
+  }, [userId])
+
   const refresh = useCallback(
     async (sopId: string) => {
-      const stored = await fetchSop(sopId)
-      if (!stored) throw new Error(`Unknown SOP ${sopId}`)
+      const owner = userId
+      const stored = await (await sopService()).fetchSop(sopId)
+      if (!owner || activeIdentity.current !== owner) throw new Error('The signed-in user changed')
+      if (deletedIds.current.has(sopId)) return undefined
+      if (!stored) {
+        // They can no longer read it, e.g. an other-department reviewer who has just declined.
+        if (!latestRef.current.some((sop) => sop.id === sopId)) throw new Error(`Unknown SOP ${sopId}`)
+        storedIds.current.delete(sopId)
+        commit(latestRef.current.filter((sop) => sop.id !== sopId))
+        await loadClosed()
+        return undefined
+      }
       storedIds.current.add(stored.id)
-      commit(mergeSops(latestRef.current, [stored]))
+      commit(mergeSops(latestRef.current, [stored], deletedIds.current))
       return latestRef.current.find((sop) => sop.id === sopId)!
     },
-    [commit],
+    [commit, userId, loadClosed],
   )
 
-  /** The SOP as the workflow rules see it now (unanswered review requests withdrawn first). */
+  /** A reviewer's action. If the database says the request expired, this tab was behind: read the SOP again. */
+  const refreshIfExpired = useCallback(
+    async (sopId: string, action: () => Promise<void>) => {
+      try {
+        await action()
+      } catch (error) {
+        if (error instanceof RequestExpiredError) await refresh(sopId).catch(() => undefined)
+        throw error
+      }
+    },
+    [refresh],
+  )
+
+  /** The SOP as the workflow rules see it now (unanswered review requests expired first). */
   const current = useCallback((sopId: string) => {
+    if (!userId || activeIdentity.current !== userId) throw new Error('The signed-in user changed')
     const sop = latestRef.current.find((item) => item.id === sopId)
     if (!sop) throw new Error(`Unknown SOP ${sopId}`)
-    return withdrawUnanswered(sop)
-  }, [])
+    return expireUnanswered(sop)
+  }, [userId])
 
   /**
    * Applies a workflow transition to one SOP as a single update (status, people
@@ -79,36 +140,38 @@ export function SopsProvider({ children }: { children: ReactNode }) {
    */
   const update = useCallback(
     (sopId: string, transition: (sop: Sop) => Sop) => {
+      if (!userId || activeIdentity.current !== userId) throw new Error('The signed-in user changed')
       const current = latestRef.current
       const sop = current.find((item) => item.id === sopId)
       if (!sop) throw new Error(`Unknown SOP ${sopId}`)
-      // Unanswered review requests past their response due date are withdrawn before anything else happens.
-      const updated = transition(withdrawUnanswered(sop))
+      // Unanswered review requests past their response due date expire before anything else happens.
+      const updated = transition(expireUnanswered(sop))
       commit(current.map((item) => (item.id === sopId ? updated : item)))
     },
-    [commit],
+    [commit, userId],
   )
 
   /*
-   * The automatic withdrawal also runs on load and at the moment the next response due date
-   * ends: in the database for stored SOPs (asked once per deadline, then read again), in this
-   * tab for the sample SOPs. TODO: A scheduled job will withdraw them on the server.
+   * The expiry also runs on load and at the moment the next response due date ends: in the
+   * database for stored SOPs (asked once per deadline, then read again), in this tab for the
+   * sample SOPs. No scheduled job is needed: someone has to have the app open to see the
+   * notification, and loading the SOP expires what is due.
    */
-  const withdrawalsAsked = useRef(new Set<string>())
+  const expiriesAsked = useRef(new Set<string>())
   useEffect(() => {
-    const next = nextWithdrawalAt(sops)
+    const next = nextExpiryAt(sops)
     if (next === undefined) return
     // Long waits are re-checked daily (browser timers can't wait longer than about 24 days).
     const timer = window.setTimeout(() => {
       const now = Date.now()
-      const swept = latestRef.current.map((sop) => (storedIds.current.has(sop.id) ? sop : withdrawUnanswered(sop, now)))
+      const swept = latestRef.current.map((sop) => (storedIds.current.has(sop.id) ? sop : expireUnanswered(sop, now)))
       if (swept.some((sop, index) => sop !== latestRef.current[index])) commit(swept)
       for (const sop of latestRef.current) {
-        if (!storedIds.current.has(sop.id) || withdrawUnanswered(sop, now) === sop) continue
-        const key = `${sop.id}:${nextWithdrawalAt([sop])}`
-        if (withdrawalsAsked.current.has(key)) continue
-        withdrawalsAsked.current.add(key)
-        void withdrawDueRequests(sop.id)
+        if (!storedIds.current.has(sop.id) || expireUnanswered(sop, now) === sop) continue
+        const key = `${sop.id}:${nextExpiryAt([sop])}`
+        if (expiriesAsked.current.has(key)) continue
+        expiriesAsked.current.add(key)
+        void reviewService().then(({ expireDueRequests }) => expireDueRequests(sop.id))
           .then(() => refresh(sop.id))
           .catch(() => undefined)
       }
@@ -133,11 +196,40 @@ export function SopsProvider({ children }: { children: ReactNode }) {
   const scheduleCompletion = useCallback(
     (sopId: string, checkId: string, outcome: 'completed' | 'failed', delay = compliance.SAMPLE_CHECK_DURATION_MS) => {
       window.setTimeout(() => {
-        void finishSampleCheck(checkId, outcome)
+        if (activeIdentity.current !== userId) return
+        void complianceService().then(({ finishSampleCheck }) => finishSampleCheck(checkId, outcome))
           .catch(() => undefined)
           .then(() => refresh(sopId))
           .catch(() => undefined)
       }, delay)
+    },
+    [refresh, userId],
+  )
+
+  /**
+   * COMPLIANCE SERVICE: its checks are finished by the service (compliance-service/), not the
+   * browser. While one runs, the SOP is read again every few seconds until the check ends.
+   */
+  const watching = useRef(new Set<string>())
+  const watchServiceCheck = useCallback(
+    (sopId: string) => {
+      if (watching.current.has(sopId)) return
+      watching.current.add(sopId)
+      const until = Date.now() + compliance.SERVICE_CHECK_WATCH_MS
+      const poll = () => {
+        window.setTimeout(() => {
+          refresh(sopId)
+            .then((sop) => {
+              if (sop && compliance.isCheckRunning(sop) && Date.now() < until) poll()
+              else watching.current.delete(sopId)
+            })
+            .catch(() => {
+              if (Date.now() < until) poll()
+              else watching.current.delete(sopId)
+            })
+        }, compliance.SERVICE_CHECK_POLL_MS)
+      }
+      poll()
     },
     [refresh],
   )
@@ -153,29 +245,53 @@ export function SopsProvider({ children }: { children: ReactNode }) {
       const sop = workflow.assertCanRunCheck(current(sopId), userId)
       if (!compliance.checkRequired(sop, departments)) throw new Error('Compliance checks are only for SOPs of departments the GVP guideline applies to')
       if (compliance.isCheckRunning(sop)) throw new Error('A compliance check is already running')
-      const checkId = await startComplianceCheck(sopId)
       const fail = failNextRef.current
+      let checkId: string
+      try {
+        checkId = await (await complianceService()).startComplianceCheck(sopId)
+      } catch (error) {
+        // This tab was behind: read the SOP again, so the page shows the completed check.
+        if (error instanceof compliance.CheckAlreadyCompletedError) await refresh(sopId).catch(() => undefined)
+        throw error
+      }
+      const started = (await refresh(sopId))?.complianceChecks.find((check) => check.id === checkId)
+      // The database chose the engine: the compliance service while it is online, otherwise the sample.
+      if (started && !compliance.isSampleCheck(started)) {
+        watchServiceCheck(sopId)
+        return
+      }
       if (fail) setFailNextCheck(false)
-      await refresh(sopId)
       scheduleCompletion(sopId, checkId, fail ? 'failed' : 'completed')
     },
-    [current, userId, departments, refresh, scheduleCompletion, setFailNextCheck],
+    [current, userId, departments, refresh, scheduleCompletion, setFailNextCheck, watchServiceCheck],
   )
 
-  // The SOPs this person may read, after each sign-in (other SOPs already in the tab stay).
+  // A new session must not inherit database rows cached by another user.
   const [loaded, setLoaded] = useState<{ userId: string; status: LoadStatus } | null>(null)
   useEffect(() => {
+    if (cacheOwner.current !== userId) {
+      commit(latestRef.current.filter((sop) => !storedIds.current.has(sop.id)))
+      storedIds.current.clear()
+      expiriesAsked.current.clear()
+      cacheOwner.current = userId
+    }
     if (!userId) return
     let active = true
-    fetchSops().then(
+    sopService().then(({ fetchSops }) => fetchSops()).then(
       (stored) => {
-        if (!active) return
-        for (const sop of stored) storedIds.current.add(sop.id)
-        commit(mergeSops(latestRef.current, stored))
+        if (!active || activeIdentity.current !== userId) return
+        for (const sop of stored) if (!deletedIds.current.has(sop.id)) storedIds.current.add(sop.id)
+        commit(mergeSops(latestRef.current, stored, deletedIds.current))
         setLoaded({ userId, status: 'ready' })
-        // This person's sample checks still running (the page was reloaded meanwhile) are finished now.
+        void loadClosed()
+        // This person's sample checks still running (the page was reloaded meanwhile) are finished now;
+        // checks of the compliance service still running are watched until they end.
         for (const sop of stored) {
           for (const check of sop.complianceChecks) {
+            if (check.status === 'running' && !compliance.isSampleCheck(check)) {
+              watchServiceCheck(sop.id)
+              continue
+            }
             if (check.status !== 'running' || check.engine !== 'sample' || check.triggeredById !== userId) continue
             const left = new Date(check.startedAt).getTime() + compliance.SAMPLE_CHECK_DURATION_MS - Date.now()
             scheduleCompletion(sop.id, check.id, 'completed', Math.max(0, left))
@@ -189,16 +305,20 @@ export function SopsProvider({ children }: { children: ReactNode }) {
     return () => {
       active = false
     }
-  }, [userId, commit, scheduleCompletion])
+  }, [userId, commit, scheduleCompletion, loadClosed, watchServiceCheck])
+  const closedRequests = useMemo(() => (closed.userId === userId ? closed.requests : []), [closed, userId])
   const status: LoadStatus = userId && loaded?.userId === userId ? loaded.status : 'loading'
 
   const addDraft = useCallback(
     async ({ file, ...draft }: NewDraft) => {
+      if (!userId || activeIdentity.current !== userId) throw new Error('The signed-in user changed')
       assertCanCreateSop(users.find((user) => user.id === userId), draft.departmentId, departments)
+      if (sopTitleProblem(draft.title)) throw new Error('An SOP title of 1 to 50 characters is required')
       // The file first, then the SOP; the database gives it its number and version 1.
-      const stored = await uploadSopFile(userId, file)
-      const id = await createSop({ ...draft, file: stored })
-      return refresh(id)
+      const stored = await (await fileService()).uploadSopFile(userId, file)
+      if (activeIdentity.current !== userId) throw new Error('The signed-in user changed')
+      const id = await (await sopService()).createSop({ ...draft, title: draft.title.trim(), file: stored })
+      return (await refresh(id))!
     },
     [userId, users, departments, refresh],
   )
@@ -207,14 +327,24 @@ export function SopsProvider({ children }: { children: ReactNode }) {
 
   // Directory grants never substitute for the signed-in actor or an explicit assignment.
   const assertActor = useCallback((actorId: string, permission: 'reviewer' | 'approver') => {
+    if (activeIdentity.current !== userId) throw new Error('The signed-in user changed')
     const actor = users.find((user) => user.id === userId && !user.deletedAt)
     if (!actor || actor.id !== actorId || actor.permissions.includes('admin') || !actor.permissions.includes(permission)) throw new Error('Only the signed-in assigned ' + permission + ' can act')
   }, [users, userId])
 
+  // Projection happens during render, before effects, so a switch/sign-out cannot
+  // render the previous identity's cached documents for even a single frame.
+  const exposedSops = useMemo(() => visibleSops(
+    loaded?.userId !== userId ? seedSops : sops,
+    user,
+    requests,
+  ), [sops, userId, user, requests, loaded])
+
   const store = useMemo<SopsStore>(
     () => ({
       status,
-      sops,
+      closedRequests,
+      sops: exposedSops,
       addDraft,
       // The first submission from Draft, or a new version sent once every reviewer has finished.
       // Each review action checks the browser's rules first, then the database's, then reads the SOP again.
@@ -222,34 +352,70 @@ export function SopsProvider({ children }: { children: ReactNode }) {
         const sop = current(id)
         if (sop.status === 'draft') startInternalReview(sop, userId, guideline.version, o, environment)
         else sendNewVersionForReview(sop, userId, guideline.version, o, environment)
-        await submitReview(id, o)
+        await (await reviewService()).submitReview(id, o)
         await refresh(id)
       },
-      submitForApproval: (id, options) => update(id, (sop) => submitForApproval(sop, userId, options, environment)),
-      reviewAction: (id, action) => update(id, (sop) => applyReviewAction(sop, userId, action, environment)),
+      submitForApproval: (id, options) => {
+        update(id, (sop) => submitForApproval(sop, userId, { ...options, sentBefore: wasSentForApproval(id, sop.version) }, environment))
+        // Approval isn't in the database yet: remember it, so a reload keeps the button disabled.
+        rememberSentForApproval(id, options.version)
+      },
+      // Reviewer assignment is Author-controlled: a reviewer may only hand off to an existing
+      // Author-assigned reviewer (with the original deadline); cross-department routing is pending.
+      reviewAction: (id, action) => update(id, (sop) => {
+        if (action.type === 'department-review' || action.type === 'skip' || action.type === 'quality') {
+          throw new Error('Additional reviewer assignment and routing are controlled by the Author; cross-department review is pending')
+        }
+        if (action.type === 'forward' && (
+          !sop.reviewers.some((person) => person.userId === action.reviewerId && person.decision !== 'cancelled') || action.dueDate !== undefined
+        )) throw new Error('Only a handoff to an existing Author-assigned reviewer without a new deadline is allowed')
+        return applyReviewAction(sop, userId, action, environment)
+      }),
       acceptInternalReview: async (id, roundId, assignmentId) => {
         acceptInternalReview(current(id), userId, roundId, assignmentId, environment)
-        await acceptReview(assignmentId)
+        await refreshIfExpired(id, async () => (await reviewService()).acceptReview(assignmentId))
         await refresh(id)
       },
       declineInternalReview: async (id, roundId, assignmentId, reason) => {
         declineInternalReview(current(id), userId, roundId, assignmentId, reason, environment)
-        await declineReview(assignmentId, reason.trim())
+        await refreshIfExpired(id, async () => (await reviewService()).declineReview(assignmentId, reason.trim()))
         await refresh(id)
       },
       decideInternalReview: async (id, roundId, assignmentId, decision, text) => {
         decideInternalReview(current(id), userId, roundId, assignmentId, decision, text, environment)
-        await decideReview(assignmentId, decision, text)
+        await refreshIfExpired(id, async () => (await reviewService()).decideReview(assignmentId, decision, text))
         await refresh(id)
       },
       addInternalReviewers: async (id, options) => {
         addInternalReviewers(current(id), userId, options, environment)
-        await addReviewers(id, options)
+        await (await reviewService()).addReviewers(id, options)
         await refresh(id)
       },
       removeInternalReviewer: async (id, roundId, assignmentId, reason) => {
         removeInternalReviewer(current(id), userId, roundId, assignmentId, reason, environment)
-        await removeReviewer(assignmentId, reason.trim())
+        await (await reviewService()).removeReviewer(assignmentId, reason.trim())
+        await refresh(id)
+      },
+      resendInternalReview: async (id, assignmentId) => {
+        resendInternalReview(current(id), userId, assignmentId, environment)
+        try {
+          await (await reviewService()).resendReviewRequest(assignmentId)
+        } catch (error) {
+          // This tab was behind: read the SOP again, so the page shows what changed.
+          if (error instanceof RequestNotResendableError) await refresh(id).catch(() => undefined)
+          throw error
+        }
+        await refresh(id)
+      },
+      changeReviewDeadline: async (id, roundId, assignmentId, days) => {
+        changeInternalReviewDeadline(current(id), userId, roundId, assignmentId, days, environment)
+        try {
+          await (await reviewService()).changeReviewDeadline(assignmentId, days)
+        } catch (error) {
+          // This tab was behind: read the SOP again, so the page shows what changed.
+          if (error instanceof ReviewDeadlineUnavailableError) await refresh(id).catch(() => undefined)
+          throw error
+        }
         await refresh(id)
       },
       resubmit: (id, options) => update(id, (sop) => {
@@ -261,31 +427,61 @@ export function SopsProvider({ children }: { children: ReactNode }) {
       }),
       uploadVersion: async (id, file) => {
         // The browser's rules first (they also cover the review state the database doesn't have yet).
-        workflow.uploadVersion(current(id), userId, { fileName: file.name, fileType: fileTypeOf(file.name) ?? 'pdf' })
-        const stored = await uploadSopFile(userId, file)
-        await uploadSopVersion(id, stored)
+        const uploaded = { fileName: file.name, fileType: fileTypeOf(file) }
+        workflow.uploadVersion(current(id), userId, uploaded)
+        const stored = await (await fileService()).uploadSopFile(userId, file)
+        if (activeIdentity.current !== userId) throw new Error('The signed-in user changed')
+        await (await sopService()).uploadSopVersion(id, stored)
+        forgetSentForApproval(id)
         await refresh(id)
       },
       deleteVersion: async (id, version) => {
         workflow.deleteVersion(current(id), userId, version)
-        await deleteSopVersion(id, version)
+        await (await sopService()).deleteSopVersion(id, version)
         await refresh(id)
       },
-      addResponse: async (id, text) => {
-        workflow.addResponse(current(id), userId, text)
-        await respondToComments(id, text.trim())
+      // The browser's rules first (they also cover approval, which the database doesn't have yet).
+      deleteSop: async (id, reason) => {
+        const sop = current(id)
+        if (!canDeleteSop(sop, userId)) throw new SopDeleteError('not-allowed', 'Only the main author can delete an SOP in New SOPs or In Progress')
+        const trimmed = reason.trim()
+        if (!trimmed || trimmed.length > REVIEW_TEXT_MAX) throw new SopDeleteError('invalid-reason', 'A justification of up to 1000 characters is required to delete an SOP')
+        if (hasRunningCheck(sop)) throw new SopDeleteError('check-running', "This SOP can't be deleted while a compliance check is running. Try again when it finishes.")
+        // The sample SOPs exist only in this tab and have no rows or files to delete.
+        if (!storedIds.current.has(id)) throw new SopDeleteError('not-found', 'Only SOPs saved in the database can be deleted')
+        await (await sopService()).deleteSop(id, trimmed)
+        deletedIds.current.add(id)
+        storedIds.current.delete(id)
+        commit(latestRef.current.filter((item) => item.id !== id))
+        forgetSentForApproval(id)
+      },
+      addResponse: async (id, text, requestId) => {
+        const target = PER_REVIEWER_RESPONSE_ACTIVE ? requestId : undefined
+        workflow.addResponse(current(id), userId, text, target)
+        try {
+          await (await reviewService()).respondToComments(id, text.trim(), target)
+        } catch (error) {
+          // This tab was behind: read the SOP again, so the page shows what changed.
+          if (error instanceof ResponseNotAvailableError) await refresh(id).catch(() => undefined)
+          throw error
+        }
         await refresh(id)
       },
       // The signed-in user (`userId`) acts; the others are the co-authors added or removed.
       // The browser's rules first (they also cover reviewers and approvers the database doesn't have yet).
       addCoAuthors: async (id, coAuthorIds) => {
         workflow.addCoAuthors(current(id), userId, coAuthorIds)
-        await addCoAuthors(id, coAuthorIds)
+        await (await sopService()).addCoAuthors(id, coAuthorIds)
         await refresh(id)
       },
       removeCoAuthor: async (id, coAuthorId) => {
         workflow.removeCoAuthor(current(id), userId, coAuthorId)
-        await removeCoAuthor(id, coAuthorId)
+        await (await sopService()).removeCoAuthor(id, coAuthorId)
+        await refresh(id)
+      },
+      updateDescription: async (id, text) => {
+        workflow.updateDescription(current(id), userId, text)
+        await (await sopService()).updateSopDescription(id, text)
         await refresh(id)
       },
       runCheck,
@@ -298,20 +494,22 @@ export function SopsProvider({ children }: { children: ReactNode }) {
         if (sop.reviewFlow) return applyReviewAction(sop, userId, { type: 'return-author', text }, environment)
         return workflow.returnAsReviewer(sop, reviewerId, text)
       }),
-      routeToReviewer: (id, reviewerId, newReviewerId, note) => {
+      routeToReviewer: (_id, reviewerId) => {
         assertActor(reviewerId, 'reviewer')
-        const person = getUser(newReviewerId)
-        if (!person) throw new Error(`Unknown user ${newReviewerId}`)
-        update(id, (sop) => workflow.routeToReviewer(sop, reviewerId, person, note))
+        // Author-controlled assignments: reviewers cannot add or route to new reviewers.
+        throw new Error('Only the Author can assign reviewers; cross-department review is pending')
       },
       approveAs: (id, approverId, text, snapshot) => update(id, (sop) => {
         assertActor(approverId, 'approver')
         return workflow.approveAs(sop, approverId, text, snapshot)
       }),
-      returnAsApprover: (id, approverId, text, snapshot) => update(id, (sop) => {
-        assertActor(approverId, 'approver')
-        return workflow.returnAsApprover(sop, approverId, text, snapshot)
-      }),
+      returnAsApprover: (id, approverId, text, snapshot) => {
+        update(id, (sop) => {
+          assertActor(approverId, 'approver')
+          return workflow.returnAsApprover(sop, approverId, text, snapshot)
+        })
+        forgetSentForApproval(id)
+      },
       publishAs: (id, approverId, snapshot) => update(id, (sop) => {
         assertActor(approverId, 'approver')
         return workflow.publishAs(sop, approverId, snapshot)
@@ -334,7 +532,7 @@ export function SopsProvider({ children }: { children: ReactNode }) {
       failNextCheck,
       setFailNextCheck,
     }),
-    [status, sops, addDraft, refresh, current, update, runCheck, failNextCheck, setFailNextCheck, userId, guideline.version, getUser, users, environment, assertActor],
+    [status, exposedSops, closedRequests, addDraft, refresh, refreshIfExpired, current, update, runCheck, failNextCheck, setFailNextCheck, userId, guideline.version, users, environment, assertActor, commit],
   )
 
   return <SopsContext.Provider value={store}>{children}</SopsContext.Provider>

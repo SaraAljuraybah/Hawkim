@@ -8,7 +8,7 @@ export interface SessionStore {
   status: SessionStatus
   /** The signed-in user, or null when nobody is signed in (or it isn't known yet). */
   user: User | null
-  /** Starts a session for this user (after the auth service accepted the sign-in). */
+  /** Sets this tab's signed-in user after Supabase Auth has signed them in (see services/auth.ts). */
   signIn: (user: User) => void
   signOut: () => void
 }

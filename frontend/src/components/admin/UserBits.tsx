@@ -1,32 +1,23 @@
 import { usersEn } from '../../content/users.en'
 import type { User } from '../../data/mock/types'
 
-/** The user's initials in a circle (decorative: the name is always shown next to it). */
-export function UserAvatar({ user, className = '' }: { user: User; className?: string }) {
-  return (
-    <span
-      aria-hidden="true"
-      className={`inline-flex size-9 shrink-0 items-center justify-center rounded-full bg-beige text-xs font-semibold text-maroon ${className}`}
-    >
-      {user.initials}
-    </span>
-  )
-}
+export { UserAvatar } from '../ui/UserAvatar'
 
-/** The user's permissions as text badges, or "Employee" when they have none. */
-export function PermissionBadges({ user, className = '' }: { user: User; className?: string }) {
-  const badge = 'inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium whitespace-nowrap'
+/**
+ * The user's permissions as text badges, or nothing when they have none: the admin sidebar's
+ * "Admin" tag, with its light gold at 60% so it is lighter on white (maroon text on it: 11.63:1).
+ */
+export function PermissionBadges({ user, className = '' }: { user: Pick<User, 'permissions'>; className?: string }) {
+  const badge = 'inline-flex items-center rounded-md bg-gold-light/60 px-1.5 py-0.5 text-xs font-semibold whitespace-nowrap text-maroon'
+  if (user.permissions.length === 0) return null
+  const labels = user.permissions.map((permission) => usersEn.permissions[permission])
   return (
     <ul className={`flex flex-wrap gap-1.5 ${className}`}>
-      {user.permissions.length === 0 ? (
-        <li className={`${badge} border-text-gray/30 text-text-gray`}>{usersEn.employee}</li>
-      ) : (
-        user.permissions.map((permission) => (
-          <li key={permission} className={`${badge} border-maroon/20 bg-maroon/[0.06] text-maroon`}>
-            {usersEn.permissions[permission]}
-          </li>
-        ))
-      )}
+      {labels.map((label) => (
+        <li key={label} className={badge}>
+          {label}
+        </li>
+      ))}
     </ul>
   )
 }

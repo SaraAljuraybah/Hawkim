@@ -13,6 +13,12 @@ export interface TextAreaFieldProps extends Omit<TextareaHTMLAttributes<HTMLText
   counter?: string
   /** false: fixed size (no resize handle). Default true: can be made taller. */
   resizable?: boolean
+  /** true: no minimum height, so a small `rows` (e.g. 3) sets the starting height. */
+  compact?: boolean
+  /** Keeps the label for screen readers only (sr-only), so the field still has an accessible name. */
+  hideLabel?: boolean
+  /** Shows a red asterisk after the label (hidden from screen readers; `required` announces it). */
+  requiredMark?: boolean
   ref?: Ref<HTMLTextAreaElement>
   className?: string
 }
@@ -24,6 +30,9 @@ export function TextAreaField({
   error,
   counter,
   resizable = true,
+  compact = false,
+  hideLabel = false,
+  requiredMark = false,
   ref,
   id,
   rows = 5,
@@ -38,6 +47,8 @@ export function TextAreaField({
   return (
     <FieldShell
       label={label}
+      hideLabel={hideLabel}
+      requiredMark={requiredMark}
       inputId={fieldIds.inputId}
       hint={hint}
       hintId={fieldIds.hintId}
@@ -58,7 +69,7 @@ export function TextAreaField({
         rows={rows}
         aria-invalid={error ? true : undefined}
         aria-describedby={describedByIds}
-        className={`block min-h-28 ${resizable ? 'resize-y' : 'resize-none'} py-2.5 leading-relaxed ${controlClasses(error)}`}
+        className={`block ${compact ? '' : 'min-h-28'} ${resizable ? 'resize-y' : 'resize-none'} py-2.5 leading-relaxed ${controlClasses(error)}`}
         {...textareaProps}
       />
     </FieldShell>

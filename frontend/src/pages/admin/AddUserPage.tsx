@@ -1,81 +1,54 @@
-import { useRef, useState, type FormEvent } from 'react'
+import { useRef, useState } from 'react'
 import { flushSync } from 'react-dom'
 import { Link, useNavigate } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
-import { Button } from '../../components/ui/Button'
-import { CheckboxGroup } from '../../components/ui/CheckboxGroup'
-import { SelectField } from '../../components/ui/SelectField'
-import { TextField } from '../../components/ui/TextField'
+import { RefusedBox } from '../../components/admin/RefusedBox'
+import { UserForm } from '../../components/admin/UserForm'
 import { adminEn } from '../../content/admin.en'
 import { usersEn } from '../../content/users.en'
-import type { DepartmentId, Permission } from '../../data/mock/types'
 import { useDocumentTitle } from '../../hooks/useDocumentTitle'
 import { adminUserPath } from '../../lib/routes'
-import { PERMISSIONS, validateNewUser, type NewUser, type NewUserField, type NewUserProblem } from '../../lib/userAdmin'
-import { useDepartments } from '../../state/departmentsContext'
+import type { NewUser } from '../../lib/userAdmin'
+import { AddUserError } from '../../services/people'
 import { useUsers } from '../../state/usersContext'
 import type { UserDetailsLocationState } from './UserDetailsPage'
 
-const FIELDS: NewUserField[] = ['name', 'email', 'departmentId']
-
-type FieldErrors = Partial<Record<NewUserField, string>>
+// divisionId stays undefined until the admin changes it, so the default follows the departments.
+const EMPTY_USER: NewUser = { name: '', email: '', phone: '', departmentId: '', position: '', permissions: [] }
 
 /**
- * Add user ("/admin/users/new", PBI 15): full name, email (valid and unique) and
- * department are required; permissions are optional. Nothing is added while any
- * required information is missing. On success, the new user's page opens.
- * TODO: Create a real account (an invitation to set a password) once the backend
- * exists. There is no password field: the admin never chooses one.
+ * Add user ("/admin/users/new", PBI 15): a real sign-in account, the user's profile and permissions,
+ * and an invitation email to set their password; the admin never chooses one. Nothing is added while
+ * any required information is missing (see UserForm), and the server refuses what the rules don't
+ * allow. On success, the new user's page opens, saying whether the invitation went out.
  */
 export function AddUserPage() {
   const content = adminEn.addUser
   useDocumentTitle(adminEn.pageTitle.replace('{page}', content.title))
   const { activeUsers, addUser } = useUsers()
-  const { activeDepartments } = useDepartments()
   const navigate = useNavigate()
+  const [refused, setRefused] = useState<string[]>([])
+  const refusedRef = useRef<HTMLDivElement>(null)
 
-  const [values, setValues] = useState<NewUser>({ name: '', email: '', departmentId: '', permissions: [] })
-  const [errors, setErrors] = useState<FieldErrors>({})
-  const [submitAttempted, setSubmitAttempted] = useState(false)
-  const nameRef = useRef<HTMLInputElement>(null)
-  const emailRef = useRef<HTMLInputElement>(null)
-  const departmentRef = useRef<HTMLSelectElement>(null)
-
-  const messages: Record<NewUserProblem, string> = {
-    'name-required': content.errors.nameRequired,
-    'email-invalid': content.errors.emailInvalid,
-    'email-taken': content.errors.emailTaken,
-    'department-required': content.errors.departmentRequired,
+  /** What to tell the admin about an add the server refused. */
+  function failureMessages(error: unknown): string[] {
+    if (!(error instanceof AddUserError)) return [content.failures.failed]
+    if (error.reason !== 'permission-in-use') return [content.failures[error.reason]]
+    if (error.inUse.length === 0) return [content.failures.invalid]
+    return error.inUse.map(({ permission, count }) =>
+      (count === 1 ? adminEn.editUser.inUse.one : adminEn.editUser.inUse.other).replace('{permission}', usersEn.permissions[permission]).replace('{count}', String(count)),
+    )
   }
-  function errorsFor(user: NewUser): FieldErrors {
-    const problems = validateNewUser(user, activeUsers)
-    const errorOf = (field: NewUserField) => {
-      const problem = problems[field]
-      return problem && messages[problem]
+
+  async function add(user: NewUser) {
+    try {
+      const added = await addUser(user)
+      const state: UserDetailsLocationState = { added: true, invitationFailed: !added.emailSent }
+      navigate(adminUserPath(added.user.id), { state })
+    } catch (error) {
+      flushSync(() => setRefused(failureMessages(error)))
+      refusedRef.current?.focus()
     }
-    return { name: errorOf('name'), email: errorOf('email'), departmentId: errorOf('departmentId') }
-  }
-
-  // Errors are first shown on submit; after that, each field re-validates on blur.
-  function blur(field: NewUserField) {
-    if (submitAttempted) setErrors((prev) => ({ ...prev, [field]: errorsFor(values)[field] }))
-  }
-
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    setSubmitAttempted(true)
-    const next = errorsFor(values)
-    // Render the messages before moving focus, so screen readers read them with the field.
-    flushSync(() => setErrors(next))
-    const firstInvalid = FIELDS.find((field) => next[field])
-    if (firstInvalid) {
-      const refs = { name: nameRef, email: emailRef, departmentId: departmentRef }
-      refs[firstInvalid].current?.focus()
-      return
-    }
-    const created = addUser(values)
-    const state: UserDetailsLocationState = { added: true }
-    navigate(adminUserPath(created.id), { state })
   }
 
   return (
@@ -90,65 +63,14 @@ export function AddUserPage() {
       <h1 className="mt-5 text-2xl tracking-tight sm:text-3xl">{content.title}</h1>
       <p className="mt-2 text-text-gray">{content.subtitle}</p>
 
-      <form noValidate onSubmit={handleSubmit} className="mt-8 max-w-2xl rounded-xl border border-beige bg-white p-5 sm:p-6">
-        <TextField
-          ref={nameRef}
-          name="name"
-          autoComplete="off"
-          label={content.name.label}
-          value={values.name}
-          error={errors.name}
-          onChange={(event) => setValues({ ...values, name: event.target.value })}
-          onBlur={() => blur('name')}
-        />
-        <TextField
-          ref={emailRef}
-          name="email"
-          type="email"
-          autoComplete="off"
-          autoCapitalize="none"
-          spellCheck={false}
-          label={content.email.label}
-          hint={content.email.hint}
-          value={values.email}
-          error={errors.email}
-          onChange={(event) => setValues({ ...values, email: event.target.value })}
-          onBlur={() => blur('email')}
-          className="mt-5"
-        />
-        <SelectField
-          ref={departmentRef}
-          name="department"
-          label={content.department.label}
-          placeholder={content.department.placeholder}
-          options={activeDepartments.map((department) => ({ value: department.id, label: department.name }))}
-          value={values.departmentId}
-          error={errors.departmentId}
-          onChange={(event) => setValues({ ...values, departmentId: event.target.value as DepartmentId })}
-          onBlur={() => blur('departmentId')}
-          className="mt-5"
-        />
-        <CheckboxGroup
-          name="permissions"
-          legend={content.permissions.legend}
-          hint={content.permissions.hint}
-          options={PERMISSIONS.map((permission) => ({
-            value: permission,
-            label: usersEn.permissions[permission],
-            description: adminEn.permissionDescriptions[permission],
-          }))}
-          value={values.permissions}
-          onChange={(next) => setValues({ ...values, permissions: next as Permission[] })}
-          className="mt-6"
-        />
-
-        <div className="mt-8 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-          <Button variant="secondary" to={content.back.href}>
-            {content.cancel}
-          </Button>
-          <Button type="submit">{content.submit}</Button>
-        </div>
-      </form>
+      <UserForm
+        initial={EMPTY_USER}
+        otherUsers={activeUsers}
+        submitLabel={content.submit}
+        busyLabel={content.adding}
+        notice={refused.length > 0 && <RefusedBox ref={refusedRef} title={content.notAdded} messages={refused} />}
+        onSubmit={add}
+      />
     </>
   )
 }

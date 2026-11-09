@@ -14,8 +14,11 @@ import {
 } from '../data/mock/types'
 import type { SopStatus } from '../types/status'
 import { hasCurrentCheck } from './compliance'
+import { fixedResponseDueDate } from './fixedResponseDeadline'
 import { todayIsoDate } from './format'
+import { SOP_DESCRIPTION_MAX } from './sopDescription'
 import { isInactiveDecision, isOpenDecision, isUnsentVersion, latestAssignments, projectReviewers, requestDeadline, reviewAllowsNewVersion } from './internalReviewStatus'
+import { endOfRiyadhDay, reviewWorkingDueDateFrom, riyadhDate, WORKING_DAY_POLICY } from './riyadhWorkingDays'
 
 /*
  * SOP workflow rules (Sprint 0, PBI 2 / 3 / 6 / 8 / 12 / 22 / 24) as pure functions.
@@ -71,12 +74,7 @@ function localDatePlus(now: Date, days: number): string {
 
 /** Review dates are optional, today or later, without an upper limit. */
 export function dueDateRange(now = new Date()): { min: string; max?: string } {
-  return { min: todayIsoDate(now) }
-}
-
-/** Approval-stage restrictions are independent of the review date picker. */
-export function approvalDueDateRange(now = new Date()): { min: string; max: string } {
-  return { min: localDatePlus(now, DUE_DAYS_MIN), max: localDatePlus(now, DUE_DAYS_MAX) }
+  return { min: riyadhDate(now) }
 }
 
 /**
@@ -84,6 +82,10 @@ export function approvalDueDateRange(now = new Date()): { min: string; max: stri
  * real date. Counted by date, not by hours, so a daylight-saving change doesn't matter.
  */
 export function daysFromToday(isoDate: string, now = new Date()): number | undefined {
+  return daysFromCalendarDate(isoDate, todayIsoDate(now))
+}
+
+function daysFromCalendarDate(isoDate: string, fromDate: string): number | undefined {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(isoDate)
   if (!match) return undefined
   const [year, month, day] = match.slice(1).map(Number)
@@ -91,24 +93,17 @@ export function daysFromToday(isoDate: string, now = new Date()): number | undef
   date.setUTCFullYear(year, month - 1, day)
   date.setUTCHours(0, 0, 0, 0)
   if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) return undefined // e.g. Feb 30
-  return Math.round((date.getTime() - Date.UTC(now.getFullYear(), now.getMonth(), now.getDate())) / DAY_MS)
+  return Math.round((date.getTime() - new Date(`${fromDate}T00:00:00.000Z`).getTime()) / DAY_MS)
 }
 
 /**
  * An optional review deadline as calendar days from submission. The deadline ends at
- * 23:59:59.999 on the selected local date. Empty is valid; past/invalid dates are not.
+ * 23:59:59.999 in Riyadh. Empty is valid; past/invalid dates are not.
  */
 export function parseDueDate(isoDate: string, now = new Date()): { valid: boolean; days?: number } {
   if (!isoDate.trim()) return { valid: true }
-  const days = daysFromToday(isoDate.trim(), now)
+  const days = daysFromCalendarDate(isoDate.trim(), riyadhDate(now))
   return days !== undefined && days >= 0 ? { valid: true, days } : { valid: false }
-}
-
-/** Approval dates preserve their original tomorrow-through-30-days validation. */
-export function parseApprovalDueDate(isoDate: string, now = new Date()): { valid: boolean; days?: number } {
-  if (!isoDate.trim()) return { valid: true }
-  const days = daysFromToday(isoDate.trim(), now)
-  return days !== undefined && isValidDueDays(days) ? { valid: true, days } : { valid: false }
 }
 
 /** Response texts are limited like comments. */
@@ -198,14 +193,15 @@ export function pendingPeople(
 
 /** A legacy reviewer assignment or an internal review request: what its deadline depends on. */
 export type DeadlineHolder = Pick<ReviewerAssignment, 'userId' | 'dueDate' | 'assignedDueDays'> & { assignedAt?: string } &
-  Partial<Pick<InternalReviewerAssignment, 'id' | 'acceptedAt' | 'responseDueDate' | 'reviewDueDate'>>
+  Partial<Pick<InternalReviewerAssignment, 'id' | 'acceptedAt' | 'responseDueDate' | 'reviewDueDate' | 'responseDueAt' | 'reviewDueAt' | 'reviewDurationDays' | 'deadlinePolicy'>>
 
 /** Original allocation, with compatibility for date-only and shared-deadline records. */
 export function reviewerAssignedDays(sop: Sop, reviewer: DeadlineHolder): number | undefined {
   if (reviewer.assignedDueDays !== undefined) return reviewer.assignedDueDays ?? undefined
   if (reviewer.dueDate) {
     const submitted = [...sop.timeline].reverse().find((item) => item.type === 'submitted' || item.type === 'resubmitted')
-    const days = submitted ? daysFromToday(reviewer.dueDate, new Date(submitted.createdAt)) : undefined
+    // Counted in Riyadh, as the date was chosen (parseDueDate), whatever the device's time zone.
+    const days = submitted ? daysFromCalendarDate(reviewer.dueDate, riyadhDate(new Date(submitted.createdAt))) : undefined
     return days !== undefined && days >= 0 ? days : undefined
   }
   return sop.reviewDueDays
@@ -216,6 +212,11 @@ export function dueAtOfDate(isoDate: string): string {
   return new Date(`${isoDate}T23:59:59.999`).toISOString()
 }
 
+/** New review date allocations use Riyadh; saved date-only legacy deadlines retain dueAtOfDate. */
+export function reviewDateDueAt(isoDate: string): string {
+  return endOfRiyadhDay(isoDate)
+}
+
 /**
  * This person's deadline, including legacy shared deadlines. An explicit blank never inherits one.
  * An internal review request has its own: the response due date until accepted, then the review due date.
@@ -223,13 +224,23 @@ export function dueAtOfDate(isoDate: string): string {
 export function reviewerDueAt(sop: Sop, reviewer: DeadlineHolder): string | undefined {
   if (sop.internalReviewRounds?.length && reviewer.id) return requestDeadline(reviewer)?.dueAt
   if (reviewer.assignedDueDays === null) return undefined
-  return reviewer.dueDate ? dueAtOfDate(reviewer.dueDate) : sop.reviewDueAt
+  return reviewer.reviewDueAt ?? (reviewer.dueDate ? dueAtOfDate(reviewer.dueDate) : sop.reviewDueAt)
 }
 
 /** Whether this task date has passed; callers also check that the assignment is active. */
 export function reviewerDeadlinePassed(sop: Sop, reviewer: DeadlineHolder, now = Date.now()): boolean {
+  if (!hasActiveRequestDeadline(sop, reviewer)) return false
   const dueAt = reviewerDueAt(sop, reviewer)
   return !!dueAt && new Date(dueAt).getTime() <= now
+}
+
+/** Historical, closed and superseded internal requests keep their dates without active clocks. */
+function hasActiveRequestDeadline(sop: Sop, reviewer: DeadlineHolder): boolean {
+  if (!sop.internalReviewRounds?.length || !reviewer.id) return true
+  const round = sop.internalReviewRounds.at(-1)!
+  const assignment = round.assignments.find((person) => person.id === reviewer.id)
+  return sop.status === 'in-review' && round.version === sop.version && round.status === 'open' && !!assignment &&
+    latestAssignments(round).some((person) => person.id === assignment.id) && isOpenDecision(assignment.decision)
 }
 
 /** The nearest open internal request deadline, active legacy reviewer deadline, or approval deadline. */
@@ -250,6 +261,7 @@ export function currentDueAt(sop: Sop): string | undefined {
 
 /** Real elapsed time remaining, separate from the original calendar allocation. */
 export function reviewerRemainingMilliseconds(sop: Sop, reviewer: DeadlineHolder, now = Date.now()): number | undefined {
+  if (!hasActiveRequestDeadline(sop, reviewer)) return undefined
   const dueAt = reviewerDueAt(sop, reviewer)
   return dueAt ? new Date(dueAt).getTime() - now : undefined
 }
@@ -267,9 +279,17 @@ function allocationMilliseconds(assignedAt: string, days: number): number {
 
 /** Original real time given; simulating an overdue date does not rewrite this allocation. */
 export function reviewerAssignedMilliseconds(sop: Sop, reviewer: DeadlineHolder): number | undefined {
+  if (sop.internalReviewRounds?.length && reviewer.id && reviewer.deadlinePolicy === WORKING_DAY_POLICY && reviewer.assignedAt) {
+    if (reviewer.acceptedAt) return reviewer.reviewDurationDays === undefined ? undefined
+      : new Date(endOfRiyadhDay(reviewWorkingDueDateFrom(reviewer.acceptedAt, reviewer.reviewDurationDays))).getTime() - new Date(reviewer.acceptedAt).getTime()
+    return new Date(endOfRiyadhDay(fixedResponseDueDate(new Date(reviewer.assignedAt)))).getTime() - new Date(reviewer.assignedAt).getTime()
+  }
   const days = reviewerAssignedDays(sop, reviewer)
   if (days === undefined) return undefined
-  if ('assignedAt' in reviewer && typeof reviewer.assignedAt === 'string') return allocationMilliseconds(reviewer.assignedAt, days)
+  if (typeof reviewer.assignedAt === 'string') {
+    if (reviewer.reviewDueAt) return new Date(addDays(endOfRiyadhDay(riyadhDate(new Date(reviewer.assignedAt))), days)).getTime() - new Date(reviewer.assignedAt).getTime()
+    return allocationMilliseconds(reviewer.assignedAt, days)
+  }
   // Older records only kept a calendar-day allocation, so retain that original meaning.
   return days * DAY_MS
 }
@@ -317,6 +337,28 @@ export function returnedFrom(sop: Sop): 'in-review' | 'in-approval' | undefined 
   const returned = latestReturn(sop)
   if (!returned) return undefined
   return isApprover(sop, returned.actorId) ? 'in-approval' : 'in-review'
+}
+
+/**
+ * The step shown as returned in the coloured Workflow status: the step a returned SOP came back
+ * from, or In Review as soon as one reviewer of the latest internal round returned it with comments
+ * (their latest request), even while others are still reviewing; the SOP stays In Review.
+ * Sending a new version starts a new open round.
+ */
+export function returnedStep(sop: Sop): 'in-review' | 'in-approval' | undefined {
+  if (sop.status === 'returned') return returnedFrom(sop) ?? 'in-review'
+  const round = sop.internalReviewRounds?.at(-1)
+  if (sop.status === 'in-review' && round && latestAssignments(round).some((request) => request.decision === 'returned')) return 'in-review'
+  return undefined
+}
+
+/**
+ * The status the author sees on My SOPs: Returned whenever the Workflow status shows a returned
+ * step (returnedStep), so the badge and the steps always agree. Only for display: the SOP keeps
+ * its stored status (and its My SOPs tab).
+ */
+export function authorStatus(sop: Sop): SopStatus {
+  return returnedStep(sop) ? 'returned' : sop.status
 }
 
 /**
@@ -488,6 +530,7 @@ export function submitForReview(
   // The check must have run for this version against the current guideline; it doesn't have to pass (PBI 4, 29).
   assert(hasCurrentCheck(sop, guidelineVersion), 'Run a compliance check against the current guideline first')
   assertSeparation(sop, reviewerIds, approverIds)
+  assert(!note || note.trim().length <= SUBMIT_COMMENT_MAX, 'Submission comments must be at most 500 characters')
   assert(
     [reviewDueDays, approvalDueDays].every((days) => days === undefined || isValidDueDays(days)),
     'Due days must be from 1 to 30',
@@ -516,7 +559,7 @@ export function submitForReview(
     reviewers: reviewerIds.map((userId): ReviewerAssignment => ({
       userId,
       decision: 'pending',
-      ...(dates[userId] ? { dueDate: dates[userId].trim() } : {}),
+      ...(dates[userId] ? { dueDate: dates[userId].trim(), reviewDueAt: reviewDateDueAt(dates[userId].trim()), assignedAt: createdAt } : {}),
       assignedDueDays: reviewerDueDates !== undefined
         ? (dates[userId] ? parseDueDate(dates[userId], submittedAt).days! : null)
         : reviewDueDays ?? null,
@@ -536,7 +579,7 @@ export function submitForReview(
   }
 }
 
-/** Submission and resubmission comments are limited to 500 characters. */
+/** Submission and resubmission comments are limited to 500 characters (the approved database limit). */
 export const SUBMIT_COMMENT_MAX = 500
 
 /**
@@ -549,14 +592,15 @@ export const SUBMIT_COMMENT_MAX = 500
 export function resubmit(sop: Sop, actorId: string, guidelineVersion: string, note?: string, dueDate?: string): Sop {
   assert(!sop.internalReviewRounds?.length, 'Use the internal review request to resubmit this SOP')
   assert(isAuthor(sop, actorId), 'Only the author can resubmit this SOP')
-  assert(canResubmit(sop), 'Upload a new version before resubmitting')
+  assert(canResubmit(sop), 'Add a new version before resubmitting')
   assert(hasCurrentCheck(sop, guidelineVersion), 'Run a compliance check against the current guideline first')
   const trimmed = note?.trim()
   assert(!trimmed || trimmed.length <= SUBMIT_COMMENT_MAX, 'Submission comments must be at most 500 characters')
   const date = dueDate?.trim()
-  const parsed = parseDueDate(date ?? '')
+  const submittedAt = new Date()
+  const parsed = parseDueDate(date ?? '', submittedAt)
   assert(parsed.valid, 'Choose an optional review deadline today or later')
-  const createdAt = new Date().toISOString()
+  const createdAt = submittedAt.toISOString()
 
   const reviewerIds = sop.reviewers.map((p) => p.userId)
   // Reviewer 1: the saved one in the review flow, or the first reviewer on older SOPs.
@@ -566,7 +610,7 @@ export function resubmit(sop: Sop, actorId: string, guidelineVersion: string, no
     userId: person.userId,
     decision: 'pending',
     ...(person.userId === firstReviewerId && date
-      ? { dueDate: date, assignedDueDays: parsed.days }
+      ? { dueDate: date, reviewDueAt: reviewDateDueAt(date), assignedAt: createdAt, assignedDueDays: parsed.days }
       : { assignedDueDays: null }),
   }))
 
@@ -599,8 +643,8 @@ export function resubmit(sop: Sop, actorId: string, guidelineVersion: string, no
  */
 export function uploadVersion(sop: Sop, actorId: string, file: UploadedFile): Sop {
   // During internal review, a new version can follow once every reviewer has finished the current one.
-  if (!reviewAllowsNewVersion(sop)) assertStatus(sop, ['draft', 'returned'], 'upload a version of')
-  assert(isAuthorOrCoAuthor(sop, actorId), 'Only the author or a co-author can upload a version')
+  if (!reviewAllowsNewVersion(sop)) assertStatus(sop, ['draft', 'returned'], 'add a version of')
+  assert(isAuthorOrCoAuthor(sop, actorId), 'Only the author or a co-author can add a version')
   const version = nextVersion(sop)
   const uploadedAt = new Date().toISOString()
   const updated: Sop = { ...sop, ...file, version, lastUpdated: todayIsoDate() }
@@ -621,7 +665,7 @@ export function deleteVersion(sop: Sop, actorId: string, version: string): Sop {
   assert(!!target, `Unknown version ${version}`)
   const blocker = deleteVersionBlocker(sop, actorId, version)
   assert(blocker !== 'status', `Can't delete a version of an SOP that is ${sop.status}`)
-  assert(blocker !== 'not-uploader', 'Only the main author or the person who uploaded this version can delete it')
+  assert(blocker !== 'not-uploader', 'Only the main author or the person who added this version can delete it')
   assert(blocker !== 'submitted-version', 'Versions previously submitted or resubmitted for review cannot be deleted')
   assert(blocker !== 'last-version', 'At least one version must remain')
   const deletedAt = new Date().toISOString()
@@ -646,21 +690,37 @@ export function deleteVersion(sop: Sop, actorId: string, version: string): Sop {
 
 /**
  * Author or co-author: reply to the reviewers' and approvers' comments. Recorded in the
- * timeline, sent to everyone who commented in the latest round (see responseRecipients).
+ * timeline, sent to everyone who commented in the latest round (see responseRecipients),
+ * or only to the reviewer of `requestId`, recorded on that request's version.
  * Not once the SOP is published.
  */
-export function addResponse(sop: Sop, actorId: string, text: string): Sop {
+export function addResponse(sop: Sop, actorId: string, text: string, requestId?: string): Sop {
   assert(sop.status !== 'published', "Can't respond once the SOP is published")
   assert(isAuthorOrCoAuthor(sop, actorId), 'Only the author or a co-author can respond')
   const trimmed = text.trim()
   assert(!!trimmed && trimmed.length <= RESPONSE_MAX, 'A response of up to 1000 characters is required')
-  const recipientIds = responseRecipients(sop)
+  const round = sop.internalReviewRounds?.find((item) => item.assignments.some((request) => request.id === requestId))
+  const request = round?.assignments.find((item) => item.id === requestId)
+  assert(!requestId || !!request, 'There are no comments to respond to')
+  assert(!request || request.decision !== 'removed', "This reviewer was removed from the review, so they can't receive a response")
+  assert(!request || !!request.commentId, 'This reviewer left no comments to respond to')
+  const recipientIds = request ? [request.userId] : responseRecipients(sop)
   assert(recipientIds.length > 0, 'There are no comments to respond to')
+  const response = event(sop, 'response', actorId, { recipientIds, note: trimmed, ...(request ? { reviewAssignmentId: request.id } : {}) })
   return {
     ...sop,
     lastUpdated: todayIsoDate(),
-    timeline: [...sop.timeline, event(sop, 'response', actorId, { recipientIds, note: trimmed })],
+    timeline: [...sop.timeline, round ? { ...response, version: round.version } : response],
   }
+}
+
+/** Main author: change the description any time before the SOP is published. No timeline event. */
+export function updateDescription(sop: Sop, actorId: string, text: string): Sop {
+  assert(isAuthor(sop, actorId), 'Only the main author can change the description')
+  assert(sop.status !== 'published', "The description can't change once the SOP is published")
+  const description = text.trim()
+  assert(description.length <= SOP_DESCRIPTION_MAX, `The description must be at most ${SOP_DESCRIPTION_MAX} characters`)
+  return { ...sop, description, lastUpdated: todayIsoDate() }
 }
 
 /** Main author: add a co-author (PBI 2). Not when Published; never a reviewer or approver. */
@@ -802,6 +862,12 @@ export function internalReviewsComplete(sop: Sop): boolean {
     latest.every((person) => person.decision === 'completed' || isInactiveDecision(person.decision))
 }
 
+/** The approval rule: the latest round is on the current version and at least one reviewer's latest request in it is Completed. */
+export function hasCompletedCurrentReview(sop: Sop): boolean {
+  const round = sop.internalReviewRounds?.at(-1)
+  return !!round && round.version === sop.version && latestAssignments(round).some((person) => person.decision === 'completed')
+}
+
 /** All required initial and department reviews must be evidenced by completed assignments. */
 export function requiredReviewsComplete(sop: Sop): boolean {
   const round = sop.internalReviewRounds?.at(-1)
@@ -821,20 +887,6 @@ export function requiredReviewsComplete(sop: Sop): boolean {
     flow.departments.every((d) => d.completed && completed(d.representativeId) && completed(d.reviewerId))
 }
 
-/** Explicit external-review evidence only; an absent routing plan never means no reviews are required. */
-export function externalReviewsComplete(sop: Sop): boolean {
-  const gate = sop.externalReviewGate
-  const round = sop.internalReviewRounds?.at(-1)
-  if (!gate || gate.version !== sop.version || gate.internalReviewRoundId !== round?.id) return false
-  if (gate.requirement === 'not-required') return gate.confirmedById === sop.authorId && !!gate.confirmedAt
-  return gate.departmentIds.length > 0 && new Set(gate.departmentIds).size === gate.departmentIds.length &&
-    !gate.departmentIds.includes(sop.departmentId) && gate.assignments.length === gate.departmentIds.length &&
-    new Set(gate.assignments.map((assignment) => assignment.id)).size === gate.assignments.length &&
-    gate.departmentIds.every((departmentId) => gate.assignments.filter((assignment) => assignment.departmentId === departmentId).length === 1) &&
-    gate.assignments.every((assignment) => assignment.version === sop.version && assignment.decision === 'completed' &&
-      (!assignment.feedbackRequired || assignment.feedbackAddressed === true))
-}
-
 /** Review-plan readiness also protects direct approval and publication calls. */
 function assertQualityReady(sop: Sop, userId: string) {
   if (!sop.reviewFlow) return
@@ -847,7 +899,7 @@ export function activeApprovalSubmission(sop: Sop): ApprovalSubmission | undefin
   const submission = sop.approvalSubmissions?.at(-1)
   const round = sop.internalReviewRounds?.at(-1)
   if (!submission || submission.version !== sop.version || submission.internalReviewRoundId !== round?.id ||
-    !internalReviewsComplete(sop) || !requiredReviewsComplete(sop) || !externalReviewsComplete(sop) ||
+    !hasCompletedCurrentReview(sop) ||
     sop.approvers.length !== 1 || sop.approvers[0].userId !== submission.approverId ||
     sop.approvers[0].id !== submission.id || sop.approvers[0].version !== submission.version) return undefined
   const expected = sop.status === 'in-approval' ? 'pending' : sop.status === 'approved' ? 'approved' : sop.status === 'published' ? 'published' : undefined
@@ -1007,7 +1059,8 @@ export function shiftDueDates(sop: Sop, days: number): Sop {
     const shifted = {
       ...round,
       assignments: round.assignments.map((person) => isOpenDecision(person.decision)
-        ? { ...person, ...(person.responseDueDate ? { responseDueDate: earlier(person.responseDueDate) } : {}), ...(person.reviewDueDate ? { reviewDueDate: earlier(person.reviewDueDate) } : {}) }
+        ? { ...person, ...(person.responseDueDate ? { responseDueDate: earlier(person.responseDueDate) } : {}), ...(person.reviewDueDate ? { reviewDueDate: earlier(person.reviewDueDate) } : {}),
+          ...(person.responseDueAt ? { responseDueAt: addDays(person.responseDueAt, -days) } : {}), ...(person.reviewDueAt ? { reviewDueAt: addDays(person.reviewDueAt, -days) } : {}) }
         : person),
     }
     return { ...sop, internalReviewRounds: [...sop.internalReviewRounds!.slice(0, -1), shifted], reviewers: projectReviewers(shifted) }
@@ -1018,6 +1071,7 @@ export function shiftDueDates(sop: Sop, days: number): Sop {
       ...reviewer,
       assignedDueDays: reviewerAssignedDays(sop, reviewer) ?? null,
       ...(reviewer.dueDate ? { dueDate: localDatePlus(new Date(`${reviewer.dueDate}T12:00:00`), -days) } : {}),
+      ...(reviewer.reviewDueAt ? { reviewDueAt: addDays(reviewer.reviewDueAt, -days) } : {}),
     })),
     reviewDueAt: sop.reviewDueAt ? addDays(sop.reviewDueAt, -days) : undefined,
     approvalDueAt: sop.approvalDueAt ? addDays(sop.approvalDueAt, -days) : undefined,

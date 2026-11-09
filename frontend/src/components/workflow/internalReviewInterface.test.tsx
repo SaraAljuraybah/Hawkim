@@ -3,7 +3,8 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import type { ReactNode } from 'react'
 import type { Sop, User } from '../../data/mock/types'
-import { acceptInternalReview, currentInternalRound, decideInternalReview, declineInternalReview, removeInternalReviewer, sendNewVersionForReview, startInternalReview } from '../../lib/internalReview'
+import { acceptInternalReview, currentInternalRound, decideInternalReview, declineInternalReview, expireUnanswered, removeInternalReviewer, sendNewVersionForReview, startInternalReview } from '../../lib/internalReview'
+import { endOfRiyadhDay } from '../../lib/riyadhWorkingDays'
 import { uploadVersion } from '../../lib/workflow'
 import { reviewTasks } from '../../lib/reviews'
 import { deriveNotifications } from '../../lib/notifications'
@@ -14,6 +15,11 @@ import { SubmitDialog } from './SubmitDialog'
 import { SopWorkflowPage } from '../../pages/SopWorkflowPage'
 import { ReviewPage } from '../../pages/ReviewPage'
 import { ComplianceReportPage } from '../../pages/ComplianceReportPage'
+// These tests cover the Riyadh working-day policy as it behaves once activated (lib/deadlinePolicy.ts).
+// The pending (currently active) backend-compatible behaviour is covered in lib/deadlinePolicy.test.tsx.
+// These tests read the full timeline on the author's page; lib/releaseScope.test.tsx covers its release scope.
+vi.mock('../../lib/releaseScope', () => ({ visibleTimelineEvents: (events: unknown[]) => events }))
+vi.mock('../../lib/deadlinePolicy', () => ({ WORKING_DAY_DEADLINES_ACTIVE: true }))
 
 const fixture = vi.hoisted(() => ({ sop: null as Sop | null, userId: 'author', users: [
   { id: 'author', name: 'Main writer', permissions: ['author', 'reviewer'], departmentId: 'home' },
@@ -22,7 +28,7 @@ const fixture = vi.hoisted(() => ({ sop: null as Sop | null, userId: 'author', u
   { id: 'reviewer-b', name: 'Reviewer Beta', permissions: ['reviewer'], departmentId: 'home' },
   { id: 'external', name: 'External reviewer', permissions: ['reviewer'], departmentId: 'other' },
 ] as User[], departments: [{ id: 'home', name: 'Home', initials: 'HM', description: '', requiresComplianceCheck: true }] }))
-vi.mock('../../state/sessionContext', () => ({ useCurrentUser: () => fixture.users.find((user) => user.id === fixture.userId) }))
+vi.mock('../../state/sessionContext', () => ({ useCurrentUser: () => fixture.users.find((user) => user.id === fixture.userId), useSession: () => ({ status: 'signed-in', user: fixture.users.find((user) => user.id === fixture.userId) }) }))
 vi.mock('../../state/usersContext', () => ({ useUsers: () => ({ users: fixture.users, activeUsers: fixture.users, nameOf: (id: string) => fixture.users.find((user) => user.id === id)?.name ?? id ?? '', getUser: (id: string) => fixture.users.find((user) => user.id === id) }) }))
 vi.mock('../../state/departmentsContext', () => ({ useDepartments: () => ({ departments: fixture.departments, nameOf: (id: string) => id }) }))
 vi.mock('../../state/guidelinesContext', () => ({ useGuidelines: () => ({ current: { version: '4.0' } }) }))
@@ -31,7 +37,7 @@ const environment = () => ({ users: fixture.users, departments: fixture.departme
 function draft(): Sop {
   return { id: 'test', code: 'SOP-TEST', title: 'Internal review fixture', description: 'Description retained', departmentId: 'home', version: '1', status: 'draft', lastUpdated: '2026-10-23', authorId: 'author', coAuthorIds: ['coauthor'], fileName: 'test.pdf', fileType: 'pdf', reviewers: [], approvers: [], comments: [], timeline: [], versions: [{ version: '1', fileName: 'test.pdf', fileType: 'pdf', uploadedAt: new Date().toISOString(), uploadedById: 'author' }], complianceChecks: [{ id: 'check', sopId: 'test', version: '1', status: 'completed', startedAt: new Date().toISOString(), guideline: { name: 'GVP', version: '4.0' }, findings: [] }] }
 }
-function start() { return startInternalReview(draft(), 'author', '4.0', { reviewerIds: ['reviewer-a', 'reviewer-b'], responseDueDate: '2026-10-28', reviewDurationDays: 5 }, environment()) }
+function start() { return startInternalReview(draft(), 'author', '4.0', { reviewerIds: ['reviewer-a', 'reviewer-b'], reviewDurationDays: 5 }, environment()) }
 function render(page: ReactNode) { return renderToStaticMarkup(<MemoryRouter initialEntries={['/test']}><Routes><Route path="/:id" element={page} /></Routes></MemoryRouter>) }
 function accept(sop: Sop, userId: string) {
   const round = currentInternalRound(sop)!
@@ -45,7 +51,7 @@ function decide(source: Sop, userId: string, decision: 'completed' | 'returned',
 }
 /** The visible text of each option in the Select reviewers list. */
 function optionNames(html: string): string[] {
-  return [...html.matchAll(/<input[^>]*name="internalReviewers"[^>]*\/><span[^>]*>([^<]*)<\/span>/g)].map((match) => match[1])
+  return [...html.matchAll(/<li[^>]*role="option"[^>]*><span[^>]*>([^<]*)<\/span>/g)].map((match) => match[1])
 }
 /** In every mode the dialog is titled "Submit for Review" (its accessible name) and confirms with "Submit". */
 function expectSubmitTexts(html: string) {
@@ -53,7 +59,7 @@ function expectSubmitTexts(html: string) {
   expect(html).toContain(`<h2 id="${titleId}" class="text-lg">Submit for Review</h2>`)
   expect(html).toMatch(/<button type="submit"[^>]*>Submit<\/button>/)
 }
-beforeEach(() => { vi.useFakeTimers({ now: new Date(2026, 9, 23, 12) }); fixture.userId = 'author' })
+beforeEach(() => { vi.useFakeTimers({ now: new Date('2026-10-23T12:00:00+03:00') }); fixture.userId = 'author' })
 afterEach(() => vi.useRealTimers())
 
 describe('internal parallel review across transitions and detail views', () => {
@@ -61,11 +67,12 @@ describe('internal parallel review across transitions and detail views', () => {
     const finished = decide(decide(start(), 'reviewer-a', 'completed', 'Fine'), 'reviewer-b', 'returned', 'Revise the safety section')
     fixture.sop = finished
     expect(render(<SopWorkflowPage />)).toContain('>' + sopWorkflowEn.history.upload + '<')
-    expect(render(<SopWorkflowPage />)).not.toContain('>' + sopWorkflowEn.actions.submit + '<')
+    // Changes Requested: more reviewers can still be asked about this version.
+    expect(render(<SopWorkflowPage />).match(/<button[^>]*>Add Reviewers<\/button>/)![0]).not.toMatch(/ (aria-)?disabled="/)
     vi.advanceTimersByTime(1000)
     const uploaded = uploadVersion(finished, 'author', { fileName: 'revised.pdf', fileType: 'pdf' })
     fixture.sop = uploaded
-    const button = render(<SopWorkflowPage />).match(/<button[^>]*>Submit for Review<\/button>/)![0]
+    const button = render(<SopWorkflowPage />).match(/<button[^>]*>Add Reviewers<\/button>/)![0]
     expect(button).toContain('disabled=""')
     expect(button).toContain('aria-describedby="submit-hint"')
     const html = renderToStaticMarkup(<SubmitDialog mode="version" sop={uploaded} content={sopWorkflowEn.dialogs} onSubmit={() => {}} onClose={() => {}} />)
@@ -75,6 +82,22 @@ describe('internal parallel review across transitions and detail views', () => {
     expect(optionNames(html)).toEqual(['Reviewer Alpha', 'Reviewer Beta'])
     expect(html).not.toContain(' · ')
     expectSubmitTexts(html)
+  })
+  it('offers Add Reviewers and Send Again when one reviewer returned it and the other expired (Changes Requested)', () => {
+    const returned = decide(start(), 'reviewer-a', 'returned', 'Send it to the external reviewer, it is their specialty')
+    const sop = expireUnanswered(returned, Date.parse(endOfRiyadhDay('2026-10-26')))
+    expect(currentInternalRound(sop)!.status).toBe('changes-requested')
+    fixture.sop = sop
+    const html = render(<SopWorkflowPage />)
+    expect(html.match(/<button[^>]*>Add Reviewers<\/button>/)![0]).not.toMatch(/ (aria-)?disabled="/)
+    expect(html).toContain(internalReviewEn.panel.sendAgain.label.replace('{name}', 'Reviewer Beta'))
+    // Add Reviewers may include other departments: a reviewer from the SOP's department has finished,
+    // so the dialog doesn't say they have to wait.
+    const dialog = renderToStaticMarkup(<SubmitDialog mode="add" sop={sop} content={sopWorkflowEn.dialogs} onSubmit={() => {}} onClose={() => {}} />)
+    expect(dialog).toContain(internalReviewEn.submit.addIntro.replace('{version}', '1'))
+    expect(dialog).not.toContain(internalReviewEn.submit.homeFirst.split('{department}')[0])
+    fixture.userId = 'coauthor'
+    expect(render(<SopWorkflowPage />)).not.toContain('>Add Reviewers</button>')
   })
   it('offers the Submit for review dialog for the same version with only reviewers who can be asked again', () => {
     const started = start(), round = currentInternalRound(started)!
@@ -88,26 +111,31 @@ describe('internal parallel review across transitions and detail views', () => {
     fixture.userId = 'coauthor'
     expect(render(<SopWorkflowPage />)).not.toContain('>' + sopWorkflowEn.actions.submit + '<')
   })
-  it('shows only active reviewers in the author page panel, while the review page and the timeline keep the declined request', () => {
+  it('shows every request in the author page table, while the review page and the timeline keep the declined request', () => {
     const started = start(), round = currentInternalRound(started)!
     fixture.sop = declineInternalReview(started, 'reviewer-a', round.id, round.assignments[0].id, 'On leave', environment())
     const heading = (name: string) => `<h3 class="text-base font-semibold text-maroon">${name}</h3>`
     const author = render(<SopWorkflowPage />)
-    expect(author).not.toContain(heading('Reviewer Alpha'))
-    expect(author).toContain(heading('Reviewer Beta'))
+    const panel = author.slice(author.indexOf('id="internal-review-title"'), author.indexOf(sopWorkflowEn.timeline.title))
+    for (const name of ['Reviewer Alpha', 'Reviewer Beta']) expect(panel).toMatch(new RegExp(`<th scope="row"[^>]*>${name}<`))
+    expect(panel).toContain('</span>Declined</span>')
     expect(author).toContain('>' + sopWorkflowEn.timeline.events['review-declined'] + '<')
     fixture.userId = 'reviewer-b'
     expect(render(<ReviewPage />)).toContain(heading('Reviewer Alpha'))
   })
-  it('keeps sent, accepted and decided times and decision comments in the author page timeline, not the request cards', () => {
+  it('keeps decision comments behind the table actions and in the author page timeline', () => {
     fixture.sop = decide(decide(start(), 'reviewer-a', 'completed', 'All sections are clear'), 'reviewer-b', 'returned', 'Revise the safety section')
     const author = render(<SopWorkflowPage />)
     const panel = author.slice(author.indexOf('id="internal-review-title"'), author.indexOf(sopWorkflowEn.timeline.title))
-    expect(panel).toContain('>Version v1<')
+    expect(panel).toContain('Version 1 (Current)')
     for (const text of ['Request sent ', 'Decision submitted ', 'All sections are clear', 'Revise the safety section']) expect(panel).not.toContain(text)
     const events = sopWorkflowEn.timeline.events
     for (const label of [events.submitted, events['review-accepted'], events['review-completed'], events['review-changes-requested']]) expect(author).toContain('>' + label + '<')
     for (const comment of ['All sections are clear', 'Revise the safety section']) expect(author).toContain(comment)
+  })
+  it('leaves Response out of the Reviewers header when the comments are on reviewer rows', () => {
+    fixture.sop = decide(start(), 'reviewer-a', 'returned', 'Revise the safety section')
+    expect(render(<SopWorkflowPage />)).not.toContain('Response</button>')
   })
   it('keeps unassigned users outside the Author and Reviewer detail views', () => {
     fixture.sop = start()
@@ -115,7 +143,7 @@ describe('internal parallel review across transitions and detail views', () => {
     expect(render(<SopWorkflowPage />)).not.toContain('Description retained')
     expect(render(<ReviewPage />)).not.toContain('Description retained')
   })
-  it('keeps eligible reviewers in a collapsed multi-select with a response due date, review duration and comments', () => {
+  it('keeps searchable eligible reviewers with a fixed response date, review duration and comments', () => {
     const html = renderToStaticMarkup(<SubmitDialog sop={draft()} content={sopWorkflowEn.dialogs} onSubmit={() => {}} onClose={() => {}} />)
     expectSubmitTexts(html)
     expect(html).not.toContain('Request reviews')
@@ -123,32 +151,29 @@ describe('internal parallel review across transitions and detail views', () => {
     expect(html).not.toContain('Request internal reviews')
     expect(html).not.toContain('Internal reviewers')
     expect(html).not.toContain('Select eligible reviewers from the SOP department. All selected reviewers receive their tasks together.')
-    const trigger = html.match(/<button[^>]*aria-label="Select Reviewers"[^>]*>/)?.[0]
+    const trigger = html.match(/<input[^>]*role="combobox"[^>]*>/)?.[0]
     expect(trigger).toContain('aria-expanded="false"')
-    const reviewerPanel = html.match(/<div[^>]*role="group"[^>]*>/)?.[0]
-    expect(reviewerPanel).toContain('aria-label="Select Reviewers"')
+    const reviewerPanel = html.match(/<ul[^>]*role="listbox"[^>]*aria-label="Reviewers"[^>]*>/)?.[0]
+    expect(reviewerPanel).toContain('aria-label="Reviewers"')
     expect(reviewerPanel).toContain('hidden=""')
     expect(html).toContain('Reviewer Alpha')
     expect(html).toContain('Reviewer Beta')
     for (const name of ['Main writer', 'Contributing writer', 'External reviewer', 'Reviewer 1']) expect(html).not.toContain(name)
-    expect(html).toContain('Response Due Date (Optional)')
-    expect(html).toContain(internalReviewEn.submit.responseHelp)
+    expect(html).not.toContain('Response Deadline')
     expect(html).not.toContain('23:59:59.999')
     const duration = html.match(/<input[^>]*name="reviewDurationDays"[^>]*>/)![0]
     expect(duration).toContain('type="number"')
     expect(duration).toContain('min="1"')
-    expect(duration).toContain('max="30"')
+    expect(duration).toContain('max="3650"')
     expect(duration).toContain('aria-describedby=')
-    expect(html).toContain('Review Duration in Days (Optional)')
+    expect(html).toContain('Review Duration in Working Days (Optional)')
     expect(html).toContain(internalReviewEn.submit.durationHelp)
     expect(html).not.toContain('withdrawn automatically')
     expect(html).not.toContain('has to finish after they accept')
-    expect(html.match(/<input[^>]*type="date"[^>]*>/)![0]).toContain('min="2026-10-23"')
-    expect(html.match(/type="date"/g)).toHaveLength(1)
+    expect(html).not.toContain('type="date"')
     expect(html).not.toContain('name="reviewerDueDate-')
-    expect(html.match(/<input[^>]*type="date"[^>]*>/)![0]).not.toContain('max="')
     expect(html).toContain(sopWorkflowEn.dialogs.submit.note.label)
-    expect(html).toContain('name="reviewRequestDueDate"')
+    expect(html).not.toContain('name="reviewRequestDueDate"')
     expect(html).toContain('name="note"')
   })
   it('activates both review pages and tasks without routing or approval controls', () => {
@@ -175,11 +200,10 @@ describe('internal parallel review across transitions and detail views', () => {
   it('allows only the main author to see Remove reviewer controls and keeps return history after a new version', () => {
     const original = start()
     fixture.sop = original
-    expect(render(<SopWorkflowPage />)).toContain('>Remove Reviewer<')
     expect(render(<SopWorkflowPage />)).toContain('aria-label="Remove Reviewer Alpha from this review"')
     expect(render(<SopWorkflowPage />)).not.toContain('Cancel review request')
     fixture.userId = 'coauthor'
-    expect(render(<SopWorkflowPage />)).not.toContain('>Remove Reviewer<')
+    expect(render(<SopWorkflowPage />)).not.toContain('aria-label="Remove Reviewer Alpha from this review"')
     fixture.userId = 'author'
     const returned = decide(decide(original, 'reviewer-a', 'completed', 'Checked version one'), 'reviewer-b', 'returned', 'Revise the safety section')
     const history = JSON.stringify(returned.internalReviewRounds)
@@ -259,42 +283,41 @@ describe('historical review pages cannot reveal a later unassigned version', () 
   })
 })
 
-describe('response due date in the Submit for review dialog', () => {
-  const text = internalReviewEn.submit
-  const fieldText = { ...sopWorkflowEn.dialogs.submit.reviewDate, label: text.responseDate, help: text.responseHelp, duration: text.responseTimeGiven }
+// The response stage of the date field stays for a rollback of working-day deadlines; no dialog uses it now.
+describe('the response stage of the review date field', () => {
+  const fieldText = { ...sopWorkflowEn.dialogs.submit.reviewDate, label: 'Response Deadline', help: undefined, duration: 'Time to respond: {duration} · Due {date}' }
+  const closeLabel = 'Close message'
   const field = (value: string, error?: string) => renderToStaticMarkup(
-    <ReviewDueDateField name="reviewRequestDueDate" stage="response" text={fieldText} value={value} error={error} closeLabel={text.closeAlert} onChange={() => {}} />)
+    <ReviewDueDateField name="reviewRequestDueDate" stage="response" text={fieldText} value={value} error={error} closeLabel={closeLabel} onChange={() => {}} />)
   it('counts the time to respond from the moment it is sent before 4:00 PM, and today is selectable', () => {
-    vi.setSystemTime(new Date(2026, 9, 26, 14))
+    vi.setSystemTime(new Date('2026-10-26T14:00:00.000+03:00'))
     const html = field('2026-10-27')
     expect(html).toContain('min="2026-10-26"')
     expect(html).toContain('Time to respond: 1 day 9 hours')
   })
   it('counts from 8:00 AM the next day from 4:00 PM, and today is no longer selectable', () => {
-    vi.setSystemTime(new Date(2026, 9, 26, 16, 40))
+    vi.setSystemTime(new Date('2026-10-26T16:40:00.000+03:00'))
     expect(field('2026-10-27')).toContain('Time to respond: 15 hours 59 minutes')
     expect(field('2026-10-27')).toContain('min="2026-10-27"')
-    expect(renderToStaticMarkup(<SubmitDialog sop={draft()} content={sopWorkflowEn.dialogs} onSubmit={() => {}} onClose={() => {}} />)).toContain('min="2026-10-27"')
     expect(field('2026-10-26')).not.toContain('Time to respond')
   })
   it('counts from 8:00 AM the same day before 8:00 AM', () => {
-    vi.setSystemTime(new Date(2026, 9, 26, 6, 30))
+    vi.setSystemTime(new Date('2026-10-26T06:30:00.000+03:00'))
     expect(field('2026-10-26')).toContain('min="2026-10-26"')
     expect(field('2026-10-26')).toContain('Time to respond: 15 hours 59 minutes')
   })
   it('shows the date error in an announced pop-up with a close button instead of under the field', () => {
-    vi.setSystemTime(new Date(2026, 9, 26, 16, 40))
-    const html = field('2026-10-26', text.dateInvalid)
+    vi.setSystemTime(new Date('2026-10-26T16:40:00.000+03:00'))
+    const html = field('2026-10-26', 'Invalid date.')
     const popup = html.match(/<div[^>]*role="alert"[^>]*>/)![0]
     const popupId = popup.match(/id="([^"]+)"/)![1]
     const input = html.match(/<input[^>]*type="date"[^>]*>/)![0]
     expect(html).toContain('>Invalid date.<')
-    expect(html).toContain(`aria-label="${text.closeAlert}"`)
+    expect(html).toContain(`aria-label="${closeLabel}"`)
     expect(input).toContain('aria-invalid="true"')
     expect(input).toContain(popupId)
-    // No inline error under the field; its hint stays visible.
+    // No inline error under the field.
     expect(html).not.toContain('-error"')
-    expect(html).toContain(text.responseHelp)
     expect(field('2026-10-27')).not.toContain('role="alert"')
   })
   it('keeps the inline error for other due date fields', () => {

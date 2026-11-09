@@ -1,12 +1,12 @@
 import { useRef, useState, type ReactNode } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { ArrowLeft, ArrowUpRight, CircleCheck, MessageSquareReply, ShieldCheck, Upload } from 'lucide-react'
+import { ArrowLeft, ArrowUpRight, CircleCheck, MessageSquareReply, ShieldCheck, Upload, UserPlus } from 'lucide-react'
 import { Button } from '../components/ui/Button'
-import { Card } from '../components/ui/Card'
-import { ConfirmDialog } from '../components/ui/ConfirmDialog'
+import { FormDialog } from '../components/ui/FormDialog'
 import { Tooltip } from '../components/ui/Tooltip'
 import { AddCoAuthorsDialog } from '../components/workflow/AddCoAuthorsDialog'
 import { ComplianceCard } from '../components/workflow/ComplianceCard'
+import { ComplianceGuideline } from '../components/workflow/ComplianceGuideline'
 import { FileDialog } from '../components/workflow/FileDialog'
 import { InternalReviewPanel } from '../components/workflow/InternalReviewPanel'
 import { PeopleList } from '../components/workflow/PeopleList'
@@ -15,6 +15,7 @@ import { PreviewDialog } from '../components/workflow/PreviewDialog'
 import { ResponseDialog } from '../components/workflow/ResponseDialog'
 import { ResubmitDialog } from '../components/workflow/ResubmitDialog'
 import { ReviewTimelineTable } from '../components/workflow/ReviewTimelineTable'
+import { SopDescription } from '../components/workflow/SopDescription'
 import { StatusTracker } from '../components/workflow/StatusTracker'
 import { SubmitDialog } from '../components/workflow/SubmitDialog'
 import { SubmitForApprovalDialog } from '../components/workflow/SubmitForApprovalDialog'
@@ -22,12 +23,14 @@ import { VersionHistory } from '../components/workflow/VersionHistory'
 import { complianceEn } from '../content/compliance.en'
 import { approvalEn } from '../content/approval.en'
 import { internalReviewEn } from '../content/internalReview.en'
+import { loadingEn } from '../content/loading.en'
 import { sopWorkflowEn } from '../content/workflow.en'
-import type { Sop, SopVersion } from '../data/mock/types'
+import type { SopVersion } from '../data/mock/types'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
-import { checkRequired, currentCheck, hasCurrentCheck, isCheckRunning } from '../lib/compliance'
-import { approvalReadiness, type ApprovalReadiness } from '../lib/approval'
-import { canAddReviewers, canSendNewVersion, type ReviewPhaseItem } from '../lib/internalReview'
+import { canReplaceSampleResult, checkRequired, checkStartFailure, currentCheck, hasCurrentCheck, isCheckRunning } from '../lib/compliance'
+import { approvalButtonBlocker } from '../lib/approval'
+import { hasResponseOutsideReviewers, requestResponseRecipients } from '../lib/reviewRequestRows'
+import { canAddReviewers, canSendNewVersion } from '../lib/internalReview'
 import { reviewAllowsNewVersion } from '../lib/internalReviewStatus'
 import { formatDate } from '../lib/format'
 import { hasPermission } from '../lib/permissions'
@@ -41,11 +44,12 @@ import {
   nextVersion,
   responseRecipients,
 } from '../lib/workflow'
+import { fileUrlOf } from '../services/files'
 import { useDepartments } from '../state/departmentsContext'
 import { useGuidelines } from '../state/guidelinesContext'
 import { useCurrentUser } from '../state/sessionContext'
+import { wasSentForApproval } from '../state/approvalSentStorage'
 import { useSops } from '../state/sopsContext'
-import { fileUrlOf } from '../services/files'
 import { useUsers } from '../state/usersContext'
 import { NotFoundPage } from './NotFoundPage'
 
@@ -88,12 +92,12 @@ export function SopWorkflowPage() {
   const { id } = useParams()
   const store = useSops()
   const user = useCurrentUser()
-  const { nameOf, users } = useUsers()
+  const { nameOf } = useUsers()
   const departments = useDepartments()
   const guidelines = useGuidelines()
   const sop = store.sops.find((item) => item.id === id)
   const allowed = !!sop && hasPermission(user, 'author') && isAuthorOrCoAuthor(sop, user.id)
-  useDocumentTitle(allowed ? content.pageTitle.replace('{code}', sop.code) : undefined)
+  useDocumentTitle(allowed ? content.pageTitle.replace('{title}', sop.title) : undefined)
 
   const [dialog, setDialog] = useState<DialogName | null>(null)
   // Co-author waiting for the remove confirmation.
@@ -102,6 +106,7 @@ export function SopWorkflowPage() {
   const [deleting, setDeleting] = useState<SopVersion | null>(null)
   const [previewing, setPreviewing] = useState<{ version: SopVersion; url: string } | null>(null)
   const [message, setMessage] = useState('')
+  const [actionError, setActionError] = useState('')
   const triggerRef = useRef<HTMLElement | null>(null)
   const statusRef = useRef<HTMLDivElement>(null)
 
@@ -157,9 +162,8 @@ export function SopWorkflowPage() {
   const canSubmit = sop.status === 'draft' || sop.status === 'returned' && !internal
 
   // Submit for review: Submit when Draft, Resubmit when Returned (main author only).
-  // Only where the GVP guideline applies (Pharmacovigilance): a completed compliance check of the
-  // current version, against the current GVP version, is needed (it needn't pass). Other SOPs have
-  // no check. A resubmit also needs a version uploaded after the return.
+  // A current compliance check is needed only where the department's GVP guideline applies;
+  // a resubmit also needs a version uploaded after the return.
   const needsCheck = checkRequired(sop, departments.departments)
   const checkRunning = isCheckRunning(sop)
   const checkDone = !needsCheck || hasCurrentCheck(sop, guidelines.current.version)
@@ -176,44 +180,19 @@ export function SopWorkflowPage() {
   // Legacy review plans keep their existing handoff. Parallel reviews await this main-Author action.
   // Submit for review during internal review: the current version to more reviewers, or a new version (once checked) to the reviewers chosen.
   const addReviewers = isMainAuthor && canAddReviewers(sop)
+  // Only the main author manages co-authors, and not once the SOP is published.
+  const canManageCoAuthors = isMainAuthor && sop.status !== 'published'
   const sendVersion = isMainAuthor && internal && canSendNewVersion(sop)
   const requestReason = sendVersion ? checkReason : undefined
-  // Submit for approval stays visible (Draft, In Review, and Returned after an approver return); it's disabled until ready.
+  // Submit for approval stays visible (Draft, In Review, and Returned after an approver return). It is
+  // available once one reviewer completed the current version; this browser also remembers a version
+  // it sent (approval isn't in the database yet, so a reload would otherwise forget it).
   const showApproval = isMainAuthor && (sop.status === 'draft' || internal) && sop.status !== 'approved' && sop.status !== 'published'
-  const approval = showApproval
-    ? approvalReadiness(sop, user.id, { users, departments: departments.departments }, {
-        noExternalReviewsRequired: true,
-        feedbackAddressed: true,
-      })
-    : undefined
-
-  /** One reviewer still to finish the latest version (or nobody taking part), as a line of the missing list. */
-  function missingText(item: ReviewPhaseItem): string {
-    const text = internalReviewEn.approvalMissing
-    if (item.kind === 'no-reviewers') return text.noReviewers
-    const template = item.kind === 'respond' ? text.respond : item.kind === 'finish' ? text.finish : text.returned
-    return template.replace('{name}', nameOf(item.userId)).replace('{version}', 'version' in item ? item.version : '')
-  }
-  /**
-   * The approval tooltip's lines: the reviewers still missing, then the other reasons in simple words.
-   * Display only: the codes come from approvalReadiness, unchanged.
-   */
-  function approvalLines(readiness: ApprovalReadiness, current: Sop): string[] {
-    const blocked = approvalEn.blockers
-    const requested = readiness.blockers.includes('already-requested')
-    const latest = current.approvalSubmissions?.at(-1)
-    return [...readiness.missing.map(missingText), ...readiness.blockers.flatMap((code, index) => {
-      // "Already sent" (or the approver's return) explains it; "not in review" would only repeat it.
-      if (code === 'not-in-review' && requested) return []
-      if (code === 'already-requested' && current.status === 'returned') {
-        // After a new version is uploaded, the reviewer line says what's next.
-        return latest?.status === 'returned' && latest.version === current.version ? [approvalEn.returnedByApprover] : []
-      }
-      return [code in blocked ? blocked[code as keyof typeof blocked] : readiness.reasons[index]]
-    })]
-  }
+  const approvalBlocker = showApproval ? approvalButtonBlocker(sop, wasSentForApproval(sop.id, sop.version)) : undefined
   // Response: to everyone who commented in the latest round; not once published.
   const recipients = sop.status === 'published' ? [] : responseRecipients(sop)
+  // Reviewers are answered from their row's comments dialog; the header is for anyone else (e.g. an approver).
+  const showResponse = sop.status !== 'published' && hasResponseOutsideReviewers(sop)
 
   // Compliance check: only where the GVP guideline applies; hidden once Approved or Published; disabled
   // In Review and In Approval (that reason wins); otherwise the main author, or a co-author who uploaded the current version.
@@ -223,6 +202,10 @@ export function SopWorkflowPage() {
     checkBlock === 'status'
       ? content.history.checkBlocked.status[sop.status as keyof typeof content.history.checkBlocked.status]
       : checkBlock && content.history.checkBlocked['not-uploader'].replace('{name}', authorName)
+  // One completed check per version and GVP version: a failed check or a newer GVP version can be run again.
+  // A sample result can be checked again: the database allows it while the compliance service is online.
+  const checkCompleted = hasCurrentCheck(sop, guidelines.current.version) && !canReplaceSampleResult(sop)
+  const checkUnavailableReason = checkBlockedReason || (checkCompleted ? content.history.checkCompleted : undefined)
 
   // Delete version: Draft or Returned, main author (any version) or its uploader, at least one version left.
   const { deleteBlocked } = content.history
@@ -246,7 +229,7 @@ export function SopWorkflowPage() {
     setMessage('')
     store.runCheck(sopId).then(
       () => announce(content.messages.checkStarted),
-      () => announce(content.messages.checkStartFailed),
+      (error: unknown) => announce(content.messages[checkStartFailure(error)]),
     )
   }
 
@@ -263,9 +246,14 @@ export function SopWorkflowPage() {
 
       {/* Header (no status badge: the Workflow status steps show the status) */}
       <div className="mt-5">
-        <p className="text-sm font-semibold text-maroon">{sop.code}</p>
         <h1 className="mt-1 text-2xl leading-tight tracking-tight sm:text-3xl">{sop.title}</h1>
-        <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-text-gray">
+        <SopDescription
+          description={sop.description}
+          content={content.description}
+          onSave={isMainAuthor && sop.status !== 'published' ? (text) => store.updateDescription(sop.id, text) : undefined}
+          onSaved={() => announce(content.messages.descriptionUpdated)}
+        />
+        <div className={`${sop.description?.trim() ? 'mt-4' : 'mt-3'} flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-text-gray`}>
           <span>{content.versionTemplate.replace('{version}', sop.version)}</span>
           <span aria-hidden="true">·</span>
           <span>
@@ -281,12 +269,6 @@ export function SopWorkflowPage() {
         </div>
       </div>
 
-      {sop.description?.trim() && (
-        <Card title={content.descriptionTitle} titleId="description-title" className="mt-6">
-          <p className="text-sm leading-relaxed whitespace-pre-wrap break-words text-maroon">{sop.description}</p>
-        </Card>
-      )}
-
       {/* Success message after an action (live region stays mounted) */}
       <div role="status" ref={statusRef} tabIndex={-1} className="rounded-lg focus:outline-none">
         {message && (
@@ -300,21 +282,33 @@ export function SopWorkflowPage() {
       {/* 1. Workflow status */}
       <Section id="tracker-title" title={content.tracker.label} className="mt-6">
         {/* Only the steps: who returned it and why, and who's next, are in the Review timeline and the Reviewers box. */}
-        <StatusTracker sop={sop} content={content.tracker} stepsOnly />
+        <StatusTracker sop={sop} content={content.tracker} stepsOnly statusColours />
       </Section>
 
       {/* 2. Authors */}
-      <Section id="authors-title" title={content.people.authorsTitle} className="mt-6">
+      <Section
+        id="authors-title"
+        title={content.people.authorsTitle}
+        className="mt-6"
+        actions={
+          canManageCoAuthors && (
+            <Button size="sm" onClick={(event) => open('addCoAuthors', event.currentTarget)}>
+              <UserPlus aria-hidden="true" className="size-4" strokeWidth={2} />
+              {content.people.addAuthor}
+            </Button>
+          )
+        }
+      >
         <PeopleList
           authorsOnly
           sop={sop}
           content={content.people}
           userId={user.id}
-          canManageCoAuthors={isMainAuthor && sop.status !== 'published'}
-          onAddCoAuthor={(trigger) => open('addCoAuthors', trigger)}
+          canManageCoAuthors={canManageCoAuthors}
           onRemoveCoAuthor={(coAuthorId, trigger) => {
             triggerRef.current = trigger
             setMessage('')
+            setActionError('')
             setRemovingId(coAuthorId)
           }}
         />
@@ -333,9 +327,9 @@ export function SopWorkflowPage() {
                 {content.history.upload}
               </Button>
             )}
-            {!showCheck ? null : checkBlockedReason ? (
+            {!showCheck ? null : checkUnavailableReason ? (
               // Not allowed now: stays focusable (aria-disabled) so the tooltip's reason can be read.
-              <Tooltip text={checkBlockedReason}>
+              <Tooltip text={checkUnavailableReason} openOnTap={!checkBlockedReason}>
                 {(tooltipId) => (
                   <Button size="sm" grayWhenDisabled aria-disabled aria-describedby={tooltipId}>
                     <ShieldCheck aria-hidden="true" className="size-4" strokeWidth={2} />
@@ -377,7 +371,6 @@ export function SopWorkflowPage() {
           onPreview={(version, trigger) => {
             triggerRef.current = trigger
             setMessage('')
-            // A signed link that works for 10 minutes, made each time.
             fileUrlOf(version).then(
               (url) => (url ? setPreviewing({ version, url }) : announce(content.messages.fileFailed)),
               () => announce(content.messages.fileFailed),
@@ -393,30 +386,37 @@ export function SopWorkflowPage() {
           onDelete={(version, trigger) => {
             triggerRef.current = trigger
             setMessage('')
+            setActionError('')
             setDeleting(version)
           }}
         />
       </Section>
 
-      {/* 4. Compliance overview (says so when the current version hasn't been checked yet); only where the GVP guideline applies */}
-      {needsCheck && (
-        <Section id="compliance-title" title={complianceEn.card.title} className="mt-6">
-          <ComplianceCard sop={sop} content={complianceEn} />
-        </Section>
-      )}
+      {/* 4. Compliance overview: the GVP version checks use, then the results (or that the current version hasn't been checked yet).
+          This page is only for the SOP's author and co-authors, so only they see the GVP version here. */}
+      {needsCheck && <Section id="compliance-title" title={complianceEn.card.title} className="mt-6">
+        <ComplianceGuideline sopId={sop.id} />
+        <ComplianceCard sop={sop} content={complianceEn} />
+      </Section>}
 
-      {/* 5. Reviewers (once the SOP has been sent for internal review) */}
-      <InternalReviewPanel sop={sop} canRemove={isMainAuthor} activeOnly compact title={internalReviewEn.panel.authorPageTitle} />
-
-      {/* 6. Review timeline, with Response and Submit for review */}
-      <Section
-        id="timeline-title"
-        title={content.timeline.title}
-        className="mt-6"
+      {/* Review actions stay with the reviewers, including before the first request. */}
+      <InternalReviewPanel
+        sop={sop}
+        canRemove={isMainAuthor}
+        table
+        response={{
+          recipients: (request) => requestResponseRecipients(sop, request).map((id) => personWithRole(sop, id, content.roles, nameOf)).join(', '),
+          send: async (request, text) => {
+            await store.addResponse(sop.id, text, request.id)
+            announce(content.messages.responseSent)
+          },
+        }}
+        showEmpty
+        title={internalReviewEn.panel.authorPageTitle}
         actions={
-          (recipients.length > 0 || (isMainAuthor && canSubmit) || addReviewers || sendVersion || showApproval) && (
+          (showResponse || (isMainAuthor && canSubmit) || addReviewers || sendVersion || showApproval) && (
             <>
-              {recipients.length > 0 && (
+              {showResponse && (
                 <Button size="sm" variant="secondary" onClick={(event) => open('response', event.currentTarget)}>
                   <MessageSquareReply aria-hidden="true" className="size-4" strokeWidth={2} />
                   {actions.response}
@@ -436,15 +436,12 @@ export function SopWorkflowPage() {
                 <Button size="sm" disabled={!!requestReason} aria-describedby={requestReason ? 'submit-hint' : undefined}
                   onClick={(event) => open(sendVersion ? 'submit' : 'addReviewers', event.currentTarget)}>{actions.submit}</Button>
               )}
-              {showApproval && (approval?.ready ? (
+              {showApproval && (!approvalBlocker ? (
                 <Button size="sm" grayWhenDisabled onClick={(event) => open('approval', event.currentTarget)}>{approvalEn.action}</Button>
               ) : (
-                // Not available yet: grey and aria-disabled, so it stays focusable; the tooltip says why
+                // Not available: grey and aria-disabled, so it stays focusable; the tooltip gives the one reason
                 // (on hover, keyboard focus or a tap) and is read with the button.
-                <Tooltip openOnTap wide text={<>
-                  <span className="block font-semibold">{internalReviewEn.approvalMissing.title}</span>
-                  {approval && approvalLines(approval, sop).map((line) => <span key={line} className="ml-4 list-item list-disc">{line}</span>)}
-                </>}>
+                <Tooltip openOnTap wide text={approvalEn.blockers[approvalBlocker]}>
                   {(tooltipId) => (
                     <Button size="sm" grayWhenDisabled aria-disabled aria-describedby={tooltipId}>{approvalEn.action}</Button>
                   )}
@@ -462,7 +459,11 @@ export function SopWorkflowPage() {
         {canUpload && !isMainAuthor && (
           <p className="mb-4 text-sm text-text-gray">{actions.authorOnly.replace('{name}', authorName)}</p>
         )}
-        <ReviewTimelineTable sop={sop} content={content} mainAuthorOnly />
+      </InternalReviewPanel>
+
+      {/* The timeline contains historical events only. */}
+      <Section id="timeline-title" title={content.timeline.title} className="mt-6">
+        <ReviewTimelineTable sop={sop} content={content} mainAuthorOnly releaseScoped />
       </Section>
 
 
@@ -545,24 +546,28 @@ export function SopWorkflowPage() {
           }}
         />
       )}
-      <ConfirmDialog
+      <FormDialog
         open={removingId !== null}
         title={dialogs.removeCoAuthor.title}
         description={dialogs.removeCoAuthor.description.replace('{name}', nameOf(removingId ?? undefined))}
         cancelLabel={dialogs.removeCoAuthor.keep}
         confirmLabel={dialogs.removeCoAuthor.confirm}
-        onCancel={closeOverlay}
-        onConfirm={() => {
+        onClose={closeOverlay}
+        onConfirm={async () => {
           if (!removingId) return
           const name = nameOf(removingId)
+          try { await store.removeCoAuthor(sop.id, removingId) }
+          catch {
+            setActionError(content.messages.coAuthorRemoveFailed.replace('{name}', name))
+            return false
+          }
           closeOverlay()
-          store.removeCoAuthor(sop.id, removingId).then(
-            () => announce(content.messages.coAuthorRemoved.replace('{name}', name)),
-            () => announce(content.messages.coAuthorRemoveFailed.replace('{name}', name)),
-          )
+          announce(content.messages.coAuthorRemoved.replace('{name}', name))
         }}
-      />
-      <ConfirmDialog
+      >
+        {actionError && <p role="alert" className="text-sm text-status-rejected-fg">{actionError}</p>}
+      </FormDialog>
+      <FormDialog
         open={deleting !== null}
         title={dialogs.deleteVersion.title.replace('{version}', deleting?.version ?? '')}
         description={[
@@ -573,27 +578,33 @@ export function SopWorkflowPage() {
         ].join(' ')}
         cancelLabel={dialogs.deleteVersion.keep}
         confirmLabel={dialogs.deleteVersion.confirm}
-        onCancel={closeOverlay}
-        onConfirm={() => {
+        onClose={closeOverlay}
+        onConfirm={async () => {
           if (!deleting) return
           const version = deleting.version
+          try { await store.deleteVersion(sop.id, version) }
+          catch {
+            setActionError(content.messages.deleteFailed.replace('{version}', version))
+            return false
+          }
           closeOverlay()
-          store.deleteVersion(sop.id, version).then(
-            () => announce(content.messages.versionDeleted.replace('{version}', version)),
-            () => announce(content.messages.deleteFailed.replace('{version}', version)),
-          )
+          announce(content.messages.versionDeleted.replace('{version}', version))
         }}
-      />
+      >
+        {actionError && <p role="alert" className="text-sm text-status-rejected-fg">{actionError}</p>}
+      </FormDialog>
       {previewing && (
         <PreviewDialog
-          title={content.history.previewTitle.replace('{code}', sop.code).replace('{version}', previewing.version.version)}
+          title={content.history.previewTitle.replace('{title}', sop.title).replace('{version}', previewing.version.version)}
           url={previewing.url}
-          viewerTitle={content.history.viewerTitle
-            .replace('{code}', sop.code)
+          viewerTitle={(previewing.version.fileType === 'docx' ? content.history.docxViewerTitle : content.history.viewerTitle)
             .replace('{title}', sop.title)
             .replace('{version}', previewing.version.version)}
           closeLabel={content.history.close}
           fallback={content.history.fallback}
+          {...(previewing.version.fileType === 'docx'
+            ? { docx: { fileKey: `${sop.id}\n${previewing.version.version}\n${previewing.version.storagePath ?? previewing.url}`, text: { loading: loadingEn.label, failed: content.messages.fileFailed } } }
+            : {})}
           onClose={closeOverlay}
         />
       )}

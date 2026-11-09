@@ -25,7 +25,7 @@ function sop(): Sop {
 describe('Add co-authors dialog', () => {
   const html = renderToStaticMarkup(<AddCoAuthorsDialog sop={sop()} content={sopWorkflowEn.dialogs} onSubmit={() => {}} onClose={() => {}} />)
   it('shows the short description and no hint about reviewers and approvers', () => {
-    expect(html).toContain('Co-authors can upload versions and run compliance checks on their own uploads. Only you can submit for review.')
+    expect(html).toContain('Co-authors can add versions and run compliance checks on the versions they added. Only you can submit for review.')
     expect(html).not.toContain('can’t be co-authors')
   })
   it('keeps the "Co-authors" label for screen readers only, linked to the search field with its placeholder', () => {

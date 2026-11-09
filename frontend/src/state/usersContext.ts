@@ -1,5 +1,5 @@
 import { createContext, useContext } from 'react'
-import type { Permission, Sop, User } from '../data/mock/types'
+import type { Sop, User } from '../data/mock/types'
 import type { NewUser } from '../lib/userAdmin'
 import type { LoadStatus } from './useLoadAfterSignIn'
 
@@ -22,9 +22,18 @@ export interface UsersStore {
   nameOf: (id: string | undefined) => string
 
   // Admin actions (PBI 15, 18, 19). Each checks the rules in lib/userAdmin.ts and throws if not allowed.
-  /** Adds a user (required fields, unique email) and returns them. */
-  addUser: (user: NewUser) => User
-  updatePermissions: (userId: string, permissions: Permission[], context: AdminActionContext) => void
+  /**
+   * Adds a user for real (required fields, unique email): a sign-in account, their profile and permissions,
+   * and an invitation email. Rejects with an AddUserError and adds nothing to the list. `emailSent` is false
+   * when only the invitation failed: the user was added.
+   */
+  addUser: (user: NewUser) => Promise<{ user: User; emailSent: boolean }>
+  /**
+   * Changes a user's details and permissions (the same checks as adding, and permissions in use can't
+   * be removed). Everything but the email is saved to the database first, all or nothing: if that fails
+   * it rejects with a SaveUserError and nothing changes. The email only changes this tab's copy.
+   */
+  updateUser: (userId: string, user: NewUser, context: AdminActionContext) => Promise<void>
   /** Deletes a user: they can no longer sign in, and their name stays on SOP history. */
   deleteUser: (userId: string, context: AdminActionContext) => void
 }

@@ -9,13 +9,15 @@ import { useDepartments } from '../../state/departmentsContext'
 interface SopGridProps {
   sops: Sop[]
   content: SopsContent
+  /** Where an SOP opens. Default: the employee SOP page. */
+  sopHref?: (sopId: string) => string
 }
 
 /**
  * Grid of SOP cards: 1 column on phones, 2 from md, 3 from xl.
  * Each card is a single link (stretched over the whole card) to the SOP detail page.
  */
-export function SopGrid({ sops, content }: SopGridProps) {
+export function SopGrid({ sops, content, sopHref = sopPath }: SopGridProps) {
   const { nameOf: departmentName } = useDepartments()
 
   return (
@@ -30,12 +32,10 @@ export function SopGrid({ sops, content }: SopGridProps) {
               <FileText className="size-5" strokeWidth={1.75} />
             </span>
 
-            <p className="mt-4 text-sm font-semibold text-maroon">{sop.code}</p>
-            <h2 className="mt-1 text-base leading-snug font-medium">
+            <h2 className="mt-4 text-base leading-snug font-medium">
               {/* The ::after overlay makes the whole card clickable with one link. */}
               <Link
-                to={sopPath(sop.id)}
-                aria-label={`${sop.code} ${sop.title}`}
+                to={sopHref(sop.id)}
                 className="after:absolute after:inset-0 after:rounded-xl focus-visible:outline-none"
               >
                 {sop.title}

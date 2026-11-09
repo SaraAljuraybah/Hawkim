@@ -1,5 +1,5 @@
 import { useEffect, useId, useImperativeHandle, useRef, useState, type KeyboardEvent, type Ref } from 'react'
-import { ChevronDown } from 'lucide-react'
+import { ChevronDown, type LucideIcon } from 'lucide-react'
 import { toggleOption } from './multiSelect'
 import type { SelectOption } from './SelectField'
 import { controlClasses } from './useFieldIds'
@@ -16,10 +16,27 @@ interface MultiSelectFieldProps {
   invalid?: boolean
   describedBy?: string
   ref?: Ref<HTMLButtonElement>
+  /**
+   * 'field' (default): a full-width select showing the chosen names. 'icon': a 40px icon button
+   * (e.g. a filter) whose icon is filled while anything is selected; the list opens below it,
+   * anchored to its right edge. `placeholder` isn't shown in icon mode.
+   */
+  trigger?: 'field' | 'icon'
+  /** The icon in icon mode. */
+  icon?: LucideIcon
+  /** Accessible name of the icon button, e.g. including how many are selected (defaults to `label`). */
+  buttonLabel?: string
 }
 
+/* Icon mode. Idle: maroon icon on white. Selected: filled light icon on maroon. Either way the focus
+   ring (maroon-secondary, offset outside the button) sits on the card background, so it stays visible. */
+const iconButton = 'inline-flex size-10 shrink-0 items-center justify-center rounded-lg border transition-colors ' +
+  'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-maroon-secondary'
+const iconIdle = 'border-text-gray/70 bg-white text-maroon hover:bg-beige'
+const iconActive = 'border-maroon bg-maroon text-offwhite hover:bg-maroon-secondary'
+
 /** Disclosure of native checkboxes: Tab/Space/Enter, arrow navigation and Escape work together. */
-export function MultiSelectField({ name, label, placeholder, emptyText, options, value, onChange, invalid, describedBy, ref }: MultiSelectFieldProps) {
+export function MultiSelectField({ name, label, placeholder, emptyText, options, value, onChange, invalid, describedBy, ref, trigger = 'field', icon: Icon, buttonLabel }: MultiSelectFieldProps) {
   const [open, setOpen] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
   const buttonRef = useRef<HTMLButtonElement>(null)
@@ -77,6 +94,20 @@ export function MultiSelectField({ name, label, placeholder, emptyText, options,
 
   return (
     <div ref={containerRef} className="relative" onKeyDown={handleKeyDown}>
+      {trigger === 'icon' ? (
+        <button
+          ref={buttonRef}
+          type="button"
+          aria-label={buttonLabel ?? label}
+          aria-expanded={open}
+          aria-controls={panelId}
+          aria-describedby={describedBy}
+          onClick={() => { focusLast.current = false; setOpen((previous) => !previous) }}
+          className={`${iconButton} ${value.length ? iconActive : iconIdle}`}
+        >
+          {Icon && <Icon aria-hidden="true" strokeWidth={1.75} className="size-4" fill={value.length ? 'currentColor' : 'none'} />}
+        </button>
+      ) : (
       <button
         ref={buttonRef}
         type="button"
@@ -93,8 +124,9 @@ export function MultiSelectField({ name, label, placeholder, emptyText, options,
         <ChevronDown aria-hidden="true" strokeWidth={1.75}
           className={`absolute right-3.5 size-4 text-text-gray motion-safe:transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
+      )}
       <div id={panelId} role="group" aria-label={label} hidden={!open}
-        className="absolute inset-x-0 z-20 mt-1 max-h-60 overflow-y-auto rounded-lg border border-beige bg-white p-1 shadow-lg">
+        className={`absolute z-20 mt-1 max-h-60 overflow-y-auto rounded-lg border border-beige bg-white p-1 shadow-lg ${trigger === 'icon' ? 'right-0 w-48' : 'inset-x-0'}`}>
         {options.length ? options.map((option, index) => (
           <label key={option.value} className="flex cursor-pointer items-center gap-3 rounded-md px-3 py-2.5 text-[0.9375rem] text-maroon hover:bg-beige/60 focus-within:bg-beige/60"
             // Pressing on the name would move focus out of the list (e.g. to a dialog), which closes it before the click

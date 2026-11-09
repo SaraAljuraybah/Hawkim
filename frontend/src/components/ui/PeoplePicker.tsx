@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type KeyboardEvent, type RefObject } from 'react'
-import { X } from 'lucide-react'
+import { ChevronDown, X } from 'lucide-react'
 import { peoplePickerEn } from '../../content/peoplePicker.en'
 import type { PeoplePickerContent } from '../../content/types'
 import { FieldShell } from './FieldShell'
@@ -28,6 +28,13 @@ interface PeoplePickerProps {
   text?: PeoplePickerContent
   /** The label is read by screen readers only (see FieldShell). */
   hideLabel?: boolean
+  /**
+   * Announces the field as required (aria-required: the search input itself is empty once people
+   * are picked, so not the native attribute).
+   */
+  required?: boolean
+  /** Shows a red asterisk after the label (visual only; pass `required` too). */
+  requiredMark?: boolean
   className?: string
 }
 
@@ -37,7 +44,7 @@ interface PeoplePickerProps {
  * list, Enter adds the highlighted person and keeps the list open, Escape closes
  * it. Picked people are shown as chips with a remove button; Backspace in an
  * empty input removes the last one. Additions and removals are announced.
- * The list opens only on typing, ↓ or a click, and scrolls inside itself; the
+ * The list opens on typing, ↓, a click or the chevron, and scrolls inside itself; the
  * search text is cleared when focus leaves the picker.
  */
 export function PeoplePicker({
@@ -51,6 +58,8 @@ export function PeoplePicker({
   id,
   text = peoplePickerEn,
   hideLabel = false,
+  required = false,
+  requiredMark = false,
   className = '',
 }: PeoplePickerProps) {
   const fieldIds = useFieldIds({ id, hint, error })
@@ -155,6 +164,7 @@ export function PeoplePicker({
       error={error}
       errorId={fieldIds.errorId}
       hideLabel={hideLabel}
+      requiredMark={requiredMark}
       className={className}
     >
       {selected.length > 0 && (
@@ -178,34 +188,55 @@ export function PeoplePicker({
         </ul>
       )}
 
-      <input
-        ref={ref}
-        id={fieldIds.inputId}
-        type="text"
-        role="combobox"
-        aria-expanded={showList}
-        aria-controls={listId}
-        aria-autocomplete="list"
-        aria-activedescendant={activeId}
-        aria-invalid={error ? true : undefined}
-        aria-describedby={describedBy}
-        autoComplete="off"
-        placeholder={text.placeholder}
-        value={query}
-        onChange={(event) => {
-          setQuery(event.target.value)
-          setOpen(true)
-          setActive(0)
-        }}
-        onClick={() => setOpen(true)}
-        onBlur={() => {
-          // Leftover search text could be mistaken for a selection.
-          setOpen(false)
-          setQuery('')
-        }}
-        onKeyDown={handleKeyDown}
-        className={`py-2.5 ${controlClasses(error)}`}
-      />
+      <div className="relative">
+        <input
+          ref={ref}
+          id={fieldIds.inputId}
+          type="text"
+          role="combobox"
+          aria-expanded={showList}
+          aria-controls={listId}
+          aria-autocomplete="list"
+          aria-activedescendant={activeId}
+          aria-invalid={error ? true : undefined}
+          aria-required={required || undefined}
+          aria-describedby={describedBy}
+          autoComplete="off"
+          placeholder={text.placeholder}
+          value={query}
+          onChange={(event) => {
+            setQuery(event.target.value)
+            setOpen(true)
+            setActive(0)
+          }}
+          onClick={() => setOpen(true)}
+          onBlur={() => {
+            // Leftover search text could be mistaken for a selection.
+            setOpen(false)
+            setQuery('')
+          }}
+          onKeyDown={handleKeyDown}
+          className={`py-2.5 pr-11 ${controlClasses(error)}`}
+        />
+        {/* Out of the tab order: the input already opens the list with ↓. */}
+        <button
+          type="button"
+          tabIndex={-1}
+          aria-label={text.toggle}
+          aria-expanded={showList}
+          aria-controls={listId}
+          // Keep focus in the input.
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={() => {
+            setOpen(!open)
+            setActive(0)
+            ref.current?.focus()
+          }}
+          className="absolute top-1/2 right-1 inline-flex size-9 -translate-y-1/2 items-center justify-center rounded-md text-text-gray transition-colors hover:text-maroon"
+        >
+          <ChevronDown aria-hidden="true" className="size-4" strokeWidth={1.75} />
+        </button>
+      </div>
 
       {/* In the page flow (not floating), so it can't be clipped by a scrolling dialog */}
       <ul

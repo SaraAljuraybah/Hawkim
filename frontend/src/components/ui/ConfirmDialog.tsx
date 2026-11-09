@@ -12,6 +12,13 @@ interface ConfirmDialogProps {
   onConfirm: () => void
   /** Called when the dialog closes without confirming (cancel button, Escape, backdrop). */
   onCancel: () => void
+  /**
+   * Checked when the confirming action is pressed, before the dialog closes: return false to keep
+   * it open (e.g. to show an `error`); onConfirm then isn't called.
+   */
+  canConfirm?: () => boolean
+  /** Why the action can't be done, shown in the dialog as an alert. */
+  error?: string
 }
 
 /**
@@ -19,7 +26,7 @@ interface ConfirmDialogProps {
  * makes it inert, closes on Escape. Focus starts on the safe choice and Tab
  * wraps between the two buttons. The caller decides where focus goes afterwards.
  */
-export function ConfirmDialog({ open, title, description, cancelLabel, confirmLabel, onConfirm, onCancel }: ConfirmDialogProps) {
+export function ConfirmDialog({ open, title, description, cancelLabel, confirmLabel, onConfirm, onCancel, canConfirm, error }: ConfirmDialogProps) {
   const dialogRef = useRef<HTMLDialogElement>(null)
   const confirmedRef = useRef(false)
   const titleId = useId()
@@ -76,12 +83,15 @@ export function ConfirmDialog({ open, title, description, cancelLabel, confirmLa
           <p id={descriptionId} className="mt-2 text-text-gray">
             {description}
           </p>
+          {/* Stays mounted while open, so a refusal is announced */}
+          <div role="alert">{error && <p className="mt-3 text-sm font-medium text-status-rejected-fg">{error}</p>}</div>
           <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
             <Button variant="secondary" autoFocus onClick={() => dialogRef.current?.close()}>
               {cancelLabel}
             </Button>
             <Button
               onClick={() => {
+                if (canConfirm && !canConfirm()) return
                 confirmedRef.current = true
                 dialogRef.current?.close()
               }}

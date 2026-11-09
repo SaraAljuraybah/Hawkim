@@ -12,6 +12,23 @@ export const reviewsEn: ReviewsContent = {
     subtitle: 'SOPs assigned to you for review or approval.',
     tabsLabel: 'Filter reviews',
     tabs: { todo: 'To Do', waiting: 'Waiting', done: 'Done' },
+    reviewerTabs: { incoming: 'Incoming Requests', active: 'Active Reviews', completed: 'Completed Reviews' },
+    reviewerEmpty: {
+      incoming: 'No review requests are waiting for your response.',
+      active: 'No active reviews right now.',
+      completed: 'No completed or closed reviews yet.',
+    },
+    approvalsTitle: 'Approvals',
+    approvalsDescription: 'Your approval and publication assignments.',
+    approvalTabsLabel: 'Filter approval assignments',
+    approvalListLabel: 'Assigned approvals',
+    reviewerListLabel: 'Assigned reviews',
+    waiting: 'Waiting for an earlier workflow step',
+    closed: 'Closed request',
+    decisions: { pending: 'Pending', accepted: 'Accepted', completed: 'Completed', returned: 'Returned to author', cancelled: 'Cancelled', declined: 'Declined', withdrawn: 'Withdrawn', expired: 'Expired', removed: 'Removed', approved: 'Approved' },
+    version: 'v{version}',
+    updated: 'Updated {date}',
+    view: { label: 'Review view', grid: 'Grid view', list: 'List view' },
     empty: {
       todo: 'Nothing to review right now.',
       waiting: 'Nothing waiting on someone else.',
@@ -28,7 +45,8 @@ export const reviewsEn: ReviewsContent = {
   },
 
   page: {
-    pageTitle: 'Review {code} | Hawkim',
+    fileFailed: "The file couldn't be opened. Try again.",
+    pageTitle: 'Review {title} | Hawkim',
     back: { label: 'Back to My Reviews', href: '/reviews' },
     author: 'Author: {name}',
     coAuthors: 'Co-authors: {names}',
@@ -37,7 +55,8 @@ export const reviewsEn: ReviewsContent = {
     file: {
       title: 'Current File',
       download: 'Download',
-      viewerTitle: '{code} {title} (PDF)',
+      viewerTitle: '{title} (PDF)',
+      docxViewerTitle: '{title} (Word document preview)',
       fallback: {
         text: "Your browser can't display the PDF here. Open it in a new tab instead.",
         openPdf: 'Open PDF',
@@ -60,6 +79,7 @@ export const reviewsEn: ReviewsContent = {
       publish: 'Publish',
     },
     status: {
+      historical: 'Historical review of v{version}. This version is read-only; no action is required.',
       reviewCompleted: 'You completed your review on {date}.',
       approved: 'You approved it on {date}.',
       waitingFor: 'Waiting for {names}.',
@@ -84,7 +104,7 @@ export const reviewsEn: ReviewsContent = {
       },
       return: {
         title: 'Return to the Author?',
-        description: 'The author will see your comment and can upload a new version.',
+        description: 'The author will see your comment and can add a new version.',
         label: 'Comment',
         required: 'Enter a comment explaining the changes needed.',
         confirm: 'Return to Author',
@@ -100,7 +120,7 @@ export const reviewsEn: ReviewsContent = {
         confirm: 'Route',
       },
       publish: {
-        title: 'Publish {code}?',
+        title: 'Publish {title}?',
         description: 'It will appear in the SOPs directory for {department}.',
         confirm: 'Publish',
       },

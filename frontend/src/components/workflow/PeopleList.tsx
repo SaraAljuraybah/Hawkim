@@ -1,12 +1,12 @@
 import type { ReactNode } from 'react'
 import { internalReviewEn } from '../../content/internalReview.en'
-import { UserPlus } from 'lucide-react'
+import { Trash2 } from 'lucide-react'
 import type { SopWorkflowContent } from '../../content/types'
 import type { Sop } from '../../data/mock/types'
 import { sopWorkflowEn } from '../../content/workflow.en'
 import { ReviewerDeadline } from './ReviewerDeadline'
 import { useUsers } from '../../state/usersContext'
-import { Button } from '../ui/Button'
+import { IconButton } from '../ui/IconButton'
 import { DecisionBadge } from './DecisionBadge'
 
 interface PeopleListProps {
@@ -16,18 +16,18 @@ interface PeopleListProps {
   userId: string
   /** Only the main author manages co-authors, and not once the SOP is published. */
   canManageCoAuthors: boolean
-  onAddCoAuthor: (trigger: HTMLElement) => void
   onRemoveCoAuthor: (userId: string, trigger: HTMLElement) => void
   /** Only the main author and co-authors (the author's Authors section). */
   authorsOnly?: boolean
+  /** Historical version views keep their decisions but never run active task clocks. */
+  inactive?: boolean
 }
 
-function Group({ title, children, action }: { title: string; children: ReactNode; action?: ReactNode }) {
+function Group({ title, children }: { title: string; children: ReactNode }) {
   return (
     <div className="min-w-0">
       <h3 className="text-sm font-semibold text-maroon">{title}</h3>
       <div className="mt-2">{children}</div>
-      {action && <div className="mt-3">{action}</div>}
     </div>
   )
 }
@@ -44,9 +44,9 @@ export function PeopleList({
   content,
   userId,
   canManageCoAuthors,
-  onAddCoAuthor,
   onRemoveCoAuthor,
   authorsOnly = false,
+  inactive = false,
 }: PeopleListProps) {
   const { nameOf } = useUsers()
   const name = (id: string) => {
@@ -61,33 +61,24 @@ export function PeopleList({
         <p className="text-[0.9375rem] text-maroon">{sop.authorId && name(sop.authorId)}</p>
       </Group>
 
-      <Group
-        title={content.coAuthors}
-        action={
-          canManageCoAuthors && (
-            <Button size="sm" onClick={(event) => onAddCoAuthor(event.currentTarget)}>
-              <UserPlus aria-hidden="true" className="size-4" strokeWidth={2} />
-              {authorsOnly ? content.addAuthor : content.addCoAuthor}
-            </Button>
-          )
-        }
-      >
+      <Group title={content.coAuthors}>
         {sop.coAuthorIds.length === 0 ? (
           empty(content.noCoAuthors)
         ) : (
           <ul className="space-y-2">
             {sop.coAuthorIds.map((id) => (
-              <li key={id} className={rowClasses}>
-                <span className="text-[0.9375rem] text-maroon">{name(id)}</span>
+              <li key={id} className={authorsOnly ? 'flex items-center justify-between gap-3' : rowClasses}>
+                <span className="min-w-0 break-words text-[0.9375rem] text-maroon">{name(id)}</span>
                 {canManageCoAuthors && (
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    aria-label={content.removeLabel.replace('{name}', nameOf(id))}
-                    onClick={(event) => onRemoveCoAuthor(id, event.currentTarget)}
-                  >
-                    {content.remove}
-                  </Button>
+                  // Co-authors is the right-hand column, so from md up this 80px centred slot lines up with SOP history's Delete column.
+                  <span className="shrink-0 md:flex md:w-20 md:justify-center">
+                    <IconButton
+                      label={content.removeLabel.replace('{name}', nameOf(id))}
+                      icon={Trash2}
+                      danger
+                      onClick={(event) => onRemoveCoAuthor(id, event.currentTarget)}
+                    />
+                  </span>
                 )}
               </li>
             ))}
@@ -111,9 +102,9 @@ export function PeopleList({
                   <li key={person.userId} className={rowClasses}>
                     <span className="text-[0.9375rem] text-maroon">{name(person.userId)}</span>
                     <DecisionBadge decision={person.decision} labels={content.decisions} />
-                    {!!sop.internalReviewRounds?.length && person.decision === 'pending' && 'acceptedAt' in person && typeof person.acceptedAt === 'string' && <span className="text-xs text-text-gray">{internalReviewEn.actions.inProgress}</span>}
+                    {!inactive && !!sop.internalReviewRounds?.length && person.decision === 'pending' && 'acceptedAt' in person && typeof person.acceptedAt === 'string' && <span className="text-xs text-text-gray">{internalReviewEn.actions.inProgress}</span>}
                     {people === sop.reviewers && (
-                      <ReviewerDeadline sop={sop} reviewer={sop.reviewers.find((reviewer) => reviewer.userId === person.userId)!} content={sopWorkflowEn.reviewerDeadline} showQueue />
+                      <ReviewerDeadline sop={sop} reviewer={sop.reviewers.find((reviewer) => reviewer.userId === person.userId)!} content={sopWorkflowEn.reviewerDeadline} showQueue inactive={inactive} />
                     )}
                   </li>
                 ))}

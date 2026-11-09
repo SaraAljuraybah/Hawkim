@@ -3,15 +3,33 @@ import type { DepartmentId, RequestType } from '../data/mock/types'
 /** The SOP Directory (published SOPs of the active department). */
 export const SOP_DIRECTORY_PATH = '/sops'
 
-/** The Organization Structure page (department cards). */
-export const DEPARTMENTS_PATH = '/departments'
+/** The Organizational Structure page (divisions, departments and their employees). */
+export const ORGANIZATIONAL_STRUCTURE_PATH = '/organizational-structure'
 
 /** The Submit a Request form. */
 export const SUBMIT_REQUEST_PATH = '/requests/new'
 
+/** My Profile: the signed-in employee's own information. */
+export const PROFILE_PATH = '/profile'
+
+/** Set New Password, opened from the password reset email (and the new Admin's welcome email). */
+export const RESET_PASSWORD_PATH = '/reset-password'
+
+/** The public Request Hawkim form. */
+export const REQUEST_HAWKIM_PATH = '/request-hawkim'
+
+/** The Hawkim team's review page, opened from the request email (?id=…&token=…). */
+export const REVIEW_REQUEST_PATH = '/review-request'
+
 /** Path of an SOP's detail page in the SOPs directory. */
 export function sopPath(sopId: string): string {
   return `${SOP_DIRECTORY_PATH}/${encodeURIComponent(sopId)}`
+}
+
+/** The SOP Directory in the admin portal (read-only), and an SOP opened from it. */
+export const ADMIN_SOPS_PATH = '/admin/sops'
+export function adminSopPath(sopId: string): string {
+  return `${ADMIN_SOPS_PATH}/${encodeURIComponent(sopId)}`
 }
 
 /** Path of an SOP's workflow page (the author's view). */
@@ -27,6 +45,11 @@ export function reviewPath(sopId: string): string {
 /** Path of an SOP's compliance report for its reviewers and approvers (read-only). */
 export function reviewCompliancePath(sopId: string): string {
   return `${reviewPath(sopId)}/compliance`
+}
+
+/** Path of the GVP version compliance checks use, read-only, from an SOP's Compliance Overview (its author's and co-authors' view). */
+export function sopGuidelinePath(sopId: string): string {
+  return `${mySopPath(sopId)}/guideline`
 }
 
 /** Path of an SOP's compliance report (the author's and co-authors' view). */
@@ -53,12 +76,32 @@ export function requestDepartmentAccessPath(departmentId: DepartmentId): string 
 /** The admin portal's home (its users list); admins opening an employee screen go here. */
 export const ADMIN_USERS_PATH = '/admin/users'
 
+/** My Profile in the admin portal: admins only use the portal. */
+export const ADMIN_PROFILE_PATH = '/admin/profile'
+
+/** Where this person's own profile is: admins' is in the admin portal. Signed out: the employee path, which leads to sign-in. */
+export function profilePathFor(user: { permissions: string[] } | null | undefined): string {
+  return user?.permissions.includes('admin') ? ADMIN_PROFILE_PATH : PROFILE_PATH
+}
+
 /** The admin portal's departments list. */
 export const ADMIN_DEPARTMENTS_PATH = '/admin/departments'
+
+/** Where an admin lands: after signing in, on /admin, and from any employee page. */
+export const ADMIN_HOME_PATH = ADMIN_DEPARTMENTS_PATH
 
 /** A department's page in the admin portal, e.g. /admin/departments/quality-assurance */
 export function adminDepartmentPath(departmentId: string): string {
   return `${ADMIN_DEPARTMENTS_PATH}/${encodeURIComponent(departmentId)}`
+}
+
+/** The query parameter that presets the division of a new department. */
+export const NEW_DEPARTMENT_DIVISION_PARAM = 'division'
+
+/** The form to add a department, e.g. /admin/departments/new?division=division-123 */
+export function adminNewDepartmentPath(divisionId?: string): string {
+  const path = `${ADMIN_DEPARTMENTS_PATH}/new`
+  return divisionId ? `${path}?${new URLSearchParams({ [NEW_DEPARTMENT_DIVISION_PARAM]: divisionId })}` : path
 }
 
 /** The form to edit a department in the admin portal. */
@@ -77,6 +120,11 @@ export function adminRequestPath(requestId: string): string {
 /** The admin portal's regulations page. */
 export const ADMIN_REGULATIONS_PATH = '/admin/regulations'
 
+/** Edit a GVP version, e.g. /admin/regulations/gvp-4-0/edit */
+export function adminRegulationEditPath(versionId: string): string {
+  return `${ADMIN_REGULATIONS_PATH}/${encodeURIComponent(versionId)}/edit`
+}
+
 /** A GVP version's page in the admin portal, e.g. /admin/regulations/gvp-4-0 */
 export function adminRegulationPath(versionId: string): string {
   return `${ADMIN_REGULATIONS_PATH}/${encodeURIComponent(versionId)}`
@@ -85,4 +133,9 @@ export function adminRegulationPath(versionId: string): string {
 /** A user's page in the admin portal, e.g. /admin/users/user-sara */
 export function adminUserPath(userId: string): string {
   return `${ADMIN_USERS_PATH}/${encodeURIComponent(userId)}`
+}
+
+/** Edit User in the admin portal, e.g. /admin/users/user-sara/edit */
+export function adminUserEditPath(userId: string): string {
+  return `${adminUserPath(userId)}/edit`
 }

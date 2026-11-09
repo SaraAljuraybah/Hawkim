@@ -1,16 +1,16 @@
 import { describe, expect, it } from 'vitest'
 import type { ComplianceCheck, ComplianceResult, Sop } from '../data/mock/types'
 import {
-  compareReports,
   completeCheck,
   latestCompletedChecksByVersion,
   complianceScore,
   failCheck,
   numberedFindings,
-  previousReport,
   reportId,
   startCheck,
   verdictOf,
+  canReplaceSampleResult,
+  isSampleCheck,
 } from './compliance'
 import { uploadVersion } from './workflow'
 
@@ -132,43 +132,6 @@ describe('latestCompletedChecksByVersion', () => {
       })),
     }
     expect(latestCompletedChecksByVersion(withDeleted).map((item) => item.id)).toEqual(['v3', 'v1'])
-    expect(previousReport(withDeleted, v3)?.id).toBe('v1')
-  })
-})
-
-describe('previousReport', () => {
-  it('is the newest completed report of the nearest earlier version', () => {
-    const v10 = check(['conflict'], { id: 'v10', version: '1' })
-    const v11first = check(['conflict'], { id: 'v11a', version: '2' })
-    const v11second = check(['partial'], { id: 'v11b', version: '2' })
-    const v12 = check(['compliant'], { id: 'v12', version: '3' })
-    const sop = sopWith([v10, v11first, v11second, v12], '3')
-    expect(previousReport(sop, v12)?.id).toBe('v11b')
-    expect(previousReport(sop, v10)).toBeUndefined()
-  })
-})
-
-describe('compareReports', () => {
-  it('describes each requirement as resolved, improved, unchanged or worsened', () => {
-    const before = check(['partial', 'conflict', 'compliant', 'partial'])
-    const after = check(['compliant', 'partial', 'compliant', 'not-addressed'])
-    expect(compareReports(before, after).map((change) => `${change.requirementId} ${change.kind}`)).toEqual([
-      'R1 resolved', // partial → compliant
-      'R2 improved', // conflict → partial
-      'R3 unchanged', // compliant → compliant
-      'R4 worsened', // partial → not addressed
-    ])
-  })
-
-  it('marks requirements found in only one of the reports as new or removed', () => {
-    expect(compareReports(check(['compliant']), check(['compliant', 'partial'])).map((change) => change.kind)).toEqual([
-      'unchanged',
-      'new',
-    ])
-    expect(compareReports(check(['compliant', 'partial']), check(['compliant'])).map((change) => change.kind)).toEqual([
-      'unchanged',
-      'removed',
-    ])
   })
 })
 
@@ -193,5 +156,22 @@ describe('startCheck', () => {
     const manual = startCheck(done, guideline, { manualBy: 'sara' })
     expect(manual.sop.complianceChecks.at(-1)?.triggeredById).toBe('sara')
     expect(failCheck(manual.sop, manual.checkId).timeline.at(-1)).toMatchObject({ type: 'compliance-check-failed', actorId: 'sara' })
+  })
+})
+
+describe('sample results and the compliance service', () => {
+  const base = check(['compliant'])
+  const sop = (engine?: string): Sop => ({ ...({} as Sop), version: '1', complianceChecks: [{ ...base, version: '1', engine }] })
+
+  it('treats checks without an engine and sample checks as sample results, and the service as real', () => {
+    expect(isSampleCheck({})).toBe(true)
+    expect(isSampleCheck({ engine: 'sample' })).toBe(true)
+    expect(isSampleCheck({ engine: 'hawkim' })).toBe(false)
+  })
+
+  it('lets only a completed sample result from the database be checked again', () => {
+    expect(canReplaceSampleResult(sop('sample'))).toBe(true)
+    expect(canReplaceSampleResult(sop('hawkim'))).toBe(false)
+    expect(canReplaceSampleResult(sop(undefined))).toBe(false)
   })
 })

@@ -1,8 +1,9 @@
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { Check, ChevronDown } from 'lucide-react'
 import type { AppShellContent } from '../../content/types'
 import type { DepartmentId } from '../../data/mock/types'
+import { searchWithoutPage } from '../../lib/pagination'
 import { useActiveDepartment } from '../../state/activeDepartmentContext'
 
 interface DepartmentSwitcherProps {
@@ -27,6 +28,7 @@ const AFTER_SWITCH_PATH = '/sops'
 export function DepartmentSwitcher({ content, variant, onSwitched }: DepartmentSwitcherProps) {
   const { activeDepartment, homeDepartment, directoryDepartments, setActiveDepartment } = useActiveDepartment()
   const navigate = useNavigate()
+  const location = useLocation()
   const [open, setOpen] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
   const buttonRef = useRef<HTMLButtonElement>(null)
@@ -80,7 +82,8 @@ export function DepartmentSwitcher({ content, variant, onSwitched }: DepartmentS
   function choose(id: DepartmentId) {
     setActiveDepartment(id)
     setOpen(false)
-    navigate(AFTER_SWITCH_PATH)
+    // Already in the directory: keep its tab, search, sort and file type; every tab starts again on page 1.
+    navigate(location.pathname === AFTER_SWITCH_PATH ? AFTER_SWITCH_PATH + searchWithoutPage(location.search) : AFTER_SWITCH_PATH)
     onSwitched?.()
   }
 
@@ -127,10 +130,12 @@ export function DepartmentSwitcher({ content, variant, onSwitched }: DepartmentS
         className={
           isDrawer
             ? 'flex w-full items-center justify-between gap-2 rounded-lg border border-white/20 bg-white/10 px-3 py-2.5 text-left text-sm font-medium text-offwhite hover:bg-white/15'
-            : '-mx-1 inline-flex items-center gap-1 rounded-md px-1 text-xs text-text-gray hover:text-maroon'
+            // The keyboard focus ring hugs the button, so it doesn't cover the name above.
+            : '-mx-1 inline-flex items-center gap-1 rounded-md px-1 text-left text-xs text-text-gray hover:text-maroon focus-visible:outline-offset-0'
         }
       >
-        <span className="truncate">
+        {/* The top bar never cuts the name: it wraps instead. */}
+        <span className={isDrawer ? 'truncate' : 'break-words'}>
           {srLabel}
           {activeDepartment.name}
           {activeDepartment.id !== homeDepartment.id && ` (${content.readOnly})`}

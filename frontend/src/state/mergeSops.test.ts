@@ -91,4 +91,15 @@ describe('SOPs from the database and this tab', () => {
     expect(merged.map((item) => item.id)).toEqual(['uuid-new', 'uuid-sop', 'sop-078', 'uuid-other'])
     expect(merged[1].title).toBe('New title')
   })
+
+  it('never brings back an SOP deleted in this tab, whether it is kept or read again', () => {
+    const deleted = sop({ id: 'deleted' })
+    const other = sop({ id: 'other' })
+    const fresh = sop({ id: 'fresh' })
+    const merged = mergeSops([deleted, other], [fresh, deleted, other], new Set(['deleted']))
+    expect(merged.map((item) => item.id)).toEqual(['fresh', 'other'])
+    expect(mergeSops([], [deleted], new Set(['deleted']))).toEqual([])
+    // Without deleted ids nothing changes.
+    expect(mergeSops([deleted], [deleted]).map((item) => item.id)).toEqual(['deleted'])
+  })
 })

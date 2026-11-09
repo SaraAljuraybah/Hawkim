@@ -12,6 +12,7 @@ import {
   SYSTEM_ACTOR,
   type ComplianceCheck,
   type ComplianceResult,
+  type Finding,
   type InternalReviewDecision,
   type InternalReviewRound,
   type InternalReviewerAssignment,
@@ -25,26 +26,34 @@ import {
 import type { SopStatus } from '../types/status'
 import { todayIsoDate } from '../lib/format'
 import { projectReviewers } from '../lib/internalReviewStatus'
+import { WORKING_DAY_DEADLINES_ACTIVE } from '../lib/deadlinePolicy'
+import { isSopDeleteErrorCode, SopDeleteError, type SopDeleteErrorCode } from '../lib/mySops'
+import { sopTitleProblem } from '../lib/sopTitle'
 import { supabase } from './supabase'
 
 /*
  * The relationships are named: sops and sop_versions are linked twice (each version's SOP, and
  * the SOP's current version), so the API can't tell which one is meant otherwise.
+ * Every selected column exists in the approved schema (supabase/migrations/). The saved
+ * deadlines (response_due_at, review_due_at) are authoritative and shown as saved.
+ * deadline_policy exists only after the working-day migration (20261101120100), so it is
+ * selected only while WORKING_DAY_DEADLINES_ACTIVE is on.
  */
-const SOP_COLUMNS = `id, code, title, description, department_id, author_id, status, current_version, updated_at,
+const REQUEST_POLICY_COLUMN = WORKING_DAY_DEADLINES_ACTIVE ? ' deadline_policy,' : ''
+const SOP_COLUMNS = `id, code, title, description, department_id, author_id, status, current_version, updated_at, directory_group,
   sop_versions!sop_versions_sop_id_fkey (version, file_name, file_type, storage_path, uploaded_by, uploaded_at, deleted_at, deleted_by),
   sop_co_authors!sop_co_authors_sop_id_fkey (user_id, added_at),
   timeline_events!timeline_events_sop_id_fkey (id, type, actor_id, version, recipient_ids, subject_id, note, created_at,
-    review_round_id, review_request_id, comment_id),
+    review_round_id, review_request_id, comment_id, previous_review_due_at, new_review_due_at),
   review_rounds!review_rounds_sop_id_fkey (id, version, status, requested_by, requested_at, closed_at,
-    review_requests!review_requests_round_id_fkey (id, seq, reviewer_id, status, assigned_at, response_due_date,
-      review_duration_days, accepted_at, review_due_date, decided_at, decline_reason, comment_id, withdrawn_at,
+    review_requests!review_requests_round_id_fkey (id, seq, reviewer_id, status, assigned_at, response_due_date, response_due_at,
+      review_duration_days, accepted_at, review_due_date, review_due_at,${REQUEST_POLICY_COLUMN} decided_at, decline_reason, comment_id, withdrawn_at, expired_at,
       removed_at, removed_by, removal_reason, status_before_removal)),
   sop_comments!sop_comments_sop_id_fkey (id, version, author_id, role, text, review_round_id, review_request_id, created_at),
-  compliance_checks!compliance_checks_sop_id_fkey (id, sop_version, status, engine, triggered_by, started_at, completed_at,
+  compliance_checks!compliance_checks_sop_id_fkey (id, sop_version, status, engine, triggered_by, started_at, completed_at, steps_checked:metadata->steps_checked,
     guideline_versions!compliance_checks_guideline_version_id_fkey (name, version),
-    compliance_findings!compliance_findings_check_id_fkey (id, result, justification, sop_reference, recommended_action, position,
-      guideline_requirements!compliance_findings_requirement_id_fkey (code)))`
+    compliance_findings!compliance_findings_check_id_fkey (id, result, justification, sop_reference, evidence, recommended_action, position,
+      guideline_requirements!compliance_findings_requirement_id_fkey (code, module, section, section_title, short_title, page, summary)))`
 
 export interface SopVersionRow {
   version: number
@@ -69,6 +78,8 @@ export interface TimelineEventRow {
   review_round_id: string | null
   review_request_id: string | null
   comment_id: string | null
+  previous_review_due_at?: string | null
+  new_review_due_at?: string | null
 }
 
 export interface ReviewRequestRow {
@@ -78,13 +89,17 @@ export interface ReviewRequestRow {
   status: InternalReviewDecision
   assigned_at: string
   response_due_date: string | null
+  response_due_at?: string | null
   review_duration_days: number | null
   accepted_at: string | null
   review_due_date: string | null
+  review_due_at?: string | null
+  deadline_policy?: InternalReviewerAssignment['deadlinePolicy'] | null
   decided_at: string | null
   decline_reason: string | null
   comment_id: string | null
   withdrawn_at: string | null
+  expired_at: string | null
   removed_at: string | null
   removed_by: string | null
   removal_reason: string | null
@@ -120,15 +135,27 @@ export interface ComplianceCheckRow {
   triggered_by: string
   started_at: string
   completed_at: string | null
+  /** Only this value of the check's metadata (the rest is the service's audit copy): how many SOP procedures it checked. */
+  steps_checked?: unknown
   guideline_versions: { name: string; version: string }
   compliance_findings: {
     id: string
     result: ComplianceResult
     justification: string
     sop_reference: string | null
+    /** The compliance service's record of the result (its "steps" hold the SOP text); null for sample checks. */
+    evidence?: unknown
     recommended_action: string | null
     position: number
-    guideline_requirements: { code: string }
+    guideline_requirements: {
+      code: string
+      module: string
+      section: string
+      section_title: string
+      short_title: string
+      page: number
+      summary: string
+    }
   }[]
 }
 
@@ -142,6 +169,8 @@ export interface SopRow {
   status: SopStatus
   current_version: number
   updated_at: string
+  /** "others" once its department was deleted with "Move SOPs to Others" (supabase/migrations/20261107120100). */
+  directory_group?: 'department' | 'others' | null
   sop_versions: SopVersionRow[]
   sop_co_authors: { user_id: string; added_at: string }[]
   timeline_events: TimelineEventRow[]
@@ -175,6 +204,8 @@ function toEvent(row: TimelineEventRow): TimelineEvent {
     ...(row.review_round_id ? { reviewRoundId: row.review_round_id } : {}),
     ...(row.review_request_id ? { reviewAssignmentId: row.review_request_id } : {}),
     ...(row.comment_id ? { commentId: row.comment_id } : {}),
+    ...(row.previous_review_due_at ? { previousReviewDueAt: row.previous_review_due_at } : {}),
+    ...(row.new_review_due_at ? { newReviewDueAt: row.new_review_due_at } : {}),
   }
 }
 
@@ -182,13 +213,17 @@ function toEvent(row: TimelineEventRow): TimelineEvent {
 function toRequest(row: ReviewRequestRow): InternalReviewerAssignment {
   const optional = {
     responseDueDate: row.response_due_date,
+    responseDueAt: row.response_due_at,
     reviewDurationDays: row.review_duration_days,
     acceptedAt: row.accepted_at,
     reviewDueDate: row.review_due_date,
+    reviewDueAt: row.review_due_at,
+    deadlinePolicy: row.deadline_policy,
     decidedAt: row.decided_at,
     declineReason: row.decline_reason,
     commentId: row.comment_id,
     withdrawnAt: row.withdrawn_at,
+    expiredAt: row.expired_at,
     removedAt: row.removed_at,
     removedById: row.removed_by,
     removalReason: row.removal_reason,
@@ -200,7 +235,7 @@ function toRequest(row: ReviewRequestRow): InternalReviewerAssignment {
     decision: row.status,
     assignedAt: row.assigned_at,
     assignedDueDays: null,
-    ...Object.fromEntries(Object.entries(optional).filter(([, value]) => value !== null)),
+    ...Object.fromEntries(Object.entries(optional).filter(([, value]) => value != null)),
   }
 }
 
@@ -232,6 +267,32 @@ function toComment(row: SopCommentRow): SopComment {
   }
 }
 
+/**
+ * The SOP text of a finding's evidence (the compliance service's format: `{ steps: [{ section, page,
+ * sop_evidence, sop_text, … }] }`), in the steps' order: the quoted sentences, or else the step's whole
+ * text (older checks have no sop_text). Steps with neither, and anything malformed, are left out;
+ * undefined when nothing is left.
+ */
+export function toSopEvidence(evidence: unknown): Finding['sopEvidence'] {
+  const steps = evidence && typeof evidence === 'object' ? (evidence as { steps?: unknown }).steps : undefined
+  if (!Array.isArray(steps)) return undefined
+  const items = steps.flatMap((step: unknown) => {
+    if (!step || typeof step !== 'object') return []
+    const { section, page, sop_evidence: quote, sop_text: stepText } = step as {
+      section?: unknown; page?: unknown; sop_evidence?: unknown; sop_text?: unknown
+    }
+    // The sentences the model quoted, or else the whole step (steps not sent to the model have no quote).
+    const text = (typeof quote === 'string' ? quote.trim() : '') || (typeof stepText === 'string' ? stepText.trim() : '')
+    if (!text) return []
+    return [{
+      section: typeof section === 'string' ? section.trim() : '',
+      ...(typeof page === 'number' && Number.isInteger(page) && page > 0 ? { page } : {}),
+      text,
+    }]
+  })
+  return items.length ? items : undefined
+}
+
 function toCheck(sopId: string, row: ComplianceCheckRow): ComplianceCheck {
   return {
     id: row.id,
@@ -241,19 +302,36 @@ function toCheck(sopId: string, row: ComplianceCheckRow): ComplianceCheck {
     engine: row.engine,
     startedAt: row.started_at,
     ...(row.completed_at ? { completedAt: row.completed_at } : {}),
+    // Recorded by the compliance service only; sample checks have none.
+    ...(typeof row.steps_checked === 'number' && Number.isInteger(row.steps_checked) && row.steps_checked > 0
+      ? { stepsChecked: row.steps_checked }
+      : {}),
     triggeredById: row.triggered_by,
     guideline: { name: row.guideline_versions.name, version: row.guideline_versions.version },
     findings: [...row.compliance_findings]
       .sort((a, b) => a.position - b.position)
-      .map((item) => ({
-        id: item.id,
-        // The report finds the requirement by its code (R1…) in the guideline version.
-        requirementId: item.guideline_requirements.code,
-        result: item.result,
-        justification: item.justification,
-        ...(item.sop_reference ? { sopReference: item.sop_reference } : {}),
-        ...(item.recommended_action ? { recommendedAction: item.recommended_action } : {}),
-      })),
+      .map((item) => {
+        const sopEvidence = toSopEvidence(item.evidence)
+        return {
+          id: item.id,
+          // The report finds the requirement by its code (R1…) in the guideline version.
+          requirementId: item.guideline_requirements.code,
+          result: item.result,
+          justification: item.justification,
+          ...(item.sop_reference ? { sopReference: item.sop_reference } : {}),
+          ...(sopEvidence ? { sopEvidence } : {}),
+          ...(item.recommended_action ? { recommendedAction: item.recommended_action } : {}),
+          requirement: {
+            id: item.guideline_requirements.code,
+            module: item.guideline_requirements.module,
+            section: item.guideline_requirements.section,
+            sectionTitle: item.guideline_requirements.section_title,
+            shortTitle: item.guideline_requirements.short_title,
+            page: item.guideline_requirements.page,
+            summary: item.guideline_requirements.summary,
+          },
+        }
+      }),
   }
 }
 
@@ -269,6 +347,7 @@ export function toSop(row: SopRow): Sop {
     title: row.title,
     ...(row.description ? { description: row.description } : {}),
     departmentId: row.department_id,
+    ...(row.directory_group === 'others' ? { directoryGroup: 'others' as const } : {}),
     authorId: row.author_id,
     version: String(row.current_version),
     status: row.status,
@@ -312,8 +391,9 @@ export interface StoredFile {
 
 /** Creates an SOP in the author's home department with its first version; returns its id. */
 export async function createSop(input: { title: string; description?: string; departmentId: string; file: StoredFile }): Promise<string> {
+  if (sopTitleProblem(input.title)) throw new Error('An SOP title of 1 to 50 characters is required')
   const { data, error } = await supabase().rpc('create_sop', {
-    p_title: input.title,
+    p_title: input.title.trim(),
     p_description: input.description ?? '',
     p_department_id: input.departmentId,
     p_storage_path: input.file.storagePath,
@@ -336,8 +416,32 @@ export async function uploadSopVersion(sopId: string, file: StoredFile): Promise
 
 /** Marks a version deleted (its number and file are kept). */
 export async function deleteSopVersion(sopId: string, version: string): Promise<void> {
-  const { error } = await supabase().rpc('delete_sop_version', { p_sop_id: sopId, p_version: Number(version) })
-  if (error) throw new Error(error.message)
+  await callDeleteFunction({ action: 'delete-version', sopId, version: Number(version) })
+}
+
+/** Main author: permanently deletes the SOP, all its rows and its files, with a justification. */
+export async function deleteSop(sopId: string, reason: string): Promise<void> {
+  await callDeleteFunction({ action: 'delete-sop', sopId, reason })
+}
+
+/*
+ * Rows and files are deleted together by the delete-sop Edge Function
+ * (supabase/functions/delete-sop/): the browser can't call delete_sop or delete_sop_version,
+ * and can't remove files from sop-files. The signed-in user's token is sent automatically.
+ */
+async function callDeleteFunction(body: Record<string, unknown>): Promise<void> {
+  const { error } = await supabase().functions.invoke('delete-sop', { body })
+  if (!error) return
+  let code: SopDeleteErrorCode = 'failed'
+  let message: string = error.message
+  // A non-2xx answer carries the Response with { error, message? }.
+  const response: unknown = (error as { context?: unknown }).context
+  if (response instanceof Response) {
+    const parsed = (await response.json().catch(() => null)) as { error?: unknown; message?: unknown } | null
+    if (isSopDeleteErrorCode(parsed?.error)) code = parsed.error
+    if (typeof parsed?.message === 'string') message = parsed.message
+  }
+  throw new SopDeleteError(code, message)
 }
 
 /** Main author: adds co-authors (all or none). */
@@ -349,5 +453,11 @@ export async function addCoAuthors(sopId: string, userIds: string[]): Promise<vo
 /** Main author: removes a co-author. */
 export async function removeCoAuthor(sopId: string, userId: string): Promise<void> {
   const { error } = await supabase().rpc('remove_co_author', { p_sop_id: sopId, p_user_id: userId })
+  if (error) throw new Error(error.message)
+}
+
+/** Main author: changes the description before the SOP is published (trimmed and checked by the database). */
+export async function updateSopDescription(sopId: string, description: string): Promise<void> {
+  const { error } = await supabase().rpc('update_sop_description', { p_sop_id: sopId, p_description: description.trim() })
   if (error) throw new Error(error.message)
 }

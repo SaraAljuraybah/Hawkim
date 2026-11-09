@@ -32,10 +32,10 @@ export function blockerMessage(
             '{sops}',
             blocker.sops
               .map((sop) =>
-                // Reviewers and approvers: with the status, e.g. "SOP-081 (Returned)".
+                // Reviewers and approvers: identify the SOP by its title and status.
                 blocker.permission === 'author'
-                  ? sop.code
-                  : text.sopWithStatus.replace('{code}', sop.code).replace('{status}', statusLabelsEn[sop.status]),
+                  ? sop.title
+                  : text.sopWithStatus.replace('{title}', sop.title).replace('{status}', statusLabelsEn[sop.status]),
               )
               .join(', '),
           ),

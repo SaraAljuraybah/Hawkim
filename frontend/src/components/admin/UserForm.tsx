@@ -1,0 +1,263 @@
+import { useRef, useState, type FormEvent, type ReactNode } from 'react'
+import { flushSync } from 'react-dom'
+import { LoaderCircle } from 'lucide-react'
+import { adminEn } from '../../content/admin.en'
+import { usersEn } from '../../content/users.en'
+import type { Permission, User } from '../../data/mock/types'
+import {
+  defaultDivision,
+  departmentsInDivision,
+  hasUnsavedChanges,
+  isSystemAdmin,
+  PERMISSIONS,
+  POSITION_MAX,
+  validateNewUser,
+  type NewUser,
+  type NewUserField,
+  type NewUserProblem,
+} from '../../lib/userAdmin'
+import { useDepartments } from '../../state/departmentsContext'
+import { Button } from '../ui/Button'
+import { CheckboxGroup } from '../ui/CheckboxGroup'
+import { SelectCombobox } from '../ui/SelectCombobox'
+import { TextField } from '../ui/TextField'
+import { UnsavedChangesGuard, type UnsavedChangesText } from '../ui/UnsavedChangesGuard'
+import { DivisionField } from './DivisionField'
+
+const FIELDS: NewUserField[] = ['name', 'email', 'phone', 'divisionId', 'departmentId', 'position', 'permissions']
+
+type FieldErrors = Partial<Record<NewUserField, string>>
+
+interface UserFormProps {
+  /** The values it starts with. Without a divisionId, the default follows the departments. */
+  initial: NewUser
+  /** The active users whose emails are taken (when editing: everyone except that user). */
+  otherUsers: User[]
+  submitLabel: string
+  /** The submit button's text while waiting for onSubmit. Default: submitLabel. */
+  busyLabel?: string
+  /** Shown above the buttons (e.g. why saving was refused). */
+  notice?: ReactNode
+  /** Called whenever a field changes. */
+  onEdit?: () => void
+  /** Called with valid values only; it may be async (shows a busy state, and can't be sent twice). */
+  onSubmit: (user: NewUser) => void | Promise<void>
+  /**
+   * Asks before leaving with unsaved changes (see UnsavedChangesGuard). The parent starts a new form
+   * (a new key) after saving, so saved values are never asked about.
+   */
+  unsavedChanges?: UnsavedChangesText
+}
+
+/**
+ * The form of Add Staff and Edit Staff: full name, email (valid and unique) and phone number
+ * (+9665XXXXXXXX) are required; staff also need a division, a department (one of that division's)
+ * and a position. A System Admin (the Admin permission) has none of those, so they are hidden while
+ * Admin is chosen. Permissions are optional. Division comes first: the department list waits for it,
+ * and when "No Division" is the only choice it is chosen from the start.
+ */
+export function UserForm({ initial, otherUsers, submitLabel, busyLabel, notice, onEdit, onSubmit, unsavedChanges }: UserFormProps) {
+  const content = adminEn.addUser
+  const { activeDepartments } = useDepartments()
+
+  const [values, setValues] = useState<NewUser>(initial)
+  const [errors, setErrors] = useState<FieldErrors>({})
+  const [submitAttempted, setSubmitAttempted] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const nameRef = useRef<HTMLInputElement>(null)
+  const emailRef = useRef<HTMLInputElement>(null)
+  const phoneRef = useRef<HTMLInputElement>(null)
+  const divisionRef = useRef<HTMLInputElement>(null)
+  const departmentRef = useRef<HTMLInputElement>(null)
+  const positionRef = useRef<HTMLInputElement>(null)
+  const permissionsRef = useRef<HTMLInputElement>(null)
+
+  const division = values.divisionId ?? defaultDivision(activeDepartments)
+  const user: NewUser = { ...values, divisionId: division }
+  const systemAdmin = isSystemAdmin(values)
+  const dirty = hasUnsavedChanges({ ...initial, divisionId: initial.divisionId ?? defaultDivision(activeDepartments) }, user)
+  const departmentOptions = departmentsInDivision(activeDepartments, division).map((department) => ({ value: department.id, label: department.name }))
+
+  const messages: Record<NewUserProblem, string> = {
+    'name-required': content.errors.nameRequired,
+    'email-invalid': content.errors.emailInvalid,
+    'email-taken': content.errors.emailTaken,
+    'phone-required': content.errors.phoneRequired,
+    'phone-invalid': content.errors.phoneInvalid,
+    'division-required': content.errors.divisionRequired,
+    'department-required': content.errors.departmentRequired,
+    'position-required': content.errors.positionRequired,
+    'position-too-long': content.errors.positionTooLong.replace('{max}', String(POSITION_MAX)),
+    'approver-outside-quality': content.errors.approverOutsideQuality,
+  }
+  function errorsFor(next: NewUser): FieldErrors {
+    const problems = validateNewUser(next, otherUsers, activeDepartments)
+    const errorOf = (field: NewUserField) => {
+      const problem = problems[field]
+      return problem && messages[problem]
+    }
+    return Object.fromEntries(FIELDS.map((field) => [field, errorOf(field)]))
+  }
+
+  function change(next: NewUser) {
+    setValues(next)
+    onEdit?.()
+    // After a Save attempt: Approver and the department decide this together, and neither blurs to re-check it.
+    if (submitAttempted) setErrors((prev) => ({ ...prev, permissions: errorsFor(next).permissions }))
+  }
+
+  // Errors are first shown on submit; after that, each field re-validates on blur.
+  function blur(field: NewUserField, next: NewUser = user) {
+    if (submitAttempted) setErrors((prev) => ({ ...prev, [field]: errorsFor(next)[field] }))
+  }
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (busy) return
+    setSubmitAttempted(true)
+    const next = errorsFor(user)
+    // Render the messages before moving focus, so screen readers read them with the field.
+    flushSync(() => setErrors(next))
+    const firstInvalid = FIELDS.find((field) => next[field])
+    if (firstInvalid) {
+      const refs = { name: nameRef, email: emailRef, phone: phoneRef, divisionId: divisionRef, departmentId: departmentRef, position: positionRef, permissions: permissionsRef }
+      refs[firstInvalid].current?.focus()
+      return
+    }
+    const pending = onSubmit(user)
+    if (!(pending instanceof Promise)) return
+    setBusy(true)
+    try {
+      await pending
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <form noValidate onSubmit={handleSubmit} className="mt-8 max-w-2xl rounded-xl border border-beige bg-white p-5 sm:p-6">
+      <TextField
+        ref={nameRef}
+        name="name"
+        autoComplete="off"
+        label={content.name.label}
+        required
+        requiredMark
+        value={values.name}
+        error={errors.name}
+        onChange={(event) => change({ ...values, name: event.target.value })}
+        onBlur={() => blur('name')}
+      />
+      <TextField
+        ref={emailRef}
+        name="email"
+        type="email"
+        autoComplete="off"
+        autoCapitalize="none"
+        spellCheck={false}
+        label={content.email.label}
+        required
+        requiredMark
+        hint={content.email.hint}
+        value={values.email}
+        error={errors.email}
+        onChange={(event) => change({ ...values, email: event.target.value })}
+        onBlur={() => blur('email')}
+        className="mt-5"
+      />
+      <TextField
+        ref={phoneRef}
+        name="phone"
+        type="tel"
+        inputMode="tel"
+        autoComplete="off"
+        label={content.phone.label}
+        required
+        requiredMark
+        hint={content.phone.hint}
+        placeholder={content.phone.placeholder}
+        value={values.phone}
+        error={errors.phone}
+        onChange={(event) => change({ ...values, phone: event.target.value })}
+        onBlur={() => blur('phone')}
+        className="mt-5"
+      />
+      {!systemAdmin && (<>
+      <DivisionField
+        inputRef={divisionRef}
+        departments={activeDepartments}
+        content={content.division}
+        value={division}
+        error={errors.divisionId}
+        onChange={(divisionId) => {
+          if (divisionId === division) return
+          // A department belongs to its division, so a new division starts without one.
+          change({ ...values, divisionId, departmentId: '' })
+          setErrors((prev) => ({ ...prev, departmentId: undefined }))
+        }}
+        onBlur={(divisionId) => blur('divisionId', { ...user, divisionId })}
+        className="mt-5"
+      />
+      <SelectCombobox
+        // A fresh list (and no leftover typed text) for each division.
+        key={division}
+        inputRef={departmentRef}
+        name="department"
+        label={content.department.label}
+        placeholder={division ? content.department.placeholder : content.department.selectDivisionFirst}
+        options={departmentOptions}
+        value={values.departmentId}
+        error={errors.departmentId}
+        required
+        requiredMark
+        disabled={!division}
+        toggleLabel={content.department.toggle}
+        noMatchesText={content.department.noMatches}
+        onChange={(departmentId) => change({ ...values, departmentId })}
+        onBlur={(departmentId) => blur('departmentId', { ...user, departmentId })}
+        className="mt-5"
+      />
+      <TextField
+        ref={positionRef}
+        name="position"
+        autoComplete="off"
+        label={content.position.label}
+        required
+        requiredMark
+        maxLength={POSITION_MAX}
+        value={values.position}
+        error={errors.position}
+        onChange={(event) => change({ ...values, position: event.target.value })}
+        onBlur={() => blur('position')}
+        className="mt-5"
+      />
+      </>)}
+      <CheckboxGroup
+        name="permissions"
+        legend={content.permissions.legend}
+        error={errors.permissions}
+        firstRef={permissionsRef}
+        options={PERMISSIONS.map((permission) => ({
+          value: permission,
+          label: usersEn.permissions[permission],
+          description: adminEn.permissionDescriptions[permission],
+        }))}
+        value={values.permissions}
+        onChange={(next) => change({ ...values, permissions: next as Permission[] })}
+        className="mt-6"
+      />
+      {notice}
+      {unsavedChanges && <UnsavedChangesGuard when={dirty && !busy} text={unsavedChanges} />}
+
+      <div className="mt-8 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+        <Button variant="secondary" to={content.back.href}>
+          {content.cancel}
+        </Button>
+        <Button type="submit" aria-disabled={busy || undefined}>
+          {busy && <LoaderCircle aria-hidden="true" className="size-4 motion-safe:animate-spin" strokeWidth={1.75} />}
+          {busy && busyLabel ? busyLabel : submitLabel}
+        </Button>
+      </div>
+    </form>
+  )
+}

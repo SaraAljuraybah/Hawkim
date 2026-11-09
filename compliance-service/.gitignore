@@ -1,0 +1,14 @@
+# Secrets
+.env
+# Data and generated files (large or confidential; see README)
+data/gvp/*
+data/sops/*
+!data/gvp/.gitkeep
+!data/sops/.gitkeep
+data/ground_truth.csv
+index/
+work/
+runs/
+reports/
+__pycache__/
+*.pyc

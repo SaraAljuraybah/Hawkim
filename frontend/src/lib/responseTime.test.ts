@@ -3,8 +3,10 @@ import { reviewDueDateFrom } from './internalReviewStatus'
 import { formatReviewDuration } from './reviewDuration'
 import { isAfterResponseCutoff, parseResponseDueDate, RESPONSE_CUTOFF_HOUR, RESPONSE_START_HOUR, responseCountsFrom, responseDueDateRange, responseTimeMilliseconds } from './responseTime'
 
-/** Oct 26, 2026 at this local time. */
-const oct26 = (hours: number, minutes = 0) => new Date(2026, 9, 26, hours, minutes)
+/** A moment in Riyadh time (UTC+03:00), whatever the device's time zone. */
+const riyadh = (date: string, hours: number, minutes = 0) => new Date(`${date}T${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00+03:00`)
+/** Oct 26, 2026 at this Riyadh time. */
+const oct26 = (hours: number, minutes = 0) => riyadh('2026-10-26', hours, minutes)
 /** Whole minutes, as the examples count them (the deadline is 11:59:59.999 PM). */
 const minutes = (milliseconds: number) => Math.floor(milliseconds / 60_000)
 
@@ -27,11 +29,11 @@ describe('response time working-hours rule', () => {
   })
 
   it('counts from 8:00 AM the next day at or after 4:00 PM, across the month end', () => {
-    expect(responseCountsFrom(oct26(16))).toEqual(new Date(2026, 9, 27, 8))
-    expect(responseCountsFrom(oct26(16, 40))).toEqual(new Date(2026, 9, 27, 8))
-    expect(responseCountsFrom(oct26(23, 59))).toEqual(new Date(2026, 9, 27, 8))
-    expect(responseCountsFrom(new Date(2026, 9, 31, 16))).toEqual(new Date(2026, 10, 1, 8))
-    expect(responseCountsFrom(new Date(2026, 11, 31, 18))).toEqual(new Date(2027, 0, 1, 8))
+    expect(responseCountsFrom(oct26(16))).toEqual(riyadh('2026-10-27', 8))
+    expect(responseCountsFrom(oct26(16, 40))).toEqual(riyadh('2026-10-27', 8))
+    expect(responseCountsFrom(oct26(23, 59))).toEqual(riyadh('2026-10-27', 8))
+    expect(responseCountsFrom(riyadh('2026-10-31', 16))).toEqual(riyadh('2026-11-01', 8))
+    expect(responseCountsFrom(riyadh('2026-12-31', 18))).toEqual(riyadh('2027-01-01', 8))
   })
 
   it('gives the time to respond up to the end of the due date', () => {
@@ -66,7 +68,7 @@ describe('response time working-hours rule', () => {
       expect(parseResponseDueDate('2026-10-26', sentAt)).toEqual({ valid: false })
       expect(parseResponseDueDate('2026-10-27', sentAt)).toEqual({ valid: true, days: 1 })
     }
-    expect(responseDueDateRange(new Date(2026, 9, 31, 16))).toEqual({ min: '2026-11-01' })
+    expect(responseDueDateRange(riyadh('2026-10-31', 16))).toEqual({ min: '2026-11-01' })
   })
 
   it('accepts a blank due date and rejects dates that are not real', () => {
