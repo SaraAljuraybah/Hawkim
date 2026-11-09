@@ -18,7 +18,7 @@ import { adminEn } from '../../content/admin.en'
 import { organizationAdminEn as text } from '../../content/organizationAdmin.en'
 import { useDocumentTitle } from '../../hooks/useDocumentTitle'
 import { useOrganizationManagement } from '../../hooks/useOrganizationManagement'
-import { DIVISION_SORTS, hierarchyRows, type DivisionSort } from '../../lib/organizationAdmin'
+import { departmentDeleteBlocker, DIVISION_SORTS, hierarchyRows, type DivisionSort } from '../../lib/organizationAdmin'
 import { deleteDivision, type DivisionRecord, type ManagedDepartment, type ManagementSnapshot } from '../../services/organizationAdmin'
 
 export interface AdminDepartmentsLocationState { removed?: string }
@@ -99,6 +99,12 @@ export function ActiveFilters({ options, selected, onChange }: { options: { valu
   </div>
 }
 
+/** The disabled Delete icon's reason (tooltip and description), or none when the department can be deleted. */
+function deleteBlockedReason(department: ManagedDepartment): string | undefined {
+  const blocker = departmentDeleteBlocker(department)
+  return blocker && { employees: text.departmentBlocked, sops: text.departmentHasSopsBlocked, both: text.departmentBlockedBoth }[blocker]
+}
+
 /** Number columns: centred under their headings, the same in division and department rows. */
 const numberCell = 'px-3 py-4 text-center tabular-nums'
 
@@ -134,7 +140,7 @@ export function HierarchyTable({ snapshot, query = '', divisions = [], sort = 'd
   disabledReason={row.deletion_job_id ? text.cleanupPending : undefined}
   onClick={() => onEditDepartment(row)}
 />
-        <IconButton label={`${row.deletion_job_id ? text.retryCleanup : text.delete} ${row.name}`} icon={Trash2} danger disabledReason={row.employees > 0 ? text.departmentBlocked : undefined} onClick={() => onDeleteDepartment(row)} /></div></td>
+        <IconButton label={`${row.deletion_job_id ? text.retryCleanup : text.delete} ${row.name}`} icon={Trash2} danger disabledReason={deleteBlockedReason(row)} onClick={() => onDeleteDepartment(row)} /></div></td>
     </tr>
   }
   return <div className="mt-3 overflow-x-auto rounded-xl border border-beige bg-white">

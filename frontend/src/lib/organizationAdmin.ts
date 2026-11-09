@@ -1,4 +1,4 @@
-import type { ManagementSnapshot } from '../services/organizationAdmin'
+import type { ManagedDepartment, ManagementSnapshot } from '../services/organizationAdmin'
 
 /** How the division rows are ordered; 'default' keeps the server's order. */
 export const DIVISION_SORTS = ['default', 'name-asc', 'name-desc', 'departments-desc', 'departments-asc', 'sops-desc', 'sops-asc'] as const
@@ -47,4 +47,15 @@ function sortRows<T extends { division: { name: string; id: string }; department
     'sops-asc': (a, b) => a.sops - b.sops || name(a, b),
   }
   return [...rows].sort(compare[sort])
+}
+
+/**
+ * Why a department can't be deleted (none: it can). Active employees and SOPs that still exist both block it,
+ * as in the database (delete_department, 20261109120000). A department already waiting on file cleanup is never
+ * blocked by SOPs: its SOPs are marked deleted, and its Delete button retries the cleanup.
+ */
+export function departmentDeleteBlocker(department: Pick<ManagedDepartment, 'employees' | 'sops' | 'deletion_job_id'>): 'employees' | 'sops' | 'both' | undefined {
+  const sops = !department.deletion_job_id && department.sops > 0
+  if (department.employees > 0) return sops ? 'both' : 'employees'
+  return sops ? 'sops' : undefined
 }

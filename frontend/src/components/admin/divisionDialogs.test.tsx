@@ -188,32 +188,37 @@ describe('division preview', () => {
     expect(onClose).toHaveBeenCalledOnce()
   })
 })
-describe('department SOP deletion choices', () => {
-  const department = { id: 'd', name: 'Medical', sops: 2, updated_at: 'revision' }
-  it('defaults to preserving SOPs and passes the explicit Others choice to the backend', async () => {
-    await confirm(render(() => DeleteDepartmentDialog({ department, onClose: vi.fn(), onDeleted: vi.fn() })))
-    expect(host.remove).toHaveBeenCalledWith(department, 'others')
+describe('delete department dialog', () => {
+  const department = { id: 'd', name: 'Medical', updated_at: 'revision' }
+  it('deletes a department without SOPs with a plain confirmation: no SOP options', async () => {
+    const onDeleted = vi.fn()
+    const element = render(() => DeleteDepartmentDialog({ department, onClose: vi.fn(), onDeleted }))
+    expect(element.props).toMatchObject({ title: 'Delete Medical?', confirmLabel: 'Delete', cancelLabel: 'Cancel' })
+    expect(elements(element).some((item) => item.props.type === 'radio' || item.props.type === 'checkbox')).toBe(false)
+    const html = renderToStaticMarkup(<DeleteDepartmentDialog department={department} onClose={vi.fn()} onDeleted={vi.fn()} />)
+    expect(html).not.toMatch(/Move SOPs to Others|Delete associated SOPs|I confirm deletion/)
+    await confirm(render(() => DeleteDepartmentDialog({ department, onClose: vi.fn(), onDeleted })))
+    expect(host.remove).toHaveBeenCalledWith(department, 'empty')
+    expect(onDeleted).toHaveBeenCalledOnce()
   })
-  it('requires a separate destructive confirmation before deleting SOPs', async () => {
+  it('keeps Retry file cleanup for a deletion confirmed earlier', async () => {
+    const pending = { ...department, deletion_job_id: 'job' }
+    const element = render(() => DeleteDepartmentDialog({ department: pending, onClose: vi.fn(), onDeleted: vi.fn() }))
+    expect(element.props.confirmLabel).toBe('Retry file cleanup')
+    expect(elements(element).some((item) => item.props.children === 'This deletion was already confirmed. Retry to remove any remaining files and finish deleting the department.')).toBe(true)
+    await confirm(element)
+    expect(host.remove).toHaveBeenCalledWith(pending, 'delete')
+  })
+  it('shows a refusal inside the dialog and stays open', async () => {
+    host.remove.mockRejectedValue(new Error('This department still has SOPs. It can’t be deleted while it has SOPs.'))
     const component = () => DeleteDepartmentDialog({ department, onClose: vi.fn(), onDeleted: vi.fn() })
-    let element = render(component)
-    change(elements(element).find((item) => item.props.type === 'radio' && item.props.value === 'delete')!, 'delete')
-    element = render(component)
-    await expect(confirm(element)).resolves.toBe(false)
-    expect(host.remove).not.toHaveBeenCalled()
-    change(elements(render(component)).find((item) => item.props.type === 'checkbox')!, true)
-    await confirm(render(component))
-    expect(host.remove).toHaveBeenCalledWith(department, 'delete')
+    await expect(confirm(render(component))).resolves.toBe(false)
+    expect(elements(render(component)).some((item) => item.props.role === 'alert' && item.props.children === 'This department still has SOPs. It can’t be deleted while it has SOPs.')).toBe(true)
   })
   it('cancel changes no relationships', () => {
     const onClose = vi.fn()
     const element = render(() => DeleteDepartmentDialog({ department, onClose, onDeleted: vi.fn() }))
     ;(element.props.onClose as () => void)()
     expect(onClose).toHaveBeenCalledOnce(); expect(host.remove).not.toHaveBeenCalled()
-  })
-  it('uses normal confirmation for departments without SOPs', async () => {
-    const empty = { ...department, sops: 0 }
-    await confirm(render(() => DeleteDepartmentDialog({ department: empty, onClose: vi.fn(), onDeleted: vi.fn() })))
-    expect(host.remove).toHaveBeenCalledWith(empty, 'empty')
   })
 })

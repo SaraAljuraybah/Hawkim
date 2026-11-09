@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { ManagedDepartment, ManagementSnapshot } from '../services/organizationAdmin'
-import { DIVISION_SORTS, hierarchyRows } from './organizationAdmin'
+import { DIVISION_SORTS, hierarchyRows, departmentDeleteBlocker } from './organizationAdmin'
 
 const department = (id: string, name: string, division: string | null, employees = 0, sops = 0): ManagedDepartment =>
   ({ id, name, initials: 'XX', description: '', division_id: division, updated_at: 'r', employees, sops, status_counts: {}, people: [] })
@@ -72,5 +72,21 @@ describe('filtering by division', () => {
     expect(names(hierarchyRows(snapshot, 'quality', { divisions: ['c', 'q'], sort: 'name-asc' }))).toEqual(['Quality & Compliance'])
     expect(names(hierarchyRows(snapshot, 'o', { divisions: ['c', 'q', 'a'], sort: 'sops-asc' }))).toEqual(['administration', 'Quality & Compliance', 'Clinical Research & Development'])
     expect(hierarchyRows(snapshot, 'clinical', { divisions: ['q'] })).toEqual([])
+  })
+})
+
+describe('when a department can be deleted', () => {
+  const department = (employees: number, sops: number, deletion_job_id: string | null = null) => ({ employees, sops, deletion_job_id })
+  it('can be deleted with no employees and no SOPs', () => {
+    expect(departmentDeleteBlocker(department(0, 0))).toBeUndefined()
+  })
+  it('is blocked by employees, by SOPs, or by both (one combined reason)', () => {
+    expect(departmentDeleteBlocker(department(2, 0))).toBe('employees')
+    expect(departmentDeleteBlocker(department(0, 1))).toBe('sops')
+    expect(departmentDeleteBlocker(department(2, 1))).toBe('both')
+  })
+  it('never blocks the retry of a deletion confirmed earlier because of SOPs', () => {
+    expect(departmentDeleteBlocker(department(0, 0, 'job'))).toBeUndefined()
+    expect(departmentDeleteBlocker(department(0, 3, 'job'))).toBeUndefined()
   })
 })

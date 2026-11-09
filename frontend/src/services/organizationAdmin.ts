@@ -17,7 +17,8 @@ export interface ManagedDepartment {
   updated_at: string; deletion_job_id?: string | null; people?: ManagedPerson[]; employees: number; sops: number; status_counts: Record<string, number>
 }
 export interface ManagementSnapshot { divisions: DivisionRecord[]; departments: ManagedDepartment[] }
-export type SopDisposition = 'empty' | 'delete' | 'others'
+/** 'empty': delete a department without SOPs; 'delete': retry the file cleanup of an already confirmed deletion. */
+export type SopDisposition = 'empty' | 'delete'
 export const ORGANIZATION_CHANGED = 'hawkim:organization-changed'
 export const organizationEvents = new EventTarget()
 
@@ -35,7 +36,7 @@ const DATABASE_MESSAGES: Record<string, string> = {
   'Divisions with assigned departments cannot be deleted.': text.divisionBlocked,
   'Departments with assigned employees cannot be deleted.': text.departmentBlocked,
   'Settle active reviews and compliance checks before deleting this department.': text.activeWorkflow,
-  'Department has SOPs; choose Delete or Move to Others': text.departmentHasSops,
+  'Departments with SOPs cannot be deleted.': text.departmentHasSopsBlocked,
   'Department file cleanup is pending': text.departmentPendingCleanup,
   'Department is no longer available': text.departmentUnavailable,
   'Select an active division': text.requiredDivision,

@@ -42,10 +42,11 @@ describe('unified divisions and departments table', () => {
     expect(html).toContain('>Medical</span>')
     expect(html).not.toContain('href="/admin/departments/d"')
   })
-  it('uses focusable restricted-action tooltips for employee and division blockers', () => {
+  it('uses focusable restricted-action tooltips for division and department blockers', () => {
     const html = render('safety')
     expect(html).toContain(organizationAdminEn.divisionBlocked)
-    expect(html).toContain(organizationAdminEn.departmentBlocked)
+    // Medical has employees and an SOP: one combined reason.
+    expect(html).toContain(organizationAdminEn.departmentBlockedBoth)
     expect(html).toContain('aria-disabled="true"')
   })
   it('shows 0 for empty divisions and a meaningful search empty state', () => {

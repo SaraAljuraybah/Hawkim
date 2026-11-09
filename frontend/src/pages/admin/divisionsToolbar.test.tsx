@@ -167,4 +167,32 @@ describe('department row actions', () => {
       expect(after.match(/role="tooltip"[^>]*><span[^>]*>([^<]*)</)![1]).toBe(`Preview ${name}`)
     }
   })
+  /** The Delete button of the department named `name`, and the text of the tooltip it is described by. */
+  const deleteButton = (html: string, name: string) => {
+    const button = html.match(new RegExp(`<button[^>]*aria-label="Delete ${name}"[^>]*>`))![0]
+    const described = button.match(/aria-describedby="([^"]+)"/)?.[1]
+    const reason = described && html.match(new RegExp(`id="${described}"[^>]*><span[^>]*>([^<]*)<`))?.[1]
+    return { disabled: button.includes('aria-disabled="true"'), reason }
+  }
+  it('disables Delete for a department with SOPs, with the reason for keyboard and screen-reader users', () => {
+    const sopsOnly = { ...snapshot, departments: snapshot.departments.map((row) => row.id === 'qa' ? { ...row, employees: 0 } : row) }
+    expect(deleteButton(table({ snapshot: sopsOnly, query: 'quality' }), 'Quality Assurance'))
+      .toEqual({ disabled: true, reason: 'This department still has SOPs. It can’t be deleted while it has SOPs.' })
+  })
+  it('gives one combined reason when a department has both employees and SOPs', () => {
+    expect(deleteButton(table({ query: 'quality' }), 'Quality Assurance')).toEqual({ disabled: true,
+      reason: 'This department still has employees and SOPs. Move the employees to another department first. A department with SOPs can’t be deleted.' })
+  })
+  it('keeps the employees reason, and enables Delete for an empty department', () => {
+    const employeesOnly = { ...snapshot, departments: snapshot.departments.map((row) => row.id === 'qa' ? { ...row, sops: 0 } : row) }
+    expect(deleteButton(table({ snapshot: employeesOnly, query: 'quality' }), 'Quality Assurance'))
+      .toEqual({ disabled: true, reason: 'This department still has employees. Move them to another department first, then delete it.' })
+    expect(deleteButton(table({ query: 'legacy' }), 'Legacy')).toEqual({ disabled: false, reason: undefined })
+  })
+  it('never blocks Retry file cleanup for a deletion confirmed earlier', () => {
+    const pending = { ...snapshot, departments: snapshot.departments.map((row) => row.id === 'qa' ? { ...row, employees: 0, sops: 0, deletion_job_id: 'job' } : row) }
+    const html = table({ snapshot: pending, query: 'quality' })
+    const button = html.match(/<button[^>]*aria-label="Retry file cleanup Quality Assurance"[^>]*>/)![0]
+    expect(button).not.toContain('aria-disabled="true"')
+  })
 })
