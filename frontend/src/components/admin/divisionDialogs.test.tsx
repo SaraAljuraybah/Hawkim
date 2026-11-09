@@ -197,6 +197,7 @@ describe('delete department dialog', () => {
     expect(elements(element).some((item) => item.props.type === 'radio' || item.props.type === 'checkbox')).toBe(false)
     const html = renderToStaticMarkup(<DeleteDepartmentDialog department={department} onClose={vi.fn()} onDeleted={vi.fn()} />)
     expect(html).not.toMatch(/Move SOPs to Others|Delete associated SOPs|I confirm deletion/)
+    expect(html).toContain('Deleting this department will remove it, and it can’t be restored.')
     await confirm(render(() => DeleteDepartmentDialog({ department, onClose: vi.fn(), onDeleted })))
     expect(host.remove).toHaveBeenCalledWith(department, 'empty')
     expect(onDeleted).toHaveBeenCalledOnce()
