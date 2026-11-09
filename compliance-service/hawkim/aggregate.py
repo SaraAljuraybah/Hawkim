@@ -80,6 +80,7 @@ def findings_for_database(check: dict) -> tuple[list[dict], dict]:
                     "chunk_id": s["chunk_id"], "section": _section_ref(s["heading"]), "heading": s["heading"],
                     "chunk_type": s["chunk_type"], "page": s["page"], "result": s["_result"],
                     "similarity": s["similarity"], "sop_evidence": s.get("sop_evidence"),
+                    "sop_text": s.get("text"),
                     "sop_evidence_found_in_text": s.get("sop_evidence_found_in_text"),
                     "missing_or_conflicting_elements": s.get("missing_or_conflicting_elements"),
                     "justification": s.get("justification"), "flags": s.get("flags"),
