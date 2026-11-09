@@ -163,7 +163,7 @@ async function submit(input: Record<string, unknown>): Promise<Response> {
       heading: "New request for Hawkim",
       intro: `Hello Hawkim team,<br><br>We would like to request Hawkim for our organization.${detailsTable(f)}`,
       button: "Review request",
-      note: "Accepting creates the contact person’s account as the organization’s Admin and emails them a link to set their password. The review link works for 14 days.",
+      note: "Accepting creates the contact person’s account as the organization’s Super Admin and emails them a link to set their password. The review link works for 14 days.",
     }, reviewUrl))
   } catch (e) {
     console.error(`access-requests: team email for ${id} failed:`, e instanceof Error ? e.message : e)
@@ -219,6 +219,14 @@ async function accept(input: Record<string, unknown>): Promise<Response> {
   const blocked = undecidable(r)
   if (blocked) return blocked
   if (r.account_exists) return fail(409, "email_in_use")
+  // One organization per deployment: once it has an Admin (its Super Admin), no other request is
+  // accepted here. Checked before any account is created; accept_access_request checks it again.
+  try {
+    if (await rpc<boolean>("deployment_onboarded", {}) === true) return fail(409, "deployment_onboarded")
+  } catch (e) {
+    console.error(`access-requests: onboarding check for ${r.id} failed:`, e instanceof Error ? e.message : e)
+    return fail(500, "failed")
+  }
 
   const site = env("SITE_URL", "https://www.tryhawkim.com").replace(/\/$/, "")
   let link: LinkResult
@@ -234,6 +242,7 @@ async function accept(input: Record<string, unknown>): Promise<Response> {
     const code = e instanceof DbError ? e.message : "failed"
     console.error(`access-requests: accept ${r.id} failed:`, code)
     if (code === "email_in_use") return fail(409, "email_in_use")
+    if (code === "deployment_onboarded") return fail(409, "deployment_onboarded")
     if (code === "request_already_decided") return fail(409, "already_decided")
     if (code === "review_link_expired") return fail(410, "expired")
     return fail(500, "failed")
@@ -243,7 +252,7 @@ async function accept(input: Record<string, unknown>): Promise<Response> {
     await sendEmail(r.email, "Your Hawkim account is ready", renderEmail({
       subject: "Your Hawkim account is ready",
       heading: "Welcome to Hawkim",
-      intro: `Hello ${esc(r.contact_name)},<br><br>Your request to use Hawkim for <strong>${esc(r.organization)}</strong> was accepted. You are the organization’s <strong>Admin</strong>: set your password to sign in, then invite your colleagues.`,
+      intro: `Hello ${esc(r.contact_name)},<br><br>Your request to use Hawkim for <strong>${esc(r.organization)}</strong> was accepted. You are the organization’s <strong>Super Admin</strong>: set your password to sign in, then invite your colleagues.`,
       button: "Set your password",
       note: `Sign in with this email address (${esc(r.email)}). If the link has expired, use “Forgot password?” on the sign-in page.`,
     }, link.action_link))
