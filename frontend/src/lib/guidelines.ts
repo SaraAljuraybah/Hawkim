@@ -28,13 +28,14 @@ export function currentVersion(versions: GuidelineVersion[]): GuidelineVersion {
 }
 
 /**
- * The version the SFDA Regulatory Requirements tab shows as current: the newest one by when it was
- * added, the versions admins added included (`allVersions` is oldest first). Display only: compliance
- * checks, reports and every other page use the database's current version (`currentVersion`), and
- * Delete and Edit keep following the database too.
+ * The version the SFDA Regulatory Requirements tab shows as current: the newest published one by when
+ * it was added (`allVersions` is oldest first). A version an admin added isn't current until an admin
+ * makes it current (GVP phase 2: processing, then Make Current), so it never gets the Current badge.
+ * Compliance checks, reports and every other page use the database's current version (`currentVersion`).
  */
 export function newestVersion(allVersions: GuidelineVersion[], fallback: GuidelineVersion): GuidelineVersion {
-  return allVersions[allVersions.length - 1] ?? fallback
+  // An added version (phase 2) becomes current only when an admin makes it current, so it isn't shown as current.
+  return allVersions.filter((version) => !version.neverCurrent).at(-1) ?? fallback
 }
 
 /** A web link starting with https://, with a host (e.g. https://www.sfda.gov.sa/...). */

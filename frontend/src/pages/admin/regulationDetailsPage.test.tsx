@@ -116,14 +116,16 @@ describe('a GVP version\'s File card', () => {
     expect(file).not.toContain('<iframe')
   })
 
-  it('shows the Current badge on the newest version, though an admin added it, with no requirements yet', () => {
+  it('shows no Current badge on an added version (it is current only after Make Current), with no requirements yet', () => {
     const html = render('uuid-50')
-    expect(html).toMatch(/>GVP Version 5\.0<\/h1><span class="[^"]*">Current<\/span>/)
+    expect(html).toMatch(/>GVP Version 5\.0<\/h1>/)
+    expect(html).not.toContain('>Current<')
     expect(detail(html, 'Requirements')).toContain('>0 Requirements<')
   })
 
-  it('shows no Current badge on the others, the database\'s current version included', () => {
-    for (const id of ['gvp-4-1', 'gvp-4-0']) expect(render(id), id).not.toContain('>Current<')
+  it('shows the Current badge on the database\'s current version only', () => {
+    expect(render('gvp-4-1')).toMatch(/>GVP Version 4\.1<\/h1><span class="[^"]*">Current<\/span>/)
+    expect(render('gvp-4-0')).not.toContain('>Current<')
   })
 
   it('has no preview dialog any more', () => {

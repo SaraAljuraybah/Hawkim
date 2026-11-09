@@ -53,6 +53,10 @@ export function GuidelineProcessingCard({ version, onRetry, onMakeCurrent }: Gui
           )}
           <span>{text.status[processing.status]}</span>
         </p>
+        {processing.status === 'processing' && processing.progress && <ProcessingProgress progress={processing.progress} />}
+        {(processing.status === 'waiting' || processing.status === 'processing') && (
+          <p className="text-text-gray">{text.keepWorking}</p>
+        )}
         {processing.status === 'failed' && processing.error && <p className="text-status-rejected-fg">{processing.error}</p>}
         {report && (
           <p>
@@ -100,5 +104,32 @@ export function GuidelineProcessingCard({ version, onRetry, onMakeCurrent }: Gui
         </div>
       )}
     </Card>
+  )
+}
+
+/** The stage of processing; while embedding, a progress bar ("Preparing requirements: 45 of 93 (48%)"). */
+function ProcessingProgress({ progress }: { progress: NonNullable<NonNullable<GuidelineVersion['processing']>['progress']> }) {
+  if (progress.stage !== 'embedding' || progress.total === 0) {
+    return <p>{progress.stage === 'saving' ? text.progress.saving : text.progress.reading}</p>
+  }
+  const done = Math.min(progress.done, progress.total)
+  const percent = Math.round((done / progress.total) * 100)
+  const label = text.progress.embedding
+    .replace('{done}', String(done)).replace('{total}', String(progress.total)).replace('{percent}', String(percent))
+  return (
+    <div>
+      <p>{label}</p>
+      <div
+        role="progressbar"
+        aria-label={text.progress.label}
+        aria-valuemin={0}
+        aria-valuemax={progress.total}
+        aria-valuenow={done}
+        aria-valuetext={label}
+        className="mt-2 h-2 w-full overflow-hidden rounded-full bg-beige"
+      >
+        <div className="h-full rounded-full bg-maroon transition-[width] duration-500" style={{ width: `${percent}%` }} />
+      </div>
+    </div>
   )
 }

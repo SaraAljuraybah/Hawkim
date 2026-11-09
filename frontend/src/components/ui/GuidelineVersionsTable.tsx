@@ -6,6 +6,14 @@ import { addedDateOf } from '../../lib/guidelines'
 import { CurrentBadge } from './CurrentBadge'
 import { tableStyles } from './tableStyles'
 
+/** The status label of an added version's processing (the status colours used elsewhere). */
+const PROCESSING_STYLE: Record<NonNullable<GuidelineVersion['processing']>['status'], string> = {
+  waiting: 'bg-status-cancelled-bg text-status-cancelled-fg',
+  processing: 'bg-status-pending-bg text-status-pending-fg',
+  ready: 'bg-status-approved-bg text-status-approved-fg',
+  failed: 'bg-status-rejected-bg text-status-rejected-fg',
+}
+
 /**
  * GVP versions as the admin's Version History shows them: Title, Version (with the Current badge on
  * `currentId`), Issued by SFDA On and Added to Hawkim On, and each row's `actions`; a table from md,
@@ -35,6 +43,11 @@ export function GuidelineVersionsTable({
     <span className="inline-flex items-center gap-2 whitespace-nowrap">
       {version.version}
       {version.id === currentId && <CurrentBadge label={text.current.badge} />}
+      {version.neverCurrent && version.processing && (
+        <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${PROCESSING_STYLE[version.processing.status]}`}>
+          {text.processingStatus[version.processing.status]}
+        </span>
+      )}
     </span>
   )
 

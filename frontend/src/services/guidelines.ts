@@ -74,20 +74,27 @@ interface AddedVersionRow {
   processing_error?: string | null
   processing_report?: Record<string, unknown> | null
   processed_at?: string | null
+  processing_progress?: Record<string, unknown> | null
 }
 
 const PROCESSING_STATUSES: GuidelineProcessing['status'][] = ['waiting', 'processing', 'ready', 'failed']
 
 /** The processing state of an added version, read defensively from its row. */
-export function toGuidelineProcessing(row: Pick<AddedVersionRow, 'processing_status' | 'processing_error' | 'processing_report' | 'processed_at'>): GuidelineProcessing {
+export function toGuidelineProcessing(row: Pick<AddedVersionRow, 'processing_status' | 'processing_error' | 'processing_report' | 'processed_at' | 'processing_progress'>): GuidelineProcessing {
   const status = PROCESSING_STATUSES.includes(row.processing_status as GuidelineProcessing['status']) ? row.processing_status! : 'waiting'
   const raw = row.processing_report
   const count = (value: unknown) => (typeof value === 'number' && Number.isInteger(value) && value >= 0 ? value : undefined)
   const texts = (value: unknown) => (Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string' && item.trim() !== '') : [])
   const requirements = count(raw?.requirements)
   const sections = count(raw?.sections)
+  const progressRaw = row.processing_progress
+  const stage = progressRaw?.stage
+  const progress = status === 'processing' && (stage === 'reading' || stage === 'embedding' || stage === 'saving')
+    ? { stage: stage as NonNullable<GuidelineProcessing['progress']>['stage'], done: count(progressRaw?.done) ?? 0, total: count(progressRaw?.total) ?? 0 }
+    : undefined
   return {
     status,
+    ...(progress ? { progress } : {}),
     ...(status === 'failed' && row.processing_error ? { error: row.processing_error } : {}),
     ...(row.processed_at ? { processedAt: row.processed_at } : {}),
     ...(status === 'ready' && requirements !== undefined && sections !== undefined
@@ -120,7 +127,7 @@ export function toAddedGuidelineVersion(row: AddedVersionRow): GuidelineVersion 
 export async function fetchAddedGuidelineVersions(): Promise<GuidelineVersion[]> {
   const { data, error } = await supabase()
     .from('guideline_version_drafts')
-    .select('id, name, version, issued_date, source, file_name, storage_path, file_size, created_by, created_at, processing_status, processing_error, processing_report, processed_at')
+    .select('id, name, version, issued_date, source, file_name, storage_path, file_size, created_by, created_at, processing_status, processing_error, processing_report, processed_at, processing_progress')
     .order('created_at')
   if (error) throw new Error(error.message)
   return (data as AddedVersionRow[]).map(toAddedGuidelineVersion)

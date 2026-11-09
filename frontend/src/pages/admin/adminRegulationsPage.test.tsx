@@ -86,24 +86,25 @@ describe('SFDA Regulatory Requirements page', () => {
     for (const removed of ['Added By', 'Source', 'File', 'Requirements', 'View Requirements']) expect(html).not.toContain(`>${removed}<`)
   })
 
-  it('lists every version together, newest first by when it was added, with the Current badge only on the newest one', () => {
+  it('lists every version together, newest first by when it was added, with the Current badge only on the current one', () => {
     const html = table(render())
     const rows = [...html.matchAll(/<tr><th scope="row"[^>]*>([^<]+)<\/th>/g)].map((match) => match[1])
     expect(rows).toEqual(['SFDA GVP 5', 'SFDA GVP Guideline', 'SFDA Guideline on Good Pharmacovigilance Practices (GVP)', '—'])
     const rowOf = (version: string) => html.split('<tr>').find((row) => row.includes(`whitespace-nowrap">${version}`))!
-    // "5.0 [Current]" on one line: the newest, though an admin added it (display only); 4.1 is current in the database.
-    expect(rowOf('5.0')).toMatch(/<span class="inline-flex items-center gap-2 whitespace-nowrap">5\.0<span class="[^"]*">Current<\/span><\/span>/)
-    expect(rowOf('5.0')).not.toContain('flex-wrap')
-    expect(rowOf('4.1')).not.toContain('>Current<')
+    // "4.1 [Current]" on one line: the current version. 5.0, added by an admin, isn't current until an
+    // admin makes it current (GVP phase 2), so it has no badge.
+    expect(rowOf('4.1')).toMatch(/<span class="inline-flex items-center gap-2 whitespace-nowrap">4\.1<span class="[^"]*">Current<\/span><\/span>/)
+    expect(rowOf('4.1')).not.toContain('flex-wrap')
+    expect(rowOf('5.0')).not.toContain('>Current<')
     expect(html.match(/>Current</g)).toHaveLength(1)
     // 4.1 has no issue date; 3.0 has no title, issue date or added date.
     expect(html.match(/<td[^>]*>—<\/td>/g)).toHaveLength(3)
   })
 
-  it('shows the newest version in the Current Version card, without a Requirements row', () => {
+  it('shows the current version in the Current Version card, without a Requirements row', () => {
     const card = currentCard(render())
-    expect(card).toMatch(/GVP Version 5\.0<span class="[^"]*">Current<\/span>/)
-    expect(card).not.toContain('4.1')
+    expect(card).toMatch(/GVP Version 4\.1<span class="[^"]*">Current<\/span>/)
+    expect(card).not.toContain('5.0')
     expect(card).not.toContain('Requirements')
     expect(card).not.toContain('<table')
   })
@@ -197,10 +198,8 @@ describe('"Added By" for a version with no recorded uploader', () => {
 
   it('shows the placeholder name from the content file, as plain text, instead of "—"', () => {
     expect(adminEn.regulations.addedByFallback).toBe('Nouf Almutairi')
-    // The Current Version card: 5.0, the newest, has no recorded uploader.
-    const card = render().slice(0, render().indexOf('id="history-title"'))
-    expect(addedBy(card)).toBe('Nouf Almutairi')
-    // A version's details: 3.0 has none either.
+    // A version's details with no recorded uploader: 5.0 and 3.0.
+    expect(addedBy(renderToStaticMarkup(<GuidelineVersionDetails version={v50} />))).toBe('Nouf Almutairi')
     expect(addedBy(renderToStaticMarkup(<GuidelineVersionDetails version={v30} />))).toBe('Nouf Almutairi')
   })
 

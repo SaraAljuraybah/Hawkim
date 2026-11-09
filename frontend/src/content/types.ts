@@ -1364,6 +1364,8 @@ export interface AdminRegulationsContent {
   /** Shown after adding a version; `{version}` is replaced. */
   added: string
   current: { title: string; badge: string }
+  /** An added version's processing status, shown next to its version number in the list. */
+  processingStatus: { waiting: string; processing: string; ready: string; failed: string }
   fields: GuidelineVersionFields
   /** An empty value. */
   none: string
@@ -1462,6 +1464,10 @@ export interface AdminRegulationDetailsContent {
   processing: {
     title: string
     status: { waiting: string; processing: string; ready: string; failed: string }
+    /** Shown while the version is waiting or being processed. */
+    keepWorking: string
+    /** `{done}`, `{total}` and `{percent}` are replaced in `embedding`; `label` names the progress bar. */
+    progress: { reading: string; embedding: string; saving: string; label: string }
     /** `{requirements}` and `{sections}` are replaced. */
     report: string
     /** `{pages}` is replaced. */

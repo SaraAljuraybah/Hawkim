@@ -312,6 +312,8 @@ export const adminEn: AdminContent = {
     versionName: 'GVP Version {version}',
     added: 'GVP version {version} added.',
     current: { title: 'Current Version', badge: 'Current' },
+    // An added version's processing by the compliance service, next to its version number.
+    processingStatus: { waiting: 'Waiting', processing: 'Processing…', ready: 'Ready', failed: 'Failed' },
     fields: {
       title: 'Title',
       version: 'Version',
@@ -437,6 +439,13 @@ export const adminEn: AdminContent = {
         processing: 'The compliance service is reading this version and preparing its requirements. This can take several minutes.',
         ready: 'Ready. This version can be made current.',
         failed: 'Processing failed.',
+      },
+      keepWorking: 'You can keep using Hawkim; this page updates by itself when processing is done.',
+      progress: {
+        reading: 'Reading the PDF…',
+        embedding: 'Preparing requirements: {done} of {total} ({percent}%)',
+        saving: 'Saving the requirements…',
+        label: 'Processing progress',
       },
       report: '{requirements} requirements from {sections} sections',
       pages: '{pages} pages',

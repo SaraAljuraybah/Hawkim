@@ -464,6 +464,8 @@ export interface GuidelineProcessing {
   error?: string
   /** When processing finished (ISO date and time). */
   processedAt?: string
+  /** How far processing has got, while processing (reading the PDF, embedding in batches, saving). */
+  progress?: { stage: 'reading' | 'embedding' | 'saving'; done: number; total: number }
   /** What the service found in the PDF, once it is ready. */
   report?: { requirements: number; sections: number; pages?: number; warnings: string[]; missingExcludedSections: string[] }
 }

@@ -39,17 +39,17 @@ const details = (id: string) => {
   )
 }
 
-describe('"Current" on the SFDA Regulatory Requirements tab (display only)', () => {
-  it('goes to the newest version, a newly added one included, on the tab, the card and the version\'s page', () => {
+describe('"Current" on the SFDA Regulatory Requirements tab', () => {
+  it('stays on the published current version (4.0) until an added version is made current (GVP phase 2)', () => {
     const html = renderToStaticMarkup(<MemoryRouter><AdminRegulationsPage /></MemoryRouter>)
     const card = html.slice(html.indexOf('id="current-title"'), html.indexOf('id="history-title"'))
-    expect(card).toMatch(/GVP Version 4\.1<span class="[^"]*">Current<\/span>/)
+    expect(card).toMatch(/GVP Version 4\.0<span class="[^"]*">Current<\/span>/)
     expect(card).not.toContain('Requirements')
     const table = html.slice(html.indexOf('<table', html.indexOf('id="history-title"')), html.indexOf('</table>', html.indexOf('id="history-title"')))
-    expect(table).toMatch(/4\.1<span class="[^"]*">Current<\/span>/)
+    expect(table).toMatch(/4\.0<span class="[^"]*">Current<\/span>/)
     expect(table.match(/>Current</g)).toHaveLength(1)
-    expect(details('uuid-41')).toMatch(/>GVP Version 4\.1<\/h1><span[^>]*>Current<\/span>/)
-    expect(details('gvp-4-0')).not.toContain('>Current<')
+    expect(details('gvp-4-0')).toMatch(/>GVP Version 4\.0<\/h1><span[^>]*>Current<\/span>/)
+    expect(details('uuid-41')).not.toContain('>Current<')
   })
 
   it('keeps Delete following the database: allowed on the added 4.1, refused on 4.0 as the current version', () => {
@@ -60,8 +60,8 @@ describe('"Current" on the SFDA Regulatory Requirements tab (display only)', () 
     expect(history).toContain('The current version can&#x27;t be deleted.')
   })
 
-  it('moves to the next newest when the newest is deleted', () => {
-    expect(newestVersion([v40, v41], v40).version).toBe('4.1')
+  it('never picks an added version, and falls back when there is no published one', () => {
+    expect(newestVersion([v40, v41], v40).version).toBe('4.0')
     expect(newestVersion([v40], v40).version).toBe('4.0')
     expect(newestVersion([], v40).version).toBe('4.0')
   })
