@@ -61,16 +61,16 @@ it('dispatches preview/view/edit/delete to the selected record', () => {
     expect(callback).toHaveBeenCalledOnce()
   }
 })
-it('gives every division row Preview, Add Department, Edit, Delete in that order, as matching icon buttons', () => {
+it('gives every division row Add Department, Preview, Edit, Delete in that order, as matching icon buttons', () => {
   const nodes = flatten(HierarchyTable({ ...props, snapshot: twoDivisions }))
   // Collapsed: only the two division rows have actions.
   expect(actionCells(nodes)).toHaveLength(2)
   for (const [index, name] of [[0, 'Safety'], [1, 'Quality']] as const) {
     const buttons = actions(actionCells(nodes)[index])
-    expect(buttons.map((node) => node.props.label)).toEqual([`Preview ${name}`, 'Add Department', `Edit ${name}`, `Delete ${name}`])
-    expect(buttons.map((node) => node.props.icon)).toEqual([Eye, Plus, Pencil, Trash2])
+    expect(buttons.map((node) => node.props.label)).toEqual(['Add Department', `Preview ${name}`, `Edit ${name}`, `Delete ${name}`])
+    expect(buttons.map((node) => node.props.icon)).toEqual([Plus, Eye, Pencil, Trash2])
     // Icon only: the label is its accessible name and its hover/focus tooltip; boxed like its neighbours.
-    const add = buttons[1]
+    const add = buttons[0]
     expect(add.props.children).toBeUndefined()
     expect(add.props.tooltip).toBeUndefined()
     expect(add.props.danger).toBeUndefined()

@@ -70,9 +70,9 @@ describe('the Divisions & Departments page', () => {
     expect(html).toContain('All divisions')
   })
 
-  it('keeps the Users column label, loading state and Retry', () => {
+  it('keeps the Staff column label, loading state and Retry', () => {
     management.value = { data: snapshot, refresh: vi.fn() }
-    expect(page()).toContain('>Users</th>')
+    expect(page()).toContain('>Staff</th>')
     management.value = { refresh: vi.fn() }
     expect(page()).not.toContain('<table')
     management.value = { error: 'boom', refresh: vi.fn() }
@@ -106,12 +106,12 @@ describe('the division filter on the table', () => {
     expect(table({ divisions: ['q'], query: 'operations' })).toContain('No divisions or departments match your search and filters.')
   })
 
-  it('uses the same centred alignment for the Users and SOPs values of divisions and departments', () => {
+  it('uses the same centred alignment for the Staff and SOPs values of divisions and departments', () => {
     const html = table({ query: 'quality' })
     const cells = html.match(/<td class="[^"]*">\d+<\/td>/g)!
     expect(cells.length).toBe(4)
     expect(new Set(cells.map((cell) => cell.match(/class="([^"]*)"/)![1]))).toEqual(new Set(['px-3 py-4 text-center tabular-nums']))
-    expect(html).toMatch(/<th scope="col" class="px-3 py-4 text-center">Users<\/th><th scope="col" class="px-3 py-4 text-center">SOPs<\/th>/)
+    expect(html).toMatch(/<th scope="col" class="px-3 py-4 text-center">Staff<\/th><th scope="col" class="px-3 py-4 text-center">SOPs<\/th>/)
   })
 
   it('shows generated abbreviations in the department badges', () => {

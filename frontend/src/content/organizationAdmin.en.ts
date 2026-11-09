@@ -13,7 +13,7 @@ export const organizationAdminEn = {
   /** Headings of the Sort menu's groups. */
   sortGroups: { divisions: 'Divisions', departments: 'Departments' },
   addDivision: 'Add Division', addDepartment: 'Add Department', departments: 'Departments',
-  name: 'Name', users: 'Users', sops: 'SOPs', position: 'Position', email: 'Email',
+  name: 'Name', users: 'Users', staff: 'Staff', sops: 'SOPs', position: 'Position', email: 'Email',
   description: 'Description', division: 'Division', unassigned: 'Unassigned departments',
   selectDivision: 'Select a division', noDivision: 'No division (existing assignment)',
   divisionNone: 'No division', saving: 'Saving…',
