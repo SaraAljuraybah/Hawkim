@@ -62,9 +62,21 @@ export function requirementLines(requirement: Requirement, none: string): { modu
 export function sectionLabels(reference: string, text: { stepSection: string; noSectionNumber: string }): string[] | undefined {
   const match = /^Sections? (.+)$/.exec(reference.trim())
   if (!match) return undefined
-  const labels = match[1].split(', ').map((part) => {
-    const section = part.trim()
-    return /^\d+(?:[.-]\d+)*$/.test(section) ? text.stepSection.replace('{section}', section) : text.noSectionNumber
-  })
+  const labels = match[1].split(', ').map((part) => sectionLabel(part, text))
   return labels.filter((label, index) => labels.indexOf(label) === index)
+}
+
+/** "Section 5-4-1" for a section number, "Section number not found" for anything else. */
+function sectionLabel(section: string, text: { stepSection: string; noSectionNumber: string }): string {
+  const value = section.trim()
+  return /^\d+(?:[.-]\d+)*$/.test(value) ? text.stepSection.replace('{section}', value) : text.noSectionNumber
+}
+
+/** Where a quoted SOP sentence is: "Section 5-4-2 · Page 4", or only the section label without a page. */
+export function sopTextSource(
+  item: { section: string; page?: number },
+  text: { stepSection: string; noSectionNumber: string; sopTextSource: string },
+): string {
+  const section = sectionLabel(item.section, text)
+  return item.page === undefined ? section : text.sopTextSource.replace('{section}', section).replace('{page}', String(item.page))
 }

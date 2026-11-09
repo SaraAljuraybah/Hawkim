@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { SYSTEM_ACTOR } from '../data/mock/types'
 import { SopDeleteError } from '../lib/mySops'
-import { addCoAuthors, createSop, deleteSop, deleteSopVersion, fetchSop, fetchSops, removeCoAuthor, toSop, uploadSopVersion, type SopRow } from './sops'
+import { addCoAuthors, createSop, deleteSop, deleteSopVersion, fetchSop, fetchSops, removeCoAuthor, toSop, toSopEvidence, uploadSopVersion, type SopRow } from './sops'
 
 const rpc = vi.fn()
 const invoke = vi.fn()
@@ -92,6 +92,38 @@ describe('SOPs from the database', () => {
     })
     expect(second).toMatchObject({ id: 'chk-2', version: '3', status: 'running', findings: [] })
     expect(second.completedAt).toBeUndefined()
+  })
+
+  it('keeps the SOP text of a finding\'s evidence, in the steps\' order, with section and page', () => {
+    const stored = structuredClone(row)
+    stored.compliance_checks[1].compliance_findings[1].evidence = {
+      requirement_text: 'The requirement.',
+      steps: [
+        { section: '5-4-2', heading: '5 Procedures > 5-4-2', page: 4, result: 'compliant', sop_evidence: '  Update RMP Summary (Part VI). ' },
+        { section: '(start of document)', heading: '', result: 'partial', sop_evidence: 'Second quote.' },
+        { section: '6-1', page: 7, result: 'not-addressed', sop_evidence: '   ' },
+      ],
+    }
+    expect(toSop(stored).complianceChecks[0].findings[0].sopEvidence).toEqual([
+      { section: '5-4-2', page: 4, text: 'Update RMP Summary (Part VI).' },
+      { section: '(start of document)', text: 'Second quote.' },
+    ])
+  })
+
+  it('ignores missing or malformed evidence without errors', () => {
+    expect(toSopEvidence(null)).toBeUndefined()
+    expect(toSopEvidence(undefined)).toBeUndefined()
+    expect(toSopEvidence('steps')).toBeUndefined()
+    expect(toSopEvidence({ requirement_text: 'Only this.' })).toBeUndefined()
+    expect(toSopEvidence({ steps: 'not a list' })).toBeUndefined()
+    expect(toSopEvidence({ steps: [] })).toBeUndefined()
+    expect(toSopEvidence({ steps: [null, 3, 'text', [], { sop_evidence: '' }, { sop_evidence: 42 }, { section: '1' }] })).toBeUndefined()
+    // A malformed section or page is dropped, the quote kept.
+    expect(toSopEvidence({ steps: [{ section: 5, page: '4', sop_evidence: 'Quote.' }, { section: '1', page: 0, sop_evidence: 'B.' }, { section: '2', page: 1.5, sop_evidence: 'C.' }] })).toEqual([
+      { section: '', text: 'Quote.' }, { section: '1', text: 'B.' }, { section: '2', text: 'C.' },
+    ])
+    // Sample findings (no evidence) get no SOP text.
+    expect(toSop(row).complianceChecks[0].findings.every((finding) => !('sopEvidence' in finding))).toBe(true)
   })
 
   it('keeps the review rounds with their requests in the order they were sent, only with the fields that are set', () => {
@@ -197,11 +229,10 @@ describe('reading SOPs', () => {
     expect(columns.replace('steps_checked:metadata->steps_checked', '')).not.toMatch(/\bmetadata\b/)
   })
 
-  it('doesn\'t read the findings\' evidence (the report shows the stored SOP reference)', async () => {
+  it('reads the findings\' evidence (for the SOP text) next to the SOP reference', async () => {
     await fetchSops()
     const [columns] = query.select.mock.calls.at(-1)!
-    expect(columns).not.toMatch(/\bevidence\b/)
-    expect(columns).toContain('sop_reference')
+    expect(columns).toContain('sop_reference, evidence,')
   })
 
   it('names the relationship of each embedded table, since sops and sop_versions are linked twice', async () => {

@@ -1031,6 +1031,10 @@ export interface ComplianceContent {
       /** A step without a numbered SOP section. */
       noSectionNumber: string
       noSopReference: string
+      /** Label above the SOP sentences the result is based on. */
+      sopText: string
+      /** Where a quoted SOP sentence is; `{section}` (the section label) and `{page}` are replaced. */
+      sopTextSource: string
       justification: string
       /** No findings in the selected tab. */
       empty: string

@@ -321,6 +321,28 @@ describe('the finding cards', () => {
     expect(sectionLabels('Sections', text)).toBeUndefined()
   })
 
+  it('shows the SOP text after the SOP Reference: each quote under its section and page', () => {
+    const html = card({ sopReference: 'Sections 5-4-2, (start of document)', sopEvidence: [
+      { section: '5-4-2', page: 4, text: 'Update RMP Summary (Part VI) when important changes occur.' },
+      { section: '(start of document)', text: 'Second quote.' },
+    ] })
+    const reference = html.indexOf('>SOP Reference</dt>')
+    const sopText = html.indexOf('>SOP Text</dt>')
+    expect(reference).toBeGreaterThan(-1)
+    expect(sopText).toBeGreaterThan(reference)
+    expect(sopText).toBeLessThan(html.indexOf('>Justification</dt>'))
+    expect(html).toContain('<figure class="break-inside-avoid"><figcaption class="text-text-gray">Section 5-4-2 · Page 4</figcaption>'
+      + '<blockquote class="mt-1 border-l-2 border-gold pl-3"><div class="space-y-1.5 text-[0.9375rem] text-maroon">'
+      + '<p>Update RMP Summary (Part VI) when important changes occur.</p></div></blockquote></figure>')
+    expect(html).toContain('<figcaption class="text-text-gray">Section number not found</figcaption>')
+    expect(html).toContain('<p>Second quote.</p>')
+  })
+
+  it('shows no SOP Text heading when the finding has no SOP text', () => {
+    expect(card({ sopReference: 'Section 5-4-1' })).not.toContain('SOP Text')
+    expect(card({ sopReference: 'Section 5-4-1', sopEvidence: [] })).not.toContain('SOP Text')
+  })
+
   it('keeps the sample references, and "None …" when there is no reference', () => {
     expect(sopReference(card({ sopReference: 'Section 4.2' }))).toContain('<p class="text-text-gray">Section 4.2</p>')
     expect(sopReference(card({ sopReference: 'Appendix A' }))).toContain('<div class="space-y-1.5 text-text-gray"><p>Appendix A</p></div>')

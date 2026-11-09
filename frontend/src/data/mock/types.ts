@@ -431,6 +431,12 @@ export interface Finding {
   justification: string
   /** Where the SOP addresses it, e.g. "Section 4.2" (none when it isn't addressed). */
   sopReference?: string
+  /**
+   * The SOP text behind the result, in the order the compliance service checked the steps: each
+   * step's section (e.g. "5-4-2"), its page in the SOP, if known, and the sentences quoted from it.
+   * None for sample results.
+   */
+  sopEvidence?: { section: string; page?: number; text: string }[]
   /** What to change; only for results that aren't compliant. */
   recommendedAction?: string
   /**

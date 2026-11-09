@@ -112,6 +112,8 @@ export const complianceEn: ComplianceContent = {
       stepSection: 'Section {section}',
       noSectionNumber: 'Section number not found',
       noSopReference: 'None — the SOP doesn’t cover this requirement.',
+      sopText: 'SOP Text',
+      sopTextSource: '{section} · Page {page}',
       justification: 'Justification',
       empty: 'No findings with this result.',
     },

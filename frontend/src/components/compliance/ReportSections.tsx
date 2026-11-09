@@ -4,7 +4,7 @@ import type { ComplianceCheck, ComplianceResult } from '../../data/mock/types'
 import { complianceScore, countResults, RESULT_ORDER, type NumberedFinding } from '../../lib/compliance'
 import { ComplianceBadge } from './ComplianceBadge'
 import { FindingText } from './FindingText'
-import { requirementLines, sectionLabels, withoutContextLabel } from './findingDetails'
+import { requirementLines, sectionLabels, sopTextSource, withoutContextLabel } from './findingDetails'
 import { overviewCells } from './overviewCells'
 import { useReportRequirement } from './reportRequirements'
 
@@ -287,6 +287,22 @@ export function FindingCard({ finding, content }: { finding: NumberedFinding; co
             )}
           </dd>
         </div>
+        {/* The SOP sentences the result is based on, each with its section and page, quoted */}
+        {finding.sopEvidence && finding.sopEvidence.length > 0 && (
+          <div>
+            <dt className="font-medium text-maroon">{text.sopText}</dt>
+            <dd className="mt-0.5 space-y-3">
+              {finding.sopEvidence.map((item, index) => (
+                <figure key={index} className="break-inside-avoid">
+                  <figcaption className="text-text-gray">{sopTextSource(item, text)}</figcaption>
+                  <blockquote className="mt-1 border-l-2 border-gold pl-3">
+                    <FindingText text={item.text} className="text-[0.9375rem] text-maroon" />
+                  </blockquote>
+                </figure>
+              ))}
+            </dd>
+          </div>
+        )}
         <div className="rounded-lg bg-beige/60 px-4 py-3 print:px-0 print:py-0">
           <dt className="font-medium text-maroon">{text.justification}</dt>
           <dd className="mt-0.5">
