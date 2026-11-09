@@ -1458,6 +1458,26 @@ export interface AdminRegulationDetailsContent {
     /** `{page}` is replaced. */
     page: string
   }
+  /** The processing card of an added version (GVP phase 2). */
+  processing: {
+    title: string
+    status: { waiting: string; processing: string; ready: string; failed: string }
+    /** `{requirements}` and `{sections}` are replaced. */
+    report: string
+    /** `{pages}` is replaced. */
+    pages: string
+    warningsTitle: string
+    /** `{sections}`: the excluded section codes this version doesn't have. */
+    missingExcluded: string
+    retry: string
+    makeCurrent: string
+    /** `{version}` is replaced. */
+    confirm: string
+    confirmAction: string
+    cancel: string
+    madeCurrent: string
+    failedAction: string
+  }
 }
 
 export interface AdminRequestDetailsContent {

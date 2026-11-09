@@ -430,6 +430,26 @@ export const adminEn: AdminContent = {
       columns: { id: 'ID', module: 'Module', section: 'Section', title: 'Title', page: 'Page', summary: 'Summary' },
       page: 'p. {page}',
     },
+    processing: {
+      title: 'Processing',
+      status: {
+        waiting: 'Waiting for the compliance service to process this version.',
+        processing: 'The compliance service is reading this version and preparing its requirements. This can take several minutes.',
+        ready: 'Ready. This version can be made current.',
+        failed: 'Processing failed.',
+      },
+      report: '{requirements} requirements from {sections} sections',
+      pages: '{pages} pages',
+      warningsTitle: 'Warnings',
+      missingExcluded: 'These excluded SFDA sections are not in this version: {sections}. Check the compliance service settings.',
+      retry: 'Try Again',
+      makeCurrent: 'Make Current',
+      confirm: 'Make GVP {version} the current version? New compliance checks will use it; earlier reports keep their version.',
+      confirmAction: 'Make GVP {version} Current',
+      cancel: 'Cancel',
+      madeCurrent: 'GVP {version} is now the current version.',
+      failedAction: "That didn't work. Try again.",
+    },
   },
 
   departmentDetails: {

@@ -94,6 +94,8 @@ describe('an added version', () => {
       id: 'uuid-new', title: 'SFDA GVP', version: '4.1', issuedDate: '2026-10-01', effectiveDate: '2026-11-08', fileName: 'Drug-GVP4_1.pdf',
       storagePath: 'files/a.pdf', fileSize: 2048, source: 'https://www.sfda.gov.sa/gvp', addedById: 'uuid-nouf', addedAt: '2026-11-07T22:30:00Z',
       requirements: [], neverCurrent: true,
+      // A row without a processing status is waiting (the database default).
+      processing: { status: 'waiting' },
     })
   })
 })

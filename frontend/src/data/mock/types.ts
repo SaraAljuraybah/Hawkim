@@ -457,6 +457,17 @@ export interface Guideline {
  * One version of the SFDA GVP guideline (PBI 20). The published version added last is current.
  * A version an admin adds is never current (`neverCurrent`) until it is made current (later).
  */
+/** How far the compliance service has got with an added version (GVP phase 2). */
+export interface GuidelineProcessing {
+  status: 'waiting' | 'processing' | 'ready' | 'failed'
+  /** Why processing failed. */
+  error?: string
+  /** When processing finished (ISO date and time). */
+  processedAt?: string
+  /** What the service found in the PDF, once it is ready. */
+  report?: { requirements: number; sections: number; pages?: number; warnings: string[]; missingExcludedSections: string[] }
+}
+
 export interface GuidelineVersion {
   id: string
   /** e.g. "SFDA Guideline on Good Pharmacovigilance Practices (GVP)" (the database `name`). */
@@ -484,6 +495,8 @@ export interface GuidelineVersion {
   requirements: Requirement[]
   /** Added by an admin and never current: it can be deleted, and its version number changed. */
   neverCurrent?: boolean
+  /** For an added version: processing by the compliance service before it can be made current. */
+  processing?: GuidelineProcessing
 }
 
 /** One compliance check of one SOP version; its report is kept (PBI 4). */

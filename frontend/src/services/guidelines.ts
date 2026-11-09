@@ -5,7 +5,7 @@
  * opened through signed links that last 10 minutes. Published versions are read in services/compliance.ts.
  */
 
-import type { GuidelineVersion } from '../data/mock/types'
+import type { GuidelineProcessing, GuidelineVersion } from '../data/mock/types'
 import { riyadhDate } from '../lib/riyadhWorkingDays'
 import { SIGNED_URL_SECONDS } from './files'
 import { supabase } from './supabase'
@@ -70,6 +70,30 @@ interface AddedVersionRow {
   file_size: number
   created_by: string
   created_at: string
+  processing_status?: GuidelineProcessing['status'] | null
+  processing_error?: string | null
+  processing_report?: Record<string, unknown> | null
+  processed_at?: string | null
+}
+
+const PROCESSING_STATUSES: GuidelineProcessing['status'][] = ['waiting', 'processing', 'ready', 'failed']
+
+/** The processing state of an added version, read defensively from its row. */
+export function toGuidelineProcessing(row: Pick<AddedVersionRow, 'processing_status' | 'processing_error' | 'processing_report' | 'processed_at'>): GuidelineProcessing {
+  const status = PROCESSING_STATUSES.includes(row.processing_status as GuidelineProcessing['status']) ? row.processing_status! : 'waiting'
+  const raw = row.processing_report
+  const count = (value: unknown) => (typeof value === 'number' && Number.isInteger(value) && value >= 0 ? value : undefined)
+  const texts = (value: unknown) => (Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string' && item.trim() !== '') : [])
+  const requirements = count(raw?.requirements)
+  const sections = count(raw?.sections)
+  return {
+    status,
+    ...(status === 'failed' && row.processing_error ? { error: row.processing_error } : {}),
+    ...(row.processed_at ? { processedAt: row.processed_at } : {}),
+    ...(status === 'ready' && requirements !== undefined && sections !== undefined
+      ? { report: { requirements, sections, ...(count(raw?.pages) ? { pages: count(raw?.pages) } : {}), warnings: texts(raw?.warnings), missingExcludedSections: texts(raw?.missing_excluded_sections) } }
+      : {}),
+  }
 }
 
 /** An added version as a GuidelineVersion: never current, with no requirements yet. */
@@ -88,6 +112,7 @@ export function toAddedGuidelineVersion(row: AddedVersionRow): GuidelineVersion 
     addedAt: row.created_at,
     requirements: [],
     neverCurrent: true,
+    processing: toGuidelineProcessing(row),
   }
 }
 
@@ -95,7 +120,7 @@ export function toAddedGuidelineVersion(row: AddedVersionRow): GuidelineVersion 
 export async function fetchAddedGuidelineVersions(): Promise<GuidelineVersion[]> {
   const { data, error } = await supabase()
     .from('guideline_version_drafts')
-    .select('id, name, version, issued_date, source, file_name, storage_path, file_size, created_by, created_at')
+    .select('id, name, version, issued_date, source, file_name, storage_path, file_size, created_by, created_at, processing_status, processing_error, processing_report, processed_at')
     .order('created_at')
   if (error) throw new Error(error.message)
   return (data as AddedVersionRow[]).map(toAddedGuidelineVersion)
@@ -163,3 +188,17 @@ export async function signedGuidelineFileUrl(storagePath: string): Promise<strin
   if (error || !data) throw new Error(error?.message ?? 'No link was created')
   return data.signedUrl
 }
+
+/** Processes an added version again after processing failed. */
+export async function retryGuidelineProcessing(id: string): Promise<void> {
+  const { error } = await supabase().rpc('retry_guideline_processing', { p_id: id })
+  if (error) throw guidelineError(error)
+}
+
+/** Makes a processed added version the current GVP version; returns its new (published) id. */
+export async function makeGuidelineCurrent(id: string): Promise<string> {
+  const { data, error } = await supabase().rpc('make_guideline_current', { p_id: id })
+  if (error) throw guidelineError(error)
+  return data as string
+}
+

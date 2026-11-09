@@ -1,5 +1,6 @@
-import { Link, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
+import { GuidelineProcessingCard } from '../../components/admin/GuidelineProcessingCard'
 import { CurrentBadge } from '../../components/ui/CurrentBadge'
 import { GuidelineVersionView } from '../../components/ui/GuidelineVersionView'
 import { adminEn } from '../../content/admin.en'
@@ -12,13 +13,14 @@ import { NotFoundPage } from '../NotFoundPage'
  * A GVP version ("/admin/regulations/:id", PBI 20): its details; its requirements, shown from the
  * details' count; and its PDF in a card of its own, through a signed link, when it has one
  * (GuidelineVersionView). The newest version shows the Current badge, as on the SFDA Regulatory
- * Requirements tab (display only).
+ * Requirements tab (display only). An added version also shows its processing card (phase 2).
  */
 export function RegulationDetailsPage() {
   const { id } = useParams()
   const text = adminEn.regulationDetails
   const names = adminEn.regulations
-  const { getVersion, current, allVersions } = useGuidelines()
+  const { getVersion, current, allVersions, retryProcessing, makeCurrent } = useGuidelines()
+  const navigate = useNavigate()
   const version = getVersion(id)
   const shownCurrent = newestVersion(allVersions, current)
   const name = version ? names.versionName.replace('{version}', version.version) : ''
@@ -39,6 +41,19 @@ export function RegulationDetailsPage() {
         <h1 className="text-2xl tracking-tight sm:text-3xl">{name}</h1>
         {version.id === shownCurrent.id && <CurrentBadge label={names.current.badge} />}
       </div>
+
+      {/* An added version: processing by the compliance service, then Make Current (GVP phase 2) */}
+      {version.neverCurrent && version.processing && (
+        <GuidelineProcessingCard
+          version={version}
+          onRetry={() => retryProcessing(version.id)}
+          onMakeCurrent={async () => {
+            const newId = await makeCurrent(version.id)
+            // The added version became a published one with a new id.
+            if (newId) navigate(`${text.back.href}/${newId}`, { replace: true })
+          }}
+        />
+      )}
 
       {/* A new view for each version, so the requirements start closed */}
       <GuidelineVersionView key={version.id} version={version} />

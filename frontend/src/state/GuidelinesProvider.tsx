@@ -9,6 +9,8 @@ import {
   createGuidelineVersion,
   deleteAddedGuidelineVersion,
   fetchAddedGuidelineVersions,
+  makeGuidelineCurrent,
+  retryGuidelineProcessing,
   removeGuidelineFile,
   updateAddedGuidelineVersion,
   updatePublishedGuidelineVersion,
@@ -52,6 +54,9 @@ async function withUploadedFile(file: File, save: (storagePath: string) => Promi
  * that the caller is an admin), then everything is loaded again.
  * Must be inside <SessionProvider>.
  */
+/** How often added versions are read again while one is being processed. */
+const PROCESSING_REFRESH_MS = 10_000
+
 export function GuidelinesProvider({ children }: { children: ReactNode }) {
   const user = useSession().user
   // Only admins read the added versions.
@@ -145,9 +150,27 @@ export function GuidelinesProvider({ children }: { children: ReactNode }) {
     if (storagePath) await removeGuidelineFile(storagePath)
   }), [thenReload])
 
+  const retryProcessing = useCallback<GuidelinesStore['retryProcessing']>((id) => thenReload(() => retryGuidelineProcessing(id)), [thenReload])
+
+  const makeCurrent = useCallback<GuidelinesStore['makeCurrent']>(async (id) => {
+    let newId = ''
+    await thenReload(async () => { newId = await makeGuidelineCurrent(id) })
+    return newId
+  }, [thenReload])
+
+  // While the compliance service processes an added version, read the added versions again now and then.
+  const processing = addedVersions.some((version) => version.processing?.status === 'waiting' || version.processing?.status === 'processing')
+  useEffect(() => {
+    if (!processing) return
+    const timer = window.setInterval(() => {
+      if (addedKeyRef.current) void loadAdded(addedKeyRef.current)
+    }, PROCESSING_REFRESH_MS)
+    return () => window.clearInterval(timer)
+  }, [processing, loadAdded])
+
   const store = useMemo<GuidelinesStore>(
-    () => ({ status, versions, current, currentGuideline, allVersions, addedStatus, retryAdded, getVersion, getRequirement, addVersion, updateVersion, deleteVersion }),
-    [status, versions, current, currentGuideline, allVersions, addedStatus, retryAdded, getVersion, getRequirement, addVersion, updateVersion, deleteVersion],
+    () => ({ status, versions, current, currentGuideline, allVersions, addedStatus, retryAdded, getVersion, getRequirement, addVersion, updateVersion, deleteVersion, retryProcessing, makeCurrent }),
+    [status, versions, current, currentGuideline, allVersions, addedStatus, retryAdded, getVersion, getRequirement, addVersion, updateVersion, deleteVersion, retryProcessing, makeCurrent],
   )
 
   return <GuidelinesContext.Provider value={store}>{children}</GuidelinesContext.Provider>

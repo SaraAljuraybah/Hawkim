@@ -41,6 +41,10 @@ export interface GuidelinesStore {
   updateVersion: (id: string, input: GuidelineEditInput, file?: File) => Promise<void>
   /** Deletes a version that was never current, and its file. Throws a GuidelineError. */
   deleteVersion: (id: string) => Promise<void>
+  /** Processes an added version again after processing failed. Throws a GuidelineError. */
+  retryProcessing: (id: string) => Promise<void>
+  /** Makes a processed added version current; returns its new id. Throws a GuidelineError. */
+  makeCurrent: (id: string) => Promise<string>
 }
 
 export const GuidelinesContext = createContext<GuidelinesStore | null>(null)
