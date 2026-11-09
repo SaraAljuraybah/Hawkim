@@ -18,7 +18,7 @@ import { adminEn } from '../../content/admin.en'
 import { organizationAdminEn as text } from '../../content/organizationAdmin.en'
 import { useDocumentTitle } from '../../hooks/useDocumentTitle'
 import { useOrganizationManagement } from '../../hooks/useOrganizationManagement'
-import { departmentDeleteBlocker, DIVISION_SORTS, hierarchyRows, type DivisionSort } from '../../lib/organizationAdmin'
+import { departmentDeleteBlocker, DIVISION_SORTS, hierarchyRows, sortGroup, type DivisionSort } from '../../lib/organizationAdmin'
 import { deleteDivision, type DivisionRecord, type ManagedDepartment, type ManagementSnapshot } from '../../services/organizationAdmin'
 
 export interface AdminDepartmentsLocationState { removed?: string }
@@ -60,7 +60,10 @@ export function AdminDepartmentsPage() {
           options={divisionOptions} value={selectedDivisions} onChange={setDivisionFilter} />
       </div>
       <SelectField className="min-w-0" name="divisionSort" label={text.sort} value={sort}
-        options={DIVISION_SORTS.map((value) => ({ value, label: text.sortOptions[value] }))}
+        options={DIVISION_SORTS.map((value) => {
+          const group = sortGroup(value)
+          return { value, label: text.sortOptions[value], ...(group ? { group: text.sortGroups[group] } : {}) }
+        })}
         onChange={(event) => setSort(event.target.value as DivisionSort)} />
     </div>
     {selectedDivisions.length > 0 && <ActiveFilters options={divisionOptions} selected={selectedDivisions} onChange={setDivisionFilter} />}

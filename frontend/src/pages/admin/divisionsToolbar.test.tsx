@@ -47,12 +47,18 @@ describe('the Divisions & Departments page', () => {
     expect(html).toContain('placeholder="Search divisions or departments..."')
   })
 
-  it('offers exactly the default order and the six sort options', () => {
+  it('offers the default order, then the Divisions and Departments sorts under their headings', () => {
     management.value = { data: snapshot, refresh: vi.fn() }
     const select = page().match(/<select[^>]*name="divisionSort"[^>]*>([\s\S]*?)<\/select>/)![1]
     expect(select.match(/>([^<]+)<\/option>/g)!.map((option) => option.slice(1, -9))).toEqual([
-      'Default order', 'Name: A to Z', 'Name: Z to A', 'Departments: High to Low', 'Departments: Low to High', 'SOPs: High to Low', 'SOPs: Low to High',
+      'Default order',
+      'A to Z', 'Z to A', 'Number of Staff', 'Number of SOPs',
+      'A to Z', 'Z to A', 'Number of Staff', 'Number of SOPs',
     ])
+    const groups = [...select.matchAll(/<optgroup label="([^"]+)">([\s\S]*?)<\/optgroup>/g)]
+    expect(groups.map((group) => group[1])).toEqual(['Divisions', 'Departments'])
+    expect(groups.map((group) => (group[2].match(/<option/g) ?? []).length)).toEqual([4, 4])
+    expect(select.indexOf('Default order')).toBeLessThan(select.indexOf('<optgroup'))
   })
 
   it('lists the loaded divisions as checkboxes in the filter, by name', () => {
@@ -92,7 +98,7 @@ describe('the division filter on the table', () => {
   })
 
   it('combines with search and sort, and says when nothing matches', () => {
-    const sorted = table({ divisions: ['q', 'c'], sort: 'sops-desc' })
+    const sorted = table({ divisions: ['q', 'c'], sort: 'division-sops-desc' })
     expect(sorted.indexOf('Clinical Research')).toBeLessThan(sorted.indexOf('Quality &amp; Compliance'))
     const searched = table({ divisions: ['q', 'c'], query: 'operations' })
     expect(searched).toContain('>Clinical Operations</span>')

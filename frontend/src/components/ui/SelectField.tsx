@@ -6,6 +6,19 @@ import { controlClasses, useFieldIds } from './useFieldIds'
 export interface SelectOption {
   value: string
   label: string
+  /** Options with the same group are listed together under that heading (a native <optgroup>). */
+  group?: string
+}
+
+/** Options without a group first, then each group in the order it first appears. */
+function groupOptions(options: SelectOption[]): { group?: string; options: SelectOption[] }[] {
+  const sections: { group?: string; options: SelectOption[] }[] = []
+  for (const option of options) {
+    const section = sections.find((item) => item.group === option.group)
+    if (section) section.options.push(option)
+    else sections.push({ group: option.group, options: [option] })
+  }
+  return sections.sort((a, b) => Number(a.group !== undefined) - Number(b.group !== undefined))
 }
 
 export interface SelectFieldProps extends Omit<SelectHTMLAttributes<HTMLSelectElement>, 'children'> {
@@ -56,11 +69,14 @@ export function SelectField({
               {placeholder}
             </option>
           )}
-          {options.map((option) => (
-            <option key={option.value} value={option.value} className="text-maroon">
-              {option.label}
-            </option>
-          ))}
+          {groupOptions(options).map((section) => {
+            const items = section.options.map((option) => (
+              <option key={option.value} value={option.value} className="text-maroon">
+                {option.label}
+              </option>
+            ))
+            return section.group === undefined ? items : <optgroup key={section.group} label={section.group}>{items}</optgroup>
+          })}
         </select>
         <ChevronDown
           aria-hidden="true"
