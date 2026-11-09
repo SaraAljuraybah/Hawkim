@@ -13,6 +13,8 @@ import { requestProblems, type RequestField, type RequestValues } from '../lib/a
 import { submitAccessRequest, type SubmitFailure } from '../services/accessRequests'
 
 const content = requestHawkimEn
+/** Longest message (the database and the function allow 2000 characters). */
+const MESSAGE_MAX = 2000
 const FIELDS: RequestField[] = ['organization', 'contactName', 'jobTitle', 'email', 'phone', 'approxUsers', 'message']
 const EMPTY: RequestValues = { organization: '', contactName: '', jobTitle: '', email: '', phone: '', approxUsers: '', message: '' }
 
@@ -84,6 +86,7 @@ export function RequestHawkimPage() {
       name={name}
       label={content.fields[name]}
       required
+      requiredMark
       value={values[name]}
       error={errors[name]}
       onChange={set(name)}
@@ -107,9 +110,11 @@ export function RequestHawkimPage() {
           ref={(element: HTMLTextAreaElement | null) => { refs.current.message = element }}
           name="message"
           label={content.fields.message}
-          hint={content.fields.messageHint}
+          placeholder={content.fields.messagePlaceholder}
           rows={4}
-          maxLength={2000}
+          maxLength={MESSAGE_MAX}
+          resizable={false}
+          counter={content.fields.messageCounter.replace('{count}', String(values.message.length)).replace('{max}', String(MESSAGE_MAX))}
           value={values.message}
           error={errors.message}
           onChange={set('message')}

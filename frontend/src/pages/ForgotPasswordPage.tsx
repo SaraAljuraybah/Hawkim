@@ -83,6 +83,7 @@ export function ForgotPasswordPage() {
           autoCapitalize="none"
           spellCheck={false}
           required
+          requiredMark
           label={content.emailLabel}
           value={email}
           error={error}

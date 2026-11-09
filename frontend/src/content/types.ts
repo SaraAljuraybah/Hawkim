@@ -1713,8 +1713,11 @@ export interface RequestHawkimContent {
     phone: string
     phoneHint: string
     approxUsers: string
+    /** Labelled "(Optional)", like the optional fields of the other forms. */
     message: string
-    messageHint: string
+    messagePlaceholder: string
+    /** `{count}` and `{max}` are replaced. */
+    messageCounter: string
   }
   submit: string
   backLink: LinkContent
