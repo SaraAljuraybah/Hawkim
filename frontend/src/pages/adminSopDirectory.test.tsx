@@ -171,6 +171,20 @@ describe('an SOP opened from the admin directory', () => {
     expect(html).not.toContain('/requests/new')
   })
 
+  it('says "Published on <date> · <department> · SOP v<n>" under the title, for every role', () => {
+    // The date is the one on the directory cards; screen readers hear a comma instead of each "·".
+    const subtitle = (html: string) => html.match(/<\/h1><p class="mt-2 text-sm text-text-gray">(.*?)<\/p>/)![1]
+    const expected = '<span>Published on </span><time dateTime="2026-10-01">Oct 1, 2026</time>'
+      + '<span><span aria-hidden="true"> · </span><span class="sr-only">, </span></span><span>Pharmacovigilance</span>'
+      + '<span><span aria-hidden="true"> · </span><span class="sr-only">, </span></span><span>SOP v</span><span>1</span>'
+    fixture.sops = [sop('9', 'pv')]
+    expect(subtitle(detail('9'))).toBe(expected)
+    fixture.user = { ...fixture.user, permissions: ['author'] }
+    const employee = renderToStaticMarkup(<MemoryRouter initialEntries={['/sops/9']}><Routes><Route path="/sops/:id" element={<SopDetailPage />} /></Routes></MemoryRouter>)
+    expect(subtitle(employee)).toBe(expected)
+    fixture.user = { ...fixture.user, permissions: ['admin'] }
+  })
+
   it('still locks an SOP in Others, without Request Access', () => {
     fixture.sops = [{ ...sop('8', 'pv'), directoryGroup: 'others' }]
     const html = detail('8')

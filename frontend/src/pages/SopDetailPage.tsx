@@ -88,14 +88,16 @@ export function SopDetailPage({ admin = false }: { admin?: boolean }) {
       <div className="mt-5 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <h1 className="mt-1 text-2xl leading-tight tracking-tight sm:text-3xl">{sop.title}</h1>
+          {/* "Published on <date> · <department> · SOP v<n>": the date is the one on the directory cards;
+              screen readers hear a comma instead of each "·". */}
           <p className="mt-2 text-sm text-text-gray">
-            {departmentName}
-            <span aria-hidden="true"> · </span>
-            <span className="sr-only">, </span>
-            {sopsEn.versionTemplate.replace('{version}', sop.version)}
-            <span aria-hidden="true"> · </span>
-            <span className="sr-only">, </span>
-            <time dateTime={sop.lastUpdated}>{formatDate(sop.lastUpdated)}</time>
+            {content.subtitle.split(/(\{date\}|\{department\}|\{version\}| · )/).filter(Boolean).map((part, index) =>
+              part === '{date}' ? <time key={index} dateTime={sop.lastUpdated}>{formatDate(sop.lastUpdated)}</time>
+                : part === '{department}' ? <span key={index}>{departmentName}</span>
+                  : part === '{version}' ? <span key={index}>{sop.version}</span>
+                    : part === ' · ' ? <span key={index}><span aria-hidden="true"> · </span><span className="sr-only">, </span></span>
+                      : <span key={index}>{part}</span>,
+            )}
           </p>
         </div>
         {exportButton && <div className="shrink-0">{exportButton}</div>}
