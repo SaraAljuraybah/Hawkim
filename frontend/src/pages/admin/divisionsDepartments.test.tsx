@@ -45,8 +45,8 @@ describe('unified divisions and departments table', () => {
   it('uses focusable restricted-action tooltips for division and department blockers', () => {
     const html = render('safety')
     expect(html).toContain(organizationAdminEn.divisionBlocked)
-    // Medical has employees and an SOP: one combined reason.
-    expect(html).toContain(organizationAdminEn.departmentBlockedBoth)
+    // Medical has employees and an SOP: the employees reason.
+    expect(html).toContain(organizationAdminEn.departmentBlocked)
     expect(html).toContain('aria-disabled="true"')
   })
   it('shows 0 for empty divisions and a meaningful search empty state', () => {

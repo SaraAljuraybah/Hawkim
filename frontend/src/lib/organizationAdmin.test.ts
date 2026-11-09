@@ -80,10 +80,10 @@ describe('when a department can be deleted', () => {
   it('can be deleted with no employees and no SOPs', () => {
     expect(departmentDeleteBlocker(department(0, 0))).toBeUndefined()
   })
-  it('is blocked by employees, by SOPs, or by both (one combined reason)', () => {
+  it('is blocked by employees or by SOPs; with both, employees are reported', () => {
     expect(departmentDeleteBlocker(department(2, 0))).toBe('employees')
     expect(departmentDeleteBlocker(department(0, 1))).toBe('sops')
-    expect(departmentDeleteBlocker(department(2, 1))).toBe('both')
+    expect(departmentDeleteBlocker(department(2, 1))).toBe('employees')
   })
   it('never blocks the retry of a deletion confirmed earlier because of SOPs', () => {
     expect(departmentDeleteBlocker(department(0, 0, 'job'))).toBeUndefined()

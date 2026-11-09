@@ -179,9 +179,9 @@ describe('department row actions', () => {
     expect(deleteButton(table({ snapshot: sopsOnly, query: 'quality' }), 'Quality Assurance'))
       .toEqual({ disabled: true, reason: 'This department still has SOPs. It can’t be deleted while it has SOPs.' })
   })
-  it('gives one combined reason when a department has both employees and SOPs', () => {
+  it('gives only the employees reason when a department has both employees and SOPs', () => {
     expect(deleteButton(table({ query: 'quality' }), 'Quality Assurance')).toEqual({ disabled: true,
-      reason: 'This department still has employees and SOPs. Move the employees to another department first. A department with SOPs can’t be deleted.' })
+      reason: 'This department still has employees. Move them to another department first, then delete it.' })
   })
   it('keeps the employees reason, and enables Delete for an empty department', () => {
     const employeesOnly = { ...snapshot, departments: snapshot.departments.map((row) => row.id === 'qa' ? { ...row, sops: 0 } : row) }

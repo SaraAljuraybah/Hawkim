@@ -102,7 +102,7 @@ export function ActiveFilters({ options, selected, onChange }: { options: { valu
 /** The disabled Delete icon's reason (tooltip and description), or none when the department can be deleted. */
 function deleteBlockedReason(department: ManagedDepartment): string | undefined {
   const blocker = departmentDeleteBlocker(department)
-  return blocker && { employees: text.departmentBlocked, sops: text.departmentHasSopsBlocked, both: text.departmentBlockedBoth }[blocker]
+  return blocker && { employees: text.departmentBlocked, sops: text.departmentHasSopsBlocked }[blocker]
 }
 
 /** Number columns: centred under their headings, the same in division and department rows. */

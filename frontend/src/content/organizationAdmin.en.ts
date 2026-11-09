@@ -24,7 +24,6 @@ export const organizationAdminEn = {
   divisionBlocked: 'This division still has departments. Delete them or move them to another division first.',
   departmentBlocked: 'This department still has employees. Move them to another department first, then delete it.',
   departmentHasSopsBlocked: 'This department still has SOPs. It can’t be deleted while it has SOPs.',
-  departmentBlockedBoth: 'This department still has employees and SOPs. Move the employees to another department first. A department with SOPs can’t be deleted.',
   departmentPendingCleanup: 'File cleanup for this department is still in progress. Use Retry file cleanup to finish it.',
   departmentUnavailable: 'This department is no longer available. Refresh the page to see the latest list.',
   deleteTitle: 'Delete {name}?', deleteDivisionText: 'Deleting this division will remove it, and it can’t be restored.',
