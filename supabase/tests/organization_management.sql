@@ -150,7 +150,15 @@ begin
   perform pg_temp.expect_error(format($q$select public.delete_department('om-delete', 'delete', %L)$q$, v_stamp), '23514');
   -- Move the employee out (with a position in the new department) so the department can go.
   perform pg_temp.as_owner();
+  -- A fixture shortcut past the department transfer restriction (20261110120000), which refuses moving
+  -- someone with unfinished SOPs: their SOPs count as finished only for the move, then exactly as before.
+  create temp table if not exists fixture_sop_statuses(id uuid primary key, status public.sop_status) on commit drop;
+  delete from fixture_sop_statuses;
+  insert into fixture_sop_statuses select s.id, s.status from public.sops s
+    where s.deleted_at is null and s.status <> 'published' and s.author_id = employee;
+  update public.sops s set status = 'published' from fixture_sop_statuses f where s.id = f.id;
   update public.profiles set department_id = 'om-home' where id = employee;
+  update public.sops s set status = f.status from fixture_sop_statuses f where s.id = f.id;
   -- Its SOP still blocks the deletion (20261109120000), through both entry points and every option.
   perform pg_temp.act_as(admin);
   select updated_at into v_stamp from public.departments where id = 'om-delete';

@@ -77,7 +77,7 @@ describe('Users list', () => {
 
   it('shows the same users and actions as stacked cards on narrow screens', () => {
     const html = render()
-    const cards = html.slice(html.indexOf('<ul aria-label="Users"'), html.lastIndexOf('</ul>'))
+    const cards = html.slice(html.indexOf('<ul aria-label="Staff"'), html.lastIndexOf('</ul>'))
     expect(cards).toContain('md:hidden')
     for (const user of fixture.users) {
       expect(cards).toContain(`>${user.name}<`)
@@ -88,8 +88,10 @@ describe('Users list', () => {
 
   it('offers one search, then Filter by Division and Filter by Department checkbox dropdowns, with the count', () => {
     const html = render()
-    expect(html).toContain('>Search Users<')
-    expect(html).toContain('placeholder="Search by name, email, division, department or permission…"')
+    expect(html).toContain('>Search Staff<')
+    expect(html).toContain('placeholder="Search by staff name, email, division, department"')
+    // No description under the title.
+    expect(html).not.toContain('Manage who can use Hawkim and what they can do.')
     expect(html).not.toContain('<select')
     // The Divisions & Departments page's dropdown: visible label, placeholder, and a closed list of checkboxes.
     const divisions = dropdown(html, 'division')
@@ -106,7 +108,7 @@ describe('Users list', () => {
     expect(departments).toContain('>All departments</span>')
     expect([...departments.matchAll(/value="([^"]+)"\/><span[^>]*>([^<]+)<\/span>/g)].map((match) => match[1])).toEqual(['pv', 'qa'])
     expect(html).not.toContain('All Permissions')
-    expect(html).toContain('>3 users<')
+    expect(html).toContain('>3 staff members<')
     // Nothing to clear yet.
     expect(html).not.toContain('>Clear Filters<')
   })
@@ -114,11 +116,11 @@ describe('Users list', () => {
   it('reads both filters from the URL, independently, with the count and Clear Filters', () => {
     // The department filter keeps Pharmacovigilance though No Division is checked: nobody matches both.
     const mismatch = render('?division=__no-division__&dept=pv')
-    expect(mismatch).toContain('>0 users<')
+    expect(mismatch).toContain('>0 staff members<')
     expect(mismatch).toContain(`>${adminEn.usersList.empty}<`)
     expect(dropdown(mismatch, 'department')).toContain('checked="" value="pv"')
     const html = render('?division=__no-division__,gone&dept=qa')
-    expect(html).toContain('>2 users<')
+    expect(html).toContain('>2 staff members<')
     expect(dropdown(html, 'division')).toContain('aria-label="Filter by Division: No Division"')
     expect(dropdown(html, 'department')).toContain('>Quality Assurance</span>')
     expect(html).toContain('>Clear Filters<')
@@ -153,18 +155,18 @@ describe('searching and filtering users', () => {
   })
 
   it('says when no user matches', () => {
-    expect(adminEn.usersList.empty).toBe('No users match your search.')
+    expect(adminEn.usersList.empty).toBe('No staff found.')
   })
 })
 
 describe('the Delete User warning', () => {
-  it('asks "Delete User?" with Cancel first and Delete in the primary filled style', () => {
+  it('asks "Delete Staff?" with Cancel first and Delete in the primary filled style', () => {
     const text = adminEn.deleteUser
     const html = renderToStaticMarkup(
       <ConfirmDialog open title={text.title} description={text.description.replace('{name}', 'Sara Aljuraybah')}
         cancelLabel={text.cancel} confirmLabel={text.confirm} onConfirm={() => {}} onCancel={() => {}} />,
     )
-    expect(html).toContain('>Delete User?</h2>')
+    expect(html).toContain('>Delete Staff?</h2>')
     expect(html).toContain("Are you sure you want to delete Sara Aljuraybah? This can&#x27;t be undone.")
     const cancel = html.match(/<button[^>]*>Cancel<\/button>/)![0]
     const remove = html.match(/<button[^>]*>Delete<\/button>/)![0]

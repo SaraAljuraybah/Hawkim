@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { checksOnBlur, isCompletePhone, PHONE_PREFIX, phoneDigitsOf, phoneFieldError, phoneInput, phoneValue } from './phone'
-import { normalizePhone } from './userAdmin'
+import { hasUnsavedChanges, normalizePhone, type NewUser } from './userAdmin'
 
 describe('phone numbers: the fixed +9665 and 8 digits', () => {
   it('shows a stored number as its 8 digits', () => {
@@ -59,5 +59,20 @@ describe('phone numbers: the fixed +9665 and 8 digits', () => {
     // The form's own error (e.g. "required" after Save) shows until there are 8 digits.
     expect(phoneFieldError('', false, 'Enter a phone number.', message)).toBe('Enter a phone number.')
     expect(phoneFieldError('43921437', false, message, message)).toBeUndefined()
+  })
+
+  it('is no unsaved change in the staff form while the field shows the stored number’s 8 digits', () => {
+    // Edit Staff opens with the stored number; the field shows 43921437 after "+9665" and keeps "+9665" + the digits.
+    const stored: NewUser = { name: 'Rana', email: 'rana@hawkim.demo', phone: '+966543921437', position: 'QA Specialist', divisionId: 'qa-division', departmentId: 'qa', permissions: ['author'] }
+    const shown = phoneDigitsOf(stored.phone)
+    expect(shown).toBe('43921437')
+    expect(hasUnsavedChanges(stored, { ...stored, phone: phoneValue(shown) })).toBe(false)
+    // Typed again after a paste of the full number: still no change.
+    expect(hasUnsavedChanges(stored, { ...stored, phone: phoneValue(phoneInput('+966 54 392 1437', true)) })).toBe(false)
+    // A different number is a change; so is anything typed on Add Staff.
+    expect(hasUnsavedChanges(stored, { ...stored, phone: phoneValue('43921438') })).toBe(true)
+    const empty: NewUser = { name: '', email: '', phone: '', position: '', departmentId: '', permissions: [] }
+    expect(hasUnsavedChanges(empty, { ...empty, phone: phoneValue('4') })).toBe(true)
+    expect(hasUnsavedChanges(empty, { ...empty, phone: phoneValue('') })).toBe(false)
   })
 })

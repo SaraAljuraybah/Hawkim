@@ -140,17 +140,17 @@ describe('top bar links to My Profile', () => {
   it('shows "Department | Position" under the name, the separator hidden from screen readers', () => {
     fixture.user = { ...fixture.user, position: 'Pharmacovigilance Specialist' }
     const markup = html()
-    const line = markup.match(/<div class="hidden flex-wrap[^"]*sm:flex">(.*?)<\/div>/)![1]
-    expect(line).toBe('<button type="button">Department Switcher</button><span aria-hidden="true">|</span><span class="min-w-0 break-words">Pharmacovigilance Specialist</span>')
+    const line = markup.match(/<div class="hidden items-center[^"]*sm:flex">(.*?)<\/div>/)![1]
+    expect(line).toBe('<span class="shrink-0"><button type="button">Department Switcher</button></span><span aria-hidden="true" class="shrink-0 text-text-gray/60">|</span><span class="min-w-0 break-words">Pharmacovigilance Specialist</span>')
     expect(markup.indexOf('Sara Aljuraybah<')).toBeLessThan(markup.indexOf('Pharmacovigilance Specialist'))
   })
 
   it('shows only the department without a position', () => {
-    const line = html().match(/<div class="hidden flex-wrap[^"]*sm:flex">(.*?)<\/div>/)![1]
-    expect(line).toBe('<button type="button">Department Switcher</button>')
+    const line = html().match(/<div class="hidden items-center[^"]*sm:flex">(.*?)<\/div>/)![1]
+    expect(line).toBe('<span class="shrink-0"><button type="button">Department Switcher</button></span>')
   })
 
-  it('never truncates the user details, lets them wrap, and keeps them hidden on phones', () => {
+  it('never truncates the user details, keeps Position | Department on one row, and hides them on phones', () => {
     fixture.user = { ...fixture.user, position: 'Pharmacovigilance Specialist' }
     const markup = html()
     const userArea = markup.slice(markup.indexOf('href="/profile"'))
@@ -160,7 +160,9 @@ describe('top bar links to My Profile', () => {
     expect(markup).toContain('min-h-16')
     expect(links()[1]).toContain('hidden')
     expect(links()[1]).toContain('sm:block')
-    expect(markup).toMatch(/<div class="hidden flex-wrap[^"]*sm:flex">/)
+    // Side by side, never stacked: the row itself doesn't wrap.
+    expect(markup).toMatch(/<div class="hidden items-center[^"]*sm:flex">/)
+    expect(markup).not.toMatch(/<div class="hidden[^"]*flex-wrap[^"]*sm:flex">/)
   })
 
   it('shows no focus ring on the mouse-only name link, so nothing covers the department line; the avatar keeps its ring', () => {
@@ -222,7 +224,7 @@ describe('My Profile in the admin portal', () => {
     expect(html).toContain('>System Admin</p>')
   })
 
-  it('shows only "System Admin" under the admin\'s name, without the position', () => {
+  it('shows only "System Admin" under the admin\'s name: a System Admin has no position or department', () => {
     const html = renderToStaticMarkup(<MemoryRouter><AdminTopBar content={adminEn.shell} user={{ ...admin, position: 'IT Manager' }} menuOpen={false} onOpenMenu={() => {}} menuButtonRef={{ current: null }} /></MemoryRouter>)
     expect(html).toContain('<p class="text-xs text-text-gray">System Admin</p>')
     expect(html).not.toContain('IT Manager')

@@ -47,10 +47,11 @@ describe('a user\'s details page', () => {
     expect(detail(render(), 'Division')).toBe('Medical Division')
   })
 
-  it('has the shared header: large avatar, the name as the h1 with Delete beside it, and the badges', () => {
+  it('has the shared header: large avatar, the name as the h1 with Edit Staff and Delete beside it, and the badges', () => {
     const html = render()
     expect(html).toContain('<span aria-hidden="true" class="inline-flex size-9 shrink-0 items-center justify-center rounded-full bg-beige text-xs font-semibold text-maroon size-14 text-base">RA</span>')
-    expect(html).toMatch(/<div class="flex items-start gap-2"><h1 class="min-w-0 text-2xl break-words tracking-tight sm:text-3xl">Rana<\/h1><div><span class="relative inline-flex"><button type="button" aria-label="Delete Rana"/)
+    // Edit Staff (the way to the edit form from here) before the trash, both beside the name.
+    expect(html).toMatch(/<div class="flex items-start gap-2"><h1 class="min-w-0 text-2xl break-words tracking-tight sm:text-3xl">Rana<\/h1><div class="flex shrink-0 items-center gap-2 "><a [^>]*href="\/admin\/users\/[^"]+\/edit"[^>]*>.*?Edit Staff<\/a><span class="relative inline-flex"><button type="button" aria-label="Delete Rana"/)
     expect(html.match(/<h1/g)).toHaveLength(1)
   })
 
@@ -75,7 +76,7 @@ describe('a user\'s details page', () => {
 })
 
 describe('the Permission wording', () => {
-  it('reads Permission on the Edit User message and the Users list', () => {
+  it('reads Permission on the Edit Staff message and the Staff list', () => {
     expect(adminEn.editUser.refused).toBe("Permission wasn't saved:")
     expect(adminEn.usersList.columns.permissions).toBe('Permission')
   })
@@ -86,21 +87,21 @@ describe('after Add User', () => {
 
   it('says the invitation went out, in green', () => {
     const html = opened({ added: true, invitationFailed: false })
-    expect(html).toContain('User added. We&#x27;ve emailed them an invitation to set their password.')
+    expect(html).toContain('Staff member added. We&#x27;ve emailed them an invitation to set their password.')
     expect(html).toContain('bg-status-approved-bg')
     expect(html).not.toContain('bg-status-pending-bg')
   })
 
   it('says when the invitation could not be sent, in amber, pointing to Forgot Password', () => {
     const html = opened({ added: true, invitationFailed: true })
-    expect(html).toContain('User added, but the invitation email couldn&#x27;t be sent. Ask them to use Forgot Password on the sign-in page.')
+    expect(html).toContain('Staff member added, but the invitation email couldn&#x27;t be sent. Ask them to use Forgot Password on the sign-in page.')
     expect(html).toContain('bg-status-pending-bg')
     expect(html).not.toContain('bg-status-approved-bg')
   })
 
   it('says nothing when just viewing the page', () => {
     const html = opened(null)
-    expect(html).not.toContain('User added')
+    expect(html).not.toContain('Staff member added')
     expect(html).toContain('<div role="status"></div>')
   })
 })

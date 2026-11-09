@@ -1,16 +1,17 @@
 import { useRef, useState, type ReactNode } from 'react'
 import { flushSync } from 'react-dom'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, CircleAlert, CircleCheck } from 'lucide-react'
+import { ArrowLeft, CircleAlert, CircleCheck, Pencil } from 'lucide-react'
 import { RefusedBox } from '../../components/admin/RefusedBox'
 import { UserHeader } from '../../components/admin/UserHeader'
+import { Button } from '../../components/ui/Button'
 import { StatusBadge } from '../../components/ui/StatusBadge'
 import { adminEn } from '../../content/admin.en'
 import { usersEn } from '../../content/users.en'
 import type { User } from '../../data/mock/types'
 import { useDocumentTitle } from '../../hooks/useDocumentTitle'
-import { ADMIN_USERS_PATH } from '../../lib/routes'
-import { divisionLabel, involvement } from '../../lib/userAdmin'
+import { ADMIN_USERS_PATH, adminUserEditPath } from '../../lib/routes'
+import { divisionLabel, involvement, isSystemAdmin } from '../../lib/userAdmin'
 import { useDepartments } from '../../state/departmentsContext'
 import { useSops } from '../../state/sopsContext'
 import { useUsers } from '../../state/usersContext'
@@ -24,9 +25,10 @@ export interface UserDetailsLocationState {
 }
 
 /**
- * A user's page in the admin portal ("/admin/users/:id", PBI 17, 19), read-only: their details,
- * the SOPs they are involved in, and Delete user beside their name. They are changed on Edit User.
- * Deleted and unknown users show Not Found.
+ * A staff member's page in the admin portal ("/admin/users/:id", PBI 17, 19): their details, the SOPs
+ * they are involved in, and Edit Staff and Delete beside their name. Edit Staff opens the edit form,
+ * which saves to the database. A System Admin has no division, department or position, so those
+ * aren't listed for them. Deleted and unknown staff show Not Found.
  */
 export function UserDetailsPage() {
   const { id } = useParams()
@@ -94,20 +96,36 @@ function UserPanels({ user }: { user: User }) {
     deleteErrorRef.current?.focus()
   }
 
-  // Same order and look as My Profile; an empty value shows notSet.
+  // Same order and look as My Profile; an empty value shows notSet. A System Admin has no
+  // organizational fields.
   const details: [string, string | undefined][] = [
     [text.details.name, user.name],
     [text.details.email, user.email],
     [text.details.phone, user.phone],
-    [text.details.division, divisionLabel(department)],
-    [text.details.department, department?.name],
-    [text.details.position, user.position],
+    ...(isSystemAdmin(user)
+      ? []
+      : ([
+          [text.details.division, divisionLabel(department)],
+          [text.details.department, department?.name],
+          [text.details.position, user.position],
+        ] as [string, string | undefined][])),
     [text.details.permission, user.permissions.map((permission) => usersEn.permissions[permission]).join(', ')],
   ]
 
   return (
     <>
-      <UserHeader user={user} onDeleted={deleted} onRefused={refuseDelete} />
+      {/* The shared header; Edit Staff (the way to the edit form from here) beside Delete */}
+      <UserHeader
+        user={user}
+        onDeleted={deleted}
+        onRefused={refuseDelete}
+        actions={
+          <Button variant="secondary" size="sm" to={adminUserEditPath(user.id)}>
+            <Pencil aria-hidden="true" className="size-4" strokeWidth={1.75} />
+            {text.edit}
+          </Button>
+        }
+      />
 
       {deleteRefused && <RefusedBox ref={deleteErrorRef} title={deleteRefused.title} messages={deleteRefused.reasons} />}
 

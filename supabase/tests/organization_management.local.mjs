@@ -167,7 +167,11 @@ await check('15.-18. A department with SOPs cannot be deleted with its SOPs (202
   const second = await upload(temp, first.id)
   const blocked = await admin.client.functions.invoke('delete-department', { body: { departmentId: doomed, expectedUpdatedAt: (await department(admin.client, doomed)).updated_at, confirmDeleteSops: true } })
   assert(blocked.error, 'employees still assigned: refused')
+  // A fixture shortcut past the department transfer restriction (20261110120000), which refuses moving an
+  // author with an unfinished SOP: the SOP counts as published only for the move, then is a draft again.
+  await ok(service.from('sops').update({ status: 'published' }).eq('id', first.id), 'publish for the move')
   await ok(service.from('profiles').update({ department_id: home }).eq('id', temp.id), 'move employee out')
+  await ok(service.from('sops').update({ status: 'draft' }).eq('id', first.id), 'draft again')
   const row = await department(admin.client, doomed)
   const refusedDelete = await admin.client.functions.invoke('delete-department', { body: { departmentId: doomed, expectedUpdatedAt: row.updated_at, confirmDeleteSops: true } })
   assert(refusedDelete.error, 'SOPs still present: refused')

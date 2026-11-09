@@ -31,14 +31,14 @@ beforeEach(() => {
   }]
 })
 
-describe('Edit User', () => {
-  it('has one h1: "Edit User" as a small line above the name, with the browser tab title', () => {
+describe('Edit Staff', () => {
+  it('has one h1: "Edit Staff" as a small line above the name, no subtitle, with the browser tab title', () => {
     fixture.titles.length = 0
     const html = render()
     expect(html.match(/<h1/g)).toHaveLength(1)
-    expect(html).toContain('<h1 class="min-w-0 text-2xl break-words tracking-tight sm:text-3xl"><span class="block text-sm font-medium tracking-normal text-text-gray">Edit User</span> Rana Saleh</h1>')
-    expect(html).not.toContain('Update this user&#x27;s details and permissions.')
-    expect(fixture.titles.at(-1)).toBe(adminEn.pageTitle.replace('{page}', 'Edit User'))
+    expect(html).toContain('<h1 class="min-w-0 text-2xl break-words tracking-tight sm:text-3xl"><span class="block text-sm font-medium tracking-normal text-text-gray">Edit Staff</span> Rana Saleh</h1>')
+    expect(html).not.toContain('Update this staff member&#x27;s details and permissions.')
+    expect(fixture.titles.at(-1)).toBe(adminEn.pageTitle.replace('{page}', 'Edit Staff'))
   })
 
   it('fills in every field with the user\'s details, all editable', () => {
@@ -83,19 +83,20 @@ describe('Edit User', () => {
     const html = render()
     const header = html.slice(0, html.indexOf('<form'))
     expect(header).toContain('class="inline-flex size-9 shrink-0 items-center justify-center rounded-full bg-beige text-xs font-semibold text-maroon size-14 text-base">RS</span>')
-    // Delete beside the name, below the "Edit User" line.
-    expect(header).toMatch(/Rana Saleh<\/h1><div class="mt-5"><span class="relative inline-flex"><button type="button" aria-label="Delete Rana Saleh"/)
+    // Delete beside the name, below the "Edit Staff" line; no Edit Staff button here.
+    expect(header).toMatch(/Rana Saleh<\/h1><div class="flex shrink-0 items-center gap-2 mt-5"><span class="relative inline-flex"><button type="button" aria-label="Delete Rana Saleh"/)
+    expect(header).not.toContain('>Edit Staff</a>')
     expect([...header.matchAll(/<li class="inline-flex[^"]*">([^<]+)<\/li>/g)].map((match) => match[1])).toEqual(['Author', 'Reviewer'])
     expect(html.match(/aria-label="Delete Rana Saleh"/g)).toHaveLength(1)
   })
 
-  it('ends with Cancel, back to the Users list, and Save', () => {
+  it('ends with Cancel, back to the Staff list, and Save Changes', () => {
     const html = render()
     const actions = html.slice(html.lastIndexOf('name="permissions"'), html.indexOf('</form>'))
     expect(actions).toMatch(/<a[^>]*href="\/admin\/users"[^>]*>Cancel<\/a>/)
-    expect(actions).toMatch(/<button type="submit"[^>]*>Save<\/button>/)
-    expect(html).not.toContain('>Add User<')
-    expect(html).toMatch(/<a[^>]*href="\/admin\/users"[^>]*>.*Back to Users<\/a>/)
+    expect(actions).toMatch(/<button type="submit"[^>]*>Save Changes<\/button>/)
+    expect(html).not.toContain('>Add Staff<')
+    expect(html).toMatch(/<a[^>]*href="\/admin\/users"[^>]*>.*Back to Staff<\/a>/)
   })
 
   it('keeps an empty live region at the top for the success message', () => {

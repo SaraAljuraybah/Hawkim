@@ -1609,8 +1609,6 @@ export interface AdminAddUserContent {
   /** The submit button while adding. */
   adding: string
   cancel: string
-  /** Asked when Cancel is pressed with unsaved changes (Add User and Edit User). */
-  unsavedChanges: { title: string; description: string; keep: string; discard: string }
   /** Above the reason when the server refused. */
   notAdded: string
   failures: Record<'forbidden' | 'email-taken' | 'invalid' | 'admin-exclusive' | 'approver-quality' | 'department-unavailable' | 'account-failed' | 'account-blocked' | 'failed', string>
@@ -1637,19 +1635,26 @@ export interface AdminEditUserContent {
   saving: string
   /** Shown after saving, when everything changed is in the database. */
   saved: string
-  /** Shown after saving, when the email changed too. */
-  savedUntilReload: string
   /** Above the reasons when the permission rules refuse saving. */
   refused: string
   /** Above the reason when the database couldn't save. */
   notSaved: string
-  failures: Record<'forbidden' | 'not-found' | 'conflict' | 'invalid' | 'self-admin' | 'last-admin' | 'admin-exclusive' | 'approver-quality' | 'department-unavailable' | 'failed', string>
+  failures: Record<'forbidden' | 'not-found' | 'conflict' | 'invalid' | 'self-admin' | 'last-admin' | 'admin-exclusive' | 'approver-quality' | 'department-unavailable' | 'department-required' | 'failed', string>
   /** A permission still in use, with the number of SOPs; `{permission}` and `{count}` are replaced. */
   inUse: { one: string; other: string }
+  /** The other changes were saved, but the email wasn't: above the reason. */
+  emailNotSaved: string
+  emailFailures: Record<'forbidden' | 'not-found' | 'email-taken' | 'invalid' | 'account-failed' | 'failed', string>
+  /** A department change refused while SOP work is in progress; `{count}` is the number of SOPs. */
+  transfer: { title: string; message: string; count: CountText }
+  /** Asked before leaving the form with unsaved changes. */
+  discard: { title: string; description: string; keep: string; discard: string }
 }
 
 export interface AdminUserDetailsContent {
   back: LinkContent
+  /** Opens Edit Staff. */
+  edit: string
   /** Shown after adding a user. */
   added: string
   /** Shown after adding a user whose invitation email couldn't be sent. */
@@ -1699,7 +1704,6 @@ export interface CountText {
 
 export interface AdminUsersListContent {
   title: string
-  subtitle: string
   addUser: LinkContent
   search: { label: string; placeholder: string }
   /** Clears the search and both filters (their texts are organizationAdminEn's, shared with the other pages). */

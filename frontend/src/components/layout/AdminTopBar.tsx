@@ -49,7 +49,7 @@ export function AdminTopBar({ content, user, menuOpen, onOpenMenu, menuButtonRef
             >
               {user.name}
             </Link>
-            {/* Only the role ("System Admin") under the name */}
+            {/* Only the role ("System Admin") under the name: a System Admin may have no position or department. */}
             <p className="text-xs text-text-gray">{content.roleLabel}</p>
           </div>
         </div>

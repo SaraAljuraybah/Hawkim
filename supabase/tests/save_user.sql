@@ -223,10 +223,13 @@ begin
   perform pg_temp.as_owner();
   assert pg_temp.titles(plain) = array['Moved Title'], pg_temp.titles(plain)::text;
   assert (select "position" from public.profiles where id = plain) = 'Moved Title';
-  -- A move can be saved for your own account: no such rule exists.
+  -- Your own account can be saved. A System Admin's department isn't edited here (20261110120000):
+  -- whatever department is sent, theirs is kept.
   perform pg_temp.act_as(admin1);
   perform public.save_user(admin1, 'SU Person', '+966512345678', 'Title', 'su-other', '{admin}', 'su-home', '{admin}');
-  perform public.save_user(admin1, 'SU Person', '+966512345678', 'Title', 'su-home', '{admin}', 'su-other', '{admin}');
+  perform pg_temp.as_owner();
+  assert (select department_id from public.profiles where id = admin1) = 'su-home', 'A System Admin''s department was edited';
+  perform pg_temp.act_as(admin1);
 
   -- ---------- Author in use ----------
   perform pg_temp.as_owner();
@@ -307,16 +310,19 @@ begin
     end;
   end;
 
-  -- ---------- A move and has_home_finished, documented behaviour ----------
+  -- ---------- A move during a review: refused (20261110120000, department transfer restriction) ----------
+  -- A reviewer who completed their review is still responsible while the SOP is in progress (a
+  -- returned SOP comes back to them), so they can't move, and has_home_finished can't flip.
   perform pg_temp.as_owner();
   update public.sops set status = 'published' where id = v_second;
   v_sop := pg_temp.sop(author, 'in-review', 'su-home');
   perform pg_temp.request(v_sop, author, reviewer, 'completed');
   assert public.has_home_finished((select r.id from public.review_rounds r where r.sop_id = v_sop));
   perform pg_temp.act_as(admin1);
-  perform public.save_user(reviewer, 'SU Person', '+966512345678', 'Title', 'su-other', '{reviewer}', 'su-home', '{reviewer}');
+  perform pg_temp.expect_error(pg_temp.call(reviewer, 'su-other', '{reviewer}', 'su-home', '{reviewer}'), '23514', 'department-transfer-blocked');
   perform pg_temp.as_owner();
-  assert not public.has_home_finished((select r.id from public.review_rounds r where r.sop_id = v_sop)), 'Moving the reviewer flips it';
+  assert (select department_id from public.profiles where id = reviewer) = 'su-home', 'The reviewer moved';
+  assert public.has_home_finished((select r.id from public.review_rounds r where r.sop_id = v_sop)), 'The review result changed';
 
   -- ---------- The last admin: can't be reached while the caller's own Admin counts ----------
   -- Replaced inside this transaction only, to reach the rule directly.

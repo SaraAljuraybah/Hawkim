@@ -7,12 +7,13 @@ export type AddUserFailure =
   | "unauthorized" | "forbidden" | "invalid" | "email-taken" | "admin-exclusive" | "approver-quality"
   | "department-unavailable" | "permission-in-use" | "account-failed" | "account-blocked" | "failed"
 
+/** A System Admin (the Admin permission) has no department or position: both are null. */
 export type NewUserDetails = {
-  name: string; email: string; phone: string; position: string; departmentId: string; permissions: string[]
+  name: string; email: string; phone: string; position: string | null; departmentId: string | null; permissions: string[]
 }
 
 export type SavedUser = {
-  id: string; email: string; name: string; initials: string; phone: string; position: string; departmentId: string; permissions: string[]
+  id: string; email: string; name: string; initials: string; phone: string; position: string | null; departmentId: string | null; permissions: string[]
 }
 
 export class DatabaseError extends Error {
@@ -56,11 +57,14 @@ export function validateDetails(input: unknown): NewUserDetails | undefined {
   const body = input as Record<string, unknown>
   const text = (key: string) => (typeof body[key] === "string" ? (body[key] as string).trim() : "")
   const name = text("name"), email = text("email").toLowerCase(), phone = text("phone"), position = text("position"), departmentId = text("departmentId")
-  if (!name || name.length > 100 || !EMAIL.test(email) || email.length > 254 || !PHONE.test(phone)
-    || !position || position.length > 100 || !departmentId || !Array.isArray(body.permissions)) return undefined
+  if (!name || name.length > 100 || !EMAIL.test(email) || email.length > 254 || !PHONE.test(phone) || !Array.isArray(body.permissions)) return undefined
   const permissions = body.permissions as unknown[]
   if (!permissions.every((item) => typeof item === "string" && PERMISSIONS.includes(item))) return undefined
-  return { name, email, phone, position, departmentId, permissions: [...new Set(permissions as string[])] }
+  const unique = [...new Set(permissions as string[])]
+  // A System Admin's department and position are never saved; everyone else needs both.
+  if (unique.includes("admin")) return { name, email, phone, position: null, departmentId: null, permissions: unique }
+  if (!position || position.length > 100 || !departmentId) return undefined
+  return { name, email, phone, position, departmentId, permissions: unique }
 }
 
 /** The invitation: the wording of Supabase's invite email, and what to do when the link has expired. */

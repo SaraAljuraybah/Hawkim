@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { Permission, Sop, User } from '../data/mock/types'
 import type { SopStatus } from '../types/status'
-import { changesEmail, changesPermissions, defaultDivision, deleteBlockers, departmentsInDivision, divisionOptions, NO_DIVISION, normalizePhone, permissionChangeBlockers, POSITION_MAX, userFormChanged, userFormValues, validateNewUser, type AdminContext, type NewUser } from './userAdmin'
+import { changesEmail, changesPermissions, defaultDivision, deleteBlockers, departmentsInDivision, divisionOptions, NO_DIVISION, normalizePhone, permissionChangeBlockers, POSITION_MAX, userFormValues, validateNewUser, type AdminContext } from './userAdmin'
 
 /** A user in IT with these permissions. */
 function user(id: string, permissions: Permission[]): User {
@@ -168,7 +168,7 @@ describe('deleting users', () => {
 })
 
 describe('the division of a new user', () => {
-  const user = { name: 'Rana', email: 'rana@hawkim.demo', phone: '0512345678', position: 'Analyst', departmentId: 'home', permissions: [] }
+  const user = { name: 'Rana', email: 'rana@hawkim.demo', phone: '+966512345678', position: 'Analyst', departmentId: 'home', permissions: [] }
   const departments = [{ id: 'home', divisionId: 'Medical Division' }, { id: 'plain' }, { id: 'lab', divisionId: 'Clinical Division' }]
 
   it('lists each division by name, then No Division for departments without one', () => {
@@ -204,16 +204,15 @@ describe('the division of a new user', () => {
   })
 })
 
-describe('the phone number of a new user', () => {
-  it('accepts a Saudi mobile number in either format, with spaces, and stores it as +9665XXXXXXXX', () => {
-    expect(normalizePhone('0512345678')).toBe('+966512345678')
-    expect(normalizePhone('05 1234 5678')).toBe('+966512345678')
+describe('the phone number of a staff member', () => {
+  it('accepts only +9665 followed by exactly 8 digits (surrounding spaces ignored)', () => {
     expect(normalizePhone('+966512345678')).toBe('+966512345678')
-    expect(normalizePhone(' +966 51 234 5678 ')).toBe('+966512345678')
+    expect(normalizePhone(' +966512345678 ')).toBe('+966512345678')
   })
 
-  it('refuses anything else', () => {
-    for (const phone of ['', '0412345678', '051234567', '05123456789', '966512345678', '+9660512345678', '+966412345678', '05-1234-5678', '05123456ab']) {
+  it('refuses every other format instead of rewriting it', () => {
+    for (const phone of ['', '0512345678', '05 1234 5678', '+966 51 234 5678', '0412345678', '051234567', '05123456789', '966512345678',
+      '+9660512345678', '+966412345678', '+96651234567', '+9665123456789', '05-1234-5678', '05123456ab', '00966512345678']) {
       expect(normalizePhone(phone)).toBeNull()
     }
   })
@@ -222,12 +221,13 @@ describe('the phone number of a new user', () => {
     const user = { name: 'Rana', email: 'rana@hawkim.demo', position: 'Analyst', departmentId: 'home', divisionId: NO_DIVISION, permissions: [] }
     expect(validateNewUser({ ...user, phone: '  ' }, []).phone).toBe('phone-required')
     expect(validateNewUser({ ...user, phone: '12345' }, []).phone).toBe('phone-invalid')
-    expect(validateNewUser({ ...user, phone: '05 1234 5678' }, []).phone).toBeUndefined()
+    expect(validateNewUser({ ...user, phone: '0512345678' }, []).phone).toBe('phone-invalid')
+    expect(validateNewUser({ ...user, phone: '+966512345678' }, []).phone).toBeUndefined()
   })
 })
 
 describe('the position of a new user', () => {
-  const user = { name: 'Rana', email: 'rana@hawkim.demo', phone: '0512345678', departmentId: 'home', divisionId: NO_DIVISION, permissions: [] }
+  const user = { name: 'Rana', email: 'rana@hawkim.demo', phone: '+966512345678', departmentId: 'home', divisionId: NO_DIVISION, permissions: [] }
 
   it('is required', () => {
     expect(validateNewUser({ ...user, position: '' }, []).position).toBe('position-required')
@@ -243,7 +243,7 @@ describe('the position of a new user', () => {
 
 describe('validateNewUser', () => {
   const active = [sara]
-  const valid = { name: 'Rana', email: 'rana@hawkim.demo', phone: '0512345678', position: 'Analyst', departmentId: 'finance-administration', divisionId: NO_DIVISION, permissions: [] }
+  const valid = { name: 'Rana', email: 'rana@hawkim.demo', phone: '+966512345678', position: 'Analyst', departmentId: 'finance-administration', divisionId: NO_DIVISION, permissions: [] }
 
   it('requires a name, a valid email, a phone number, a division, a department and a position', () => {
     expect(validateNewUser({ name: '  ', email: 'rana@', phone: '', position: '', departmentId: '', permissions: [] }, active)).toEqual({
@@ -304,7 +304,7 @@ describe('what is saved to the database when editing', () => {
   it('only counts the email as lasting until reload', () => {
     expect(changesEmail(rana, values)).toBe(false)
     expect(changesEmail(rana, { ...values, email: ` ${rana.email} ` })).toBe(false)
-    expect(changesEmail(rana, { ...values, name: 'New', phone: '0598765432', position: 'New', departmentId: 'other', permissions: [] })).toBe(false)
+    expect(changesEmail(rana, { ...values, name: 'New', phone: '+966598765432', position: 'New', departmentId: 'other', permissions: [] })).toBe(false)
     expect(changesEmail(rana, { ...values, email: 'new@example.test' })).toBe(true)
   })
 
@@ -317,7 +317,7 @@ describe('what is saved to the database when editing', () => {
 
 describe('Approver outside the Quality department', () => {
   const departments = [{ id: 'quality', isQuality: true }, { id: 'home' }]
-  const person = { name: 'Rana', email: 'rana@example.test', phone: '0512345678', position: 'P', divisionId: NO_DIVISION }
+  const person = { name: 'Rana', email: 'rana@example.test', phone: '+966512345678', position: 'P', divisionId: NO_DIVISION }
 
   it('is refused for a department that is not Quality', () => {
     expect(validateNewUser({ ...person, departmentId: 'home', permissions: ['approver'] }, [], departments).permissions).toBe('approver-outside-quality')
@@ -337,56 +337,11 @@ describe('Approver outside the Quality department', () => {
 })
 
 describe('an email with capitals', () => {
-  const person = { name: 'Rana', phone: '0512345678', position: 'P', divisionId: NO_DIVISION, departmentId: 'home', permissions: [] }
+  const person = { name: 'Rana', phone: '+966512345678', position: 'P', divisionId: NO_DIVISION, departmentId: 'home', permissions: [] }
 
   it('still counts as taken: the check ignores case', () => {
     const taken = user('sara', ['author'])
     expect(validateNewUser({ ...person, email: 'SARA@Hawkim.Demo' }, [taken], [{ id: 'home' }]).email).toBe('email-taken')
     expect(validateNewUser({ ...person, email: 'Other@Hawkim.Demo' }, [taken], [{ id: 'home' }]).email).toBeUndefined()
-  })
-})
-
-describe('unsaved changes on Add User and Edit User', () => {
-  const opened: NewUser = { name: 'Rana Saleh', email: 'rana@hawkim.demo', phone: '0512345678', position: 'Specialist', divisionId: 'medical', departmentId: 'drug-safety', permissions: ['author', 'reviewer'] }
-
-  it('sees no change when nothing was edited', () => {
-    expect(userFormChanged(opened, { ...opened })).toBe(false)
-  })
-
-  it('treats the phone as one number however it is written', () => {
-    expect(userFormChanged(opened, { ...opened, phone: '+966512345678' })).toBe(false)
-    expect(userFormChanged({ ...opened, phone: '+966512345678' }, opened)).toBe(false)
-    expect(userFormChanged(opened, { ...opened, phone: '05 1234 5678' })).toBe(false)
-    expect(userFormChanged(opened, { ...opened, phone: '0512345679' })).toBe(true)
-  })
-
-  it('ignores spaces around the text, the case of the email and the order of the permissions', () => {
-    expect(userFormChanged(opened, { ...opened, name: '  Rana Saleh ', position: 'Specialist  ', email: ' RANA@hawkim.demo' })).toBe(false)
-    expect(userFormChanged(opened, { ...opened, permissions: ['reviewer', 'author'] })).toBe(false)
-  })
-
-  it('sees a change in any field', () => {
-    const edits: Partial<NewUser>[] = [
-      { name: 'Rana S.' }, { email: 'rana.saleh@hawkim.demo' }, { phone: '0598765432' }, { divisionId: 'technology' },
-      { departmentId: 'medical-affairs' }, { position: 'Manager' }, { permissions: ['author'] }, { permissions: ['author', 'reviewer', 'approver'] },
-    ]
-    for (const edit of edits) expect(userFormChanged(opened, { ...opened, ...edit }), JSON.stringify(edit)).toBe(true)
-  })
-
-  it('sees no change once a field is changed back', () => {
-    const edited = { ...opened, name: 'Someone Else', permissions: ['author'] as NewUser['permissions'] }
-    expect(userFormChanged(opened, edited)).toBe(true)
-    expect(userFormChanged(opened, { ...edited, name: 'Rana Saleh', permissions: ['author', 'reviewer'] })).toBe(false)
-  })
-
-  it('on Add User, sees anything typed or chosen as a change', () => {
-    const empty: NewUser = { name: '', email: '', phone: '', position: '', divisionId: '', departmentId: '', permissions: [] }
-    expect(userFormChanged(empty, { ...empty })).toBe(false)
-    expect(userFormChanged(empty, { ...empty, name: 'R' })).toBe(true)
-    expect(userFormChanged(empty, { ...empty, phone: '05' })).toBe(true)
-    expect(userFormChanged(empty, { ...empty, divisionId: 'medical' })).toBe(true)
-    expect(userFormChanged(empty, { ...empty, permissions: ['author'] })).toBe(true)
-    // Only spaces typed: nothing that would be saved.
-    expect(userFormChanged(empty, { ...empty, name: '   ' })).toBe(false)
   })
 })
