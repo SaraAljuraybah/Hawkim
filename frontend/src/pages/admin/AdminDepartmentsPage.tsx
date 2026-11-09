@@ -146,12 +146,13 @@ export function HierarchyTable({ snapshot, query = '', divisions = [], sort = 'd
   return <div className="mt-3 overflow-x-auto rounded-xl border border-beige bg-white">
     <table aria-label={text.title} className="w-full min-w-[600px] table-fixed text-left text-sm">
     {/* Fixed column widths, so expanding, searching, filtering or sorting never shifts the columns. */}
-    <colgroup><col /><col className="w-28" /><col className="w-28" /><col className="w-44" /></colgroup><thead className={tableStyles.head}><tr>
+    <colgroup><col /><col className="w-28" /><col className="w-28" /><col className="w-52" /></colgroup><thead className={tableStyles.head}><tr>
       <th scope="col" className="p-4">{text.name}</th><th scope="col" className="px-3 py-4 text-center">{text.users}</th><th scope="col" className="px-3 py-4 text-center">{text.sops}</th><th scope="col"><span className="sr-only">{text.edit}</span></th>
-    </tr></thead><tbody>
+    </tr></thead>
+      {/* Each division is its own row group, with its departments in the next one (the toggle's aria-controls target), so they sit directly beneath it. */}
       {rows.map(({ division, children, departmentCount, employees, sops }) => {
         const isExpanded = isOpen(division.id)
-        return <Fragment key={division.id}><tr className="border-t border-beige">
+        return <Fragment key={division.id}><tbody><tr className="border-t border-beige">
           <th scope="row" className="p-4">
             {/* The chevron and the division name are one toggle. */}
             <button type="button" aria-expanded={isExpanded} aria-controls={`children-${division.id}`}
@@ -162,13 +163,15 @@ export function HierarchyTable({ snapshot, query = '', divisions = [], sort = 'd
             </button></th>
           <td className={numberCell}>{employees}</td><td className={numberCell}>{sops}</td>
           <td className="p-3"><div className="flex justify-end gap-2"><IconButton label={text.previewName.replace('{name}', division.name)} icon={Eye} onClick={() => onPreview(division)} />
+            {/* Adds a department to this division, collapsed or expanded. */}
+            <IconButton label={text.addDepartment} icon={Plus} onClick={() => onAddDepartment(division.id)} />
             <IconButton label={`${text.edit} ${division.name}`} icon={Pencil} onClick={() => onEdit(division)} />
             <IconButton label={`${text.delete} ${division.name}`} icon={Trash2} danger disabledReason={departmentCount ? text.divisionBlocked : undefined} onClick={() => onDeleteDivision(division)} /></div></td>
-        </tr><tr id={`children-${division.id}`} hidden={!isExpanded}><td colSpan={4} className="border-t border-beige bg-beige/20 py-1.5 pr-3 pl-12"><div className="flex items-center justify-end">
-          {isExpanded && <Button size="sm" onClick={() => onAddDepartment(division.id)}><Plus className="size-3.5" aria-hidden="true" />{text.addDepartment}</Button>}</div></td></tr>
-        {isExpanded && (children.length ? children.map(child) : <tr><td colSpan={4} className="py-4 pl-16 text-text-gray">{text.emptyDepartments}</td></tr>)}
-        </Fragment>
+        </tr></tbody><tbody id={`children-${division.id}`} hidden={!isExpanded}>
+        {isExpanded && (children.length ? children.map(child) : <tr className="border-t border-beige"><td colSpan={4} className="py-4 pl-16 text-text-gray">{text.emptyDepartments}</td></tr>)}
+        </tbody></Fragment>
       })}
+      <tbody>
       {unassigned.length > 0 && <tr><th colSpan={4} className="bg-beige/20 p-4 text-maroon">{text.unassigned}</th></tr>}
       {unassigned.map(child)}
       {!rows.length && !unassigned.length && <tr><td colSpan={4} className="p-10 text-center text-text-gray">{divisions.length ? text.emptyFiltered : text.empty}</td></tr>}

@@ -15,10 +15,25 @@ describe('the admin portal sidebar', () => {
       ['Divisions & Departments', '/admin/departments', 'departments'],
       ['Users', '/admin/users', 'employees'],
       ['SFDA Regulatory Requirements', '/admin/regulations', 'regulatory'],
-      ['Requests', '/admin/requests', 'requests'],
-      ['SOP Directory', '/admin/sops', 'sops'],
       ['Organizational Structure', '/admin/organizational-structure', 'hierarchy'],
+      ['SOP Directory', '/admin/sops', 'sops'],
+      ['Requests', '/admin/requests', 'requests'],
     ])
+  })
+
+  it('has no duplicate tabs', () => {
+    const hrefs = adminEn.shell.nav.map((item) => item.href)
+    expect(new Set(hrefs).size).toBe(hrefs.length)
+    expect(new Set(adminEn.shell.nav.map((item) => item.label)).size).toBe(hrefs.length)
+  })
+
+  it.each(adminEn.shell.nav.map((item) => [item.label, item.href]))('highlights only %s on its page and its subpages', (_, href) => {
+    for (const path of [href, `${href}/x`]) {
+      const html = renderToStaticMarkup(<MemoryRouter initialEntries={[path]}><Sidebar content={adminEn.shell} /></MemoryRouter>)
+      const current = [...html.matchAll(/<a[^>]*aria-current="page"[^>]*>/g)].map((match) => match[0])
+      expect(current).toHaveLength(1)
+      expect(current[0]).toContain(`href="${href}"`)
+    }
   })
 
   it('shows them in that order', () => {

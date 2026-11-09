@@ -19,17 +19,22 @@ describe('unified divisions and departments table', () => {
     expect(html).not.toContain('With Access'); expect(html).not.toContain('>Description</th>')
     expect(html).toContain('Departments (1)')
   })
-  it('keeps aggregates visible while child departments and their add button are collapsed', () => {
+  it('keeps aggregates visible while child departments are collapsed, with Add Department in the division actions', () => {
     const html = render()
     expect(html).toContain('aria-expanded="false"')
     expect(html).toContain('>5</td>'); expect(html).toContain('>1</td>')
-    expect(html).not.toContain('Add Department'); expect(html).not.toContain('>Medical</a>')
+    expect(html).not.toContain('>Medical</span>')
+    // Preview, Add Department, Edit, Delete: an icon-only button named and tooltipped "Add Department".
+    expect([...html.matchAll(/<button[^>]*aria-label="([^"]+)"/g)].map((match) => match[1])).toEqual(['Preview Safety', 'Add Department', 'Edit Safety', 'Delete Safety'])
+    expect(html).toMatch(/<button type="button" aria-label="Add Department" class="[^"]*size-9 rounded-lg border border-beige[^"]*"><svg[^>]*>(?:(?!<\/svg>)[\s\S])*<\/svg><\/button><span[^>]*role="tooltip"[^>]*><span[^>]*>Add Department<\/span><\/span>/)
   })
-  it('opens matching departments under their parent and presets Add Department to that division', () => {
+  it('opens matching departments directly under their parent, without an Add Department toolbar', () => {
     const html = render(' medical ')
     expect(html).toContain('aria-expanded="true"')
     expect(html).toContain('>Medical</span>')
-    expect(html).toMatch(/<button[^>]*>(?:(?!<\/button>)[\s\S])*Add Department<\/button>/)
+    expect(html.match(/aria-label="Add Department"/g)).toHaveLength(1)
+    expect(html).not.toMatch(/<button[^>]*>(?:(?!<\/button>)[\s\S])*Add Department<\/button>/)
+    expect(html).toMatch(/<\/tr><\/tbody><tbody id="children-v"><tr class="border-t border-beige hover:bg-beige\/20">/)
     expect(html).not.toContain('/admin/departments/new')
     expect(html).toContain('Departments (1)')
   })
@@ -65,6 +70,6 @@ describe('admin navigation', () => {
     expect(html).toMatch(/aria-current="page"[^>]*href="\/admin\/departments"|href="\/admin\/departments"[^>]*aria-current="page"/)
     expect(adminEn.shell.nav.filter((item) => item.label === 'Departments')).toHaveLength(0)
     expect(adminEn.shell.nav.filter((item) => item.label === 'Divisions & Departments')).toHaveLength(1)
-    expect(adminEn.shell.nav.at(-1)?.label).toBe('Organizational Structure')
+    expect(adminEn.shell.nav.at(-1)?.label).toBe('Requests')
   })
 })

@@ -20,11 +20,12 @@ const hierarchy: OrganizationHierarchy = {
 const chart = (value = hierarchy, qualityDepartmentId?: string) => renderToStaticMarkup(<OrganizationChart hierarchy={value} qualityDepartmentId={qualityDepartmentId} />)
 
 describe('Organizational Structure', () => {
-  it('puts Organizational Structure last, with its existing active indicator', () => {
+  it('puts Organizational Structure fourth, after SFDA Regulatory Requirements, with its existing active indicator', () => {
     const html = renderToStaticMarkup(<MemoryRouter initialEntries={['/admin/organizational-structure']}><Sidebar content={adminEn.shell} /></MemoryRouter>)
-    expect(adminEn.shell.nav.at(-1)?.label).toBe('Organizational Structure')
-    expect(html.indexOf('>Requests<')).toBeLessThan(html.indexOf('>Organizational Structure<'))
-    expect(html.indexOf('>Organizational Structure<')).toBeLessThan(html.indexOf('>Sign Out<'))
+    expect(adminEn.shell.nav[3]?.label).toBe('Organizational Structure')
+    expect(html.indexOf('>SFDA Regulatory Requirements<')).toBeLessThan(html.indexOf('>Organizational Structure<'))
+    expect(html.indexOf('>Organizational Structure<')).toBeLessThan(html.indexOf('>SOP Directory<'))
+    expect(html.indexOf('>Requests<')).toBeLessThan(html.indexOf('>Sign Out<'))
     expect(html).toMatch(/<a[^>]*aria-current="page"[^>]*href="\/admin\/organizational-structure"/)
     expect(html).toContain('lucide-network')
   })

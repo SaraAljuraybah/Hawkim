@@ -42,10 +42,10 @@ beforeEach(() => {
 })
 
 describe('the SOP Directory in the admin portal', () => {
-  it('is a tab between Requests and Organizational Structure', () => {
+  it('is a tab between Organizational Structure and Requests', () => {
     const labels = adminEn.shell.nav.map((item) => item.label)
-    expect(labels.indexOf('SOP Directory')).toBe(labels.indexOf('Requests') + 1)
-    expect(labels.at(-1)).toBe('Organizational Structure')
+    expect(labels.indexOf('SOP Directory')).toBe(labels.indexOf('Organizational Structure') + 1)
+    expect(labels.indexOf('Requests')).toBe(labels.indexOf('SOP Directory') + 1)
   })
 
   it('shows the existing empty-state message, not a blank area, when the admin can read no SOP', () => {
