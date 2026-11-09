@@ -137,11 +137,11 @@ describe('top bar links to My Profile', () => {
     expect(links()[1]).toContain('>Sara Aljuraybah<')
   })
 
-  it('shows "Position | Department" under the name, the separator hidden from screen readers', () => {
+  it('shows "Department | Position" under the name, the separator hidden from screen readers', () => {
     fixture.user = { ...fixture.user, position: 'Pharmacovigilance Specialist' }
     const markup = html()
     const line = markup.match(/<div class="hidden flex-wrap[^"]*sm:flex">(.*?)<\/div>/)![1]
-    expect(line).toBe('<span class="min-w-0 break-words">Pharmacovigilance Specialist</span><span aria-hidden="true">|</span><button type="button">Department Switcher</button>')
+    expect(line).toBe('<button type="button">Department Switcher</button><span aria-hidden="true">|</span><span class="min-w-0 break-words">Pharmacovigilance Specialist</span>')
     expect(markup.indexOf('Sara Aljuraybah<')).toBeLessThan(markup.indexOf('Pharmacovigilance Specialist'))
   })
 
@@ -189,11 +189,11 @@ describe('My Profile in the admin portal', () => {
 
   beforeEach(() => { fixture.user = admin })
 
-  it('shows the position without the division and department, in one h1 page, with Admin as the permission', () => {
+  it('shows the position without the division and department, in one h1 page, with System Admin as the permission', () => {
     fixture.user = { ...admin, position: 'IT Manager' }
     const html = page()
     expect([...html.matchAll(/<dt[^>]*>([^<]+)<\/dt>/g)].map((match) => match[1])).toEqual(['Name', 'Email', 'Phone Number', 'Position', 'Permission', 'Password'])
-    expect(value(html, 'Permission')).toBe('Admin')
+    expect(value(html, 'Permission')).toBe('System Admin')
     expect(value(html, 'Position')).toBe('IT Manager')
     expect(html).not.toContain('Pharmacovigilance')
     expect(html.match(/<h1/g)).toHaveLength(1)
@@ -219,12 +219,13 @@ describe('My Profile in the admin portal', () => {
     expect(links[1]).toContain('aria-hidden="true"')
     expect(links[1]).toContain('>Nouf Almutairi<')
     // Still shows the role, as plain text.
-    expect(html).toContain('>Administrator</p>')
+    expect(html).toContain('>System Admin</p>')
   })
 
-  it('shows "Position | Administrator" under the admin\'s name, the separator hidden from screen readers', () => {
+  it('shows only "System Admin" under the admin\'s name, without the position', () => {
     const html = renderToStaticMarkup(<MemoryRouter><AdminTopBar content={adminEn.shell} user={{ ...admin, position: 'IT Manager' }} menuOpen={false} onOpenMenu={() => {}} menuButtonRef={{ current: null }} /></MemoryRouter>)
-    expect(html).toContain('<span class="break-words">IT Manager</span><span aria-hidden="true"> | </span>Administrator</p>')
+    expect(html).toContain('<p class="text-xs text-text-gray">System Admin</p>')
+    expect(html).not.toContain('IT Manager')
   })
 
   it('knows where each person\'s profile is', () => {

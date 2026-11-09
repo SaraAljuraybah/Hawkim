@@ -4,13 +4,16 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { adminEn } from '../content/admin.en'
 import { sopsEn } from '../content/sops.en'
 import type { Department, Sop, User } from '../data/mock/types'
+import { todayIsoDate } from '../lib/format'
+import { recentSince } from '../lib/sopDirectory'
 import { SopDetailPage } from './SopDetailPage'
 import { AdminSopsPage, SopsPage } from './SopsPage'
 
 const fixture = vi.hoisted(() => ({
   user: { id: 'admin', name: 'Nouf', initials: 'NA', email: 'nouf@example.test', departmentId: 'it', permissions: ['admin'] } as User,
   it: { id: 'it', name: 'Information Technology', initials: 'IT', description: '' } as Department,
-  other: { id: 'pv', name: 'Pharmacovigilance', initials: 'PV', description: '' } as Department,
+  other: { id: 'pv', name: 'Pharmacovigilance', initials: 'PV', description: '', divisionId: 'med', divisionName: 'Medical' } as Department,
+  removed: { id: 'old', name: 'Old Department', initials: 'OD', description: '', divisionId: 'gone', divisionName: 'Gone Division', removedAt: '2026-01-01' } as Department,
   sops: [] as Sop[],
   titles: [] as string[],
 }))
@@ -21,7 +24,7 @@ vi.mock('../state/activeDepartmentContext', () => ({ useActiveDepartment: () => 
 vi.mock('../state/departmentsContext', () => ({ useDepartments: () => ({
   getDepartment: (id: string) => [fixture.it, fixture.other].find((item) => item.id === id),
   nameOf: (id: string) => [fixture.it, fixture.other].find((item) => item.id === id)?.name ?? '',
-  departments: [fixture.it, fixture.other],
+  departments: [fixture.it, fixture.other, fixture.removed],
 }) }))
 vi.mock('../state/requestsContext', () => ({ useMyRequests: () => [] }))
 vi.mock('../state/sopsContext', () => ({ useSops: () => ({ sops: fixture.sops }) }))
@@ -31,7 +34,13 @@ const sop = (id: string, departmentId: string, status: Sop['status'] = 'publishe
   id, code: `SOP-${id}`, title: `Procedure ${id}`, authorId: 'someone', coAuthorIds: [], departmentId, status, version: '1',
   lastUpdated: '2026-10-01', fileName: 'a.pdf', fileType: 'pdf', versions: [], reviewers: [], approvers: [], timeline: [], comments: [], complianceChecks: [],
 })
-const directory = () => renderToStaticMarkup(<MemoryRouter initialEntries={['/admin/sops']}><AdminSopsPage /></MemoryRouter>)
+/** A checkbox dropdown's button and its list of checkboxes (MultiSelectField). */
+const dropdown = (html: string, name: string) => {
+  const start = html.lastIndexOf('<button', html.indexOf(`name="${name}"`))
+  return html.slice(start, html.indexOf('</div>', html.lastIndexOf(`name="${name}"`)))
+}
+const choices = (html: string) => [...html.matchAll(/value="([^"]+)"(?: checked="")?\/><span[^>]*>([^<]+)<\/span>/g)].map((match) => match[2])
+const directory = (search = '') => renderToStaticMarkup(<MemoryRouter initialEntries={[`/admin/sops${search}`]}><AdminSopsPage /></MemoryRouter>)
 const detail = (id: string) => renderToStaticMarkup(
   <MemoryRouter initialEntries={[`/admin/sops/${id}`]}><Routes><Route path="/admin/sops/:id" element={<SopDetailPage admin />} /></Routes></MemoryRouter>,
 )
@@ -48,20 +57,83 @@ describe('the SOP Directory in the admin portal', () => {
     expect(labels.indexOf('Requests')).toBe(labels.indexOf('SOP Directory') + 1)
   })
 
-  it('shows the existing empty-state message, not a blank area, when the admin can read no SOP', () => {
+  it('shows an empty-state message, not a blank area, when the admin can read no SOP', () => {
     const html = directory()
-    expect(html).toContain(`>${sopsEn.empty}<`)
+    expect(html).toContain(`>${sopsEn.adminEmpty}<`)
     expect(html.match(/<h1/g)).toHaveLength(1)
     expect(html).toContain('>SOP Directory</h1>')
-    expect(fixture.titles.at(-1)).toBe('SOP Directory · Admin | Hawkim')
+    expect(fixture.titles.at(-1)).toBe('SOP Directory · System Admin | Hawkim')
   })
 
-  it('shows the admin\'s own department, with search, sort and the views, and no File Type filter', () => {
+  it('has Search, Filter by Division, Filter by Department and Sort By on one row, the views, no File Type filter and no department line', () => {
     const html = directory()
-    expect(html).toContain('Information Technology')
     for (const name of ['sopSearch', 'sopSort']) expect(html).toContain(`name="${name}"`)
+    // Stacked on phones, 2×2 from sm, one row from xl.
+    expect(html).toContain('sm:grid-cols-2 xl:grid-cols-[minmax(0,1.4fr)_repeat(3,minmax(0,1fr))]')
+    const order = ['name="sopSearch"', '>Filter by Division</span>', '>Filter by Department</span>', 'name="sopSort"'].map((part) => html.indexOf(part))
+    expect(order.every((position, index) => position > -1 && (index === 0 || position > order[index - 1]))).toBe(true)
     expect(html).not.toContain('name="documentType"')
     expect(html).toContain('role="tablist"')
+    expect(html).toContain('>Recently Published<')
+    // Every department, so no "Department: …" line under the subtitle.
+    expect(html).not.toContain(`${sopsEn.departmentLabel}: </span>`)
+  })
+
+  it('lists every department\'s published SOPs, never Others', () => {
+    fixture.sops = [sop('1', 'it'), sop('9', 'pv'), { ...sop('8', 'pv'), directoryGroup: 'others' }]
+    const html = directory()
+    expect(html).toContain('>Procedure 1<')
+    expect(html).toContain('>Procedure 9<')
+    expect(html).not.toContain('Procedure 8')
+    expect(html).toContain('>2 SOPs found<')
+  })
+
+  it('uses the Divisions & Departments checkbox dropdowns, from the real data without removed departments', () => {
+    const html = directory()
+    const divisions = dropdown(html, 'divisionFilter')
+    expect(divisions).toMatch(/^<button type="button" aria-label="Filter by Division" aria-expanded="false"/)
+    expect(divisions).toContain('>All divisions</span>')
+    expect(divisions).toContain('role="group" aria-label="Filter by Division" hidden=""')
+    expect(choices(divisions)).toEqual(['Medical', 'No Division'])
+    const departments = dropdown(html, 'departmentFilter')
+    expect(departments).toContain('>All departments</span>')
+    expect(choices(departments)).toEqual(['Information Technology', 'Pharmacovigilance'])
+    expect(html).not.toContain('Old Department')
+    expect(html).not.toContain('Gone Division')
+    expect(html).not.toContain('>Clear Filters<')
+  })
+
+  it('keeps the checked divisions and departments from the URL, with the count and Clear Filters', () => {
+    fixture.sops = [sop('1', 'it'), sop('9', 'pv')]
+    const byDivision = directory('?division=med,gone')
+    expect(byDivision).toContain('>Procedure 9<')
+    expect(byDivision).not.toContain('Procedure 1<')
+    expect(byDivision).toContain('>1 SOP found<')
+    expect(dropdown(byDivision, 'divisionFilter')).toContain('aria-label="Filter by Division: Medical"')
+    expect(byDivision).toContain('>Clear Filters<')
+    const byDepartment = directory('?dept=it')
+    expect(byDepartment).toContain('>Procedure 1<')
+    expect(byDepartment).not.toContain('Procedure 9<')
+    expect(dropdown(byDepartment, 'departmentFilter')).toContain('aria-label="Filter by Department: Information Technology"')
+  })
+
+  it('needs both when both are used: a mismatch shows the normal empty state, and the department stays checked', () => {
+    fixture.sops = [sop('1', 'it'), sop('9', 'pv')]
+    const html = directory('?division=med&dept=it')
+    expect(html).toContain('>0 SOPs found<')
+    expect(html).toContain(`>${sopsEn.filters.empty}<`)
+    expect(dropdown(html, 'departmentFilter')).toContain('checked="" value="it"')
+  })
+
+  it('shows SOPs of the last three months on Recently Published', () => {
+    fixture.sops = [{ ...sop('1', 'it'), lastUpdated: todayIsoDate() }, { ...sop('2', 'pv'), lastUpdated: '2020-01-01' }, { ...sop('3', 'pv'), lastUpdated: recentSince() }]
+    const recent = directory('?tab=recent')
+    expect(recent).toContain('>Procedure 1<')
+    expect(recent).toContain('>Procedure 3<')
+    expect(recent).not.toContain('Procedure 2')
+    expect(directory()).toContain('>Procedure 2<')
+    fixture.sops = [{ ...sop('2', 'pv'), lastUpdated: '2020-01-01' }]
+    expect(directory('?tab=recent')).toContain(`>${sopsEn.recentEmpty}<`)
   })
 
   it('lists the published SOPs it can read, opening inside the admin portal', () => {
@@ -79,7 +151,7 @@ describe('an SOP opened from the admin directory', () => {
     fixture.sops = [sop('1', 'it')]
     const html = detail('1')
     expect(html).toMatch(/<a[^>]*href="\/admin\/sops"[^>]*>.*Back to SOP Directory<\/a>/)
-    expect(fixture.titles.at(-1)).toBe('Procedure 1 · Admin | Hawkim')
+    expect(fixture.titles.at(-1)).toBe('Procedure 1 · System Admin | Hawkim')
   })
 
   it('has no edit, workflow or request buttons', () => {
@@ -88,12 +160,22 @@ describe('an SOP opened from the admin directory', () => {
     for (const word of ['Edit', 'Submit', 'Upload', 'Delete', 'Review', 'Approve', 'Request Access', 'Compliance Check']) expect(html).not.toContain(`>${word}`)
   })
 
-  it('never offers Request Access for another department\'s SOP', () => {
+  it('opens another department\'s published SOP (its file, when it has one), with no Request Access', () => {
     fixture.sops = [sop('9', 'pv')]
     const html = detail('9')
-    expect(html).toContain('This SOP belongs to Pharmacovigilance.')
+    expect(html).toContain('>Procedure 9</h1>')
+    // Granted: the viewer's place (this test SOP has no file), not "no access".
+    expect(html).toContain('The file for this SOP isn&#x27;t available yet.')
+    expect(html).not.toContain('This SOP belongs to')
     expect(html).not.toContain('Request Access')
     expect(html).not.toContain('/requests/new')
+  })
+
+  it('still locks an SOP in Others, without Request Access', () => {
+    fixture.sops = [{ ...sop('8', 'pv'), directoryGroup: 'others' }]
+    const html = detail('8')
+    expect(html).toContain('This SOP belongs to Pharmacovigilance.')
+    expect(html).not.toContain('Request Access')
   })
 
   it('shows Not Found for an SOP that isn\'t published', () => {

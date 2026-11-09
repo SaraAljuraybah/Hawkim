@@ -3,12 +3,14 @@ import { useSearchParams } from 'react-router-dom'
 import { Building2, FileText, Search } from 'lucide-react'
 import { Button } from '../components/ui/Button'
 import { Pagination } from '../components/ui/Pagination'
+import { MultiSelectField } from '../components/ui/MultiSelectField'
 import { TextField } from '../components/ui/TextField'
 import { SelectField } from '../components/ui/SelectField'
 import type { Department } from '../data/mock/types'
 import type { MySopSort } from '../lib/mySops'
-import { clampPage, pageCount, pageSlice, rememberedPagesFor, resultsParams, tabSwitch, updateParams, type RememberedPages } from '../lib/pagination'
-import { DIRECTORY_URL_DEFAULTS, filterDirectorySops, OTHERS_SECTION, readDirectoryUrl } from '../lib/sopDirectory'
+import { clampPage, listParam, pageCount, pageSlice, rememberedPagesFor, resultsParams, tabSwitch, updateParams, type RememberedPages } from '../lib/pagination'
+import { ALL_DEPARTMENTS, DIRECTORY_URL_DEFAULTS, filterDirectorySops, OTHERS_SECTION, readDirectoryUrl, recentSince } from '../lib/sopDirectory'
+import { departmentFilterOptions, divisionFilterOptions } from '../lib/userAdmin'
 import { devSampleCount, devSampleSops } from '../lib/devSampleSops'
 import { directorySopsFor } from '../lib/sopAccess'
 import { adminSopPath, sopPath } from '../lib/routes'
@@ -19,6 +21,7 @@ import { SopList } from '../components/sops/SopList'
 import { Tabs, type TabItem } from '../components/ui/Tabs'
 import { tabIds } from '../components/ui/tabIds'
 import { ViewToggle, type ViewMode } from '../components/ui/ViewToggle'
+import { organizationAdminEn as filterText } from '../content/organizationAdmin.en'
 import { paginationEn } from '../content/pagination.en'
 import { sopsEn } from '../content/sops.en'
 import type { SopTabKey } from '../content/types'
@@ -47,8 +50,9 @@ export function SopsPage() {
 }
 
 /**
- * The SOP Directory in the admin portal ("/admin/sops"), read-only: the same page for the admin's own
- * department, with no department switcher. The database decides which SOPs an admin can read.
+ * The SOP Directory in the admin portal ("/admin/sops"), read-only: every department's published SOPs
+ * (not Others), with Filter by Division and Filter by Department instead of a department switcher. The
+ * database decides which SOPs an admin can read (admin_can_read_published_sop).
  */
 export function AdminSopsPage() {
   const user = useCurrentUser()
@@ -66,15 +70,28 @@ function SopDirectory({ activeDepartment, admin = false }: { activeDepartment: D
   const { sops } = useSops()
   const user = useCurrentUser()
   const requests = useMyRequests()
+  const { departments, getDepartment } = useDepartments()
 
   // The tab, search, sort and page are kept in the URL, so a refresh or Back restores them.
   const [params, setParams] = useSearchParams()
-  const { tab, query, sort, page: urlPage } = useMemo(() => readDirectoryUrl(params), [params])
+  const { tab, query, sort, divisions: urlDivisions, departments: urlDepartments, page: urlPage } = useMemo(() => readDirectoryUrl(params), [params])
+  // The admin's Filter by Division and Filter by Department, from the active departments; other roles see
+  // one department. Choices that no longer exist (an old link) are dropped.
+  const divisionChoices = useMemo(() => {
+    const active = departments.filter((department) => !department.removedAt)
+    return admin ? divisionFilterOptions(active, filterText.filterNoDivision) : []
+  }, [admin, departments])
+  const departmentChoices = useMemo(
+    () => (admin ? departmentFilterOptions(departments.filter((department) => !department.removedAt)) : []),
+    [admin, departments],
+  )
+  const filterDivisions = useMemo(() => urlDivisions.filter((id) => divisionChoices.some((option) => option.value === id)), [urlDivisions, divisionChoices])
+  const filterDepartments = useMemo(() => urlDepartments.filter((id) => departmentChoices.some((option) => option.value === id)), [urlDepartments, departmentChoices])
   const searchRef = useRef<HTMLInputElement>(null)
   // The page each other tab was left on, for this department only: switching department starts every tab on page 1.
   const [memory, setMemory] = useState<RememberedPages<SopTabKey>>({ department: '', pages: {} })
   // The sort order isn't a filter: it doesn't show Clear Filters and isn't reset by it.
-  const hasFilters = query.length > 0
+  const hasFilters = query.length > 0 || filterDivisions.length > 0 || filterDepartments.length > 0
   const [view, setView] = useState<ViewMode>(readStoredView)
 
   useEffect(() => {
@@ -100,9 +117,13 @@ function SopDirectory({ activeDepartment, admin = false }: { activeDepartment: D
     label: content.tabs[key],
   }))
   const showingOthers = tab === 'others' && hasOthers
+  // Recently Published: dated within the last RECENT_MONTHS months.
+  const since = tab === 'recent' ? recentSince() : undefined
   const visibleSops = useMemo(
-    () => filterDirectorySops(authorized, showingOthers ? OTHERS_SECTION : activeDepartment.id, query, sort),
-    [authorized, showingOthers, activeDepartment.id, query, sort],
+    () => filterDirectorySops(authorized, showingOthers ? OTHERS_SECTION : admin ? ALL_DEPARTMENTS : activeDepartment.id, query, sort, {
+      since, divisions: filterDivisions, getDepartment, departments: filterDepartments,
+    }),
+    [authorized, showingOthers, admin, activeDepartment.id, query, sort, since, filterDivisions, getDepartment, filterDepartments],
   )
   // A remembered Others tab falls back to All once there is nothing in Others.
   const selectedTab: SopTabKey = showingOthers || tab !== 'others' ? tab : 'all'
@@ -125,6 +146,9 @@ function SopDirectory({ activeDepartment, admin = false }: { activeDepartment: D
   }
   const setQuery = (value: string) => changeResults({ q: value })
   const setSort = (value: MySopSort) => changeResults({ sort: value })
+  // Independent: changing one never changes the other.
+  const setDivisions = (ids: string[]) => changeResults({ division: listParam(ids) })
+  const setDepartments = (ids: string[]) => changeResults({ dept: listParam(ids) })
 
   // Each tab opens on the page it was left on.
   function setTab(next: SopTabKey) {
@@ -145,7 +169,7 @@ function SopDirectory({ activeDepartment, admin = false }: { activeDepartment: D
   }
 
   function clearFilters() {
-    changeResults({ q: undefined })
+    changeResults({ q: undefined, division: undefined, dept: undefined })
     searchRef.current?.focus()
   }
 
@@ -153,13 +177,18 @@ function SopDirectory({ activeDepartment, admin = false }: { activeDepartment: D
     <>
       <h1 className="text-2xl tracking-tight sm:text-3xl">{content.title}</h1>
       <p className="mt-2 text-text-gray">{content.subtitle}</p>
-      <p className="mt-3 inline-flex items-center gap-2 text-sm font-medium text-maroon">
-        <Building2 aria-hidden="true" className="size-4 shrink-0" strokeWidth={1.75} />
-        {showingOthers ? content.othersSection : <><span className="sr-only">{content.departmentLabel}: </span>{activeDepartment.name}</>}
-      </p>
+      {/* The department shown; the admin sees every department, so has none */}
+      {!admin && (
+        <p className="mt-3 inline-flex items-center gap-2 text-sm font-medium text-maroon">
+          <Building2 aria-hidden="true" className="size-4 shrink-0" strokeWidth={1.75} />
+          {showingOthers ? content.othersSection : <><span className="sr-only">{content.departmentLabel}: </span>{activeDepartment.name}</>}
+        </p>
+      )}
 
       <div role="search" aria-label={content.filters.label} className="mt-6 rounded-xl border border-beige bg-white p-4 sm:p-5">
-        <div className="grid items-end gap-4 sm:grid-cols-[minmax(0,1fr)_12rem]">
+        {/* Admin: Search, Filter by Division, Filter by Department and Sort By, stacked on phones, 2×2 from sm and one
+            row from xl (narrower, they'd cut off their values). Others: Search and Sort By on one row from sm. */}
+        <div className={`grid items-end gap-4 ${admin ? 'sm:grid-cols-2 xl:grid-cols-[minmax(0,1.4fr)_repeat(3,minmax(0,1fr))]' : 'sm:grid-cols-[minmax(0,1fr)_12rem]'}`}>
           <TextField
             ref={searchRef}
             name="sopSearch"
@@ -170,6 +199,21 @@ function SopDirectory({ activeDepartment, admin = false }: { activeDepartment: D
             onChange={(event) => setQuery(event.target.value)}
             endAdornment={<Search aria-hidden="true" className="mr-2 size-4 text-text-gray" />}
           />
+          {admin && (
+            <>
+              {/* As on Divisions & Departments: a visible label; the control's accessible name is the same text. */}
+              <div className="min-w-0">
+                <span aria-hidden="true" className="mb-1.5 block text-sm font-medium text-maroon">{filterText.filterDivisions}</span>
+                <MultiSelectField name="divisionFilter" label={filterText.filterDivisions} placeholder={filterText.filterPlaceholder} emptyText={filterText.filterEmpty}
+                  options={divisionChoices} value={filterDivisions} onChange={setDivisions} />
+              </div>
+              <div className="min-w-0">
+                <span aria-hidden="true" className="mb-1.5 block text-sm font-medium text-maroon">{filterText.filterDepartments}</span>
+                <MultiSelectField name="departmentFilter" label={filterText.filterDepartments} placeholder={filterText.filterDepartmentsPlaceholder}
+                  emptyText={filterText.filterDepartmentsEmpty} options={departmentChoices} value={filterDepartments} onChange={setDepartments} />
+              </div>
+            </>
+          )}
           <SelectField
             name="sopSort"
             label={content.filters.sortLabel}
@@ -209,7 +253,9 @@ function SopDirectory({ activeDepartment, admin = false }: { activeDepartment: D
             >
               <FileText className="size-6" strokeWidth={1.75} />
             </span>
-            <p className="mt-4 text-text-gray">{hasFilters ? content.filters.empty : showingOthers ? content.othersEmpty : content.empty}</p>
+            <p className="mt-4 text-text-gray">
+              {hasFilters ? content.filters.empty : showingOthers ? content.othersEmpty : selectedTab === 'recent' ? content.recentEmpty : admin ? content.adminEmpty : content.empty}
+            </p>
           </div>
         ) : view === 'grid' ? (
           <SopGrid sops={pageSops} content={content} sopHref={sopHref} />

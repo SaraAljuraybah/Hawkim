@@ -32,12 +32,12 @@ beforeEach(() => {
 })
 
 describe('Edit User', () => {
-  it('has one h1, Edit User, with its subtitle and browser tab title', () => {
+  it('has one h1: "Edit User" as a small line above the name, with the browser tab title', () => {
     fixture.titles.length = 0
     const html = render()
     expect(html.match(/<h1/g)).toHaveLength(1)
-    expect(html).toContain('>Edit User</h1>')
-    expect(html).toContain('Update this user&#x27;s details and permissions.')
+    expect(html).toContain('<h1 class="min-w-0 text-2xl break-words tracking-tight sm:text-3xl"><span class="block text-sm font-medium tracking-normal text-text-gray">Edit User</span> Rana Saleh</h1>')
+    expect(html).not.toContain('Update this user&#x27;s details and permissions.')
     expect(fixture.titles.at(-1)).toBe(adminEn.pageTitle.replace('{page}', 'Edit User'))
   })
 
@@ -45,7 +45,9 @@ describe('Edit User', () => {
     const html = render()
     expect(control(html, 'name')).toContain('value="Rana Saleh"')
     expect(control(html, 'email')).toContain('value="rana@example.test"')
-    expect(control(html, 'phone')).toContain('value="+966512345678"')
+    // The 8 digits after the fixed "+9665"; saved as +9665XXXXXXXX.
+    expect(control(html, 'phone')).toContain('value="12345678"')
+    expect(html).toMatch(/<span id="[^"]+">\+9665<\/span>/)
     expect(control(html, 'division')).toContain('value="Medical Division"')
     expect(control(html, 'department')).toContain('value="Drug Safety"')
     expect(control(html, 'position')).toContain('value="Specialist"')
@@ -57,7 +59,7 @@ describe('Edit User', () => {
 
   it('keeps Add User\'s helper texts and required marks', () => {
     const html = render()
-    expect(html).toContain(adminEn.addUser.email.hint)
+    expect(html).not.toContain('They sign in with this email.')
     expect(html).toContain(adminEn.addUser.phone.hint)
     expect(html.match(/>\*</g)).toHaveLength(6)
   })
@@ -77,12 +79,13 @@ describe('Edit User', () => {
     expect(checkbox(html, 'admin')).not.toContain('checked=""')
   })
 
-  it('shows the avatar, name and Delete in a row above the form, with one Delete', () => {
+  it('has the User Details header above the form: large avatar, name, Delete beside it and the saved badges', () => {
     const html = render()
-    const row = html.slice(html.indexOf('</h1>'), html.indexOf('<form'))
-    expect(row).toContain('>RS</span>')
-    expect(row).toMatch(/<p[^>]*>Rana Saleh<\/p>/)
-    expect(row.indexOf('>Rana Saleh<')).toBeLessThan(row.indexOf('aria-label="Delete Rana Saleh"'))
+    const header = html.slice(0, html.indexOf('<form'))
+    expect(header).toContain('class="inline-flex size-9 shrink-0 items-center justify-center rounded-full bg-beige text-xs font-semibold text-maroon size-14 text-base">RS</span>')
+    // Delete beside the name, below the "Edit User" line.
+    expect(header).toMatch(/Rana Saleh<\/h1><div class="mt-5"><span class="relative inline-flex"><button type="button" aria-label="Delete Rana Saleh"/)
+    expect([...header.matchAll(/<li class="inline-flex[^"]*">([^<]+)<\/li>/g)].map((match) => match[1])).toEqual(['Author', 'Reviewer'])
     expect(html.match(/aria-label="Delete Rana Saleh"/g)).toHaveLength(1)
   })
 

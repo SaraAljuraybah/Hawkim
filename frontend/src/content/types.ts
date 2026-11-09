@@ -315,14 +315,14 @@ export interface SidebarContent {
   /** Product name shown as text next to the logo mark in the sidebar. */
   brandName: string
   homeHref: string
-  /** Small label after the product name, e.g. "Admin" (admin portal only). */
-  portalLabel?: string
   /** Accessible name of the sidebar logo link. */
   homeLinkLabel: string
   navAriaLabel: string
   nav: AppNavItem[]
   signOut: AppNavItem
   closeMenu: string
+  /** Accessible name of the signed-in user's role badges beside the product name. */
+  rolesLabel: string
 }
 
 export interface AppShellContent extends SidebarContent {
@@ -337,7 +337,7 @@ export interface AppShellContent extends SidebarContent {
   reviewsToDoLabel: string
   /** The avatar's link; `label` is its accessible name and `{name}` is the signed-in user. */
   profileLink: LinkContent
-  /** Between the user's position and department under their name in the top bar; hidden from screen readers. */
+  /** Between the user's department and position under their name in the top bar; hidden from screen readers. */
   positionSeparator: string
   departmentSwitcher: {
     /** Label before the department name (visible in the drawer, screen-reader only in the top bar). */
@@ -407,6 +407,10 @@ export interface SopsContent {
   versionTemplate: string
   /** Shown when the list is empty. */
   empty: string
+  /** The System Admin's empty directory (every department). */
+  adminEmpty: string
+  /** An empty Recently Published tab. */
+  recentEmpty: string
   /** SOP detail page ("/sops/:id"). */
   detail: SopDetailContent
 }
@@ -926,7 +930,7 @@ export interface ComplianceContent {
   /** An SOP version as shown, e.g. "v3"; `{version}` is replaced. */
   versionLabel: string
   guideline: string
-  details: { checked: string; version: string; guideline: string }
+  details: { checked: string; version: string }
   card: {
     title: string
     /** `{version}` is the guideline version. */
@@ -939,8 +943,11 @@ export interface ComplianceContent {
     viewReport: string
     /** The SOP's newest check used an older GVP version (PBI 29). `{checked}` and `{current}` are replaced. */
     recheck: { badge: string; note: string }
-    /** The GVP version compliance checks use, in a one-row table before the card's text (authors' view). */
-    guideline: { tableLabel: string }
+    /** The GVP version compliance checks use, in one row before the card's text (authors' view). */
+    guideline: {
+      /** Under its title; `{issued}` and `{added}` are the dates. */
+      dates: string
+    }
   }
   /** The authors' read-only page of that GVP version, from the card's View button. */
   guidelinePage: {
@@ -990,8 +997,6 @@ export interface ComplianceContent {
       verdicts: Record<'fully-compliant' | 'needs-improvement' | 'action-required', string>
       /** Accessible name of the metric tiles. */
       tilesLabel: string
-      /** Read by screen readers on each tile, which goes to that result's findings; `{category}` is replaced. */
-      goToFindings: string
     }
     overview: {
       title: string
@@ -1307,7 +1312,6 @@ export interface ReviewPageContent {
 /* ---------- Admin portal ---------- */
 
 export interface AdminShellContent extends SidebarContent {
-  portalLabel: string
   skipLink: string
   openMenu: string
   drawerLabel: string
@@ -1315,8 +1319,6 @@ export interface AdminShellContent extends SidebarContent {
   profileLink: LinkContent
   /** Shown under the admin's name in the top bar. */
   roleLabel: string
-  /** Between the admin's position and the role label in the top bar (hidden from screen readers). */
-  positionSeparator: string
   /** Accessible text of the pending requests count in the sidebar; `{count}` is replaced. */
   pendingLabel: string
 }
@@ -1595,7 +1597,7 @@ export interface AdminAddUserContent {
   subtitle: string
   back: LinkContent
   name: { label: string }
-  email: { label: string; hint: string }
+  email: { label: string }
   phone: { label: string; hint: string }
   /** Searchable list of divisions; `noDivision` is the choice for departments without one. */
   division: { label: string; placeholder: string; noDivision: string; toggle: string; noMatches: string }
@@ -1607,6 +1609,8 @@ export interface AdminAddUserContent {
   /** The submit button while adding. */
   adding: string
   cancel: string
+  /** Asked when Cancel is pressed with unsaved changes (Add User and Edit User). */
+  unsavedChanges: { title: string; description: string; keep: string; discard: string }
   /** Above the reason when the server refused. */
   notAdded: string
   failures: Record<'forbidden' | 'email-taken' | 'invalid' | 'admin-exclusive' | 'approver-quality' | 'department-unavailable' | 'account-failed' | 'account-blocked' | 'failed', string>
@@ -1628,7 +1632,6 @@ export interface AdminAddUserContent {
 /** Edit User: its fields, Cancel and the back link are Add User's. */
 export interface AdminEditUserContent {
   title: string
-  subtitle: string
   submit: string
   /** The submit button while saving. */
   saving: string
@@ -1699,10 +1702,8 @@ export interface AdminUsersListContent {
   subtitle: string
   addUser: LinkContent
   search: { label: string; placeholder: string }
-  /** `noDivision`: departments without a division. */
-  divisionFilter: { label: string; all: string; noDivision: string }
-  /** Lists the chosen division's departments. */
-  departmentFilter: { label: string; all: string }
+  /** Clears the search and both filters (their texts are organizationAdminEn's, shared with the other pages). */
+  clearFilters: string
   count: CountText
   /** Accessible name of the table. */
   tableLabel: string

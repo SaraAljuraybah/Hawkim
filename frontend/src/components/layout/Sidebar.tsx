@@ -2,6 +2,7 @@ import { Link, NavLink } from 'react-router-dom'
 import { X } from 'lucide-react'
 import type { AppShellContent, SidebarContent } from '../../content/types'
 import { useSession } from '../../state/sessionContext'
+import { PermissionBadges } from '../admin/UserBits'
 import { icons } from '../icons'
 import { Logo } from '../ui/Logo'
 import { DepartmentSwitcher } from './DepartmentSwitcher'
@@ -34,36 +35,39 @@ const itemIcon = 'size-5 shrink-0 text-gold-light'
 /**
  * Sidebar contents: logo, main navigation and Sign Out, on Primary Maroon (as in the
  * landing page's dashboard preview). Used as the fixed desktop sidebar and inside the
- * mobile drawer, in the employee app and in the admin portal (with an "Admin" label).
+ * mobile drawer, in the employee app and in the admin portal, with the signed-in user's role
+ * badges beside the product name (none for a user without a role).
  * Contrast on maroon #3A0B18: beige text 14.39:1, white active text 13.08:1 on the
  * active tint, light gold icons/badges/focus ring 8.84:1.
  */
 export function Sidebar({ content, onNavigate, onClose, departmentSwitcher, badges }: SidebarProps) {
   const SignOutIcon = icons[content.signOut.icon]
-  const { signOut } = useSession()
+  const { user, signOut } = useSession()
   const homeHref = content.homeHref
 
   return (
     // On maroon the default maroon focus ring would be invisible: use light gold (not
     // inside the white department menu that opens from the drawer).
     <div className="flex h-full flex-col bg-maroon [&_:focus-visible:not([role=menuitemradio])]:outline-gold-light">
-      <div className="flex items-center justify-between gap-2 px-5 pt-6 pb-6">
-        {/* Mark + product name; the link's accessible name comes from aria-label */}
-        <Link
-          to={homeHref}
-          onClick={onNavigate}
-          aria-label={content.homeLinkLabel}
-          className="inline-flex items-center gap-2.5 rounded-md"
-        >
-          {/* The official on-dark mark (off-white rings, gold centre) for the maroon sidebar */}
-          <Logo variant="markOnDark" alt="" className="h-10" />
-          <span className="text-[1.375rem] font-semibold tracking-normal text-offwhite">{content.brandName}</span>
-          {content.portalLabel && (
-            <span className="rounded-md bg-gold-light px-1.5 py-0.5 text-xs font-semibold text-maroon">
-              {content.portalLabel}
-            </span>
-          )}
-        </Link>
+      <div className="flex items-start justify-between gap-2 px-5 pt-6 pb-6">
+        {/* Mark + product name, then one badge per role (nothing without a role) on the same line. The
+            badges stay outside the link, whose aria-label would hide them from screen readers. Inline
+            flow indented by the mark's width (2.5rem tall: about 2.36rem wide, plus the 0.5rem gap), with
+            the link pulled back over it, so only badges that don't fit wrap, lined up under the name.
+            Sized so "Hawkim" and one "System Admin" badge fit on one line in the 16rem sidebar. */}
+        <div className="min-w-0 flex-1 pl-[2.875rem] leading-7">
+          <Link
+            to={homeHref}
+            onClick={onNavigate}
+            aria-label={content.homeLinkLabel}
+            className="mr-1.5 -ml-[2.875rem] inline-flex items-center gap-2 rounded-md align-middle"
+          >
+            {/* The official on-dark mark (off-white rings, gold centre) for the maroon sidebar */}
+            <Logo variant="markOnDark" alt="" className="h-10" />
+            <span className="text-lg font-semibold tracking-normal text-offwhite">{content.brandName}</span>
+          </Link>
+          {user && <PermissionBadges user={user} sidebar label={content.rolesLabel} />}
+        </div>
         {onClose && (
           <button
             type="button"

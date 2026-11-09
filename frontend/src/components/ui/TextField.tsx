@@ -19,6 +19,8 @@ export interface TextFieldProps extends Omit<InputHTMLAttributes<HTMLInputElemen
   counter?: string
   /** Element placed inside the input on the right, e.g. a visibility toggle. */
   endAdornment?: ReactNode
+  /** Short text placed inside the input on the left (up to about 5 characters), e.g. a fixed "+9665" prefix. */
+  startAdornment?: ReactNode
   /** Keeps the label for screen readers only (e.g. a search box whose placeholder says the same). */
   labelHidden?: boolean
   /** A slightly shorter input (40px instead of 44px), e.g. in a compact toolbar. */
@@ -42,6 +44,7 @@ export function TextField({
   requiredMark = false,
   counter,
   endAdornment,
+  startAdornment,
   labelHidden = false,
   compact = false,
   ref,
@@ -80,9 +83,12 @@ export function TextField({
           id={inputId}
           aria-invalid={error || invalid ? true : undefined}
           aria-describedby={describedByIds}
-          className={`${compact ? 'h-10' : 'h-11'} ${controlClasses(error || (invalid ? 'invalid' : undefined))} ${endAdornment ? 'pr-12' : ''}`}
+          className={`${compact ? 'h-10' : 'h-11'} ${controlClasses(error || (invalid ? 'invalid' : undefined))} ${endAdornment ? 'pr-12' : ''} ${startAdornment ? 'pl-16' : ''}`}
           {...inputProps}
         />
+        {startAdornment && (
+          <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-[0.9375rem] text-maroon">{startAdornment}</div>
+        )}
         {endAdornment && (
           <div className="absolute inset-y-0 right-1 flex items-center">{endAdornment}</div>
         )}

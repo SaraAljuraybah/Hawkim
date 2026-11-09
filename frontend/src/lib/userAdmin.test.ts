@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { Permission, Sop, User } from '../data/mock/types'
 import type { SopStatus } from '../types/status'
-import { changesEmail, changesPermissions, defaultDivision, deleteBlockers, departmentsInDivision, divisionOptions, NO_DIVISION, normalizePhone, permissionChangeBlockers, POSITION_MAX, userFormValues, validateNewUser, type AdminContext } from './userAdmin'
+import { changesEmail, changesPermissions, defaultDivision, deleteBlockers, departmentsInDivision, divisionOptions, NO_DIVISION, normalizePhone, permissionChangeBlockers, POSITION_MAX, userFormChanged, userFormValues, validateNewUser, type AdminContext, type NewUser } from './userAdmin'
 
 /** A user in IT with these permissions. */
 function user(id: string, permissions: Permission[]): User {
@@ -343,5 +343,50 @@ describe('an email with capitals', () => {
     const taken = user('sara', ['author'])
     expect(validateNewUser({ ...person, email: 'SARA@Hawkim.Demo' }, [taken], [{ id: 'home' }]).email).toBe('email-taken')
     expect(validateNewUser({ ...person, email: 'Other@Hawkim.Demo' }, [taken], [{ id: 'home' }]).email).toBeUndefined()
+  })
+})
+
+describe('unsaved changes on Add User and Edit User', () => {
+  const opened: NewUser = { name: 'Rana Saleh', email: 'rana@hawkim.demo', phone: '0512345678', position: 'Specialist', divisionId: 'medical', departmentId: 'drug-safety', permissions: ['author', 'reviewer'] }
+
+  it('sees no change when nothing was edited', () => {
+    expect(userFormChanged(opened, { ...opened })).toBe(false)
+  })
+
+  it('treats the phone as one number however it is written', () => {
+    expect(userFormChanged(opened, { ...opened, phone: '+966512345678' })).toBe(false)
+    expect(userFormChanged({ ...opened, phone: '+966512345678' }, opened)).toBe(false)
+    expect(userFormChanged(opened, { ...opened, phone: '05 1234 5678' })).toBe(false)
+    expect(userFormChanged(opened, { ...opened, phone: '0512345679' })).toBe(true)
+  })
+
+  it('ignores spaces around the text, the case of the email and the order of the permissions', () => {
+    expect(userFormChanged(opened, { ...opened, name: '  Rana Saleh ', position: 'Specialist  ', email: ' RANA@hawkim.demo' })).toBe(false)
+    expect(userFormChanged(opened, { ...opened, permissions: ['reviewer', 'author'] })).toBe(false)
+  })
+
+  it('sees a change in any field', () => {
+    const edits: Partial<NewUser>[] = [
+      { name: 'Rana S.' }, { email: 'rana.saleh@hawkim.demo' }, { phone: '0598765432' }, { divisionId: 'technology' },
+      { departmentId: 'medical-affairs' }, { position: 'Manager' }, { permissions: ['author'] }, { permissions: ['author', 'reviewer', 'approver'] },
+    ]
+    for (const edit of edits) expect(userFormChanged(opened, { ...opened, ...edit }), JSON.stringify(edit)).toBe(true)
+  })
+
+  it('sees no change once a field is changed back', () => {
+    const edited = { ...opened, name: 'Someone Else', permissions: ['author'] as NewUser['permissions'] }
+    expect(userFormChanged(opened, edited)).toBe(true)
+    expect(userFormChanged(opened, { ...edited, name: 'Rana Saleh', permissions: ['author', 'reviewer'] })).toBe(false)
+  })
+
+  it('on Add User, sees anything typed or chosen as a change', () => {
+    const empty: NewUser = { name: '', email: '', phone: '', position: '', divisionId: '', departmentId: '', permissions: [] }
+    expect(userFormChanged(empty, { ...empty })).toBe(false)
+    expect(userFormChanged(empty, { ...empty, name: 'R' })).toBe(true)
+    expect(userFormChanged(empty, { ...empty, phone: '05' })).toBe(true)
+    expect(userFormChanged(empty, { ...empty, divisionId: 'medical' })).toBe(true)
+    expect(userFormChanged(empty, { ...empty, permissions: ['author'] })).toBe(true)
+    // Only spaces typed: nothing that would be saved.
+    expect(userFormChanged(empty, { ...empty, name: '   ' })).toBe(false)
   })
 })

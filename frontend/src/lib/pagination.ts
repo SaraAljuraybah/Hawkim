@@ -108,6 +108,16 @@ export function updateParams(
   return next
 }
 
+/** A list in the URL (e.g. `dept=a,b`): its values, each once, blanks ignored. */
+export function readList(params: URLSearchParams, name: string): string[] {
+  return [...new Set((params.get(name) ?? '').split(',').map((value) => value.trim()).filter(Boolean))]
+}
+
+/** A list for the URL: values separated by commas, each once; nothing when empty (the parameter is removed). */
+export function listParam(values: string[]): string | undefined {
+  return values.length ? [...new Set(values)].join(',') : undefined
+}
+
 /** The same URL query without its page (for example after switching department), or '' when nothing is left. */
 export function searchWithoutPage(search: string): string {
   const params = new URLSearchParams(search)

@@ -45,6 +45,26 @@ export function normalizePhone(raw: string): string | null {
   return digits ? `+9665${digits[1]}` : null
 }
 
+/**
+ * Whether the form's values differ from those it opened with, compared as they would be saved:
+ * name, email (ignoring case) and position without surrounding spaces, the phone normalised (so
+ * "05…" and "+9665…" are the same number), and the permissions in any order. Changing a field back
+ * counts as no change.
+ */
+export function userFormChanged(initial: NewUser, values: NewUser): boolean {
+  const phone = (raw: string) => normalizePhone(raw) ?? raw.trim()
+  const permissions = (user: NewUser) => PERMISSIONS.filter((permission) => user.permissions.includes(permission)).join()
+  return (
+    initial.name.trim() !== values.name.trim()
+    || initial.email.trim().toLowerCase() !== values.email.trim().toLowerCase()
+    || phone(initial.phone) !== phone(values.phone)
+    || (initial.divisionId ?? '') !== (values.divisionId ?? '')
+    || initial.departmentId !== values.departmentId
+    || initial.position.trim() !== values.position.trim()
+    || permissions(initial) !== permissions(values)
+  )
+}
+
 /** A department's division as shown (its name once divisions are loaded), or '' without one. */
 export function divisionLabel(department: Pick<Department, 'divisionId' | 'divisionName'> | undefined): string {
   return department?.divisionName ?? department?.divisionId ?? ''
@@ -55,19 +75,19 @@ export function divisionNameIn(departments: Pick<Department, 'divisionId' | 'div
   return divisionLabel(departments.find((department) => department.divisionId === division)) || division
 }
 
-/** "All" in the Users list's Division and Department filters. */
-export const ALL_FILTER = 'all'
-
 export interface UserFilter {
   /** Searched in name, email, division, department and permission names, ignoring case. */
   query: string
-  /** A division, NO_DIVISION, or ALL_FILTER. */
-  division: string
-  /** A department id, or ALL_FILTER. */
-  departmentId: string
+  /** Divisions (NO_DIVISION for departments without one); none means every division. */
+  divisions: string[]
+  /** Department ids; none means every department. */
+  departmentIds: string[]
 }
 
-/** The Users list's users matching the search and both filters, by name. `permissionLabels`: the names shown. */
+/**
+ * The Users list's users matching the search and both filters, by name. The filters are independent:
+ * a user must be in a checked division and in a checked department. `permissionLabels`: the names shown.
+ */
 export function filterUsers(users: User[], getDepartment: (id: string) => Department | undefined, filter: UserFilter, permissionLabels: Record<Permission, string>): User[] {
   const text = filter.query.trim().toLowerCase()
   return users
@@ -75,10 +95,30 @@ export function filterUsers(users: User[], getDepartment: (id: string) => Depart
       const department = getDepartment(user.departmentId)
       const searched = [user.name, user.email, divisionLabel(department), department?.name ?? '', ...user.permissions.map((permission) => permissionLabels[permission])]
       return (!text || searched.some((value) => value.toLowerCase().includes(text))) &&
-        (filter.division === ALL_FILTER || (!!department && departmentsInDivision([department], filter.division).length > 0)) &&
-        (filter.departmentId === ALL_FILTER || user.departmentId === filter.departmentId)
+        inDivisions(department, filter.divisions) &&
+        (filter.departmentIds.length === 0 || filter.departmentIds.includes(user.departmentId))
     })
     .sort((a, b) => a.name.localeCompare(b.name))
+}
+
+/** Whether a department is in one of these divisions (NO_DIVISION: it has none). No divisions means all. */
+export function inDivisions(department: Pick<Department, 'divisionId'> | undefined, divisions: string[]): boolean {
+  return divisions.length === 0 || (!!department && divisions.some((division) => departmentsInDivision([department], division).length > 0))
+}
+
+/**
+ * The "Filter by Division" choices: each division of these departments by name, then `noDivision`
+ * (NO_DIVISION) when some department has none. Pass the active departments (removed ones are left out).
+ */
+export function divisionFilterOptions(departments: Pick<Department, 'divisionId' | 'divisionName'>[], noDivision: string): { value: string; label: string }[] {
+  return divisionOptions(departments).map((division) => ({ value: division, label: division === NO_DIVISION ? noDivision : divisionNameIn(departments, division) }))
+}
+
+/** The "Filter by Department" choices: every one of these departments, by name, whatever the division filter. */
+export function departmentFilterOptions(departments: Pick<Department, 'id' | 'name'>[]): { value: string; label: string }[] {
+  return [...departments]
+    .sort((a, b) => a.name.localeCompare(b.name, 'en') || a.id.localeCompare(b.id, 'en'))
+    .map((department) => ({ value: department.id, label: department.name }))
 }
 
 /** The Division choice for departments that have none. */
@@ -141,6 +181,7 @@ export function userFormValues(user: User, activeDepartments: Pick<Department, '
   return {
     name: user.name,
     email: user.email,
+    // As stored ("+9665XXXXXXXX"); the phone field shows its 8 digits after the fixed "+9665".
     phone: user.phone ?? '',
     position: user.position ?? '',
     departmentId: department?.id ?? '',

@@ -1,5 +1,6 @@
 import { useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { flushSync } from 'react-dom'
+import { useNavigate } from 'react-router-dom'
 import { LoaderCircle } from 'lucide-react'
 import { adminEn } from '../../content/admin.en'
 import { usersEn } from '../../content/users.en'
@@ -9,6 +10,7 @@ import {
   departmentsInDivision,
   PERMISSIONS,
   POSITION_MAX,
+  userFormChanged,
   validateNewUser,
   type NewUser,
   type NewUserField,
@@ -17,6 +19,8 @@ import {
 import { useDepartments } from '../../state/departmentsContext'
 import { Button } from '../ui/Button'
 import { CheckboxGroup } from '../ui/CheckboxGroup'
+import { ConfirmDialog } from '../ui/ConfirmDialog'
+import { PhoneField } from '../ui/PhoneField'
 import { SelectCombobox } from '../ui/SelectCombobox'
 import { TextField } from '../ui/TextField'
 import { DivisionField } from './DivisionField'
@@ -45,7 +49,8 @@ interface UserFormProps {
  * The form of Add User and Edit User: full name, email (valid and unique), phone number (a Saudi
  * mobile number), division, department (one of that division's) and position are required;
  * permissions are optional. Division comes first: the department list waits for it, and when "No
- * Division" is the only choice it is chosen from the start.
+ * Division" is the only choice it is chosen from the start. Cancel asks first when anything differs
+ * from the values it opened with.
  */
 export function UserForm({ initial, otherUsers, submitLabel, busyLabel, notice, onEdit, onSubmit }: UserFormProps) {
   const content = adminEn.addUser
@@ -55,6 +60,9 @@ export function UserForm({ initial, otherUsers, submitLabel, busyLabel, notice, 
   const [errors, setErrors] = useState<FieldErrors>({})
   const [submitAttempted, setSubmitAttempted] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [confirmingCancel, setConfirmingCancel] = useState(false)
+  const navigate = useNavigate()
+  const cancelRef = useRef<HTMLAnchorElement | null>(null)
   const nameRef = useRef<HTMLInputElement>(null)
   const emailRef = useRef<HTMLInputElement>(null)
   const phoneRef = useRef<HTMLInputElement>(null)
@@ -65,6 +73,8 @@ export function UserForm({ initial, otherUsers, submitLabel, busyLabel, notice, 
 
   const division = values.divisionId ?? defaultDivision(activeDepartments)
   const user: NewUser = { ...values, divisionId: division }
+  // Compared with the values it opened with, the default division filled in the same way.
+  const changed = userFormChanged({ ...initial, divisionId: initial.divisionId ?? defaultDivision(activeDepartments) }, user)
   const departmentOptions = departmentsInDivision(activeDepartments, division).map((department) => ({ value: department.id, label: department.name }))
 
   const messages: Record<NewUserProblem, string> = {
@@ -147,26 +157,24 @@ export function UserForm({ initial, otherUsers, submitLabel, busyLabel, notice, 
         label={content.email.label}
         required
         requiredMark
-        hint={content.email.hint}
         value={values.email}
         error={errors.email}
         onChange={(event) => change({ ...values, email: event.target.value })}
         onBlur={() => blur('email')}
         className="mt-5"
       />
-      <TextField
+      {/* "+9665" before the field and the 8 digits in it; values.phone keeps "+9665" and the digits */}
+      <PhoneField
         ref={phoneRef}
         name="phone"
-        type="tel"
-        inputMode="tel"
-        autoComplete="off"
         label={content.phone.label}
         required
         requiredMark
         hint={content.phone.hint}
+        invalidMessage={content.errors.phoneInvalid}
         value={values.phone}
         error={errors.phone}
-        onChange={(event) => change({ ...values, phone: event.target.value })}
+        onChange={(phone) => change({ ...values, phone })}
         onBlur={() => blur('phone')}
         className="mt-5"
       />
@@ -235,7 +243,18 @@ export function UserForm({ initial, otherUsers, submitLabel, busyLabel, notice, 
       {notice}
 
       <div className="mt-8 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-        <Button variant="secondary" to={content.back.href}>
+        {/* Leaves at once without changes; with changes, asks first */}
+        <Button
+          variant="secondary"
+          to={content.back.href}
+          onClick={(event) => {
+            if (!changed) return
+            event.preventDefault()
+            // Focus comes back here on Keep editing.
+            cancelRef.current = event.currentTarget
+            setConfirmingCancel(true)
+          }}
+        >
           {content.cancel}
         </Button>
         <Button type="submit" aria-disabled={busy || undefined}>
@@ -243,6 +262,19 @@ export function UserForm({ initial, otherUsers, submitLabel, busyLabel, notice, 
           {busy && busyLabel ? busyLabel : submitLabel}
         </Button>
       </div>
+
+      <ConfirmDialog
+        open={confirmingCancel}
+        title={content.unsavedChanges.title}
+        description={content.unsavedChanges.description}
+        cancelLabel={content.unsavedChanges.keep}
+        confirmLabel={content.unsavedChanges.discard}
+        onConfirm={() => navigate(content.back.href)}
+        onCancel={() => {
+          setConfirmingCancel(false)
+          cancelRef.current?.focus()
+        }}
+      />
     </form>
   )
 }

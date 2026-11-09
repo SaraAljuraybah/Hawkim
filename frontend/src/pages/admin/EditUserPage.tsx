@@ -3,10 +3,9 @@ import { flushSync } from 'react-dom'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, CircleCheck } from 'lucide-react'
 import { blockerMessage } from '../../components/admin/blockerMessages'
-import { DeleteUserButton } from '../../components/admin/DeleteUserButton'
 import { RefusedBox } from '../../components/admin/RefusedBox'
-import { UserAvatar } from '../../components/admin/UserBits'
 import { UserForm } from '../../components/admin/UserForm'
+import { UserHeader } from '../../components/admin/UserHeader'
 import { adminEn } from '../../content/admin.en'
 import { usersEn } from '../../content/users.en'
 import type { User } from '../../data/mock/types'
@@ -22,8 +21,8 @@ import { NotFoundPage } from '../NotFoundPage'
 import type { AdminUsersLocationState } from './AdminUsersPage'
 
 /**
- * Edit user ("/admin/users/:id/edit"): the Add User form, filled in with the user's details, with
- * Delete user next to their name. Save stays here; a change the rules or the database refuse saves
+ * Edit user ("/admin/users/:id/edit"): the user's page header (with "Edit User" above the name and
+ * Delete user beside it), then the Add User form, filled in with the user's details. Save stays here; a change the rules or the database refuse saves
  * nothing and is explained. Everything but the email is saved to the database; the email only lasts
  * until reload, and the message says so. Deleted and unknown users show Not Found.
  */
@@ -124,8 +123,8 @@ function EditUserContent({ user }: { user: User }) {
         <ArrowLeft aria-hidden="true" className="size-4" strokeWidth={1.75} />
         {adminEn.addUser.back.label}
       </Link>
-      <h1 className="mt-5 text-2xl tracking-tight sm:text-3xl">{content.title}</h1>
-      <p className="mt-2 text-text-gray">{content.subtitle}</p>
+      <UserHeader user={user} label={content.title} onDeleted={deleted} onRefused={refuseDelete} />
+      {deleteRefused && <RefusedBox ref={deleteErrorRef} title={deleteRefused.title} messages={deleteRefused.reasons} />}
 
       {/* Success message after saving (live region stays mounted) */}
       <div role="status" ref={statusRef} tabIndex={-1} className="rounded-lg focus:outline-none">
@@ -136,13 +135,6 @@ function EditUserContent({ user }: { user: User }) {
           </p>
         )}
       </div>
-
-      <div className="mt-6 flex items-center gap-3">
-        <UserAvatar user={user} />
-        <p className="min-w-0 font-medium break-words text-maroon">{user.name}</p>
-        <DeleteUserButton user={user} onDeleted={deleted} onRefused={refuseDelete} />
-      </div>
-      {deleteRefused && <RefusedBox ref={deleteErrorRef} title={deleteRefused.title} messages={deleteRefused.reasons} />}
 
       <UserForm
         key={savedCount}

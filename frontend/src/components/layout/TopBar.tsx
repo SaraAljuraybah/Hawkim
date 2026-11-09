@@ -65,15 +65,15 @@ export function TopBar({ content, user, menuOpen, onOpenMenu, menuButtonRef }: T
               >
                 {user.name}
               </Link>
-              {/* "Position | Department": the position is plain text; the department stays the switcher. */}
+              {/* "Department | Position": the department stays the switcher; the position is plain text. */}
               <div className="hidden flex-wrap items-center gap-x-1.5 text-xs text-text-gray sm:flex">
+                <DepartmentSwitcher content={content.departmentSwitcher} variant="topbar" />
                 {user.position && (
                   <>
-                    <span className="min-w-0 break-words">{user.position}</span>
                     <span aria-hidden="true">{content.positionSeparator}</span>
+                    <span className="min-w-0 break-words">{user.position}</span>
                   </>
                 )}
-                <DepartmentSwitcher content={content.departmentSwitcher} variant="topbar" />
               </div>
             </div>
           </div>

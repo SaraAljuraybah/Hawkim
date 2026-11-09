@@ -78,3 +78,21 @@ describe('directory grants are requester-specific and published-only', () => {
     expect(getSopAccess({ status: 'published', departmentId: sara.departmentId }, { ...sara, deletedAt: '2026-10-23' }, [])).toBe('locked')
   })
 })
+
+describe('getSopAccess for a System Admin', () => {
+  const admin = { id: 'nouf', departmentId: 'information-technology' as DepartmentId, permissions: ['admin' as const] }
+
+  it('grants every department\'s published SOPs, without a request', () => {
+    expect(getSopAccess({ status: 'published', departmentId: 'quality-assurance' }, admin, [])).toBe('granted')
+  })
+
+  it('still locks SOPs in Others, unpublished SOPs and a deleted account', () => {
+    expect(getSopAccess({ status: 'published', departmentId: 'quality-assurance', directoryGroup: 'others', authorId: 'sara' }, admin, [])).toBe('locked')
+    expect(getSopAccess({ status: 'in-review', departmentId: 'quality-assurance' }, admin, [])).toBe('locked')
+    expect(getSopAccess({ status: 'published', departmentId: 'quality-assurance' }, { ...admin, deletedAt: '2026-10-23' }, [])).toBe('locked')
+  })
+
+  it('leaves other roles as they were', () => {
+    expect(getSopAccess({ status: 'published', departmentId: 'quality-assurance' }, { ...sara, permissions: ['author', 'reviewer', 'approver'] }, [])).toBe('locked')
+  })
+})

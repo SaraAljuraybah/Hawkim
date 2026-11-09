@@ -2,9 +2,8 @@ import { useRef, useState, type ReactNode } from 'react'
 import { flushSync } from 'react-dom'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, CircleAlert, CircleCheck } from 'lucide-react'
-import { DeleteUserButton } from '../../components/admin/DeleteUserButton'
 import { RefusedBox } from '../../components/admin/RefusedBox'
-import { PermissionBadges, UserAvatar } from '../../components/admin/UserBits'
+import { UserHeader } from '../../components/admin/UserHeader'
 import { StatusBadge } from '../../components/ui/StatusBadge'
 import { adminEn } from '../../content/admin.en'
 import { usersEn } from '../../content/users.en'
@@ -26,7 +25,7 @@ export interface UserDetailsLocationState {
 
 /**
  * A user's page in the admin portal ("/admin/users/:id", PBI 17, 19), read-only: their details,
- * the SOPs they are involved in, and Delete user in the header. They are changed on Edit User.
+ * the SOPs they are involved in, and Delete user beside their name. They are changed on Edit User.
  * Deleted and unknown users show Not Found.
  */
 export function UserDetailsPage() {
@@ -108,15 +107,7 @@ function UserPanels({ user }: { user: User }) {
 
   return (
     <>
-      {/* Header, with Delete user at the top right */}
-      <div className="mt-5 flex items-start gap-4">
-        <UserAvatar user={user} className="size-14 text-base" />
-        <div className="min-w-0 flex-1">
-          <h1 className="text-2xl break-words tracking-tight sm:text-3xl">{user.name}</h1>
-          <PermissionBadges user={user} className="mt-2" />
-        </div>
-        <DeleteUserButton user={user} onDeleted={deleted} onRefused={refuseDelete} />
-      </div>
+      <UserHeader user={user} onDeleted={deleted} onRefused={refuseDelete} />
 
       {deleteRefused && <RefusedBox ref={deleteErrorRef} title={deleteRefused.title} messages={deleteRefused.reasons} />}
 
