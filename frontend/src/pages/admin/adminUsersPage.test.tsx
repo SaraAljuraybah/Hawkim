@@ -140,14 +140,18 @@ describe('the Delete User warning', () => {
 })
 
 describe('permission badges', () => {
-  it('use the sidebar Admin tag\'s tokens with a lighter gold (60%) everywhere, Employee included', () => {
+  it('use the sidebar Admin tag\'s tokens with a lighter gold (60%) everywhere', () => {
     const tag = ['rounded-md', 'bg-gold-light/60', 'px-1.5', 'py-0.5', 'text-xs', 'font-semibold', 'text-maroon']
-    const html = render() + renderToStaticMarkup(<PermissionBadges user={{ permissions: [] }} />)
+    const html = render()
     const badges = [...html.matchAll(/<li class="([^"]*)">([^<]+)<\/li>/g)]
-    expect(badges.map((match) => match[2])).toContain('Employee')
+    expect(badges.length).toBeGreaterThan(0)
     for (const [, classes] of badges) {
       for (const token of tag) expect(classes.split(' ')).toContain(token)
       expect(classes).not.toMatch(/border|rounded-full|px-2\.5/)
     }
+  })
+
+  it('show no badge for a user without a role', () => {
+    expect(renderToStaticMarkup(<PermissionBadges user={{ permissions: [] }} />)).toBe('')
   })
 })

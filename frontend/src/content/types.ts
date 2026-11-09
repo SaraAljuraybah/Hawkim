@@ -1093,8 +1093,6 @@ export interface WorkflowDemoContent {
 export interface UsersContent {
   /** Name of each permission (badges, filters, checkboxes). */
   permissions: Record<Permission, string>
-  /** Shown for a user without any permission (every user is an employee). */
-  employee: string
   /** A deleted user's name on SOP history; `{name}` is replaced. */
   deletedName: string
 }
