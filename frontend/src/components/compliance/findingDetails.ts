@@ -52,31 +52,34 @@ export function requirementLines(requirement: Requirement, none: string): { modu
   }
 }
 
+const SECTION_NUMBER = /^\d+(?:[.-]\d+)*$/
+
 /**
- * The section labels of a finding's SOP reference, as the compliance service writes it
- * (aggregate.py: "Section 5-4-1", or "Sections 5-4-1, 5-4-2", sorted and each once): "Section 5-4-1"
- * for a section number, "Section number not found" for anything else (an unnumbered heading, or
- * "(start of document)" when the SOP has no headings), each label once. Undefined for a reference in
- * another form, which is shown as it is.
+ * The lines of a finding's SOP reference, as the compliance service writes it (aggregate.py:
+ * "Section 5-4-1", or "Sections 5-4-1, 5-4-2", sorted and each once), in that order: the section
+ * number, or "Number not found" for anything else (an unnumbered heading, or "(start of document)"
+ * when the SOP has no headings), with the step's page from the SOP text when it's known. Each line
+ * once. Undefined for a reference in another form, which is shown as it is.
  */
-export function sectionLabels(reference: string, text: { stepSection: string; noSectionNumber: string }): string[] | undefined {
+export function sopReferenceLines(
+  reference: string,
+  evidence: { section: string; page?: number }[] | undefined,
+  text: { noSectionNumberValue: string },
+): { section: string; page?: number }[] | undefined {
   const match = /^Sections? (.+)$/.exec(reference.trim())
   if (!match) return undefined
-  const labels = match[1].split(', ').map((part) => sectionLabel(part, text))
-  return labels.filter((label, index) => labels.indexOf(label) === index)
+  const lines = match[1].split(', ').map((part) => {
+    const raw = part.trim()
+    const page = evidence?.find((item) => item.section === raw && item.page !== undefined)?.page
+    return { section: SECTION_NUMBER.test(raw) ? raw : text.noSectionNumberValue, ...(page === undefined ? {} : { page }) }
+  })
+  return lines.filter(
+    (line, index) => lines.findIndex((other) => other.section === line.section && other.page === line.page) === index,
+  )
 }
 
 /** "Section 5-4-1" for a section number, "Section number not found" for anything else. */
-function sectionLabel(section: string, text: { stepSection: string; noSectionNumber: string }): string {
+export function sopSectionLabel(section: string, text: { stepSection: string; noSectionNumber: string }): string {
   const value = section.trim()
-  return /^\d+(?:[.-]\d+)*$/.test(value) ? text.stepSection.replace('{section}', value) : text.noSectionNumber
-}
-
-/** Where a quoted SOP sentence is: "Section 5-4-2 · Page 4", or only the section label without a page. */
-export function sopTextSource(
-  item: { section: string; page?: number },
-  text: { stepSection: string; noSectionNumber: string; sopTextSource: string },
-): string {
-  const section = sectionLabel(item.section, text)
-  return item.page === undefined ? section : text.sopTextSource.replace('{section}', section).replace('{page}', String(item.page))
+  return SECTION_NUMBER.test(value) ? text.stepSection.replace('{section}', value) : text.noSectionNumber
 }

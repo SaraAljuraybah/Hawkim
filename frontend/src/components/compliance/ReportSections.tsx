@@ -4,7 +4,7 @@ import type { ComplianceCheck, ComplianceResult } from '../../data/mock/types'
 import { complianceScore, countResults, RESULT_ORDER, type NumberedFinding } from '../../lib/compliance'
 import { ComplianceBadge } from './ComplianceBadge'
 import { FindingText } from './FindingText'
-import { requirementLines, sectionLabels, sopTextSource, withoutContextLabel } from './findingDetails'
+import { requirementLines, sopReferenceLines, sopSectionLabel, withoutContextLabel } from './findingDetails'
 import { overviewCells } from './overviewCells'
 import { useReportRequirement } from './reportRequirements'
 
@@ -228,12 +228,22 @@ export function RequirementsOverview({
 
 // ---------- d) Findings ----------
 
+/** A quoted text (the requirement, the SOP's): a gold left border, grey when printed (index.css). */
+const QUOTE = 'border-l-2 border-gold pl-3'
+
 export function FindingCard({ finding, content }: { finding: NumberedFinding; content: ComplianceContent }) {
   const text = content.report.findings
   const requirement = useReportRequirement()(finding.requirementId)
   const headingId = `finding-${finding.number}-title`
   const lines = requirement && requirementLines(requirement, text.none)
-  const labels = finding.sopReference ? sectionLabels(finding.sopReference, text) : undefined
+  const sopLines = finding.sopReference ? sopReferenceLines(finding.sopReference, finding.sopEvidence, text) : undefined
+  const quotes = finding.sopEvidence ?? []
+  /** A "Label: value" line, styled like the Module, Section and Page lines. */
+  const line = (label: string, value: string) => (
+    <div key={label}>
+      <dt className="inline">{label}</dt> <dd className="inline">{value}</dd>
+    </div>
+  )
 
   return (
     <article
@@ -248,38 +258,45 @@ export function FindingCard({ finding, content }: { finding: NumberedFinding; co
         </h4>
         <ComplianceBadge result={finding.result} labels={content.results} />
       </div>
-      {/* Module, Section and Page, one per line */}
-      {lines && (
-        <dl className="mt-2 space-y-0.5 text-sm text-maroon">
-          {([
-            [text.module, lines.module],
-            [text.section, lines.section],
-            [text.page, lines.page],
-          ] as const).map(([label, value]) => (
-            <div key={label}>
-              <dt className="inline">{label}</dt> <dd className="inline">{value}</dd>
-            </div>
-          ))}
-        </dl>
-      )}
       <dl className="mt-4 space-y-3 text-sm">
+        {/* Module, Section and Page of the requirement, one per line */}
+        {lines && (
+          <div>
+            <dt className="font-medium text-maroon">{text.requirementReference}</dt>
+            <dd className="mt-0.5">
+              <dl className="space-y-0.5 text-maroon">
+                {line(text.module, lines.module)}
+                {line(text.section, lines.section)}
+                {line(text.page, lines.page)}
+              </dl>
+            </dd>
+          </div>
+        )}
         {requirement && (
           <div>
             <dt className="font-medium text-maroon">{text.requirement}</dt>
             <dd className="mt-0.5">
-              <FindingText text={withoutContextLabel(requirement.summary)} className="text-[0.9375rem] text-maroon" />
+              <blockquote className={`${QUOTE} break-inside-avoid`}>
+                <FindingText text={withoutContextLabel(requirement.summary)} className="text-[0.9375rem] text-maroon" />
+              </blockquote>
             </dd>
           </div>
         )}
+        {/* Section and Page of the SOP: one section on two lines, several as a list ("Section: … · Page: …") */}
         <div>
           <dt className="font-medium text-maroon">{text.sopReference}</dt>
           <dd className="mt-0.5">
-            {labels?.length === 1 ? (
-              <p className="text-text-gray">{labels[0]}</p>
-            ) : labels && labels.length > 1 ? (
-              <ul className="list-disc space-y-1 pl-5 text-text-gray">
-                {labels.map((label) => (
-                  <li key={label}>{label}</li>
+            {sopLines?.length === 1 ? (
+              <dl className="space-y-0.5 text-maroon">
+                {line(text.section, sopLines[0].section)}
+                {sopLines[0].page !== undefined && line(text.page, String(sopLines[0].page))}
+              </dl>
+            ) : sopLines && sopLines.length > 1 ? (
+              <ul className="list-disc space-y-1 pl-5 text-maroon">
+                {sopLines.map((item) => (
+                  <li key={`${item.section}-${item.page}`}>
+                    {`${text.section} ${item.section}${item.page === undefined ? '' : `${text.lineSeparator}${text.page} ${item.page}`}`}
+                  </li>
                 ))}
               </ul>
             ) : (
@@ -287,15 +304,15 @@ export function FindingCard({ finding, content }: { finding: NumberedFinding; co
             )}
           </dd>
         </div>
-        {/* The SOP sentences the result is based on, each with its section and page, quoted */}
-        {finding.sopEvidence && finding.sopEvidence.length > 0 && (
+        {/* The SOP sentences the result is based on, quoted; labelled with their section only when there are several */}
+        {quotes.length > 0 && (
           <div>
             <dt className="font-medium text-maroon">{text.sopText}</dt>
             <dd className="mt-0.5 space-y-3">
-              {finding.sopEvidence.map((item, index) => (
+              {quotes.map((item, index) => (
                 <figure key={index} className="break-inside-avoid">
-                  <figcaption className="text-text-gray">{sopTextSource(item, text)}</figcaption>
-                  <blockquote className="mt-1 border-l-2 border-gold pl-3">
+                  {quotes.length > 1 && <figcaption className="text-text-gray">{sopSectionLabel(item.section, text)}</figcaption>}
+                  <blockquote className={quotes.length > 1 ? `mt-1 ${QUOTE}` : QUOTE}>
                     <FindingText text={item.text} className="text-[0.9375rem] text-maroon" />
                   </blockquote>
                 </figure>

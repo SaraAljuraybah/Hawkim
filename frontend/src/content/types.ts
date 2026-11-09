@@ -1017,24 +1017,29 @@ export interface ComplianceContent {
       compliant: string
       /** Heading of each finding; `{number}` is replaced. */
       heading: string
-      /** Labels of the requirement's Module, Section and Page lines. */
+      /** Labels of the requirement's Module, Section and Page lines (Section and Page also label the SOP Reference's lines). */
       module: string
       section: string
       page: string
       /** A missing Module, Section or Page. */
       none: string
-      /** Label above the requirement text. */
+      /** Heading above the requirement's Module, Section and Page lines. */
+      requirementReference: string
+      /** Heading above the requirement text. */
       requirement: string
+      /** Heading above the SOP's Section and Page lines. */
       sopReference: string
-      /** One SOP section behind the finding; `{section}` is replaced (e.g. "5-4-1"). */
+      /** Between a section and its page when the SOP Reference has several sections. */
+      lineSeparator: string
+      /** The Section line of a step without a numbered SOP section. */
+      noSectionNumberValue: string
+      /** Label of a quote when the SOP Text has several; `{section}` is replaced (e.g. "5-4-1"). */
       stepSection: string
-      /** A step without a numbered SOP section. */
+      /** The same for a step without a numbered SOP section. */
       noSectionNumber: string
       noSopReference: string
-      /** Label above the SOP sentences the result is based on. */
+      /** Heading above the SOP sentences the result is based on. */
       sopText: string
-      /** Where a quoted SOP sentence is; `{section}` (the section label) and `{page}` are replaced. */
-      sopTextSource: string
       justification: string
       /** No findings in the selected tab. */
       empty: string

@@ -6,7 +6,7 @@ import { complianceEn } from '../content/compliance.en'
 import type { ComplianceCheck, ComplianceResult, Sop, User } from '../data/mock/types'
 import { sops } from '../data/mock/sops'
 import { overviewCells } from '../components/compliance/overviewCells'
-import { requirementLines, sectionLabels, textBlocks, withoutContextLabel } from '../components/compliance/findingDetails'
+import { requirementLines, sopReferenceLines, textBlocks, withoutContextLabel } from '../components/compliance/findingDetails'
 import { ComplianceReportPage } from './ComplianceReportPage'
 import { ReviewPage } from './ReviewPage'
 import { SopWorkflowPage } from './SopWorkflowPage'
@@ -223,7 +223,14 @@ describe('the finding cards', () => {
     const html = render(<ComplianceReportPage />)
     return html.slice(html.indexOf('<article id="finding-F-01"'), html.indexOf('</article>', html.indexOf('<article id="finding-F-01"')))
   }
-  const sopReference = (html: string) => html.slice(html.indexOf('>SOP Reference</dt>'), html.indexOf('</dd>', html.indexOf('>SOP Reference</dt>')))
+  /** The SOP Reference block: from its heading to the next block's (SOP Text, or else Justification). */
+  const sopReference = (html: string) => {
+    const start = html.indexOf('>SOP Reference</dt>')
+    const ends = ['>SOP Text</dt>', '>Justification</dt>'].map((heading) => html.indexOf(heading, start)).filter((index) => index > -1)
+    return html.slice(start, Math.min(...ends))
+  }
+  /** The headings of a card's blocks, in order. */
+  const headings = (html: string) => [...html.matchAll(/<dt class="font-medium text-maroon">([^<]*)<\/dt>/g)].map((match) => match[1])
 
   it('shows only the finding id in the heading, with the result badge after it', () => {
     const html = card({})
@@ -233,9 +240,15 @@ describe('the finding cards', () => {
     expect(text.heading).toBe('{number}')
   })
 
-  it('shows Module, Section and Page on three maroon lines, without "GVP"', () => {
+  it('shows the blocks in order: Requirement Reference, Requirement Text, SOP Reference, SOP Text, Justification', () => {
+    expect(headings(card({ sopReference: 'Section 5-1-3', sopEvidence: [{ section: '5-1-3', page: 4, text: 'Quote.' }] })))
+      .toEqual(['Requirement Reference', 'Requirement Text', 'SOP Reference', 'SOP Text', 'Justification'])
+    expect(headings(card({}))).toEqual(['Requirement Reference', 'Requirement Text', 'SOP Reference', 'Justification'])
+  })
+
+  it('shows Module, Section and Page on three maroon lines under "Requirement Reference", without "GVP"', () => {
     const html = card({})
-    expect(html).toContain('<dl class="mt-2 space-y-0.5 text-sm text-maroon">'
+    expect(html).toContain('<dt class="font-medium text-maroon">Requirement Reference</dt><dd class="mt-0.5"><dl class="space-y-0.5 text-maroon">'
       + '<div><dt class="inline">Module:</dt> <dd class="inline">V</dd></div>'
       + '<div><dt class="inline">Section:</dt> <dd class="inline">V.B.2 Responsibilities for risk management within an organization</dd></div>'
       + '<div><dt class="inline">Page:</dt> <dd class="inline">107</dd></div></dl>')
@@ -255,11 +268,15 @@ describe('the finding cards', () => {
     expect(card({}, { module: '', section: '', sectionTitle: '', page: 0 })).toContain('<dt class="inline">Page:</dt> <dd class="inline">—</dd>')
   })
 
-  it('labels the requirement text "Requirement" and shows its "•" items as a real list', () => {
+  it('labels the requirement text "Requirement Text", quoted like the SOP text, and shows its "•" items as a real list', () => {
     const html = card({})
-    expect(html).toContain('<dt class="font-medium text-maroon">Requirement</dt><dd class="mt-0.5"><div class="space-y-1.5 text-[0.9375rem] text-maroon">'
+    expect(html).toContain('<dt class="font-medium text-maroon">Requirement Text</dt><dd class="mt-0.5">'
+      + '<blockquote class="border-l-2 border-gold pl-3 break-inside-avoid"><div class="space-y-1.5 text-[0.9375rem] text-maroon">'
       + '<p>Marketing authorisation holders should have a system.</p>'
-      + '<ul class="list-disc space-y-1 pl-5"><li>that records the risks</li><li>that is reviewed</li></ul></div></dd>')
+      + '<ul class="list-disc space-y-1 pl-5"><li>that records the risks</li><li>that is reviewed</li></ul></div></blockquote></dd>')
+    // The same border and padding as a SOP Text quote.
+    const sop = card({ sopEvidence: [{ section: '5-1', text: 'Quote.' }] })
+    expect(sop).toContain('<blockquote class="border-l-2 border-gold pl-3"><div class="space-y-1.5 text-[0.9375rem] text-maroon"><p>Quote.</p>')
     expect(html).not.toContain('•')
   })
 
@@ -299,43 +316,60 @@ describe('the finding cards', () => {
     expect(textBlocks('Step 1 - do it.')).toEqual([{ kind: 'paragraph', text: 'Step 1 - do it.' }])
   })
 
-  it('shows only the section label for one step, with no SOP text', () => {
-    const html = sopReference(card({ sopReference: 'Section 5-4-1' }))
-    expect(html).toBe('>SOP Reference</dt><dd class="mt-0.5"><p class="text-text-gray">Section 5-4-1</p>')
+  it('shows one SOP section as Section and Page lines, like the requirement\'s', () => {
+    const html = sopReference(card({ sopReference: 'Section 5-1-3', sopEvidence: [{ section: '5-1-3', page: 4, text: 'Quote.' }] }))
+    expect(html).toContain('>SOP Reference</dt><dd class="mt-0.5"><dl class="space-y-0.5 text-maroon">'
+      + '<div><dt class="inline">Section:</dt> <dd class="inline">5-1-3</dd></div>'
+      + '<div><dt class="inline">Page:</dt> <dd class="inline">4</dd></div></dl></dd>')
   })
 
-  it('lists several sections, and "Section number not found" (once) for steps without a number', () => {
-    const html = sopReference(card({ sopReference: 'Sections 5-4-1, 5-4-2, (start of document), Training' }))
-    expect(html).toBe('>SOP Reference</dt><dd class="mt-0.5"><ul class="list-disc space-y-1 pl-5 text-text-gray">'
-      + '<li>Section 5-4-1</li><li>Section 5-4-2</li><li>Section number not found</li></ul>')
-    expect(sopReference(card({ sopReference: 'Section (start of document)' }))).toBe('>SOP Reference</dt><dd class="mt-0.5"><p class="text-text-gray">Section number not found</p>')
+  it('shows the Page line only when the page is known', () => {
+    // No SOP text at all, a step without a page, or SOP text from another section.
+    for (const sopEvidence of [undefined, [{ section: '5-1-3', text: 'Quote.' }], [{ section: '6-1', page: 9, text: 'Quote.' }]]) {
+      const html = sopReference(card({ sopReference: 'Section 5-1-3', sopEvidence }))
+      expect(html).toContain('<dl class="space-y-0.5 text-maroon"><div><dt class="inline">Section:</dt> <dd class="inline">5-1-3</dd></div></dl>')
+      expect(html).not.toContain('Page:')
+    }
   })
 
-  it('reads the labels from the reference the service writes', () => {
-    expect(sectionLabels('Section 5-4-1', text)).toEqual(['Section 5-4-1'])
-    expect(sectionLabels(' Sections 5.1, 5.1.2 ', text)).toEqual(['Section 5.1', 'Section 5.1.2'])
-    expect(sectionLabels('Section (start of document)', text)).toEqual(['Section number not found'])
-    expect(sectionLabels('Sections Scope, Training', text)).toEqual(['Section number not found'])
+  it('lists several sections in order, each with its page when known, and "Number not found" once for steps without a number', () => {
+    const html = sopReference(card({ sopReference: 'Sections 5-4-1, 5-4-2, (start of document), Training', sopEvidence: [
+      { section: '5-4-2', page: 5, text: 'B.' }, { section: '5-4-1', page: 4, text: 'A.' },
+    ] }))
+    expect(html).toContain('>SOP Reference</dt><dd class="mt-0.5"><ul class="list-disc space-y-1 pl-5 text-maroon">'
+      + '<li>Section: 5-4-1 · Page: 4</li><li>Section: 5-4-2 · Page: 5</li><li>Section: Number not found</li></ul></dd>')
+    expect(sopReference(card({ sopReference: 'Section (start of document)' })))
+      .toContain('<div><dt class="inline">Section:</dt> <dd class="inline">Number not found</dd></div></dl>')
+  })
+
+  it('reads the lines from the reference the service writes', () => {
+    expect(sopReferenceLines('Section 5-4-1', undefined, text)).toEqual([{ section: '5-4-1' }])
+    expect(sopReferenceLines(' Sections 5.1, 5.1.2 ', [{ section: '5.1.2', page: 3 }], text)).toEqual([{ section: '5.1' }, { section: '5.1.2', page: 3 }])
+    expect(sopReferenceLines('Section (start of document)', [{ section: '(start of document)', page: 1 }], text)).toEqual([{ section: 'Number not found', page: 1 }])
+    expect(sopReferenceLines('Sections Scope, Training', undefined, text)).toEqual([{ section: 'Number not found' }])
     // Another form is shown as it is.
-    expect(sectionLabels('Appendix A', text)).toBeUndefined()
-    expect(sectionLabels('Sections', text)).toBeUndefined()
+    expect(sopReferenceLines('Appendix A', undefined, text)).toBeUndefined()
+    expect(sopReferenceLines('Sections', undefined, text)).toBeUndefined()
   })
 
-  it('shows the SOP text after the SOP Reference: each quote under its section and page', () => {
-    const html = card({ sopReference: 'Sections 5-4-2, (start of document)', sopEvidence: [
-      { section: '5-4-2', page: 4, text: 'Update RMP Summary (Part VI) when important changes occur.' },
-      { section: '(start of document)', text: 'Second quote.' },
+  it('shows one quote after the SOP Reference with no label above it', () => {
+    const html = card({ sopReference: 'Section 5-4-2', sopEvidence: [{ section: '5-4-2', page: 4, text: 'Update RMP Summary (Part VI) when important changes occur.' }] })
+    expect(html).toContain('>SOP Text</dt><dd class="mt-0.5 space-y-3"><figure class="break-inside-avoid">'
+      + '<blockquote class="border-l-2 border-gold pl-3"><div class="space-y-1.5 text-[0.9375rem] text-maroon">'
+      + '<p>Update RMP Summary (Part VI) when important changes occur.</p></div></blockquote></figure></dd>')
+    expect(html).not.toContain('<figcaption')
+  })
+
+  it('labels each of several quotes with its section only, no page', () => {
+    const html = card({ sopReference: 'Sections 5-3, (start of document)', sopEvidence: [
+      { section: '5-3', page: 4, text: 'First quote.' },
+      { section: '(start of document)', page: 1, text: 'Second quote.' },
     ] })
-    const reference = html.indexOf('>SOP Reference</dt>')
-    const sopText = html.indexOf('>SOP Text</dt>')
-    expect(reference).toBeGreaterThan(-1)
-    expect(sopText).toBeGreaterThan(reference)
-    expect(sopText).toBeLessThan(html.indexOf('>Justification</dt>'))
-    expect(html).toContain('<figure class="break-inside-avoid"><figcaption class="text-text-gray">Section 5-4-2 · Page 4</figcaption>'
+    expect(html).toContain('<figure class="break-inside-avoid"><figcaption class="text-text-gray">Section 5-3</figcaption>'
       + '<blockquote class="mt-1 border-l-2 border-gold pl-3"><div class="space-y-1.5 text-[0.9375rem] text-maroon">'
-      + '<p>Update RMP Summary (Part VI) when important changes occur.</p></div></blockquote></figure>')
+      + '<p>First quote.</p></div></blockquote></figure>')
     expect(html).toContain('<figcaption class="text-text-gray">Section number not found</figcaption>')
-    expect(html).toContain('<p>Second quote.</p>')
+    expect(html.slice(html.indexOf('>SOP Text</dt>'))).not.toContain('Page')
   })
 
   it('shows no SOP Text heading when the finding has no SOP text', () => {
@@ -344,7 +378,7 @@ describe('the finding cards', () => {
   })
 
   it('keeps the sample references, and "None …" when there is no reference', () => {
-    expect(sopReference(card({ sopReference: 'Section 4.2' }))).toContain('<p class="text-text-gray">Section 4.2</p>')
+    expect(sopReference(card({ sopReference: 'Section 4.2' }))).toContain('<div><dt class="inline">Section:</dt> <dd class="inline">4.2</dd></div>')
     expect(sopReference(card({ sopReference: 'Appendix A' }))).toContain('<div class="space-y-1.5 text-text-gray"><p>Appendix A</p></div>')
     expect(sopReference(card({}))).toContain('<p>None — the SOP doesn’t cover this requirement.</p>')
   })
@@ -362,8 +396,8 @@ describe('the finding cards', () => {
     const html = render(<ComplianceReportPage audience="reviewer" />)
     expect(html).toContain('>F-01</h4>')
     expect(html).toContain('<dt class="inline">Module:</dt> <dd class="inline">V</dd>')
-    expect(html).toContain('<dt class="font-medium text-maroon">Requirement</dt>')
-    expect(html).toContain('<p class="text-text-gray">Section 5-4-1</p>')
+    expect(html).toContain('<dt class="font-medium text-maroon">Requirement Text</dt>')
+    expect(html).toContain('<dt class="inline">Section:</dt> <dd class="inline">5-4-1</dd>')
     expect(html).not.toContain('Recommended Action')
   })
 })

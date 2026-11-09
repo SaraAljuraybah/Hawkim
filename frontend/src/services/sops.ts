@@ -269,16 +269,20 @@ function toComment(row: SopCommentRow): SopComment {
 
 /**
  * The SOP text of a finding's evidence (the compliance service's format: `{ steps: [{ section, page,
- * sop_evidence, … }] }`), in the steps' order. Steps without quoted text, and anything malformed, are
- * left out; undefined when nothing is left.
+ * sop_evidence, sop_text, … }] }`), in the steps' order: the quoted sentences, or else the step's whole
+ * text (older checks have no sop_text). Steps with neither, and anything malformed, are left out;
+ * undefined when nothing is left.
  */
 export function toSopEvidence(evidence: unknown): Finding['sopEvidence'] {
   const steps = evidence && typeof evidence === 'object' ? (evidence as { steps?: unknown }).steps : undefined
   if (!Array.isArray(steps)) return undefined
   const items = steps.flatMap((step: unknown) => {
     if (!step || typeof step !== 'object') return []
-    const { section, page, sop_evidence: quote } = step as { section?: unknown; page?: unknown; sop_evidence?: unknown }
-    const text = typeof quote === 'string' ? quote.trim() : ''
+    const { section, page, sop_evidence: quote, sop_text: stepText } = step as {
+      section?: unknown; page?: unknown; sop_evidence?: unknown; sop_text?: unknown
+    }
+    // The sentences the model quoted, or else the whole step (steps not sent to the model have no quote).
+    const text = (typeof quote === 'string' ? quote.trim() : '') || (typeof stepText === 'string' ? stepText.trim() : '')
     if (!text) return []
     return [{
       section: typeof section === 'string' ? section.trim() : '',

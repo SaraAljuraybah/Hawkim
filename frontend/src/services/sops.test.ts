@@ -110,6 +110,20 @@ describe('SOPs from the database', () => {
     ])
   })
 
+  it('uses the step\'s whole text when the model quoted nothing, and the quote when both exist', () => {
+    expect(toSopEvidence({ steps: [
+      { section: '5-1-3', page: 4, result: 'not-addressed', sop_evidence: null, sop_text: ' The whole step. ' },
+      { section: '5-2', page: 5, result: 'compliant', sop_evidence: 'The quote.', sop_text: 'The whole step 2.' },
+      { section: '5-3', result: 'partial', sop_evidence: '  ', sop_text: 'The whole step 3.' },
+      { section: '5-4', result: 'not-addressed', sop_evidence: '', sop_text: '  ' },
+      { section: '5-5', result: 'not-addressed', sop_text: 42 },
+    ] })).toEqual([
+      { section: '5-1-3', page: 4, text: 'The whole step.' },
+      { section: '5-2', page: 5, text: 'The quote.' },
+      { section: '5-3', text: 'The whole step 3.' },
+    ])
+  })
+
   it('ignores missing or malformed evidence without errors', () => {
     expect(toSopEvidence(null)).toBeUndefined()
     expect(toSopEvidence(undefined)).toBeUndefined()
