@@ -211,10 +211,10 @@ describe('delete department dialog', () => {
     expect(host.remove).toHaveBeenCalledWith(pending, 'delete')
   })
   it('shows a refusal inside the dialog and stays open', async () => {
-    host.remove.mockRejectedValue(new Error('This department still has SOPs. It can’t be deleted while it has SOPs.'))
+    host.remove.mockRejectedValue(new Error('This department can’t be deleted because it has SOPs.'))
     const component = () => DeleteDepartmentDialog({ department, onClose: vi.fn(), onDeleted: vi.fn() })
     await expect(confirm(render(component))).resolves.toBe(false)
-    expect(elements(render(component)).some((item) => item.props.role === 'alert' && item.props.children === 'This department still has SOPs. It can’t be deleted while it has SOPs.')).toBe(true)
+    expect(elements(render(component)).some((item) => item.props.role === 'alert' && item.props.children === 'This department can’t be deleted because it has SOPs.')).toBe(true)
   })
   it('cancel changes no relationships', () => {
     const onClose = vi.fn()

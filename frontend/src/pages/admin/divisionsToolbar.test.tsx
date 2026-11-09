@@ -177,16 +177,16 @@ describe('department row actions', () => {
   it('disables Delete for a department with SOPs, with the reason for keyboard and screen-reader users', () => {
     const sopsOnly = { ...snapshot, departments: snapshot.departments.map((row) => row.id === 'qa' ? { ...row, employees: 0 } : row) }
     expect(deleteButton(table({ snapshot: sopsOnly, query: 'quality' }), 'Quality Assurance'))
-      .toEqual({ disabled: true, reason: 'This department still has SOPs. It can’t be deleted while it has SOPs.' })
+      .toEqual({ disabled: true, reason: 'This department can’t be deleted because it has SOPs.' })
   })
   it('gives only the employees reason when a department has both employees and SOPs', () => {
     expect(deleteButton(table({ query: 'quality' }), 'Quality Assurance')).toEqual({ disabled: true,
-      reason: 'This department still has employees. Move them to another department first, then delete it.' })
+      reason: 'This department can’t be deleted because it has employees.' })
   })
   it('keeps the employees reason, and enables Delete for an empty department', () => {
     const employeesOnly = { ...snapshot, departments: snapshot.departments.map((row) => row.id === 'qa' ? { ...row, sops: 0 } : row) }
     expect(deleteButton(table({ snapshot: employeesOnly, query: 'quality' }), 'Quality Assurance'))
-      .toEqual({ disabled: true, reason: 'This department still has employees. Move them to another department first, then delete it.' })
+      .toEqual({ disabled: true, reason: 'This department can’t be deleted because it has employees.' })
     expect(deleteButton(table({ query: 'legacy' }), 'Legacy')).toEqual({ disabled: false, reason: undefined })
   })
   it('never blocks Retry file cleanup for a deletion confirmed earlier', () => {
