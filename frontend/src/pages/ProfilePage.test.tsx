@@ -189,11 +189,13 @@ describe('My Profile in the admin portal', () => {
 
   beforeEach(() => { fixture.user = admin })
 
-  it('shows the same fields as an employee, in one h1 page, with Admin as the permission', () => {
+  it('shows the position without the division and department, in one h1 page, with Admin as the permission', () => {
+    fixture.user = { ...admin, position: 'IT Manager' }
     const html = page()
-    expect([...html.matchAll(/<dt[^>]*>([^<]+)<\/dt>/g)].map((match) => match[1])).toEqual(['Name', 'Email', 'Phone Number', 'Division', 'Department', 'Position', 'Permission', 'Password'])
+    expect([...html.matchAll(/<dt[^>]*>([^<]+)<\/dt>/g)].map((match) => match[1])).toEqual(['Name', 'Email', 'Phone Number', 'Position', 'Permission', 'Password'])
     expect(value(html, 'Permission')).toBe('Admin')
-    expect(value(html, 'Department')).toBe('Pharmacovigilance')
+    expect(value(html, 'Position')).toBe('IT Manager')
+    expect(html).not.toContain('Pharmacovigilance')
     expect(html.match(/<h1/g)).toHaveLength(1)
     expect(html).toContain('aria-label="Change Password"')
   })
@@ -218,6 +220,11 @@ describe('My Profile in the admin portal', () => {
     expect(links[1]).toContain('>Nouf Almutairi<')
     // Still shows the role, as plain text.
     expect(html).toContain('>Administrator</p>')
+  })
+
+  it('shows "Position | Administrator" under the admin\'s name, the separator hidden from screen readers', () => {
+    const html = renderToStaticMarkup(<MemoryRouter><AdminTopBar content={adminEn.shell} user={{ ...admin, position: 'IT Manager' }} menuOpen={false} onOpenMenu={() => {}} menuButtonRef={{ current: null }} /></MemoryRouter>)
+    expect(html).toContain('<span class="break-words">IT Manager</span><span aria-hidden="true"> | </span>Administrator</p>')
   })
 
   it('knows where each person\'s profile is', () => {

@@ -1315,6 +1315,8 @@ export interface AdminShellContent extends SidebarContent {
   profileLink: LinkContent
   /** Shown under the admin's name in the top bar. */
   roleLabel: string
+  /** Between the admin's position and the role label in the top bar (hidden from screen readers). */
+  positionSeparator: string
   /** Accessible text of the pending requests count in the sidebar; `{count}` is replaced. */
   pendingLabel: string
 }

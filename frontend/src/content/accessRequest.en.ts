@@ -8,7 +8,7 @@ export const requestHawkimEn: RequestHawkimContent = {
   fields: {
     organization: 'Organization',
     contactName: 'Contact person',
-    jobTitle: 'Job title',
+    jobTitle: 'Position',
     email: 'Email',
     phone: 'Phone',
     phoneHint: 'Saudi mobile number, for example 05XXXXXXXX.',
@@ -44,7 +44,7 @@ export const reviewRequestEn: ReviewRequestContent = {
   labels: {
     organization: 'Organization',
     contactName: 'Contact person',
-    jobTitle: 'Job title',
+    jobTitle: 'Position',
     email: 'Email',
     phone: 'Phone',
     approxUsers: 'Approximate number of users',

@@ -23,13 +23,15 @@ export function ProfilePage({ admin = false }: { admin?: boolean }) {
   const [changed, setChanged] = useState(false)
   const changeRef = useRef<HTMLButtonElement>(null)
   const roles = user.permissions.map((permission) => content.roles[permission])
+  // An Admin manages the whole organization: their home department is only the account's technical
+  // default, so the position is shown without the division and department.
+  const isAdmin = user.permissions.includes('admin')
   // Same order as Add User. A value that is missing or blank shows content.none, the same way for every field.
   const details = [
     [content.fields.name, user.name],
     [content.fields.email, user.email],
     [content.fields.phone, user.phone],
-    [content.fields.division, divisionLabel(department)],
-    [content.fields.department, department?.name],
+    ...(isAdmin ? [] : [[content.fields.division, divisionLabel(department)], [content.fields.department, department?.name]]),
     [content.fields.position, user.position],
     [content.fields.roles, roles.join(', ')],
   ].map(([label, value]) => [label, value?.trim() || content.none] as const)

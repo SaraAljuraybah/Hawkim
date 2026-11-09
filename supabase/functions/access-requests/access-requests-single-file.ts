@@ -248,7 +248,7 @@ function detailsTable(f: RequestForm): string {
   const row = (label: string, value: string) =>
     `<tr><td style="padding:6px 12px 6px 0;color:#6D5D62;white-space:nowrap;vertical-align:top;">${label}</td><td style="padding:6px 0;color:#2A1B20;">${value}</td></tr>`
   return `<table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:12px 0 4px 0;font-size:15px;line-height:22px;">
-    ${row("Organization", esc(f.organization))}${row("Contact person", esc(f.contactName))}${row("Job title", esc(f.jobTitle))}
+    ${row("Organization", esc(f.organization))}${row("Contact person", esc(f.contactName))}${row("Position", esc(f.jobTitle))}
     ${row("Email", esc(f.email))}${row("Phone", esc(f.phone))}${row("Approximate number of users", String(f.approxUsers))}
     ${row("Message", f.message ? esc(f.message).replace(/\n/g, "<br>") : "—")}</table>`
 }

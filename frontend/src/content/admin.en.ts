@@ -26,6 +26,7 @@ export const adminEn: AdminContent = {
     closeMenu: 'Close menu',
     drawerLabel: 'Navigation',
     roleLabel: 'Administrator',
+    positionSeparator: '|',
     profileLink: { label: 'My Profile, {name}', href: '/admin/profile' },
     pendingLabel: '{count} pending',
   },
