@@ -101,13 +101,27 @@ begin
   assert (select removed_at is not null from public.departments where id = 'dd-none'), 'No SOPs: deleted';
 
   -- ---------- employees are still reported first ----------
+  -- A fixture shortcut past the department transfer restriction (20261110120000), which refuses moving
+  -- someone with unfinished SOPs: their SOPs count as finished only for the move, then exactly as before.
+  create temp table if not exists fixture_sop_statuses(id uuid primary key, status public.sop_status) on commit drop;
+  delete from fixture_sop_statuses;
+  insert into fixture_sop_statuses select s.id, s.status from public.sops s
+    where s.deleted_at is null and s.status <> 'published' and s.author_id = admin::uuid;
+  update public.sops s set status = 'published' from fixture_sop_statuses f where s.id = f.id;
   update public.profiles set department_id = 'dd-draft' where id = admin::uuid;
+  update public.sops s set status = f.status from fixture_sop_statuses f where s.id = f.id;
   perform pg_temp.act_as(admin);
   select updated_at into v_stamp from public.departments where id = 'dd-draft';
   perform pg_temp.expect_error(format($q$select public.delete_department('dd-draft', 'empty', %L)$q$, v_stamp), '23503',
     'Departments with assigned employees cannot be deleted.');
   perform pg_temp.as_owner();
+  -- The same fixture shortcut as above, moving the account back.
+  delete from fixture_sop_statuses;
+  insert into fixture_sop_statuses select s.id, s.status from public.sops s
+    where s.deleted_at is null and s.status <> 'published' and s.author_id = admin::uuid;
+  update public.sops s set status = 'published' from fixture_sop_statuses f where s.id = f.id;
   update public.profiles set department_id = 'dd-home' where id = admin::uuid;
+  update public.sops s set status = f.status from fixture_sop_statuses f where s.id = f.id;
 
   -- ---------- a cleanup confirmed before this migration can still be retried ----------
   -- As 20261107120200's begin_department_file_deletion() left it: SOP marked deleted, job linked.
