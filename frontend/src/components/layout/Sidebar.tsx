@@ -1,6 +1,8 @@
-import { Link, NavLink } from 'react-router-dom'
-import { X } from 'lucide-react'
-import type { AppShellContent, SidebarContent } from '../../content/types'
+import { useId, useState } from 'react'
+import { Link, NavLink, matchPath, useLocation } from 'react-router-dom'
+import { ChevronDown, X } from 'lucide-react'
+import type { AppNavGroup, AppNavItem, AppShellContent, SidebarContent } from '../../content/types'
+import { isNavGroup } from '../../lib/sidebarNav'
 import { useSession } from '../../state/sessionContext'
 import { icons } from '../icons'
 import { Logo } from '../ui/Logo'
@@ -21,7 +23,7 @@ interface SidebarProps {
    * A count after a nav item, by its href (e.g. pending requests in the admin portal):
    * `text` is shown, `label` is what screen readers hear instead.
    */
-  badges?: Record<string, { text: string; label: string }>
+  badges?: Badges
 }
 
 const itemBase =
@@ -30,6 +32,104 @@ const itemBase =
 const itemIdle = 'text-beige hover:bg-white/[0.06] hover:text-offwhite'
 /* Icons in light gold (8.84:1 on maroon; 6.84:1 on the active tint). */
 const itemIcon = 'size-5 shrink-0 text-gold-light'
+
+type Badges = Record<string, { text: string; label: string }>
+
+/** Whether the link is the current page, as NavLink decides it. */
+function isCurrent(item: AppNavItem, pathname: string): boolean {
+  return matchPath({ path: item.href, end: !item.matchSubpaths }, pathname) !== null
+}
+
+/** The gold bar on the left of the current item. */
+function ActiveBar() {
+  return <span aria-hidden="true" className="absolute inset-y-2 left-0 w-[3px] rounded-full bg-gold" />
+}
+
+/**
+ * A link of the sidebar. NavLink sets aria-current="page" on the current one. Links inside a group
+ * have no icon and less padding; they are indented under the group's label.
+ */
+function SidebarLink({ item, badges, onNavigate, nested = false }: { item: AppNavItem; badges?: Badges; onNavigate?: () => void; nested?: boolean }) {
+  const Icon = icons[item.icon]
+  const badge = badges?.[item.href]
+  return (
+    <NavLink
+      to={item.href}
+      end={!item.matchSubpaths}
+      onClick={onNavigate}
+      className={({ isActive }) => `${itemBase} ${nested ? 'py-2.5' : ''} ${isActive ? 'bg-white/10 text-white' : itemIdle}`}
+    >
+      {({ isActive }) => (
+        <>
+          {isActive && <ActiveBar />}
+          {!nested && <Icon aria-hidden="true" className={itemIcon} strokeWidth={1.75} />}
+          {item.label}
+          {badge && (
+            <>
+              <span
+                aria-hidden="true"
+                className="ml-auto inline-flex min-w-6 items-center justify-center rounded-full bg-gold-light px-1.5 py-0.5 text-xs leading-none font-semibold text-maroon"
+              >
+                {badge.text}
+              </span>
+              <span className="sr-only">, {badge.label}</span>
+            </>
+          )}
+        </>
+      )}
+    </NavLink>
+  )
+}
+
+/**
+ * A collapsible group (e.g. Manage Organization): a button that shows or hides its links, with a
+ * chevron that turns when open. It isn't a page. It opens by itself whenever one of its pages is
+ * opened, also after a refresh or from a typed address. Closed while one of its pages is open, its
+ * header is highlighted instead, so the current place is never hidden.
+ */
+function SidebarGroup({ group, badges, onNavigate }: { group: AppNavGroup; badges?: Badges; onNavigate?: () => void }) {
+  const Icon = icons[group.icon]
+  const listId = useId()
+  const { pathname } = useLocation()
+  const containsCurrent = group.children.some((item) => isCurrent(item, pathname))
+  const [open, setOpen] = useState(containsCurrent)
+  // Open again on arriving at one of its pages (adjusting state while rendering, as React recommends).
+  const [wasCurrent, setWasCurrent] = useState(containsCurrent)
+  if (containsCurrent !== wasCurrent) {
+    setWasCurrent(containsCurrent)
+    if (containsCurrent) setOpen(true)
+  }
+  const highlighted = containsCurrent && !open
+
+  return (
+    <>
+      <button
+        type="button"
+        aria-expanded={open}
+        aria-controls={listId}
+        onClick={() => setOpen((value) => !value)}
+        className={`${itemBase} w-full text-left ${highlighted ? 'bg-white/10 text-white' : itemIdle}`}
+      >
+        {highlighted && <ActiveBar />}
+        <Icon aria-hidden="true" className={itemIcon} strokeWidth={1.75} />
+        <span className="flex-1">{group.label}</span>
+        <ChevronDown
+          aria-hidden="true"
+          className={`size-4 shrink-0 text-gold-light transition-transform motion-reduce:transition-none ${open ? 'rotate-180' : ''}`}
+          strokeWidth={2}
+        />
+      </button>
+      {/* Indented so the links line up with the group's label */}
+      <ul id={listId} hidden={!open} className="mt-1.5 ml-[1.375rem] space-y-1.5 border-l border-white/10 pl-2">
+        {group.children.map((item) => (
+          <li key={item.href}>
+            <SidebarLink item={item} badges={badges} onNavigate={onNavigate} nested />
+          </li>
+        ))}
+      </ul>
+    </>
+  )
+}
 
 /**
  * Sidebar contents: logo, main navigation and Sign Out, on Primary Maroon (as in the
@@ -84,45 +184,17 @@ export function Sidebar({ content, onNavigate, onClose, departmentSwitcher, badg
 
       <nav aria-label={content.navAriaLabel} className="flex flex-1 flex-col px-3 pb-5">
         <ul className="space-y-1.5">
-          {content.nav.map((item) => {
-            const Icon = icons[item.icon]
-            return (
-              <li key={item.href}>
-                {/* NavLink sets aria-current="page" on the active item */}
-                <NavLink
-                  to={item.href}
-                  end={!item.matchSubpaths}
-                  onClick={onNavigate}
-                  className={({ isActive }) =>
-                    `${itemBase} ${
-                      isActive ? 'bg-white/10 text-white' : itemIdle
-                    }`
-                  }
-                >
-                  {({ isActive }) => (
-                    <>
-                      {isActive && (
-                        <span aria-hidden="true" className="absolute inset-y-2 left-0 w-[3px] rounded-full bg-gold" />
-                      )}
-                      <Icon aria-hidden="true" className={itemIcon} strokeWidth={1.75} />
-                      {item.label}
-                      {badges?.[item.href] && (
-                        <>
-                          <span
-                            aria-hidden="true"
-                            className="ml-auto inline-flex min-w-6 items-center justify-center rounded-full bg-gold-light px-1.5 py-0.5 text-xs leading-none font-semibold text-maroon"
-                          >
-                            {badges[item.href].text}
-                          </span>
-                          <span className="sr-only">, {badges[item.href].label}</span>
-                        </>
-                      )}
-                    </>
-                  )}
-                </NavLink>
+          {content.nav.map((entry) =>
+            isNavGroup(entry) ? (
+              <li key={entry.id}>
+                <SidebarGroup group={entry} badges={badges} onNavigate={onNavigate} />
               </li>
-            )
-          })}
+            ) : (
+              <li key={entry.href}>
+                <SidebarLink item={entry} badges={badges} onNavigate={onNavigate} />
+              </li>
+            ),
+          )}
         </ul>
 
         {/* Sign Out pinned to the bottom */}

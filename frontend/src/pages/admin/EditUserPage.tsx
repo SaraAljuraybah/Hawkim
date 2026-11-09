@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 import { flushSync } from 'react-dom'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, CircleCheck } from 'lucide-react'
 import { blockerMessage } from '../../components/admin/blockerMessages'
 import { DeleteUserButton } from '../../components/admin/DeleteUserButton'
@@ -11,8 +11,8 @@ import { adminEn } from '../../content/admin.en'
 import { usersEn } from '../../content/users.en'
 import type { User } from '../../data/mock/types'
 import { useDocumentTitle } from '../../hooks/useDocumentTitle'
-import { ADMIN_USERS_PATH } from '../../lib/routes'
-import { permissionChangeBlockers, responsibilitiesInProgress, transfersDepartment, userFormValues, type NewUser } from '../../lib/userAdmin'
+import { ADMIN_USERS_PATH, adminAdminPath } from '../../lib/routes'
+import { isSystemAdmin, permissionChangeBlockers, responsibilitiesInProgress, transfersDepartment, userFormValues, type NewUser } from '../../lib/userAdmin'
 import { ChangeEmailError, SaveUserError, type SaveUserFailure } from '../../services/people'
 import { useDepartments } from '../../state/departmentsContext'
 import { useCurrentUser } from '../../state/sessionContext'
@@ -42,6 +42,8 @@ function EditUser({ id }: { id: string | undefined }) {
   useDocumentTitle(user ? adminEn.pageTitle.replace('{page}', content.title) : undefined)
 
   if (!user) return <NotFoundPage embedded />
+  // Administrators are managed on Manage Organization → Admins.
+  if (isSystemAdmin(user)) return <Navigate to={adminAdminPath(user.id)} replace />
 
   return <EditUserContent user={user} />
 }

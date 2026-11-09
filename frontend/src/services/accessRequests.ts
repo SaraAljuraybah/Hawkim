@@ -67,7 +67,7 @@ export async function viewAccessRequest(id: string, token: string): Promise<{ ok
   return { ok: false, reason: result.error === 'not-connected' ? 'not-connected' : 'failed' }
 }
 
-export type DecideFailure = 'not-found' | 'already-decided' | 'expired' | 'email-in-use' | 'account-failed' | 'not-connected' | 'failed'
+export type DecideFailure = 'not-found' | 'already-decided' | 'expired' | 'email-in-use' | 'deployment-onboarded' | 'account-failed' | 'not-connected' | 'failed'
 
 /** Accepts or rejects a request. After accepting, `emailSent` says whether the welcome email went out. */
 export async function decideAccessRequest(id: string, token: string, decision: 'accept' | 'reject'): Promise<{ ok: true; emailSent: boolean } | { ok: false; reason: DecideFailure }> {
@@ -75,7 +75,7 @@ export async function decideAccessRequest(id: string, token: string, decision: '
   if (result.ok) return { ok: true, emailSent: result.data.emailSent ?? true }
   const reasons: Record<string, DecideFailure> = {
     not_found: 'not-found', already_decided: 'already-decided', expired: 'expired',
-    email_in_use: 'email-in-use', account_failed: 'account-failed', 'not-connected': 'not-connected',
+    email_in_use: 'email-in-use', deployment_onboarded: 'deployment-onboarded', account_failed: 'account-failed', 'not-connected': 'not-connected',
   }
   return { ok: false, reason: reasons[result.error] ?? 'failed' }
 }

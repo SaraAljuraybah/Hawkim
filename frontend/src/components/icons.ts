@@ -14,6 +14,7 @@ import {
   LogOut,
   ShieldCheck,
   Upload,
+  UserCog,
   Users,
   Workflow,
   type LucideIcon,
@@ -43,4 +44,5 @@ export const icons: Record<IconName, LucideIcon> = {
   mySops: FilePen,
   upload: Upload,
   reviews: ListChecks,
+  admins: UserCog,
 }

@@ -41,6 +41,10 @@ const EmployeeOrganizationalStructurePage = lazy(() => import('./pages/Organizat
 
 const adminPortal = () => import('./routes/adminPortal')
 const AddUserPage = lazy(() => adminPortal().then((m) => ({ default: m.AddUserPage })))
+const AddAdminPage = lazy(() => adminPortal().then((m) => ({ default: m.AddAdminPage })))
+const AdminAdminsPage = lazy(() => adminPortal().then((m) => ({ default: m.AdminAdminsPage })))
+const AdminDetailsPage = lazy(() => adminPortal().then((m) => ({ default: m.AdminDetailsPage })))
+const EditAdminPage = lazy(() => adminPortal().then((m) => ({ default: m.EditAdminPage })))
 const AdminDepartmentsPage = lazy(() => adminPortal().then((m) => ({ default: m.AdminDepartmentsPage })))
 const AdminRegulationsPage = lazy(() => adminPortal().then((m) => ({ default: m.AdminRegulationsPage })))
 const AdminRequestsPage = lazy(() => adminPortal().then((m) => ({ default: m.AdminRequestsPage })))
@@ -135,6 +139,10 @@ function AppRoutes() {
         <Route path="users/new" element={<AddUserPage />} />
         <Route path="users/:id" element={<UserDetailsPage />} />
         <Route path="users/:id/edit" element={<EditUserPage />} />
+        <Route path="admins" element={<AdminAdminsPage />} />
+        <Route path="admins/new" element={<AddAdminPage />} />
+        <Route path="admins/:id" element={<AdminDetailsPage />} />
+        <Route path="admins/:id/edit" element={<EditAdminPage />} />
         <Route path="departments" element={<AdminDepartmentsPage />} />
         <Route path="organizational-structure" element={<OrganizationalStructurePage admin />} />
         <Route path="departments/new" element={<DepartmentFormPage />} />

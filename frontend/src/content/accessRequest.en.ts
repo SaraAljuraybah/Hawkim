@@ -65,12 +65,13 @@ export const reviewRequestEn: ReviewRequestContent = {
   alreadyDecided: { title: 'Already decided', text: 'Someone decided this request while the page was open. Open the review link again to see the result.' },
   accepted: {
     title: 'Request accepted',
-    text: 'The account was created and {email} received a link to set the password and sign in as Admin.',
+    text: 'The account was created and {email} received a link to set the password and sign in as Super Admin.',
     emailFailed: 'The account was created, but the email to {email} could not be sent. Ask them to use “Forgot password?” on the sign-in page.',
   },
   rejected: { title: 'Request rejected', text: 'The request was rejected and {email} was told by email.' },
   errors: {
     emailInUse: 'This email address already has a Hawkim account.',
+    deploymentOnboarded: 'This Hawkim deployment already belongs to an organization. Each organization needs its own deployment: set one up for this request, then accept it there.',
     accountFailed: 'The account could not be created. Please try again.',
     notConnected: "Couldn't reach Hawkim. Check your internet connection and try again.",
     failed: 'That didn’t work. Please try again.',

@@ -11,6 +11,12 @@ import type { SopStatus } from '../types/status'
 /** Every permission, in display order. */
 export const PERMISSIONS: Permission[] = ['author', 'reviewer', 'approver', 'admin']
 
+/**
+ * The permissions Staff Management gives. Admin isn't one of them: administrators are added and
+ * managed on Manage Organization → Admins (the database refuses Admin changes from Staff too).
+ */
+export const STAFF_PERMISSIONS: Permission[] = PERMISSIONS.filter((permission) => permission !== 'admin')
+
 /** Simple format check: something@something.something, with no spaces. */
 export const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 

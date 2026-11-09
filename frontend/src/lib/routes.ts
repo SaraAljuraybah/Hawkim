@@ -139,3 +139,19 @@ export function adminUserPath(userId: string): string {
 export function adminUserEditPath(userId: string): string {
   return `${adminUserPath(userId)}/edit`
 }
+
+/** Manage Organization → Admins: the administrators list. */
+export const ADMIN_ADMINS_PATH = '/admin/admins'
+
+/** Add Admin. */
+export const ADMIN_NEW_ADMIN_PATH = `${ADMIN_ADMINS_PATH}/new`
+
+/** An administrator's page, e.g. /admin/admins/0b6e… */
+export function adminAdminPath(userId: string): string {
+  return `${ADMIN_ADMINS_PATH}/${encodeURIComponent(userId)}`
+}
+
+/** Edit Admin, e.g. /admin/admins/0b6e…/edit */
+export function adminAdminEditPath(userId: string): string {
+  return `${adminAdminPath(userId)}/edit`
+}

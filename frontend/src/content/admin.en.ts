@@ -14,8 +14,17 @@ export const adminEn: AdminContent = {
     homeLinkLabel: 'Hawkim admin, go to Divisions & Departments',
     navAriaLabel: 'Admin',
     nav: [
-      { label: 'Divisions & Departments', href: '/admin/departments', icon: 'departments', matchSubpaths: true },
-      { label: 'Staff', href: '/admin/users', icon: 'employees', matchSubpaths: true },
+      // A collapsible group, not a page: it opens by itself on any of its pages.
+      {
+        id: 'manage-organization',
+        label: 'Manage Organization',
+        icon: 'organization',
+        children: [
+          { label: 'Divisions & Departments', href: '/admin/departments', icon: 'departments', matchSubpaths: true },
+          { label: 'Staff', href: '/admin/users', icon: 'employees', matchSubpaths: true },
+          { label: 'Admins', href: '/admin/admins', icon: 'admins', matchSubpaths: true },
+        ],
+      },
       { label: 'SFDA Regulatory Requirements', href: '/admin/regulations', icon: 'regulatory', matchSubpaths: true },
       { label: 'Organizational Structure', href: '/admin/organizational-structure', icon: 'hierarchy', matchSubpaths: true },
       { label: 'SOP Directory', href: '/admin/sops', icon: 'sops', matchSubpaths: true },

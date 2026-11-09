@@ -36,6 +36,22 @@ export interface UsersStore {
   updateUser: (userId: string, user: NewUser, context: AdminActionContext) => Promise<void>
   /** Deletes a user: they can no longer sign in, and their name stays on SOP history. */
   deleteUser: (userId: string, context: AdminActionContext) => void
+
+  // Manage Organization → Admins. The server checks who may do each (services/admins.ts).
+  /**
+   * Saves an administrator's name and phone, then their email (which changes their sign-in account).
+   * Rejects with an AdminActionError (nothing saved) or a ChangeEmailError (the rest was saved).
+   */
+  updateAdmin: (userId: string, details: AdminDetails) => Promise<void>
+  /** Deletes a regular Admin (Super Admin only). Rejects with an AdminActionError. */
+  deleteAdmin: (userId: string) => Promise<void>
+}
+
+/** What Edit Admin saves; `phone` as typed (+9665XXXXXXXX). */
+export interface AdminDetails {
+  name: string
+  email: string
+  phone: string
 }
 
 export const UsersContext = createContext<UsersStore | null>(null)

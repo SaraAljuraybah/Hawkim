@@ -7,6 +7,7 @@ import { GuidelineVersionDetails } from '../../components/admin/GuidelineVersion
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
 import { AdminRegulationsPage } from './AdminRegulationsPage'
 import { RegulationDetailsPage } from './RegulationDetailsPage'
+import { navLinks } from '../../lib/sidebarNav'
 
 const requirement = { id: 'R1', module: 'Module I', section: 'I.B.10', sectionTitle: 'Record management', shortTitle: 'Access', page: 22, summary: '' }
 const fixture = vi.hoisted(() => ({ titles: [] as string[], addedStatus: 'ready' as 'ready' | 'loading' | 'error' }))
@@ -52,7 +53,7 @@ describe('SFDA Regulatory Requirements page', () => {
     const html = render()
     expect(html).toContain('>SFDA Regulatory Requirements</h1>')
     expect(fixture.titles.at(-1)).toBe(adminEn.pageTitle.replace('{page}', 'SFDA Regulatory Requirements'))
-    expect(adminEn.shell.nav.find((item) => item.href === '/admin/regulations')?.label).toBe('SFDA Regulatory Requirements')
+    expect(navLinks(adminEn.shell.nav).find((item) => item.href === '/admin/regulations')?.label).toBe('SFDA Regulatory Requirements')
     expect(adminEn.regulationForm.back.label).toBe('Back to SFDA Regulatory Requirements')
     expect(adminEn.regulationDetails.back.label).toBe('Back to SFDA Regulatory Requirements')
   })

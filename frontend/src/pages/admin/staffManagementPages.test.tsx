@@ -38,9 +38,11 @@ describe('Staff Details', () => {
     expect(labels(details())).toEqual(['Name', 'Email', 'Phone Number', 'Division', 'Department', 'Position', 'Permission'])
   })
 
-  it("doesn't list division, department or position for a System Admin", () => {
+  it("sends an administrator's Staff page to their page under Manage Organization → Admins", () => {
     fixture.user = { ...fixture.user!, departmentId: '', position: undefined, permissions: ['admin'] }
-    expect(labels(details())).toEqual(['Name', 'Email', 'Phone Number', 'Permission'])
+    const html = details()
+    expect(labels(html)).toEqual([])
+    expect(html).not.toContain('Edit Staff')
   })
 
   it('says Staff, not Users', () => {

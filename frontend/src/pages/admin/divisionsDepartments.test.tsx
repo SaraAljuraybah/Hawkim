@@ -6,6 +6,7 @@ import { HierarchyTable } from './AdminDepartmentsPage'
 import { Sidebar } from '../../components/layout/Sidebar'
 import { adminEn } from '../../content/admin.en'
 import type { ManagementSnapshot } from '../../services/organizationAdmin'
+import { navLinks } from '../../lib/sidebarNav'
 vi.mock('../../state/sessionContext', () => ({ useSession: () => ({ signOut: vi.fn() }) }))
 const snapshot: ManagementSnapshot = { divisions: [{ id: 'v', name: 'Safety', description: 'Work', email: 's@test.invalid', updated_at: 'revision' }], departments: [
   { id: 'd', name: 'Medical', initials: 'MD', description: '', division_id: 'v', updated_at: 'revision', employees: 5, sops: 1, status_counts: { draft: 1 } },
@@ -68,8 +69,8 @@ describe('admin navigation', () => {
   it.each(['/admin/departments', '/admin/departments/d', '/admin/departments/d/edit'])('highlights the unified entry at %s', (path) => {
     const html = renderToStaticMarkup(<MemoryRouter initialEntries={[path]}><Sidebar content={adminEn.shell} /></MemoryRouter>)
     expect(html).toMatch(/aria-current="page"[^>]*href="\/admin\/departments"|href="\/admin\/departments"[^>]*aria-current="page"/)
-    expect(adminEn.shell.nav.filter((item) => item.label === 'Departments')).toHaveLength(0)
-    expect(adminEn.shell.nav.filter((item) => item.label === 'Divisions & Departments')).toHaveLength(1)
+    expect(navLinks(adminEn.shell.nav).filter((item) => item.label === 'Departments')).toHaveLength(0)
+    expect(navLinks(adminEn.shell.nav).filter((item) => item.label === 'Divisions & Departments')).toHaveLength(1)
     expect(adminEn.shell.nav.at(-1)?.label).toBe('Requests')
   })
 })

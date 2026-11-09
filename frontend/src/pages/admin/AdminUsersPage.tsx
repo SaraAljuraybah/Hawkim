@@ -14,7 +14,7 @@ import { usersEn } from '../../content/users.en'
 import type { User } from '../../data/mock/types'
 import { useDocumentTitle } from '../../hooks/useDocumentTitle'
 import { adminUserEditPath, adminUserPath } from '../../lib/routes'
-import { ALL_FILTER as ALL, departmentsInDivision, divisionLabel, divisionNameIn, divisionOptions, filterUsers, NO_DIVISION } from '../../lib/userAdmin'
+import { ALL_FILTER as ALL, departmentsInDivision, divisionLabel, divisionNameIn, divisionOptions, filterUsers, isSystemAdmin, NO_DIVISION } from '../../lib/userAdmin'
 import { useDepartments } from '../../state/departmentsContext'
 import { useUsers } from '../../state/usersContext'
 
@@ -23,11 +23,15 @@ export interface AdminUsersLocationState {
   deleted?: string
 }
 
-/** Users ("/admin/users", PBI 17): one search, Division and Department filters, and each user's actions. */
+/**
+ * Staff ("/admin/users", PBI 17): one search, Division and Department filters, and each staff member's
+ * actions. Administrators aren't staff: they are on Manage Organization → Admins.
+ */
 export function AdminUsersPage() {
   const content = adminEn.usersList
   useDocumentTitle(adminEn.pageTitle.replace('{page}', content.title))
-  const { activeUsers } = useUsers()
+  const { activeUsers: everyone } = useUsers()
+  const activeUsers = useMemo(() => everyone.filter((user) => !isSystemAdmin(user)), [everyone])
   const { activeDepartments, getDepartment } = useDepartments()
   const navigate = useNavigate()
   const arrived = (useLocation().state as AdminUsersLocationState | null)?.deleted

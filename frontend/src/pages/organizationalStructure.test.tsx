@@ -6,6 +6,7 @@ import { Sidebar } from '../components/layout/Sidebar'
 import { adminEn } from '../content/admin.en'
 import type { OrganizationHierarchy } from '../services/organization'
 import { OrganizationalStructurePage, OrganizationContent } from './OrganizationalStructurePage'
+import { navLinks } from '../lib/sidebarNav'
 
 vi.mock('../state/sessionContext', () => ({ useSession: () => ({ signOut: vi.fn() }), useCurrentUser: () => ({ id: 'admin' }) }))
 vi.mock('../hooks/useDocumentTitle', () => ({ useDocumentTitle: () => {} }))
@@ -20,9 +21,10 @@ const hierarchy: OrganizationHierarchy = {
 const chart = (value = hierarchy, qualityDepartmentId?: string) => renderToStaticMarkup(<OrganizationChart hierarchy={value} qualityDepartmentId={qualityDepartmentId} />)
 
 describe('Organizational Structure', () => {
-  it('puts Organizational Structure fourth, after SFDA Regulatory Requirements, with its existing active indicator', () => {
+  it('puts Organizational Structure right after SFDA Regulatory Requirements, with its existing active indicator', () => {
     const html = renderToStaticMarkup(<MemoryRouter initialEntries={['/admin/organizational-structure']}><Sidebar content={adminEn.shell} /></MemoryRouter>)
-    expect(adminEn.shell.nav[3]?.label).toBe('Organizational Structure')
+    const labels = navLinks(adminEn.shell.nav).map((item) => item.label)
+    expect(labels.indexOf('Organizational Structure')).toBe(labels.indexOf('SFDA Regulatory Requirements') + 1)
     expect(html.indexOf('>SFDA Regulatory Requirements<')).toBeLessThan(html.indexOf('>Organizational Structure<'))
     expect(html.indexOf('>Organizational Structure<')).toBeLessThan(html.indexOf('>SOP Directory<'))
     expect(html.indexOf('>Requests<')).toBeLessThan(html.indexOf('>Sign Out<'))

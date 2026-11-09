@@ -1,6 +1,6 @@
 import { useRef, useState, type ReactNode } from 'react'
 import { flushSync } from 'react-dom'
-import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
+import { Link, Navigate, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, CircleAlert, CircleCheck, Pencil } from 'lucide-react'
 import { DeleteUserButton } from '../../components/admin/DeleteUserButton'
 import { RefusedBox } from '../../components/admin/RefusedBox'
@@ -11,7 +11,7 @@ import { adminEn } from '../../content/admin.en'
 import { usersEn } from '../../content/users.en'
 import type { User } from '../../data/mock/types'
 import { useDocumentTitle } from '../../hooks/useDocumentTitle'
-import { ADMIN_USERS_PATH, adminUserEditPath } from '../../lib/routes'
+import { ADMIN_USERS_PATH, adminAdminPath, adminUserEditPath } from '../../lib/routes'
 import { divisionLabel, involvement, isSystemAdmin } from '../../lib/userAdmin'
 import { useDepartments } from '../../state/departmentsContext'
 import { useSops } from '../../state/sopsContext'
@@ -44,6 +44,8 @@ function UserDetails({ id }: { id: string | undefined }) {
   useDocumentTitle(user ? adminEn.pageTitle.replace('{page}', user.name) : undefined)
 
   if (!user) return <NotFoundPage embedded />
+  // Administrators are managed on Manage Organization → Admins.
+  if (isSystemAdmin(user)) return <Navigate to={adminAdminPath(user.id)} replace />
 
   return (
     <>

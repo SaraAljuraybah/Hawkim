@@ -66,9 +66,14 @@ describe('Add User', () => {
     expect(markup).not.toContain('>Plain Department<')
   })
 
-  it('calls the section Permission, optional, keeping each permission\'s description', () => {
+  it('calls the section Permission, optional, keeping each staff permission\'s description', () => {
     expect(html).toContain('>Permission<')
     expect(html).not.toContain('>Role<')
-    for (const description of Object.values(adminEn.permissionDescriptions)) expect(html).toContain(description.replace(/'/g, '&#x27;'))
+    for (const permission of ['author', 'reviewer', 'approver'] as const) expect(html).toContain(adminEn.permissionDescriptions[permission].replace(/'/g, '&#x27;'))
+  })
+
+  it("doesn't offer the Admin permission: administrators are added on Manage Organization → Admins", () => {
+    expect(html).not.toContain('value="admin"')
+    expect(html).not.toContain(adminEn.permissionDescriptions.admin)
   })
 })

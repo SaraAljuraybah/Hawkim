@@ -34,6 +34,9 @@ const getDepartment = (id: string) => fixture.departments.find((item) => item.id
 const search = (query: string, division = ALL_FILTER, departmentId = ALL_FILTER) =>
   filterUsers(fixture.users, getDepartment, { query, division, departmentId }, usersEn.permissions).map((user) => user.id)
 
+/** The fixture's staff: everyone but the administrators. */
+const staffOnly = () => fixture.users.filter((user) => !user.permissions.includes('admin'))
+
 describe('Users list', () => {
   it('has the columns Name, Division, Department, Permission and Actions, without Email', () => {
     const html = table(render())
@@ -47,7 +50,8 @@ describe('Users list', () => {
     expect(html).not.toContain('sara@example.test')
     // The division of the department, or — without one.
     expect(html).toContain('>Regulatory &amp; Drug Safety<')
-    expect(html.match(/<td[^>]*>—<\/td>/g)).toHaveLength(2)
+    // Only Reem's department has no division (the administrator without one isn't listed).
+    expect(html.match(/<td[^>]*>—<\/td>/g)).toHaveLength(1)
   })
 
   it('makes only the buttons interactive: the row isn\'t a link and the name is plain text', () => {
@@ -57,9 +61,9 @@ describe('Users list', () => {
     expect(html).toMatch(/<th scope="row"[^>]*><span[^>]*><span[^>]*>SA<\/span>Sara Aljuraybah<\/span><\/th>/)
   })
 
-  it('gives every user View, Edit and Delete icon buttons, named and with tooltips', () => {
+  it('gives every staff member View, Edit and Delete icon buttons, named and with tooltips', () => {
     const html = table(render())
-    for (const user of fixture.users) {
+    for (const user of staffOnly()) {
       for (const label of [`View ${user.name}`, `Edit ${user.name}`, `Delete ${user.name}`]) {
         expect(html).toContain(`aria-label="${label}"`)
         expect(html).toMatch(new RegExp(`role="tooltip"[^>]*><span[^>]*>${label}</span>`))
@@ -74,7 +78,7 @@ describe('Users list', () => {
     const html = render()
     const cards = html.slice(html.indexOf('<ul aria-label="Staff"'), html.lastIndexOf('</ul>'))
     expect(cards).toContain('md:hidden')
-    for (const user of fixture.users) {
+    for (const user of staffOnly()) {
       expect(cards).toContain(`>${user.name}<`)
       expect(cards).toContain(`aria-label="Delete ${user.name}"`)
     }
@@ -94,7 +98,17 @@ describe('Users list', () => {
     expect(html).toContain('>No Division</option>')
     expect(html).toContain('>All Departments<')
     expect(html).not.toContain('All Permissions')
-    expect(html).toContain('>3 staff members<')
+    expect(html).toContain('>2 staff members<')
+  })
+
+  it('leaves out administrators: they are on Manage Organization → Admins', () => {
+    const admins = fixture.users.filter((user) => user.permissions.includes('admin'))
+    expect(admins.length).toBeGreaterThan(0)
+    const html = render()
+    for (const admin of admins) {
+      expect(html).not.toContain(`>${admin.name}<`)
+      expect(html).not.toContain(`aria-label="View ${admin.name}"`)
+    }
   })
 })
 

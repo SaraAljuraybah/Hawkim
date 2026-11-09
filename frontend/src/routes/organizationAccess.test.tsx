@@ -9,6 +9,7 @@ import { ORGANIZATIONAL_STRUCTURE_PATH } from '../lib/routes'
 import { ActiveDepartmentProvider } from '../state/ActiveDepartmentProvider'
 import { AdminArea, EmployeeArea } from './guards'
 import { AdminAuthorizationGate } from '../components/admin/AdminAuthorizationGate'
+import { navLinks } from '../lib/sidebarNav'
 
 const session = vi.hoisted(() => ({ user: null as User | null }))
 vi.mock('../state/sessionContext', () => ({ useSession: () => ({ status: 'signed-in', user: session.user }) }))
@@ -61,6 +62,6 @@ describe('Organizational Structure for every signed-in user', () => {
     expect(result.type).toBe(Navigate)
     // Into the portal, on Divisions & Departments.
     expect(result.props.to).toBe('/admin/departments')
-    expect(adminEn.shell.nav.map((entry) => entry.href)).toContain('/admin/organizational-structure')
+    expect(navLinks(adminEn.shell.nav).map((entry) => entry.href)).toContain('/admin/organizational-structure')
   })
 })

@@ -74,7 +74,8 @@ describe('Edit Staff', () => {
     expect(checkbox(html, 'author')).toContain('checked=""')
     expect(checkbox(html, 'reviewer')).toContain('checked=""')
     expect(checkbox(html, 'approver')).not.toContain('checked=""')
-    expect(checkbox(html, 'admin')).not.toContain('checked=""')
+    // Admin isn't a Staff permission (Manage Organization → Admins).
+    expect(html).not.toContain('value="admin"')
   })
 
   it('shows the avatar, name and Delete in a row above the form, with one Delete', () => {

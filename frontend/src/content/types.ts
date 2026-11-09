@@ -36,6 +36,7 @@ export type IconName =
   | 'mySops'
   | 'upload'
   | 'reviews'
+  | 'admins'
 
 export interface NavLink {
   label: string
@@ -310,6 +311,21 @@ export interface AppNavItem {
   permission?: Permission | Permission[]
 }
 
+/**
+ * A collapsible group of sidebar links (e.g. Manage Organization in the admin portal). It is not a
+ * page: the header only opens and closes the list, which opens by itself on any of its pages.
+ */
+export interface AppNavGroup {
+  /** A stable key, also used for the ids that tie the header to its list. */
+  id: string
+  label: string
+  icon: IconName
+  children: AppNavItem[]
+}
+
+/** A sidebar entry: a link, or a group of links. */
+export type SidebarNavEntry = AppNavItem | AppNavGroup
+
 /** The sidebar's content (employee app and admin portal). */
 export interface SidebarContent {
   /** Product name shown as text next to the logo mark in the sidebar. */
@@ -320,12 +336,14 @@ export interface SidebarContent {
   /** Accessible name of the sidebar logo link. */
   homeLinkLabel: string
   navAriaLabel: string
-  nav: AppNavItem[]
+  nav: SidebarNavEntry[]
   signOut: AppNavItem
   closeMenu: string
 }
 
 export interface AppShellContent extends SidebarContent {
+  /** The employee app has no groups. */
+  nav: AppNavItem[]
   /** Visually hidden link that lets keyboard users jump past the navigation. */
   skipLink: string
   /** Accessible name of the sidebar logo link in a read-only department (it opens the SOP Directory). */
@@ -1789,7 +1807,8 @@ export interface ReviewRequestContent {
   /** After the team's decision. `{email}` is the requester's address. */
   accepted: { title: string; text: string; emailFailed: string }
   rejected: { title: string; text: string }
-  errors: { emailInUse: string; accountFailed: string; notConnected: string; failed: string }
+  /** `deploymentOnboarded`: this deployment already has its organization (one organization per deployment). */
+  errors: { emailInUse: string; deploymentOnboarded: string; accountFailed: string; notConnected: string; failed: string }
 }
 
 /** The page controls under a long list. `{page}` is the page number. */
@@ -1807,4 +1826,121 @@ export interface PaginationContent {
 /** DEVELOPMENT ONLY: the sample SOPs for trying pagination. `{n}` is the sample number. */
 export interface DevSamplesContent {
   title: string
+}
+
+/* ---------- Admin portal: Manage Organization → Admins ---------- */
+
+/** What the Add/Edit form says about the fields every account has (Staff's form shows more). */
+export interface UserFormText {
+  back: LinkContent
+  name: { label: string }
+  email: { label: string; hint: string }
+  phone: { label: string; hint: string; placeholder: string }
+  cancel: string
+  errors: Pick<AdminAddUserContent['errors'], 'nameRequired' | 'emailInvalid' | 'emailTaken' | 'phoneRequired' | 'phoneInvalid'>
+}
+
+/** The two administrator levels, as shown. */
+export type AdminRoleKey = 'superAdmin' | 'admin'
+
+/** Why an Admins action was refused by the server. */
+export type AdminActionFailure =
+  | 'forbidden' | 'not-found' | 'invalid' | 'super-admin-required' | 'super-admin-protected'
+  | 'recipient-not-admin' | 'recipient-self' | 'failed'
+
+export interface AdminsContent {
+  /** Browser tab title; `{page}` is replaced. */
+  pageTitle: string
+  roles: Record<AdminRoleKey, string>
+  list: {
+    title: string
+    description: string
+    add: LinkContent
+    search: { label: string; placeholder: string }
+    count: CountText
+    tableLabel: string
+    columns: { name: string; email: string; phone: string; role: string; actions: string }
+    none: string
+    /** `{name}` is replaced. */
+    actions: { view: string; edit: string }
+    empty: string
+    noMatches: string
+    loading: string
+    /** The administrators or the Super Admin couldn't be loaded. */
+    loadFailed: string
+    retry: string
+  }
+  add: {
+    title: string
+    subtitle: string
+    /** Under the form: every new account is a regular Admin. */
+    roleNote: string
+    submit: string
+    adding: string
+    notAdded: string
+    failures: Record<'forbidden' | 'email-taken' | 'invalid' | 'account-failed' | 'account-blocked' | 'failed', string>
+  }
+  form: UserFormText
+  edit: {
+    title: string
+    subtitle: string
+    submit: string
+    saving: string
+    saved: string
+    notSaved: string
+    emailNotSaved: string
+    failures: Record<AdminActionFailure, string>
+    emailFailures: Record<'forbidden' | 'not-found' | 'email-taken' | 'invalid' | 'account-failed' | 'failed', string>
+    /** Shown instead of the form to a regular Admin who opens the Super Admin's Edit page. */
+    readOnly: string
+    discard: { title: string; description: string; keep: string; discard: string }
+  }
+  details: {
+    back: LinkContent
+    title: string
+    name: string
+    email: string
+    phone: string
+    role: string
+    notSet: string
+    edit: string
+    /** Under the role, for the signed-in person's own entry. */
+    you: string
+    /** Shown to a regular Admin on the Super Admin's page. */
+    superAdminReadOnly: string
+    /** Shown to the Super Admin on their own page. */
+    ownSuperAdmin: string
+    added: string
+    addedInvitationFailed: string
+  }
+  delete: {
+    /** Accessible name of the Trash button; `{name}` is replaced. */
+    button: string
+    title: string
+    /** `{name}` and `{email}` are replaced. */
+    description: string
+    cancel: string
+    confirm: string
+    deleting: string
+    /** `{name}` is replaced. */
+    done: string
+    notDeleted: string
+  }
+  transfer: {
+    button: string
+    title: string
+    /** `{name}` is replaced in each. */
+    intro: string
+    /** Before the list of consequences. */
+    proceed: string
+    consequences: string[]
+    effect: string
+    cancel: string
+    confirm: string
+    transferring: string
+    /** `{name}` is replaced. */
+    done: string
+    notTransferred: string
+  }
+  failures: Record<AdminActionFailure, string>
 }

@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, type KeyboardEvent } from 'react'
+import { useEffect, useId, useRef, type KeyboardEvent, type ReactNode } from 'react'
 import { Button } from './Button'
 
 interface ConfirmDialogProps {
@@ -19,6 +19,8 @@ interface ConfirmDialogProps {
   canConfirm?: () => boolean
   /** Why the action can't be done, shown in the dialog as an alert. */
   error?: string
+  /** More of the message under the description (e.g. a list); read with it. */
+  children?: ReactNode
 }
 
 /**
@@ -26,7 +28,7 @@ interface ConfirmDialogProps {
  * makes it inert, closes on Escape. Focus starts on the safe choice and Tab
  * wraps between the two buttons. The caller decides where focus goes afterwards.
  */
-export function ConfirmDialog({ open, title, description, cancelLabel, confirmLabel, onConfirm, onCancel, canConfirm, error }: ConfirmDialogProps) {
+export function ConfirmDialog({ open, title, description, cancelLabel, confirmLabel, onConfirm, onCancel, canConfirm, error, children }: ConfirmDialogProps) {
   const dialogRef = useRef<HTMLDialogElement>(null)
   const confirmedRef = useRef(false)
   const titleId = useId()
@@ -80,9 +82,10 @@ export function ConfirmDialog({ open, title, description, cancelLabel, confirmLa
           <h2 id={titleId} className="text-lg">
             {title}
           </h2>
-          <p id={descriptionId} className="mt-2 text-text-gray">
-            {description}
-          </p>
+          <div id={descriptionId} className="mt-2 text-text-gray">
+            <p>{description}</p>
+            {children}
+          </div>
           {/* Stays mounted while open, so a refusal is announced */}
           <div role="alert">{error && <p className="mt-3 text-sm font-medium text-status-rejected-fg">{error}</p>}</div>
           <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">

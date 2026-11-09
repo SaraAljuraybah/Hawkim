@@ -6,6 +6,7 @@ import { sopsEn } from '../content/sops.en'
 import type { Department, Sop, User } from '../data/mock/types'
 import { SopDetailPage } from './SopDetailPage'
 import { AdminSopsPage, SopsPage } from './SopsPage'
+import { navLinks } from '../lib/sidebarNav'
 
 const fixture = vi.hoisted(() => ({
   user: { id: 'admin', name: 'Nouf', initials: 'NA', email: 'nouf@example.test', departmentId: 'it', permissions: ['admin'] } as User,
@@ -43,7 +44,7 @@ beforeEach(() => {
 
 describe('the SOP Directory in the admin portal', () => {
   it('is a tab between Organizational Structure and Requests', () => {
-    const labels = adminEn.shell.nav.map((item) => item.label)
+    const labels = navLinks(adminEn.shell.nav).map((item) => item.label)
     expect(labels.indexOf('SOP Directory')).toBe(labels.indexOf('Organizational Structure') + 1)
     expect(labels.indexOf('Requests')).toBe(labels.indexOf('SOP Directory') + 1)
   })

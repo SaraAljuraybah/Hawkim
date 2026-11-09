@@ -14,8 +14,9 @@ import {
 } from '../lib/userAdmin'
 import { useDepartments } from './departmentsContext'
 import { useLoadAfterSignIn } from './useLoadAfterSignIn'
-import { UsersContext, type AdminActionContext, type UsersStore } from './usersContext'
+import { UsersContext, type AdminActionContext, type AdminDetails, type UsersStore } from './usersContext'
 import { addUserAccount, changeUserEmail, fetchPeople, saveUser } from '../services/people'
+import { AdminActionError, deleteAdminAccount, updateAdminDetails } from '../services/admins'
 
 /** What the admin entered, as a user's saved fields. A System Admin has no department or position. */
 function savedFields(input: NewUser, departmentId: string) {
@@ -143,9 +144,40 @@ export function UsersProvider({ children }: { children: ReactNode }) {
     [commit, resolve],
   )
 
+  const updateAdmin = useCallback(
+    async (userId: string, details: AdminDetails) => {
+      const target = latestRef.current.find((user) => user.id === userId && !user.deletedAt && isSystemAdmin(user))
+      if (!target) throw new AdminActionError('not-found')
+      const name = details.name.trim()
+      const phone = normalizePhone(details.phone)
+      const email = details.email.trim().toLowerCase()
+      if (!name || !phone) throw new AdminActionError('invalid')
+      // First, so that a failure leaves everything as it was.
+      if (name !== target.name || phone !== target.phone) {
+        const saved = await updateAdminDetails(userId, name, phone)
+        commit(latestRef.current.map((user) => (user.id === userId ? { ...user, ...saved } : user)))
+      }
+      // Then the email, with the sign-in account (as Edit Staff does).
+      if (email !== target.email.toLowerCase()) {
+        const savedEmail = await changeUserEmail(userId, email)
+        commit(latestRef.current.map((user) => (user.id === userId ? { ...user, email: savedEmail } : user)))
+      }
+    },
+    [commit],
+  )
+
+  const deleteAdmin = useCallback(
+    async (userId: string) => {
+      await deleteAdminAccount(userId)
+      const deletedAt = new Date().toISOString()
+      commit(latestRef.current.map((user) => (user.id === userId ? { ...user, deletedAt } : user)))
+    },
+    [commit],
+  )
+
   const store = useMemo<UsersStore>(
-    () => ({ status, users, activeUsers, getUser, nameOf, addUser, updateUser, deleteUser }),
-    [status, users, activeUsers, getUser, nameOf, addUser, updateUser, deleteUser],
+    () => ({ status, users, activeUsers, getUser, nameOf, addUser, updateUser, deleteUser, updateAdmin, deleteAdmin }),
+    [status, users, activeUsers, getUser, nameOf, addUser, updateUser, deleteUser, updateAdmin, deleteAdmin],
   )
 
   return <UsersContext.Provider value={store}>{children}</UsersContext.Provider>
