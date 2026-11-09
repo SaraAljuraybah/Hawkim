@@ -2,8 +2,10 @@ import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { flushSync } from 'react-dom'
 import { LoaderCircle } from 'lucide-react'
 import { MessageScreen } from '../components/layout/MessageScreen'
+import { PageBackLink } from '../components/layout/PageBackLink'
 import { Button } from '../components/ui/Button'
 import { TextField } from '../components/ui/TextField'
+import { FORM_CARD } from '../components/ui/formCard'
 import { forgotPasswordEn } from '../content/auth.en'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { forgotEmailProblem } from '../lib/forgotPassword'
@@ -68,8 +70,10 @@ export function ForgotPasswordPage() {
   }
 
   return (
-    <MessageScreen title={content.title} text={content.text} logoAlt={content.logoAlt}>
-      <form noValidate onSubmit={submit} className="w-[min(24rem,calc(100vw-2rem))] space-y-5 text-left">
+    <div className="relative">
+      <PageBackLink to={content.backLink.href} label={content.backLink.label} />
+      <MessageScreen title={content.title} text={content.text} logoAlt={content.logoAlt}>
+      <form noValidate onSubmit={submit} className={`${FORM_CARD} w-[min(26rem,calc(100vw-2rem))] space-y-5 text-left`}>
         {failure && <p role="alert" className="text-sm text-status-rejected-fg">{failure}</p>}
         <TextField
           ref={emailRef}
@@ -90,6 +94,7 @@ export function ForgotPasswordPage() {
         </Button>
         <Button to={content.backLink.href} variant="secondary" className="w-full">{content.backLink.label}</Button>
       </form>
-    </MessageScreen>
+      </MessageScreen>
+    </div>
   )
 }
