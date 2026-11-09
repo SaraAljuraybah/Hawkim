@@ -16,10 +16,27 @@ class ComplianceService:
 
     def __init__(self, config_path: str = "config.yaml", scope_mode: str | None = None):
         self.cfg = load_config(config_path)
+        self.scope_mode = scope_mode
         self.engine = Engine(self.cfg, scope_mode=scope_mode)
+        self._engines: dict[str, Engine] = {}
 
-    def info(self) -> dict:
-        e = self.engine
+    @property
+    def embedder(self):
+        """The loaded embedding model (BGE-M3), shared by every GVP version."""
+        return self.engine.index.embedder
+
+    def engine_for(self, index_dir: str | Path | None) -> Engine:
+        """The engine for a GVP version's index folder (None: the local index). Kept in memory."""
+        if index_dir is None:
+            return self.engine
+        key = str(Path(index_dir).resolve())
+        if key not in self._engines:
+            self._engines[key] = Engine(self.cfg, scope_mode=self.scope_mode, index_dir=Path(index_dir),
+                                        embedder=self.embedder)
+        return self._engines[key]
+
+    def info(self, engine: Engine | None = None) -> dict:
+        e = engine or self.engine
         return {"llm": f"{e.lc['provider']}:{e.lc['model']}", "mode": e.mode, "scope_mode": e.scope_mode,
                 "matrix_version": e.classifier.version if e.classifier else None,
                 "embedding": f"{self.cfg['embedding']['backend']}:{self.cfg['embedding'].get('model')}",
@@ -35,9 +52,12 @@ class ComplianceService:
                 "scope": sc.to_dict() if sc else None, "chunks_to_check": len(prep["chunks"]),
                 "warnings": prep["warnings"]}
 
-    def check(self, sop_path: str | Path, confirmed_modules: list[str] | None = None) -> dict:
-        res = self.engine.assess_file(sop_path, scope_override=confirmed_modules, log=None)
-        units = self.engine.index.by_id
+    def check(self, sop_path: str | Path, confirmed_modules: list[str] | None = None,
+              engine: Engine | None = None) -> dict:
+        """`engine`: the GVP version's engine (engine_for); default: the local index."""
+        engine = engine or self.engine
+        res = engine.assess_file(sop_path, scope_override=confirmed_modules, log=None)
+        units = engine.index.by_id
         findings = []
         for r in res["records"]:
             u = units.get(r["requirement_used"] or "")
@@ -59,7 +79,7 @@ class ComplianceService:
         return {
             "sop_file": res["sop_file"], "title": res["title"],
             "checked_at": dt.datetime.now().isoformat(timespec="seconds"),
-            "engine": self.info(),
+            "engine": self.info(engine),
             "scope": res["scope"], "scope_flags": res["scope_flags"],
             "summary": {"chunks_checked": res["n_chunks_checked"], "labels": dict(counts),
                         "review_required": sum(1 for f in findings if f["review_required"]),

@@ -60,6 +60,18 @@ python worker.py
 It prints each check it processes. On a laptop where the model runs partly on the CPU, a check takes
 about 10–15 minutes per SOP; with a GPU that holds the whole model, about 1–2 minutes.
 
+## GVP versions (added on the website)
+
+When an admin adds a GVP version (SFDA Regulatory Requirements), the worker processes it when no check
+is waiting: it downloads the PDF from the `guideline-files` bucket, splits it into requirement units,
+embeds them with BGE-M3 and uploads the index to the private `guideline-indexes` bucket
+(`versions/<id>/`). The version's page then shows **Ready** with a short report (requirements, sections,
+pages, and any excluded section codes the new version no longer has), or **Failed** with the reason and
+**Try Again**. An admin then clicks **Make Current**; new checks use that version, earlier reports keep
+theirs. Each check uses its own version's index (downloaded once into `index/versions/<id>/`); GVP 4.0
+keeps using the local index. BGE-M3 is loaded once and shared by every version. Processing a 370-page
+guideline takes about as long as building the index locally (minutes on a laptop CPU).
+
 ## Other commands
 
 ```bash

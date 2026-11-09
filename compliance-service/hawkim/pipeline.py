@@ -107,31 +107,20 @@ def _chunk_all_sops(cfg: dict, only=None, verbose=True):
 # ============================================================ index
 
 def cmd_index(cfg: dict):
+    from .guidelines import build_index
     gvp = cfg["paths"]["gvp_file"]
     if not Path(gvp).exists():
         raise SystemExit(f"GVP file not found: {gvp}  (set paths.gvp_file in config.yaml)")
     print(f"[index] extracting {gvp}")
-    doc = _extract(cfg, gvp)
-    for w in doc.warnings:
-        print(f"  [warn] {w}")
-    gc = cfg["gvp_chunking"]
-    units = chunk_gvp(doc, gc["obligation_keywords"], gc["obligation_only"], gc["max_unit_chars"])
-    if not units:
-        raise SystemExit("No GVP requirement units found. Check extraction (is the PDF scanned?).")
-    n_sections = len({u.section for u in units})
-    print(f"  {doc.n_pages} pages -> {len(units)} requirement units in {n_sections} sections")
-
     embedder = Embedder(cfg["embedding"])
     print(f"[index] embedding with {embedder.backend} {embedder.model_name or ''}")
-    t0 = time.time()
-    vectors = embedder.fit_encode_documents([u.embed_text() for u in units])
-    meta = {"backend": embedder.backend, "model": embedder.model_name, "gvp_file": gvp,
-            "gvp_sha1": _file_sha1(gvp), "n_units": len(units), "n_sections": n_sections,
-            "gvp_chunking": gc, "created": dt.datetime.now().isoformat(timespec="seconds"),
-            "embedding_seconds": round(time.time() - t0, 1)}
     folder = _index_folder(cfg)
-    index = VectorIndex([u.to_dict() for u in units], vectors, embedder, meta)
-    index.save(folder)
+    try:
+        _, units, report = build_index(cfg, gvp, folder, embedder)
+    except ValueError as e:
+        raise SystemExit(str(e)) from e
+    if report["missing_excluded_sections"]:
+        print(f"  [warn] excluded sections not in this guideline: {', '.join(report['missing_excluded_sections'])}")
     req_rows = [{"id": u.id, "section": u.section, "section_title": u.section_title, "page": u.page,
                  "text": u.text} for u in units]
     _write_csv(folder / "gvp_requirements.csv", req_rows)

@@ -62,25 +62,94 @@ class Supabase:
         return r.json() if r.text else None
 
     def download(self, storage_path: str, dest: Path):
-        r = requests.get(f"{self.url}/storage/v1/object/{BUCKET}/{storage_path}", headers=self.headers, timeout=120)
+        self.download_object(BUCKET, storage_path, dest, what="the SOP file")
+
+    def download_object(self, bucket: str, path: str, dest: Path, what: str = "a file", optional: bool = False) -> bool:
+        r = requests.get(f"{self.url}/storage/v1/object/{bucket}/{path}", headers=self.headers, timeout=300)
+        if optional and r.status_code in (400, 404):
+            return False
         if r.status_code >= 300:
-            raise RuntimeError(f"Could not download the SOP file: HTTP {r.status_code} {r.text[:200]}")
+            raise RuntimeError(f"Could not download {what}: HTTP {r.status_code} {r.text[:200]}")
+        dest.parent.mkdir(parents=True, exist_ok=True)
         dest.write_bytes(r.content)
+        return True
+
+    def upload_object(self, bucket: str, path: str, data: bytes, content_type: str = "application/octet-stream"):
+        headers = {**self.headers, "Content-Type": content_type, "x-upsert": "true"}
+        r = requests.post(f"{self.url}/storage/v1/object/{bucket}/{path}", data=data, headers=headers, timeout=300)
+        if r.status_code >= 300:
+            raise RuntimeError(f"Could not upload {path}: HTTP {r.status_code} {r.text[:200]}")
+
+
+# GVP versions added on the website: their PDFs and their indexes.
+GUIDELINE_FILES_BUCKET = "guideline-files"
+GUIDELINE_INDEX_BUCKET = "guideline-indexes"
+INDEX_CACHE = HERE / "index"      # a version's index is kept in index/versions/<id>/ after the first use
+
+
+def local_index(sb: "Supabase", index_path: str) -> Path:
+    """The folder of a GVP version's index, downloaded from storage the first time it is needed."""
+    folder = INDEX_CACHE / index_path
+    if not (folder / "meta.json").exists():
+        print(f"[worker] downloading the GVP index {index_path}")
+        tmp = folder.with_name(folder.name + ".part")
+        shutil.rmtree(tmp, ignore_errors=True)
+        for name in ("units.jsonl", "meta.json"):
+            sb.download_object(GUIDELINE_INDEX_BUCKET, f"{index_path}/{name}", tmp / name, what=f"the GVP index ({name})")
+        for name in ("embeddings.npy", "tfidf.pkl"):   # one of them, depending on the embedding backend
+            sb.download_object(GUIDELINE_INDEX_BUCKET, f"{index_path}/{name}", tmp / name, optional=True)
+        shutil.rmtree(folder, ignore_errors=True)
+        tmp.rename(folder)
+    return folder
+
+
+def process_guideline(job: dict, svc: ComplianceService, sb: "Supabase"):
+    """Builds the index of a GVP version an admin added, uploads it and marks the version ready."""
+    from hawkim.guidelines import build_index
+    draft_id = job["id"]
+    print(f"[worker] GVP {job['version']}: processing {job['file_name']}")
+    work = Path(tempfile.mkdtemp(prefix="hawkim_gvp_"))
+    try:
+        pdf = work / Path(job["file_name"]).name
+        sb.download_object(GUIDELINE_FILES_BUCKET, job["storage_path"], pdf, what="the guideline PDF")
+        t0 = time.time()
+        built = work / "index"
+        _, _, report = build_index(svc.cfg, pdf, built, svc.embedder, log=print)
+        index_path = f"versions/{draft_id}"
+        for f in sorted(built.iterdir()):
+            if f.is_file():
+                sb.upload_object(GUIDELINE_INDEX_BUCKET, f"{index_path}/{f.name}", f.read_bytes())
+        # Keep it here too, so the first check with this version doesn't download it again.
+        local = INDEX_CACHE / index_path
+        shutil.rmtree(local, ignore_errors=True)
+        local.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copytree(built, local)
+        report["seconds"] = round(time.time() - t0, 1)
+        sb.rpc("complete_guideline_processing", {"p_id": draft_id, "p_index_path": index_path, "p_report": report})
+        print(f"[worker] GVP {job['version']}: ready, {report['requirements']} requirements "
+              f"in {report['sections']} sections ({report['seconds']} s)")
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
 
 
 def process(job: dict, svc: ComplianceService, sb: Supabase, scfg: dict):
     check_id = job["check_id"]
     print(f"[worker] check {check_id}: {job['file_name']} (SOP version {job['sop_version']})")
-    if str(job.get("guideline_version")) != str(scfg.get("guideline_version")):
-        raise RuntimeError(f"The service's GVP index is for version {scfg.get('guideline_version')}, "
-                           f"but the check uses version {job.get('guideline_version')}")
+    # The check's GVP version: its own index (added on the website), or the local index (e.g. GVP 4.0).
+    if job.get("guideline_index_path"):
+        engine = svc.engine_for(local_index(sb, job["guideline_index_path"]))
+    elif str(job.get("guideline_version")) == str(scfg.get("guideline_version")):
+        engine = None
+    else:
+        raise RuntimeError(f"GVP {job.get('guideline_version')} has no processed index; the service's local index "
+                           f"is for version {scfg.get('guideline_version')}")
     folder = Path(tempfile.mkdtemp(prefix="hawkim_check_"))
     try:
         # Keep the original file name: chunk IDs are built from it.
         path = folder / Path(job["file_name"]).name
         sb.download(job["storage_path"], path)
         t0 = time.time()
-        result = svc.check(path)
+        result = svc.check(path, engine=engine)
         findings, stats = findings_for_database(result)
         if not findings:
             raise RuntimeError("No procedure step could be assessed in this SOP"
@@ -150,6 +219,19 @@ def main():
                         traceback.print_exc()
                 if args.once:
                     return
+                continue
+            # No check waiting: process a GVP version an admin added, if one is waiting.
+            drafts = sb.rpc("claim_guideline_processing", {}) or []
+            if drafts:
+                draft = drafts[0]
+                try:
+                    process_guideline(draft, svc, sb)
+                except Exception as e:  # the version is marked failed, the worker keeps running
+                    traceback.print_exc()
+                    try:
+                        sb.rpc("fail_guideline_processing", {"p_id": draft["id"], "p_error": str(e)[:500]})
+                    except Exception:
+                        traceback.print_exc()
                 continue
             if args.once:
                 return

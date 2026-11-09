@@ -107,7 +107,8 @@ class VectorIndex:
         (folder / "meta.json").write_text(json.dumps(self.meta, indent=2), encoding="utf-8")
 
     @classmethod
-    def load(cls, folder: Path, embed_cfg: dict) -> "VectorIndex":
+    def load(cls, folder: Path, embed_cfg: dict, embedder: "Embedder | None" = None) -> "VectorIndex":
+        """Loads an index. `embedder`: an already-loaded model to reuse (one BGE-M3 for every GVP version)."""
         if not (folder / "meta.json").exists():
             raise SystemExit(f"No index found in {folder}. Run: python run.py index")
         meta = json.loads((folder / "meta.json").read_text(encoding="utf-8"))
@@ -116,7 +117,9 @@ class VectorIndex:
             raise SystemExit(f"Index in {folder} was built with {meta['backend']}/{meta['model']}, "
                              f"config asks for {embed_cfg['backend']}/{embed_cfg.get('model')}. Re-run index.")
         units = [json.loads(l) for l in open(folder / "units.jsonl", encoding="utf-8")]
-        embedder = Embedder(embed_cfg)
+        reuse = (embedder is not None and embed_cfg["backend"] != "tfidf"
+                 and embedder.backend == embed_cfg["backend"] and embedder.model_name == embed_cfg.get("model"))
+        embedder = embedder if reuse else Embedder(embed_cfg)
         if embedder.backend == "tfidf":
             with open(folder / "tfidf.pkl", "rb") as f:
                 obj = pickle.load(f)

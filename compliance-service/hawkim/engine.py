@@ -41,7 +41,9 @@ def _format_requirement(u: dict) -> str:
 
 class Engine:
     def __init__(self, cfg: dict, mode: str | None = None, scope_mode: str | None = None,
-                 cache_dir: Path | None = None):
+                 cache_dir: Path | None = None, index_dir: Path | None = None, embedder=None):
+        """`index_dir`: the GVP version's index (default: the local index in paths.index_dir);
+        `embedder`: an already-loaded embedding model to reuse."""
         self.cfg = cfg
         self.lc = dict(cfg["llm"])
         if mode:
@@ -66,7 +68,7 @@ class Engine:
         # "review" = not assessed by the model, sent to human review (default); "assess" = assess anyway.
         self.outside_action = sc.get("outside_scope_action", "review")
 
-        self.index = VectorIndex.load(index_folder(cfg), cfg["embedding"])
+        self.index = VectorIndex.load(index_dir or index_folder(cfg), cfg["embedding"], embedder)
         self.unit_module = np.array([module_of(u["section"]) for u in self.index.units])
         excl = [s.strip() for s in (sc.get("exclude_sections") or [])]
         self.excluded = np.array([any(u["section"] == e or u["section"].startswith(e + ".") for e in excl)
