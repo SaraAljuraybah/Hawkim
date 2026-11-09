@@ -49,16 +49,8 @@ export function AdminTopBar({ content, user, menuOpen, onOpenMenu, menuButtonRef
             >
               {user.name}
             </Link>
-            {/* "Position | Administrator", like the employee top bar's "Position | Department" */}
-            <p className="text-xs text-text-gray">
-              {user.position && (
-                <>
-                  <span className="break-words">{user.position}</span>
-                  <span aria-hidden="true"> {content.positionSeparator} </span>
-                </>
-              )}
-              {content.roleLabel}
-            </p>
+            {/* The role only: a System Admin has no position or department. */}
+            <p className="text-xs text-text-gray">{content.roleLabel}</p>
           </div>
         </div>
       </div>

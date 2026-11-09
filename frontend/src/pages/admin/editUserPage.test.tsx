@@ -31,14 +31,14 @@ beforeEach(() => {
   }]
 })
 
-describe('Edit User', () => {
-  it('has one h1, Edit User, with its subtitle and browser tab title', () => {
+describe('Edit Staff', () => {
+  it('has one h1, Edit Staff, with its subtitle and browser tab title', () => {
     fixture.titles.length = 0
     const html = render()
     expect(html.match(/<h1/g)).toHaveLength(1)
-    expect(html).toContain('>Edit User</h1>')
-    expect(html).toContain('Update this user&#x27;s details and permissions.')
-    expect(fixture.titles.at(-1)).toBe(adminEn.pageTitle.replace('{page}', 'Edit User'))
+    expect(html).toContain('>Edit Staff</h1>')
+    expect(html).toContain('Update this staff member&#x27;s details and permissions.')
+    expect(fixture.titles.at(-1)).toBe(adminEn.pageTitle.replace('{page}', 'Edit Staff'))
   })
 
   it('fills in every field with the user\'s details, all editable', () => {
@@ -86,13 +86,13 @@ describe('Edit User', () => {
     expect(html.match(/aria-label="Delete Rana Saleh"/g)).toHaveLength(1)
   })
 
-  it('ends with Cancel, back to the Users list, and Save', () => {
+  it('ends with Cancel, back to the Staff list, and Save Changes', () => {
     const html = render()
     const actions = html.slice(html.lastIndexOf('name="permissions"'), html.indexOf('</form>'))
     expect(actions).toMatch(/<a[^>]*href="\/admin\/users"[^>]*>Cancel<\/a>/)
-    expect(actions).toMatch(/<button type="submit"[^>]*>Save<\/button>/)
-    expect(html).not.toContain('>Add User<')
-    expect(html).toMatch(/<a[^>]*href="\/admin\/users"[^>]*>.*Back to Users<\/a>/)
+    expect(actions).toMatch(/<button type="submit"[^>]*>Save Changes<\/button>/)
+    expect(html).not.toContain('>Add Staff<')
+    expect(html).toMatch(/<a[^>]*href="\/admin\/users"[^>]*>.*Back to Staff<\/a>/)
   })
 
   it('keeps an empty live region at the top for the success message', () => {

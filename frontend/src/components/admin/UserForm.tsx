@@ -7,6 +7,8 @@ import type { Permission, User } from '../../data/mock/types'
 import {
   defaultDivision,
   departmentsInDivision,
+  hasUnsavedChanges,
+  isSystemAdmin,
   PERMISSIONS,
   POSITION_MAX,
   validateNewUser,
@@ -19,6 +21,7 @@ import { Button } from '../ui/Button'
 import { CheckboxGroup } from '../ui/CheckboxGroup'
 import { SelectCombobox } from '../ui/SelectCombobox'
 import { TextField } from '../ui/TextField'
+import { UnsavedChangesGuard, type UnsavedChangesText } from '../ui/UnsavedChangesGuard'
 import { DivisionField } from './DivisionField'
 
 const FIELDS: NewUserField[] = ['name', 'email', 'phone', 'divisionId', 'departmentId', 'position', 'permissions']
@@ -39,15 +42,21 @@ interface UserFormProps {
   onEdit?: () => void
   /** Called with valid values only; it may be async (shows a busy state, and can't be sent twice). */
   onSubmit: (user: NewUser) => void | Promise<void>
+  /**
+   * Asks before leaving with unsaved changes (see UnsavedChangesGuard). The parent starts a new form
+   * (a new key) after saving, so saved values are never asked about.
+   */
+  unsavedChanges?: UnsavedChangesText
 }
 
 /**
- * The form of Add User and Edit User: full name, email (valid and unique), phone number (a Saudi
- * mobile number), division, department (one of that division's) and position are required;
- * permissions are optional. Division comes first: the department list waits for it, and when "No
- * Division" is the only choice it is chosen from the start.
+ * The form of Add Staff and Edit Staff: full name, email (valid and unique) and phone number
+ * (+9665XXXXXXXX) are required; staff also need a division, a department (one of that division's)
+ * and a position. A System Admin (the Admin permission) has none of those, so they are hidden while
+ * Admin is chosen. Permissions are optional. Division comes first: the department list waits for it,
+ * and when "No Division" is the only choice it is chosen from the start.
  */
-export function UserForm({ initial, otherUsers, submitLabel, busyLabel, notice, onEdit, onSubmit }: UserFormProps) {
+export function UserForm({ initial, otherUsers, submitLabel, busyLabel, notice, onEdit, onSubmit, unsavedChanges }: UserFormProps) {
   const content = adminEn.addUser
   const { activeDepartments } = useDepartments()
 
@@ -65,6 +74,8 @@ export function UserForm({ initial, otherUsers, submitLabel, busyLabel, notice, 
 
   const division = values.divisionId ?? defaultDivision(activeDepartments)
   const user: NewUser = { ...values, divisionId: division }
+  const systemAdmin = isSystemAdmin(values)
+  const dirty = hasUnsavedChanges({ ...initial, divisionId: initial.divisionId ?? defaultDivision(activeDepartments) }, user)
   const departmentOptions = departmentsInDivision(activeDepartments, division).map((department) => ({ value: department.id, label: department.name }))
 
   const messages: Record<NewUserProblem, string> = {
@@ -164,12 +175,14 @@ export function UserForm({ initial, otherUsers, submitLabel, busyLabel, notice, 
         required
         requiredMark
         hint={content.phone.hint}
+        placeholder={content.phone.placeholder}
         value={values.phone}
         error={errors.phone}
         onChange={(event) => change({ ...values, phone: event.target.value })}
         onBlur={() => blur('phone')}
         className="mt-5"
       />
+      {!systemAdmin && (<>
       <DivisionField
         inputRef={divisionRef}
         departments={activeDepartments}
@@ -218,6 +231,7 @@ export function UserForm({ initial, otherUsers, submitLabel, busyLabel, notice, 
         onBlur={() => blur('position')}
         className="mt-5"
       />
+      </>)}
       <CheckboxGroup
         name="permissions"
         legend={content.permissions.legend}
@@ -233,6 +247,7 @@ export function UserForm({ initial, otherUsers, submitLabel, busyLabel, notice, 
         className="mt-6"
       />
       {notice}
+      {unsavedChanges && <UnsavedChangesGuard when={dirty && !busy} text={unsavedChanges} />}
 
       <div className="mt-8 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
         <Button variant="secondary" to={content.back.href}>

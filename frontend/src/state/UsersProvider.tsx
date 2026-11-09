@@ -4,6 +4,7 @@ import type { User } from '../data/mock/types'
 import {
   changesPermissions,
   deleteBlockers,
+  isSystemAdmin,
   NO_DIVISION,
   normalizePhone,
   PERMISSIONS,
@@ -14,17 +15,18 @@ import {
 import { useDepartments } from './departmentsContext'
 import { useLoadAfterSignIn } from './useLoadAfterSignIn'
 import { UsersContext, type AdminActionContext, type UsersStore } from './usersContext'
-import { addUserAccount, fetchPeople, saveUser } from '../services/people'
+import { addUserAccount, changeUserEmail, fetchPeople, saveUser } from '../services/people'
 
-/** What the admin entered, as a user's saved fields. */
+/** What the admin entered, as a user's saved fields. A System Admin has no department or position. */
 function savedFields(input: NewUser, departmentId: string) {
+  const systemAdmin = isSystemAdmin(input)
   return {
     name: input.name.trim(),
-    email: input.email.trim(),
-    departmentId,
-    divisionId: input.divisionId && input.divisionId !== NO_DIVISION ? input.divisionId : undefined,
+    email: input.email.trim().toLowerCase(),
+    departmentId: systemAdmin ? '' : departmentId,
+    divisionId: !systemAdmin && input.divisionId && input.divisionId !== NO_DIVISION ? input.divisionId : undefined,
     phone: normalizePhone(input.phone) ?? '',
-    position: input.position.trim(),
+    position: systemAdmin ? '' : input.position.trim(),
     // Kept in display order, without duplicates.
     permissions: PERMISSIONS.filter((permission) => input.permissions.includes(permission)),
   }
@@ -33,9 +35,9 @@ function savedFields(input: NewUser, departmentId: string) {
 /**
  * Users store shared by the employee screens (names, people pickers) and the admin
  * portal. The people and their roles are loaded from the database after sign-in.
- * Adding a user and changing their name, phone, position, department and permissions are saved on the
- * server. Their email and deleting them only change this tab's copy (lost on reload).
- * TODO: Save the other admin changes once those features are connected.
+ * Adding a user and changing their name, email, phone, position, department and permissions are saved
+ * on the server. Deleting them only changes this tab's copy (lost on reload).
+ * TODO: Save deleting users once that feature is connected.
  * Must be inside <SessionProvider>.
  */
 export function UsersProvider({ children }: { children: ReactNode }) {
@@ -73,9 +75,10 @@ export function UsersProvider({ children }: { children: ReactNode }) {
   const addUser = useCallback(
     async (input: NewUser) => {
       const problems = validateNewUser(input, latestRef.current.filter((user) => !user.deletedAt), departments)
-      if (Object.values(problems).some(Boolean) || !input.departmentId) throw new Error('The user is not valid')
+      if (Object.values(problems).some(Boolean) || (!isSystemAdmin(input) && !input.departmentId)) throw new Error('The user is not valid')
       const fields = savedFields(input, input.departmentId)
-      const added = await addUserAccount({ name: fields.name, email: fields.email, phone: fields.phone, position: fields.position, departmentId: fields.departmentId, permissions: fields.permissions })
+      const added = await addUserAccount({ name: fields.name, email: fields.email, phone: fields.phone,
+        position: fields.position || null, departmentId: fields.departmentId || null, permissions: fields.permissions })
       // Someone re-added replaces their old entry.
       commit([...latestRef.current.filter((user) => user.id !== added.user.id), added.user])
       return added
@@ -88,29 +91,44 @@ export function UsersProvider({ children }: { children: ReactNode }) {
       const { target, rules } = resolve(userId, context)
       // The user's own email isn't a duplicate of itself.
       const problems = validateNewUser(input, rules.users.filter((user) => user.id !== userId), departments)
-      if (Object.values(problems).some(Boolean) || !input.departmentId) throw new Error('The user is not valid')
+      const systemAdmin = isSystemAdmin(input)
+      if (Object.values(problems).some(Boolean) || (!systemAdmin && !input.departmentId)) throw new Error('The user is not valid')
       if (permissionChangeBlockers(target, input.permissions, rules).length > 0) {
         throw new Error('These permissions can’t be removed now')
       }
       const fields = savedFields(input, input.departmentId)
+      // A System Admin's department and position stay as the database has them.
+      if (systemAdmin) {
+        fields.departmentId = target.departmentId
+        fields.position = target.position ?? ''
+      }
       let initials = target.initials
-      const changed = fields.name !== target.name || fields.phone !== target.phone || fields.position !== target.position
+      const changed = fields.name !== target.name || fields.phone !== target.phone || fields.position !== (target.position ?? '')
         || fields.departmentId !== target.departmentId || changesPermissions(target, fields.permissions)
       if (changed) {
         // First, so that a failure leaves everything as it was. The database's values are what a reload shows.
         const saved = await saveUser(
           userId,
-          { name: fields.name, phone: fields.phone, position: fields.position, departmentId: fields.departmentId, permissions: fields.permissions },
-          { departmentId: target.departmentId, permissions: target.permissions },
+          { name: fields.name, phone: fields.phone, position: systemAdmin ? null : fields.position,
+            departmentId: systemAdmin ? null : fields.departmentId, permissions: fields.permissions },
+          { departmentId: target.departmentId || null, permissions: target.permissions },
         )
         fields.name = saved.name
         fields.phone = saved.phone
-        fields.position = saved.position
-        fields.departmentId = saved.departmentId
+        fields.position = saved.position ?? ''
+        fields.departmentId = saved.departmentId ?? ''
         fields.permissions = saved.permissions
         initials = saved.initials
       }
-      commit(latestRef.current.map((user) => (user.id === userId ? { ...user, ...fields, initials } : user)))
+      const { email, ...details } = fields
+      // A System Admin has no position: none is kept.
+      commit(latestRef.current.map((user) => (user.id === userId ? { ...user, ...details, initials, position: details.position || undefined } : user)))
+      // Then the email, through the Edge Function that changes the sign-in account too. If it is
+      // refused, the details above stay saved and the ChangeEmailError explains why.
+      if (email !== target.email.toLowerCase()) {
+        const savedEmail = await changeUserEmail(userId, email)
+        commit(latestRef.current.map((user) => (user.id === userId ? { ...user, email: savedEmail } : user)))
+      }
     },
     [commit, departments, resolve],
   )

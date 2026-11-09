@@ -3,8 +3,8 @@
  * departments; see supabase/migrations/). Rows are turned into the app's existing
  * User and Department types, so screens don't change. Row level security lets only
  * a signed-in person with an active profile read them; an admin changes a user through
- * save_user and adds one through the add-user Edge Function, which check that and the rules
- * on the server.
+ * save_user, adds one through the add-user Edge Function and changes their email through the
+ * update-user-email Edge Function, which check that and the rules on the server.
  */
 
 import { FunctionsHttpError } from '@supabase/supabase-js'
@@ -23,7 +23,8 @@ export interface ProfileRow {
   full_name: string
   email: string
   initials: string
-  department_id: string
+  /** Null for a System Admin, who has no department. */
+  department_id: string | null
   /** "+9665XXXXXXXX"; null on profiles added before it was required. */
   phone: string | null
   /** Job title; null on profiles added before it was required. */
@@ -52,7 +53,8 @@ export function toUser(row: ProfileRow): User {
     name: row.full_name,
     email: row.email,
     initials: row.initials,
-    departmentId: row.department_id,
+    // '' (no department) for a System Admin without one.
+    departmentId: row.department_id ?? '',
     ...(row.phone ? { phone: row.phone } : {}),
     ...(row.position ? { position: row.position } : {}),
     permissions: PERMISSIONS.filter((permission) => roles.includes(permission)),
@@ -78,19 +80,23 @@ export async function fetchPeople(): Promise<User[]> {
   return (data as ProfileRow[]).map(toUser)
 }
 
-/** What an admin saves for a user. `phone` is as stored ("+9665XXXXXXXX"). */
+/**
+ * What an admin saves for a user. `phone` is as stored ("+9665XXXXXXXX"). A System Admin has no
+ * department or position (null); the database keeps theirs as they are.
+ */
 export interface UserChanges {
   name: string
   phone: string
-  position: string
-  departmentId: DepartmentId
+  position: string | null
+  departmentId: DepartmentId | null
   permissions: Permission[]
 }
 
 /** Why a user's changes could not be saved. */
 export type SaveUserFailure =
   | 'forbidden' | 'not-found' | 'conflict' | 'invalid' | 'self-admin' | 'last-admin' | 'admin-exclusive'
-  | 'approver-quality' | 'department-unavailable' | 'permission-in-use' | 'failed'
+  | 'approver-quality' | 'department-unavailable' | 'department-required' | 'permission-in-use'
+  | 'department-transfer-blocked' | 'failed'
 
 /** A permission that can't be removed, and on how many SOPs it's used (their titles aren't sent: an admin may not see them). */
 export interface PermissionInUse {
@@ -101,14 +107,23 @@ export interface PermissionInUse {
 export class SaveUserError extends Error {
   readonly reason: SaveUserFailure
   readonly inUse: PermissionInUse[]
-  constructor(reason: SaveUserFailure, inUse: PermissionInUse[] = []) {
+  /** For 'department-transfer-blocked': how many SOPs are still in progress (0 when not known). */
+  readonly blockingSops: number
+  constructor(reason: SaveUserFailure, inUse: PermissionInUse[] = [], blockingSops = 0) {
     super(`The user's changes were not saved (${reason})`)
     this.reason = reason
     this.inUse = inUse
+    this.blockingSops = blockingSops
   }
 }
 
-const SAVE_USER_HINTS: SaveUserFailure[] = ['invalid', 'self-admin', 'last-admin', 'admin-exclusive', 'approver-quality', 'department-unavailable', 'permission-in-use']
+const SAVE_USER_HINTS: SaveUserFailure[] = ['invalid', 'self-admin', 'last-admin', 'admin-exclusive', 'approver-quality', 'department-unavailable', 'department-required', 'permission-in-use', 'department-transfer-blocked']
+
+/** "total:3,author:1,reviewer:2" → 3. */
+function blockingTotal(details: string | null | undefined): number {
+  const total = Number((details ?? '').split(',').find((item) => item.startsWith('total:'))?.slice('total:'.length))
+  return Number.isInteger(total) && total > 0 ? total : 0
+}
 
 /** "author:2,reviewer:1" as a list. */
 function permissionsInUse(details: string | null | undefined): PermissionInUse[] {
@@ -121,6 +136,7 @@ function permissionsInUse(details: string | null | undefined): PermissionInUse[]
 function saveUserError(error: { code?: string; hint?: string | null; details?: string | null }): SaveUserError {
   const hinted = SAVE_USER_HINTS.find((reason) => reason === error.hint)
   if (hinted === 'permission-in-use') return new SaveUserError(hinted, permissionsInUse(error.details))
+  if (hinted === 'department-transfer-blocked') return new SaveUserError(hinted, [], blockingTotal(error.details))
   if (hinted) return new SaveUserError(hinted)
   // PGRST30x: the session's token has expired or isn't valid.
   if (error.code === '42501' || error.code?.startsWith('PGRST30')) return new SaveUserError('forbidden')
@@ -139,7 +155,7 @@ function saveUserError(error: { code?: string; hint?: string | null; details?: s
 export async function saveUser(
   userId: string,
   changes: UserChanges,
-  expected: { departmentId: DepartmentId; permissions: Permission[] },
+  expected: { departmentId: DepartmentId | null; permissions: Permission[] },
 ): Promise<UserChanges & { initials: string }> {
   let response
   try {
@@ -158,8 +174,9 @@ export async function saveUser(
   }
   if (response.error) throw saveUserError(response.error)
   const saved = response.data as { name?: unknown; initials?: unknown; phone?: unknown; position?: unknown; departmentId?: unknown; permissions?: unknown } | null
+  const textOrNull = (value: unknown) => typeof value === 'string' || value === null
   if (typeof saved?.name !== 'string' || typeof saved.initials !== 'string' || typeof saved.phone !== 'string'
-    || typeof saved.position !== 'string' || typeof saved.departmentId !== 'string' || !Array.isArray(saved.permissions)) {
+    || !textOrNull(saved.position) || !textOrNull(saved.departmentId) || !Array.isArray(saved.permissions)) {
     throw new SaveUserError('failed')
   }
   const permissions = saved.permissions as Permission[]
@@ -167,11 +184,50 @@ export async function saveUser(
     name: saved.name,
     initials: saved.initials,
     phone: saved.phone,
-    position: saved.position,
-    departmentId: saved.departmentId,
+    position: saved.position as string | null,
+    departmentId: saved.departmentId as string | null,
     // In the usual display order.
     permissions: PERMISSIONS.filter((permission) => permissions.includes(permission)),
   }
+}
+
+/** Why a staff member's email could not be changed. */
+export type ChangeEmailFailure = 'forbidden' | 'not-found' | 'email-taken' | 'invalid' | 'account-failed' | 'failed'
+
+export class ChangeEmailError extends Error {
+  readonly reason: ChangeEmailFailure
+  constructor(reason: ChangeEmailFailure) {
+    super(`The email was not changed (${reason})`)
+    this.reason = reason
+  }
+}
+
+const CHANGE_EMAIL_FAILURES: ChangeEmailFailure[] = ['not-found', 'email-taken', 'invalid', 'account-failed']
+
+async function changeEmailError(error: unknown): Promise<ChangeEmailError> {
+  if (!(error instanceof FunctionsHttpError)) return new ChangeEmailError('failed')
+  const response = error.context as Response
+  const payload = (await response.json().catch(() => ({}))) as { errorCode?: string }
+  if (response.status === 401 || response.status === 403) return new ChangeEmailError('forbidden')
+  return new ChangeEmailError(CHANGE_EMAIL_FAILURES.find((item) => item === payload.errorCode) ?? 'failed')
+}
+
+/**
+ * Changes a staff member's email through the update-user-email Edge Function: their sign-in account
+ * and their profile together, so they keep signing in with the email shown. Returns it as stored.
+ * Throws a ChangeEmailError.
+ */
+export async function changeUserEmail(userId: string, email: string): Promise<string> {
+  let response
+  try {
+    response = await supabase().functions.invoke('update-user-email', { body: { userId, email: email.trim().toLowerCase() } })
+  } catch (error) {
+    throw await changeEmailError(error)
+  }
+  if (response.error) throw await changeEmailError(response.error)
+  const saved = (response.data as { email?: unknown } | null)?.email
+  if (typeof saved !== 'string') throw new ChangeEmailError('failed')
+  return saved
 }
 
 /** What an admin enters to add a user. `phone` is as stored ("+9665XXXXXXXX"). */
@@ -218,8 +274,9 @@ export async function addUserAccount(details: NewUserDetails): Promise<{ user: U
   if (response.error) throw await addUserError(response.error)
   const data = response.data as { user?: Record<string, unknown>; emailSent?: unknown } | null
   const saved = data?.user
+  const textOrNull = (value: unknown) => typeof value === 'string' || value === null
   if (typeof saved?.id !== 'string' || typeof saved.email !== 'string' || typeof saved.name !== 'string' || typeof saved.initials !== 'string'
-    || typeof saved.phone !== 'string' || typeof saved.position !== 'string' || typeof saved.departmentId !== 'string' || !Array.isArray(saved.permissions)) {
+    || typeof saved.phone !== 'string' || !textOrNull(saved.position) || !textOrNull(saved.departmentId) || !Array.isArray(saved.permissions)) {
     throw new AddUserError('failed')
   }
   const permissions = saved.permissions as Permission[]
@@ -229,9 +286,10 @@ export async function addUserAccount(details: NewUserDetails): Promise<{ user: U
       name: saved.name,
       email: saved.email,
       initials: saved.initials,
-      departmentId: saved.departmentId,
+      // A System Admin has no department or position.
+      departmentId: (saved.departmentId as string | null) ?? '',
       phone: saved.phone,
-      position: saved.position,
+      ...(typeof saved.position === 'string' ? { position: saved.position } : {}),
       permissions: PERMISSIONS.filter((permission) => permissions.includes(permission)),
     },
     emailSent: data?.emailSent === true,

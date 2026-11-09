@@ -13,7 +13,7 @@ describe('the admin portal sidebar', () => {
   it('lists the tabs in this order, with their names and icons unchanged', () => {
     expect(adminEn.shell.nav.map(({ label, href, icon }) => [label, href, icon])).toEqual([
       ['Divisions & Departments', '/admin/departments', 'departments'],
-      ['Users', '/admin/users', 'employees'],
+      ['Staff', '/admin/users', 'employees'],
       ['SFDA Regulatory Requirements', '/admin/regulations', 'regulatory'],
       ['Organizational Structure', '/admin/organizational-structure', 'hierarchy'],
       ['SOP Directory', '/admin/sops', 'sops'],

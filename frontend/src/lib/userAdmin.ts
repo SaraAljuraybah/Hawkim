@@ -18,7 +18,7 @@ export const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 export interface NewUser {
   name: string
   email: string
-  /** As typed; saved normalised (see normalizePhone). */
+  /** As typed; must be +9665XXXXXXXX (see normalizePhone). */
   phone: string
   /** Job title, free text. */
   position: string
@@ -36,13 +36,25 @@ export type NewUserProblem =
 /** Longest position (job title), in characters; the database checks the same limit. */
 export const POSITION_MAX = 100
 
+/** A Saudi mobile number, as entered and as stored: +9665 followed by exactly 8 digits. */
+export const PHONE_PATTERN = /^\+9665\d{8}$/
+
 /**
- * A Saudi mobile number as stored: "05XXXXXXXX" or "+9665XXXXXXXX" (spaces allowed) becomes
- * "+9665XXXXXXXX". Null when it isn't one of those.
+ * The phone number as stored ("+9665XXXXXXXX"), or null when it isn't in exactly that format. Only
+ * surrounding spaces are ignored: other formats (e.g. "05…") are refused, never rewritten. The
+ * database checks the same pattern.
  */
 export function normalizePhone(raw: string): string | null {
-  const digits = raw.replace(/\s+/g, '').match(/^(?:05|\+9665)(\d{8})$/)
-  return digits ? `+9665${digits[1]}` : null
+  const phone = raw.trim()
+  return PHONE_PATTERN.test(phone) ? phone : null
+}
+
+/**
+ * A System Admin account: the Admin permission (never held with another one). It has no division,
+ * department or position, so those aren't asked for or shown.
+ */
+export function isSystemAdmin(user: { permissions: Permission[] }): boolean {
+  return user.permissions.includes('admin')
 }
 
 /** A department's division as shown (its name once divisions are loaded), or '' without one. */
@@ -108,15 +120,17 @@ export function departmentsInDivision<T extends Pick<Department, 'divisionId'>>(
 
 /**
  * What is wrong with each field (nothing for a valid user). Email must be unique among active
- * users, ignoring case; a division must be chosen (NO_DIVISION counts) and the department must be
- * in it; phone must be a Saudi mobile number; position is required, up to POSITION_MAX characters;
- * Approver is only for the Quality department (the database refuses it too).
+ * users, ignoring case; phone must be +9665XXXXXXXX. Staff also need a division (NO_DIVISION
+ * counts) with the department in it, and a position of up to POSITION_MAX characters; a System Admin
+ * (see isSystemAdmin) has none of those. Approver is only for the Quality department (the database
+ * refuses it too).
  */
 export function validateNewUser(user: NewUser, activeUsers: User[], departments: Pick<Department, 'id' | 'divisionId' | 'isQuality'>[] = []): Partial<Record<NewUserField, NewUserProblem>> {
   const email = user.email.trim().toLowerCase()
   const position = user.position.trim()
   const department = departments.find((item) => item.id === user.departmentId)
   const outsideDivision = !!department && !!user.divisionId && departmentsInDivision([department], user.divisionId).length === 0
+  const staff = !isSystemAdmin(user)
   return {
     name: user.name.trim() ? undefined : 'name-required',
     email: !EMAIL_PATTERN.test(email)
@@ -125,9 +139,9 @@ export function validateNewUser(user: NewUser, activeUsers: User[], departments:
         ? 'email-taken'
         : undefined,
     phone: !user.phone.trim() ? 'phone-required' : normalizePhone(user.phone) ? undefined : 'phone-invalid',
-    divisionId: user.divisionId ? undefined : 'division-required',
-    departmentId: user.departmentId && !outsideDivision ? undefined : 'department-required',
-    position: !position ? 'position-required' : position.length > POSITION_MAX ? 'position-too-long' : undefined,
+    divisionId: !staff || user.divisionId ? undefined : 'division-required',
+    departmentId: !staff || (user.departmentId && !outsideDivision) ? undefined : 'department-required',
+    position: !staff ? undefined : !position ? 'position-required' : position.length > POSITION_MAX ? 'position-too-long' : undefined,
     permissions: department && !department.isQuality && user.permissions.includes('approver') ? 'approver-outside-quality' : undefined,
   }
 }
@@ -149,13 +163,24 @@ export function userFormValues(user: User, activeDepartments: Pick<Department, '
   }
 }
 
-/** Whether the entered email differs from the user's: it isn't saved to the database yet. */
+/** Whether the entered email differs from the user's (compared as stored: trimmed, lowercase). */
 export function changesEmail(user: User, input: NewUser): boolean {
-  return input.email.trim() !== user.email
+  return input.email.trim().toLowerCase() !== user.email.toLowerCase()
+}
+
+/**
+ * Whether the form shows anything different from what it started with. A System Admin's form
+ * doesn't show division, department or position, so those don't count for them.
+ */
+export function hasUnsavedChanges(initial: NewUser, current: NewUser): boolean {
+  const fields: (keyof NewUser)[] = isSystemAdmin(current) && isSystemAdmin(initial)
+    ? ['name', 'email', 'phone']
+    : ['name', 'email', 'phone', 'divisionId', 'departmentId', 'position']
+  return fields.some((field) => (initial[field] ?? '') !== (current[field] ?? '')) || changesPermissions({ permissions: initial.permissions }, current.permissions)
 }
 
 /** Whether the permissions differ, in whatever order they were ticked. */
-export function changesPermissions(user: User, permissions: Permission[]): boolean {
+export function changesPermissions(user: Pick<User, 'permissions'>, permissions: Permission[]): boolean {
   return PERMISSIONS.some((permission) => permissions.includes(permission) !== user.permissions.includes(permission))
 }
 
@@ -208,6 +233,44 @@ export function sopsUsing(permission: InUsePermission, userId: string, sops: Sop
       }
     })
     .sort((a, b) => a.code.localeCompare(b.code, 'en', { numeric: true }))
+}
+
+/* ---------- Department transfers ---------- */
+
+/** The SOPs that keep someone in their department, per responsibility, and how many SOPs in all. */
+export interface ResponsibilitiesInProgress {
+  total: number
+  byRole: Record<SopRole, number>
+}
+
+/**
+ * The SOP work a staff member still has, as the database counts it (profiles_department_transfer_guard
+ * in 20261110120000_staff_management.sql): authoring or co-authoring an SOP that isn't published;
+ * reviewing an SOP in review, in approval, returned or approved (their review isn't cancelled); and,
+ * for anyone holding Approver, every SOP in approval or approved, because approver assignments aren't
+ * stored in the database. While any remain, they can't move to another department.
+ */
+export function responsibilitiesInProgress(user: Pick<User, 'id' | 'permissions'>, sops: Sop[]): ResponsibilitiesInProgress {
+  const byRole: Record<SopRole, number> = { author: 0, 'co-author': 0, reviewer: 0, approver: 0 }
+  const blocking = new Set<string>()
+  const count = (role: SopRole, sop: Sop) => {
+    byRole[role] += 1
+    blocking.add(sop.id)
+  }
+  for (const sop of sops) {
+    const unfinished = sop.status !== 'published'
+    if (unfinished && sop.authorId === user.id) count('author', sop)
+    if (unfinished && sop.authorId !== user.id && sop.coAuthorIds.includes(user.id)) count('co-author', sop)
+    if (ASSIGNED_STATUSES.includes(sop.status) && sop.reviewers.some((person) => person.userId === user.id && person.decision !== 'cancelled')) count('reviewer', sop)
+    if ((sop.status === 'in-approval' || sop.status === 'approved')
+      && (user.permissions.includes('approver') || sop.approvers.some((person) => person.userId === user.id))) count('approver', sop)
+  }
+  return { total: blocking.size, byRole }
+}
+
+/** Whether saving `next` moves the user from their current department to another one. */
+export function transfersDepartment(user: Pick<User, 'departmentId'>, next: Pick<NewUser, 'departmentId' | 'permissions'>): boolean {
+  return !!user.departmentId && !isSystemAdmin(next) && !!next.departmentId && next.departmentId !== user.departmentId
 }
 
 /* ---------- Why a change is refused ---------- */

@@ -12,8 +12,8 @@ import { usersEn } from '../../content/users.en'
 import type { User } from '../../data/mock/types'
 import { useDocumentTitle } from '../../hooks/useDocumentTitle'
 import { ADMIN_USERS_PATH } from '../../lib/routes'
-import { changesEmail, permissionChangeBlockers, userFormValues, type NewUser } from '../../lib/userAdmin'
-import { SaveUserError, type SaveUserFailure } from '../../services/people'
+import { permissionChangeBlockers, responsibilitiesInProgress, transfersDepartment, userFormValues, type NewUser } from '../../lib/userAdmin'
+import { ChangeEmailError, SaveUserError, type SaveUserFailure } from '../../services/people'
 import { useDepartments } from '../../state/departmentsContext'
 import { useCurrentUser } from '../../state/sessionContext'
 import { useSops } from '../../state/sopsContext'
@@ -22,10 +22,12 @@ import { NotFoundPage } from '../NotFoundPage'
 import type { AdminUsersLocationState } from './AdminUsersPage'
 
 /**
- * Edit user ("/admin/users/:id/edit"): the Add User form, filled in with the user's details, with
- * Delete user next to their name. Save stays here; a change the rules or the database refuse saves
- * nothing and is explained. Everything but the email is saved to the database; the email only lasts
- * until reload, and the message says so. Deleted and unknown users show Not Found.
+ * Edit Staff ("/admin/users/:id/edit", opened from the Staff list and a staff member's page): the Add
+ * Staff form, filled in with their details, with Delete next to their name. Save stays here; a change
+ * the rules or the database refuse saves nothing and is explained. Everything is saved to the
+ * database; a new email also changes their sign-in account. Moving someone to another department is
+ * refused while they have SOP work in progress. Leaving with unsaved changes asks first. Deleted and
+ * unknown staff show Not Found.
  */
 export function EditUserPage() {
   const { id } = useParams()
@@ -62,9 +64,18 @@ function EditUserContent({ user }: { user: User }) {
   const refusedRef = useRef<HTMLDivElement>(null)
   const deleteErrorRef = useRef<HTMLDivElement>(null)
 
+  /** "Department Transfer Not Allowed" with the explanation and, when known, how many SOPs block it. */
+  function refuseTransfer(blockingSops: number) {
+    const count = blockingSops > 0
+      ? [(blockingSops === 1 ? content.transfer.count.one : content.transfer.count.other).replace('{count}', String(blockingSops))]
+      : []
+    refuse(content.transfer.title, [content.transfer.message, ...count])
+  }
+
   /** What to tell the admin about a save the database refused. */
   function failureMessages(error: unknown): string[] {
     const reason: SaveUserFailure = error instanceof SaveUserError ? error.reason : 'failed'
+    if (reason === 'department-transfer-blocked') return [content.failures.failed]
     if (reason !== 'permission-in-use' || !(error instanceof SaveUserError) || error.inUse.length === 0) {
       return [reason === 'permission-in-use' ? content.failures.invalid : content.failures[reason]]
     }
@@ -87,17 +98,31 @@ function EditUserContent({ user }: { user: User }) {
       refuse(content.refused, blockers.map((blocker) => blockerMessage(blocker, user, adminEn.userDetails.blockers, true)))
       return
     }
-    // Worked out first: saving changes the user these are compared with.
-    const message = changesEmail(user, next) ? content.savedUntilReload : content.saved
+    // The database refuses it too (profiles_department_transfer_guard); this explains it without a round trip.
+    if (transfersDepartment(user, next)) {
+      const work = responsibilitiesInProgress(user, sops)
+      if (work.total > 0) {
+        refuseTransfer(work.total)
+        return
+      }
+    }
     try {
       await updateUser(user.id, next, rules)
     } catch (error) {
-      refuse(content.notSaved, failureMessages(error))
+      if (error instanceof SaveUserError && error.reason === 'department-transfer-blocked') {
+        refuseTransfer(error.blockingSops)
+      } else if (error instanceof ChangeEmailError) {
+        // The other changes are saved: the form starts again from them, with the email as it was.
+        setSavedCount((count) => count + 1)
+        refuse(content.emailNotSaved, [content.emailFailures[error.reason]])
+      } else {
+        refuse(content.notSaved, failureMessages(error))
+      }
       return
     }
     flushSync(() => {
       setRefused(undefined)
-      setSaved(message)
+      setSaved(content.saved)
       setSavedCount((count) => count + 1)
     })
     // Save is at the bottom of the form: this also brings the message into view.
@@ -154,6 +179,7 @@ function EditUserContent({ user }: { user: User }) {
         notice={refused && <RefusedBox ref={refusedRef} title={refused.title} messages={refused.reasons} />}
         onEdit={() => setSaved('')}
         onSubmit={save}
+        unsavedChanges={content.discard}
       />
     </>
   )

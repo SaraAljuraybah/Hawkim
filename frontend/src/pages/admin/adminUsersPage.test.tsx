@@ -72,7 +72,7 @@ describe('Users list', () => {
 
   it('shows the same users and actions as stacked cards on narrow screens', () => {
     const html = render()
-    const cards = html.slice(html.indexOf('<ul aria-label="Users"'), html.lastIndexOf('</ul>'))
+    const cards = html.slice(html.indexOf('<ul aria-label="Staff"'), html.lastIndexOf('</ul>'))
     expect(cards).toContain('md:hidden')
     for (const user of fixture.users) {
       expect(cards).toContain(`>${user.name}<`)
@@ -83,8 +83,10 @@ describe('Users list', () => {
 
   it('offers one search, and the Division and Department filters, with the count', () => {
     const html = render()
-    expect(html).toContain('>Search Users<')
-    expect(html).toContain('placeholder="Search by name, email, division, department or permission…"')
+    expect(html).toContain('>Search Staff<')
+    expect(html).toContain('placeholder="Search by staff name, email, division, department"')
+    // Task 7: no description under the title.
+    expect(html).not.toContain('Manage who can use Hawkim and what they can do.')
     expect(html).toContain('>All Divisions<')
     // The division's name, with its id as the value.
     expect(html).toMatch(/<option value="regulatory_drug_safety"[^>]*>Regulatory &amp; Drug Safety<\/option>/)
@@ -92,7 +94,7 @@ describe('Users list', () => {
     expect(html).toContain('>No Division</option>')
     expect(html).toContain('>All Departments<')
     expect(html).not.toContain('All Permissions')
-    expect(html).toContain('>3 users<')
+    expect(html).toContain('>3 staff members<')
   })
 })
 
@@ -117,18 +119,18 @@ describe('searching and filtering users', () => {
   })
 
   it('says when no user matches', () => {
-    expect(adminEn.usersList.empty).toBe('No users match your search.')
+    expect(adminEn.usersList.empty).toBe('No staff found.')
   })
 })
 
 describe('the Delete User warning', () => {
-  it('asks "Delete User?" with Cancel first and Delete in the primary filled style', () => {
+  it('asks "Delete Staff?" with Cancel first and Delete in the primary filled style', () => {
     const text = adminEn.deleteUser
     const html = renderToStaticMarkup(
       <ConfirmDialog open title={text.title} description={text.description.replace('{name}', 'Sara Aljuraybah')}
         cancelLabel={text.cancel} confirmLabel={text.confirm} onConfirm={() => {}} onCancel={() => {}} />,
     )
-    expect(html).toContain('>Delete User?</h2>')
+    expect(html).toContain('>Delete Staff?</h2>')
     expect(html).toContain("Are you sure you want to delete Sara Aljuraybah? This can&#x27;t be undone.")
     const cancel = html.match(/<button[^>]*>Cancel<\/button>/)![0]
     const remove = html.match(/<button[^>]*>Delete<\/button>/)![0]
