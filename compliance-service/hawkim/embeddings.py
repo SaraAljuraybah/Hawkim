@@ -40,14 +40,25 @@ class Embedder:
             raise ValueError(f"Unknown embedding backend: {self.backend}")
 
     # -- documents (GVP units)
-    def fit_encode_documents(self, texts: list[str]):
+    def fit_encode_documents(self, texts: list[str], on_progress=None):
+        """`on_progress(done_batches, total_batches)`: called as the documents are embedded (not for tfidf)."""
         if self.backend == "tfidf":
             from sklearn.feature_extraction.text import TfidfVectorizer
             self._vectorizer = TfidfVectorizer(ngram_range=(1, 2), sublinear_tf=True, min_df=1,
                                                stop_words="english")
             return self._vectorizer.fit_transform(texts)  # sparse, L2-normalised
-        return self._model.encode(texts, batch_size=self.batch_size, normalize_embeddings=True,
-                                  show_progress_bar=True, convert_to_numpy=True)
+        if on_progress is None:
+            return self._model.encode(texts, batch_size=self.batch_size, normalize_embeddings=True,
+                                      show_progress_bar=True, convert_to_numpy=True)
+        # In chunks of a few batches, reporting after each chunk.
+        total = -(-len(texts) // self.batch_size)
+        step = self.batch_size * 4
+        parts = []
+        for start in range(0, len(texts), step):
+            parts.append(self._model.encode(texts[start:start + step], batch_size=self.batch_size,
+                                            normalize_embeddings=True, show_progress_bar=False, convert_to_numpy=True))
+            on_progress(min(total, -(-(start + step) // self.batch_size)), total)
+        return np.vstack(parts) if parts else np.zeros((0, 0), dtype=np.float32)
 
     # -- queries (SOP chunks)
     def encode_queries(self, texts: list[str]):

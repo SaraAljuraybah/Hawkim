@@ -24,11 +24,14 @@ def _sha1(path: Path) -> str:
 
 
 def build_index(cfg: dict, gvp_path: str | Path, folder: str | Path, embedder: Embedder,
-                log=print) -> tuple[VectorIndex, list, dict]:
+                log=print, progress=None) -> tuple[VectorIndex, list, dict]:
     """Extracts the guideline, splits it into requirement units, embeds them and saves the index in
     `folder`. Returns the index, the units and a report for the admin. Raises ValueError when no
-    requirement could be found (e.g. a scanned PDF)."""
+    requirement could be found (e.g. a scanned PDF). `progress(stage, done, total)`: optional, called
+    while reading ('reading') and embedding ('embedding', in batches)."""
     gvp_path, folder = Path(gvp_path), Path(folder)
+    report_progress = progress or (lambda stage, done, total: None)
+    report_progress("reading", 0, 0)
     ex = cfg["extraction"]
     doc = extract_document(gvp_path, ex["header_footer_min_page_ratio"], ex["min_chars_per_page_warning"])
     for w in doc.warnings:
@@ -40,7 +43,11 @@ def build_index(cfg: dict, gvp_path: str | Path, folder: str | Path, embedder: E
     sections = {u.section for u in units}
     log(f"  {doc.n_pages} pages -> {len(units)} requirement units in {len(sections)} sections")
     t0 = time.time()
-    vectors = embedder.fit_encode_documents([u.embed_text() for u in units])
+    def on_batches(done: int, total: int):
+        log(f"  embedding {done}/{total} batches")
+        report_progress("embedding", done, total)
+    vectors = embedder.fit_encode_documents([u.embed_text() for u in units],
+                                            on_progress=on_batches if embedder.backend != "tfidf" else None)
     meta = {"backend": embedder.backend, "model": embedder.model_name, "gvp_file": str(gvp_path),
             "gvp_sha1": _sha1(gvp_path), "n_units": len(units), "n_sections": len(sections),
             "gvp_chunking": gc, "created": dt.datetime.now().isoformat(timespec="seconds"),

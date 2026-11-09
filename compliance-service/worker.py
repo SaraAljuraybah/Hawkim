@@ -114,7 +114,21 @@ def process_guideline(job: dict, svc: ComplianceService, sb: "Supabase"):
         sb.download_object(GUIDELINE_FILES_BUCKET, job["storage_path"], pdf, what="the guideline PDF")
         t0 = time.time()
         built = work / "index"
-        _, _, report = build_index(svc.cfg, pdf, built, svc.embedder, log=print)
+        last = [0.0]
+
+        def progress(stage: str, done: int, total: int):
+            # At most every 3 seconds (and always at the end of a stage); a failed report is only logged.
+            now = time.time()
+            if stage == "embedding" and done < total and now - last[0] < 3:
+                return
+            last[0] = now
+            try:
+                sb.rpc("report_guideline_progress", {"p_id": draft_id, "p_stage": stage, "p_done": done, "p_total": total})
+            except Exception as e:
+                print(f"[worker] progress report failed: {e}")
+
+        _, _, report = build_index(svc.cfg, pdf, built, svc.embedder, log=print, progress=progress)
+        progress("saving", 0, 0)
         index_path = f"versions/{draft_id}"
         for f in sorted(built.iterdir()):
             if f.is_file():
