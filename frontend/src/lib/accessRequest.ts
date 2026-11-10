@@ -31,3 +31,12 @@ export function requestProblems(values: RequestValues): Partial<Record<RequestFi
   if (text('message').length > 2000) problems.message = 'tooLong'
   return problems
 }
+
+/**
+ * A field's problem as shown while filling in the form: on leaving it, and while typing once its error
+ * shows. "required" waits for Send Request, so an empty field shows nothing here.
+ */
+export function liveProblem(field: RequestField, values: RequestValues): FieldProblem | undefined {
+  const problem = requestProblems(values)[field]
+  return problem === 'required' ? undefined : problem
+}

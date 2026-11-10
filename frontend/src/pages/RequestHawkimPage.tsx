@@ -10,7 +10,7 @@ import { TextField } from '../components/ui/TextField'
 import { FORM_CARD } from '../components/ui/formCard'
 import { requestHawkimEn } from '../content/accessRequest.en'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
-import { requestProblems, type RequestField, type RequestValues } from '../lib/accessRequest'
+import { liveProblem, requestProblems, type RequestField, type RequestValues } from '../lib/accessRequest'
 import { submitAccessRequest, type SubmitFailure } from '../services/accessRequests'
 
 const content = requestHawkimEn
@@ -39,9 +39,22 @@ export function RequestHawkimPage() {
     if (sent) titleRef.current?.focus()
   }, [sent])
 
+  const messageFor = (field: RequestField, next: RequestValues) => {
+    const problem = liveProblem(field, next)
+    return problem && content.errors[problem]
+  }
+  // While a field's error shows, it's re-checked as they type: it clears once the value is valid (or empty:
+  // "required" waits for Send Request). Otherwise typing shows nothing until they leave the field.
   const set = (field: RequestField) => (event: { target: { value: string } }) => {
-    setValues((current) => ({ ...current, [field]: event.target.value }))
-    setErrors((current) => ({ ...current, [field]: undefined }))
+    const next = { ...values, [field]: event.target.value }
+    setValues(next)
+    setErrors((current) => ({ ...current, [field]: current[field] ? messageFor(field, next) : undefined }))
+  }
+  // Leaving a field with an invalid value shows its error (and the red field) at once. It never clears
+  // one: an empty field keeps the "required" shown after Send Request.
+  const check = (field: RequestField) => () => {
+    const message = messageFor(field, values)
+    if (message) setErrors((current) => ({ ...current, [field]: message }))
   }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -91,6 +104,7 @@ export function RequestHawkimPage() {
       value={values[name]}
       error={errors[name]}
       onChange={set(name)}
+      onBlur={check(name)}
       {...props}
     />
   )
