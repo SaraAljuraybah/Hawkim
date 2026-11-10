@@ -48,7 +48,8 @@ export function AdminTopBar({ content, user, menuOpen, onOpenMenu, menuButtonRef
           >
             <span aria-hidden="true">{user.initials}</span>
           </Link>
-          <div className="max-w-24 min-w-0 leading-tight sm:max-w-48">
+          {/* On phones only the avatar (its link has the accessible name), so the organization name gets more room. */}
+          <div className="hidden max-w-48 min-w-0 leading-tight sm:block">
             {/* The same link for the mouse and touch. Screen readers and the keyboard use the avatar's, so they don't meet it twice. */}
             <Link
               to={content.profileLink.href}

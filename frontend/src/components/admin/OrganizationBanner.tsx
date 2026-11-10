@@ -1,5 +1,6 @@
 import { useContext, useRef, useState } from 'react'
 import { flushSync } from 'react-dom'
+import { useLocation } from 'react-router-dom'
 import { Pencil, Pill } from 'lucide-react'
 import { FormDialog } from '../ui/FormDialog'
 import { IconButton } from '../ui/IconButton'
@@ -7,20 +8,23 @@ import { TextField } from '../ui/TextField'
 import { organizationAdminEn } from '../../content/organizationAdmin.en'
 import type { User } from '../../data/mock/types'
 import { useOrganizationName } from '../../hooks/useOrganizationName'
+import { isOrganizationNameEditPage } from '../../lib/routes'
 import { organizationNameProblem, saveOrganizationName } from '../../services/organizationSettings'
 import { SuperAdminContext } from '../../state/superAdminContext'
 
 const text = organizationAdminEn.organizationName
 
 /**
- * The organization's name in the admin top bar, on every admin page: it loads the name, and gives the
- * Super Admin (once it is known who that is) the pencil and the Edit Organization Name dialog. Nothing
+ * The organization's name in the top bar of both portals, on every page and for everyone: it loads the
+ * name. Only on Divisions and Departments does the Super Admin (once it is known who that is) get the
+ * pencil and the Edit Organization Name dialog; everywhere else it is read-only for everyone. Nothing
  * while the name is loading or can't be read. The server checks who may change it in any case.
  */
 export function OrganizationName({ user }: { user: Pick<User, 'id'> }) {
   const organization = useOrganizationName()
   const superAdmin = useContext(SuperAdminContext)
-  const canEdit = superAdmin?.status === 'ready' && superAdmin.superAdminId === user.id
+  const onEditPage = isOrganizationNameEditPage(useLocation().pathname)
+  const canEdit = onEditPage && superAdmin?.status === 'ready' && superAdmin.superAdminId === user.id
   const [editing, setEditing] = useState(false)
   const [saved, setSaved] = useState('')
   const trigger = useRef<HTMLElement | null>(null)
@@ -40,10 +44,10 @@ export function OrganizationName({ user }: { user: Pick<User, 'id'> }) {
 
 /**
  * The name as shown in the top bar: a pill icon in a maroon circle (from sm), the name in maroon with a
- * thin gold line under it, and the pencil for the Super Admin. A long name is cut with "…" (the full
- * name stays in the tooltip and for screen readers). Without a name, the Super Admin sees
- * "Organization name not set" with the pencil; everyone else sees nothing. Not a heading: each page
- * keeps its own h1.
+ * thin gold line under it, and the pencil when `canEdit` (the Super Admin on Divisions and Departments).
+ * A long name is cut with "…" (the full name stays in the tooltip and for screen readers). Without a
+ * name: "Organization name not set" with the pencil when `canEdit`, otherwise nothing. Not a heading:
+ * each page keeps its own h1.
  */
 export function OrganizationBanner({ name, canEdit, onEdit }: { name: string | null; canEdit: boolean; onEdit: () => void }) {
   if (!name && !canEdit) return null

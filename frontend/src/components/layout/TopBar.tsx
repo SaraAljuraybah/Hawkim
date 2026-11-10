@@ -4,6 +4,7 @@ import { Menu } from 'lucide-react'
 import type { AppShellContent } from '../../content/types'
 import type { User } from '../../data/mock/types'
 import { isSystemAdmin } from '../../lib/userAdmin'
+import { OrganizationName } from '../admin/OrganizationBanner'
 import { DepartmentSwitcher } from './DepartmentSwitcher'
 import { NotificationsBell } from './NotificationsBell'
 
@@ -19,12 +20,12 @@ interface TopBarProps {
 const iconButton =
   'inline-flex size-10 items-center justify-center rounded-lg border border-beige text-maroon transition-colors hover:bg-beige'
 
-/** Top bar of the signed-in app: menu button (small screens), notifications and user. */
+/** Top bar of the signed-in app: menu button (small screens), the organization's name, notifications and user. */
 export function TopBar({ content, user, menuOpen, onOpenMenu, menuButtonRef }: TopBarProps) {
   return (
     <header className="sticky top-0 z-30 border-b border-beige bg-white/90 backdrop-blur-md print:hidden">
       {/* At least 64px; taller only when the user's details wrap on a narrow window */}
-      <div className="flex min-h-16 items-center justify-between gap-4 px-4 py-2 sm:px-6 lg:px-8">
+      <div className="flex min-h-16 items-center gap-3 px-4 py-2 sm:gap-4 sm:px-6 lg:px-8">
         <button
           ref={menuButtonRef}
           type="button"
@@ -32,12 +33,18 @@ export function TopBar({ content, user, menuOpen, onOpenMenu, menuButtonRef }: T
           aria-label={content.openMenu}
           aria-expanded={menuOpen}
           aria-haspopup="dialog"
-          className={`${iconButton} lg:hidden`}
+          className={`${iconButton} shrink-0 lg:hidden`}
         >
           <Menu aria-hidden="true" className="size-5" strokeWidth={1.75} />
         </button>
 
-        <div className="ml-auto flex min-w-0 items-center gap-3 sm:gap-4">
+        {/* The organization's name (read-only here), in the space left over: it is cut with "…" before it
+            could reach the notifications, the department switcher or the profile. */}
+        <div className="flex min-w-0 flex-1 items-center">
+          <OrganizationName user={user} />
+        </div>
+
+        <div className="flex min-w-0 items-center gap-3 sm:gap-4">
           {/* Notifications (PBI 31): unread count and a panel with the newest ones */}
           <NotificationsBell />
 

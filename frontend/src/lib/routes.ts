@@ -90,6 +90,11 @@ export const ADMIN_DEPARTMENTS_PATH = '/admin/departments'
 /** Where an admin lands: after signing in, on /admin, and from any employee page. */
 export const ADMIN_HOME_PATH = ADMIN_DEPARTMENTS_PATH
 
+/** Whether this is the Divisions and Departments page itself (not a department's page under it): the only place the organization name can be edited. */
+export function isOrganizationNameEditPage(pathname: string): boolean {
+  return pathname.replace(/\/+$/, '') === ADMIN_DEPARTMENTS_PATH
+}
+
 /** A department's page in the admin portal, e.g. /admin/departments/quality-assurance */
 export function adminDepartmentPath(departmentId: string): string {
   return `${ADMIN_DEPARTMENTS_PATH}/${encodeURIComponent(departmentId)}`
