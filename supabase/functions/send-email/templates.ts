@@ -22,7 +22,7 @@ export function contentFor(type: string, email: string): EmailContent {
       return {
         subject: "You’re invited to Hawkim",
         heading: "You’re invited to Hawkim",
-        intro: `A Hawkim admin has created an account for <strong>${who}</strong>. Accept this invitation to access the platform and set your password.`,
+        intro: `A Hawkim Admin has created an account for <strong>${who}</strong>. Accept this invitation to access the platform and set your password.`,
         button: "Accept invitation",
         note: "This link expires in 24 hours and can be used once. If you weren’t expecting this invitation, you can ignore this email.",
       }
