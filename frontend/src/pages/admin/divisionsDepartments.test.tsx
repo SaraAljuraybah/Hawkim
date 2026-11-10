@@ -13,10 +13,12 @@ const snapshot: ManagementSnapshot = { divisions: [{ id: 'v', name: 'Safety', de
 ] }
 const render = (query = '', data = snapshot) => renderToStaticMarkup(<MemoryRouter><HierarchyTable snapshot={data} query={query} onEdit={vi.fn()} onPreview={vi.fn()} onViewDepartment={vi.fn()} onAddDepartment={vi.fn()} onEditDepartment={vi.fn()} onDeleteDivision={vi.fn()} onDeleteDepartment={vi.fn()} /></MemoryRouter>)
 describe('unified divisions and departments table', () => {
-  it('renders exactly one table, three named columns and an unlabeled action column', () => {
+  it('renders exactly one table: Name, Staff, SOPs, room for more columns, and an unlabeled action column', () => {
     const html = render()
     expect(html.match(/<table /g)).toHaveLength(1)
-    expect(html).toContain('>Users</th>'); expect(html).toContain('>SOPs</th>'); expect(html).not.toContain('Employees')
+    expect(html).toContain('>Staff</th>'); expect(html).toContain('>SOPs</th>'); expect(html).not.toContain('Employees')
+    expect(html).not.toContain('>Users</th>')
+    expect(html).toMatch(/<colgroup><col class="w-\[40%\]"\/><col class="w-28"\/><col class="w-28"\/><col\/><col class="w-52"\/><\/colgroup>/)
     expect(html).not.toContain('With Access'); expect(html).not.toContain('>Description</th>')
     expect(html).toContain('Departments (1)')
   })
@@ -25,9 +27,16 @@ describe('unified divisions and departments table', () => {
     expect(html).toContain('aria-expanded="false"')
     expect(html).toContain('>5</td>'); expect(html).toContain('>1</td>')
     expect(html).not.toContain('>Medical</span>')
-    // Preview, Add Department, Edit, Delete: an icon-only button named and tooltipped "Add Department".
-    expect([...html.matchAll(/<button[^>]*aria-label="([^"]+)"/g)].map((match) => match[1])).toEqual(['Preview Safety', 'Add Department', 'Edit Safety', 'Delete Safety'])
+    // Add Department, Preview, Edit, Delete: an icon-only button named and tooltipped "Add Department".
+    expect([...html.matchAll(/<button[^>]*aria-label="([^"]+)"/g)].map((match) => match[1])).toEqual(['Add Department', 'Preview Safety', 'Edit Safety', 'Delete Safety'])
     expect(html).toMatch(/<button type="button" aria-label="Add Department" class="[^"]*size-9 rounded-lg border border-beige[^"]*"><svg[^>]*>(?:(?!<\/svg>)[\s\S])*<\/svg><\/button><span[^>]*role="tooltip"[^>]*><span[^>]*>Add Department<\/span><\/span>/)
+  })
+  it('keeps a department\'s Preview, Edit and Delete under the division\'s, with an empty slot where Add Department is', () => {
+    const html = render(' medical ')
+    const cells = [...html.matchAll(/<td class="p-3"><div class="flex justify-end gap-2">([\s\S]*?)<\/div><\/td>/g)].map((match) => match[1])
+    expect(cells).toHaveLength(2)
+    expect(cells[1]).toMatch(/^\s*<span aria-hidden="true" class="size-9 shrink-0"><\/span>/)
+    expect([...cells[1].matchAll(/aria-label="([^"]+)"/g)].map((match) => match[1])).toEqual(['Preview Medical', 'Edit Medical', 'Delete Medical'])
   })
   it('opens matching departments directly under their parent, without an Add Department toolbar', () => {
     const html = render(' medical ')

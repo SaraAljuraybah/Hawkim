@@ -18,7 +18,7 @@ import { adminEn } from '../../content/admin.en'
 import { organizationAdminEn as text } from '../../content/organizationAdmin.en'
 import { useDocumentTitle } from '../../hooks/useDocumentTitle'
 import { useOrganizationManagement } from '../../hooks/useOrganizationManagement'
-import { departmentDeleteBlocker, DIVISION_SORTS, hierarchyRows, type DivisionSort } from '../../lib/organizationAdmin'
+import { departmentDeleteBlocker, DIVISION_SORTS, hierarchyRows, sortGroup, type DivisionSort } from '../../lib/organizationAdmin'
 import { deleteDivision, type DivisionRecord, type ManagedDepartment, type ManagementSnapshot } from '../../services/organizationAdmin'
 
 export interface AdminDepartmentsLocationState { removed?: string }
@@ -60,7 +60,10 @@ export function AdminDepartmentsPage() {
           options={divisionOptions} value={selectedDivisions} onChange={setDivisionFilter} />
       </div>
       <SelectField className="min-w-0" name="divisionSort" label={text.sort} value={sort}
-        options={DIVISION_SORTS.map((value) => ({ value, label: text.sortOptions[value] }))}
+        options={DIVISION_SORTS.map((value) => {
+          const group = sortGroup(value)
+          return { value, label: text.sortOptions[value], ...(group ? { group: text.sortGroups[group] } : {}) }
+        })}
         onChange={(event) => setSort(event.target.value as DivisionSort)} />
     </div>
     {selectedDivisions.length > 0 && <ActiveFilters options={divisionOptions} selected={selectedDivisions} onChange={setDivisionFilter} />}
@@ -132,8 +135,11 @@ export function HierarchyTable({ snapshot, query = '', divisions = [], sort = 'd
     return <tr key={row.id} className="border-t border-beige hover:bg-beige/20">
       <th scope="row" className="py-3 pr-4 pl-12 font-medium"><span className="flex items-center gap-3 border-l border-beige pl-5"><DepartmentBadge department={row} />
         <span className="min-w-0 break-words">{row.name}</span></span></th>
-      <td className={numberCell}>{row.employees}</td><td className={numberCell}>{row.sops}</td>
-      <td className="p-3"><div className="flex justify-end gap-2"><IconButton label={text.previewName.replace('{name}', row.name)} icon={Eye} onClick={() => onViewDepartment(row)} />
+      <td className={numberCell}>{row.employees}</td><td className={numberCell}>{row.sops}</td><td />
+      <td className="p-3"><div className="flex justify-end gap-2">
+        {/* Departments have no Add: an empty slot keeps Preview, Edit and Delete under the division buttons. */}
+        <span aria-hidden="true" className="size-9 shrink-0" />
+        <IconButton label={text.previewName.replace('{name}', row.name)} icon={Eye} onClick={() => onViewDepartment(row)} />
         <IconButton
   label={`${text.edit} ${row.name}`}
   icon={Pencil}
@@ -145,9 +151,11 @@ export function HierarchyTable({ snapshot, query = '', divisions = [], sort = 'd
   }
   return <div className="mt-3 overflow-x-auto rounded-xl border border-beige bg-white">
     <table aria-label={text.title} className="w-full min-w-[600px] table-fixed text-left text-sm">
-    {/* Fixed column widths, so expanding, searching, filtering or sorting never shifts the columns. */}
-    <colgroup><col /><col className="w-28" /><col className="w-28" /><col className="w-52" /></colgroup><thead className={tableStyles.head}><tr>
-      <th scope="col" className="p-4">{text.name}</th><th scope="col" className="px-3 py-4 text-center">{text.users}</th><th scope="col" className="px-3 py-4 text-center">{text.sops}</th><th scope="col"><span className="sr-only">{text.edit}</span></th>
+    {/* Fixed column widths, so expanding, searching, filtering or sorting never shifts the columns. Name, Staff
+        and SOPs sit on the left; the empty column after them leaves room for more columns; the actions stay right. */}
+    <colgroup><col className="w-[40%]" /><col className="w-28" /><col className="w-28" /><col /><col className="w-52" /></colgroup><thead className={tableStyles.head}><tr>
+      {/* "Name" lines up with the division names, after the expand arrow (1rem padding + 1.5rem arrow + 0.75rem gap). */}
+      <th scope="col" className="py-4 pr-4 pl-[3.25rem]">{text.name}</th><th scope="col" className="px-3 py-4 text-center">{text.staff}</th><th scope="col" className="px-3 py-4 text-center">{text.sops}</th><th aria-hidden="true" /><th scope="col"><span className="sr-only">{text.edit}</span></th>
     </tr></thead>
       {/* Each division is its own row group, with its departments in the next one (the toggle's aria-controls target), so they sit directly beneath it. */}
       {rows.map(({ division, children, departmentCount, employees, sops }) => {
@@ -161,20 +169,21 @@ export function HierarchyTable({ snapshot, query = '', divisions = [], sort = 'd
               <span><span className="block font-semibold text-maroon">{division.name}</span>
                 <span className="mt-1 block text-xs font-normal text-text-gray">{text.departments} ({departmentCount})</span></span>
             </button></th>
-          <td className={numberCell}>{employees}</td><td className={numberCell}>{sops}</td>
-          <td className="p-3"><div className="flex justify-end gap-2"><IconButton label={text.previewName.replace('{name}', division.name)} icon={Eye} onClick={() => onPreview(division)} />
+          <td className={numberCell}>{employees}</td><td className={numberCell}>{sops}</td><td />
+          <td className="p-3"><div className="flex justify-end gap-2">
             {/* Adds a department to this division, collapsed or expanded. */}
             <IconButton label={text.addDepartment} icon={Plus} onClick={() => onAddDepartment(division.id)} />
+            <IconButton label={text.previewName.replace('{name}', division.name)} icon={Eye} onClick={() => onPreview(division)} />
             <IconButton label={`${text.edit} ${division.name}`} icon={Pencil} onClick={() => onEdit(division)} />
             <IconButton label={`${text.delete} ${division.name}`} icon={Trash2} danger disabledReason={departmentCount ? text.divisionBlocked : undefined} onClick={() => onDeleteDivision(division)} /></div></td>
         </tr></tbody><tbody id={`children-${division.id}`} hidden={!isExpanded}>
-        {isExpanded && (children.length ? children.map(child) : <tr className="border-t border-beige"><td colSpan={4} className="py-4 pl-16 text-text-gray">{text.emptyDepartments}</td></tr>)}
+        {isExpanded && (children.length ? children.map(child) : <tr className="border-t border-beige"><td colSpan={5} className="py-4 pl-16 text-text-gray">{text.emptyDepartments}</td></tr>)}
         </tbody></Fragment>
       })}
       <tbody>
-      {unassigned.length > 0 && <tr><th colSpan={4} className="bg-beige/20 p-4 text-maroon">{text.unassigned}</th></tr>}
+      {unassigned.length > 0 && <tr><th colSpan={5} className="bg-beige/20 p-4 text-maroon">{text.unassigned}</th></tr>}
       {unassigned.map(child)}
-      {!rows.length && !unassigned.length && <tr><td colSpan={4} className="p-10 text-center text-text-gray">{divisions.length ? text.emptyFiltered : text.empty}</td></tr>}
+      {!rows.length && !unassigned.length && <tr><td colSpan={5} className="p-10 text-center text-text-gray">{divisions.length ? text.emptyFiltered : text.empty}</td></tr>}
     </tbody></table>
   </div>
 }

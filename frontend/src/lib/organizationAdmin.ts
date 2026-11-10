@@ -1,8 +1,19 @@
 import type { ManagedDepartment, ManagementSnapshot } from '../services/organizationAdmin'
 
-/** How the division rows are ordered; 'default' keeps the server's order. */
-export const DIVISION_SORTS = ['default', 'name-asc', 'name-desc', 'departments-desc', 'departments-asc', 'sops-desc', 'sops-asc'] as const
+/**
+ * How the table is ordered; 'default' keeps the server's order. 'division-…' orders the division rows;
+ * 'department-…' orders the departments inside each division (the divisions keep their order).
+ * Staff and SOP counts go from most to fewest.
+ */
+export const DIVISION_SORTS = [
+  'default',
+  'division-name-asc', 'division-name-desc', 'division-staff-desc', 'division-sops-desc',
+  'department-name-asc', 'department-name-desc', 'department-staff-desc', 'department-sops-desc',
+] as const
 export type DivisionSort = (typeof DIVISION_SORTS)[number]
+/** The group each sort is listed under in the Sort menu ('default' has none). */
+export const sortGroup = (sort: DivisionSort): 'divisions' | 'departments' | undefined =>
+  sort.startsWith('division-') ? 'divisions' : sort.startsWith('department-') ? 'departments' : undefined
 
 export interface HierarchyOptions {
   /** Division ids to show (any of them); empty or missing shows every division. */
@@ -34,19 +45,23 @@ export function hierarchyRows(snapshot: ManagementSnapshot, query = '', options:
   return sortRows(rows, options.sort ?? 'default')
 }
 
-/** Orders division rows; equal values fall back to the name, then the id, so the order is always the same. */
-function sortRows<T extends { division: { name: string; id: string }; departmentCount: number; sops: number }>(rows: T[], sort: DivisionSort): T[] {
+/** Orders the rows (or each row's departments); equal values fall back to the name, then the id, so the order is always the same. */
+function sortRows<T extends { division: { name: string; id: string }; employees: number; sops: number; children: { name: string; id: string; employees: number; sops: number }[] }>(rows: T[], sort: DivisionSort): T[] {
   if (sort === 'default') return rows
-  const name = (a: T, b: T) => byName(a.division, b.division)
-  const compare: Record<Exclude<DivisionSort, 'default'>, (a: T, b: T) => number> = {
-    'name-asc': name,
-    'name-desc': (a, b) => -name(a, b),
-    'departments-desc': (a, b) => b.departmentCount - a.departmentCount || name(a, b),
-    'departments-asc': (a, b) => a.departmentCount - b.departmentCount || name(a, b),
-    'sops-desc': (a, b) => b.sops - a.sops || name(a, b),
-    'sops-asc': (a, b) => a.sops - b.sops || name(a, b),
+  type Item = { name: string; id: string; employees: number; sops: number }
+  const orders: Record<'name-asc' | 'name-desc' | 'staff-desc' | 'sops-desc', (a: Item, b: Item) => number> = {
+    'name-asc': byName,
+    'name-desc': (a, b) => -byName(a, b),
+    'staff-desc': (a, b) => b.employees - a.employees || byName(a, b),
+    'sops-desc': (a, b) => b.sops - a.sops || byName(a, b),
   }
-  return [...rows].sort(compare[sort])
+  if (sort.startsWith('department-')) {
+    const order = orders[sort.slice('department-'.length) as keyof typeof orders]
+    return rows.map((row) => ({ ...row, children: [...row.children].sort(order) }))
+  }
+  const order = orders[sort.slice('division-'.length) as keyof typeof orders]
+  const item = (row: T): Item => ({ name: row.division.name, id: row.division.id, employees: row.employees, sops: row.sops })
+  return [...rows].sort((a, b) => order(item(a), item(b)))
 }
 
 /**

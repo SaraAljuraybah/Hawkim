@@ -6,12 +6,14 @@ export const organizationAdminEn = {
   filterNoDivision: 'No Division',
   clearFilters: 'Clear Filters', filteredBy: 'Filtered by:', removeFilter: 'Remove {name} from the filter',
   sort: 'Sort', sortOptions: {
-    default: 'Default order', 'name-asc': 'Name: A to Z', 'name-desc': 'Name: Z to A',
-    'departments-desc': 'Departments: High to Low', 'departments-asc': 'Departments: Low to High',
-    'sops-desc': 'SOPs: High to Low', 'sops-asc': 'SOPs: Low to High',
+    default: 'Default order',
+    'division-name-asc': 'A to Z', 'division-name-desc': 'Z to A', 'division-staff-desc': 'Number of Staff', 'division-sops-desc': 'Number of SOPs',
+    'department-name-asc': 'A to Z', 'department-name-desc': 'Z to A', 'department-staff-desc': 'Number of Staff', 'department-sops-desc': 'Number of SOPs',
   },
+  /** Headings of the Sort menu's groups. */
+  sortGroups: { divisions: 'Divisions', departments: 'Departments' },
   addDivision: 'Add Division', addDepartment: 'Add Department', departments: 'Departments',
-  name: 'Name', users: 'Users', sops: 'SOPs', position: 'Position', email: 'Email',
+  name: 'Name', users: 'Users', staff: 'Staff', sops: 'SOPs', position: 'Position', email: 'Email',
   description: 'Description', division: 'Division', unassigned: 'Unassigned departments',
   selectDivision: 'Select a division', noDivision: 'No division (existing assignment)',
   divisionNone: 'No division', saving: 'Saving…',
