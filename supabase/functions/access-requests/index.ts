@@ -2,7 +2,7 @@
 // 20261106130000_access_requests.sql). Called by the website with a JSON body { action, ... }:
 //   submit  the public form: stores the request, emails the team a review link, confirms to the requester
 //   view    the review page: the request, when the review link's id and token match
-//   accept  creates the requester's account as Admin and emails them a link to set their password
+//   accept  creates the requester's account as the organization's Super Admin and emails them a link to set their password
 //   reject  marks the request rejected and tells the requester
 //
 // Secrets (Dashboard → Edge Functions → Secrets):
