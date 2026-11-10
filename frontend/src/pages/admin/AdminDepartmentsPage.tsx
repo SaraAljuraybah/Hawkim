@@ -56,8 +56,10 @@ export function AdminDepartmentsPage() {
   const departmentLabel = (id: string) => data?.departments.find((row) => row.id === id)?.name ?? id
   const close = () => { setEditing(undefined); setPreview(undefined); setDeleting(undefined); setDepartment(undefined); setViewing(undefined); setDepartmentForm(undefined); trigger.current?.focus() }
   return <>
-    <div className="flex flex-wrap items-center justify-between gap-4"><h1 className="text-2xl tracking-tight sm:text-3xl">{text.title}</h1>
-      <Button onClick={() => open(() => setEditing(null))}><Plus className="size-4" aria-hidden="true" />{text.addDivision}</Button></div>
+    {/* The title and its description, with Add Division on the right, as on the Admins page. */}
+    <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"><div><h1 className="text-2xl tracking-tight sm:text-3xl">{text.title}</h1>
+      <p className="mt-2 max-w-2xl text-text-gray">{text.subtitle}</p></div>
+      <Button className="shrink-0 self-start sm:self-auto" onClick={() => open(() => setEditing(null))}><Plus className="size-4" aria-hidden="true" />{text.addDivision}</Button></div>
     {/* Search | Filter | Sort, the same row as on every list page; from lg the Filter panel lines up with its right edge. */}
     <div className={`mt-6 ${LIST_TOOLBAR}`}>
       <TextField className="min-w-0" name="organizationSearch" type="search" label={text.search} placeholder={text.searchPlaceholder} value={query} onChange={(event) => setQuery(event.target.value)} />

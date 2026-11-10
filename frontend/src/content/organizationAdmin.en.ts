@@ -1,5 +1,6 @@
 export const organizationAdminEn = {
   title: 'Divisions and Departments',
+  subtitle: 'View and manage the divisions and departments within your organization.',
   search: 'Search', searchPlaceholder: 'Search divisions or departments...',
   filterDivisions: 'Filter by Division',
   clearFilters: 'Clear Filters', filteredBy: 'Filtered by:', removeFilter: 'Remove {name} from the filter',

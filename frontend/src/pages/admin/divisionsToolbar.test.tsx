@@ -26,11 +26,11 @@ const table = (props: Partial<Parameters<typeof HierarchyTable>[0]> = {}) => ren
 </MemoryRouter>)
 
 describe('the Divisions and Departments page', () => {
-  it('has only the heading (no subtitle) and Add Division', () => {
+  it('has the heading, its description under it, and Add Division', () => {
     management.value = { data: snapshot, refresh: vi.fn() }
     const html = page()
     expect(html.match(/<h1[^>]*>([^<]*)<\/h1>/)![1]).toBe('Divisions and Departments')
-    expect(html).not.toContain('Manage divisions and their departments.')
+    expect(html).toContain('</h1>\n      <p class="mt-2 max-w-2xl text-text-gray">View and manage the divisions and departments within your organization.</p>'.replace('\n      ', ''))
     expect(html).toContain('Add Division')
   })
 
