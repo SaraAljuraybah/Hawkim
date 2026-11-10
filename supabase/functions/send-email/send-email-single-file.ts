@@ -37,7 +37,7 @@ function contentFor(type: string, email: string): EmailContent {
       return {
         subject: "You’re invited to Hawkim",
         heading: "You’re invited to Hawkim",
-        intro: `An administrator has created a Hawkim account for <strong>${who}</strong>. Accept the invitation to set your password and sign in.`,
+        intro: `A Hawkim admin has created an account for <strong>${who}</strong>. Accept this invitation to access the platform and set your password.`,
         button: "Accept invitation",
         note: "This link expires in 1 hour and can be used once. If you weren’t expecting this invitation, you can ignore this email.",
       }
