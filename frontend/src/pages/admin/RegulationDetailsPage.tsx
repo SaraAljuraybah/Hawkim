@@ -1,7 +1,8 @@
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
 import { GuidelineProcessingCard } from '../../components/admin/GuidelineProcessingCard'
 import { CurrentBadge } from '../../components/ui/CurrentBadge'
+import { ProcessingStatusBadge } from '../../components/ui/ProcessingStatusBadge'
 import { GuidelineVersionView } from '../../components/ui/GuidelineVersionView'
 import { adminEn } from '../../content/admin.en'
 import { useDocumentTitle } from '../../hooks/useDocumentTitle'
@@ -26,6 +27,9 @@ export function RegulationDetailsPage() {
   const name = version ? names.versionName.replace('{version}', version.version) : ''
   useDocumentTitle(version ? adminEn.pageTitle.replace('{page}', name) : undefined)
 
+  // An added version that finished processing became a published version (it is current now): go there.
+  const published = !version && id ? allVersions.find((item) => item.fromDraftId === id) : undefined
+  if (published) return <Navigate to={`${text.back.href}/${published.id}`} replace />
   if (!version) return <NotFoundPage embedded />
 
   return (
@@ -40,6 +44,7 @@ export function RegulationDetailsPage() {
       <div className="mt-5 flex flex-wrap items-center gap-3">
         <h1 className="text-2xl tracking-tight sm:text-3xl">{name}</h1>
         {version.id === shownCurrent.id && <CurrentBadge label={names.current.badge} />}
+        {version.neverCurrent && version.processing && <ProcessingStatusBadge status={version.processing.status} />}
       </div>
 
       {/* An added version: processing by the compliance service, then Make Current (GVP phase 2) */}
