@@ -22,10 +22,10 @@ const render = (id: string) => renderToStaticMarkup(
 )
 
 describe('an added version\'s page', () => {
-  it('shows the same status label as the list, next to the title, and a Status card', () => {
+  it('uses the same status label as the list as the heading of the status card ("Status: Waiting" when read aloud)', () => {
     const html = render('draft-42')
-    expect(html).toMatch(/>GVP Version 4\.2<\/h1>[\s\S]*?bg-status-pending-bg[^>]*>Waiting</)
-    expect(html).toContain('>Status</h2>')
+    expect(html).toMatch(/<h2 id="guideline-processing-title"[^>]*><span class="sr-only">Status: <\/span><span class="[^"]*bg-status-pending-bg[^"]*">Waiting<\/span><\/h2>/)
+    expect(html).toMatch(/>GVP Version 4\.2<\/h1><\/div>/)
     expect(html).not.toContain('>Processing</h2>')
   })
 
