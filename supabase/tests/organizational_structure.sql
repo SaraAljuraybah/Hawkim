@@ -8,6 +8,9 @@ insert into public.departments(id, name, initials, division_id) values
  ('org-test-empty', 'Test Empty', 'TE', null),
  ('org-test-removed', 'Test Removed', 'TR', null);
 update public.departments set removed_at = now() where id = 'org-test-removed';
+-- Contact emails (20261110140000): one division and one department have one; the rest have none.
+update public.divisions set email = 'division@test.invalid' where id = 'org-test-division';
+update public.departments set email = 'home@test.invalid' where id = 'org-test-home';
 insert into auth.users(id) select ('f4000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid from generate_series(1, 3) n;
 insert into public.profiles(id, full_name, email, initials, department_id)
 select ('f4000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid, 'Org Test ' || n, 'org-test-' || n || '@test.invalid', 'OT', 'org-test-home'
@@ -26,6 +29,9 @@ begin
   assert not has_table_privilege('anon', 'public.divisions', 'select');
   assert not has_any_column_privilege('anon', 'public.divisions', 'select');
   assert (select not prosecdef from pg_proc where oid = 'public.get_organizational_structure()'::regprocedure), 'Hierarchy must retain invoker RLS';
+  assert not has_function_privilege('anon', 'public.organizational_structure_emails()', 'execute'), 'Anonymous email lookup must be denied';
+  assert not has_column_privilege('authenticated', 'public.divisions', 'email', 'select'), 'divisions.email stays withheld';
+  assert not has_column_privilege('authenticated', 'public.departments', 'email', 'select'), 'departments.email stays withheld';
   set local role anon;
   begin perform public.get_organizational_structure();
   exception when insufficient_privilege then rejected := true;
@@ -59,6 +65,23 @@ begin
   assert exists(select 1 from public.profiles where id = 'f4000000-0000-4000-8000-000000000002');
   assert exists(select 1 from public.departments where id = 'org-test-home');
   assert exists(select 1 from public.user_roles where user_id = 'f4000000-0000-4000-8000-000000000002');
+  -- Division and department emails (20261110140000): a non-admin still cannot select the email
+  -- columns directly (column grants unchanged), but gets them through the structure.
+  rejected := false;
+  begin perform email from public.divisions;
+  exception when insufficient_privilege then rejected := true;
+  end;
+  assert rejected, 'Non-admin cannot select divisions.email directly';
+  rejected := false;
+  begin perform email from public.departments;
+  exception when insufficient_privilege then rejected := true;
+  end;
+  assert rejected, 'Non-admin cannot select departments.email directly';
+  assert (select value->>'email' = 'division@test.invalid' from jsonb_array_elements(snapshot->'divisions') where value->>'id' = 'org-test-division'), 'Non-admin gets the division email';
+  assert (select value->'email' = 'null'::jsonb from jsonb_array_elements(snapshot->'divisions') where value->>'id' = 'org_empty_division'), 'A division without an email gets null';
+  assert (select value->>'email' = 'home@test.invalid' from jsonb_array_elements(snapshot->'departments') where value->>'id' = 'org-test-home'), 'Non-admin gets the department email';
+  assert (select value->'email' = 'null'::jsonb from jsonb_array_elements(snapshot->'departments') where value->>'id' = 'org-test-empty'), 'A department without an email gets null';
+  assert not exists(select 1 from public.organizational_structure_emails() where id in ('org_inactive_division', 'org-test-removed')), 'The email helper skips inactive divisions and removed departments';
   perform set_config('request.jwt.claim.sub', 'f4000000-0000-4000-8000-000000000001', true);
   snapshot := public.get_organizational_structure();
   assert jsonb_typeof(snapshot) = 'object' and snapshot ?& array['organization', 'divisions', 'departments'];
@@ -68,7 +91,8 @@ begin
   assert not exists(select 1 from jsonb_array_elements(snapshot->'divisions') where value->>'id' = 'org_inactive_division');
   select value into home from jsonb_array_elements(snapshot->'departments') where value->>'id' = 'org-test-home';
   assert home->>'divisionId' = 'org-test-division';
-  assert (select count(*) = 4 from jsonb_object_keys(home));
+  assert home->>'email' = 'home@test.invalid';
+  assert (select count(*) = 5 from jsonb_object_keys(home));
   assert jsonb_array_length(home->'employees') = 2, 'Deleted employees must not count';
   assert (select value->'permissions' @> '["author", "reviewer"]'::jsonb from jsonb_array_elements(home->'employees') where value->>'id' = 'f4000000-0000-4000-8000-000000000002');
   assert not exists(select 1 from jsonb_array_elements(home->'employees') where value ? 'phone');
