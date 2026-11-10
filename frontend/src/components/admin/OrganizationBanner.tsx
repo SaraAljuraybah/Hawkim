@@ -1,38 +1,68 @@
-import { useRef, useState } from 'react'
+import { useContext, useRef, useState } from 'react'
 import { flushSync } from 'react-dom'
 import { Pencil, Pill } from 'lucide-react'
 import { FormDialog } from '../ui/FormDialog'
 import { IconButton } from '../ui/IconButton'
 import { TextField } from '../ui/TextField'
 import { organizationAdminEn } from '../../content/organizationAdmin.en'
+import type { User } from '../../data/mock/types'
+import { useOrganizationName } from '../../hooks/useOrganizationName'
 import { organizationNameProblem, saveOrganizationName } from '../../services/organizationSettings'
+import { SuperAdminContext } from '../../state/superAdminContext'
 
 const text = organizationAdminEn.organizationName
 
 /**
- * The organization's name at the top of Divisions and Departments: a pill icon in a maroon circle, the
- * name with a thin gold line under it, and (for the Super Admin only) a pencil to edit it. Without a
- * name, the Super Admin sees "Organization name not set" with the pencil; everyone else sees nothing.
- * Not a heading: the page keeps its one h1 (the title below it).
+ * The organization's name in the admin top bar, on every admin page: it loads the name, and gives the
+ * Super Admin (once it is known who that is) the pencil and the Edit Organization Name dialog. Nothing
+ * while the name is loading or can't be read. The server checks who may change it in any case.
+ */
+export function OrganizationName({ user }: { user: Pick<User, 'id'> }) {
+  const organization = useOrganizationName()
+  const superAdmin = useContext(SuperAdminContext)
+  const canEdit = superAdmin?.status === 'ready' && superAdmin.superAdminId === user.id
+  const [editing, setEditing] = useState(false)
+  const [saved, setSaved] = useState('')
+  const trigger = useRef<HTMLElement | null>(null)
+  if (organization.status !== 'ready') return null
+  const close = () => { setEditing(false); trigger.current?.focus() }
+  return (
+    <>
+      <OrganizationBanner name={organization.name} canEdit={canEdit}
+        onEdit={() => { trigger.current = document.activeElement as HTMLElement; setSaved(''); setEditing(true) }} />
+      {/* Announces a saved name (the new name is already on screen). */}
+      <p role="status" className="sr-only">{saved}</p>
+      {editing && <OrganizationNameForm name={organization.name} onClose={close}
+        onSaved={(name) => { organization.set(name); setSaved(text.saved) }} />}
+    </>
+  )
+}
+
+/**
+ * The name as shown in the top bar: a pill icon in a maroon circle (from sm), the name in maroon with a
+ * thin gold line under it, and the pencil for the Super Admin. A long name is cut with "…" (the full
+ * name stays in the tooltip and for screen readers). Without a name, the Super Admin sees
+ * "Organization name not set" with the pencil; everyone else sees nothing. Not a heading: each page
+ * keeps its own h1.
  */
 export function OrganizationBanner({ name, canEdit, onEdit }: { name: string | null; canEdit: boolean; onEdit: () => void }) {
   if (!name && !canEdit) return null
   return (
-    <div className="mb-8 flex items-center gap-4">
-      <span aria-hidden="true" className="inline-flex size-12 shrink-0 items-center justify-center rounded-full bg-maroon text-offwhite">
-        <Pill className="size-6" strokeWidth={1.75} />
+    <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+      <span aria-hidden="true" className="hidden size-9 shrink-0 items-center justify-center rounded-full bg-maroon text-offwhite sm:inline-flex">
+        <Pill className="size-[1.125rem]" strokeWidth={1.75} />
       </span>
       <div className="min-w-0">
         {name ? (
-          <p className="text-xl font-semibold break-words text-maroon sm:text-2xl">
+          <p title={name} className="truncate text-base leading-tight font-semibold text-maroon sm:text-lg">
             <span className="sr-only">{text.label}: </span>
             {name}
           </p>
         ) : (
-          <p className="text-base text-text-gray">{text.notSet}</p>
+          <p className="truncate text-sm leading-tight text-text-gray">{text.notSet}</p>
         )}
         {/* Decoration only (no text in gold). */}
-        <span aria-hidden="true" className="mt-2 block h-0.5 w-16 rounded-full bg-gold" />
+        <span aria-hidden="true" className="mt-1 block h-0.5 w-12 max-w-full rounded-full bg-gold" />
       </div>
       {canEdit && <IconButton label={text.edit} icon={Pencil} onClick={onEdit} />}
     </div>

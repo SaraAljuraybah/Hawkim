@@ -1,7 +1,7 @@
 export const organizationAdminEn = {
   title: 'Divisions and Departments',
   subtitle: 'View and manage the divisions and departments within your organization.',
-  /** The organization's name above the title; only the Super Admin can edit it. */
+  /** The organization's name in the admin top bar (every admin page); only the Super Admin can edit it. */
   organizationName: {
     label: 'Organization',
     notSet: 'Organization name not set',

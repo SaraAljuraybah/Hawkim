@@ -232,12 +232,12 @@ describe('My Profile in the admin portal', () => {
 
   it('shows only the role under the admin\'s name: an administrator has no position or department', () => {
     const html = inPortal('someone-else', topBar({ ...admin, position: 'IT Manager' }))
-    expect(html).toContain('<p class="text-xs text-text-gray">Admin</p>')
+    expect(html).toContain('<p class="truncate text-xs text-text-gray">Admin</p>')
     expect(html).not.toContain('IT Manager')
   })
 
   it('shows "Super Admin" for the current Super Admin, in the top bar and as the permission', () => {
-    expect(inPortal(admin.id, topBar(admin))).toContain('<p class="text-xs text-text-gray">Super Admin</p>')
+    expect(inPortal(admin.id, topBar(admin))).toContain('<p class="truncate text-xs text-text-gray">Super Admin</p>')
     expect(value(inPortal(admin.id, <ProfilePage admin />), 'Permission')).toBe('Super Admin')
     expect(value(inPortal('someone-else', <ProfilePage admin />), 'Permission')).toBe('Admin')
   })
@@ -246,7 +246,7 @@ describe('My Profile in the admin portal', () => {
     for (const status of ['loading', 'error'] as const) {
       const html = inPortal(null, topBar(admin), status)
       expect(html).not.toContain('Super Admin')
-      expect(html).not.toContain('<p class="text-xs text-text-gray">')
+      expect(html).not.toContain('<p class="truncate text-xs text-text-gray">')
     }
   })
 
