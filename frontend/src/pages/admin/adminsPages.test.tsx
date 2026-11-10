@@ -68,9 +68,27 @@ describe('the Admins list', () => {
     expect(html).toContain('<div class="mt-8 relative grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)] lg:items-end">')
   })
 
-  it('has the columns Name, Email, Phone Number, Role and Actions', () => {
-    const columns = [...at('/admin/admins').matchAll(/<th scope="col"[^>]*>(?:<span class="sr-only">)?([^<]+)(?:<\/span>)?<\/th>/g)].map((match) => match[1])
-    expect(columns).toEqual(['Full Name', 'Email', 'Phone Number', 'Role', 'Actions'])
+  it('has the columns Name, Email, Phone Number, Role, then Preview, Edit and Delete with visible headings', () => {
+    const html = at('/admin/admins')
+    const columns = [...html.matchAll(/<th scope="col"[^>]*>([^<]+)<\/th>/g)].map((match) => match[1])
+    expect(columns).toEqual(['Full Name', 'Email', 'Phone Number', 'Role', 'Preview', 'Edit', 'Delete'])
+    expect(html).not.toContain('sr-only">Actions')
+    // As on Divisions and Departments: 6rem per action column, each heading centred above its button.
+    expect(html).toContain('<colgroup><col/><col/><col/><col/><col class="w-24"/><col class="w-24"/><col class="w-24"/></colgroup>')
+    for (const heading of ['Preview', 'Edit', 'Delete']) {
+      expect(html).toContain(`<th scope="col" class="px-2 py-3 text-center font-semibold last:rounded-tr-xl">${heading}</th>`)
+    }
+  })
+
+  it('puts each action in its own column, with an empty cell where there is none (no Delete on the Super Admin)', () => {
+    const cells = (name: string) => [...row(at('/admin/admins'), name).matchAll(/<td class="px-2 py-3\.5 text-center \[&amp;&gt;\*\]:mx-auto">(.*?)<\/td>/g)].map((match) => match[1])
+    const named = (name: string) => cells(name).map((cell) => cell.match(/aria-label="([^"]+)"/)?.[1] ?? '')
+    expect(named('Nouf Saleh')).toEqual(['View Nouf Saleh', 'Edit Nouf Saleh', 'Delete Nouf Saleh'])
+    expect(named('Amal Fahad')).toEqual(['View Amal Fahad', 'Edit Amal Fahad', ''])
+    expect(cells('Amal Fahad')[2]).toBe('')
+    // A regular Admin: no Edit on the Super Admin and no Delete, the cells kept.
+    fixture.viewer = 'nouf'
+    expect(named('Amal Fahad')).toEqual(['View Amal Fahad', '', ''])
   })
 
   it('lists administrators only, the Super Admin first with its own badge', () => {

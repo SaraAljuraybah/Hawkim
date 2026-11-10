@@ -1904,7 +1904,8 @@ export interface AdminsContent {
     search: { label: string; placeholder: string }
     count: CountText
     tableLabel: string
-    columns: { name: string; email: string; phone: string; role: string; actions: string }
+    /** `preview`, `edit`, `delete`: the action columns' headings, as on Divisions and Departments. */
+    columns: { name: string; email: string; phone: string; role: string; preview: string; edit: string; delete: string }
     none: string
     /** `{name}` is replaced. */
     actions: { view: string; edit: string }

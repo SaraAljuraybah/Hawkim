@@ -25,6 +25,10 @@ export interface AdminAdminsLocationState {
   notice?: string
 }
 
+/** An action column's heading and cells: centred, so each button sits under its heading (as on Divisions and Departments). */
+const actionHead = 'px-2 py-3 text-center font-semibold last:rounded-tr-xl'
+const actionCell = 'px-2 py-3.5 text-center [&>*]:mx-auto'
+
 /**
  * Manage Organization → Admins ("/admin/admins"): the administrators with their role, a search by
  * name or email, and the actions the signed-in administrator may take on each (Delete only for the
@@ -67,15 +71,19 @@ export function AdminAdminsPage() {
     refusedRef.current?.focus()
   }
 
-  const actions = (admin: User) => (
-    <div className="flex justify-end gap-1">
-      <IconButton label={content.actions.view.replace('{name}', admin.name)} icon={Eye} onClick={() => navigate(adminAdminPath(admin.id))} />
-      {canEditAdmin(viewer.id, admin.id, superAdminId) && (
-        <IconButton label={content.actions.edit.replace('{name}', admin.name)} icon={Pencil} onClick={() => navigate(adminAdminEditPath(admin.id))} />
-      )}
-      {canDeleteAdmin(viewer.id, admin.id, superAdminId) && <DeleteAdminButton admin={admin} onDeleted={deleted} onFailed={refuse} />}
-    </div>
-  )
+  // Each action on its own, so the table can put them in their columns (an action the viewer can't take: nothing).
+  const actionButtons = (admin: User) => ({
+    preview: <IconButton label={content.actions.view.replace('{name}', admin.name)} icon={Eye} onClick={() => navigate(adminAdminPath(admin.id))} />,
+    edit: canEditAdmin(viewer.id, admin.id, superAdminId) ? (
+      <IconButton label={content.actions.edit.replace('{name}', admin.name)} icon={Pencil} onClick={() => navigate(adminAdminEditPath(admin.id))} />
+    ) : null,
+    delete: canDeleteAdmin(viewer.id, admin.id, superAdminId) ? <DeleteAdminButton admin={admin} onDeleted={deleted} onFailed={refuse} /> : null,
+  })
+  // The cards (below md) keep the actions together at the end.
+  const actions = (admin: User) => {
+    const buttons = actionButtons(admin)
+    return <div className="flex justify-end gap-1">{buttons.preview}{buttons.edit}{buttons.delete}</div>
+  }
 
   return (
     <>
@@ -147,15 +155,18 @@ export function AdminAdminsPage() {
               {/* Table — md and up */}
               <div className={tableStyles.wide}>
                 <table aria-label={content.tableLabel} className={tableStyles.table}>
+                  {/* The action columns are as wide as on Divisions and Departments (6rem each). */}
+                  <colgroup><col /><col /><col /><col /><col className="w-24" /><col className="w-24" /><col className="w-24" /></colgroup>
                   <thead className={tableStyles.head}>
                     <tr>
                       <th scope="col" className={tableStyles.headCell}>{content.columns.name}</th>
                       <th scope="col" className={tableStyles.headCell}>{content.columns.email}</th>
                       <th scope="col" className={tableStyles.headCell}>{content.columns.phone}</th>
                       <th scope="col" className={tableStyles.headCell}>{content.columns.role}</th>
-                      <th scope="col" className={`${tableStyles.headCell} text-right`}>
-                        <span className="sr-only">{content.columns.actions}</span>
-                      </th>
+                      {/* One column per action, each heading centred above its button, as on Divisions and Departments. */}
+                      <th scope="col" className={actionHead}>{content.columns.preview}</th>
+                      <th scope="col" className={actionHead}>{content.columns.edit}</th>
+                      <th scope="col" className={actionHead}>{content.columns.delete}</th>
                     </tr>
                   </thead>
                   <tbody className={tableStyles.body}>
@@ -172,7 +183,10 @@ export function AdminAdminsPage() {
                         <td className={tableStyles.cell}>
                           <AdminRoleBadge role={adminRole(admin.id, superAdminId)} />
                         </td>
-                        <td className={tableStyles.cell}>{actions(admin)}</td>
+                        {/* An action the viewer can't take (e.g. Delete on the Super Admin) leaves its cell empty, so the columns stay aligned. */}
+                        {(['preview', 'edit', 'delete'] as const).map((action) => (
+                          <td key={action} className={actionCell}>{actionButtons(admin)[action]}</td>
+                        ))}
                       </tr>
                     ))}
                   </tbody>
