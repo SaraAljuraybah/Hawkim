@@ -180,13 +180,6 @@ export const adminEn: AdminContent = {
       permission: 'Permission',
       notSet: '—',
     },
-    involvement: {
-      title: 'Involved in',
-      empty: 'Not involved in any SOP.',
-      label: 'SOPs this staff member is involved in',
-      roles: { author: 'Author', 'co-author': 'Co-author', reviewer: 'Reviewer', approver: 'Approver' },
-      rolesLabel: 'Role:',
-    },
     blockers: {
       selfDelete: "You can't delete your own account.",
       selfAdmin: "You can't remove your own System Admin permission.",

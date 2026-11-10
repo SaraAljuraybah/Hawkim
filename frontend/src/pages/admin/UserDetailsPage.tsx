@@ -5,15 +5,13 @@ import { ArrowLeft, CircleAlert, CircleCheck, Pencil } from 'lucide-react'
 import { RefusedBox } from '../../components/admin/RefusedBox'
 import { UserHeader } from '../../components/admin/UserHeader'
 import { Button } from '../../components/ui/Button'
-import { StatusBadge } from '../../components/ui/StatusBadge'
 import { adminEn } from '../../content/admin.en'
 import { usersEn } from '../../content/users.en'
 import type { User } from '../../data/mock/types'
 import { useDocumentTitle } from '../../hooks/useDocumentTitle'
 import { ADMIN_USERS_PATH, adminUserEditPath } from '../../lib/routes'
-import { divisionLabel, involvement, isSystemAdmin } from '../../lib/userAdmin'
+import { divisionLabel, isSystemAdmin } from '../../lib/userAdmin'
 import { useDepartments } from '../../state/departmentsContext'
-import { useSops } from '../../state/sopsContext'
 import { useUsers } from '../../state/usersContext'
 import { NotFoundPage } from '../NotFoundPage'
 import type { AdminUsersLocationState } from './AdminUsersPage'
@@ -25,8 +23,8 @@ export interface UserDetailsLocationState {
 }
 
 /**
- * A staff member's page in the admin portal ("/admin/users/:id", PBI 17, 19): their details, the SOPs
- * they are involved in, and Edit Staff and Delete beside their name. Edit Staff opens the edit form,
+ * A staff member's page in the admin portal ("/admin/users/:id", PBI 17, 19): their details, and
+ * Edit Staff and Delete beside their name. Edit Staff opens the edit form,
  * which saves to the database. A System Admin has no division, department or position, so those
  * aren't listed for them. Deleted and unknown staff show Not Found.
  */
@@ -72,7 +70,6 @@ function Panel({ id, title, children }: { id: string; title: string; children: R
 
 function UserPanels({ user }: { user: User }) {
   const text = adminEn.userDetails
-  const { sops } = useSops()
   const { getDepartment } = useDepartments()
   const navigate = useNavigate()
   const location = useLocation()
@@ -82,7 +79,6 @@ function UserPanels({ user }: { user: User }) {
   const [deleteRefused, setDeleteRefused] = useState<{ title: string; reasons: string[] }>()
   const deleteErrorRef = useRef<HTMLDivElement>(null)
 
-  const involved = involvement(user.id, sops)
   const department = getDepartment(user.departmentId)
 
   function deleted(message: string) {
@@ -154,29 +150,6 @@ function UserPanels({ user }: { user: User }) {
               </div>
             ))}
           </dl>
-        </Panel>
-
-        <Panel id="involvement-title" title={text.involvement.title}>
-          {involved.length === 0 ? (
-            <p className="text-sm text-text-gray">{text.involvement.empty}</p>
-          ) : (
-            <ul aria-label={text.involvement.label} className="divide-y divide-beige">
-              {involved.map(({ sop, roles }) => (
-                <li key={sop.id} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1.5 py-3 first:pt-0 last:pb-0">
-                  <div className="min-w-0 text-sm">
-                    <p className="font-medium text-maroon">
-                      {sop.title}
-                    </p>
-                    <p className="mt-0.5 text-text-gray">
-                      <span className="sr-only">{text.involvement.rolesLabel} </span>
-                      {roles.map((role) => text.involvement.roles[role]).join(', ')}
-                    </p>
-                  </div>
-                  <StatusBadge status={sop.status} />
-                </li>
-              ))}
-            </ul>
-          )}
         </Panel>
       </div>
     </>

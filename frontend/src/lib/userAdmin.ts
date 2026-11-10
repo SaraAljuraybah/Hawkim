@@ -209,21 +209,6 @@ export function changesPermissions(user: Pick<User, 'permissions'>, permissions:
 
 export type SopRole = 'author' | 'co-author' | 'reviewer' | 'approver'
 
-/** Every SOP the user is on, with their role(s) on it, by code. */
-export function involvement(userId: string, sops: Sop[]): { sop: Sop; roles: SopRole[] }[] {
-  return sops
-    .map((sop) => {
-      const roles: SopRole[] = []
-      if (sop.authorId === userId) roles.push('author')
-      if (sop.coAuthorIds.includes(userId)) roles.push('co-author')
-      if (sop.reviewers.some((person) => person.userId === userId)) roles.push('reviewer')
-      if (sop.approvers.some((person) => person.userId === userId)) roles.push('approver')
-      return { sop, roles }
-    })
-    .filter((item) => item.roles.length > 0)
-    .sort((a, b) => a.sop.code.localeCompare(b.sop.code, 'en', { numeric: true }))
-}
-
 /**
  * Statuses where the assigned reviewers and approvers are still part of the workflow:
  * resubmitting a returned SOP sends it back to all of them, and an approved SOP

@@ -32,6 +32,13 @@ describe('a user\'s details page', () => {
     expect(html).not.toContain('Directory Access')
   })
 
+  it('shows only the Details card, with no "Involved in" section', () => {
+    const html = render()
+    expect(html).toContain('id="details-title"')
+    expect(html.match(/<h2[^>]*>/g)).toHaveLength(1)
+    for (const removed of ['Involved in', 'Not involved in any SOP.', 'involvement-title', 'SOPs this staff member is involved in']) expect(html).not.toContain(removed)
+  })
+
   it('shows — for every empty value, read-only', () => {
     fixture.user = { ...fixture.user!, permissions: [] }
     const html = render()

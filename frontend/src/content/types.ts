@@ -1675,15 +1675,6 @@ export interface AdminUserDetailsContent {
     permission: string
     notSet: string
   }
-  involvement: {
-    title: string
-    empty: string
-    /** Accessible name of the list. */
-    label: string
-    roles: Record<'author' | 'co-author' | 'reviewer' | 'approver', string>
-    /** Visually hidden before the roles. */
-    rolesLabel: string
-  }
   /**
    * Why a change is refused. `{name}` (the user) and `{sops}` (SOP codes; with their
    * status for reviewers and approvers) are replaced.
