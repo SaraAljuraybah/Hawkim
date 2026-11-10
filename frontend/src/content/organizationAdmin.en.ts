@@ -1,6 +1,20 @@
 export const organizationAdminEn = {
   title: 'Divisions and Departments',
   subtitle: 'View and manage the divisions and departments within your organization.',
+  /** The organization's name above the title; only the Super Admin can edit it. */
+  organizationName: {
+    label: 'Organization',
+    notSet: 'Organization name not set',
+    edit: 'Edit organization name',
+    dialogTitle: 'Edit Organization Name',
+    field: 'Organization Name',
+    required: 'Enter the organization name.',
+    tooLong: 'Use 200 characters or fewer.',
+    saved: 'Organization name saved.',
+    forbidden: 'Only the Super Admin can change the organization name. Refresh the page.',
+    invalid: 'Enter a name of 1 to 200 characters.',
+    failed: 'Check your connection and try again.',
+  },
   search: 'Search', searchPlaceholder: 'Search divisions or departments...',
   filterDivisions: 'Filter by Division',
   clearFilters: 'Clear Filters', filteredBy: 'Filtered by:', removeFilter: 'Remove {name} from the filter',

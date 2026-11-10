@@ -8,6 +8,11 @@ import { ActiveFilters, AdminDepartmentsPage, HierarchyTable } from './AdminDepa
 const management = vi.hoisted(() => ({ value: {} as { data?: unknown; error?: string; refresh: () => Promise<void> } }))
 vi.mock('../../hooks/useDocumentTitle', () => ({ useDocumentTitle: () => {} }))
 vi.mock('../../hooks/useOrganizationManagement', () => ({ useOrganizationManagement: () => management.value }))
+// The organization name above the title, who is signed in, and who the Super Admin is.
+const org = vi.hoisted(() => ({ name: { status: 'ready', name: null as string | null }, viewer: 'sa', superAdmin: { status: 'ready', superAdminId: 'sa' as string | null } }))
+vi.mock('../../hooks/useOrganizationName', () => ({ useOrganizationName: () => ({ ...org.name, set: () => {} }) }))
+vi.mock('../../hooks/useSuperAdmin', () => ({ useSuperAdmin: () => ({ ...org.superAdmin, reload: () => {}, set: () => {} }) }))
+vi.mock('../../state/sessionContext', () => ({ useCurrentUser: () => ({ id: org.viewer }) }))
 
 const snapshot: ManagementSnapshot = {
   divisions: [
@@ -227,5 +232,47 @@ describe('department row actions', () => {
     const html = table({ snapshot: pending, query: 'quality' })
     const button = html.match(/<button[^>]*aria-label="Retry file cleanup Quality Assurance"[^>]*>/)![0]
     expect(button).not.toContain('aria-disabled="true"')
+  })
+})
+
+describe('the organization name above the title', () => {
+  const at = (name: string | null, viewer: string, status = 'ready') => {
+    management.value = { data: snapshot, refresh: vi.fn() }
+    org.name = { status, name }
+    org.viewer = viewer
+    return page()
+  }
+
+  it('comes first, then some space, then the title; the page keeps one h1', () => {
+    const html = at('Riyadh Pharma', 'admin')
+    expect(html.indexOf('Riyadh Pharma')).toBeGreaterThan(-1)
+    expect(html.indexOf('Riyadh Pharma')).toBeLessThan(html.indexOf('<h1'))
+    expect(html).toMatch(/^<div class="mb-8 flex items-center gap-4">/)
+    expect(html.match(/<h1/g)).toHaveLength(1)
+  })
+
+  it('has the pencil for the Super Admin only', () => {
+    expect(at('Riyadh Pharma', 'sa')).toContain('aria-label="Edit organization name"')
+    expect(at('Riyadh Pharma', 'admin')).not.toContain('Edit organization name')
+    // Not while it isn't known who the Super Admin is.
+    org.superAdmin = { status: 'loading', superAdminId: null }
+    expect(at('Riyadh Pharma', 'sa')).not.toContain('Edit organization name')
+    org.superAdmin = { status: 'ready', superAdminId: 'sa' }
+  })
+
+  it('without a name: "Organization name not set" for the Super Admin, no banner for other Admins', () => {
+    expect(at(null, 'sa')).toContain('Organization name not set')
+    const other = at(null, 'admin')
+    expect(other).not.toContain('Organization name not set')
+    expect(other).not.toContain('lucide-pill')
+  })
+
+  it('is hidden while loading or if the name cannot be read; the rest of the page works', () => {
+    for (const status of ['loading', 'error']) {
+      const html = at(null, 'sa', status)
+      expect(html).not.toContain('lucide-pill')
+      expect(html).toContain('>Divisions and Departments</h1>')
+      expect(html).toContain('<table')
+    }
   })
 })
