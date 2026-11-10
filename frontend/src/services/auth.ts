@@ -11,6 +11,7 @@
 import { isAuthApiError, isAuthRetryableFetchError, isAuthSessionMissingError, type AuthError } from '@supabase/supabase-js'
 import type { User } from '../data/mock/types'
 import { RESET_PASSWORD_PATH } from '../lib/routes'
+import { markAccountActivated } from './invitations'
 import { fetchProfile } from './people'
 import { passwordCheckClient, supabase } from './supabase'
 
@@ -40,6 +41,8 @@ export async function signIn(email: string, password: string): Promise<SignInRes
     await signOut()
     return { ok: false, reason: 'no-access' }
   }
+  // Signing in with a password shows one was set: the invitation counts as used (never waited for).
+  markAccountActivated()
   return { ok: true, user }
 }
 
@@ -138,7 +141,11 @@ export type NewPasswordFailureReason = PasswordEmailFailureReason | 'weak-passwo
 export async function setNewPassword(password: string): Promise<{ ok: true } | { ok: false; reason: NewPasswordFailureReason }> {
   try {
     const { error } = await supabase().auth.updateUser({ password })
-    if (!error) return { ok: true }
+    if (!error) {
+      // The invitation (or recovery) link is used: the account is activated (never waited for).
+      markAccountActivated()
+      return { ok: true }
+    }
     if (error.code === 'weak_password') return { ok: false, reason: 'weak-password' }
     if (error.code === 'same_password') return { ok: false, reason: 'same-password' }
     // reauthentication_needed: the project requires a recent sign-in to change a password.
