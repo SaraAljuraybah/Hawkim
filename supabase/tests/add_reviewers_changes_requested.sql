@@ -137,7 +137,10 @@ begin
   perform set_config('request.jwt.claim.sub', author::text, true);
   select * into v_round_row from public.review_rounds r where r.id = v_round;
   assert v_round_row.status = 'changes-requested' and v_round_row.closed_at is not null, 'Changes Requested again';
+  -- latest_requests() is internal (revoked from authenticated): checked as the owner.
+  reset role;
   assert (select q.status from public.latest_requests(v_round) q where q.reviewer_id = noura) = 'returned', 'Noura''s return is still her latest request';
+  set local role authenticated;
   assert not exists (select 1 from public.timeline_events e where e.review_round_id = v_round and e.type = 'internal-review-completed'),
     'Not completed: someone returned it';
 

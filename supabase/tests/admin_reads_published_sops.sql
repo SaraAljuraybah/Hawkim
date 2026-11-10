@@ -93,6 +93,7 @@ values ('9b100000-0000-4000-8000-000000000001', 3, '9b000000-0000-4000-8000-0000
 update public.sops set deleted_at = now() where id = '9b100000-0000-4000-8000-000000000004';
 
 do $$
+declare v_removed integer;
 begin
   -- The admin: the published directory SOP only, and only its published version: neither the older
   -- version 1 nor the deleted version 2, as a row or as a file.
@@ -107,7 +108,13 @@ begin
   assert not exists (select 1 from public.sop_comments where sop_id = '9b100000-0000-4000-8000-000000000001'), 'admin: comments';
   -- Read-only: no new way to change anything.
   perform pg_temp.expect_error($q$update public.sops set title = 'AR Z' where id = '9b100000-0000-4000-8000-000000000001'$q$, '42501');
-  delete from storage.objects where bucket_id = 'sop-files' and name like '9b000000-0000-4000-8000-000000000002/%';
+  -- Storage itself may refuse any direct SQL delete (storage.protect_delete); either way nothing goes.
+  begin
+    delete from storage.objects where bucket_id = 'sop-files' and name like '9b000000-0000-4000-8000-000000000002/%';
+    get diagnostics v_removed = row_count;
+    assert v_removed = 0, 'admin removed ' || v_removed || ' SOP file(s)';
+  exception when insufficient_privilege then null;
+  end;
 
   -- An employee of another department: none of them, as before.
   perform pg_temp.act_as('9b000000-0000-4000-8000-000000000003');
