@@ -1207,6 +1207,9 @@ export interface ReviewsContent {
     approvalTabsLabel: string
     approvalListLabel: string
     reviewerListLabel: string
+    /** The two lists' page controls, named apart (both can be on the page). */
+    reviewerPaginationLabel: string
+    approvalPaginationLabel: string
     waiting: string
     closed: string
     decisions: Record<string, string>
