@@ -128,7 +128,13 @@ describe('Organizational Structure', () => {
     // Departments under their division's subheading; Division and Department chips scroll inside their cards.
     expect(html).toMatch(/<p id="[^"]+" class="mb-1.5 text-xs font-semibold text-text-gray">Operations<\/p>/)
     expect(html.match(/max-h-\[8.5rem\] overflow-y-auto/g)).toHaveLength(2)
-    expect(html).toContain('max-h-[min(36rem,calc(100vh-10rem))] w-full overflow-y-auto')
+    // The panel is right-aligned with the toolbar (positioned from lg), 22.5rem wide from sm, and scrolls when taller than the screen.
+    expect(html).toMatch(/<div class="relative mt-6 grid gap-4 [^"]*"><div class="[^"]*"><label/)
+    expect(html).toContain('<div class="relative min-w-0 lg:static">')
+    expect(html).toContain('absolute top-full right-0 left-0 z-30 mt-2 max-h-[calc(100vh-10rem)] overflow-y-auto')
+    expect(html).toContain('sm:left-auto sm:w-[22.5rem] sm:max-w-full')
+    // Chip text is left-aligned when a long name wraps.
+    expect(html).toMatch(/aria-pressed="false" class="inline-flex [^"]*text-left/)
     expect(html).toContain('>Clear all</button>')
     const sorts = [...html.matchAll(/<option value="[^"]+"[^>]*>([^<]+)<\/option>/g)].map((match) => match[1])
     expect(sorts).toEqual(['Default order', 'Name: A to Z', 'Name: Z to A', 'Departments: High to Low', 'Departments: Low to High'])

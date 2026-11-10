@@ -43,10 +43,11 @@ export function OrganizationStructure({ hierarchy }: { hierarchy: OrganizationHi
   return (
     <>
       {/* Search, filter and sort span the table's width (about 60/20/20 on large screens); they stack on small screens. */}
-      <div className="mt-6 grid gap-4 lg:grid-cols-[minmax(0,4fr)_auto_minmax(0,1fr)] lg:items-end">
+      {/* `relative`: from lg the Filter panel lines up with this row's right edge (the Sort field's). */}
+      <div className="relative mt-6 grid gap-4 lg:grid-cols-[minmax(0,4fr)_auto_minmax(0,1fr)] lg:items-end">
         <TextField className="min-w-0" name="organizationSearch" type="search" label={content.search} placeholder={content.searchPlaceholder}
           autoComplete="off" value={query} onChange={(event) => setQuery(event.target.value)} />
-        <FilterPopover className="min-w-0" label={content.filter} activeLabel={content.filterActive} title={content.filtersTitle} clearLabel={content.clearAll}
+        <FilterPopover className="relative min-w-0 lg:static" label={content.filter} activeLabel={content.filterActive} title={content.filtersTitle} clearLabel={content.clearAll}
           sections={[
             { id: 'division', legend: content.divisionFilter, options: divisionOptions, value: divisions, onChange: changeDivisions, emptyText: content.divisionFilterEmpty, scrollable: true },
             { id: 'department', legend: content.departmentFilter, value: departments, onChange: setDepartmentFilter, emptyText: content.departmentFilterEmpty, scrollable: true,

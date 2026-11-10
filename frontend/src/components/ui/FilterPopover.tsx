@@ -26,6 +26,11 @@ export interface FilterSection {
 }
 
 interface FilterPopoverProps {
+  /**
+   * The wrapper's classes. Without `relative`, the panel is placed against the nearest positioned
+   * ancestor instead (e.g. `relative` on a toolbar, so it lines up with the toolbar's right edge).
+   */
+  className?: string
   /** The visible label above the button and its accessible name, e.g. "Filter". */
   label: string
   /** The button's accessible name while filters are on, e.g. "Filter, 3 active". */
@@ -34,7 +39,6 @@ interface FilterPopoverProps {
   title: string
   clearLabel: string
   sections: FilterSection[]
-  className?: string
 }
 
 function Chips({ options, value, onChange }: { options: SelectOption[]; value: string[]; onChange: (next: string[]) => void }) {
@@ -45,7 +49,7 @@ function Chips({ options, value, onChange }: { options: SelectOption[]; value: s
         return (
           <li key={option.value} className="max-w-full">
             <button type="button" aria-pressed={selected} onClick={() => onChange(toggleOption(value, option.value))}
-              className={`inline-flex max-w-full items-center gap-1.5 rounded-full border px-3 py-1 text-sm transition-colors ${selected
+              className={`inline-flex max-w-full items-center gap-1.5 rounded-full border px-3 py-1 text-left text-sm transition-colors ${selected
                 ? 'border-maroon bg-maroon text-offwhite hover:bg-maroon-secondary'
                 : 'border-beige bg-white text-maroon hover:border-maroon/40 hover:bg-maroon/5'}`}>
               {selected && <Check aria-hidden="true" className="size-3.5 shrink-0" strokeWidth={2.5} />}
@@ -63,8 +67,10 @@ function Chips({ options, value, onChange }: { options: SelectOption[]; value: s
  * (disclosure pattern) of sections, each a small card of toggle chips (several can be on).
  * Choices apply at once. Escape or a click outside closes the panel.
  */
-export function FilterPopover({ label, activeLabel, title, clearLabel, sections, className = '' }: FilterPopoverProps) {
+export function FilterPopover({ label, activeLabel, title, clearLabel, sections, className = 'relative' }: FilterPopoverProps) {
   const [open, setOpen] = useState(false)
+  // The panel's max height: the visible space below the button (it scrolls when taller).
+  const [maxHeight, setMaxHeight] = useState<number>()
   const wrapperRef = useRef<HTMLDivElement>(null)
   const buttonRef = useRef<HTMLButtonElement>(null)
   const buttonId = useId()
@@ -75,6 +81,14 @@ export function FilterPopover({ label, activeLabel, title, clearLabel, sections,
   // Escape or a click outside closes the panel; focus returns to the button if it was inside.
   useEffect(() => {
     if (!open) return
+    function fit() {
+      const bottom = buttonRef.current?.getBoundingClientRect().bottom ?? 0
+      // 8px gap above the panel, 16px margin below it; never squeezed below 12rem.
+      setMaxHeight(Math.max(192, window.innerHeight - bottom - 24))
+    }
+    fit()
+    window.addEventListener('resize', fit)
+    window.addEventListener('scroll', fit, true)
     function onKeyDown(event: KeyboardEvent) {
       if (event.key !== 'Escape') return
       setOpen(false)
@@ -89,13 +103,15 @@ export function FilterPopover({ label, activeLabel, title, clearLabel, sections,
     document.addEventListener('keydown', onKeyDown)
     document.addEventListener('pointerdown', onPointerDown)
     return () => {
+      window.removeEventListener('resize', fit)
+      window.removeEventListener('scroll', fit, true)
       document.removeEventListener('keydown', onKeyDown)
       document.removeEventListener('pointerdown', onPointerDown)
     }
   }, [open])
 
   return (
-    <div ref={wrapperRef} className={`relative ${className}`}>
+    <div ref={wrapperRef} className={className}>
       {/* Styled like the field labels (Search, Sort); clicking it also opens the panel. */}
       <label htmlFor={buttonId} className="mb-1.5 block text-sm font-medium text-maroon">{label}</label>
       {/* As tall as the Search and Sort fields; the badge (maroon, off-white text) sits on the icon's corner. */}
@@ -109,9 +125,10 @@ export function FilterPopover({ label, activeLabel, title, clearLabel, sections,
           </span>
         )}
       </button>
-      {/* Full width on small screens, 20rem from sm up; never taller than the screen allows (it scrolls). */}
-      <div id={panelId} hidden={!open} role="group" aria-labelledby={titleId}
-        className="absolute top-full left-0 z-30 mt-2 max-h-[min(36rem,calc(100vh-10rem))] w-full overflow-y-auto overscroll-contain rounded-xl border border-beige bg-white p-4 shadow-lg sm:w-80">
+      {/* Floats over the content, right-aligned with its positioned container, so it opens leftward and never widens
+          the page: full width on phones, 22.5rem from sm up. Never taller than the space below the button (it scrolls). */}
+      <div id={panelId} hidden={!open} role="group" aria-labelledby={titleId} style={{ maxHeight }}
+        className="absolute top-full right-0 left-0 z-30 mt-2 max-h-[calc(100vh-10rem)] overflow-y-auto overscroll-contain rounded-xl border border-beige bg-white p-4 shadow-lg sm:left-auto sm:w-[22.5rem] sm:max-w-full">
         <div className="mb-3 flex items-center justify-between gap-3">
           <h2 id={titleId} className="text-base">{title}</h2>
           <button type="button" disabled={!count} onClick={() => sections.forEach((section) => section.onChange([]))}
