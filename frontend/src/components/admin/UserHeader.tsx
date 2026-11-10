@@ -1,24 +1,32 @@
 import type { ReactNode } from 'react'
 import type { User } from '../../data/mock/types'
 import { DeleteUserButton } from './DeleteUserButton'
-import { PermissionBadges, UserAvatar } from './UserBits'
+import { usersEn } from '../../content/users.en'
+import { UserAvatar } from './UserBits'
 
 /**
  * The header of a staff member's page and Edit Staff: large avatar, the name as the page's h1 with
  * Delete right beside it (after any `actions`, e.g. Edit Staff), and the saved permissions as badges
  * under it (none without one). `label` (e.g. "Edit Staff") is a small line above the name, inside the
- * h1 so the heading says the page's purpose too. The name wraps on narrow screens; the buttons stay
- * beside its first line.
+ * h1 so the heading says the page's purpose too. `description` is one short line under the badges.
+ * The name wraps on narrow screens; the buttons stay beside its first line.
+ *
+ * The badges here use Hawkim's solid light gold with maroon text (8.84:1, as in the sidebar's
+ * count badges), so the permissions read clearly on a staff member's own page. The Staff list keeps
+ * the lighter shared PermissionBadges.
  */
 export function UserHeader({
   user,
   label,
+  description,
   actions,
   onDeleted,
   onRefused,
 }: {
   user: User
   label?: string
+  /** One short line under the name and badges. */
+  description?: string
   /** Buttons before Delete, beside the name. */
   actions?: ReactNode
   onDeleted: (message: string) => void
@@ -40,7 +48,19 @@ export function UserHeader({
             <DeleteUserButton user={user} onDeleted={onDeleted} onRefused={onRefused} />
           </div>
         </div>
-        <PermissionBadges user={user} className="mt-2" />
+        {user.permissions.length > 0 && (
+          <ul className="mt-2 flex flex-wrap gap-1.5">
+            {user.permissions.map((permission) => (
+              <li
+                key={permission}
+                className="inline-flex items-center rounded-md bg-gold-light px-2 py-0.5 text-xs font-semibold whitespace-nowrap text-maroon"
+              >
+                {usersEn.permissions[permission]}
+              </li>
+            ))}
+          </ul>
+        )}
+        {description && <p className="mt-2 text-text-gray">{description}</p>}
       </div>
     </div>
   )

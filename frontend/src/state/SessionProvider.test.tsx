@@ -8,6 +8,7 @@ const service = vi.hoisted(() => ({
   restoreSession: vi.fn(() => new Promise(() => {})),
   onSignedOut: vi.fn(() => () => {}),
   signOut: vi.fn(async () => {}),
+  isProfileActive: vi.fn(async () => true),
 }))
 vi.mock('../services/auth', () => service)
 afterEach(() => vi.unstubAllGlobals())

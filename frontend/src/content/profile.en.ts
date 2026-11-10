@@ -9,6 +9,7 @@ export const profileEn: ProfileContent = {
   pageTitle: 'My Profile | Hawkim',
   adminPageTitle: 'My Profile · Admin Portal | Hawkim',
   title: 'My Profile',
+  subtitle: 'View your account details and change your password.',
   fields: { name: 'Name', email: 'Email', phone: 'Phone Number', position: 'Position', division: 'Division', department: 'Department', roles: 'Permission', password: 'Password' },
   none: '—',
   roles: { author: 'Author', reviewer: 'Reviewer', approver: 'Approver', admin: 'Admin' },

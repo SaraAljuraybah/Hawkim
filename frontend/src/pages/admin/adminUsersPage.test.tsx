@@ -182,19 +182,19 @@ describe('searching and filtering users', () => {
   })
 })
 
-describe('the Delete User warning', () => {
-  it('asks "Delete Staff?" with Cancel first and Delete in the primary filled style', () => {
+describe('the Delete Staff warning (it deactivates)', () => {
+  it('asks "Deactivate Staff?" with Cancel first and Deactivate in the primary filled style', () => {
     const text = adminEn.deleteUser
     const html = renderToStaticMarkup(
       <ConfirmDialog open title={text.title} description={text.description.replace('{name}', 'Sara Aljuraybah')}
         cancelLabel={text.cancel} confirmLabel={text.confirm} onConfirm={() => {}} onCancel={() => {}} />,
     )
-    expect(html).toContain('>Delete Staff?</h2>')
-    expect(html).toContain("Are you sure you want to delete Sara Aljuraybah? This can&#x27;t be undone.")
+    expect(html).toContain('>Deactivate Staff?</h2>')
+    expect(html).toContain('Are you sure you want to deactivate Sara Aljuraybah? They will lose access to Hawkim, but their account information and history will be preserved.')
     const cancel = html.match(/<button[^>]*>Cancel<\/button>/)![0]
-    const remove = html.match(/<button[^>]*>Delete<\/button>/)![0]
+    const remove = html.match(/<button[^>]*>Deactivate<\/button>/)![0]
     expect(cancel).toContain('autofocus')
-    expect(html.indexOf('>Cancel<')).toBeLessThan(html.indexOf('>Delete<'))
+    expect(html.indexOf('>Cancel<')).toBeLessThan(html.indexOf('>Deactivate<'))
     expect(remove).toContain('bg-maroon')
     expect(remove).not.toContain('text-status-rejected-fg')
   })

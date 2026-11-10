@@ -107,6 +107,7 @@ export function AdminUsersPage() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="text-2xl tracking-tight sm:text-3xl">{content.title}</h1>
+          <p className="mt-2 text-text-gray">{content.subtitle}</p>
         </div>
         <Button to={content.addUser.href} className="shrink-0 self-start sm:self-auto">
           <Plus aria-hidden="true" className="size-4" strokeWidth={2} />

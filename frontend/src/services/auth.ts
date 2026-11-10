@@ -70,6 +70,18 @@ export async function signOut(): Promise<void> {
   }
 }
 
+/**
+ * Whether the signed-in person's profile is still active (state/profileWatch.ts): true, false once it was
+ * deactivated (row level security then shows them nothing), or undefined when the server couldn't be reached.
+ */
+export async function isProfileActive(userId: string): Promise<boolean | undefined> {
+  try {
+    return (await fetchProfile(userId)) !== null
+  } catch {
+    return undefined
+  }
+}
+
 /** Calls `callback` whenever the session ends (signed out, or it could no longer be refreshed). Returns an unsubscribe function. */
 export function onSignedOut(callback: () => void): () => void {
   const { data } = supabase().auth.onAuthStateChange((event) => {

@@ -41,6 +41,7 @@ export const adminEn: AdminContent = {
 
   usersList: {
     title: 'Staff',
+    subtitle: "View and manage your organization's staff and their permissions.",
     addUser: { label: 'Add Staff', href: '/admin/users/new' },
     search: { label: 'Search Staff', placeholder: 'Search by staff name, email, division, department' },
     sort: { label: 'Sort', options: { default: 'Default order', 'name-asc': 'Name: A to Z', 'name-desc': 'Name: Z to A' } },
@@ -53,18 +54,33 @@ export const adminEn: AdminContent = {
     empty: 'No staff found.',
   },
 
-  /** Delete Staff, the same on the Staff list and a staff member's page. */
+  /**
+   * Delete Staff, the same on the Staff list and a staff member's page: it deactivates them (they lose
+   * access, and their account and history are kept). Add Staff with their email brings them back.
+   */
   deleteUser: {
     /** Accessible name and tooltip of the Trash button; `{name}` is replaced. */
     button: 'Delete {name}',
-    title: 'Delete Staff?',
-    description: "Are you sure you want to delete {name}? This can't be undone.",
+    busy: 'Deactivating {name}…',
+    title: 'Deactivate Staff?',
+    description: 'Are you sure you want to deactivate {name}? They will lose access to Hawkim, but their account information and history will be preserved.',
     cancel: 'Cancel',
-    confirm: 'Delete',
-    /** Above the reasons when deleting is refused; `{name}` is replaced. */
-    refused: "{name} can't be deleted:",
-    /** Shown on the Staff list afterwards; `{name}` is replaced. */
-    done: '{name} deleted.',
+    confirm: 'Deactivate',
+    /** Above the reasons when deactivating is refused; `{name}` is replaced. */
+    refused: "{name} wasn't deactivated:",
+    /** Shown afterwards; `{name}` is replaced. */
+    done: '{name} deactivated successfully.',
+    failures: {
+      forbidden: "You don't have permission to deactivate staff. Sign in again and retry.",
+      'not-found': 'This staff member no longer exists. Reload the page.',
+      'self-delete': "You can't deactivate your own account.",
+      'admin-managed-separately': 'Admins are managed on the Admins page.',
+      failed: 'Check your connection and try again.',
+    },
+    inProgress: {
+      one: '{name} has {count} SOP in progress. All assigned SOP work must be completed before they can be deactivated.',
+      other: '{name} has {count} SOPs in progress. All assigned SOP work must be completed before they can be deactivated.',
+    },
   },
 
   permissionDescriptions: {
@@ -76,7 +92,7 @@ export const adminEn: AdminContent = {
 
   addUser: {
     title: 'Add Staff',
-    subtitle: 'Add someone who should be able to use Hawkim.',
+    subtitle: 'Add a staff member who should be able to use Hawkim, with their placement and permissions.',
     back: { label: 'Back to Staff', href: '/admin/users' },
     name: { label: 'Full Name' },
     email: { label: 'Email' },
@@ -110,6 +126,8 @@ export const adminEn: AdminContent = {
       'department-unavailable': 'This department is no longer available. Choose another.',
       'account-failed': "The account couldn't be created. Try again in a few minutes.",
       'account-blocked': "This person's account is blocked. Ask the project owner to unblock it.",
+      'admin-managed-separately': 'This email belongs to a former Admin. Admins are managed on the Admins page.',
+      'invitation-failed': "This email belongs to a deactivated staff member, but their new invitation couldn't be sent, so they stay deactivated. Try again in a few minutes.",
       failed: 'Check your connection and try again.',
     },
     errors: {
@@ -128,6 +146,7 @@ export const adminEn: AdminContent = {
 
   editUser: {
     title: 'Edit Staff',
+    subtitle: "Update this staff member's details, placement and permissions.",
     submit: 'Save Changes',
     saving: 'Saving…',
     saved: 'Changes saved.',
@@ -175,9 +194,12 @@ export const adminEn: AdminContent = {
 
   userDetails: {
     back: { label: 'Back to Staff', href: '/admin/users' },
+    subtitle: "View this staff member's contact details, placement and permissions.",
     edit: 'Edit Staff',
     added: "Staff member added. We've emailed them an invitation to set their password.",
     addedInvitationFailed: "Staff member added, but the invitation email couldn't be sent. Ask them to use Forgot Password on the sign-in page.",
+    reactivated: 'Staff member reactivated. A new invitation has been sent.',
+    reactivatedInvitationFailed: "Staff member reactivated, but the invitation email couldn't be sent. Ask them to use Forgot Password on the sign-in page.",
     details: {
       title: 'Details',
       name: 'Name',
@@ -190,7 +212,7 @@ export const adminEn: AdminContent = {
       notSet: '—',
     },
     blockers: {
-      selfDelete: "You can't delete your own account.",
+      selfDelete: "You can't deactivate your own account.",
       selfAdmin: "You can't remove your own Admin permission.",
       lastAdmin: 'Hawkim must always have at least one Admin, and {name} is the only one.',
       inUse: {

@@ -15,7 +15,7 @@ import {
 import { useDepartments } from './departmentsContext'
 import { useLoadAfterSignIn } from './useLoadAfterSignIn'
 import { UsersContext, type AdminActionContext, type AdminDetails, type UsersStore } from './usersContext'
-import { addUserAccount, changeUserEmail, fetchPeople, saveUser } from '../services/people'
+import { addUserAccount, changeUserEmail, deactivateStaff, fetchPeople, saveUser } from '../services/people'
 import { AdminActionError, deleteAdminAccount, updateAdminDetails } from '../services/admins'
 
 /** What the admin entered, as a user's saved fields. A System Admin has no department or position. */
@@ -135,11 +135,12 @@ export function UsersProvider({ children }: { children: ReactNode }) {
   )
 
   const deleteUser = useCallback(
-    (userId: string, context: AdminActionContext) => {
+    async (userId: string, context: AdminActionContext) => {
       const { target, rules } = resolve(userId, context)
-      if (deleteBlockers(target, rules).length > 0) throw new Error('This user can’t be deleted now')
-      const deletedAt = new Date().toISOString()
-      commit(latestRef.current.map((user) => (user.id === userId ? { ...user, deletedAt } : user)))
+      if (deleteBlockers(target, rules).length > 0) throw new Error('This user can’t be deactivated now')
+      // The server first: the list changes only once the database has deactivated them.
+      const { deactivatedAt } = await deactivateStaff(userId)
+      commit(latestRef.current.map((user) => (user.id === userId ? { ...user, deletedAt: deactivatedAt } : user)))
     },
     [commit, resolve],
   )

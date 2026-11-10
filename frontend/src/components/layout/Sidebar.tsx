@@ -136,8 +136,9 @@ function SidebarGroup({ group, badges, onNavigate }: { group: AppNavGroup; badge
 /**
  * Sidebar contents: logo, main navigation and Sign Out, on Primary Maroon (as in the
  * landing page's dashboard preview). Used as the fixed desktop sidebar and inside the
- * mobile drawer, in the employee app and in the admin portal, with the signed-in user's role
- * badges beside the product name (none for a user without a role).
+ * mobile drawer, in the employee app and in the admin portal. Beside the product name, only an
+ * administrator's role in the admin portal ("Super Admin" or "Admin"); staff permissions (Author,
+ * Reviewer, Approver) are never shown there (they are on My Profile and the staff member's page).
  * Contrast on maroon #3A0B18: beige text 14.39:1, white active text 13.08:1 on the
  * active tint, light gold icons/badges/focus ring 8.84:1.
  */
@@ -153,7 +154,7 @@ export function Sidebar({ content, onNavigate, onClose, departmentSwitcher, badg
     // inside the white department menu that opens from the drawer).
     <div className="flex h-full flex-col bg-maroon [&_:focus-visible:not([role=menuitemradio])]:outline-gold-light">
       <div className="flex items-start justify-between gap-2 px-5 pt-6 pb-6">
-        {/* Mark + product name, then one badge per role (nothing without a role) on the same line. The
+        {/* Mark + product name, then the administrator's role in the admin portal (nothing for staff) on the same line. The
             badges stay outside the link, whose aria-label would hide them from screen readers. Inline
             flow indented by the mark's width (2.5rem tall: about 2.36rem wide, plus the 0.5rem gap), with
             the link pulled back over it, so only badges that don't fit wrap, lined up under the name.
@@ -169,7 +170,8 @@ export function Sidebar({ content, onNavigate, onClose, departmentSwitcher, badg
             <Logo variant="markOnDark" alt="" className="h-10" />
             <span className="text-lg font-semibold tracking-normal text-offwhite">{content.brandName}</span>
           </Link>
-          {user && <PermissionBadges user={user} sidebar label={content.rolesLabel} adminLabel={adminLabel} />}
+          {/* adminLabel is undefined for staff and outside the admin portal: no Author/Reviewer/Approver badges here */}
+          {user && adminLabel !== undefined && <PermissionBadges user={user} sidebar label={content.rolesLabel} adminLabel={adminLabel} />}
         </div>
         {onClose && (
           <button

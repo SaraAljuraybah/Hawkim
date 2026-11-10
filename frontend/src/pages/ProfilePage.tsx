@@ -42,6 +42,7 @@ export function ProfilePage({ admin = false }: { admin?: boolean }) {
   return (
     <>
       <h1 className="text-2xl tracking-tight sm:text-3xl">{content.title}</h1>
+      <p className="mt-2 text-text-gray">{content.subtitle}</p>
       {/* After changing the password (live region stays mounted) */}
       <div role="status">
         {changed && (

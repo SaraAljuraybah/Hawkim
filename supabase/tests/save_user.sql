@@ -130,8 +130,10 @@ begin
   perform pg_temp.expect_error(pg_temp.call(plain, 'su-home', null, 'su-home', '{}'), '23514', 'invalid');
   perform pg_temp.expect_error(pg_temp.call(plain, null, '{}', 'su-home', '{}'), '23514', 'invalid');
   -- Someone else changed the department or roles since the form loaded.
-  perform pg_temp.expect_error(pg_temp.call(plain, 'su-home', '{author}', 'su-other', '{}'), '40001');
-  perform pg_temp.expect_error(pg_temp.call(plain, 'su-home', '{author}', 'su-home', '{reviewer}'), '40001');
+  -- A stale save: hint 'conflict' (P0001), never 40001, which PostgREST 14 retries until it times out
+  -- (20261112120000_staff_deactivation.sql).
+  perform pg_temp.expect_error(pg_temp.call(plain, 'su-home', '{author}', 'su-other', '{}'), 'P0001', 'conflict');
+  perform pg_temp.expect_error(pg_temp.call(plain, 'su-home', '{author}', 'su-home', '{reviewer}'), 'P0001', 'conflict');
   -- Own Admin, and Admin combined with other roles.
   perform pg_temp.expect_error(pg_temp.call(admin1, 'su-home', '{}', 'su-home', '{admin}'), '23514', 'self-admin');
   perform pg_temp.expect_error(pg_temp.call(admin1, 'su-home', '{author}', 'su-home', '{admin}'), '23514', 'self-admin');

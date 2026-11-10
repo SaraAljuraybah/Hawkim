@@ -16,10 +16,12 @@ import { useUsers } from '../../state/usersContext'
 import { NotFoundPage } from '../NotFoundPage'
 import type { AdminUsersLocationState } from './AdminUsersPage'
 
-/** Set by Add User, to say the user was added and whether their invitation went out. */
+/** Set by Add User, to say the user was added (or reactivated) and whether their invitation went out. */
 export interface UserDetailsLocationState {
   added?: boolean
   invitationFailed?: boolean
+  /** Add Staff brought back a deactivated staff member. */
+  reactivated?: boolean
 }
 
 /**
@@ -78,6 +80,7 @@ function UserPanels({ user }: { user: User }) {
 
   const [added, setAdded] = useState(() => !!(location.state as UserDetailsLocationState | null)?.added)
   const [invitationFailed] = useState(() => !!(location.state as UserDetailsLocationState | null)?.invitationFailed)
+  const [reactivated] = useState(() => !!(location.state as UserDetailsLocationState | null)?.reactivated)
   const [deleteRefused, setDeleteRefused] = useState<{ title: string; reasons: string[] }>()
   const deleteErrorRef = useRef<HTMLDivElement>(null)
 
@@ -94,7 +97,7 @@ function UserPanels({ user }: { user: User }) {
     deleteErrorRef.current?.focus()
   }
 
-  // Same order and look as My Profile; an empty value shows notSet. A System Admin has no
+  // Same order as My Profile; an empty value shows notSet. A System Admin has no
   // organizational fields.
   const details: [string, string | undefined][] = [
     [text.details.name, user.name],
@@ -115,6 +118,7 @@ function UserPanels({ user }: { user: User }) {
       {/* The shared header; Edit Staff (the way to the edit form from here) beside Delete */}
       <UserHeader
         user={user}
+        description={text.subtitle}
         onDeleted={deleted}
         onRefused={refuseDelete}
         actions={
@@ -131,24 +135,26 @@ function UserPanels({ user }: { user: User }) {
         {added && invitationFailed && (
           <p className="mt-6 flex items-center gap-2 rounded-lg border border-status-pending-fg/25 bg-status-pending-bg px-4 py-3 text-sm font-medium text-status-pending-fg">
             <CircleAlert aria-hidden="true" className="size-4 shrink-0" strokeWidth={2} />
-            {text.addedInvitationFailed}
+            {reactivated ? text.reactivatedInvitationFailed : text.addedInvitationFailed}
           </p>
         )}
         {added && !invitationFailed && (
           <p className="mt-6 flex items-center gap-2 rounded-lg border border-status-approved-fg/25 bg-status-approved-bg px-4 py-3 text-sm font-medium text-status-approved-fg">
             <CircleCheck aria-hidden="true" className="size-4 shrink-0" strokeWidth={2} />
-            {text.added}
+            {reactivated ? text.reactivated : text.added}
           </p>
         )}
       </div>
 
       <div className="mt-6 grid max-w-3xl gap-6">
         <Panel id="details-title" title={text.details.title}>
-          <dl className="grid gap-x-6 gap-y-3 text-sm sm:grid-cols-[10rem_minmax(0,1fr)]">
+          {/* Label above value on small screens; side by side, on one baseline, from sm. Rows are
+              separated by a thin divider so each label stays with its value. */}
+          <dl className="divide-y divide-beige">
             {details.map(([label, value]) => (
-              <div key={label} className="contents">
-                <dt className="font-bold text-maroon">{label}</dt>
-                <dd className="min-w-0 break-words text-maroon max-sm:mb-1">{value?.trim() || text.details.notSet}</dd>
+              <div key={label} className="grid gap-1 py-3 first:pt-0 last:pb-0 sm:grid-cols-[11rem_minmax(0,1fr)] sm:items-baseline sm:gap-6">
+                <dt className="text-sm font-semibold text-text-gray">{label}</dt>
+                <dd className="min-w-0 text-base break-words text-maroon">{value?.trim() || text.details.notSet}</dd>
               </div>
             ))}
           </dl>

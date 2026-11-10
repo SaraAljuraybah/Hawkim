@@ -194,6 +194,8 @@ export interface ProfileContent {
   /** Browser tab title in the admin portal. */
   adminPageTitle: string
   title: string
+  /** One line under the page heading. */
+  subtitle: string
   /** Row labels; `password` is the last row, with the Change Password action. */
   fields: { name: string; email: string; phone: string; position: string; division: string; department: string; roles: string; password: string }
   /** Shown when a value isn't set. */
@@ -1631,7 +1633,11 @@ export interface AdminAddUserContent {
   cancel: string
   /** Above the reason when the server refused. */
   notAdded: string
-  failures: Record<'forbidden' | 'email-taken' | 'invalid' | 'admin-exclusive' | 'approver-quality' | 'department-unavailable' | 'account-failed' | 'account-blocked' | 'failed', string>
+  /**
+   * `admin-managed-separately`: the email is a deactivated Admin's; `invitation-failed`: a deactivated staff
+   * member's, who stays deactivated because their new invitation couldn't be sent.
+   */
+  failures: Record<'forbidden' | 'email-taken' | 'invalid' | 'admin-exclusive' | 'approver-quality' | 'department-unavailable' | 'account-failed' | 'account-blocked' | 'admin-managed-separately' | 'invitation-failed' | 'failed', string>
   errors: {
     nameRequired: string
     emailInvalid: string
@@ -1650,6 +1656,8 @@ export interface AdminAddUserContent {
 /** Edit User: its fields, Cancel and the back link are Add User's. */
 export interface AdminEditUserContent {
   title: string
+  /** One line under the staff member's name. */
+  subtitle: string
   submit: string
   /** The submit button while saving. */
   saving: string
@@ -1673,12 +1681,18 @@ export interface AdminEditUserContent {
 
 export interface AdminUserDetailsContent {
   back: LinkContent
+  /** One line under the staff member's name. */
+  subtitle: string
   /** Opens Edit Staff. */
   edit: string
   /** Shown after adding a user. */
   added: string
   /** Shown after adding a user whose invitation email couldn't be sent. */
   addedInvitationFailed: string
+  /** Shown after Add Staff reactivated a deactivated staff member and sent a new invitation. */
+  reactivated: string
+  /** Shown after a reactivation whose invitation couldn't be sent (and that couldn't be undone). */
+  reactivatedInvitationFailed: string
   /** The rows, in this order; `notSet` for an empty value. */
   details: {
     title: string
@@ -1732,6 +1746,8 @@ export interface FiltersContent {
 
 export interface AdminUsersListContent {
   title: string
+  /** One line under the page heading. */
+  subtitle: string
   addUser: LinkContent
   search: { label: string; placeholder: string }
   /** The Sort dropdown: its label and one option per order (the first is the default). */
@@ -1750,14 +1766,21 @@ export interface AdminUsersListContent {
 }
 
 /** Delete User, on the Users list and a user's page; `{name}` is replaced. */
+/** Delete on Staff: deactivates the staff member (nothing is removed). */
 export interface AdminDeleteUserContent {
   button: string
+  /** The button's label while the deactivation is being saved; `{name}` is replaced. */
+  busy: string
   title: string
   description: string
   cancel: string
   confirm: string
   refused: string
   done: string
+  /** Why the server refused; `responsibilities-in-progress` uses `inProgress`. */
+  failures: Record<'forbidden' | 'not-found' | 'self-delete' | 'admin-managed-separately' | 'failed', string>
+  /** SOP work in progress; `{name}` and `{count}` are replaced. */
+  inProgress: { one: string; other: string }
 }
 
 /** The public Request Hawkim form (pages/RequestHawkimPage.tsx). */

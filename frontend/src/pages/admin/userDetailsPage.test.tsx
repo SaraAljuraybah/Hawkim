@@ -25,11 +25,24 @@ describe('a user\'s details page', () => {
     const html = render()
     const labels = [...html.matchAll(/<dt[^>]*>([^<]+)<\/dt>/g)].map((match) => match[1])
     expect(labels).toEqual(['Name', 'Email', 'Phone Number', 'Division', 'Department', 'Position', 'Permission'])
-    for (const dt of html.match(/<dt[^>]*>/g)!) expect(dt).toContain('font-bold text-maroon')
+    // Labels are smaller and grey, values larger and maroon, so each value stands out from its label.
+    for (const dt of html.match(/<dt[^>]*>/g)!) expect(dt).toContain('text-sm font-semibold text-text-gray')
+    for (const dd of html.match(/<dd[^>]*>/g)!) expect(dd).toContain('text-base')
     expect(detail(html, 'Name')).toBe('Rana')
     expect(detail(html, 'Department')).toBe('Home')
     expect(detail(html, 'Permission')).toBe('Author, Reviewer')
     expect(html).not.toContain('Directory Access')
+  })
+
+  it('has a short description under the name, and the permissions as solid light-gold badges', () => {
+    const html = render()
+    expect(html).toContain(`<p class="mt-2 text-text-gray">${adminEn.userDetails.subtitle.replace("'", '&#x27;')}</p>`)
+    const badges = [...html.matchAll(/<li class="([^"]*)">([^<]+)<\/li>/g)]
+    expect(badges.map((match) => match[2])).toEqual(['Author', 'Reviewer'])
+    for (const [, className] of badges) {
+      expect(className.split(' ')).toContain('bg-gold-light')
+      expect(className).toContain('text-maroon')
+    }
   })
 
   it('shows only the Details card, with no "Involved in" section', () => {

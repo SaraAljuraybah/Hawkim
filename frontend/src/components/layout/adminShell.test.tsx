@@ -149,10 +149,21 @@ describe('the signed-in user\'s role badges under the logo', () => {
     }
   })
 
-  it('shows one badge per role, in the usual order', () => {
+  it('shows no staff permission badge beside the logo (Author, Reviewer, Approver), and keeps the navigation', () => {
     session.permissions = ['author', 'reviewer', 'approver']
     const html = renderToStaticMarkup(<MemoryRouter><Sidebar content={appShellEn} /></MemoryRouter>)
-    expect(badges(html)).toEqual(['Author', 'Reviewer', 'Approver'])
+    expect(badges(html)).toEqual([])
+    expect(html).not.toContain('Your roles')
+    const header = html.slice(0, html.indexOf('<nav'))
+    for (const label of ['Author', 'Reviewer', 'Approver']) expect(header).not.toContain(label)
+    expect(header).toContain(`>${appShellEn.brandName}</span>`)
+    // My SOPs and My Reviews are still there for these permissions.
+    for (const label of ['My SOPs', 'My Reviews']) expect(html).toContain(`>${label}</a>`)
+  })
+
+  it('shows no staff permission badge in the admin portal either, only an administrator role', () => {
+    session.permissions = ['author', 'reviewer']
+    expect(badges(portal({ status: 'ready', superAdminId: 'someone-else' }))).toEqual([])
   })
 
   it('shows no badge for a user without a role', () => {

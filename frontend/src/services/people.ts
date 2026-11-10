@@ -3,8 +3,9 @@
  * departments; see supabase/migrations/). Rows are turned into the app's existing
  * User and Department types, so screens don't change. Row level security lets only
  * a signed-in person with an active profile read them; an admin changes a user through
- * save_user, adds one through the add-user Edge Function and changes their email through the
- * update-user-email Edge Function, which check that and the rules on the server.
+ * save_user, adds (or reactivates) one through the add-user Edge Function, changes their email through the
+ * update-user-email Edge Function and deactivates a staff member through deactivate_staff, which check
+ * that and the rules on the server.
  */
 
 import { FunctionsHttpError } from '@supabase/supabase-js'
@@ -141,7 +142,8 @@ function saveUserError(error: { code?: string; hint?: string | null; details?: s
   // PGRST30x: the session's token has expired or isn't valid.
   if (error.code === '42501' || error.code?.startsWith('PGRST30')) return new SaveUserError('forbidden')
   if (error.code === 'P0002') return new SaveUserError('not-found')
-  if (error.code === '40001') return new SaveUserError('conflict')
+  // 'conflict' hint: a stale save (20261112120000); 40001: the same, from a database without that migration.
+  if (error.hint === 'conflict' || error.code === '40001') return new SaveUserError('conflict')
   // A rule of the database's triggers, or update_user_details refusing the details.
   if (error.code === '23514') return new SaveUserError('invalid')
   return new SaveUserError('failed')
@@ -236,7 +238,7 @@ export type NewUserDetails = UserChanges & { email: string }
 /** Why a user could not be added. */
 export type AddUserFailure =
   | 'forbidden' | 'email-taken' | 'invalid' | 'admin-exclusive' | 'approver-quality' | 'department-unavailable'
-  | 'permission-in-use' | 'account-failed' | 'account-blocked' | 'failed'
+  | 'permission-in-use' | 'account-failed' | 'account-blocked' | 'admin-managed-separately' | 'invitation-failed' | 'failed'
 
 export class AddUserError extends Error {
   readonly reason: AddUserFailure
@@ -248,7 +250,10 @@ export class AddUserError extends Error {
   }
 }
 
-const ADD_USER_FAILURES: AddUserFailure[] = ['email-taken', 'invalid', 'admin-exclusive', 'approver-quality', 'department-unavailable', 'permission-in-use', 'account-failed', 'account-blocked']
+const ADD_USER_FAILURES: AddUserFailure[] = [
+  'email-taken', 'invalid', 'admin-exclusive', 'approver-quality', 'department-unavailable', 'permission-in-use', 'account-failed', 'account-blocked',
+  'admin-managed-separately', 'invitation-failed',
+]
 
 async function addUserError(error: unknown): Promise<AddUserError> {
   if (!(error instanceof FunctionsHttpError)) return new AddUserError('failed')
@@ -262,9 +267,12 @@ async function addUserError(error: unknown): Promise<AddUserError> {
 
 /**
  * Adds a user through the add-user Edge Function: a real sign-in account, their profile and permissions,
- * and an invitation email. `emailSent` is false when only the email failed: the user was added. Throws an AddUserError.
+ * and an invitation email. `emailSent` is false when only the email failed: the user was added.
+ * `reactivated`: the email was a deactivated staff member's, who is active again (the same account and
+ * profile, with these details) with a new invitation; if it couldn't be sent they stay deactivated
+ * ('invitation-failed'). Throws an AddUserError.
  */
-export async function addUserAccount(details: NewUserDetails): Promise<{ user: User; emailSent: boolean }> {
+export async function addUserAccount(details: NewUserDetails): Promise<{ user: User; emailSent: boolean; reactivated: boolean }> {
   let response
   try {
     response = await supabase().functions.invoke('add-user', { body: details })
@@ -293,7 +301,52 @@ export async function addUserAccount(details: NewUserDetails): Promise<{ user: U
       permissions: PERMISSIONS.filter((permission) => permissions.includes(permission)),
     },
     emailSent: data?.emailSent === true,
+    reactivated: saved.reactivated === true,
   }
+}
+
+/** Why a staff member could not be deactivated. */
+export type DeactivateStaffFailure =
+  | 'forbidden' | 'not-found' | 'self-delete' | 'admin-managed-separately' | 'responsibilities-in-progress' | 'failed'
+
+export class DeactivateStaffError extends Error {
+  readonly reason: DeactivateStaffFailure
+  /** For 'responsibilities-in-progress': how many SOPs are still in progress (0 when not known). */
+  readonly blockingSops: number
+  constructor(reason: DeactivateStaffFailure, blockingSops = 0) {
+    super(`The staff member was not deactivated (${reason})`)
+    this.reason = reason
+    this.blockingSops = blockingSops
+  }
+}
+
+const DEACTIVATE_HINTS: DeactivateStaffFailure[] = ['self-delete', 'admin-managed-separately', 'responsibilities-in-progress']
+
+/**
+ * Deactivates a staff member (Delete on the Staff list and their page) through deactivate_staff: their
+ * profile is ended in the database, they are signed out everywhere and can no longer use Hawkim, and
+ * nothing is removed (their name stays on history). Returns when it was done. A repeated request
+ * succeeds without changing anything. Throws a DeactivateStaffError.
+ */
+export async function deactivateStaff(userId: string): Promise<{ deactivatedAt: string }> {
+  let response
+  try {
+    response = await supabase().rpc('deactivate_staff', { p_user_id: userId })
+  } catch {
+    throw new DeactivateStaffError('failed')
+  }
+  const error = response.error
+  if (error) {
+    const hinted = DEACTIVATE_HINTS.find((reason) => reason === error.hint)
+    if (hinted) throw new DeactivateStaffError(hinted, hinted === 'responsibilities-in-progress' ? blockingTotal(error.details) : 0)
+    // PGRST30x: the session's token has expired or isn't valid.
+    if (error.code === '42501' || error.code?.startsWith('PGRST30')) throw new DeactivateStaffError('forbidden')
+    if (error.code === 'P0002') throw new DeactivateStaffError('not-found')
+    throw new DeactivateStaffError('failed')
+  }
+  const deactivatedAt = (response.data as { deactivatedAt?: unknown } | null)?.deactivatedAt
+  if (typeof deactivatedAt !== 'string') throw new DeactivateStaffError('failed')
+  return { deactivatedAt }
 }
 
 /** A department row as a Department. */

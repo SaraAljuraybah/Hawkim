@@ -150,7 +150,7 @@ function EditUserContent({ user }: { user: User }) {
         <ArrowLeft aria-hidden="true" className="size-4" strokeWidth={1.75} />
         {adminEn.addUser.back.label}
       </Link>
-      <UserHeader user={user} label={content.title} onDeleted={deleted} onRefused={refuseDelete} />
+      <UserHeader user={user} label={content.title} description={content.subtitle} onDeleted={deleted} onRefused={refuseDelete} />
       {deleteRefused && <RefusedBox ref={deleteErrorRef} title={deleteRefused.title} messages={deleteRefused.reasons} />}
 
       {/* Success message after saving (live region stays mounted) */}
