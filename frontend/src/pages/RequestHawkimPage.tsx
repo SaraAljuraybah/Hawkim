@@ -10,7 +10,7 @@ import { TextField } from '../components/ui/TextField'
 import { FORM_CARD } from '../components/ui/formCard'
 import { requestHawkimEn } from '../content/accessRequest.en'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
-import { liveProblem, requestProblems, type RequestField, type RequestValues } from '../lib/accessRequest'
+import { failureField, liveProblem, requestProblems, type RequestField, type RequestValues } from '../lib/accessRequest'
 import { submitAccessRequest, type SubmitFailure } from '../services/accessRequests'
 
 const content = requestHawkimEn
@@ -76,9 +76,17 @@ export function RequestHawkimPage() {
       setSent(true)
       return
     }
+    // Refused because of one field (the organization name is taken): its error, and focus there.
+    const onField = failureField(result.reason)
+    if (onField) {
+      flushSync(() => setErrors((current) => ({ ...current, [onField.field]: content.errors[onField.error] })))
+      refs.current[onField.field]?.focus()
+      return
+    }
     const messages: Record<SubmitFailure, string> = {
       invalid: content.errors.failed,
       'too-many-requests': content.errors.tooManyRequests,
+      'organization-taken': content.errors.organizationTaken,
       'not-connected': content.errors.notConnected,
       failed: content.errors.failed,
     }

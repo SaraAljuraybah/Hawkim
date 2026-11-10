@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { liveProblem, normalizePhone, requestProblems, type RequestValues } from './accessRequest'
+import { failureField, liveProblem, normalizePhone, requestProblems, type RequestValues } from './accessRequest'
 
 const valid: RequestValues = {
   organization: 'Riyadh Pharma Co.', contactName: 'Lama Alotaibi', jobTitle: 'QPPV', email: 'lama@riyadhpharma.example',
@@ -47,5 +47,15 @@ describe('Request Hawkim live checks (on leaving a field, and while its error sh
       expect(requestProblems({ ...filled, [field]: '' })[field], field).toBe('required')
       expect(liveProblem(field, { ...filled, [field]: '' }), field).toBeUndefined()
     }
+  })
+})
+
+describe('a refused Send Request', () => {
+  it('puts "organization taken" on the Organization field (focus moves there)', () => {
+    expect(failureField('organization-taken')).toEqual({ field: 'organization', error: 'organizationTaken' })
+  })
+
+  it('leaves every other refusal above the form', () => {
+    for (const reason of ['invalid', 'too-many-requests', 'not-connected', 'failed']) expect(failureField(reason), reason).toBeUndefined()
   })
 })

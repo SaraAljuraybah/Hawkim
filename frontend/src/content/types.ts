@@ -1760,6 +1760,8 @@ export interface RequestHawkimContent {
     approxUsers: string
     tooLong: string
     tooManyRequests: string
+    /** On the Organization field after Send Request: a pending or accepted request has this name. */
+    organizationTaken: string
     notConnected: string
     failed: string
   }

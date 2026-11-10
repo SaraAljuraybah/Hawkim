@@ -35,7 +35,7 @@ function contentFor(type: string, email: string): EmailContent {
         heading: "Reset your password",
         intro: `We received a request to reset the password for the Hawkim account <strong>${who}</strong>. Choose a new password with the button below.`,
         button: "Set a new password",
-        note: "This link expires in 1 hour and can be used once. If you didn’t ask to reset your password, you can ignore this email; your password stays the same.",
+        note: "This link expires in 24 hours and can be used once. If you didn’t ask to reset your password, you can ignore this email; your password stays the same.",
       }
     case "invite":
       return {
@@ -43,7 +43,7 @@ function contentFor(type: string, email: string): EmailContent {
         heading: "You’re invited to Hawkim",
         intro: `An administrator has created a Hawkim account for <strong>${who}</strong>. Accept the invitation to set your password and sign in.`,
         button: "Accept invitation",
-        note: "This link expires in 1 hour and can be used once. If you weren’t expecting this invitation, you can ignore this email.",
+        note: "This link expires in 24 hours and can be used once. If you weren’t expecting this invitation, you can ignore this email.",
       }
     case "signup":
       return {
@@ -51,7 +51,7 @@ function contentFor(type: string, email: string): EmailContent {
         heading: "Confirm your email address",
         intro: `Confirm that <strong>${who}</strong> is your email address to finish setting up your Hawkim account.`,
         button: "Confirm email",
-        note: "This link expires in 1 hour and can be used once. If you didn’t create a Hawkim account, you can ignore this email.",
+        note: "This link expires in 24 hours and can be used once. If you didn’t create a Hawkim account, you can ignore this email.",
       }
     case "magiclink":
       return {
@@ -59,7 +59,7 @@ function contentFor(type: string, email: string): EmailContent {
         heading: "Sign in to Hawkim",
         intro: `Use the button below to sign in as <strong>${who}</strong>.`,
         button: "Sign in",
-        note: "This link expires in 1 hour and can be used once. If you didn’t ask to sign in, you can ignore this email.",
+        note: "This link expires in 24 hours and can be used once. If you didn’t ask to sign in, you can ignore this email.",
       }
     case "email_change":
       return {
@@ -67,14 +67,14 @@ function contentFor(type: string, email: string): EmailContent {
         heading: "Confirm your email change",
         intro: `Confirm the change of the email address for your Hawkim account. This message was sent to <strong>${who}</strong>.`,
         button: "Confirm email change",
-        note: "This link expires in 1 hour and can be used once. If you didn’t ask to change your email address, contact your administrator.",
+        note: "This link expires in 24 hours and can be used once. If you didn’t ask to change your email address, contact your administrator.",
       }
     case "reauthentication":
       return {
         subject: "Your Hawkim verification code",
         heading: "Confirm it’s you",
         intro: `Enter this code in Hawkim to confirm the action for <strong>${who}</strong>.`,
-        note: "The code expires in 1 hour. If you didn’t ask for it, contact your administrator.",
+        note: "The code expires in 24 hours. If you didn’t ask for it, contact your administrator.",
       }
     default:
       return {
@@ -276,6 +276,7 @@ async function submit(input: Record<string, unknown>): Promise<Response> {
     })
   } catch (e) {
     if (e instanceof DbError && e.message === "too_many_requests") return fail(429, "too_many_requests")
+    if (e instanceof DbError && e.message === "organization_taken") return fail(409, "organization_taken")
     console.error("access-requests: submit failed:", e instanceof Error ? e.message : e)
     return fail(500, "failed")
   }

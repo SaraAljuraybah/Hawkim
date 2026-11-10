@@ -26,6 +26,7 @@ export const requestHawkimEn: RequestHawkimContent = {
     approxUsers: 'Enter a whole number from 1 to 100000.',
     tooLong: 'This is too long.',
     tooManyRequests: 'Too many requests from this email address today. Please try again tomorrow.',
+    organizationTaken: 'An organization with this name already exists.',
     notConnected: "Couldn't reach Hawkim. Check your internet connection and try again.",
     failed: 'Your request could not be sent. Please try again.',
   },
