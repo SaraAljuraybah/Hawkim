@@ -9,8 +9,16 @@ describe('persisted organizational structure', () => {
   it('uses the authenticated RPC and returns its actual records without substitution', async () => {
     const hierarchy = { organization: null, divisions: [], departments: [{ id: 'db-department', name: 'From database', divisionId: null, employees: [] }] }
     rpc.mockResolvedValue({ data: hierarchy, error: null })
-    expect(await fetchOrganization()).toBe(hierarchy)
+    expect(await fetchOrganization()).toEqual(hierarchy)
     expect(rpc).toHaveBeenCalledWith('get_organizational_structure')
+  })
+  it('lists no Admin in a department: Admins belong to none, whatever their account still holds', async () => {
+    const person = (id: string, permissions: string[]) => ({ id, name: id, initials: 'XX', email: `${id}@test.invalid`, position: 'Title', permissions })
+    rpc.mockResolvedValue({ data: { organization: null, divisions: [], departments: [
+      { id: 'qa', name: 'QA', divisionId: null, employees: [person('admin', ['admin']), person('sara', ['author']), person('both', ['admin', 'reviewer'])] },
+    ] }, error: null })
+    const [qa] = (await fetchOrganization()).departments
+    expect(qa.employees.map((employee) => employee.id)).toEqual(['sara'])
   })
   it('propagates authorization and network errors without fabricated data', async () => {
     rpc.mockResolvedValue({ data: null, error: { message: 'permission denied' } })
@@ -23,7 +31,7 @@ describe('persisted organizational structure', () => {
     const hierarchy = { organization: null, divisions: [{ id, name }], departments: [] }
     rpc.mockResolvedValue({ data: hierarchy, error: null })
     const result = await fetchOrganization()
-    expect(result).toBe(hierarchy)
+    expect(result).toEqual(hierarchy)
     expect(result.divisions[0]).toEqual({ id, name })
   })
   it('rejects missing or malformed responses', async () => {
@@ -37,7 +45,7 @@ describe('persisted organizational structure', () => {
       ] },
     ] }
     rpc.mockResolvedValue({ data: hierarchy, error: null })
-    expect(await fetchOrganization()).toBe(hierarchy)
+    expect(await fetchOrganization()).toEqual(hierarchy)
   })
   it.each([
     { organization: undefined, divisions: [], departments: [] },

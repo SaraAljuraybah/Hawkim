@@ -56,5 +56,8 @@ export async function fetchOrganization(): Promise<OrganizationHierarchy> {
   if (!isHierarchy(data)) {
     throw new Error('Invalid organizational structure response')
   }
-  return data
+  // Admins belong to no department (whatever their account still holds): they aren't listed in one.
+  return { ...data, departments: data.departments.map((department) => ({
+    ...department, employees: department.employees.filter((employee) => !employee.permissions.includes('admin')),
+  })) }
 }

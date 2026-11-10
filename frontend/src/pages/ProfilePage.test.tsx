@@ -193,12 +193,12 @@ describe('My Profile in the admin portal', () => {
 
   beforeEach(() => { fixture.user = admin })
 
-  it('shows the position without the division and department, in one h1 page, with Admin as the permission', () => {
+  it('shows no position, division or department (even if the account still holds them), in one h1 page, with Admin as the permission', () => {
     fixture.user = { ...admin, position: 'IT Manager' }
     const html = page()
-    expect([...html.matchAll(/<dt[^>]*>([^<]+)<\/dt>/g)].map((match) => match[1])).toEqual(['Name', 'Email', 'Phone Number', 'Position', 'Permission', 'Password'])
+    expect([...html.matchAll(/<dt[^>]*>([^<]+)<\/dt>/g)].map((match) => match[1])).toEqual(['Name', 'Email', 'Phone Number', 'Permission', 'Password'])
     expect(value(html, 'Permission')).toBe('Admin')
-    expect(value(html, 'Position')).toBe('IT Manager')
+    expect(html).not.toContain('IT Manager')
     expect(html).not.toContain('Pharmacovigilance')
     expect(html.match(/<h1/g)).toHaveLength(1)
     expect(html).toContain('aria-label="Change Password"')
