@@ -43,7 +43,8 @@ describe('Organizational Structure', () => {
   })
   it('shows a Name | Email table with no Users, SOPs or action columns', () => {
     const html = page()
-    expect([...html.matchAll(/<th scope="col"[^>]*>([^<]*)<\/th>/g)].map((match) => match[1])).toEqual(['Name', 'Email'])
+    const head = html.slice(html.indexOf('<thead'), html.indexOf('</thead>'))
+    expect([...head.matchAll(/<th scope="col"[^>]*>([^<]*)<\/th>/g)].map((match) => match[1])).toEqual(['Name', 'Email'])
     for (const text of ['>Users<', '>SOPs<', 'lucide-pencil', 'lucide-trash', 'lucide-plus', 'lucide-eye']) expect(html).not.toContain(text)
   })
   it('shows divisions with their department count and email, or "—" when there is none', () => {
@@ -64,7 +65,8 @@ describe('Organizational Structure', () => {
     for (const toggle of toggles) expect(toggle).toContain('aria-expanded="false"')
     expect(html).toContain('aria-controls="org-children-division-1"')
     expect(html).toMatch(/<tbody id="org-children-division-1" hidden="">/)
-    expect(html).toContain('aria-controls="org-staff-department-1-person-1 org-staff-department-1-person-2"')
+    expect(html).toContain('aria-controls="org-staff-department-1"')
+    expect(html).toMatch(/<tr id="org-staff-department-1" hidden=""/)
   })
   it('shows departments with their staff count and email, and "No staff in this department"', () => {
     const html = page()
@@ -77,8 +79,8 @@ describe('Organizational Structure', () => {
   })
   it('shows each person with avatar, name, roles and email with a copy button; nothing under a name without a role', () => {
     const html = table({ query: 'dana' })
-    const row = html.match(/<tr id="org-staff-department-1-person-1".*?<\/tr>/)![0]
-    expect(row).not.toMatch(/^<tr[^>]* hidden=/)
+    expect(html).toMatch(/<tr id="org-staff-department-1" class=/)
+    const row = html.match(/<tr class="border-t border-beige first:border-t-0">(?:(?!<\/tr>).)*Dana Fahad.*?<\/tr>/)![0]
     expect(row).toContain('>DF</span>')
     expect(row).toContain('>Dana Fahad</span>')
     expect(row).toContain('Roles: </span>Author, Reviewer</span>')
@@ -87,7 +89,7 @@ describe('Organizational Structure', () => {
     expect(row).toContain('aria-label="Copy email for Dana Fahad"')
     expect(row).toContain('aria-live="polite"')
     expect(row).not.toContain('Specialist')
-    const noRole = table({ query: 'no role' }).match(/<tr id="org-staff-department-1-person-2".*?<\/tr>/)![0]
+    const noRole = table({ query: 'no role' }).match(/<tr class="border-t border-beige first:border-t-0">(?:(?!<\/tr>).)*No Role Person.*?<\/tr>/)![0]
     expect(noRole).toContain('>No Role Person</span></span>')
     expect(noRole).not.toContain('Roles:')
     expect(noRole).not.toContain('Employee')
@@ -115,7 +117,7 @@ describe('Organizational Structure', () => {
   it('has one search, a Filter button with Division and Role chips, and a Sort without SOP options', () => {
     const html = page()
     expect(html.match(/type="search"/g)).toHaveLength(1)
-    expect(html).toContain('placeholder="Search by name or email"')
+    expect(html).toContain('placeholder="Search divisions, departments or staff by name or email"')
     // A visible "Filter" label, like Sort's, for an icon-only button as tall as the fields.
     const button = html.match(/<label for="([^"]+)" class="mb-1.5 block text-sm font-medium text-maroon">Filter<\/label><button id="([^"]+)" type="button" aria-label="Filter" aria-expanded="false" aria-controls="[^"]+"[^>]*>(.*?)<\/button>/)!
     expect(button[1]).toBe(button[2])
@@ -137,13 +139,25 @@ describe('Organizational Structure', () => {
     expect(html).toMatch(/aria-pressed="false" class="inline-flex [^"]*text-left/)
     expect(html).toContain('>Clear all</button>')
     const sorts = [...html.matchAll(/<option value="[^"]+"[^>]*>([^<]+)<\/option>/g)].map((match) => match[1])
-    expect(sorts).toEqual(['Default order', 'Name: A to Z', 'Name: Z to A', 'Departments: High to Low', 'Departments: Low to High'])
+    expect(sorts).toEqual(['Default order', 'Division name: A to Z', 'Division name: Z to A', 'Departments: High to Low', 'Departments: Low to High'])
   })
   it('lists unassigned departments under their own subheading in the Department filter', () => {
     const data = structuredClone(hierarchy)
     data.departments.push({ id: 'department-3', name: 'Legacy Unit', divisionId: null, employees: [] })
     const html = page(data)
     expect(html).toMatch(/text-xs font-semibold text-text-gray">Unassigned departments<\/p><ul[^>]*><li[^>]*><button type="button" aria-pressed="false"[^>]*><span class="min-w-0 break-words">Legacy Unit</)
+  })
+  it('puts the staff of each department in a named table of their own, in a box about 6 rows tall that can scroll', () => {
+    const html = table({ query: 'dana' })
+    const row = html.match(/<tr id="org-staff-department-1"[^>]*><td colSpan="2" class="p-0">(.*?)<\/td><\/tr><\/tbody>/)![1]
+    // Only the staff box scrolls (the division and department rows stay in place).
+    expect(row).toMatch(/^<div class="max-h-\[22.5rem\] overflow-y-auto overscroll-contain">/)
+    // Before measuring (and whenever it fits) it is not a tab stop.
+    expect(row).not.toContain('tabindex=')
+    expect(row).toContain('<table aria-label="Staff of Quality" class="w-full table-fixed text-left text-sm"><colgroup><col style="width:60%"/><col/></colgroup>')
+    // Screen-reader-only column headers, and each person is still a row header.
+    expect(row).toContain('<thead class="sr-only"><tr><th scope="col">Name</th><th scope="col">Email</th></tr></thead>')
+    expect(row).toMatch(/<th scope="row"[^>]*>.*Dana Fahad/)
   })
   it('renders loading skeletons and a clear retry state', () => {
     expect(renderToStaticMarkup(<OrganizationContent state={{ status: 'loading' }} reload={() => {}} />)).toContain('role="status"')

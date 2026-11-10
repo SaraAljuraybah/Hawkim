@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { Permission } from '../data/mock/types'
 import type { OrganizationEmployee, OrganizationHierarchy } from '../services/organization'
-import { departmentFilterGroups, isFiltering, matchesRoles, matchesSearch, organizationRows, OTHERS_FILTER, UNASSIGNED_GROUP_ID, type OrganizationFilters } from './organization'
+import { departmentFilterGroups, isFiltering, overflows, matchesRoles, matchesSearch, organizationRows, OTHERS_FILTER, UNASSIGNED_GROUP_ID, type OrganizationFilters } from './organization'
 
 const person = (id: string, name: string, permissions: Permission[] = [], email = `${id}@test.invalid`): OrganizationEmployee =>
   ({ id, name, initials: 'XX', email, permissions })
@@ -143,5 +143,14 @@ describe('department filter chips', () => {
   })
   it('offers only the departments of the selected divisions, never the unassigned ones', () => {
     expect(departmentFilterGroups(hierarchy, ['qual']).map((group) => group.id)).toEqual(['qual'])
+  })
+})
+
+describe('staff scroll box', () => {
+  it('is scrollable only when its content is taller than the box', () => {
+    expect(overflows(600, 360)).toBe(true)
+    expect(overflows(360, 360)).toBe(false)
+    expect(overflows(361, 360)).toBe(false)
+    expect(overflows(200, 200)).toBe(false)
   })
 })

@@ -1,8 +1,8 @@
-import { Fragment, useState } from 'react'
+import { Fragment, useEffect, useRef, useState, type ReactNode } from 'react'
 import { ChevronDown, ChevronRight } from 'lucide-react'
 import { organizationEn as content } from '../../content/organization.en'
 import { usersEn } from '../../content/users.en'
-import type { DivisionRow } from '../../lib/organization'
+import { overflows, type DivisionRow } from '../../lib/organization'
 import { DepartmentBadge } from '../admin/DepartmentBadge'
 import { CopyButton } from '../ui/CopyButton'
 import { tableStyles } from '../ui/tableStyles'
@@ -22,6 +22,50 @@ function EmailCell({ email, name }: { email?: string | null; name: string }) {
         </div>
       ) : <><span aria-hidden="true">—</span><span className="sr-only">{content.noEmail}</span></>}
     </td>
+  )
+}
+
+/** The Email column's share of the table's width; the Name column has the rest. */
+const EMAIL_COLUMN_PERCENT = 40
+
+/**
+ * A department's staff as a table of their own (same columns as the main table, screen-reader-only
+ * headers), in a box about 6 rows tall that scrolls when they don't fit: only that box scrolls,
+ * never the division and department rows. Only while it actually overflows (checked when shown and
+ * whenever its size or content changes, e.g. names wrapping on a narrow screen) is it a named,
+ * focusable region, so keyboard users can scroll it with the arrow keys. Tabbing to a copy button
+ * inside scrolls it into view; nothing traps focus. A visible scrollbar takes width, so the Name
+ * column grows by the same share to keep the emails under the main table's Email column.
+ */
+function StaffTable({ label, children }: { label: string; children: ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null)
+  const [box, setBox] = useState({ scrollable: false, widthRatio: 1 })
+  useEffect(() => {
+    const element = ref.current
+    if (!element || typeof ResizeObserver === 'undefined') return
+    const check = () => {
+      const scrollable = overflows(element.scrollHeight, element.clientHeight)
+      // Full width (with the scrollbar) over the width left for the table.
+      const widthRatio = element.clientWidth > 0 ? element.offsetWidth / element.clientWidth : 1
+      setBox((current) => current.scrollable === scrollable && current.widthRatio === widthRatio ? current : { scrollable, widthRatio })
+    }
+    const observer = new ResizeObserver(check)
+    observer.observe(element)
+    if (element.firstElementChild) observer.observe(element.firstElementChild)
+    check()
+    return () => observer.disconnect()
+  }, [])
+  // Only the Name column gets a width; the Email column takes the rest (setting both would make the browser scale them).
+  const nameWidth = { width: `${(100 - EMAIL_COLUMN_PERCENT) * box.widthRatio}%` }
+  return (
+    <div ref={ref} className="max-h-[22.5rem] overflow-y-auto overscroll-contain"
+      {...(box.scrollable ? { tabIndex: 0, role: 'region', 'aria-label': label } : {})}>
+      <table aria-label={label} className="w-full table-fixed text-left text-sm">
+        <colgroup><col style={nameWidth} /><col /></colgroup>
+        <thead className="sr-only"><tr><th scope="col">{content.name}</th><th scope="col">{content.email}</th></tr></thead>
+        <tbody>{children}</tbody>
+      </table>
+    </div>
   )
 }
 
@@ -54,7 +98,7 @@ export function OrganizationTable({ rows, filtering, filterKey }: { rows: Divisi
     <div className="mt-3 overflow-x-auto rounded-xl border border-beige bg-white">
       <table aria-label={content.title} className="w-full min-w-[600px] table-fixed text-left text-sm">
         {/* Fixed column widths, so expanding, searching, filtering or sorting never shifts the columns. */}
-        <colgroup><col /><col className="w-[40%]" /></colgroup>
+        <colgroup><col /><col style={{ width: `${EMAIL_COLUMN_PERCENT}%` }} /></colgroup>
         <thead className={tableStyles.head}><tr>
           <th scope="col" className="p-4">{content.name}</th>
           <th scope="col" className="p-4">{content.email}</th>
@@ -91,13 +135,13 @@ export function OrganizationTable({ rows, filtering, filterKey }: { rows: Divisi
                 {division.departments.map(({ department, staff, autoOpen }) => {
                   const departmentKey = `department:${department.id}`
                   const open = isOpen(departmentKey, autoOpen)
-                  const staffIds = staff.length ? staff.map((person) => `org-staff-${department.id}-${person.id}`) : [`org-staff-${department.id}-none`]
+                  const staffId = `org-staff-${department.id}`
                   return (
                     <Fragment key={departmentKey}>
                       <tr className="border-t border-beige hover:bg-beige/20">
                         <th scope="row" className="py-3 pr-4 pl-12 font-medium">
                           <span className="flex border-l border-beige pl-5">
-                            <button type="button" aria-expanded={open} aria-controls={staffIds.join(' ')}
+                            <button type="button" aria-expanded={open} aria-controls={staffId}
                               className="group flex min-w-0 items-start gap-3 rounded text-left" onClick={() => toggle(departmentKey)}>
                               <Chevron open={open} />
                               <DepartmentBadge department={department} />
@@ -109,29 +153,38 @@ export function OrganizationTable({ rows, filtering, filterKey }: { rows: Divisi
                         <EmailCell email={department.email} name={department.name} />
                       </tr>
                       {staff.length === 0 ? (
-                        <tr id={staffIds[0]} hidden={!open} className="border-t border-beige bg-offwhite">
+                        <tr id={staffId} hidden={!open} className="border-t border-beige bg-offwhite">
                           <td colSpan={2} className="py-3 pr-4 pl-24 text-text-gray"><span className="block border-l border-beige pl-5">{content.noStaff}</span></td>
                         </tr>
-                      ) : staff.map((person, index) => (
-                        <tr key={person.id} id={staffIds[index]} hidden={!open} className="border-t border-beige bg-offwhite">
-                          <th scope="row" className="py-3 pr-4 pl-24 font-normal">
-                            <span className="flex items-center gap-3 border-l border-beige pl-5">
-                              <UserAvatar user={person} />
-                              <span className="min-w-0">
-                                <span className="block font-medium break-words text-maroon">{person.name}</span>
-                                {/* People without a role show nothing under their name. */}
-                                {person.permissions.length > 0 && (
-                                  <span className="mt-0.5 block text-xs text-text-gray">
-                                    <span className="sr-only">{content.rolesLabel}: </span>
-                                    {person.permissions.map((permission) => usersEn.permissions[permission]).join(', ')}
-                                  </span>
-                                )}
-                              </span>
-                            </span>
-                          </th>
-                          <EmailCell email={person.email} name={person.name} />
+                      ) : (
+                        // One row holding the staff as a table of their own (same columns, so they line up), which can scroll.
+                        <tr id={staffId} hidden={!open} className="border-t border-beige bg-offwhite">
+                          <td colSpan={2} className="p-0">
+                            <StaffTable label={content.staffListLabel(department.name)}>
+                                  {staff.map((person) => (
+                                    <tr key={person.id} className="border-t border-beige first:border-t-0">
+                                      <th scope="row" className="py-3 pr-4 pl-24 font-normal">
+                                        <span className="flex items-center gap-3 border-l border-beige pl-5">
+                                          <UserAvatar user={person} />
+                                          <span className="min-w-0">
+                                            <span className="block font-medium break-words text-maroon">{person.name}</span>
+                                            {/* People without a role show nothing under their name. */}
+                                            {person.permissions.length > 0 && (
+                                              <span className="mt-0.5 block text-xs text-text-gray">
+                                                <span className="sr-only">{content.rolesLabel}: </span>
+                                                {person.permissions.map((permission) => usersEn.permissions[permission]).join(', ')}
+                                              </span>
+                                            )}
+                                          </span>
+                                        </span>
+                                      </th>
+                                      <EmailCell email={person.email} name={person.name} />
+                                    </tr>
+                                  ))}
+                            </StaffTable>
+                          </td>
                         </tr>
-                      ))}
+                      )}
                     </Fragment>
                   )
                 })}
