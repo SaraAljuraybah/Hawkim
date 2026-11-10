@@ -8,6 +8,7 @@ import type {
   TimelineEventType,
 } from '../data/mock/types'
 import type { SopDeleteErrorCode } from '../lib/mySops'
+import type { OrganizationSort } from '../lib/organization'
 import type { SopStatus } from '../types/status'
 
 /*
@@ -1809,4 +1810,54 @@ export interface PaginationContent {
 /** DEVELOPMENT ONLY: the sample SOPs for trying pagination. `{n}` is the sample number. */
 export interface DevSamplesContent {
   title: string
+}
+
+/* ---------- Organizational Structure (every signed-in user; "Staff" wording on this page only) ---------- */
+
+export interface OrganizationContent {
+  pageTitle: string
+  title: string
+  /** The short description under the heading. */
+  subtitle: string
+  retry: string
+  loading: string
+  error: string
+  /** No divisions or departments at all. */
+  empty: string
+  /** Nothing matches the search and filters. */
+  noMatches: string
+  name: string
+  email: string
+  /** Read by screen readers instead of the "—" shown when there is no email. */
+  noEmail: string
+  /** "Departments (n)" under a division's name. */
+  departmentCount: (count: number) => string
+  /** "Staff (n)" under a department's name. */
+  staffCount: (count: number) => string
+  noStaff: string
+  noDepartments: string
+  /** The group of departments without a division. */
+  unassigned: string
+  /** Screen-reader prefix of a person's roles. */
+  rolesLabel: string
+  /** The copy button's accessible name, e.g. "Copy email for Dana Fahad". */
+  copyEmail: (name: string) => string
+  copied: string
+  copyFailed: string
+  search: string
+  searchPlaceholder: string
+  filter: string
+  /** The Filter button's accessible name while filters are on. */
+  filterActive: (count: number) => string
+  filtersTitle: string
+  clearAll: string
+  divisionFilter: string
+  divisionFilterEmpty: string
+  departmentFilter: string
+  departmentFilterEmpty: string
+  roleFilter: string
+  /** The Role filter's chip for staff without a role. */
+  others: string
+  sort: string
+  sortOptions: Record<OrganizationSort, string>
 }
