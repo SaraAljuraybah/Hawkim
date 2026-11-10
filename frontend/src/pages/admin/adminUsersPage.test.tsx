@@ -97,7 +97,7 @@ describe('Users list', () => {
     // No description under the title.
     expect(html).not.toContain('Manage who can use Hawkim and what they can do.')
     expect(html).not.toContain('<select')
-    // The Divisions & Departments page's dropdown: visible label, placeholder, and a closed list of checkboxes.
+    // The Divisions and Departments page's dropdown: visible label, placeholder, and a closed list of checkboxes.
     const divisions = dropdown(html, 'division')
     expect(html).toContain('<span aria-hidden="true" class="mb-1.5 block text-sm font-medium text-maroon">Filter by Division</span>')
     expect(divisions).toMatch(/^<button type="button" aria-label="Filter by Division" aria-expanded="false"/)

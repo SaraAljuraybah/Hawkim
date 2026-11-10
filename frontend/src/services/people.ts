@@ -14,7 +14,7 @@ import { supabase } from './supabase'
 
 /** The columns read for a person, with their roles. */
 const PROFILE_COLUMNS = 'id, full_name, email, initials, department_id, phone, position, deleted_at, user_roles(role)'
-// The division comes from departments.division_id (managed in Divisions & Departments) with its name,
+// The division comes from departments.division_id (managed in Divisions and Departments) with its name,
 // through the departments_division_id_fkey relationship; every active user can read both.
 const DEPARTMENT_COLUMNS = 'id, name, initials, description, is_quality, removed_at, requires_compliance_check, division_id, division:divisions(name)'
 

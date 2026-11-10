@@ -89,7 +89,7 @@ describe('the SOP Directory in the admin portal', () => {
     expect(html).toContain('>2 SOPs found<')
   })
 
-  it('uses the Divisions & Departments checkbox dropdowns, from the real data without removed departments', () => {
+  it('uses the Divisions and Departments checkbox dropdowns, from the real data without removed departments', () => {
     const html = directory()
     const divisions = dropdown(html, 'divisionFilter')
     expect(divisions).toMatch(/^<button type="button" aria-label="Filter by Division" aria-expanded="false"/)

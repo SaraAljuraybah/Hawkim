@@ -24,7 +24,7 @@ export interface DepartmentDetailsLocationState {
 /**
  * A department's page in the admin portal ("/admin/departments/:id", PBI 13): its description and
  * division, and its users, with Edit. The division comes from the admin management snapshot
- * (get_divisions_departments), the same source as the Divisions & Departments list, where a
+ * (get_divisions_departments), the same source as the Divisions and Departments list, where a
  * department is also deleted. Removed and unknown departments show Not Found.
  */
 export function DepartmentDetailsPage() {

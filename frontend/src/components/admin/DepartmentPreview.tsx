@@ -4,7 +4,7 @@ import type { ManagedDepartment } from '../../services/organizationAdmin'
 import { EmailDetail } from './DivisionDialogs'
 
 /**
- * A department's details on Divisions & Departments, in the same dialog as DivisionPreview:
+ * A department's details on Divisions and Departments, in the same dialog as DivisionPreview:
  * the name as the title, then Division, Description and Email, and Close. Read-only (no Edit).
  * `divisionName` is undefined for a legacy department without a division.
  */

@@ -67,7 +67,7 @@ describe('the initials stored for the database', () => {
   })
 })
 
-describe('the agreed examples (Divisions & Departments dialogs)', () => {
+describe('the agreed examples (Divisions and Departments dialogs)', () => {
   it.each([
     ['Clinical Operations', 'CO'],
     ['Research & Development', 'RD'],

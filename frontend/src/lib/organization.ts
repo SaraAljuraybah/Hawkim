@@ -14,7 +14,7 @@ export const ROLE_FILTERS: RoleFilter[] = ['author', 'reviewer', 'approver', OTH
 
 const FILTER_ROLES: Permission[] = ['author', 'reviewer', 'approver']
 
-/** The Divisions & Departments sort options, without the SOP ones. Sorting orders divisions only. */
+/** The Divisions and Departments sort options, without the SOP ones. Sorting orders divisions only. */
 export const ORGANIZATION_SORTS = ['default', 'name-asc', 'name-desc', 'departments-desc', 'departments-asc'] as const
 export type OrganizationSort = (typeof ORGANIZATION_SORTS)[number]
 

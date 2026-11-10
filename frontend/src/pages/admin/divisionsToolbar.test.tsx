@@ -25,11 +25,11 @@ const table = (props: Partial<Parameters<typeof HierarchyTable>[0]> = {}) => ren
   <HierarchyTable snapshot={snapshot} onEdit={vi.fn()} onPreview={vi.fn()} onViewDepartment={vi.fn()} onAddDepartment={vi.fn()} onEditDepartment={vi.fn()} onDeleteDivision={vi.fn()} onDeleteDepartment={vi.fn()} {...props} />
 </MemoryRouter>)
 
-describe('the Divisions & Departments page', () => {
+describe('the Divisions and Departments page', () => {
   it('has only the heading (no subtitle) and Add Division', () => {
     management.value = { data: snapshot, refresh: vi.fn() }
     const html = page()
-    expect(html.match(/<h1[^>]*>([^<]*)<\/h1>/)![1]).toBe('Divisions &amp; Departments')
+    expect(html.match(/<h1[^>]*>([^<]*)<\/h1>/)![1]).toBe('Divisions and Departments')
     expect(html).not.toContain('Manage divisions and their departments.')
     expect(html).toContain('Add Division')
   })

@@ -111,6 +111,10 @@ function deleteBlockedReason(department: ManagedDepartment): string | undefined 
 /** Number columns: centred under their headings, the same in division and department rows. */
 const numberCell = 'px-3 py-4 text-center tabular-nums'
 
+/** An action column: its heading and its cells, centred so each button sits under its heading. */
+const actionHead = 'px-2 py-4 text-center'
+const actionCell = 'px-2 py-3 text-center [&>*]:mx-auto'
+
 export function HierarchyTable({ snapshot, query = '', divisions = [], sort = 'default', onPreview, onViewDepartment, onEdit, onDeleteDivision, onAddDepartment, onEditDepartment, onDeleteDepartment }: {
   snapshot: ManagementSnapshot; query?: string; divisions?: string[]; sort?: DivisionSort; onPreview: (division: DivisionRecord) => void;
   onViewDepartment: (department: ManagedDepartment) => void;
@@ -136,26 +140,28 @@ export function HierarchyTable({ snapshot, query = '', divisions = [], sort = 'd
       <th scope="row" className="py-3 pr-4 pl-12 font-medium"><span className="flex items-center gap-3 border-l border-beige pl-5"><DepartmentBadge department={row} />
         <span className="min-w-0 break-words">{row.name}</span></span></th>
       <td className={numberCell}>{row.employees}</td><td className={numberCell}>{row.sops}</td><td />
-      <td className="p-3"><div className="flex justify-end gap-2">
-        {/* Departments have no Add: an empty slot keeps Preview, Edit and Delete under the division buttons. */}
-        <span aria-hidden="true" className="size-9 shrink-0" />
-        <IconButton label={text.previewName.replace('{name}', row.name)} icon={Eye} onClick={() => onViewDepartment(row)} />
-        <IconButton
-  label={`${text.edit} ${row.name}`}
-  icon={Pencil}
-  disabledReason={row.deletion_job_id ? text.cleanupPending : undefined}
-  onClick={() => onEditDepartment(row)}
-/>
-        <IconButton label={`${row.deletion_job_id ? text.retryCleanup : text.delete} ${row.name}`} icon={Trash2} danger disabledReason={deleteBlockedReason(row)} onClick={() => onDeleteDepartment(row)} /></div></td>
+      {/* Departments have no Add: that cell stays empty, so Preview, Edit and Delete sit under their headings. */}
+      <td className={actionCell} />
+      <td className={actionCell}><IconButton label={text.previewName.replace('{name}', row.name)} icon={Eye} onClick={() => onViewDepartment(row)} /></td>
+      <td className={actionCell}><IconButton
+        label={`${text.edit} ${row.name}`}
+        icon={Pencil}
+        disabledReason={row.deletion_job_id ? text.cleanupPending : undefined}
+        onClick={() => onEditDepartment(row)}
+      /></td>
+      <td className={actionCell}><IconButton label={`${row.deletion_job_id ? text.retryCleanup : text.delete} ${row.name}`} icon={Trash2} danger disabledReason={deleteBlockedReason(row)} onClick={() => onDeleteDepartment(row)} /></td>
     </tr>
   }
   return <div className="mt-3 overflow-x-auto rounded-xl border border-beige bg-white">
     <table aria-label={text.title} className="w-full min-w-[600px] table-fixed text-left text-sm">
     {/* Fixed column widths, so expanding, searching, filtering or sorting never shifts the columns. Name, Staff
         and SOPs sit on the left; the empty column after them leaves room for more columns; the actions stay right. */}
-    <colgroup><col className="w-[40%]" /><col className="w-28" /><col className="w-28" /><col /><col className="w-52" /></colgroup><thead className={tableStyles.head}><tr>
+    <colgroup><col className="w-[40%]" /><col className="w-28" /><col className="w-28" /><col /><col className="w-24" /><col className="w-24" /><col className="w-24" /><col className="w-24" /></colgroup><thead className={tableStyles.head}><tr>
       {/* "Name" lines up with the division names, after the expand arrow (1rem padding + 1.5rem arrow + 0.75rem gap). */}
-      <th scope="col" className="py-4 pr-4 pl-[3.25rem]">{text.name}</th><th scope="col" className="px-3 py-4 text-center">{text.staff}</th><th scope="col" className="px-3 py-4 text-center">{text.sops}</th><th aria-hidden="true" /><th scope="col"><span className="sr-only">{text.edit}</span></th>
+      <th scope="col" className="py-4 pr-4 pl-[3.25rem]">{text.name}</th><th scope="col" className="px-3 py-4 text-center">{text.staff}</th><th scope="col" className="px-3 py-4 text-center">{text.sops}</th><th aria-hidden="true" />
+      {/* One column per action, each heading centred above its button. */}
+      <th scope="col" className={actionHead}>{text.actionColumns.add}</th><th scope="col" className={actionHead}>{text.actionColumns.preview}</th>
+      <th scope="col" className={actionHead}>{text.actionColumns.edit}</th><th scope="col" className={actionHead}>{text.actionColumns.delete}</th>
     </tr></thead>
       {/* Each division is its own row group, with its departments in the next one (the toggle's aria-controls target), so they sit directly beneath it. */}
       {rows.map(({ division, children, departmentCount, employees, sops }) => {
@@ -170,20 +176,19 @@ export function HierarchyTable({ snapshot, query = '', divisions = [], sort = 'd
                 <span className="mt-1 block text-xs font-normal text-text-gray">{text.departments} ({departmentCount})</span></span>
             </button></th>
           <td className={numberCell}>{employees}</td><td className={numberCell}>{sops}</td><td />
-          <td className="p-3"><div className="flex justify-end gap-2">
-            {/* Adds a department to this division, collapsed or expanded. */}
-            <IconButton label={text.addDepartment} icon={Plus} onClick={() => onAddDepartment(division.id)} />
-            <IconButton label={text.previewName.replace('{name}', division.name)} icon={Eye} onClick={() => onPreview(division)} />
-            <IconButton label={`${text.edit} ${division.name}`} icon={Pencil} onClick={() => onEdit(division)} />
-            <IconButton label={`${text.delete} ${division.name}`} icon={Trash2} danger disabledReason={departmentCount ? text.divisionBlocked : undefined} onClick={() => onDeleteDivision(division)} /></div></td>
+          {/* Adds a department to this division, collapsed or expanded. */}
+          <td className={actionCell}><IconButton label={text.addDepartment} icon={Plus} onClick={() => onAddDepartment(division.id)} /></td>
+          <td className={actionCell}><IconButton label={text.previewName.replace('{name}', division.name)} icon={Eye} onClick={() => onPreview(division)} /></td>
+          <td className={actionCell}><IconButton label={`${text.edit} ${division.name}`} icon={Pencil} onClick={() => onEdit(division)} /></td>
+          <td className={actionCell}><IconButton label={`${text.delete} ${division.name}`} icon={Trash2} danger disabledReason={departmentCount ? text.divisionBlocked : undefined} onClick={() => onDeleteDivision(division)} /></td>
         </tr></tbody><tbody id={`children-${division.id}`} hidden={!isExpanded}>
-        {isExpanded && (children.length ? children.map(child) : <tr className="border-t border-beige"><td colSpan={5} className="py-4 pl-16 text-text-gray">{text.emptyDepartments}</td></tr>)}
+        {isExpanded && (children.length ? children.map(child) : <tr className="border-t border-beige"><td colSpan={8} className="py-4 pl-16 text-text-gray">{text.emptyDepartments}</td></tr>)}
         </tbody></Fragment>
       })}
       <tbody>
-      {unassigned.length > 0 && <tr><th colSpan={5} className="bg-beige/20 p-4 text-maroon">{text.unassigned}</th></tr>}
+      {unassigned.length > 0 && <tr><th colSpan={8} className="bg-beige/20 p-4 text-maroon">{text.unassigned}</th></tr>}
       {unassigned.map(child)}
-      {!rows.length && !unassigned.length && <tr><td colSpan={5} className="p-10 text-center text-text-gray">{divisions.length ? text.emptyFiltered : text.empty}</td></tr>}
+      {!rows.length && !unassigned.length && <tr><td colSpan={8} className="p-10 text-center text-text-gray">{divisions.length ? text.emptyFiltered : text.empty}</td></tr>}
     </tbody></table>
   </div>
 }

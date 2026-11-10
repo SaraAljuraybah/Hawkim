@@ -229,7 +229,7 @@ export const adminEn: AdminContent = {
       subtitle: 'Change the division, name or description of {name}.',
       submit: 'Save Changes',
     },
-    backToList: { label: 'Back to Divisions & Departments', href: '/admin/departments' },
+    backToList: { label: 'Back to Divisions and Departments', href: '/admin/departments' },
     backToDepartment: 'Back to {name}',
     name: { label: 'Name' },
     description: { label: 'Description', hint: 'One line about what the department does (up to 200 characters).', counter: '{count} / {max}' },
@@ -480,7 +480,7 @@ export const adminEn: AdminContent = {
   },
 
   departmentDetails: {
-    back: { label: 'Back to Divisions & Departments', href: '/admin/departments' },
+    back: { label: 'Back to Divisions and Departments', href: '/admin/departments' },
     added: 'Department added.',
     updated: 'Department updated.',
     titleWithCount: '{title} ({count})',

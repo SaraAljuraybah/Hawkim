@@ -190,7 +190,7 @@ function SopDirectory({ activeDepartment, admin = false }: { activeDepartment: D
           />
           {admin && (
             <>
-              {/* As on Divisions & Departments: a visible label; the control's accessible name is the same text. */}
+              {/* As on Divisions and Departments: a visible label; the control's accessible name is the same text. */}
               <div className="min-w-0">
                 <span aria-hidden="true" className="mb-1.5 block text-sm font-medium text-maroon">{filterText.filterDivisions}</span>
                 <MultiSelectField name="divisionFilter" label={filterText.filterDivisions} placeholder={filterText.filterPlaceholder} emptyText={filterText.filterEmpty}

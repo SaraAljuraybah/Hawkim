@@ -26,7 +26,16 @@ type Element = ReactElement<Record<string, unknown>>
 const isAdd = (node: Element) => node.props.label === 'Add Department'
 const flatten = (node: ReactNode): Element[] => Array.isArray(node) ? node.flatMap(flatten) : isValidElement<Record<string, unknown>>(node) ? [node,...flatten(node.props.children as ReactNode)] : []
 /** The action cells, one per rendered division or department row, in table order. */
-const actionCells = (nodes: Element[]) => nodes.filter((node) => node.type === 'td' && node.props.className === 'p-3')
+// Each row has four action cells (Add, Preview, Edit, Delete; a department's Add cell is empty): one group per row.
+const ACTION_CELL = 'px-2 py-3 text-center [&>*]:mx-auto'
+const actionCells = (nodes: Element[]): Element[] => {
+  const cells = nodes.filter((node) => node.type === 'td' && node.props.className === ACTION_CELL)
+  const rows: Element[] = []
+  for (let index = 0; index < cells.length; index += 4) {
+    rows.push({ type: 'td', key: null, props: { children: cells.slice(index, index + 4).map((cell) => cell.props.children) } } as Element)
+  }
+  return rows
+}
 /** A cell's icon buttons, in order. */
 const actions = (cell: Element) => flatten(cell.props.children as ReactNode).filter((node) => node.type === IconButton)
 const toggles = (nodes: Element[]) => nodes.filter((node) => node.type === 'button' && 'aria-expanded' in node.props)

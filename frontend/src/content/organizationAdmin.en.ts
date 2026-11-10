@@ -1,5 +1,5 @@
 export const organizationAdminEn = {
-  title: 'Divisions & Departments',
+  title: 'Divisions and Departments',
   search: 'Search', searchPlaceholder: 'Search divisions or departments...',
   filterDivisions: 'Filter by Division', filterPlaceholder: 'All divisions', filterEmpty: 'No divisions yet.',
   filterDepartments: 'Filter by Department', filterDepartmentsPlaceholder: 'All departments', filterDepartmentsEmpty: 'No departments yet.',
@@ -13,7 +13,9 @@ export const organizationAdminEn = {
   /** Headings of the Sort menu's groups. */
   sortGroups: { divisions: 'Divisions', departments: 'Departments' },
   addDivision: 'Add Division', addDepartment: 'Add Department', departments: 'Departments',
-  name: 'Name', users: 'Users', staff: 'Staff', sops: 'SOPs', position: 'Position', email: 'Email',
+  name: 'Name', users: 'Users', staff: 'Staff', sops: 'SOPs',
+  /** Headings of the four action columns, above each row's buttons. */
+  actionColumns: { add: 'Add', preview: 'Preview', edit: 'Edit', delete: 'Delete' }, position: 'Position', email: 'Email',
   description: 'Description', division: 'Division', unassigned: 'Unassigned departments',
   selectDivision: 'Select a division', noDivision: 'No division (existing assignment)',
   divisionNone: 'No division', saving: 'Saving…',
