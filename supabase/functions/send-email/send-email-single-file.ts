@@ -37,7 +37,7 @@ function contentFor(type: string, email: string): EmailContent {
       return {
         subject: "You’re invited to Hawkim",
         heading: "You’re invited to Hawkim",
-        intro: `A Hawkim admin has created an account for <strong>${who}</strong>. Accept this invitation to access the platform and set your password.`,
+        intro: `A Hawkim Admin has created an account for <strong>${who}</strong>. Accept this invitation to access the platform and set your password.`,
         button: "Accept invitation",
         note: "This link expires in 24 hours and can be used once. If you weren’t expecting this invitation, you can ignore this email.",
       }
@@ -63,14 +63,14 @@ function contentFor(type: string, email: string): EmailContent {
         heading: "Confirm your email change",
         intro: `Confirm the change of the email address for your Hawkim account. This message was sent to <strong>${who}</strong>.`,
         button: "Confirm email change",
-        note: "This link expires in 24 hours and can be used once. If you didn’t ask to change your email address, contact your administrator.",
+        note: "This link expires in 24 hours and can be used once. If you didn’t ask to change your email address, contact your Admin.",
       }
     case "reauthentication":
       return {
         subject: "Your Hawkim verification code",
         heading: "Confirm it’s you",
         intro: `Enter this code in Hawkim to confirm the action for <strong>${who}</strong>.`,
-        note: "The code expires in 24 hours. If you didn’t ask for it, contact your administrator.",
+        note: "The code expires in 24 hours. If you didn’t ask for it, contact your Admin.",
       }
     default:
       return {

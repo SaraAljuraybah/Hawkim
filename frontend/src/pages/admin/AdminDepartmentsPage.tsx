@@ -15,14 +15,18 @@ import { DivisionForm, DivisionPreview } from '../../components/admin/DivisionDi
 import { DeleteDepartmentDialog } from '../../components/admin/DeleteDepartmentDialog'
 import { DepartmentPreview } from '../../components/admin/DepartmentPreview'
 import { DepartmentForm } from '../../components/admin/DepartmentDialog'
+import { OrganizationBanner, OrganizationNameForm } from '../../components/admin/OrganizationBanner'
 import { adminEn } from '../../content/admin.en'
 import { filtersEn } from '../../content/filters.en'
 import { organizationAdminEn as text } from '../../content/organizationAdmin.en'
 import { useDocumentTitle } from '../../hooks/useDocumentTitle'
 import { useOrganizationManagement } from '../../hooks/useOrganizationManagement'
+import { useOrganizationName } from '../../hooks/useOrganizationName'
+import { useSuperAdmin } from '../../hooks/useSuperAdmin'
 import { departmentsKept, filterSelection } from '../../lib/organization'
 import { departmentDeleteBlocker, DIVISION_SORTS, hierarchyRows, managementFilterData, sortGroup, unassignedRows, type DivisionSort } from '../../lib/organizationAdmin'
 import { deleteDivision, type DivisionRecord, type ManagedDepartment, type ManagementSnapshot } from '../../services/organizationAdmin'
+import { useCurrentUser } from '../../state/sessionContext'
 
 export interface AdminDepartmentsLocationState { removed?: string }
 
@@ -40,6 +44,13 @@ export function AdminDepartmentsPage() {
   const [viewing, setViewing] = useState<ManagedDepartment>()
   // Add Department (in a division) or Edit Department, in a dialog.
   const [departmentForm, setDepartmentForm] = useState<{ department?: ManagedDepartment; divisionId?: string }>()
+  // The organization's name above the title. Shown once loaded (hidden if it can't be read); only the
+  // Super Admin gets the pencil, and the server checks that again.
+  const organization = useOrganizationName()
+  const superAdmin = useSuperAdmin()
+  const viewer = useCurrentUser()
+  const canEditName = superAdmin.status === 'ready' && superAdmin.superAdminId === viewer.id
+  const [editingName, setEditingName] = useState(false)
   const notice = (useLocation().state as AdminDepartmentsLocationState | null)?.removed
   const [feedback, setFeedback] = useState(notice ?? '')
   const [actionError, setActionError] = useState('')
@@ -54,10 +65,13 @@ export function AdminDepartmentsPage() {
   const setDivisions = (ids: string[]) => { setDivisionFilter(ids); setDepartmentFilter(departmentsKept(filterData, ids, selectedDepartments)) }
   const clearFilter = () => { setDivisionFilter([]); setDepartmentFilter([]) }
   const departmentLabel = (id: string) => data?.departments.find((row) => row.id === id)?.name ?? id
-  const close = () => { setEditing(undefined); setPreview(undefined); setDeleting(undefined); setDepartment(undefined); setViewing(undefined); setDepartmentForm(undefined); trigger.current?.focus() }
+  const close = () => { setEditing(undefined); setPreview(undefined); setDeleting(undefined); setDepartment(undefined); setViewing(undefined); setDepartmentForm(undefined); setEditingName(false); trigger.current?.focus() }
   return <>
-    <div className="flex flex-wrap items-center justify-between gap-4"><h1 className="text-2xl tracking-tight sm:text-3xl">{text.title}</h1>
-      <Button onClick={() => open(() => setEditing(null))}><Plus className="size-4" aria-hidden="true" />{text.addDivision}</Button></div>
+    {organization.status === 'ready' && <OrganizationBanner name={organization.name} canEdit={canEditName} onEdit={() => open(() => setEditingName(true))} />}
+    {/* The title and its description, with Add Division on the right, as on the Admins page. */}
+    <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"><div><h1 className="text-2xl tracking-tight sm:text-3xl">{text.title}</h1>
+      <p className="mt-2 max-w-2xl text-text-gray">{text.subtitle}</p></div>
+      <Button className="shrink-0 self-start sm:self-auto" onClick={() => open(() => setEditing(null))}><Plus className="size-4" aria-hidden="true" />{text.addDivision}</Button></div>
     {/* Search | Filter | Sort, the same row as on every list page; from lg the Filter panel lines up with its right edge. */}
     <div className={`mt-6 ${LIST_TOOLBAR}`}>
       <TextField className="min-w-0" name="organizationSearch" type="search" label={text.search} placeholder={text.searchPlaceholder} value={query} onChange={(event) => setQuery(event.target.value)} />
@@ -99,6 +113,8 @@ export function AdminDepartmentsPage() {
     {departmentForm && data && <DepartmentForm snapshot={data} {...departmentForm} onClose={() => { close(); void refresh() }}
       onSaved={(notice) => setFeedback(adminEn.departmentDetails[notice])} />}
     {viewing && <DepartmentPreview department={viewing} divisionName={data?.divisions.find((item) => item.id === viewing.division_id)?.name} onClose={close} />}
+    {editingName && <OrganizationNameForm name={organization.name} onClose={close}
+      onSaved={(name) => { organization.set(name); setFeedback(text.organizationName.saved) }} />}
     {department && <DeleteDepartmentDialog department={department} onClose={close} onDeleted={() => { setFeedback(text.removed); void refresh() }} />}
   </>
 }

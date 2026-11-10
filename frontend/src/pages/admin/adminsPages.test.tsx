@@ -61,7 +61,7 @@ describe('the Admins list', () => {
     const html = at('/admin/admins')
     expect(html.match(/<h1[^>]*>/g)).toHaveLength(1)
     expect(html).toContain('>Admins</h1>')
-    expect(html).toContain(adminsEn.list.description)
+    expect(html).toContain('>View and manage Hawkim&#x27;s Admins.</p>')
     expect(html).toMatch(/<a[^>]*href="\/admin\/admins\/new"[^>]*>.*Add Admin<\/a>/)
     expect(html).toContain('placeholder="Search by admin name or email"')
     // As wide as every list page's search.
@@ -171,6 +171,30 @@ describe("an administrator's page", () => {
     expect(html).not.toContain('>Division<')
   })
 
+  it('heads the card "Details", without "This is you." on your own page', () => {
+    fixture.viewer = 'nouf'
+    const html = at('/admin/admins/nouf')
+    expect(html).toMatch(/<h2 id="admin-details-title"[^>]*>Details<\/h2>/)
+    expect(html).not.toContain('Administrator Details')
+    expect(html).not.toContain('This is you.')
+    expect(html).not.toContain('lucide-info')
+  })
+
+  it('has a copy button beside the email, as on Divisions and Departments', () => {
+    const html = at('/admin/admins/nouf')
+    const email = html.slice(html.indexOf('>Email</dt>'), html.indexOf('>Phone Number</dt>'))
+    expect(email).toContain('>nouf@example.test</span>')
+    expect(email).toContain('aria-label="Copy Nouf Saleh’s email"')
+    expect(email).toContain('lucide-copy')
+  })
+
+  it('says "Admin", never "administrator", on the Admins pages', () => {
+    for (const path of ['/admin/admins', '/admin/admins/new', '/admin/admins/nouf', '/admin/admins/nouf/edit']) {
+      expect(at(path).toLowerCase()).not.toContain('administrator')
+    }
+    expect(JSON.stringify(adminsEn).toLowerCase()).not.toContain('administrator')
+  })
+
   it('is Not Found for staff and unknown accounts', () => {
     expect(at('/admin/admins/sara')).not.toContain('Sara Author')
     expect(at('/admin/admins/nobody')).not.toContain('admin-details-title')
@@ -206,7 +230,11 @@ describe('Add Admin', () => {
     expect([...html.matchAll(/<input[^>]*name="([^"]+)"/g)].map((match) => match[1])).toEqual(['name', 'email', 'phone'])
     expect(html).not.toContain('type="checkbox"')
     expect(html).not.toContain('<select')
-    expect(html).toContain(adminsEn.add.roleNote)
+    // One text under the title, no separate note, and no "administrator".
+    expect(html).toContain('<p class="mt-2 max-w-2xl text-text-gray">Add someone who should manage your organization in Hawkim. The Super Admin permission can only be transferred by the current Super Admin.</p>')
+    expect(html).not.toContain('set their password')
+    expect(html).not.toContain('lucide-info')
+    expect(html.toLowerCase()).not.toContain('administrator')
     expect(html.match(/>\*</g)).toHaveLength(3)
     expect(html).toMatch(/<a[^>]*href="\/admin\/admins"[^>]*>Cancel<\/a>/)
   })
@@ -221,8 +249,8 @@ describe('Make Super Admin', () => {
     expect(text.consequences.map((line) => line.replace('{name}', 'Nouf Saleh'))).toEqual([
       'Nouf Saleh will become the new Super Admin.',
       'Your role will change to a regular Admin.',
-      'You will lose permission to delete administrators and transfer the Super Admin role.',
-      'You will retain your regular administrator permissions.',
+      'You will lose permission to delete Admins and transfer the Super Admin role.',
+      'You will retain your regular Admin permissions.',
     ])
     expect(text.effect).toBe('This change will take effect immediately.')
     expect([text.cancel, text.confirm]).toEqual(['Cancel', 'Confirm Transfer'])

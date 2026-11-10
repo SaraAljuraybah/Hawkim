@@ -16,6 +16,7 @@ OPENROUTER_API_KEY. The secret key gives full database access: keep it on this m
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import shutil
@@ -76,13 +77,13 @@ class Supabase:
         return True
 
     def upload_object(self, bucket: str, path: str, data: bytes, content_type: str = "application/octet-stream",
-                      attempts: int = 3):
-        """Uploads with up to `attempts` tries (a slow connection can time out) and a long time limit."""
+                      attempts: int = 3, timeout: tuple = (30, 900)):
+        """Uploads with up to `attempts` tries (a slow connection can time out)."""
         headers = {**self.headers, "Content-Type": content_type, "x-upsert": "true"}
         for attempt in range(1, attempts + 1):
             try:
                 r = requests.post(f"{self.url}/storage/v1/object/{bucket}/{path}", data=data, headers=headers,
-                                  timeout=(30, 900))
+                                  timeout=timeout)
             except requests.RequestException:
                 if attempt == attempts:
                     raise
@@ -100,6 +101,49 @@ GUIDELINE_INDEX_BUCKET = "guideline-indexes"
 INDEX_CACHE = HERE / "index"      # a version's index is kept in index/versions/<id>/ after the first use
 
 
+# Large index files (embeddings.npy is about 6 MB) are stored in pieces of this size: an unstable connection
+# that drops a long upload still manages short ones, and each piece is retried on its own.
+INDEX_PART_BYTES = 512 * 1024
+
+
+def upload_index_file(sb: "Supabase", index_path: str, file: Path):
+    """Uploads one index file; a large one as '<name>.part0000', … then '<name>.parts' (the list, last)."""
+    data = file.read_bytes()
+    if len(data) <= INDEX_PART_BYTES:
+        sb.upload_object(GUIDELINE_INDEX_BUCKET, f"{index_path}/{file.name}", data)
+        return
+    parts = [data[start:start + INDEX_PART_BYTES] for start in range(0, len(data), INDEX_PART_BYTES)]
+    for number, part in enumerate(parts):
+        sb.upload_object(GUIDELINE_INDEX_BUCKET, f"{index_path}/{file.name}.part{number:04d}", part,
+                         attempts=5, timeout=(30, 120))
+        print(f"[worker] saved {file.name}: part {number + 1} of {len(parts)}")
+    manifest = {"parts": len(parts), "size": len(data), "sha256": hashlib.sha256(data).hexdigest()}
+    sb.upload_object(GUIDELINE_INDEX_BUCKET, f"{index_path}/{file.name}.parts", json.dumps(manifest).encode(),
+                     content_type="application/json", attempts=5, timeout=(30, 120))
+
+
+def download_index_file(sb: "Supabase", index_path: str, name: str, dest: Path, optional: bool = False) -> bool:
+    """Downloads one index file, joining its pieces when it was uploaded in pieces (and checking it)."""
+    listing = dest.with_name(dest.name + ".parts")
+    if sb.download_object(GUIDELINE_INDEX_BUCKET, f"{index_path}/{name}.parts", listing, optional=True):
+        manifest = json.loads(listing.read_bytes())
+        listing.unlink()
+        chunks = []
+        for number in range(int(manifest["parts"])):
+            piece = dest.with_name(f"{dest.name}.part{number:04d}")
+            sb.download_object(GUIDELINE_INDEX_BUCKET, f"{index_path}/{name}.part{number:04d}", piece,
+                               what=f"the GVP index ({name}, part {number + 1})")
+            chunks.append(piece.read_bytes())
+            piece.unlink()
+        data = b"".join(chunks)
+        if len(data) != manifest["size"] or hashlib.sha256(data).hexdigest() != manifest["sha256"]:
+            raise RuntimeError(f"The GVP index file {name} is incomplete; process the version again")
+        dest.write_bytes(data)
+        return True
+    return sb.download_object(GUIDELINE_INDEX_BUCKET, f"{index_path}/{name}", dest,
+                              what=f"the GVP index ({name})", optional=optional)
+
+
 def local_index(sb: "Supabase", index_path: str) -> Path:
     """The folder of a GVP version's index, downloaded from storage the first time it is needed."""
     folder = INDEX_CACHE / index_path
@@ -107,10 +151,11 @@ def local_index(sb: "Supabase", index_path: str) -> Path:
         print(f"[worker] downloading the GVP index {index_path}")
         tmp = folder.with_name(folder.name + ".part")
         shutil.rmtree(tmp, ignore_errors=True)
+        tmp.mkdir(parents=True, exist_ok=True)
         for name in ("units.jsonl", "meta.json"):
-            sb.download_object(GUIDELINE_INDEX_BUCKET, f"{index_path}/{name}", tmp / name, what=f"the GVP index ({name})")
+            download_index_file(sb, index_path, name, tmp / name)
         for name in ("embeddings.npy", "tfidf.pkl"):   # one of them, depending on the embedding backend
-            sb.download_object(GUIDELINE_INDEX_BUCKET, f"{index_path}/{name}", tmp / name, optional=True)
+            download_index_file(sb, index_path, name, tmp / name, optional=True)
         shutil.rmtree(folder, ignore_errors=True)
         tmp.rename(folder)
     return folder
@@ -179,7 +224,7 @@ def process_guideline(job: dict, svc: ComplianceService, sb: "Supabase"):
     try:
         for f in sorted(local.iterdir()):
             if f.is_file() and f.name != "report.json":
-                sb.upload_object(GUIDELINE_INDEX_BUCKET, f"{index_path}/{f.name}", f.read_bytes())
+                upload_index_file(sb, index_path, f)
     except requests.RequestException as e:
         raise GuidelineProcessingError(UPLOAD_MESSAGE) from e
     report["seconds"] = round(time.time() - t0, 1)

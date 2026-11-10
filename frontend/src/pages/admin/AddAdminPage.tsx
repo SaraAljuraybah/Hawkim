@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react'
 import { flushSync } from 'react-dom'
 import { Link, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Info } from 'lucide-react'
+import { ArrowLeft } from 'lucide-react'
 import { RefusedBox } from '../../components/admin/RefusedBox'
 import { UserForm } from '../../components/admin/UserForm'
 import { adminsEn } from '../../content/admins.en'
@@ -54,10 +54,6 @@ export function AddAdminPage() {
       </Link>
       <h1 className="mt-5 text-2xl tracking-tight sm:text-3xl">{content.title}</h1>
       <p className="mt-2 max-w-2xl text-text-gray">{content.subtitle}</p>
-      <p className="mt-4 flex max-w-2xl items-start gap-2 text-sm text-text-gray">
-        <Info aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-maroon" strokeWidth={1.75} />
-        {content.roleNote}
-      </p>
 
       <UserForm
         initial={EMPTY_ADMIN}

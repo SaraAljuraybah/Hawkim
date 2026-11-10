@@ -8,7 +8,7 @@ import type { AdminActionFailure, AdminsContent } from './types'
 
 const failures: Record<AdminActionFailure, string> = {
   forbidden: "You don't have permission to do this. Sign in again and retry.",
-  'not-found': 'This administrator no longer exists. Refresh the page.',
+  'not-found': 'This Admin no longer exists. Refresh the page.',
   invalid: 'Check the details and try again.',
   'super-admin-required': 'Only the Super Admin can do this. The role may have just changed: refresh the page.',
   'super-admin-protected': 'Only the Super Admin can change the Super Admin’s account, and it can’t be deleted.',
@@ -23,30 +23,29 @@ export const adminsEn: AdminsContent = {
 
   list: {
     title: 'Admins',
-    description: 'Administrators manage staff, divisions, departments and the rest of your organization in Hawkim.',
+    description: "View and manage Hawkim's Admins.",
     add: { label: 'Add Admin', href: '/admin/admins/new' },
     search: { label: 'Search Admins', placeholder: 'Search by admin name or email' },
-    count: { one: '{count} administrator', other: '{count} administrators' },
+    count: { one: '{count} Admin', other: '{count} Admins' },
     tableLabel: 'Admins',
     columns: { name: 'Full Name', email: 'Email', phone: 'Phone Number', role: 'Role', actions: 'Actions' },
     none: '—',
     actions: { view: 'View {name}', edit: 'Edit {name}' },
-    empty: 'No administrators yet.',
-    noMatches: 'No administrators match your search.',
-    loading: 'Loading administrators…',
-    loadFailed: "The administrators couldn't be loaded.",
+    empty: 'No Admins yet.',
+    noMatches: 'No Admins match your search.',
+    loading: 'Loading Admins…',
+    loadFailed: "The Admins couldn't be loaded.",
     retry: 'Try Again',
   },
 
   add: {
     title: 'Add Admin',
-    subtitle: 'Add someone who should manage your organization in Hawkim. They get an email to set their password.',
-    roleNote: 'New administrators are added as Admin. Only the Super Admin can hand over the Super Admin role, from an Admin’s page.',
+    subtitle: 'Add someone who should manage your organization in Hawkim. The Super Admin permission can only be transferred by the current Super Admin.',
     submit: 'Add Admin',
     adding: 'Adding…',
     notAdded: "Admin wasn't added:",
     failures: {
-      forbidden: "You don't have permission to add administrators. Sign in again and retry.",
+      forbidden: "You don't have permission to add Admins. Sign in again and retry.",
       'email-taken': 'Someone with this email already has a Hawkim account.',
       invalid: 'Check the details and try again.',
       'account-failed': "The account couldn't be created. Try again in a few minutes.",
@@ -62,7 +61,7 @@ export const adminsEn: AdminsContent = {
     phone: { label: 'Phone Number', hint: 'Saudi mobile number: +9665XXXXXXXX' },
     cancel: 'Cancel',
     errors: {
-      nameRequired: "Enter the administrator's full name.",
+      nameRequired: "Enter the Admin's full name.",
       emailInvalid: 'Enter a valid email address, e.g. name@example.com.',
       emailTaken: 'Someone with this email already has a Hawkim account.',
       phoneRequired: 'Enter a phone number.',
@@ -72,7 +71,7 @@ export const adminsEn: AdminsContent = {
 
   edit: {
     title: 'Edit Admin',
-    subtitle: "Change the administrator's details. Their role stays the same.",
+    subtitle: "Change the Admin's details. Their role stays the same.",
     submit: 'Save Changes',
     saving: 'Saving…',
     saved: 'Changes saved.',
@@ -81,7 +80,7 @@ export const adminsEn: AdminsContent = {
     failures,
     emailFailures: {
       forbidden: "You don't have permission to change this email. Sign in again and retry.",
-      'not-found': 'This administrator no longer exists. Refresh the page.',
+      'not-found': 'This Admin no longer exists. Refresh the page.',
       'email-taken': 'Someone with this email already has a Hawkim account.',
       invalid: 'Enter a valid email address, e.g. name@example.com.',
       'account-failed': "The sign-in email couldn't be changed. Try again in a few minutes.",
@@ -90,7 +89,7 @@ export const adminsEn: AdminsContent = {
     readOnly: 'Only the Super Admin can edit the Super Admin’s account.',
     discard: {
       title: 'Discard unsaved changes?',
-      description: "Your changes to this administrator haven't been saved. If you leave now, they'll be lost.",
+      description: "Your changes to this Admin haven't been saved. If you leave now, they'll be lost.",
       keep: 'Keep Editing',
       discard: 'Discard Changes',
     },
@@ -98,14 +97,16 @@ export const adminsEn: AdminsContent = {
 
   details: {
     back: { label: 'Back to Admins', href: '/admin/admins' },
-    title: 'Administrator Details',
+    title: 'Details',
     name: 'Full Name',
     email: 'Email',
     phone: 'Phone Number',
     role: 'Role',
     notSet: 'Not set',
     edit: 'Edit Admin',
-    you: 'This is you.',
+    copyEmail: 'Copy {name}’s email',
+    copied: 'Email copied',
+    copyFailed: 'Could not copy email. Select and copy the address.',
     superAdminReadOnly: 'This is the Super Admin. Only they can change this account.',
     ownSuperAdmin: 'You are the Super Admin. To leave this role, make another Admin the Super Admin from their page.',
     added: 'Admin added. They received an email to set their password.',
@@ -131,8 +132,8 @@ export const adminsEn: AdminsContent = {
     consequences: [
       '{name} will become the new Super Admin.',
       'Your role will change to a regular Admin.',
-      'You will lose permission to delete administrators and transfer the Super Admin role.',
-      'You will retain your regular administrator permissions.',
+      'You will lose permission to delete Admins and transfer the Super Admin role.',
+      'You will retain your regular Admin permissions.',
     ],
     effect: 'This change will take effect immediately.',
     cancel: 'Cancel',

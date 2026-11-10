@@ -280,7 +280,7 @@ describe('the invitation email', () => {
 
   it('invites them, with the button linking to their link', () => {
     expect(email.subject).toBe('You’re invited to Hawkim')
-    expect(email.html).toContain('A Hawkim admin has created an account for <strong>rana@example.test</strong>. Accept this invitation to access the platform and set your password.')
+    expect(email.html).toContain('A Hawkim Admin has created an account for <strong>rana@example.test</strong>. Accept this invitation to access the platform and set your password.')
     expect(email.html).toContain('Accept invitation')
     expect(email.html).toContain(LINK)
   })

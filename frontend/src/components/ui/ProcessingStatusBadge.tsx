@@ -10,12 +10,13 @@ const STYLE: Record<GuidelineProcessing['status'], string> = {
 }
 
 /**
- * An added GVP version's processing status (Waiting, Processing…, Ready, Failed), the same label in the
- * versions list and next to the version's title on its page.
+ * An added GVP version's processing status (Waiting, Processing…, Ready, Failed): the same label in the
+ * versions list and, larger, as the heading of the Status card on the version's page.
  */
-export function ProcessingStatusBadge({ status }: { status: GuidelineProcessing['status'] }) {
+export function ProcessingStatusBadge({ status, size = 'sm' }: { status: GuidelineProcessing['status']; size?: 'sm' | 'lg' }) {
+  const sizing = size === 'lg' ? 'px-3 py-1 text-base' : 'px-2 py-0.5 text-xs'
   return (
-    <span className={`rounded-full px-2 py-0.5 text-xs font-medium whitespace-nowrap ${STYLE[status]}`}>
+    <span className={`inline-block rounded-full font-medium whitespace-nowrap ${sizing} ${STYLE[status]}`}>
       {adminEn.regulations.processingStatus[status]}
     </span>
   )

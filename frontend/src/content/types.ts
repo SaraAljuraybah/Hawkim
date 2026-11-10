@@ -1383,6 +1383,8 @@ export interface AdminRegulationsContent {
   title: string
   subtitle: string
   addVersion: LinkContent
+  /** Add New Version while another version is processing; `{version}` is replaced. */
+  inProgress: { title: string; text: string; view: string; close: string }
   /** "GVP version {version}" */
   versionName: string
   /** Shown after adding a version; `{version}` is replaced. */
@@ -1445,6 +1447,8 @@ export interface AdminRegulationFormContent {
     versionExists: string
     /** `{current}` is replaced with the current version. */
     versionNotHigher: string
+    /** Another version is still being processed; `{version}` is replaced. */
+    versionProcessing: string
     addedRequired: string
     issuedRequired: string
     issuedAfterAdded: string
@@ -1908,8 +1912,6 @@ export interface AdminsContent {
   add: {
     title: string
     subtitle: string
-    /** Under the form: every new account is a regular Admin. */
-    roleNote: string
     submit: string
     adding: string
     notAdded: string
@@ -1939,8 +1941,10 @@ export interface AdminsContent {
     role: string
     notSet: string
     edit: string
-    /** Under the role, for the signed-in person's own entry. */
-    you: string
+    /** The copy icon beside the email: accessible name and tooltip (`{name}` is replaced), then its confirmations. */
+    copyEmail: string
+    copied: string
+    copyFailed: string
     /** Shown to a regular Admin on the Super Admin's page. */
     superAdminReadOnly: string
     /** Shown to the Super Admin on their own page. */
