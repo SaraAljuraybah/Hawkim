@@ -5,12 +5,13 @@ import { Button } from '../components/ui/Button'
 import { Pagination } from '../components/ui/Pagination'
 import { FilterPopover } from '../components/ui/FilterPopover'
 import { TextField } from '../components/ui/TextField'
+import { LIST_TOOLBAR } from '../components/ui/toolbar'
 import { SelectField } from '../components/ui/SelectField'
 import type { Department } from '../data/mock/types'
 import type { MySopSort } from '../lib/mySops'
 import { clampPage, listParam, pageCount, pageSlice, rememberedPagesFor, resultsParams, tabSwitch, updateParams, type RememberedPages } from '../lib/pagination'
 import { ALL_DEPARTMENTS, DIRECTORY_URL_DEFAULTS, EVERY_SOP, filterDirectorySops, readDirectoryUrl, recentSince } from '../lib/sopDirectory'
-import { departmentFilterGroups, type FilterDepartments } from '../lib/organization'
+import { departmentsKept, filterDepartmentsFrom, filterSelection } from '../lib/organization'
 import { devSampleCount, devSampleSops } from '../lib/devSampleSops'
 import { directorySopsFor } from '../lib/sopAccess'
 import { adminSopPath, sopPath } from '../lib/routes'
@@ -20,6 +21,7 @@ import { SopList } from '../components/sops/SopList'
 import { Tabs, type TabItem } from '../components/ui/Tabs'
 import { tabIds } from '../components/ui/tabIds'
 import { ViewToggle, type ViewMode } from '../components/ui/ViewToggle'
+import { filtersEn } from '../content/filters.en'
 import { paginationEn } from '../content/pagination.en'
 import { sopsEn } from '../content/sops.en'
 import type { SopTabKey } from '../content/types'
@@ -74,25 +76,10 @@ function SopDirectory({ activeDepartment, admin = false }: { activeDepartment: D
   const { tab, query, sort, divisions: urlDivisions, departments: urlDepartments, page: urlPage } = useMemo(() => readDirectoryUrl(params), [params])
   // The admin's Filter (Division and Department chips, as on Organizational Structure), from the active
   // departments; other roles have no filter. Choices that no longer exist (an old link) are dropped.
-  const filterData = useMemo<FilterDepartments>(() => {
-    const active = admin ? departments.filter((department) => !department.removedAt) : []
-    const divisions = new Map<string, string>()
-    for (const department of active) if (department.divisionId) divisions.set(department.divisionId, department.divisionName ?? department.divisionId)
-    return {
-      divisions: [...divisions].map(([id, name]) => ({ id, name })),
-      departments: active.map((department) => ({ id: department.id, name: department.name, divisionId: department.divisionId })),
-    }
-  }, [admin, departments])
-  const divisionChoices = useMemo(() => [...filterData.divisions]
-    .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }) || a.id.localeCompare(b.id))
-    .map((division) => ({ value: division.id, label: division.name })), [filterData])
-  const filterDivisions = useMemo(() => urlDivisions.filter((id) => divisionChoices.some((option) => option.value === id)), [urlDivisions, divisionChoices])
+  const filterData = useMemo(() => filterDepartmentsFrom(admin ? departments : []), [admin, departments])
   // The Department chips follow the selected divisions; a selected department no longer offered is dropped.
-  const departmentGroups = useMemo(() => departmentFilterGroups(filterData, filterDivisions), [filterData, filterDivisions])
-  const filterDepartments = useMemo(
-    () => urlDepartments.filter((id) => departmentGroups.some((group) => group.options.some((option) => option.value === id))),
-    [urlDepartments, departmentGroups],
-  )
+  const { divisionChoices, divisions: filterDivisions, groups: departmentGroups, departments: filterDepartments } = useMemo(
+    () => filterSelection(filterData, urlDivisions, urlDepartments), [filterData, urlDivisions, urlDepartments])
   const searchRef = useRef<HTMLInputElement>(null)
   // The page each other tab was left on, for this department only: switching department starts every tab on page 1.
   const [memory, setMemory] = useState<RememberedPages<SopTabKey>>({ department: '', pages: {} })
@@ -154,10 +141,7 @@ function SopDirectory({ activeDepartment, admin = false }: { activeDepartment: D
   const setSort = (value: MySopSort) => changeResults({ sort: value })
   // Independent: changing one never changes the other.
   // Deselecting a division also deselects its departments (one change of the URL).
-  const setDivisions = (ids: string[]) => {
-    const offered = departmentFilterGroups(filterData, ids).flatMap((group) => group.options.map((option) => option.value))
-    changeResults({ division: listParam(ids), dept: listParam(filterDepartments.filter((id) => offered.includes(id))) })
-  }
+  const setDivisions = (ids: string[]) => changeResults({ division: listParam(ids), dept: listParam(departmentsKept(filterData, ids, filterDepartments)) })
   const setDepartments = (ids: string[]) => changeResults({ dept: listParam(ids) })
 
   // Each tab opens on the page it was left on.
@@ -191,10 +175,9 @@ function SopDirectory({ activeDepartment, admin = false }: { activeDepartment: D
       <h1 className="text-2xl tracking-tight sm:text-3xl">{content.title}</h1>
       <p className="mt-2 text-text-gray">{admin ? content.adminSubtitle : content.subtitle}</p>
 
-      <div role="search" aria-label={content.filters.label} className="mt-6 rounded-xl border border-beige bg-white p-4 sm:p-5">
-        {/* Admin: Search, Filter by Division, Filter by Department and Sort By, stacked on phones, 2×2 from sm and one
-            row from xl (narrower, they'd cut off their values). Others: Search and Sort By on one row from sm. */}
-        <div className={`grid items-end gap-4 ${admin ? 'relative lg:grid-cols-[minmax(0,4fr)_auto_minmax(0,1fr)]' : 'sm:grid-cols-[minmax(0,1fr)_12rem]'}`}>
+      {/* On the page background, like Staff: Search | Filter (admin) | Sort, the same row as on every list page. */}
+      <div role="search" aria-label={content.filters.label} className="mt-6">
+        <div className={LIST_TOOLBAR}>
           <TextField
             ref={searchRef}
             name="sopSearch"
@@ -206,15 +189,15 @@ function SopDirectory({ activeDepartment, admin = false }: { activeDepartment: D
             endAdornment={<Search aria-hidden="true" className="mr-2 size-4 text-text-gray" />}
           />
           {admin && (
-            // As on Organizational Structure: a labelled icon button whose panel lines up with this row's right edge (from lg).
-            <FilterPopover className="relative min-w-0 lg:static" label={content.filters.panel.filter} activeLabel={content.filters.panel.filterActive}
-              title={content.filters.panel.title} clearLabel={content.filters.panel.clearAll} onClear={clearDivisionsAndDepartments}
+            // The Filter field of every list page; its panel lines up with this row's right edge (from lg).
+            <FilterPopover className="relative min-w-0 lg:static" label={filtersEn.label} allLabel={filtersEn.all}
+              title={filtersEn.title} clearLabel={filtersEn.clearAll} onClear={clearDivisionsAndDepartments}
               sections={[
-                { id: 'division', legend: content.filters.panel.division, options: divisionChoices, value: filterDivisions, onChange: setDivisions,
-                  emptyText: content.filters.panel.divisionEmpty, scrollable: true },
-                { id: 'department', legend: content.filters.panel.department, value: filterDepartments, onChange: setDepartments,
-                  emptyText: content.filters.panel.departmentEmpty, scrollable: true,
-                  groups: departmentGroups.map((group) => ({ id: group.id, label: group.unassigned ? content.filters.panel.unassigned : group.label, options: group.options })) },
+                { id: 'division', legend: filtersEn.division.legend, options: divisionChoices, value: filterDivisions, onChange: setDivisions,
+                  emptyText: filtersEn.division.empty, summary: filtersEn.division.count, scrollable: true },
+                { id: 'department', legend: filtersEn.department.legend, value: filterDepartments, onChange: setDepartments,
+                  emptyText: filtersEn.department.empty, summary: filtersEn.department.count, scrollable: true,
+                  groups: departmentGroups.map((group) => ({ id: group.id, label: group.unassigned ? filtersEn.department.unassigned : group.label, options: group.options })) },
               ]} />
           )}
           <SelectField

@@ -1,7 +1,10 @@
 import { useEffect, useId, useRef, useState } from 'react'
-import { Check, Funnel } from 'lucide-react'
+import { Check, ChevronDown } from 'lucide-react'
+import type { CountText } from '../../content/types'
 import { toggleOption } from './multiSelect'
 import type { SelectOption } from './SelectField'
+import { controlClasses } from './useFieldIds'
+import { filterSummary } from './filterSummary'
 
 export interface FilterChipGroup {
   id: string
@@ -23,6 +26,8 @@ export interface FilterSection {
   emptyText: string
   /** The chips scroll inside the card (about 3½ rows), below its fixed heading. */
   scrollable?: boolean
+  /** How the field sums up this section's choices, e.g. "{count} divisions"; `{count}` is replaced. */
+  summary: CountText
 }
 
 interface FilterPopoverProps {
@@ -31,10 +36,10 @@ interface FilterPopoverProps {
    * ancestor instead (e.g. `relative` on a toolbar, so it lines up with the toolbar's right edge).
    */
   className?: string
-  /** The visible label above the button and its accessible name, e.g. "Filter". */
+  /** The visible label above the field and its accessible name, e.g. "Filter". */
   label: string
-  /** The button's accessible name while filters are on, e.g. "Filter, 3 active". */
-  activeLabel: (count: number) => string
+  /** The field's text while nothing is chosen, e.g. "All". */
+  allLabel: string
   /** The panel's heading, e.g. "Filters". */
   title: string
   clearLabel: string
@@ -75,11 +80,12 @@ function Chips({ options, value, onChange }: { options: SelectOption[]; value: s
 }
 
 /**
- * A labelled funnel button (a count badge while filters are on) and, when opened, a panel
- * (disclosure pattern) of sections, each a small card of toggle chips (several can be on).
- * Choices apply at once. Escape or a click outside closes the panel.
+ * The Filter control of every list page that filters: a labelled field like the other dropdowns ("All",
+ * or a summary such as "2 divisions, 1 department", and a chevron) that opens a panel (disclosure
+ * pattern) of sections, each a small card of toggle chips (several can be on). Choices apply at once.
+ * Escape or a click outside closes the panel, and focus returns to the field.
  */
-export function FilterPopover({ label, activeLabel, title, clearLabel, sections, onClear, className = 'relative' }: FilterPopoverProps) {
+export function FilterPopover({ label, allLabel, title, clearLabel, sections, onClear, className = 'relative' }: FilterPopoverProps) {
   const [open, setOpen] = useState(false)
   // The panel's max height: the visible space below the button (it scrolls when taller).
   const [maxHeight, setMaxHeight] = useState<number>()
@@ -89,6 +95,7 @@ export function FilterPopover({ label, activeLabel, title, clearLabel, sections,
   const panelId = useId()
   const titleId = useId()
   const count = sections.reduce((sum, section) => sum + section.value.length, 0)
+  const summary = filterSummary(sections)
 
   // Escape or a click outside closes the panel; focus returns to the button if it was inside.
   useEffect(() => {
@@ -126,16 +133,13 @@ export function FilterPopover({ label, activeLabel, title, clearLabel, sections,
     <div ref={wrapperRef} className={className}>
       {/* Styled like the field labels (Search, Sort); clicking it also opens the panel. */}
       <label htmlFor={buttonId} className="mb-1.5 block text-sm font-medium text-maroon">{label}</label>
-      {/* As tall as the Search and Sort fields; the badge (maroon, off-white text) sits on the icon's corner. */}
-      <button ref={buttonRef} id={buttonId} type="button" aria-label={count ? activeLabel(count) : label}
+      {/* Looks like the other dropdowns (as MultiSelectField): "All" in grey, or the summary, and a chevron. */}
+      <button ref={buttonRef} id={buttonId} type="button" aria-label={summary ? `${label}: ${summary}` : label}
         aria-expanded={open} aria-controls={panelId} onClick={() => setOpen((value) => !value)}
-        className="relative inline-flex size-11 items-center justify-center rounded-lg border border-maroon/40 text-maroon transition-colors hover:border-maroon hover:bg-maroon/5">
-        <Funnel aria-hidden="true" className="size-5" strokeWidth={1.75} fill={count ? 'currentColor' : 'none'} />
-        {count > 0 && (
-          <span aria-hidden="true" className="absolute -top-1.5 -right-1.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-maroon px-1 text-[0.6875rem] leading-none font-semibold text-offwhite ring-2 ring-white">
-            {count}
-          </span>
-        )}
+        className={`relative flex min-h-11 items-center py-2.5 pr-10 text-left ${controlClasses()}`}>
+        <span className={`truncate ${summary ? '' : 'text-text-gray'}`}>{summary || allLabel}</span>
+        <ChevronDown aria-hidden="true" strokeWidth={1.75}
+          className={`absolute right-3.5 size-4 text-text-gray motion-safe:transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
       {/* Floats over the content, right-aligned with its positioned container, so it opens leftward and never widens
           the page: full width on phones, 22.5rem from sm up. Never taller than the space below the button (it scrolls). */}

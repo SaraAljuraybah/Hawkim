@@ -197,3 +197,35 @@ export function matchesDivisionDepartmentFilter(
   if (picked.length) return picked.includes(departmentId)
   return group !== UNASSIGNED_GROUP_ID && divisions.includes(group)
 }
+
+/** The Division and Department filter's data from a list of departments: the active ones and their divisions. */
+export function filterDepartmentsFrom(
+  departments: { id: string; name: string; divisionId?: string; divisionName?: string; removedAt?: string }[],
+): FilterDepartments {
+  const active = departments.filter((department) => !department.removedAt)
+  const divisions = new Map<string, string>()
+  for (const department of active) if (department.divisionId) divisions.set(department.divisionId, department.divisionName ?? department.divisionId)
+  return {
+    divisions: [...divisions].map(([id, name]) => ({ id, name })),
+    departments: active.map((department) => ({ id: department.id, name: department.name, divisionId: department.divisionId })),
+  }
+}
+
+/**
+ * What the Filter shows and applies, from the ids in the URL: the Division chips (A to Z), the
+ * Department chips grouped under the selected divisions (departmentFilterGroups), and the selections
+ * without choices no longer offered (an old link, or a department outside the selected divisions).
+ */
+export function filterSelection(data: FilterDepartments, divisionIds: string[], departmentIds: string[]) {
+  const divisionChoices = [...data.divisions].sort(byName).map((division) => ({ value: division.id, label: division.name }))
+  const divisions = divisionIds.filter((id) => divisionChoices.some((option) => option.value === id))
+  const groups = departmentFilterGroups(data, divisions)
+  const departments = departmentIds.filter((id) => groups.some((group) => group.options.some((option) => option.value === id)))
+  return { divisionChoices, divisions, groups, departments }
+}
+
+/** After the divisions change: the selected departments still offered under them (deselecting a division drops its departments). */
+export function departmentsKept(data: FilterDepartments, divisions: string[], departments: string[]): string[] {
+  const offered = new Set(departmentFilterGroups(data, divisions).flatMap((group) => group.options.map((option) => option.value)))
+  return departments.filter((id) => offered.has(id))
+}

@@ -63,8 +63,9 @@ describe('the SOP Directory in the admin portal', () => {
   it('has Search, Filter and Sort By on one row (as on Organizational Structure), the views, no File Type filter and no department line', () => {
     const html = directory()
     for (const name of ['sopSearch', 'sopSort']) expect(html).toContain(`name="${name}"`)
-    // Stacked on small screens; one row from lg, positioned so the panel lines up with its right edge.
-    expect(html).toContain('relative lg:grid-cols-[minmax(0,4fr)_auto_minmax(0,1fr)]')
+    // The row of every list page (stacked on small screens; one row from lg), on the page background: no card.
+    expect(html).toContain('<div role="search" aria-label="Search and filter SOPs" class="mt-6"><div class="relative grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)] lg:items-end">')
+    expect(html).not.toContain('rounded-xl border border-beige bg-white p-4 sm:p-5')
     const order = ['name="sopSearch"', '>Filter</label>', 'name="sopSort"'].map((part) => html.indexOf(part))
     expect(order.every((position, index) => position > -1 && (index === 0 || position > order[index - 1]))).toBe(true)
     expect(html).not.toContain('name="documentType"')
@@ -87,7 +88,9 @@ describe('the SOP Directory in the admin portal', () => {
     const html = directory()
     const button = html.match(/<label for="([^"]+)" class="mb-1.5 block text-sm font-medium text-maroon">Filter<\/label><button id="([^"]+)" type="button" aria-label="Filter" aria-expanded="false" aria-controls="[^"]+"[^>]*>/)!
     expect(button[1]).toBe(button[2])
-    expect(button[0]).toContain('size-11')
+    // The field of every filter page: like the other dropdowns, "All" while nothing is chosen.
+    expect(button[0]).toContain('min-h-11')
+    expect(html).toMatch(/aria-controls="[^"]+"[^>]*><span class="truncate text-text-gray">All<\/span><svg[^>]*lucide-chevron-down/)
     expect([...html.matchAll(/<legend[^>]*>([^<]+)<\/legend>/g)].map((match) => match[1])).toEqual(['Division', 'Department'])
     expect(html).not.toContain('>Role<')
     for (const removed of ['name="divisionFilter"', 'name="departmentFilter"', 'Filter by Division', 'Filter by Department', 'No Division', '>Clear Filters<'])
@@ -108,7 +111,8 @@ describe('the SOP Directory in the admin portal', () => {
     expect(byDivision).toContain('>Procedure 9<')
     expect(byDivision).not.toContain('Procedure 1<')
     expect(byDivision).toContain('>1 SOP found<')
-    expect(byDivision).toContain('aria-label="Filter, 1 active"')
+    expect(byDivision).toContain('aria-label="Filter: 1 division"')
+    expect(byDivision).toContain('>1 division</span>')
     expect(byDivision).toMatch(/aria-pressed="true"[^>]*>(?:<svg.*?<\/svg>)?<span class="min-w-0 break-words">Medical</)
     expect(byDivision).toContain('>Clear Filters<')
     // With a division selected, only its departments are offered (no Unassigned group).
@@ -117,7 +121,7 @@ describe('the SOP Directory in the admin portal', () => {
     const byDepartment = directory('?dept=it')
     expect(byDepartment).toContain('>Procedure 1<')
     expect(byDepartment).not.toContain('Procedure 9<')
-    expect(byDepartment).toContain('aria-label="Filter, 1 active"')
+    expect(byDepartment).toContain('aria-label="Filter: 1 department"')
   })
 
   it('combines them with Rule 1, and ignores the removed No Division value in old links', () => {
@@ -126,7 +130,7 @@ describe('the SOP Directory in the admin portal', () => {
     const both = directory('?division=med&dept=it')
     expect(both).toContain('>Procedure 9<')
     expect(both).not.toContain('Procedure 1<')
-    expect(both).toContain('aria-label="Filter, 1 active"')
+    expect(both).toContain('aria-label="Filter: 1 division"')
     // Departments only: just those, in any division.
     expect(directory('?dept=pv,it')).toContain('>2 SOPs found<')
     expect(directory('?dept=pv')).toContain('>1 SOP found<')

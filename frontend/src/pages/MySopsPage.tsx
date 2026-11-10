@@ -7,6 +7,7 @@ import { DeleteSopDialog } from '../components/mySops/DeleteSopDialog'
 import { Button } from '../components/ui/Button'
 import { Pagination } from '../components/ui/Pagination'
 import { SearchCombobox } from '../components/ui/SearchCombobox'
+import { LIST_TOOLBAR } from '../components/ui/toolbar'
 import { SelectField } from '../components/ui/SelectField'
 import { Tabs } from '../components/ui/Tabs'
 import { tabIds } from '../components/ui/tabIds'
@@ -196,8 +197,9 @@ export function MySopsPage() {
         )}
       </div>
 
-      <div role="search" aria-label={content.filters.label} className="mt-6 rounded-xl border border-beige bg-white p-4 sm:p-5">
-        <div className="grid items-end gap-4 sm:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_13rem_11rem]">
+      {/* On the page background, like Staff: Search | My Permission | Sort, the same row as on every list page. */}
+      <div role="search" aria-label={content.filters.label} className="mt-6">
+        <div className={LIST_TOOLBAR}>
           <SearchCombobox
             inputRef={searchRef}
             name="mySopSearch"
@@ -208,14 +210,7 @@ export function MySopsPage() {
             options={titleOptions}
             noMatchesText={content.filters.noTitles}
             toggleLabel={content.filters.showTitles}
-            className="sm:col-span-2 xl:col-span-1"
-          />
-          <SelectField
-            name="mySopSort"
-            label={content.filters.sortLabel}
-            value={sort}
-            onChange={(event) => setSort(event.target.value as MySopSort)}
-            options={[{ value: 'newest', label: content.filters.sortNewest }, { value: 'oldest', label: content.filters.sortOldest }]}
+            className="min-w-0"
           />
           <SelectField
             name="mySopRole"
@@ -223,6 +218,15 @@ export function MySopsPage() {
             value={role}
             onChange={(event) => setRole(event.target.value as MySopRole)}
             options={[{ value: 'all', label: content.filters.allRoles }, { value: 'main', label: content.mainAuthorLabel }, { value: 'coauthor', label: content.coAuthorLabel }]}
+            className="min-w-0"
+          />
+          <SelectField
+            name="mySopSort"
+            label={content.filters.sortLabel}
+            value={sort}
+            onChange={(event) => setSort(event.target.value as MySopSort)}
+            options={[{ value: 'newest', label: content.filters.sortNewest }, { value: 'oldest', label: content.filters.sortOldest }]}
+            className="min-w-0"
           />
         </div>
         <div className="mt-3 flex min-h-8 flex-wrap items-center justify-between gap-2">

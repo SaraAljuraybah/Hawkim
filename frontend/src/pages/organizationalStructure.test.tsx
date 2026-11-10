@@ -121,12 +121,13 @@ describe('Organizational Structure', () => {
     const html = page()
     expect(html.match(/type="search"/g)).toHaveLength(1)
     expect(html).toContain('placeholder="Search divisions, departments or staff by name or email"')
-    // A visible "Filter" label, like Sort's, for an icon-only button as tall as the fields.
+    // A visible "Filter" label, like Sort's, for a field like the other dropdowns ("All" and a chevron).
     const button = html.match(/<label for="([^"]+)" class="mb-1.5 block text-sm font-medium text-maroon">Filter<\/label><button id="([^"]+)" type="button" aria-label="Filter" aria-expanded="false" aria-controls="[^"]+"[^>]*>(.*?)<\/button>/)!
     expect(button[1]).toBe(button[2])
-    expect(button[0]).toContain('size-11')
-    expect(button[3]).toContain('lucide-funnel')
-    expect(button[3]).not.toContain('Filter')
+    expect(button[0]).toContain('min-h-11')
+    expect(button[3]).toContain('>All</span>')
+    expect(button[3]).toContain('lucide-chevron-down')
+    expect(button[3]).not.toContain('lucide-funnel')
     expect([...html.matchAll(/<legend[^>]*>([^<]+)<\/legend>/g)].map((match) => match[1])).toEqual(['Division', 'Department', 'Role'])
     const chips = [...html.matchAll(/aria-pressed="false"[^>]*><span class="min-w-0 break-words">([^<]+)<\/span>/g)].map((match) => match[1])
     expect(chips).toEqual(['Operations', 'R&amp;D Division', 'Empty Department', 'Quality', 'Author', 'Reviewer', 'Approver', 'Others'])
@@ -134,7 +135,7 @@ describe('Organizational Structure', () => {
     expect(html).toMatch(/<p id="[^"]+" class="mb-1.5 text-xs font-semibold text-text-gray">Operations<\/p>/)
     expect(html.match(/max-h-\[8.5rem\] overflow-y-auto/g)).toHaveLength(2)
     // The panel is right-aligned with the toolbar (positioned from lg), 22.5rem wide from sm, and scrolls when taller than the screen.
-    expect(html).toMatch(/<div class="relative mt-6 grid gap-4 [^"]*"><div class="[^"]*"><label/)
+    expect(html).toMatch(/<div class="mt-6 relative grid gap-4 [^"]*"><div class="[^"]*"><label/)
     expect(html).toContain('<div class="relative min-w-0 lg:static">')
     expect(html).toContain('absolute top-full right-0 left-0 z-30 mt-2 max-h-[calc(100vh-10rem)] overflow-y-auto')
     expect(html).toContain('sm:left-auto sm:w-[22.5rem] sm:max-w-full')

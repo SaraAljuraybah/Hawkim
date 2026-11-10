@@ -40,7 +40,11 @@ describe('My SOPs presentation and permissions', () => {
   it('renders one view toggle, search, combined filter controls and the three categories', () => {
     const html = renderPage()
     expect(html.match(/aria-label="My SOPs view"/g)).toHaveLength(1)
-    for (const text of ['Search SOPs', 'Sort By', 'My Role', 'New SOPs', 'In Progress', 'Completed']) expect(html).toContain(text)
+    for (const text of ['Search SOPs', 'Sort By', 'My Permission', 'New SOPs', 'In Progress', 'Completed']) expect(html).toContain(text)
+    expect(html).not.toContain('My Role')
+    // Search | My Permission | Sort, the row of every list page, on the page background.
+    expect(html).toContain('<div role="search" aria-label="Search and filter My SOPs" class="mt-6"><div class="relative grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)] lg:items-end">')
+    expect(html.indexOf('>My Permission<')).toBeLessThan(html.indexOf('>Sort By<'))
     for (const text of ['SOP Name', 'Last updated', 'type="date"']) expect(html).not.toContain(text)
     expect(html).toContain('role="tabpanel"')
     expect(html).toContain('aria-labelledby="my-sops-tab-new"')

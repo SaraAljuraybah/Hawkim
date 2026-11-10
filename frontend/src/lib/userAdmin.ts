@@ -1,5 +1,6 @@
 import type { Department, DepartmentId, Permission, Sop, User } from '../data/mock/types'
 import type { SopStatus } from '../types/status'
+import { matchesDivisionDepartmentFilter, UNASSIGNED_GROUP_ID } from './organization'
 
 /*
  * Admin rules for users (PBI 15, 18, 19): adding users, changing permissions and
@@ -76,15 +77,17 @@ export function divisionNameIn(departments: Pick<Department, 'divisionId' | 'div
 export interface UserFilter {
   /** Searched in name, email, division, department and permission names, ignoring case. */
   query: string
-  /** Divisions (NO_DIVISION for departments without one); none means every division. */
+  /** Selected divisions; none (and no departments) means everyone. */
   divisions: string[]
-  /** Department ids; none means every department. */
+  /** Selected department ids. */
   departmentIds: string[]
 }
 
 /**
- * The Users list's users matching the search and both filters, by name. The filters are independent:
- * a user must be in a checked division and in a checked department. `permissionLabels`: the names shown.
+ * The Staff list's users matching the search and the Filter, by name. The Filter is the linked rule of
+ * every list page (matchesDivisionDepartmentFilter): in a division with departments selected, only
+ * those departments; a selected division without any keeps all its departments; departments without a
+ * division match only when selected. `permissionLabels`: the names shown.
  */
 export function filterUsers(users: User[], getDepartment: (id: string) => Department | undefined, filter: UserFilter, permissionLabels: Record<Permission, string>): User[] {
   const text = filter.query.trim().toLowerCase()
@@ -93,30 +96,9 @@ export function filterUsers(users: User[], getDepartment: (id: string) => Depart
       const department = getDepartment(user.departmentId)
       const searched = [user.name, user.email, divisionLabel(department), department?.name ?? '', ...user.permissions.map((permission) => permissionLabels[permission])]
       return (!text || searched.some((value) => value.toLowerCase().includes(text))) &&
-        inDivisions(department, filter.divisions) &&
-        (filter.departmentIds.length === 0 || filter.departmentIds.includes(user.departmentId))
+        matchesDivisionDepartmentFilter(user.departmentId, filter.divisions, filter.departmentIds, (id) => getDepartment(id)?.divisionId || UNASSIGNED_GROUP_ID)
     })
     .sort((a, b) => a.name.localeCompare(b.name))
-}
-
-/** Whether a department is in one of these divisions (NO_DIVISION: it has none). No divisions means all. */
-export function inDivisions(department: Pick<Department, 'divisionId'> | undefined, divisions: string[]): boolean {
-  return divisions.length === 0 || (!!department && divisions.some((division) => departmentsInDivision([department], division).length > 0))
-}
-
-/**
- * The "Filter by Division" choices: each division of these departments by name, then `noDivision`
- * (NO_DIVISION) when some department has none. Pass the active departments (removed ones are left out).
- */
-export function divisionFilterOptions(departments: Pick<Department, 'divisionId' | 'divisionName'>[], noDivision: string): { value: string; label: string }[] {
-  return divisionOptions(departments).map((division) => ({ value: division, label: division === NO_DIVISION ? noDivision : divisionNameIn(departments, division) }))
-}
-
-/** The "Filter by Department" choices: every one of these departments, by name, whatever the division filter. */
-export function departmentFilterOptions(departments: Pick<Department, 'id' | 'name'>[]): { value: string; label: string }[] {
-  return [...departments]
-    .sort((a, b) => a.name.localeCompare(b.name, 'en') || a.id.localeCompare(b.id, 'en'))
-    .map((department) => ({ value: department.id, label: department.name }))
 }
 
 /** The Division choice for departments that have none. */

@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { OrganizationTable } from '../components/layout/OrganizationTable'
 import { Button } from '../components/ui/Button'
 import { FilterPopover } from '../components/ui/FilterPopover'
+import { LIST_TOOLBAR } from '../components/ui/toolbar'
+import { filtersEn } from '../content/filters.en'
 import { SelectField } from '../components/ui/SelectField'
 import { TextField } from '../components/ui/TextField'
 import { adminEn } from '../content/admin.en'
@@ -42,17 +44,18 @@ export function OrganizationStructure({ hierarchy }: { hierarchy: OrganizationHi
   const rows = organizationRows(hierarchy, filters, sort)
   return (
     <>
-      {/* Search, filter and sort span the table's width (about 60/20/20 on large screens); they stack on small screens. */}
-      {/* `relative`: from lg the Filter panel lines up with this row's right edge (the Sort field's). */}
-      <div className="relative mt-6 grid gap-4 lg:grid-cols-[minmax(0,4fr)_auto_minmax(0,1fr)] lg:items-end">
+      {/* Search | Filter | Sort, the same row as on every list page; from lg the Filter panel lines up with its right edge. */}
+      <div className={`mt-6 ${LIST_TOOLBAR}`}>
         <TextField className="min-w-0" name="organizationSearch" type="search" label={content.search} placeholder={content.searchPlaceholder}
           autoComplete="off" value={query} onChange={(event) => setQuery(event.target.value)} />
-        <FilterPopover className="relative min-w-0 lg:static" label={content.filter} activeLabel={content.filterActive} title={content.filtersTitle} clearLabel={content.clearAll}
+        <FilterPopover className="relative min-w-0 lg:static" label={filtersEn.label} allLabel={filtersEn.all} title={filtersEn.title} clearLabel={filtersEn.clearAll}
           sections={[
-            { id: 'division', legend: content.divisionFilter, options: divisionOptions, value: divisions, onChange: changeDivisions, emptyText: content.divisionFilterEmpty, scrollable: true },
-            { id: 'department', legend: content.departmentFilter, value: departments, onChange: setDepartmentFilter, emptyText: content.departmentFilterEmpty, scrollable: true,
-              groups: departmentGroups.map((group) => ({ id: group.id, label: group.unassigned ? content.unassigned : group.label, options: group.options })) },
-            { id: 'role', legend: content.roleFilter, options: roleOptions, value: roles, onChange: (next) => setRoles(next as RoleFilter[]), emptyText: '' },
+            { id: 'division', legend: filtersEn.division.legend, options: divisionOptions, value: divisions, onChange: changeDivisions,
+              emptyText: filtersEn.division.empty, summary: filtersEn.division.count, scrollable: true },
+            { id: 'department', legend: filtersEn.department.legend, value: departments, onChange: setDepartmentFilter,
+              emptyText: filtersEn.department.empty, summary: filtersEn.department.count, scrollable: true,
+              groups: departmentGroups.map((group) => ({ id: group.id, label: group.unassigned ? filtersEn.department.unassigned : group.label, options: group.options })) },
+            { id: 'role', legend: content.roleFilter, options: roleOptions, value: roles, onChange: (next) => setRoles(next as RoleFilter[]), emptyText: '', summary: content.roleCount },
           ]} />
         <SelectField className="min-w-0" name="organizationSort" label={content.sort} value={sort}
           options={ORGANIZATION_SORTS.map((value) => ({ value, label: content.sortOptions[value] }))}

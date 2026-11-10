@@ -1,9 +1,7 @@
 export const organizationAdminEn = {
   title: 'Divisions and Departments',
   search: 'Search', searchPlaceholder: 'Search divisions or departments...',
-  filterDivisions: 'Filter by Division', filterPlaceholder: 'All divisions', filterEmpty: 'No divisions yet.',
-  filterDepartments: 'Filter by Department', filterDepartmentsPlaceholder: 'All departments', filterDepartmentsEmpty: 'No departments yet.',
-  filterNoDivision: 'No Division',
+  filterDivisions: 'Filter by Division',
   clearFilters: 'Clear Filters', filteredBy: 'Filtered by:', removeFilter: 'Remove {name} from the filter',
   sort: 'Sort', sortOptions: {
     default: 'Default order',

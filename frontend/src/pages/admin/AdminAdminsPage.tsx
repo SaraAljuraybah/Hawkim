@@ -9,6 +9,7 @@ import { UserAvatar } from '../../components/admin/UserBits'
 import { Button } from '../../components/ui/Button'
 import { IconButton } from '../../components/ui/IconButton'
 import { TextField } from '../../components/ui/TextField'
+import { LIST_TOOLBAR } from '../../components/ui/toolbar'
 import { tableStyles } from '../../components/ui/tableStyles'
 import { adminsEn } from '../../content/admins.en'
 import type { User } from '../../data/mock/types'
@@ -99,8 +100,10 @@ export function AdminAdminsPage() {
       </div>
       {refused && <RefusedBox ref={refusedRef} title={refused.title} messages={refused.reasons} />}
 
-      <div className="mt-8 max-w-xl">
+      {/* The search in the same row as every list page's, so it's just as wide (no Filter or Sort here). */}
+      <div className={`mt-8 ${LIST_TOOLBAR}`}>
         <TextField
+          className="min-w-0"
           name="search"
           type="search"
           label={content.search.label}

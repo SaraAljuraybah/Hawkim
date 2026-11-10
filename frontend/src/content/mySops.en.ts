@@ -28,7 +28,7 @@ export const mySopsEn: MySopsContent = {
     sortLabel: 'Sort By',
     sortNewest: 'Newest to Oldest',
     sortOldest: 'Oldest to Newest',
-    roleLabel: 'My Role',
+    roleLabel: 'My Permission',
     allRoles: 'All roles',
     clear: 'Clear Filters',
     oneResult: '1 SOP found',

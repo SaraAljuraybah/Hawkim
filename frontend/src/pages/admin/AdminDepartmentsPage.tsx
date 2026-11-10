@@ -4,7 +4,8 @@ import { ChevronDown, ChevronRight, Eye, Pencil, Plus, Trash2, X } from 'lucide-
 import { Button } from '../../components/ui/Button'
 import { TextField } from '../../components/ui/TextField'
 import { SelectField } from '../../components/ui/SelectField'
-import { MultiSelectField } from '../../components/ui/MultiSelectField'
+import { FilterPopover } from '../../components/ui/FilterPopover'
+import { LIST_TOOLBAR } from '../../components/ui/toolbar'
 import { IconButton } from '../../components/ui/IconButton'
 import { FormDialog } from '../../components/ui/FormDialog'
 import { PageLoading } from '../../components/ui/PageLoading'
@@ -15,6 +16,7 @@ import { DeleteDepartmentDialog } from '../../components/admin/DeleteDepartmentD
 import { DepartmentPreview } from '../../components/admin/DepartmentPreview'
 import { DepartmentForm } from '../../components/admin/DepartmentDialog'
 import { adminEn } from '../../content/admin.en'
+import { filtersEn } from '../../content/filters.en'
 import { organizationAdminEn as text } from '../../content/organizationAdmin.en'
 import { useDocumentTitle } from '../../hooks/useDocumentTitle'
 import { useOrganizationManagement } from '../../hooks/useOrganizationManagement'
@@ -50,15 +52,13 @@ export function AdminDepartmentsPage() {
   return <>
     <div className="flex flex-wrap items-center justify-between gap-4"><h1 className="text-2xl tracking-tight sm:text-3xl">{text.title}</h1>
       <Button onClick={() => open(() => setEditing(null))}><Plus className="size-4" aria-hidden="true" />{text.addDivision}</Button></div>
-    {/* Search, filter and sort span the table's width (about 60/20/20 on large screens); they stack on small screens. */}
-    <div className="mt-6 grid gap-4 lg:grid-cols-[minmax(0,3fr)_minmax(0,1fr)_minmax(0,1fr)] lg:items-end">
+    {/* Search | Filter | Sort, the same row as on every list page; from lg the Filter panel lines up with its right edge. */}
+    <div className={`mt-6 ${LIST_TOOLBAR}`}>
       <TextField className="min-w-0" name="organizationSearch" type="search" label={text.search} placeholder={text.searchPlaceholder} value={query} onChange={(event) => setQuery(event.target.value)} />
-      <div className="min-w-0">
-        {/* Visible label; the control's accessible name is the same text. */}
-        <span aria-hidden="true" className="mb-1.5 block text-sm font-medium text-maroon">{text.filterDivisions}</span>
-        <MultiSelectField name="divisionFilter" label={text.filterDivisions} placeholder={text.filterPlaceholder} emptyText={text.filterEmpty}
-          options={divisionOptions} value={selectedDivisions} onChange={setDivisionFilter} />
-      </div>
+      {/* The Filter field of every list page; this page filters by division only. */}
+      <FilterPopover className="relative min-w-0 lg:static" label={filtersEn.label} allLabel={filtersEn.all} title={filtersEn.title} clearLabel={filtersEn.clearAll}
+        sections={[{ id: 'division', legend: filtersEn.division.legend, options: divisionOptions, value: selectedDivisions, onChange: setDivisionFilter,
+          emptyText: filtersEn.division.empty, summary: filtersEn.division.count, scrollable: true }]} />
       <SelectField className="min-w-0" name="divisionSort" label={text.sort} value={sort}
         options={DIVISION_SORTS.map((value) => {
           const group = sortGroup(value)

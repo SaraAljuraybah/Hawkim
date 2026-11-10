@@ -25,7 +25,7 @@ export const adminsEn: AdminsContent = {
     title: 'Admins',
     description: 'Administrators manage staff, divisions, departments and the rest of your organization in Hawkim.',
     add: { label: 'Add Admin', href: '/admin/admins/new' },
-    search: { label: 'Search Admins', placeholder: 'Search by name or email' },
+    search: { label: 'Search Admins', placeholder: 'Search by admin name or email' },
     count: { one: '{count} administrator', other: '{count} administrators' },
     tableLabel: 'Admins',
     columns: { name: 'Full Name', email: 'Email', phone: 'Phone Number', role: 'Role', actions: 'Actions' },

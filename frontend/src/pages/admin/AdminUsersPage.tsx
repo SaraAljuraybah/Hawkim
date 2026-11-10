@@ -6,17 +6,19 @@ import { DeleteUserButton } from '../../components/admin/DeleteUserButton'
 import { PermissionBadges, UserAvatar } from '../../components/admin/UserBits'
 import { Button } from '../../components/ui/Button'
 import { IconButton } from '../../components/ui/IconButton'
-import { MultiSelectField } from '../../components/ui/MultiSelectField'
+import { FilterPopover } from '../../components/ui/FilterPopover'
 import { TextField } from '../../components/ui/TextField'
 import { tableStyles } from '../../components/ui/tableStyles'
+import { LIST_TOOLBAR } from '../../components/ui/toolbar'
 import { adminEn } from '../../content/admin.en'
-import { organizationAdminEn as filterText } from '../../content/organizationAdmin.en'
+import { filtersEn } from '../../content/filters.en'
 import { usersEn } from '../../content/users.en'
 import type { User } from '../../data/mock/types'
 import { useDocumentTitle } from '../../hooks/useDocumentTitle'
+import { departmentsKept, filterDepartmentsFrom, filterSelection } from '../../lib/organization'
 import { listParam, readList, updateParams } from '../../lib/pagination'
 import { adminUserEditPath, adminUserPath } from '../../lib/routes'
-import { departmentFilterOptions, divisionFilterOptions, divisionLabel, filterUsers, isSystemAdmin } from '../../lib/userAdmin'
+import { divisionLabel, filterUsers, isSystemAdmin } from '../../lib/userAdmin'
 import { useDepartments } from '../../state/departmentsContext'
 import { useUsers } from '../../state/usersContext'
 
@@ -45,20 +47,21 @@ export function AdminUsersPage() {
 
   const [query, setQuery] = useState('')
   const searchRef = useRef<HTMLInputElement>(null)
-  // The filters are in the URL (`?division=a,b&dept=x,y`); choices that no longer exist are dropped.
+  // The Filter is in the URL (`?division=a,b&dept=x,y`); the Department chips follow the selected divisions, and
+  // choices no longer offered (an old link) are dropped.
   const [params, setParams] = useSearchParams()
-  const divisionChoices = useMemo(() => divisionFilterOptions(activeDepartments, filterText.filterNoDivision), [activeDepartments])
-  const departmentChoices = useMemo(() => departmentFilterOptions(activeDepartments), [activeDepartments])
-  const divisions = useMemo(() => readList(params, 'division').filter((id) => divisionChoices.some((option) => option.value === id)), [params, divisionChoices])
-  const departmentIds = useMemo(() => readList(params, 'dept').filter((id) => departmentChoices.some((option) => option.value === id)), [params, departmentChoices])
+  const filterData = useMemo(() => filterDepartmentsFrom(activeDepartments), [activeDepartments])
+  const { divisionChoices, divisions, groups: departmentGroups, departments: departmentIds } = useMemo(
+    () => filterSelection(filterData, readList(params, 'division'), readList(params, 'dept')), [filterData, params])
   const hasFilters = query.trim().length > 0 || divisions.length > 0 || departmentIds.length > 0
   const visible = useMemo(
     () => filterUsers(activeUsers, getDepartment, { query, divisions, departmentIds }, usersEn.permissions),
     [activeUsers, getDepartment, query, divisions, departmentIds],
   )
-  // Independent: changing one never changes the other. Replacing the URL: no history entry per click.
-  const setFilter = (name: 'division' | 'dept', ids: string[]) =>
-    setParams((current) => updateParams(current, { [name]: listParam(ids) }, { division: '', dept: '' }), { replace: true })
+  // Replacing the URL: no history entry per click. Deselecting a division also deselects its departments (one update).
+  const setFilter = (changes: { division?: string[]; dept?: string[] }) => setParams((current) => updateParams(current,
+    Object.fromEntries(Object.entries(changes).map(([name, ids]) => [name, listParam(ids)])), { division: '', dept: '' }), { replace: true })
+  const setDivisions = (ids: string[]) => setFilter({ division: ids, dept: departmentsKept(filterData, ids, departmentIds) })
   function clearFilters() {
     setQuery('')
     setParams((current) => updateParams(current, { division: undefined, dept: undefined }, { division: '', dept: '' }), { replace: true })
@@ -123,12 +126,11 @@ export function AdminUsersPage() {
         </div>
       )}
 
-      {/* One search, then Filter by Division and Filter by Department (each lists all its choices): stacked on phones;
-          from sm the search across the top and the two filters side by side; one row from xl. */}
-      <div className="mt-8 grid items-end gap-4 sm:grid-cols-2 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)]">
+      {/* Search | Filter, the same row as on every list page (no Sort here). */}
+      <div className={`mt-8 ${LIST_TOOLBAR}`}>
         <TextField
           ref={searchRef}
-          className="sm:col-span-2 xl:col-span-1"
+          className="min-w-0"
           name="search"
           type="search"
           label={content.search.label}
@@ -138,17 +140,16 @@ export function AdminUsersPage() {
           value={query}
           onChange={(event) => setQuery(event.target.value)}
         />
-        {/* As on Divisions and Departments: a visible label; the control's accessible name is the same text. */}
-        <div className="min-w-0">
-          <span aria-hidden="true" className="mb-1.5 block text-sm font-medium text-maroon">{filterText.filterDivisions}</span>
-          <MultiSelectField name="division" label={filterText.filterDivisions} placeholder={filterText.filterPlaceholder} emptyText={filterText.filterEmpty}
-            options={divisionChoices} value={divisions} onChange={(ids) => setFilter('division', ids)} />
-        </div>
-        <div className="min-w-0">
-          <span aria-hidden="true" className="mb-1.5 block text-sm font-medium text-maroon">{filterText.filterDepartments}</span>
-          <MultiSelectField name="department" label={filterText.filterDepartments} placeholder={filterText.filterDepartmentsPlaceholder}
-            emptyText={filterText.filterDepartmentsEmpty} options={departmentChoices} value={departmentIds} onChange={(ids) => setFilter('dept', ids)} />
-        </div>
+        {/* The Filter field of every list page: its panel opens under the field (no Sort column to line up with). */}
+        <FilterPopover className="relative min-w-0" label={filtersEn.label} allLabel={filtersEn.all} title={filtersEn.title} clearLabel={filtersEn.clearAll}
+          onClear={() => setFilter({ division: [], dept: [] })}
+          sections={[
+            { id: 'division', legend: filtersEn.division.legend, options: divisionChoices, value: divisions, onChange: setDivisions,
+              emptyText: filtersEn.division.empty, summary: filtersEn.division.count, scrollable: true },
+            { id: 'department', legend: filtersEn.department.legend, value: departmentIds, onChange: (ids) => setFilter({ dept: ids }),
+              emptyText: filtersEn.department.empty, summary: filtersEn.department.count, scrollable: true,
+              groups: departmentGroups.map((group) => ({ id: group.id, label: group.unassigned ? filtersEn.department.unassigned : group.label, options: group.options })) },
+          ]} />
       </div>
 
       <div className="mt-6 flex min-h-8 flex-wrap items-center justify-between gap-2">

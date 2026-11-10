@@ -63,7 +63,9 @@ describe('the Admins list', () => {
     expect(html).toContain('>Admins</h1>')
     expect(html).toContain(adminsEn.list.description)
     expect(html).toMatch(/<a[^>]*href="\/admin\/admins\/new"[^>]*>.*Add Admin<\/a>/)
-    expect(html).toContain('placeholder="Search by name or email"')
+    expect(html).toContain('placeholder="Search by admin name or email"')
+    // As wide as every list page's search.
+    expect(html).toContain('<div class="mt-8 relative grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)] lg:items-end">')
   })
 
   it('has the columns Name, Email, Phone Number, Role and Actions', () => {

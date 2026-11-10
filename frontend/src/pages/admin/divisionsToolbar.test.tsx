@@ -34,15 +34,15 @@ describe('the Divisions and Departments page', () => {
     expect(html).toContain('Add Division')
   })
 
-  it('has a full-width toolbar: Search, Filter by Division and Sort, in that order, above the table', () => {
+  it('has the toolbar of every list page: Search, Filter and Sort, in that order, above the table', () => {
     management.value = { data: snapshot, refresh: vi.fn() }
     const html = page()
-    // One column on small screens; on large screens about 60% / 20% / 20% (3fr : 1fr : 1fr).
-    const toolbar = html.match(/<div class="mt-6 grid gap-4 lg:grid-cols-\[minmax\(0,3fr\)_minmax\(0,1fr\)_minmax\(0,1fr\)\] lg:items-end">/)
+    // One column on small screens; on large screens 2fr : 1fr : 1fr, as on every list page.
+    const toolbar = html.match(/<div class="mt-6 relative grid gap-4 lg:grid-cols-\[minmax\(0,2fr\)_minmax\(0,1fr\)_minmax\(0,1fr\)\] lg:items-end">/)
     expect(toolbar).not.toBeNull()
     expect(toolbar![0]).not.toMatch(/(?<!lg:)grid-cols/)
     expect(html).not.toContain('max-w-md')
-    const order = ['name="organizationSearch"', '>Filter by Division<', 'name="divisionSort"', '<table']
+    const order = ['name="organizationSearch"', '>Filter</label>', 'name="divisionSort"', '<table']
     expect(order.map((text) => html.indexOf(text))).toEqual([...order.map((text) => html.indexOf(text))].sort((a, b) => a - b))
     expect(html).toContain('placeholder="Search divisions or departments..."')
   })
@@ -61,13 +61,14 @@ describe('the Divisions and Departments page', () => {
     expect(select.indexOf('Default order')).toBeLessThan(select.indexOf('<optgroup'))
   })
 
-  it('lists the loaded divisions as checkboxes in the filter, by name', () => {
+  it('has the Filter field of every list page with the Division section only, the loaded divisions as chips by name', () => {
     management.value = { data: snapshot, refresh: vi.fn() }
     const html = page()
-    const boxes = [...html.matchAll(/<input type="checkbox"[^>]*name="divisionFilter" value="([^"]+)"/g)].map((match) => match[1])
-    expect(boxes).toEqual(['c', 'q'])
-    expect(html).toContain('aria-label="Filter by Division"')
-    expect(html).toContain('All divisions')
+    expect([...html.matchAll(/<legend[^>]*>([^<]+)<\/legend>/g)].map((match) => match[1])).toEqual(['Division'])
+    const chips = [...html.matchAll(/aria-pressed="false"[^>]*><span class="min-w-0 break-words">([^<]+)<\/span>/g)].map((match) => match[1])
+    expect(chips).toEqual(['Clinical Research &amp; Development', 'Quality &amp; Compliance'])
+    expect(html).toMatch(/>Filter<\/label><button id="[^"]+" type="button" aria-label="Filter"[^>]*><span class="truncate text-text-gray">All<\/span>/)
+    expect(html).not.toContain('All divisions')
   })
 
   it('keeps the Staff column label, loading state and Retry', () => {

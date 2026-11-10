@@ -114,13 +114,13 @@ describe('Clear Filters in the admin SOP Directory', () => {
 describe('Clear all without onClear (Organizational Structure, plain state)', () => {
   it('empties every section in turn', () => {
     const onChange = [vi.fn(), vi.fn(), vi.fn()]
-    clearFilterSections(onChange.map((change, index) => ({ id: String(index), legend: '', value: ['x'], onChange: change, emptyText: '' })))
+    clearFilterSections(onChange.map((change, index) => ({ id: String(index), legend: '', value: ['x'], onChange: change, emptyText: '', summary: { one: '', other: '' } })))
     for (const change of onChange) expect(change).toHaveBeenCalledWith([])
   })
   it('calls onClear once instead, when given', () => {
     const onChange = vi.fn()
     const onClear = vi.fn()
-    clearFilterSections([{ id: 'a', legend: '', value: ['x'], onChange, emptyText: '' }], onClear)
+    clearFilterSections([{ id: 'a', legend: '', value: ['x'], onChange, emptyText: '', summary: { one: '', other: '' } }], onClear)
     expect(onClear).toHaveBeenCalledTimes(1)
     expect(onChange).not.toHaveBeenCalled()
   })

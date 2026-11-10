@@ -4,7 +4,7 @@ import { MemoryRouter } from 'react-router-dom'
 import { adminEn } from '../../content/admin.en'
 import { usersEn } from '../../content/users.en'
 import type { Department, User } from '../../data/mock/types'
-import { filterUsers, NO_DIVISION } from '../../lib/userAdmin'
+import { filterUsers } from '../../lib/userAdmin'
 import { PermissionBadges } from '../../components/admin/UserBits'
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
 import { AdminUsersPage } from './AdminUsersPage'
@@ -33,10 +33,13 @@ const table = (html: string) => html.slice(html.indexOf('<table'), html.indexOf(
 const getDepartment = (id: string) => fixture.departments.find((item) => item.id === id)
 const search = (query: string, divisions: string[] = [], departmentIds: string[] = []) =>
   filterUsers(fixture.users, getDepartment, { query, divisions, departmentIds }, usersEn.permissions).map((user) => user.id)
-/** A checkbox dropdown's button and its list of checkboxes (MultiSelectField). */
-const dropdown = (html: string, name: string) => {
-  const start = html.lastIndexOf('<button', html.indexOf(`name="${name}"`))
-  return html.slice(start, html.indexOf('</div>', html.lastIndexOf(`name="${name}"`)))
+/** The Filter field's button (FilterPopover). */
+const filterField = (html: string) => html.match(/<label for="[^"]+" class="mb-1\.5 block text-sm font-medium text-maroon">Filter<\/label><button[^>]*>.*?<\/button>/)![0]
+/** A section's chip labels (and whether each is on), in order. */
+const chips = (html: string, legend: string) => {
+  const start = html.indexOf(`>${legend}</legend>`)
+  const section = html.slice(start, html.indexOf('</fieldset>', start))
+  return [...section.matchAll(/aria-pressed="(true|false)"[^>]*>(?:<svg.*?<\/svg>)?<span[^>]*>([^<]+)<\/span>/g)].map((match) => match[2] + (match[1] === 'true' ? ' ✓' : ''))
 }
 
 /** The fixture's staff: everyone but the administrators. */
@@ -90,27 +93,22 @@ describe('Users list', () => {
     expect(html).toContain('hidden md:block')
   })
 
-  it('offers one search, then Filter by Division and Filter by Department checkbox dropdowns, with the count', () => {
+  it('offers one search and the one Filter field of every list page, with the count', () => {
     const html = render()
     expect(html).toContain('>Search Staff<')
     expect(html).toContain('placeholder="Search by staff name, email, division, department"')
     // No description under the title.
     expect(html).not.toContain('Manage who can use Hawkim and what they can do.')
     expect(html).not.toContain('<select')
-    // The Divisions and Departments page's dropdown: visible label, placeholder, and a closed list of checkboxes.
-    const divisions = dropdown(html, 'division')
-    expect(html).toContain('<span aria-hidden="true" class="mb-1.5 block text-sm font-medium text-maroon">Filter by Division</span>')
-    expect(divisions).toMatch(/^<button type="button" aria-label="Filter by Division" aria-expanded="false"/)
-    expect(divisions).toContain('>All divisions</span>')
-    expect(divisions).toContain('role="group" aria-label="Filter by Division" hidden=""')
-    // Each division by name (its id as the value), then No Division.
-    expect([...divisions.matchAll(/value="([^"]+)"\/><span[^>]*>([^<]+)<\/span>/g)].map((match) => [match[1], match[2]]))
-      .toEqual([['regulatory_drug_safety', 'Regulatory &amp; Drug Safety'], [NO_DIVISION, 'No Division']])
-    // Every department, by name, whatever the division filter.
-    const departments = dropdown(html, 'department')
-    expect(html).toContain('>Filter by Department</span>')
-    expect(departments).toContain('>All departments</span>')
-    expect([...departments.matchAll(/value="([^"]+)"\/><span[^>]*>([^<]+)<\/span>/g)].map((match) => match[1])).toEqual(['pv', 'qa'])
+    expect(html).not.toContain('Filter by Division')
+    // One Filter field ("All" while nothing is chosen) opening the shared panel.
+    expect(filterField(html)).toMatch(/^<label[^>]*>Filter<\/label><button id="[^"]+" type="button" aria-label="Filter" aria-expanded="false" aria-controls="[^"]+"/)
+    expect(filterField(html)).toContain('>All</span>')
+    expect(html).toMatch(/role="group" aria-labelledby="[^"]+"[^>]*><div[^>]*><h2 id="[^"]+" class="text-base">Filters<\/h2>/)
+    // Division chips; Department chips under their division, departments without one last.
+    expect(chips(html, 'Division')).toEqual(['Regulatory &amp; Drug Safety'])
+    expect(chips(html, 'Department')).toEqual(['Pharmacovigilance', 'Quality Assurance'])
+    expect(html).toContain('>Unassigned departments</p>')
     expect(html).not.toContain('All Permissions')
     // Administrators aren't staff, so Nouf (an admin) isn't counted.
     expect(html).toContain('>2 staff members<')
@@ -128,18 +126,25 @@ describe('Users list', () => {
     }
   })
 
-  it('reads both filters from the URL, independently, with the count and Clear Filters', () => {
-    // The department filter keeps Pharmacovigilance though No Division is checked: nobody matches both.
-    const mismatch = render('?division=__no-division__&dept=pv')
-    expect(mismatch).toContain('>0 staff members<')
-    expect(mismatch).toContain(`>${adminEn.usersList.empty}<`)
-    expect(dropdown(mismatch, 'department')).toContain('checked="" value="pv"')
-    // Reem only: Nouf is in Quality Assurance without a division too, but is an administrator.
-    const html = render('?division=__no-division__,gone&dept=qa')
-    expect(html).toContain('>1 staff member<')
-    expect(dropdown(html, 'division')).toContain('aria-label="Filter by Division: No Division"')
-    expect(dropdown(html, 'department')).toContain('>Quality Assurance</span>')
-    expect(html).toContain('>Clear Filters<')
+  it('reads the Filter from the URL with the linked rule, with the summary, the count and Clear Filters', () => {
+    // A division: its departments only, and only its departments are offered.
+    const byDivision = render('?division=regulatory_drug_safety,gone')
+    expect(byDivision).toContain('>1 staff member<')
+    expect(filterField(byDivision)).toContain('aria-label="Filter: 1 division"')
+    expect(filterField(byDivision)).toContain('>1 division</span>')
+    expect(chips(byDivision, 'Division')).toEqual(['Regulatory &amp; Drug Safety ✓'])
+    expect(chips(byDivision, 'Department')).toEqual(['Pharmacovigilance'])
+    expect(byDivision).toContain('>Clear Filters<')
+    // A department without a division (Reem; Nouf is there too, but is an administrator).
+    const byDepartment = render('?dept=qa')
+    expect(byDepartment).toContain('>1 staff member<')
+    expect(filterField(byDepartment)).toContain('>1 department</span>')
+    // A department outside the selected division is no longer offered, so it's dropped.
+    const dropped = render('?division=regulatory_drug_safety&dept=qa')
+    expect(dropped).toContain('>1 staff member<')
+    expect(filterField(dropped)).toContain('>1 division</span>')
+    // Both, in the same division.
+    expect(filterField(render('?division=regulatory_drug_safety&dept=pv'))).toContain('>1 division, 1 department</span>')
   })
 })
 
@@ -155,19 +160,19 @@ describe('searching and filtering users', () => {
     expect(search('  ')).toEqual(['admin', 'reem', 'sara'])
   })
 
-  it('combines the search with the Division and Department filters, several of each', () => {
+  it('combines the search with the Filter, using the linked rule of every list page', () => {
+    // A division keeps all its departments; departments without a division need selecting.
     expect(search('', ['regulatory_drug_safety'])).toEqual(['sara'])
-    expect(search('', [NO_DIVISION])).toEqual(['admin', 'reem'])
-    expect(search('', ['regulatory_drug_safety', NO_DIVISION])).toEqual(['admin', 'reem', 'sara'])
     expect(search('', [], ['qa'])).toEqual(['admin', 'reem'])
     expect(search('', [], ['qa', 'pv'])).toEqual(['admin', 'reem', 'sara'])
-    expect(search('reem', [NO_DIVISION], ['qa'])).toEqual(['reem'])
-    expect(search('sara', [NO_DIVISION])).toEqual([])
-  })
-
-  it('needs both filters to match when both are used: a mismatch leaves nobody', () => {
-    expect(search('', ['regulatory_drug_safety'], ['qa'])).toEqual([])
-    expect(search('', ['regulatory_drug_safety'], ['pv', 'qa'])).toEqual(['sara'])
+    // In a division with departments selected, only those (here its one department).
+    expect(search('', ['regulatory_drug_safety'], ['pv'])).toEqual(['sara'])
+    // A division and a department of another group: each counts in its own group.
+    expect(search('', ['regulatory_drug_safety'], ['qa'])).toEqual(['admin', 'reem', 'sara'])
+    expect(search('reem', [], ['qa'])).toEqual(['reem'])
+    expect(search('sara', [], ['qa'])).toEqual([])
+    // Nothing selected: everyone.
+    expect(search('')).toEqual(['admin', 'reem', 'sara'])
   })
 
   it('says when no user matches', () => {
