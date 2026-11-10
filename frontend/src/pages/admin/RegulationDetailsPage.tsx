@@ -2,7 +2,6 @@ import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
 import { GuidelineProcessingCard } from '../../components/admin/GuidelineProcessingCard'
 import { CurrentBadge } from '../../components/ui/CurrentBadge'
-import { ProcessingStatusBadge } from '../../components/ui/ProcessingStatusBadge'
 import { GuidelineVersionView } from '../../components/ui/GuidelineVersionView'
 import { adminEn } from '../../content/admin.en'
 import { useDocumentTitle } from '../../hooks/useDocumentTitle'
@@ -44,7 +43,6 @@ export function RegulationDetailsPage() {
       <div className="mt-5 flex flex-wrap items-center gap-3">
         <h1 className="text-2xl tracking-tight sm:text-3xl">{name}</h1>
         {version.id === shownCurrent.id && <CurrentBadge label={names.current.badge} />}
-        {version.neverCurrent && version.processing && <ProcessingStatusBadge status={version.processing.status} />}
       </div>
 
       {/* An added version: processing by the compliance service, then Make Current (GVP phase 2) */}

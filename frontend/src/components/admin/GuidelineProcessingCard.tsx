@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { CircleAlert, CircleCheck, LoaderCircle } from 'lucide-react'
 import { Button } from '../ui/Button'
-import { Card } from '../ui/Card'
+import { ProcessingStatusBadge } from '../ui/ProcessingStatusBadge'
 import { adminEn } from '../../content/admin.en'
 import type { GuidelineVersion } from '../../data/mock/types'
 
@@ -43,7 +43,12 @@ export function GuidelineProcessingCard({ version, onRetry, onMakeCurrent }: Gui
   const report = processing.report
 
   return (
-    <Card title={text.title} titleId="guideline-processing-title" className="mt-6">
+    <section aria-labelledby="guideline-processing-title" className="mt-6 rounded-xl border border-beige bg-white p-5 sm:p-6">
+      {/* The status label is the heading, as in the versions list; screen readers hear "Status: Waiting". */}
+      <h2 id="guideline-processing-title" className="mb-4">
+        <span className="sr-only">{text.title}: </span>
+        <ProcessingStatusBadge status={processing.status} size="lg" />
+      </h2>
       <div role="status" className="space-y-3 text-sm text-maroon">
         <p className="flex items-start gap-2">
           {processing.status === 'ready' && <CircleCheck aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-status-approved-fg" strokeWidth={2} />}
@@ -103,7 +108,7 @@ export function GuidelineProcessingCard({ version, onRetry, onMakeCurrent }: Gui
           </div>
         </div>
       )}
-    </Card>
+    </section>
   )
 }
 
