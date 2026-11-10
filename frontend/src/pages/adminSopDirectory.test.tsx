@@ -63,7 +63,7 @@ describe('the SOP Directory in the admin portal', () => {
     expect(html).toContain(`>${sopsEn.adminEmpty}<`)
     expect(html.match(/<h1/g)).toHaveLength(1)
     expect(html).toContain('>SOP Directory</h1>')
-    expect(fixture.titles.at(-1)).toBe('SOP Directory · System Admin | Hawkim')
+    expect(fixture.titles.at(-1)).toBe('SOP Directory · Admin Portal | Hawkim')
   })
 
   it('has Search, Filter by Division, Filter by Department and Sort By on one row, the views, no File Type filter and no department line', () => {
@@ -152,7 +152,7 @@ describe('an SOP opened from the admin directory', () => {
     fixture.sops = [sop('1', 'it')]
     const html = detail('1')
     expect(html).toMatch(/<a[^>]*href="\/admin\/sops"[^>]*>.*Back to SOP Directory<\/a>/)
-    expect(fixture.titles.at(-1)).toBe('Procedure 1 · System Admin | Hawkim')
+    expect(fixture.titles.at(-1)).toBe('Procedure 1 · Admin Portal | Hawkim')
   })
 
   it('has no edit, workflow or request buttons', () => {

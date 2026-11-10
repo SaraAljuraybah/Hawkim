@@ -9,7 +9,7 @@ import type { SopsContent } from './types'
 export const sopsEn: SopsContent = {
   
 pageTitle: 'SOP Directory | Hawkim',
-adminPageTitle: 'SOP Directory · System Admin | Hawkim',
+adminPageTitle: 'SOP Directory · Admin Portal | Hawkim',
 title: 'SOP Directory',
 subtitle: 'Browse published SOPs available to you.',
 
@@ -55,7 +55,7 @@ subtitle: 'Browse published SOPs available to you.',
     fileFailed: "The file couldn't be opened. Try again.",
     subtitle: 'Published on {date} · {department} · SOP v{version}',
     pageTitle: '{title} | Hawkim',
-    adminPageTitle: '{title} · System Admin | Hawkim',
+    adminPageTitle: '{title} · Admin Portal | Hawkim',
    back: { label: 'Back to SOP Directory', href: '/sops' },
     exportPdf: 'Export PDF',
     descriptionTitle: 'SOP Description',
@@ -78,7 +78,7 @@ subtitle: 'Browse published SOPs available to you.',
     },
     pendingAccess: {
       title: 'Your access request is pending review',
-      text: "You'll be able to open this SOP once the System Admin team approves your access to {department}.",
+      text: "You'll be able to open this SOP once an administrator approves your access to {department}.",
     },
   },
 }

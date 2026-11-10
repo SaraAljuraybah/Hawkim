@@ -4,6 +4,7 @@ import { ChevronDown, X } from 'lucide-react'
 import type { AppNavGroup, AppNavItem, AppShellContent, SidebarContent } from '../../content/types'
 import { isNavGroup } from '../../lib/sidebarNav'
 import { useSession } from '../../state/sessionContext'
+import { useAdminRoleLabel } from '../../state/superAdminContext'
 import { PermissionBadges } from '../admin/UserBits'
 import { icons } from '../icons'
 import { Logo } from '../ui/Logo'
@@ -143,6 +144,8 @@ function SidebarGroup({ group, badges, onNavigate }: { group: AppNavGroup; badge
 export function Sidebar({ content, onNavigate, onClose, departmentSwitcher, badges }: SidebarProps) {
   const SignOutIcon = icons[content.signOut.icon]
   const { user, signOut } = useSession()
+  // "Super Admin" or "Admin" in the admin portal (who the Super Admin is now); the permission label elsewhere.
+  const adminLabel = useAdminRoleLabel(user)
   const homeHref = content.homeHref
 
   return (
@@ -154,7 +157,7 @@ export function Sidebar({ content, onNavigate, onClose, departmentSwitcher, badg
             badges stay outside the link, whose aria-label would hide them from screen readers. Inline
             flow indented by the mark's width (2.5rem tall: about 2.36rem wide, plus the 0.5rem gap), with
             the link pulled back over it, so only badges that don't fit wrap, lined up under the name.
-            Sized so "Hawkim" and one "System Admin" badge fit on one line in the 16rem sidebar. */}
+            Sized so "Hawkim" and one "Super Admin" badge fit on one line in the 16rem sidebar. */}
         <div className="min-w-0 flex-1 pl-[2.875rem] leading-7">
           <Link
             to={homeHref}
@@ -166,7 +169,7 @@ export function Sidebar({ content, onNavigate, onClose, departmentSwitcher, badg
             <Logo variant="markOnDark" alt="" className="h-10" />
             <span className="text-lg font-semibold tracking-normal text-offwhite">{content.brandName}</span>
           </Link>
-          {user && <PermissionBadges user={user} sidebar label={content.rolesLabel} />}
+          {user && <PermissionBadges user={user} sidebar label={content.rolesLabel} adminLabel={adminLabel} />}
         </div>
         {onClose && (
           <button

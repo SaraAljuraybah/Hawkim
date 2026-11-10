@@ -6,13 +6,15 @@ import { appShellEn } from '../../content/app.en'
 import type { Permission } from '../../data/mock/types'
 import { ADMIN_HOME_PATH } from '../../lib/routes'
 import { Sidebar } from './Sidebar'
+import { SuperAdminContext } from '../../state/superAdminContext'
+import type { SuperAdminState } from '../../hooks/useSuperAdmin'
 import { isNavGroup, navLinks } from '../../lib/sidebarNav'
 import appSource from '../../App.tsx?raw'
 import signInSource from '../../pages/SignInPage.tsx?raw'
 
-const session = vi.hoisted(() => ({ permissions: undefined as Permission[] | undefined }))
+const session = vi.hoisted(() => ({ permissions: undefined as Permission[] | undefined, id: 'me' }))
 vi.mock('../../state/sessionContext', () => ({
-  useSession: () => ({ signOut: () => {}, user: session.permissions && { permissions: session.permissions } }),
+  useSession: () => ({ signOut: () => {}, user: session.permissions && { id: session.id, permissions: session.permissions } }),
 }))
 
 const links = navLinks(adminEn.shell.nav)
@@ -24,10 +26,10 @@ const group = (html: string) => ({
 })
 
 describe('the admin portal sidebar', () => {
-  it('lists the tabs in this order, with Manage Organization holding Divisions & Departments, Staff and Admins', () => {
+  it('lists the tabs in this order, with Manage Organization holding Divisions and Departments, Staff and Admins', () => {
     const top = adminEn.shell.nav.map((entry) => (isNavGroup(entry) ? [entry.label, entry.children.map(({ label, href }) => [label, href])] : [entry.label, entry.href, entry.icon]))
     expect(top).toEqual([
-      ['Manage Organization', [['Divisions & Departments', '/admin/departments'], ['Staff', '/admin/users'], ['Admins', '/admin/admins']]],
+      ['Manage Organization', [['Divisions and Departments', '/admin/departments'], ['Staff', '/admin/users'], ['Admins', '/admin/admins']]],
       ['SFDA Regulatory Requirements', '/admin/regulations', 'regulatory'],
       ['Organizational Structure', '/admin/organizational-structure', 'hierarchy'],
       ['SOP Directory', '/admin/sops', 'sops'],
@@ -35,7 +37,7 @@ describe('the admin portal sidebar', () => {
     ])
   })
 
-  it('has no duplicate tabs: Divisions & Departments and Staff are only inside the group', () => {
+  it('has no duplicate tabs: Divisions and Departments and Staff are only inside the group', () => {
     const hrefs = links.map((item) => item.href)
     expect(new Set(hrefs).size).toBe(hrefs.length)
     expect(new Set(links.map((item) => item.label)).size).toBe(hrefs.length)
@@ -56,9 +58,9 @@ describe('the admin portal sidebar', () => {
     expect(labels).toEqual(links.map((item) => item.label))
   })
 
-  it('takes the logo to Divisions & Departments, named for it', () => {
+  it('takes the logo to Divisions and Departments, named for it', () => {
     const html = renderToStaticMarkup(<MemoryRouter><Sidebar content={adminEn.shell} /></MemoryRouter>)
-    const logo = html.match(/<a[^>]*aria-label="Hawkim System Admin, go to Divisions &amp; Departments"[^>]*>/)![0]
+    const logo = html.match(/<a[^>]*aria-label="Hawkim Admin Portal, go to Divisions and Departments"[^>]*>/)![0]
     expect(logo).toContain('href="/admin/departments"')
   })
 })
@@ -113,12 +115,38 @@ describe('Manage Organization', () => {
 describe('the signed-in user\'s role badges under the logo', () => {
   const badges = (html: string) => [...html.matchAll(/<li class="inline-flex[^"]*bg-gold-light [^"]*">([^<]+)<\/li>/g)].map((match) => match[1])
 
-  it('shows "System Admin" for an admin, outside the logo link, in a labelled list', () => {
+  const portal = (superAdmin: Pick<SuperAdminState, 'status' | 'superAdminId'>) => renderToStaticMarkup(
+    <SuperAdminContext.Provider value={{ ...superAdmin, reload: () => {}, set: () => {} }}>
+      <MemoryRouter><Sidebar content={adminEn.shell} /></MemoryRouter>
+    </SuperAdminContext.Provider>,
+  )
+
+  it('shows "Super Admin" for the current Super Admin, outside the logo link, in a labelled list', () => {
     session.permissions = ['admin']
-    const html = renderToStaticMarkup(<MemoryRouter><Sidebar content={adminEn.shell} /></MemoryRouter>)
-    expect(badges(html)).toEqual(['System Admin'])
+    const html = portal({ status: 'ready', superAdminId: 'me' })
+    expect(badges(html)).toEqual(['Super Admin'])
     expect(html).toContain('<ul aria-label="Your roles" class="inline')
     expect(html.indexOf('</a>')).toBeLessThan(html.indexOf('aria-label="Your roles"'))
+  })
+
+  it('shows "Admin" for any other administrator, and when no Super Admin is assigned', () => {
+    session.permissions = ['admin']
+    expect(badges(portal({ status: 'ready', superAdminId: 'someone-else' }))).toEqual(['Admin'])
+    expect(badges(portal({ status: 'ready', superAdminId: null }))).toEqual(['Admin'])
+  })
+
+  it('shows no role badge until it is known who the Super Admin is', () => {
+    session.permissions = ['admin']
+    expect(portal({ status: 'loading', superAdminId: null })).not.toContain('Your roles')
+    expect(portal({ status: 'error', superAdminId: null })).not.toContain('Your roles')
+  })
+
+  it('never names a third administrator role', () => {
+    session.permissions = ['admin']
+    for (const html of [portal({ status: 'ready', superAdminId: 'me' }), portal({ status: 'ready', superAdminId: 'x' }),
+      renderToStaticMarkup(<MemoryRouter><Sidebar content={adminEn.shell} /></MemoryRouter>)]) {
+      expect(html).not.toMatch(/System Admin/i)
+    }
   })
 
   it('shows one badge per role, in the usual order', () => {
@@ -135,7 +163,7 @@ describe('the signed-in user\'s role badges under the logo', () => {
 })
 
 describe('where an admin lands', () => {
-  it('is Divisions & Departments', () => {
+  it('is Divisions and Departments', () => {
     expect(ADMIN_HOME_PATH).toBe('/admin/departments')
     expect(adminEn.shell.homeHref).toBe(ADMIN_HOME_PATH)
   })

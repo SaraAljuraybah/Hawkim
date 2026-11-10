@@ -5,10 +5,12 @@ import { AdminTopBar } from '../components/layout/AdminTopBar'
 import { TopBar } from '../components/layout/TopBar'
 import { adminEn } from '../content/admin.en'
 import { appShellEn } from '../content/app.en'
+import type { ReactNode } from 'react'
 import type { Department, User } from '../data/mock/types'
 import { isPathAllowed } from '../lib/departmentNavigation'
 import { ADMIN_PROFILE_PATH, PROFILE_PATH, profilePathFor } from '../lib/routes'
 import { ProfilePage } from './ProfilePage'
+import { SuperAdminContext } from '../state/superAdminContext'
 
 const fixture = vi.hoisted(() => ({
   user: { id: 'me', name: 'Sara Aljuraybah', initials: 'SA', email: 'sara@example.test', departmentId: 'home', permissions: ['author', 'reviewer'] } as User,
@@ -191,11 +193,11 @@ describe('My Profile in the admin portal', () => {
 
   beforeEach(() => { fixture.user = admin })
 
-  it('shows the position without the division and department, in one h1 page, with System Admin as the permission', () => {
+  it('shows the position without the division and department, in one h1 page, with Admin as the permission', () => {
     fixture.user = { ...admin, position: 'IT Manager' }
     const html = page()
     expect([...html.matchAll(/<dt[^>]*>([^<]+)<\/dt>/g)].map((match) => match[1])).toEqual(['Name', 'Email', 'Phone Number', 'Position', 'Permission', 'Password'])
-    expect(value(html, 'Permission')).toBe('System Admin')
+    expect(value(html, 'Permission')).toBe('Admin')
     expect(value(html, 'Position')).toBe('IT Manager')
     expect(html).not.toContain('Pharmacovigilance')
     expect(html.match(/<h1/g)).toHaveLength(1)
@@ -220,14 +222,32 @@ describe('My Profile in the admin portal', () => {
     expect(links[1]).toContain('tabindex="-1"')
     expect(links[1]).toContain('aria-hidden="true"')
     expect(links[1]).toContain('>Nouf Almutairi<')
-    // Still shows the role, as plain text.
-    expect(html).toContain('>System Admin</p>')
+    // The role under the name (Super Admin or Admin) needs the portal's shared state: see below.
   })
 
-  it('shows only "System Admin" under the admin\'s name: a System Admin has no position or department', () => {
-    const html = renderToStaticMarkup(<MemoryRouter><AdminTopBar content={adminEn.shell} user={{ ...admin, position: 'IT Manager' }} menuOpen={false} onOpenMenu={() => {}} menuButtonRef={{ current: null }} /></MemoryRouter>)
-    expect(html).toContain('<p class="text-xs text-text-gray">System Admin</p>')
+  const inPortal = (superAdminId: string | null, node: ReactNode, status: 'ready' | 'loading' | 'error' = 'ready') => renderToStaticMarkup(
+    <SuperAdminContext.Provider value={{ status, superAdminId, reload: () => {}, set: () => {} }}><MemoryRouter>{node}</MemoryRouter></SuperAdminContext.Provider>,
+  )
+  const topBar = (user: User) => <AdminTopBar content={adminEn.shell} user={user} menuOpen={false} onOpenMenu={() => {}} menuButtonRef={{ current: null }} />
+
+  it('shows only the role under the admin\'s name: an administrator has no position or department', () => {
+    const html = inPortal('someone-else', topBar({ ...admin, position: 'IT Manager' }))
+    expect(html).toContain('<p class="text-xs text-text-gray">Admin</p>')
     expect(html).not.toContain('IT Manager')
+  })
+
+  it('shows "Super Admin" for the current Super Admin, in the top bar and as the permission', () => {
+    expect(inPortal(admin.id, topBar(admin))).toContain('<p class="text-xs text-text-gray">Super Admin</p>')
+    expect(value(inPortal(admin.id, <ProfilePage admin />), 'Permission')).toBe('Super Admin')
+    expect(value(inPortal('someone-else', <ProfilePage admin />), 'Permission')).toBe('Admin')
+  })
+
+  it('shows no role under the name until it is known who the Super Admin is', () => {
+    for (const status of ['loading', 'error'] as const) {
+      const html = inPortal(null, topBar(admin), status)
+      expect(html).not.toContain('Super Admin')
+      expect(html).not.toContain('<p class="text-xs text-text-gray">')
+    }
   })
 
   it('knows where each person\'s profile is', () => {

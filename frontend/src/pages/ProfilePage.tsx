@@ -8,6 +8,7 @@ import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { divisionLabel } from '../lib/userAdmin'
 import { useDepartments } from '../state/departmentsContext'
 import { useCurrentUser } from '../state/sessionContext'
+import { useAdminRoleLabel } from '../state/superAdminContext'
 
 /**
  * My Profile: the signed-in person's own information, read-only, and Change Password (a dialog). The same
@@ -22,7 +23,9 @@ export function ProfilePage({ admin = false }: { admin?: boolean }) {
   const [changing, setChanging] = useState(false)
   const [changed, setChanged] = useState(false)
   const changeRef = useRef<HTMLButtonElement>(null)
-  const roles = user.permissions.map((permission) => content.roles[permission])
+  // In the admin portal an administrator's role is "Super Admin" or "Admin" (who the Super Admin is now).
+  const adminLabel = useAdminRoleLabel(user)
+  const roles = user.permissions.map((permission) => (permission === 'admin' && adminLabel ? adminLabel : content.roles[permission]))
   // An Admin manages the whole organization: their home department is only the account's technical
   // default, so the position is shown without the division and department.
   const isAdmin = user.permissions.includes('admin')

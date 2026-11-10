@@ -425,7 +425,7 @@ export interface SopsContent {
   versionTemplate: string
   /** Shown when the list is empty. */
   empty: string
-  /** The System Admin's empty directory (every department). */
+  /** An administrator's empty directory (every department). */
   adminEmpty: string
   /** An empty Recently Published tab. */
   recentEmpty: string
@@ -1337,8 +1337,6 @@ export interface AdminShellContent extends SidebarContent {
   drawerLabel: string
   /** The admin's name and avatar in the top bar; `{name}` is replaced in the label. */
   profileLink: LinkContent
-  /** Shown under the admin's name in the top bar. */
-  roleLabel: string
   /** Accessible text of the pending requests count in the sidebar; `{count}` is replaced. */
   pendingLabel: string
 }

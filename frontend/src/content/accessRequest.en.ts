@@ -41,7 +41,7 @@ export const reviewRequestEn: ReviewRequestContent = {
   logoAlt: 'Hawkim',
   loading: 'Loading the request…',
   title: 'Review request',
-  text: 'Accepting creates the contact person’s account as the organization’s System Admin and emails them a link to set their password.',
+  text: 'Accepting creates the contact person’s account as the organization’s Super Admin and emails them a link to set their password.',
   labels: {
     organization: 'Organization',
     contactName: 'Contact person',

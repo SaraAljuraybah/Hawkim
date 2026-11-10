@@ -167,7 +167,7 @@ describe('main Author approval interface', () => {
     const html = renderPage()
     expect(approvalButton(html)).not.toContain('aria-disabled="true"')
     expect(html).not.toContain(approvalEn.blockers['no-approver'])
-    expect(approvalEn.blockers['no-approver']).toBe('No approver is available. Contact your System Admin.')
+    expect(approvalEn.blockers['no-approver']).toBe('No approver is available. Contact your administrator.')
   })
   it('never gives Co-Authors or Reviewers the approval submission control', () => {
     fixture.sop = finished()

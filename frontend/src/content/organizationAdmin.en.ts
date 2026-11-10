@@ -37,7 +37,7 @@ export const organizationAdminEn = {
   saved: 'Changes saved.', removed: 'Deleted successfully.',
   retry: 'Retry', loadFailed: 'Could not load organizational data. Try again.',
   failed: 'Could not save changes. Try again.', conflict: 'Someone else changed this record. Refresh the page and try again.',
-  forbidden: 'Only an active System Admin can manage divisions and departments.',
+  forbidden: 'Only an active administrator can manage divisions and departments.',
   duplicate: 'That name is already in use, or another change was saved at the same time. Refresh the page and try again.', invalid: 'Check the fields and try again.',
   activeWorkflow: 'Some of this department’s SOPs are in review or approval, or have a compliance check running. Finish or withdraw them first, then try again.',
   requiredName: 'Enter a name (up to 100 characters).', invalidEmail: 'Enter a valid email address, e.g. name@example.com (up to 254 characters).',

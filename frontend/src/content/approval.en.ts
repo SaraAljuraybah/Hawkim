@@ -34,7 +34,7 @@ export const approvalEn = {
     'no-completed-review': 'At least one reviewer must complete the review of the current version first.',
     'not-main-author': 'Only the main author can submit for approval.',
     'version-changed': 'This SOP changed after you opened this dialog. Close it and try again.',
-    'no-approver': 'No approver is available. Contact your System Admin.',
+    'no-approver': 'No approver is available. Contact your administrator.',
     'approver-not-eligible': 'The chosen approver can’t approve this SOP. Choose another approver.',
   },
   events: {

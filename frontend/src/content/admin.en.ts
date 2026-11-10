@@ -10,8 +10,8 @@ export const adminEn: AdminContent = {
     skipLink: 'Skip to main content',
     brandName: 'Hawkim',
     homeHref: '/admin/departments',
-    homeLinkLabel: 'Hawkim System Admin, go to Divisions & Departments',
-    navAriaLabel: 'System Admin',
+    homeLinkLabel: 'Hawkim Admin Portal, go to Divisions and Departments',
+    navAriaLabel: 'Admin Portal',
     nav: [
       // A collapsible group, not a page: it opens by itself on any of its pages.
       {
@@ -19,7 +19,7 @@ export const adminEn: AdminContent = {
         label: 'Manage Organization',
         icon: 'organization',
         children: [
-          { label: 'Divisions & Departments', href: '/admin/departments', icon: 'departments', matchSubpaths: true },
+          { label: 'Divisions and Departments', href: '/admin/departments', icon: 'departments', matchSubpaths: true },
           { label: 'Staff', href: '/admin/users', icon: 'employees', matchSubpaths: true },
           { label: 'Admins', href: '/admin/admins', icon: 'admins', matchSubpaths: true },
         ],
@@ -34,11 +34,10 @@ export const adminEn: AdminContent = {
     closeMenu: 'Close menu',
     drawerLabel: 'Navigation',
     rolesLabel: 'Your roles',
-    roleLabel: 'System Admin',
     profileLink: { label: 'My Profile, {name}', href: '/admin/profile' },
     pendingLabel: '{count} pending',
   },
-  pageTitle: '{page} · System Admin | Hawkim',
+  pageTitle: '{page} · Admin Portal | Hawkim',
 
   usersList: {
     title: 'Staff',
@@ -71,7 +70,7 @@ export const adminEn: AdminContent = {
     author: 'Adds SOPs, works on them with co-authors and submits them for review.',
     reviewer: 'Reviews submitted SOPs and returns them with comments when needed.',
     approver: 'Approves reviewed SOPs and publishes them.',
-    admin: 'Manages staff and permissions in the System Admin portal.',
+    admin: 'Manages the organization in the Admin Portal.',
   },
 
   addUser: {
@@ -105,7 +104,7 @@ export const adminEn: AdminContent = {
       forbidden: "You don't have permission to add staff. Sign in again and retry.",
       'email-taken': 'A staff member with this email already exists.',
       invalid: 'Check the details and try again.',
-      'admin-exclusive': "A System Admin can't have any other permission.",
+      'admin-exclusive': "An Admin can't have any other permission.",
       'approver-quality': 'Approver is only allowed in the Quality department.',
       'department-unavailable': 'This department is no longer available. Choose another.',
       'account-failed': "The account couldn't be created. Try again in a few minutes.",
@@ -138,12 +137,12 @@ export const adminEn: AdminContent = {
       'not-found': 'This staff member no longer exists. Go back to the Staff list.',
       conflict: 'Someone else changed this staff member. Reload the page and try again.',
       invalid: 'Check the name, phone number and position, then try again.',
-      'self-admin': "You can't remove your own System Admin permission.",
-      'last-admin': 'Hawkim must always have at least one System Admin.',
-      'admin-exclusive': "A System Admin can't have any other permission.",
+      'self-admin': "You can't remove your own Admin permission.",
+      'last-admin': 'Hawkim must always have at least one Admin.',
+      'admin-exclusive': "An Admin can't have any other permission.",
       'approver-quality': 'Approver is only allowed in the Quality department.',
       'department-unavailable': 'This department is no longer available. Choose another.',
-      'department-required': 'Staff need a department. Choose one, or keep System Admin as their only permission.',
+      'department-required': 'Staff need a department. Choose one, or keep Admin as their only permission.',
       failed: 'Check your connection and try again.',
     },
     /** A permission still in use, with the number of SOPs; `{permission}` and `{count}` are replaced. */
@@ -198,8 +197,8 @@ export const adminEn: AdminContent = {
     },
     blockers: {
       selfDelete: "You can't delete your own account.",
-      selfAdmin: "You can't remove your own System Admin permission.",
-      lastAdmin: 'Hawkim must always have at least one System Admin, and {name} is the only one.',
+      selfAdmin: "You can't remove your own Admin permission.",
+      lastAdmin: 'Hawkim must always have at least one Admin, and {name} is the only one.',
       inUse: {
         author: '{name} authors or co-authors {sops} (not published yet).',
         reviewer: '{name} is assigned as a reviewer on {sops}.',
@@ -282,7 +281,7 @@ export const adminEn: AdminContent = {
   },
 
   requestDetails: {
-    pageTitle: '{title} · Requests · System Admin | Hawkim',
+    pageTitle: '{title} · Requests · Admin Portal | Hawkim',
     back: { label: 'Back to Requests', href: '/admin/requests' },
     requester: {
       title: 'Requester',

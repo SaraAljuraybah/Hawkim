@@ -18,7 +18,7 @@ const failures: Record<AdminActionFailure, string> = {
 }
 
 export const adminsEn: AdminsContent = {
-  pageTitle: '{page} · Admin | Hawkim',
+  pageTitle: '{page} · Admin Portal | Hawkim',
   roles: { superAdmin: 'Super Admin', admin: 'Admin' },
 
   list: {

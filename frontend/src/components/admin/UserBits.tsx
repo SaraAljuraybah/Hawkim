@@ -14,16 +14,25 @@ export function PermissionBadges({
   className = '',
   sidebar = false,
   label,
+  adminLabel,
 }: {
   user: Pick<User, 'permissions'>
   className?: string
   sidebar?: boolean
   /** Accessible name of the list. */
   label?: string
+  /**
+   * The Admin permission's badge in the admin portal: "Super Admin" or "Admin" (useAdminRoleLabel), null to
+   * leave it out while that isn't known. Undefined: the plain permission label.
+   */
+  adminLabel?: string | null
 }) {
   const badge = `inline-flex items-center rounded-md ${sidebar ? 'mr-1 bg-gold-light align-middle text-[0.6875rem] leading-4' : 'bg-gold-light/60 text-xs'} px-1.5 py-0.5 font-semibold whitespace-nowrap text-maroon`
   if (user.permissions.length === 0) return null
-  const labels = user.permissions.map((permission) => usersEn.permissions[permission])
+  const labels = user.permissions
+    .map((permission) => (permission === 'admin' && adminLabel !== undefined ? adminLabel : usersEn.permissions[permission]))
+    .filter((label): label is string => !!label)
+  if (labels.length === 0) return null
   return (
     <ul aria-label={label} className={`${sidebar ? 'inline' : 'flex flex-wrap gap-1.5'} ${className}`}>
       {labels.map((label) => (

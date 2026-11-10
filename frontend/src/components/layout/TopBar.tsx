@@ -68,8 +68,8 @@ export function TopBar({ content, user, menuOpen, onOpenMenu, menuButtonRef }: T
               </Link>
               {/* "Department | Position" side by side on one line, never stacked: only a very long position
                   wraps within its own column. The department stays the switcher; the position is plain
-                  text. A System Admin has neither (and uses the admin portal's top bar, with only "System
-                  Admin"), so the line isn't shown for them. */}
+                  text. An administrator has neither (and uses the admin portal's top bar, with only "Super
+                  Admin" or "Admin"), so the line isn't shown for them. */}
               {!isSystemAdmin(user) && (
                 <div className="hidden items-center gap-x-1.5 text-xs text-text-gray sm:flex">
                   <span className="shrink-0">

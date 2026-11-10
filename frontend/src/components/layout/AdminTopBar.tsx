@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { Menu } from 'lucide-react'
 import type { AdminShellContent } from '../../content/types'
 import type { User } from '../../data/mock/types'
+import { useAdminRoleLabel } from '../../state/superAdminContext'
 
 interface AdminTopBarProps {
   content: AdminShellContent
@@ -15,6 +16,7 @@ interface AdminTopBarProps {
 
 /** Top bar of the admin portal: menu button (small screens) and the admin's name and role. */
 export function AdminTopBar({ content, user, menuOpen, onOpenMenu, menuButtonRef }: AdminTopBarProps) {
+  const role = useAdminRoleLabel(user)
   return (
     <header className="sticky top-0 z-30 border-b border-beige bg-white/90 backdrop-blur-md print:hidden">
       <div className="flex h-16 items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
@@ -49,8 +51,9 @@ export function AdminTopBar({ content, user, menuOpen, onOpenMenu, menuButtonRef
             >
               {user.name}
             </Link>
-            {/* Only the role ("System Admin") under the name: a System Admin may have no position or department. */}
-            <p className="text-xs text-text-gray">{content.roleLabel}</p>
+            {/* Only the role under the name ("Super Admin" or "Admin"): an administrator may have no position or
+                department. Nothing until it is known, so the Super Admin is never briefly shown as "Admin". */}
+            {role && <p className="text-xs text-text-gray">{role}</p>}
           </div>
         </div>
       </div>
