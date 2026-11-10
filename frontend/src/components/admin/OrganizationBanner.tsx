@@ -68,7 +68,8 @@ export function OrganizationBanner({ name, canEdit, onEdit }: { name: string | n
         {/* Decoration only (no text in gold). */}
         <span aria-hidden="true" className="mt-1 block h-0.5 w-12 max-w-full rounded-full bg-gold" />
       </div>
-      {canEdit && <IconButton label={text.edit} icon={Pencil} onClick={onEdit} />}
+      {/* The tooltip opens below: the top bar is at the top of the screen. */}
+      {canEdit && <IconButton label={text.edit} icon={Pencil} onClick={onEdit} tooltipPlacement="below" />}
     </div>
   )
 }

@@ -148,6 +148,14 @@ describe('the organization name in the admin top bar', () => {
     expect(html).toContain('<p class="truncate text-xs text-text-gray">Super Admin</p>')
   })
 
+  it('opens the pencil tooltip below it, so the top of the screen never cuts it off', () => {
+    const html = adminBar('nouf', DIVISIONS_AND_DEPARTMENTS)
+    expect(html).toMatch(/role="tooltip" hidden="" class="absolute right-0 z-20 w-max max-w-\[15rem\] top-full pt-1\.5"><span[^>]*>Edit organization name<\/span>/)
+    expect(html).not.toMatch(/bottom-full pb-1\.5"><span[^>]*>Edit organization name/)
+    // The full name: the browser's own tooltip (title), which it always places on screen.
+    expect(adminBar('someone-else')).toContain('<p title="Riyadh Pharma" class="truncate')
+  })
+
   it('has the pencil only for the Super Admin, and only on Divisions and Departments', () => {
     expect(adminBar('nouf', DIVISIONS_AND_DEPARTMENTS)).toContain('aria-label="Edit organization name"')
     expect(adminBar('nouf', `${DIVISIONS_AND_DEPARTMENTS}/`)).toContain('aria-label="Edit organization name"')

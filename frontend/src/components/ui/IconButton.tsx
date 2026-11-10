@@ -20,6 +20,8 @@ interface IconButtonProps {
   bare?: boolean
   /** Show the label as a tooltip on hover and focus (default). False: accessible name only. */
   tooltip?: boolean
+  /** Where the tooltip opens: above the button (default) or below it, e.g. in the top bar at the top of the screen. */
+  tooltipPlacement?: 'above' | 'below'
   /** The button element, e.g. to move focus back to it. Not used for links. */
   ref?: Ref<HTMLButtonElement>
 }
@@ -33,9 +35,10 @@ const iconOnly = 'size-6 rounded-sm'
 /**
  * A square icon-only button with a tooltip on hover and keyboard focus. The tooltip
  * can be hovered and is dismissed with Escape (WCAG 1.4.13). It opens to the left
- * of the button's right edge, so it stays inside the page at the end of a row.
+ * of the button's right edge, so it stays inside the page at the end of a row; above the button, or
+ * below it where there is no room above (the top bar).
  */
-export function IconButton({ label, icon: Icon, disabledReason, href, download, onClick, danger = false, bare = false, tooltip = true, ref }: IconButtonProps) {
+export function IconButton({ label, icon: Icon, disabledReason, href, download, onClick, danger = false, bare = false, tooltip = true, tooltipPlacement = 'above', ref }: IconButtonProps) {
   const [open, setOpen] = useState(false)
   const tooltipId = useId()
   const disabled = !!disabledReason
@@ -69,9 +72,10 @@ export function IconButton({ label, icon: Icon, disabledReason, href, download, 
           {icon}
         </button>
       )}
-      {/* The transparent bottom padding bridges the gap, so the pointer can move onto the tooltip. */}
+      {/* The transparent padding bridges the gap, so the pointer can move onto the tooltip. */}
       {tooltip && (
-        <span id={tooltipId} role="tooltip" hidden={!open} className="absolute right-0 bottom-full z-20 w-max max-w-[15rem] pb-1.5">
+        <span id={tooltipId} role="tooltip" hidden={!open}
+          className={`absolute right-0 z-20 w-max max-w-[15rem] ${tooltipPlacement === 'below' ? 'top-full pt-1.5' : 'bottom-full pb-1.5'}`}>
           <span className="block rounded-md bg-maroon px-2 py-1 text-left text-xs leading-snug font-medium text-offwhite shadow-md">
             {disabledReason ?? label}
           </span>
