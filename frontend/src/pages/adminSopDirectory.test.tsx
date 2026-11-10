@@ -52,9 +52,9 @@ beforeEach(() => {
 })
 
 describe('the SOP Directory in the admin portal', () => {
-  it('is a tab between Organizational Structure and Requests', () => {
+  it('is a tab between SFDA Regulatory Requirements and Requests', () => {
     const labels = navLinks(adminEn.shell.nav).map((item) => item.label)
-    expect(labels.indexOf('SOP Directory')).toBe(labels.indexOf('Organizational Structure') + 1)
+    expect(labels.indexOf('SOP Directory')).toBe(labels.indexOf('SFDA Regulatory Requirements') + 1)
     expect(labels.indexOf('Requests')).toBe(labels.indexOf('SOP Directory') + 1)
   })
 
@@ -77,7 +77,7 @@ describe('the SOP Directory in the admin portal', () => {
     expect(html).toContain('role="tablist"')
     expect(html).toContain('>Recently Published<')
     // Every department, so no "Department: …" line under the subtitle.
-    expect(html).not.toContain(`${sopsEn.departmentLabel}: </span>`)
+    expect(html).not.toContain('Department: </span>')
   })
 
   it('lists every department\'s published SOPs, never Others', () => {
@@ -172,18 +172,21 @@ describe('an SOP opened from the admin directory', () => {
     expect(html).not.toContain('/requests/new')
   })
 
-  it('says "Published on <date> · <department> · SOP v<n>" under the title, for every role', () => {
-    // The date is the one on the directory cards; screen readers hear a comma instead of each "·".
+  it('says "<division> · <department> · Published on <date>" under the title, for every role', () => {
+    // The date is the one on the directory cards; screen readers hear a comma instead of each "·". No version.
     const subtitle = (html: string) => html.match(/<\/h1><p class="mt-2 text-sm text-text-gray">(.*?)<\/p>/)![1]
-    const expected = '<span>Published on </span><time dateTime="2026-10-01">Oct 1, 2026</time>'
-      + '<span><span aria-hidden="true"> · </span><span class="sr-only">, </span></span><span>Pharmacovigilance</span>'
-      + '<span><span aria-hidden="true"> · </span><span class="sr-only">, </span></span><span>SOP v</span><span>1</span>'
+    const dot = '<span><span aria-hidden="true"> · </span><span class="sr-only">, </span></span>'
+    const expected = `<span>Medical</span>${dot}<span>Pharmacovigilance</span>${dot}<span>Published on </span><time dateTime="2026-10-01">Oct 1, 2026</time>`
     fixture.sops = [sop('9', 'pv')]
     expect(subtitle(detail('9'))).toBe(expected)
+    expect(subtitle(detail('9'))).not.toContain('SOP v')
     fixture.user = { ...fixture.user, permissions: ['author'] }
     const employee = renderToStaticMarkup(<MemoryRouter initialEntries={['/sops/9']}><Routes><Route path="/sops/:id" element={<SopDetailPage />} /></Routes></MemoryRouter>)
     expect(subtitle(employee)).toBe(expected)
     fixture.user = { ...fixture.user, permissions: ['admin'] }
+    // A department without a division: from the department.
+    fixture.sops = [sop('1', 'it')]
+    expect(subtitle(detail('1'))).toBe(`<span>Information Technology</span>${dot}<span>Published on </span><time dateTime="2026-10-01">Oct 1, 2026</time>`)
   })
 
   it('still locks an SOP in Others, without Request Access', () => {
@@ -204,12 +207,12 @@ describe('the employee pages stay as they were', () => {
     expect(() => renderToStaticMarkup(<MemoryRouter><SopsPage /></MemoryRouter>)).toThrow('ActiveDepartmentProvider')
   })
 
-  it('still offer Request Access and go back to /sops', () => {
+  it('show the no-access panel without Request Access for an SOP they didn\'t work on, and go back to /sops', () => {
     fixture.user = { ...fixture.user, permissions: ['author'] }
     fixture.sops = [sop('9', 'pv')]
     const html = renderToStaticMarkup(<MemoryRouter initialEntries={['/sops/9']}><Routes><Route path="/sops/:id" element={<SopDetailPage />} /></Routes></MemoryRouter>)
-    expect(html).toContain('Request Access')
-    expect(html).toContain('Request access to that department to view it.')
+    expect(html).not.toContain('Request Access')
+    expect(html).toContain(sopsEn.detail.noAccess.text)
     expect(html).toMatch(/<a[^>]*href="\/sops"[^>]*>.*Back to SOP Directory<\/a>/)
     expect(fixture.titles.at(-1)).toBe('Procedure 9 | Hawkim')
     fixture.user = { ...fixture.user, permissions: ['admin'] }

@@ -152,6 +152,7 @@ async function submit(input: Record<string, unknown>): Promise<Response> {
     })
   } catch (e) {
     if (e instanceof DbError && e.message === "too_many_requests") return fail(429, "too_many_requests")
+    if (e instanceof DbError && e.message === "organization_taken") return fail(409, "organization_taken")
     console.error("access-requests: submit failed:", e instanceof Error ? e.message : e)
     return fail(500, "failed")
   }

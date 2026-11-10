@@ -4,7 +4,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { paginationEn } from '../../content/pagination.en'
 import { Pagination } from './Pagination'
 
-const render = (page: number, count: number) => renderToStaticMarkup(<Pagination page={page} count={count} onChange={() => {}} content={paginationEn} />)
+const render = (page: number, count: number, total = count * 12) => renderToStaticMarkup(<Pagination page={page} count={count} total={total} onChange={() => {}} content={paginationEn} />)
 
 /** The page buttons in one of the two lists (phones, or from sm). */
 function pageList(html: string, shown: 'flex sm:hidden' | 'hidden sm:flex'): string[] {
@@ -22,14 +22,39 @@ function pressButton(label: string, page: number, count: number) {
     if (props['aria-label'] === label) return node as ReactElement<{ onClick: () => void }>
     return find(props.children)
   }
-  find(Pagination({ page, count, onChange, content: paginationEn }))!.props.onClick()
+  find(Pagination({ page, count, total: count * 12, onChange, content: paginationEn }))!.props.onClick()
   return onChange
 }
 
 describe('Pagination', () => {
-  it('is hidden when there is only one page', () => {
-    expect(render(1, 1)).toBe('')
-    expect(render(1, 0)).toBe('')
+  it('is hidden only when the list has no results', () => {
+    expect(render(1, 1, 0)).toBe('')
+    expect(render(1, 0, 0)).toBe('')
+  })
+
+  it('shows "‹ Previous 1 Next ›" for a single page, with Previous and Next disabled but still focusable', () => {
+    for (const total of [1, 12]) {
+      const html = render(1, 1, total)
+      expect(html).toMatch(/^<nav aria-label="Pagination"/)
+      expect(pageList(html, 'hidden sm:flex')).toEqual(['1'])
+      expect(pageList(html, 'flex sm:hidden')).toEqual(['1'])
+      expect(html).toMatch(/aria-label="Page 1" aria-current="page"/)
+      const previous = html.match(/<button[^>]*aria-label="Previous page"[^>]*>/)![0]
+      const next = html.match(/<button[^>]*aria-label="Next page"[^>]*>/)![0]
+      for (const button of [previous, next]) {
+        expect(button).toContain('aria-disabled="true"')
+        expect(button).not.toMatch(/ disabled=""/)
+        // Gray text on beige at full opacity (about 6.2:1).
+        expect(button).toContain('aria-disabled:bg-beige aria-disabled:text-text-gray')
+      }
+      expect(html).toContain('>Previous</span>')
+      expect(html).toContain('>Next</span>')
+    }
+  })
+
+  it('does nothing when the disabled Previous or Next of a single page is pressed', () => {
+    expect(pressButton('Previous page', 1, 1)).not.toHaveBeenCalled()
+    expect(pressButton('Next page', 1, 1)).not.toHaveBeenCalled()
   })
 
   it('is a navigation landmark named Pagination, with Previous, the page numbers and Next', () => {

@@ -8,16 +8,20 @@ export interface OrganizationDepartment {
   id: string
   name: string
   divisionId: string | null
+  /** Optional contact email (null when none; missing before migration 20261110140000). */
+  email?: string | null
   employees: OrganizationEmployee[]
 }
 export interface OrganizationHierarchy {
   organization: { name: string } | null
-  divisions: { id: string; name: string }[]
+  divisions: { id: string; name: string; email?: string | null }[]
   departments: OrganizationDepartment[]
 }
 
 const record = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value)
 const text = (value: unknown): value is string => typeof value === 'string'
+/** An optional email: missing, null or a string. */
+const optionalText = (value: unknown) => value === undefined || value === null || text(value)
 
 /** Reject malformed nested RPC data before it can crash the chart or mislabel roles. */
 function isHierarchy(value: unknown): value is OrganizationHierarchy {
@@ -27,12 +31,12 @@ function isHierarchy(value: unknown): value is OrganizationHierarchy {
   const departmentIds = new Set<string>()
   const employeeIds = new Set<string>()
   return value.divisions.every((division: unknown) => {
-    if (!record(division) || !text(division.id) || !text(division.name) || divisionIds.has(division.id)) return false
+    if (!record(division) || !text(division.id) || !text(division.name) || !optionalText(division.email) || divisionIds.has(division.id)) return false
     divisionIds.add(division.id)
     return true
   }) && value.departments.every((department: unknown) => {
     if (!record(department) || !text(department.id) || !text(department.name) || departmentIds.has(department.id) ||
-      !(department.divisionId === null || text(department.divisionId)) || !Array.isArray(department.employees)) return false
+      !(department.divisionId === null || text(department.divisionId)) || !optionalText(department.email) || !Array.isArray(department.employees)) return false
     departmentIds.add(department.id)
     return department.employees.every((employee: unknown) => {
       if (!record(employee) || !text(employee.id) || !text(employee.name) || !text(employee.initials) || !text(employee.email) || employeeIds.has(employee.id) ||

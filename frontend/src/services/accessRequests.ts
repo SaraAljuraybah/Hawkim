@@ -37,7 +37,8 @@ async function call<T>(body: Record<string, unknown>): Promise<Result<T>> {
   return { ok: false, status: 0, error: error instanceof FunctionsFetchError ? 'not-connected' : 'failed' }
 }
 
-export type SubmitFailure = 'invalid' | 'too-many-requests' | 'not-connected' | 'failed'
+/** `organization-taken`: a pending or accepted request already has this organization name. */
+export type SubmitFailure = 'invalid' | 'too-many-requests' | 'organization-taken' | 'not-connected' | 'failed'
 
 /** Sends the Request Hawkim form. `website` is a hidden field that only bots fill in. */
 export async function submitAccessRequest(values: RequestValues, website = ''): Promise<{ ok: true } | { ok: false; reason: SubmitFailure }> {
@@ -55,6 +56,7 @@ export async function submitAccessRequest(values: RequestValues, website = ''): 
   if (result.ok) return { ok: true }
   if (result.error === 'invalid') return { ok: false, reason: 'invalid' }
   if (result.error === 'too_many_requests') return { ok: false, reason: 'too-many-requests' }
+  if (result.error === 'organization_taken') return { ok: false, reason: 'organization-taken' }
   return { ok: false, reason: result.error === 'not-connected' ? 'not-connected' : 'failed' }
 }
 

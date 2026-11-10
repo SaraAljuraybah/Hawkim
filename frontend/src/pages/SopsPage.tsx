@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Building2, FileText, Search } from 'lucide-react'
+import { FileText, Search } from 'lucide-react'
 import { Button } from '../components/ui/Button'
 import { Pagination } from '../components/ui/Pagination'
 import { MultiSelectField } from '../components/ui/MultiSelectField'
@@ -9,13 +9,12 @@ import { SelectField } from '../components/ui/SelectField'
 import type { Department } from '../data/mock/types'
 import type { MySopSort } from '../lib/mySops'
 import { clampPage, listParam, pageCount, pageSlice, rememberedPagesFor, resultsParams, tabSwitch, updateParams, type RememberedPages } from '../lib/pagination'
-import { ALL_DEPARTMENTS, DIRECTORY_URL_DEFAULTS, filterDirectorySops, OTHERS_SECTION, readDirectoryUrl, recentSince } from '../lib/sopDirectory'
+import { ALL_DEPARTMENTS, DIRECTORY_URL_DEFAULTS, EVERY_SOP, filterDirectorySops, readDirectoryUrl, recentSince } from '../lib/sopDirectory'
 import { departmentFilterOptions, divisionFilterOptions } from '../lib/userAdmin'
 import { devSampleCount, devSampleSops } from '../lib/devSampleSops'
 import { directorySopsFor } from '../lib/sopAccess'
 import { adminSopPath, sopPath } from '../lib/routes'
 import { useCurrentUser } from '../state/sessionContext'
-import { useMyRequests } from '../state/requestsContext'
 import { SopGrid } from '../components/sops/SopGrid'
 import { SopList } from '../components/sops/SopList'
 import { Tabs, type TabItem } from '../components/ui/Tabs'
@@ -69,7 +68,6 @@ function SopDirectory({ activeDepartment, admin = false }: { activeDepartment: D
 
   const { sops } = useSops()
   const user = useCurrentUser()
-  const requests = useMyRequests()
   const { departments, getDepartment } = useDepartments()
 
   // The tab, search, sort and page are kept in the URL, so a refresh or Back restores them.
@@ -108,25 +106,23 @@ function SopDirectory({ activeDepartment, admin = false }: { activeDepartment: D
     const count = devSampleCount(params)
     return count ? [...sops, ...devSampleSops(count, user.id, activeDepartment.id, true)] : sops
   }, [sops, params, user.id, activeDepartment.id])
-  const authorized = useMemo(() => directorySopsFor(listSops, user, requests), [listSops, user, requests])
-  // Others (SOPs of deleted departments) is a tab only for people who may open some of them.
-  const hasOthers = useMemo(() => filterDirectorySops(authorized, OTHERS_SECTION).length > 0, [authorized])
-  const tabKeys: SopTabKey[] = hasOthers ? ['all', 'recent', 'others'] : ['all', 'recent']
+  // Only published SOPs: the System Admin's are every department's; everyone else's are those they
+  // worked on, in any department (Others included). The active department doesn't narrow it.
+  const authorized = useMemo(() => directorySopsFor(listSops, user), [listSops, user])
+  const tabKeys: SopTabKey[] = ['all', 'recent']
   const tabItems: TabItem<SopTabKey>[] = tabKeys.map((key) => ({
     key,
     label: content.tabs[key],
   }))
-  const showingOthers = tab === 'others' && hasOthers
   // Recently Published: dated within the last RECENT_MONTHS months.
   const since = tab === 'recent' ? recentSince() : undefined
   const visibleSops = useMemo(
-    () => filterDirectorySops(authorized, showingOthers ? OTHERS_SECTION : admin ? ALL_DEPARTMENTS : activeDepartment.id, query, sort, {
+    () => filterDirectorySops(authorized, admin ? ALL_DEPARTMENTS : EVERY_SOP, query, sort, {
       since, divisions: filterDivisions, getDepartment, departments: filterDepartments,
     }),
-    [authorized, showingOthers, admin, activeDepartment.id, query, sort, since, filterDivisions, getDepartment, filterDepartments],
+    [authorized, admin, query, sort, since, filterDivisions, getDepartment, filterDepartments],
   )
-  // A remembered Others tab falls back to All once there is nothing in Others.
-  const selectedTab: SopTabKey = showingOthers || tab !== 'others' ? tab : 'all'
+  const selectedTab: SopTabKey = tab
   const ids = tabIds(TAB_ID_PREFIX, selectedTab)
   // A page that's too high (an old link) shows the last page.
   const pages = pageCount(visibleSops.length)
@@ -176,14 +172,7 @@ function SopDirectory({ activeDepartment, admin = false }: { activeDepartment: D
   return (
     <>
       <h1 className="text-2xl tracking-tight sm:text-3xl">{content.title}</h1>
-      <p className="mt-2 text-text-gray">{content.subtitle}</p>
-      {/* The department shown; the admin sees every department, so has none */}
-      {!admin && (
-        <p className="mt-3 inline-flex items-center gap-2 text-sm font-medium text-maroon">
-          <Building2 aria-hidden="true" className="size-4 shrink-0" strokeWidth={1.75} />
-          {showingOthers ? content.othersSection : <><span className="sr-only">{content.departmentLabel}: </span>{activeDepartment.name}</>}
-        </p>
-      )}
+      <p className="mt-2 text-text-gray">{admin ? content.adminSubtitle : content.subtitle}</p>
 
       <div role="search" aria-label={content.filters.label} className="mt-6 rounded-xl border border-beige bg-white p-4 sm:p-5">
         {/* Admin: Search, Filter by Division, Filter by Department and Sort By, stacked on phones, 2×2 from sm and one
@@ -254,7 +243,7 @@ function SopDirectory({ activeDepartment, admin = false }: { activeDepartment: D
               <FileText className="size-6" strokeWidth={1.75} />
             </span>
             <p className="mt-4 text-text-gray">
-              {hasFilters ? content.filters.empty : showingOthers ? content.othersEmpty : selectedTab === 'recent' ? content.recentEmpty : admin ? content.adminEmpty : content.empty}
+              {hasFilters ? content.filters.empty : selectedTab === 'recent' ? content.recentEmpty : admin ? content.adminEmpty : content.empty}
             </p>
           </div>
         ) : view === 'grid' ? (
@@ -264,7 +253,7 @@ function SopDirectory({ activeDepartment, admin = false }: { activeDepartment: D
         )}
       </div>
 
-      <Pagination page={page} count={pages} onChange={goToPage} content={paginationEn} className="mt-8" />
+      <Pagination page={page} count={pages} total={visibleSops.length} onChange={goToPage} content={paginationEn} className="mt-8" />
     </>
   )
 }

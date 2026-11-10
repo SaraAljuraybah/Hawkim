@@ -257,7 +257,7 @@ export function MySopsPage() {
         )}
       </div>
 
-      <Pagination page={page} count={pages} onChange={goToPage} content={paginationEn} className="mt-8" />
+      <Pagination page={page} count={pages} total={visibleSops.length} onChange={goToPage} content={paginationEn} className="mt-8" />
 
       {deleting && (
         <DeleteSopDialog title={deleting.title} content={content.deleteSop} onConfirm={confirmDelete} onClose={closeDelete} />

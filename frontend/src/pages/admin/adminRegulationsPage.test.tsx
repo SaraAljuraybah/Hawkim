@@ -45,7 +45,7 @@ const table = (html: string) => {
   return html.slice(start, html.indexOf('</table>', start))
 }
 const currentCard = (html: string) => html.slice(html.indexOf('id="current-title"'), html.indexOf('id="history-title"'))
-const fields = ['Title', 'Version', 'Issued by SFDA On', 'Added to Hawkim On', 'Added By', 'Source', 'File', 'Requirements']
+const fields = ['Title', 'Version', 'Source', 'Issued by SFDA On', 'Added to Hawkim On', 'Added By', 'File', 'Requirements']
 
 describe('SFDA Regulatory Requirements page', () => {
   it('is called SFDA Regulatory Requirements in the h1, the browser tab, the sidebar and the back links', () => {

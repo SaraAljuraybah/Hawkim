@@ -24,8 +24,8 @@ export const adminEn: AdminContent = {
           { label: 'Admins', href: '/admin/admins', icon: 'admins', matchSubpaths: true },
         ],
       },
-      { label: 'SFDA Regulatory Requirements', href: '/admin/regulations', icon: 'regulatory', matchSubpaths: true },
       { label: 'Organizational Structure', href: '/admin/organizational-structure', icon: 'hierarchy', matchSubpaths: true },
+      { label: 'SFDA Regulatory Requirements', href: '/admin/regulations', icon: 'regulatory', matchSubpaths: true },
       { label: 'SOP Directory', href: '/admin/sops', icon: 'sops', matchSubpaths: true },
       { label: 'Requests', href: '/admin/requests', icon: 'requests', matchSubpaths: true },
     ],
@@ -187,13 +187,6 @@ export const adminEn: AdminContent = {
       position: 'Position',
       permission: 'Permission',
       notSet: '—',
-    },
-    involvement: {
-      title: 'Involved in',
-      empty: 'Not involved in any SOP.',
-      label: 'SOPs this staff member is involved in',
-      roles: { author: 'Author', 'co-author': 'Co-author', reviewer: 'Reviewer', approver: 'Approver' },
-      rolesLabel: 'Role:',
     },
     blockers: {
       selfDelete: "You can't delete your own account.",

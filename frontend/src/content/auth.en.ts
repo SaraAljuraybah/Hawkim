@@ -76,6 +76,6 @@ export const forgotPasswordEn: ForgotPasswordContent = {
   },
   sent: {
     title: 'Check your email',
-    text: 'If {email} has a Hawkim account, we have sent it a link to set a new password. The link expires in 1 hour.',
+    text: 'If {email} has a Hawkim account, we have sent it a link to set a new password. The link expires in 24 hours.',
   },
 }

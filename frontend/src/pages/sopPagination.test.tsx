@@ -80,10 +80,23 @@ describe.each([
     for (const value of ['abc', '0', '-2', '1.5']) expect(shown(render(page, `${path}?page=${value}`))).toEqual(numbers(30, 19))
   })
 
-  it('hides the controls when everything fits on one page', () => {
-    fixture.sops = sops(12, status)
+  it.each([1, 12])('always shows the controls, "‹ Previous 1 Next ›" with both disabled, for one page (%i SOPs)', (count) => {
+    fixture.sops = sops(count, status)
     const html = render(page, path)
-    expect(shown(html)).toHaveLength(12)
+    expect(shown(html)).toHaveLength(count)
+    expect(html).toContain('aria-label="Pagination"')
+    expect(currentPage(html)).toBe('1')
+    expect(html).not.toContain('aria-label="Page 2"')
+    expect(html).toMatch(/<button[^>]*aria-disabled="true"[^>]*aria-label="Previous page"|<button[^>]*aria-label="Previous page"[^>]*aria-disabled="true"/)
+    expect(html).toMatch(/<button[^>]*aria-disabled="true"[^>]*aria-label="Next page"|<button[^>]*aria-label="Next page"[^>]*aria-disabled="true"/)
+  })
+
+  it('hides the controls when there are no results, keeping the empty message', () => {
+    fixture.sops = []
+    expect(render(page, path)).not.toContain('aria-label="Pagination"')
+    fixture.sops = sops(5, status)
+    const html = render(page, `${path}?q=nothing-matches`)
+    expect(shown(html)).toHaveLength(0)
     expect(html).not.toContain('aria-label="Pagination"')
   })
 

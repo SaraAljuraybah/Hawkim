@@ -36,6 +36,7 @@ vi.mock('../state/usersContext', () => ({ useUsers: () => ({ users: [fixture.use
 vi.mock('../state/departmentsContext', () => ({ useDepartments: () => ({
   departments: [fixture.home, fixture.other], activeDepartments: [fixture.home, fixture.other],
   nameOf: (id: string) => id === 'home' ? fixture.home.name : fixture.other.name,
+  getDepartment: (id: string) => [fixture.home, fixture.other].find((department) => department.id === id),
 }) }))
 vi.mock('../state/guidelinesContext', () => ({ useGuidelines: () => ({ current: { version: '4.0' }, getRequirement: () => undefined }) }))
 
@@ -49,7 +50,11 @@ function render(page: ReactNode, url = '/test') {
 beforeEach(() => {
   fixture.user.permissions = ['author', 'reviewer', 'approver']
   fixture.requests = [grant('approved')]
-  fixture.sops = [sop('home-owned', 'home', 'draft', 'visitor'), sop('foreign-owned', 'other', 'draft', 'visitor'), sop('foreign-private', 'other', 'draft'), sop('foreign-published', 'other', 'published')]
+  fixture.sops = [
+    sop('home-owned', 'home', 'draft', 'visitor'), sop('foreign-owned', 'other', 'draft', 'visitor'), sop('foreign-private', 'other', 'draft'),
+    sop('foreign-published', 'other', 'published'),
+    { ...sop('foreign-reviewed', 'other', 'published'), reviewers: [{ userId: 'visitor', decision: 'completed' }] },
+  ]
 })
 
 describe('directory selection never changes authoring or membership context', () => {
@@ -84,18 +89,22 @@ describe('directory selection never changes authoring or membership context', ()
     expect(html).toContain('break-words')
     expect(html.match(/<button[^>]*aria-haspopup="menu"[^>]*>.*?<\/button>/)![0]).toContain('lucide-chevron-down')
   })
-  it('lists only authorized published data, regardless of the selected context', () => {
+  it('lists only the published SOPs the user worked on, whatever the selected directory or access requests', () => {
     const html = render(<SopsPage />)
-    expect(html).toContain('foreign-published')
+    expect(html).toContain('foreign-reviewed')
+    // Published but not theirs: not listed, even with an approved request for that directory.
+    expect(html).not.toContain('foreign-published')
+    // Theirs but not published: not listed.
     expect(html).not.toContain('foreign-private')
     expect(html).not.toContain('foreign-owned')
-    fixture.requests = [grant('pending')]
-    expect(render(<SopsPage />)).not.toContain('foreign-published')
-    fixture.requests = [grant('rejected')]
-    expect(render(<SopsPage />)).not.toContain('foreign-published')
+    expect(html).not.toContain('home-owned')
+    for (const status of ['pending', 'rejected'] as const) {
+      fixture.requests = [grant(status)]
+      expect(render(<SopsPage />)).toContain('foreign-reviewed')
+    }
   })
   it('offers Sort By next to the search, Newest to Oldest by default, and stacks on small screens', () => {
-    fixture.sops = [{ ...sop('older-sop', 'other', 'published'), lastUpdated: '2026-01-01' }, { ...sop('newer-sop', 'other', 'published'), lastUpdated: '2026-10-01' }]
+    fixture.sops = [{ ...sop('older-sop', 'other', 'published', 'visitor'), lastUpdated: '2026-01-01' }, { ...sop('newer-sop', 'other', 'published', 'visitor'), lastUpdated: '2026-10-01' }]
     const html = render(<SopsPage />)
     for (const text of ['Sort By', 'Newest to Oldest', 'Oldest to Newest']) expect(html).toContain(text)
     expect(html.indexOf('Search SOPs')).toBeLessThan(html.indexOf('Sort By'))
@@ -107,10 +116,10 @@ describe('directory selection never changes authoring or membership context', ()
 })
 
 describe('published directory access remains separate from internal views', () => {
-  it('permits the published description and download with no author or review controls', () => {
-    const html = render(<SopDetailPage />, '/foreign-published')
+  it('permits the published description and download of an SOP they worked on, with no author or review controls', () => {
+    const html = render(<SopDetailPage />, '/foreign-reviewed')
     expect(html).toContain('Confidential multiline description')
-    expect(html).toContain('/files/foreign-published.docx')
+    expect(html).toContain('/files/foreign-reviewed.docx')
     for (const label of [
       internalReviewEn.actions.accept, internalReviewEn.actions.decline,
       internalReviewEn.actions.complete, internalReviewEn.actions.returnToAuthor,
@@ -136,6 +145,16 @@ describe('published directory access remains separate from internal views', () =
     fixture.user.permissions = []
     expect(render(<MySopsPage />)).not.toContain('home-owned')
     expect(render(<UploadSopPage />)).not.toContain('Upload SOP')
-    expect(render(<SopDetailPage />, '/foreign-published')).toContain('/files/foreign-published.docx')
+    expect(render(<SopDetailPage />, '/foreign-reviewed')).toContain('/files/foreign-reviewed.docx')
+  })
+
+  it('shows the no-access panel, without Request Access, for a published SOP they didn\'t work on (a direct link)', () => {
+    const html = render(<SopDetailPage />, '/foreign-published')
+    expect(html).toContain("You don&#x27;t have access to this SOP")
+    expect(html).toContain('You can open the published SOPs you authored, co-authored, reviewed or approved.')
+    expect(html).not.toContain('Confidential multiline description')
+    expect(html).not.toContain('/files/foreign-published.docx')
+    expect(html).not.toContain('Request Access')
+    expect(html).not.toContain('/requests/new')
   })
 })

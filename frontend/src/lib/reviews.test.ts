@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import type { ApproverAssignment, InternalReviewDecision, ReviewerAssignment, Sop } from '../data/mock/types'
 import type { SopStatus } from '../types/status'
-import { reviewTasks, reviewerTaskSection, sortTodo } from './reviews'
+import { tabSwitch } from './pagination'
+import { APPROVALS_URL_NAMES, readReviewsUrl, REVIEWS_URL_DEFAULTS, reviewTasks, reviewerTaskSection, sortTodo } from './reviews'
 
 /* Noura reviews; Huda approves. Each SOP is set up directly in the state being tested. */
 function sop(
@@ -207,5 +208,28 @@ describe('reviewer-facing sections', () => {
     expect(task.group).toBe('done')
     expect(task.need).toBeUndefined()
     expect(reviewerTaskSection(task)).toBe('completed')
+  })
+})
+
+describe('My Reviews in the URL', () => {
+  it('reads each list\'s tab and page; invalid values mean the defaults', () => {
+    expect(readReviewsUrl(new URLSearchParams(''))).toEqual({ tab: 'incoming', page: 1, approvalTab: 'todo', approvalPage: 1 })
+    expect(readReviewsUrl(new URLSearchParams('tab=completed&page=2&approvals=done&approvalsPage=4')))
+      .toEqual({ tab: 'completed', page: 2, approvalTab: 'done', approvalPage: 4 })
+    expect(readReviewsUrl(new URLSearchParams('tab=x&page=0&approvals=y&approvalsPage=-1')))
+      .toEqual({ tab: 'incoming', page: 1, approvalTab: 'todo', approvalPage: 1 })
+  })
+  it('switches each list\'s tab on its own, each tab reopening on the page it was left on', () => {
+    const start = new URLSearchParams('page=3&approvals=waiting&approvalsPage=2')
+    // Reviewer list: Incoming page 3 → Active (page 1), the approvals list untouched.
+    const toActive = tabSwitch(start, {}, 'incoming', 3, 'active', REVIEWS_URL_DEFAULTS)
+    expect(toActive.params.toString()).toBe('approvals=waiting&approvalsPage=2&tab=active')
+    // Back to Incoming: page 3 again.
+    expect(tabSwitch(toActive.params, toActive.pages, 'active', 1, 'incoming', REVIEWS_URL_DEFAULTS).params.toString()).toBe('approvals=waiting&approvalsPage=2&page=3')
+    // Approvals list: Waiting page 2 → Done, with its own parameters; the reviewer page stays.
+    const toDone = tabSwitch(start, {}, 'waiting', 2, 'done', REVIEWS_URL_DEFAULTS, APPROVALS_URL_NAMES)
+    expect(toDone.params.toString()).toBe('page=3&approvals=done')
+    expect(tabSwitch(toDone.params, toDone.pages, 'done', 1, 'waiting', REVIEWS_URL_DEFAULTS, APPROVALS_URL_NAMES).params.toString())
+      .toBe('page=3&approvals=waiting&approvalsPage=2')
   })
 })

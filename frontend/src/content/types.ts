@@ -8,6 +8,7 @@ import type {
   TimelineEventType,
 } from '../data/mock/types'
 import type { SopDeleteErrorCode } from '../lib/mySops'
+import type { OrganizationSort } from '../lib/organization'
 import type { SopStatus } from '../types/status'
 
 /*
@@ -387,8 +388,7 @@ export interface DashboardContent {
 
 /* ---------- Signed-in app: SOPs list ---------- */
 
-/** 'others': SOPs of deleted departments (shown only to people who have some). */
-export type SopTabKey = 'all' | 'recent' | 'others'
+export type SopTabKey = 'all' | 'recent'
 
 export interface SopsContent {
   /** Browser tab title. */
@@ -396,7 +396,10 @@ export interface SopsContent {
   /** Browser tab title in the admin portal. */
   adminPageTitle: string
   title: string
+  /** Under the title, for everyone but the System Admin (their directory: SOPs they worked on). */
   subtitle: string
+  /** Under the title, for the System Admin (every published SOP). */
+  adminSubtitle: string
   /** Accessible name of the tab list. */
   tabsLabel: string
   tabs: Record<SopTabKey, string>
@@ -415,12 +418,6 @@ export interface SopsContent {
   viewToggle: { label: string; grid: string; list: string }
   /** Column headings for the list view. */
   columns: { code: string; title: string; department: string; version: string; lastUpdated: string }
-  /** Screen-reader label before the active department's name, e.g. "Department: ". */
-  departmentLabel: string
-  /** Shown instead of the department name on the Others tab. */
-  othersSection: string
-  /** Empty Others tab. */
-  othersEmpty: string
   /** `{version}` is replaced with the version number, e.g. "v3". */
   versionTemplate: string
   /** Shown when the list is empty. */
@@ -435,8 +432,10 @@ export interface SopsContent {
 
 export interface SopDetailContent {
   fileFailed: string
-  /** Under the title; `{date}`, `{department}` and `{version}` are replaced, " · " separates the parts. */
+  /** Under the title; `{division}`, `{department}` and `{date}` are replaced, " · " separates the parts. */
   subtitle: string
+  /** The same for a department without a division. */
+  subtitleNoDivision: string
   /** `{title}` is replaced, e.g. "Data Integrity | Hawkim". */
   pageTitle: string
   /** The same in the admin portal. */
@@ -454,8 +453,8 @@ export interface SopDetailContent {
   noFile: string
   /** `{department}` is replaced with the department name. */
   /** `adminText`: the same in the admin portal, where there is no Request Access. */
-  noAccess: { title: string; text: string; adminText: string; requestAccess: string }
-  pendingAccess: { title: string; text: string }
+  /** An SOP the user may not open: `text` for everyone but the System Admin, `adminText` (`{department}`) for them. */
+  noAccess: { title: string; text: string; adminText: string }
 }
 
 /* ---------- Signed-in app: requests ---------- */
@@ -1222,6 +1221,9 @@ export interface ReviewsContent {
     approvalTabsLabel: string
     approvalListLabel: string
     reviewerListLabel: string
+    /** The two lists' page controls, named apart (both can be on the page). */
+    reviewerPaginationLabel: string
+    approvalPaginationLabel: string
     waiting: string
     closed: string
     decisions: Record<string, string>
@@ -1689,15 +1691,6 @@ export interface AdminUserDetailsContent {
     permission: string
     notSet: string
   }
-  involvement: {
-    title: string
-    empty: string
-    /** Accessible name of the list. */
-    label: string
-    roles: Record<'author' | 'co-author' | 'reviewer' | 'approver', string>
-    /** Visually hidden before the roles. */
-    rolesLabel: string
-  }
   /**
    * Why a change is refused. `{name}` (the user) and `{sops}` (SOP codes; with their
    * status for reviewers and approvers) are replaced.
@@ -1777,6 +1770,8 @@ export interface RequestHawkimContent {
     approxUsers: string
     tooLong: string
     tooManyRequests: string
+    /** On the Organization field after Send Request: a pending or accepted request has this name. */
+    organizationTaken: string
     notConnected: string
     failed: string
   }
@@ -1941,4 +1936,56 @@ export interface AdminsContent {
     notTransferred: string
   }
   failures: Record<AdminActionFailure, string>
+}
+
+/* ---------- Organizational Structure (every signed-in user; "Staff" wording on this page only) ---------- */
+
+export interface OrganizationContent {
+  pageTitle: string
+  title: string
+  /** The short description under the heading. */
+  subtitle: string
+  retry: string
+  loading: string
+  error: string
+  /** No divisions or departments at all. */
+  empty: string
+  /** Nothing matches the search and filters. */
+  noMatches: string
+  name: string
+  email: string
+  /** Read by screen readers instead of the "—" shown when there is no email. */
+  noEmail: string
+  /** "Departments (n)" under a division's name. */
+  departmentCount: (count: number) => string
+  /** "Staff (n)" under a department's name. */
+  staffCount: (count: number) => string
+  noStaff: string
+  /** A department's staff list (its table, and its scroll area when it scrolls), e.g. "Staff of Quality". */
+  staffListLabel: (department: string) => string
+  noDepartments: string
+  /** The group of departments without a division. */
+  unassigned: string
+  /** Screen-reader prefix of a person's roles. */
+  rolesLabel: string
+  /** The copy button's accessible name, e.g. "Copy email for Dana Fahad". */
+  copyEmail: (name: string) => string
+  copied: string
+  copyFailed: string
+  search: string
+  searchPlaceholder: string
+  filter: string
+  /** The Filter button's accessible name while filters are on. */
+  filterActive: (count: number) => string
+  filtersTitle: string
+  clearAll: string
+  divisionFilter: string
+  divisionFilterEmpty: string
+  departmentFilter: string
+  departmentFilterEmpty: string
+  roleFilter: string
+  /** The Role filter's chip for staff without a role. */
+  others: string
+  sort: string
+  sortOptions: Record<OrganizationSort, string>
 }

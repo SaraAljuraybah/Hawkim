@@ -71,7 +71,7 @@ export function validateDetails(input: unknown): NewUserDetails | undefined {
 export function invitationEmail(email: string, link: string): { subject: string; html: string } {
   const content = {
     ...contentFor("invite", email),
-    note: "This link expires in 1 hour and can be used once. If it has expired, use “Forgot password?” on the sign-in page. If you weren’t expecting this invitation, you can ignore this email.",
+    note: "This link expires in 24 hours and can be used once. If it has expired, use “Forgot password?” on the sign-in page. If you weren’t expecting this invitation, you can ignore this email.",
   }
   return { subject: content.subject, html: renderEmail(content, link) }
 }
