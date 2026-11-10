@@ -19,9 +19,11 @@
 -- - Every check reads the database's current state, so a former Super Admin's open session loses the
 --   elevated actions immediately.
 --
--- Existing data: if no Super Admin exists, the migration assigns one ONLY when exactly one accepted
--- request belongs to an active Admin. Otherwise it assigns no one and says so; the project owner then
--- runs `select public.assign_initial_super_admin('<user id>');` as postgres (see docs/admins.md).
+-- Existing data: the migration never chooses a Super Admin for a deployment that already has Admins.
+-- An accepted request doesn't prove who owns the deployment (the same project may also have received
+-- other organizations' requests), so it only reports the candidates. The project owner then names one
+-- explicitly: `select public.assign_initial_super_admin('<user id>');` as postgres (see docs/admins.md).
+-- Until then every Admin keeps working; nobody can delete Admins or transfer the role.
 
 begin;
 
@@ -478,24 +480,21 @@ grant execute on function public.accept_access_request(uuid, text, uuid, text) t
 
 -- ---------- 6. Existing deployments ----------
 
+-- Reports only: no one is made Super Admin here (see the top of this file).
 do $$
 declare
-  candidates uuid[];
+  candidates integer;
   admins integer;
 begin
   if exists (select 1 from public.super_admin) then return; end if;
-  select coalesce(array_agg(distinct r.user_id), '{}') into candidates
+  select count(distinct r.user_id) into candidates
   from public.access_requests r
   where r.status = 'accepted' and r.user_id is not null and public.is_active_admin(r.user_id);
   select count(*) into admins
   from public.user_roles r join public.profiles p on p.id = r.user_id and p.deleted_at is null where r.role = 'admin';
-
-  if cardinality(candidates) = 1 then
-    insert into public.super_admin (user_id) values (candidates[1]);
-    raise notice 'Super Admin: % (the applicant of the accepted Request Hawkim)', candidates[1];
-  elsif admins > 0 then
-    raise warning 'No Super Admin assigned: % accepted request(s) with an active Admin, % active Admin(s). Run select public.assign_initial_super_admin(''<user id>''); as postgres.',
-      cardinality(candidates), admins;
+  if admins > 0 then
+    raise warning 'No Super Admin assigned: % active Admin(s), % of them accepted Request Hawkim applicant(s). The project owner names one: select public.assign_initial_super_admin(''<user id>''); as postgres.',
+      admins, candidates;
   end if;
 end;
 $$;
