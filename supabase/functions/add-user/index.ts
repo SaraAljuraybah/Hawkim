@@ -141,6 +141,9 @@ Deno.serve(async (request) => {
         })
         if (!response.ok) throw new Error(`SNDR ${response.status}`)
       },
+      recordInvitation: async (id) => {
+        await rpc("record_invitation_sent", { p_user_id: id })
+      },
       log: (message) => console.log(`add-user: ${message}`),
     })
     return json(status, body)

@@ -26,6 +26,7 @@ beforeEach(() => {
     freshLink: step('freshLink', FRESH_LINK),
     deactivate: step('deactivate', undefined),
     sendEmail: step('sendEmail', undefined),
+    recordInvitation: step('recordInvitation', undefined),
     log: vi.fn(),
   }
 })
@@ -33,8 +34,27 @@ beforeEach(() => {
 describe('a new user', () => {
   it('checks first, then creates the account, the profile and the email, in that order', async () => {
     const result = await addUserFlow(input, steps)
-    expect(calls).toEqual(['caller', 'checkNewUser', 'accountLink', 'addUser', 'sendEmail'])
+    expect(calls).toEqual(['caller', 'checkNewUser', 'accountLink', 'addUser', 'sendEmail', 'recordInvitation'])
     expect(result).toEqual({ status: 200, body: { user: saved, emailSent: true } })
+  })
+
+  it('records the sent invitation for that account, so an unused link can be noticed when it expires', async () => {
+    await addUserFlow(input, steps)
+    expect(steps.recordInvitation).toHaveBeenCalledWith('id-1')
+  })
+
+  it('records nothing when the email could not be sent', async () => {
+    steps.sendEmail = vi.fn(async () => { throw new Error('SNDR 500') })
+    const result = await addUserFlow(input, steps)
+    expect(steps.recordInvitation).not.toHaveBeenCalled()
+    expect(result).toEqual({ status: 200, body: { user: saved, emailSent: false } })
+  })
+
+  it('still adds the user when recording fails, and logs it without database messages', async () => {
+    steps.recordInvitation = vi.fn(async () => { throw database('42501') })
+    expect(await addUserFlow(input, steps)).toEqual({ status: 200, body: { user: saved, emailSent: true } })
+    expect(logs()).toContain('invitation not recorded for id-1: 42501')
+    expect(logs()).not.toContain('A DATABASE MESSAGE')
   })
 
   it('saves the email in lowercase, and everything trimmed', async () => {
@@ -115,7 +135,7 @@ describe('an account that already exists', () => {
 
   it('gets a random password before the profile is saved, so only the emailed link opens it', async () => {
     const result = await addUserFlow(input, steps)
-    expect(calls).toEqual(['caller', 'checkNewUser', 'accountLink', 'isBanned', 'profileState', 'setRandomPassword', 'addUser', 'freshLink', 'sendEmail'])
+    expect(calls).toEqual(['caller', 'checkNewUser', 'accountLink', 'isBanned', 'profileState', 'setRandomPassword', 'addUser', 'freshLink', 'sendEmail', 'recordInvitation'])
     expect(result.status).toBe(200)
   })
 
@@ -189,7 +209,7 @@ describe('Add Staff with a deactivated staff member email (reactivation)', () =>
   it('reuses the account; only after add_user lets it through does it replace the password, then make and send the link', async () => {
     const result = await addUserFlow(input, steps)
     expect(steps.addUser).toHaveBeenCalledWith('id-1', cleaned)
-    expect(calls).toEqual(['caller', 'checkNewUser', 'accountLink', 'isBanned', 'profileState', 'addUser', 'setRandomPassword', 'freshLink', 'sendEmail'])
+    expect(calls).toEqual(['caller', 'checkNewUser', 'accountLink', 'isBanned', 'profileState', 'addUser', 'setRandomPassword', 'freshLink', 'sendEmail', 'recordInvitation'])
     expect(result).toEqual({ status: 200, body: { user: reactivated, emailSent: true } })
     expect(steps.deactivate).not.toHaveBeenCalled()
   })

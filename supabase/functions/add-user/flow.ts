@@ -61,6 +61,8 @@ export interface AddUserSteps {
   /** deactivate_staff, as the caller: undoes a reactivation whose invitation couldn't be sent. */
   deactivate(id: string): Promise<void>
   sendEmail(to: string, subject: string, html: string): Promise<void>
+  /** record_invitation_sent, as the caller: when the link was sent and by whom (for expired-invitation notifications). */
+  recordInvitation(id: string): Promise<void>
   log(message: string): void
 }
 
@@ -181,6 +183,15 @@ export async function addUserFlow(input: unknown, steps: AddUserSteps): Promise<
     } catch (error) {
       // Still active, without an invitation: said as for any other add (they can use Forgot password).
       steps.log(`could not undo the reactivation of ${account.id}: ${error instanceof DatabaseError ? error.code ?? "unknown" : "unknown"}`)
+    }
+  }
+
+  // Only a link that was actually sent can expire unused. A failure here doesn't undo the user.
+  if (emailSent) {
+    try {
+      await steps.recordInvitation(account.id)
+    } catch (error) {
+      steps.log(`invitation not recorded for ${account.id}: ${error instanceof DatabaseError ? error.code ?? "unknown" : "unknown"}`)
     }
   }
   steps.log(`added ${account.id}, readded or reused: ${account.existing}, reactivated: ${!!saved.reactivated}, email sent: ${emailSent}`)
