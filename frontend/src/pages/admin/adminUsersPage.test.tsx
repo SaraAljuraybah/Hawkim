@@ -251,7 +251,7 @@ describe('the Permission section of the Staff Filter', () => {
 })
 
 describe('the Staff Sort', () => {
-  const sorted = (sort?: 'name-asc' | 'name-desc', query = '', divisions: string[] = [], departmentIds: string[] = []) =>
+  const sorted = (sort?: 'default' | 'name-asc' | 'name-desc', query = '', divisions: string[] = [], departmentIds: string[] = []) =>
     filterUsers(fixture.users, getDepartment, { query, divisions, departmentIds, sort }, usersEn.permissions).map((user) => user.id)
   const rows = (html: string) => [...table(html).matchAll(/<th scope="row"[^>]*>[\s\S]*?>([A-Z][a-z]+ [A-Za-z]+)<\/[^>]+>/g)].map((match) => match[1])
 
@@ -264,31 +264,40 @@ describe('the Staff Sort', () => {
     expect(html).toContain('class="relative min-w-0 lg:static"')
     const select = html.match(/<select[^>]*name="staffSort"[^>]*>([\s\S]*?)<\/select>/)![1]
     expect([...select.matchAll(/<option value="([^"]+)"[^>]*>([^<]+)<\/option>/g)].map((match) => [match[1], match[2]]))
-      .toEqual([['name-asc', 'Name: A to Z'], ['name-desc', 'Name: Z to A']])
+      .toEqual([['default', 'Default order'], ['name-asc', 'Name: A to Z'], ['name-desc', 'Name: Z to A']])
+    // Closed, nothing chosen: Default order.
+    expect(select).toMatch(/<option value="default"[^>]*selected="">Default order</)
     expect(select).not.toContain('<optgroup')
   })
 
-  it('orders by name, A to Z by default (as before) or Z to A, after the search and the Filter', () => {
+  it('orders by name: Default order is A to Z (as before), or Z to A, after the search and the Filter', () => {
     expect(sorted()).toEqual(['admin', 'reem', 'sara'])
+    expect(sorted('default')).toEqual(['admin', 'reem', 'sara'])
     expect(sorted('name-asc')).toEqual(['admin', 'reem', 'sara'])
     expect(sorted('name-desc')).toEqual(['sara', 'reem', 'admin'])
     expect(sorted('name-desc', 'a', [], ['qa', 'pv'])).toEqual(['sara', 'reem', 'admin'])
     expect(sorted('name-desc', '', [], ['qa'])).toEqual(['reem', 'admin'])
   })
 
-  it('is read from the URL (?sort=name-desc); the default or an unknown value is A to Z', () => {
+  it('is read from the URL (?sort=name-asc or name-desc); none or an unknown value is Default order (A to Z)', () => {
     expect(rows(render())).toEqual(['Reem Alharbi', 'Sara Aljuraybah'])
     const desc = render('?sort=name-desc')
     expect(rows(desc)).toEqual(['Sara Aljuraybah', 'Reem Alharbi'])
     expect(desc).toMatch(/<option value="name-desc"[^>]*selected="">/)
     expect(rows(render('?sort=bogus'))).toEqual(['Reem Alharbi', 'Sara Aljuraybah'])
+    expect(render('?sort=bogus')).toMatch(/<option value="default"[^>]*selected="">/)
+    const asc = render('?sort=name-asc')
+    expect(rows(asc)).toEqual(['Reem Alharbi', 'Sara Aljuraybah'])
+    expect(asc).toMatch(/<option value="name-asc"[^>]*selected="">/)
     // With the Filter: still sorted, still filtered.
     expect(rows(render('?sort=name-desc&dept=qa,pv'))).toEqual(['Sara Aljuraybah', 'Reem Alharbi'])
   })
 
   it('is reset by Clear Filters, shown when only the sort differs from the default', () => {
     expect(render('?sort=name-desc')).toContain('>Clear Filters<')
-    expect(render('?sort=name-asc')).not.toContain('>Clear Filters<')
+    expect(render('?sort=name-asc')).toContain('>Clear Filters<')
+    expect(render()).not.toContain('>Clear Filters<')
+    expect(render('?sort=default')).not.toContain('>Clear Filters<')
     const cleared = clearedStaffParams(new URLSearchParams('division=x&dept=y&permission=author&sort=name-desc&other=1'))
     expect(cleared.toString()).toBe('other=1')
   })

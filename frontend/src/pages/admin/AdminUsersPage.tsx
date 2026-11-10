@@ -58,14 +58,14 @@ export function AdminUsersPage() {
   const { divisionChoices, divisions, groups: departmentGroups, departments: departmentIds } = useMemo(
     () => filterSelection(filterData, readList(params, 'division'), readList(params, 'dept')), [filterData, params])
   const permissions = useMemo(() => PERMISSIONS.filter((permission) => readList(params, 'permission').includes(permission)), [params])
-  // `?sort=name-desc`; the default (A to Z) leaves it out.
-  const sort = readChoice<StaffSort>(params, 'sort', STAFF_SORTS, 'name-asc')
-  const hasFilters = query.trim().length > 0 || divisions.length > 0 || departmentIds.length > 0 || permissions.length > 0 || sort !== 'name-asc'
+  // `?sort=name-asc` or `?sort=name-desc`; the default order leaves it out.
+  const sort = readChoice<StaffSort>(params, 'sort', STAFF_SORTS, 'default')
+  const hasFilters = query.trim().length > 0 || divisions.length > 0 || departmentIds.length > 0 || permissions.length > 0 || sort !== 'default'
   const visible = useMemo(
     () => filterUsers(activeUsers, getDepartment, { query, divisions, departmentIds, permissions, sort }, usersEn.permissions),
     [activeUsers, getDepartment, query, divisions, departmentIds, permissions, sort],
   )
-  const setSort = (next: StaffSort) => setParams((current) => updateParams(current, { sort: next }, { sort: 'name-asc' }), { replace: true })
+  const setSort = (next: StaffSort) => setParams((current) => updateParams(current, { sort: next }, { sort: 'default' }), { replace: true })
   // Replacing the URL: no history entry per click. Deselecting a division also deselects its departments (one update).
   const setFilter = (changes: { division?: string[]; dept?: string[]; permission?: string[] }) => setParams((current) => updateParams(current,
     Object.fromEntries(Object.entries(changes).map(([name, ids]) => [name, listParam(ids)])), { division: '', dept: '', permission: '' }), { replace: true })

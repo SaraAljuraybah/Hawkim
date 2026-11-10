@@ -43,7 +43,7 @@ export const adminEn: AdminContent = {
     title: 'Staff',
     addUser: { label: 'Add Staff', href: '/admin/users/new' },
     search: { label: 'Search Staff', placeholder: 'Search by staff name, email, division, department' },
-    sort: { label: 'Sort', options: { 'name-asc': 'Name: A to Z', 'name-desc': 'Name: Z to A' } },
+    sort: { label: 'Sort', options: { default: 'Default order', 'name-asc': 'Name: A to Z', 'name-desc': 'Name: Z to A' } },
     clearFilters: 'Clear Filters',
     count: { one: '{count} staff member', other: '{count} staff members' },
     tableLabel: 'Staff',

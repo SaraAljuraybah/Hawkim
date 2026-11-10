@@ -75,8 +75,8 @@ export function divisionNameIn(departments: Pick<Department, 'divisionId' | 'div
   return divisionLabel(departments.find((department) => department.divisionId === division)) || division
 }
 
-/** The Staff list's orders; the first is the default (A to Z). */
-export const STAFF_SORTS = ['name-asc', 'name-desc'] as const
+/** The Staff list's orders; the first is the default, which is by name, A to Z (the same as 'name-asc'). */
+export const STAFF_SORTS = ['default', 'name-asc', 'name-desc'] as const
 export type StaffSort = (typeof STAFF_SORTS)[number]
 
 /** Clear Filters: the URL without the Filter and the sort (other parameters stay). */
@@ -93,7 +93,7 @@ export interface UserFilter {
   departmentIds: string[]
   /** Selected permissions: a user matches with any of them; none means everyone. */
   permissions?: Permission[]
-  /** The order, by name; A to Z when missing. */
+  /** The order, by name; A to Z when missing or 'default'. */
   sort?: StaffSort
 }
 

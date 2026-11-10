@@ -1735,7 +1735,7 @@ export interface AdminUsersListContent {
   addUser: LinkContent
   search: { label: string; placeholder: string }
   /** The Sort dropdown: its label and one option per order (the first is the default). */
-  sort: { label: string; options: Record<'name-asc' | 'name-desc', string> }
+  sort: { label: string; options: Record<'default' | 'name-asc' | 'name-desc', string> }
   /** Clears the search, the Filter and the sort. */
   clearFilters: string
   count: CountText
