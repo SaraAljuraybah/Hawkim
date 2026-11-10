@@ -1203,6 +1203,9 @@ export interface ReviewsContent {
     approvalTabsLabel: string
     approvalListLabel: string
     reviewerListLabel: string
+    /** The two lists' page controls, named apart (both can be on the page). */
+    reviewerPaginationLabel: string
+    approvalPaginationLabel: string
     waiting: string
     closed: string
     decisions: Record<string, string>
@@ -1833,6 +1836,8 @@ export interface OrganizationContent {
   /** "Staff (n)" under a department's name. */
   staffCount: (count: number) => string
   noStaff: string
+  /** A department's staff list (its table, and its scroll area when it scrolls), e.g. "Staff of Quality". */
+  staffListLabel: (department: string) => string
   noDepartments: string
   /** The group of departments without a division. */
   unassigned: string

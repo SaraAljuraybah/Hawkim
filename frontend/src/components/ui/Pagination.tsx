@@ -6,8 +6,10 @@ import { Button } from './Button'
 interface PaginationProps {
   /** The page shown (already within 1..count). */
   page: number
-  /** How many pages the list has. Nothing is shown for a single page. */
+  /** How many pages the list has (at least 1). */
   count: number
+  /** How many results the list has. Nothing is shown when there are none (the list shows its empty message). */
+  total: number
   onChange: (page: number) => void
   content: PaginationContent
   className?: string
@@ -17,10 +19,11 @@ interface PaginationProps {
  * "‹ Previous", the page numbers and "Next ›" under a long list. The current page has
  * aria-current="page" and a filled look with bold text (not colour alone); every control is at
  * least 40px. Phones show fewer page numbers, and Previous/Next as arrows only (they keep their
- * accessible names). Previous and Next stay focusable when unavailable (aria-disabled).
+ * accessible names). Previous and Next stay focusable when unavailable (aria-disabled). Always shown
+ * while the list has results, even a single page ("‹ Previous 1 Next ›", both disabled).
  */
-export function Pagination({ page, count, onChange, content, className = '' }: PaginationProps) {
-  if (count <= 1) return null
+export function Pagination({ page, count, total, onChange, content, className = '' }: PaginationProps) {
+  if (total <= 0 || count < 1) return null
 
   function go(next: number) {
     if (next >= 1 && next <= count && next !== page) onChange(next)

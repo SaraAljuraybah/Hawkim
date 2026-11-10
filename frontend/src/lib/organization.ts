@@ -65,6 +65,11 @@ export function matchesRoles(person: Person, selected: RoleFilter[]): boolean {
     : person.permissions.includes(filter))
 }
 
+/** Whether a scroll box's content is taller than the box (allowing a pixel of rounding). */
+export function overflows(scrollHeight: number, clientHeight: number): boolean {
+  return scrollHeight - clientHeight > 1
+}
+
 /** Whether the name or email contains the search text (case-insensitive, surrounding spaces ignored). */
 export function matchesSearch(item: { name: string; email?: string | null }, query: string): boolean {
   const text = query.trim().toLowerCase()

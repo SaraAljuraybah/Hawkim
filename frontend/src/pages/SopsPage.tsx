@@ -253,7 +253,7 @@ function SopDirectory({ activeDepartment, admin = false }: { activeDepartment: D
         )}
       </div>
 
-      <Pagination page={page} count={pages} onChange={goToPage} content={paginationEn} className="mt-8" />
+      <Pagination page={page} count={pages} total={visibleSops.length} onChange={goToPage} content={paginationEn} className="mt-8" />
     </>
   )
 }

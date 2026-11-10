@@ -23,6 +23,8 @@ export const reviewsEn: ReviewsContent = {
     approvalTabsLabel: 'Filter approval assignments',
     approvalListLabel: 'Assigned approvals',
     reviewerListLabel: 'Assigned reviews',
+    reviewerPaginationLabel: 'Assigned reviews pages',
+    approvalPaginationLabel: 'Assigned approvals pages',
     waiting: 'Waiting for an earlier workflow step',
     closed: 'Closed request',
     decisions: { pending: 'Pending', accepted: 'Accepted', completed: 'Completed', returned: 'Returned to author', cancelled: 'Cancelled', declined: 'Declined', withdrawn: 'Withdrawn', expired: 'Expired', removed: 'Removed', approved: 'Approved' },

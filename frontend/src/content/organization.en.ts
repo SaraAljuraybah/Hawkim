@@ -15,6 +15,7 @@ export const organizationEn: OrganizationContent = {
   departmentCount: (count) => `Departments (${count})`,
   staffCount: (count) => `Staff (${count})`,
   noStaff: 'No staff in this department',
+  staffListLabel: (department) => `Staff of ${department}`,
   noDepartments: 'No departments in this division',
   unassigned: 'Unassigned departments',
   rolesLabel: 'Roles',
@@ -22,7 +23,7 @@ export const organizationEn: OrganizationContent = {
   copied: 'Copied',
   copyFailed: "Couldn't copy. Please copy the email manually.",
   search: 'Search',
-  searchPlaceholder: 'Search by name or email',
+  searchPlaceholder: 'Search divisions, departments or staff by name or email',
   filter: 'Filter',
   filterActive: (count) => `Filter, ${count} active`,
   filtersTitle: 'Filters',
@@ -35,7 +36,7 @@ export const organizationEn: OrganizationContent = {
   others: 'Others',
   sort: 'Sort',
   sortOptions: {
-    default: 'Default order', 'name-asc': 'Name: A to Z', 'name-desc': 'Name: Z to A',
+    default: 'Default order', 'name-asc': 'Division name: A to Z', 'name-desc': 'Division name: Z to A',
     'departments-desc': 'Departments: High to Low', 'departments-asc': 'Departments: Low to High',
   },
 }
