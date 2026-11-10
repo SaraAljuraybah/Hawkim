@@ -13,14 +13,17 @@ import { LIST_TOOLBAR } from '../../components/ui/toolbar'
 import { adminEn } from '../../content/admin.en'
 import { filtersEn } from '../../content/filters.en'
 import { usersEn } from '../../content/users.en'
-import type { User } from '../../data/mock/types'
+import type { Permission, User } from '../../data/mock/types'
 import { useDocumentTitle } from '../../hooks/useDocumentTitle'
 import { departmentsKept, filterDepartmentsFrom, filterSelection } from '../../lib/organization'
 import { listParam, readList, updateParams } from '../../lib/pagination'
 import { adminUserEditPath, adminUserPath } from '../../lib/routes'
-import { divisionLabel, filterUsers, isSystemAdmin } from '../../lib/userAdmin'
+import { divisionLabel, filterUsers, isSystemAdmin, PERMISSIONS } from '../../lib/userAdmin'
 import { useDepartments } from '../../state/departmentsContext'
 import { useUsers } from '../../state/usersContext'
+
+/** The Permission chips, labelled as on the badges. */
+const permissionOptions = PERMISSIONS.map((permission) => ({ value: permission, label: usersEn.permissions[permission] }))
 
 /** Set after deleting a user, to say so on the list. */
 export interface AdminUsersLocationState {
@@ -28,8 +31,8 @@ export interface AdminUsersLocationState {
 }
 
 /**
- * Staff ("/admin/users", PBI 17): one search, Filter by Division and Filter by Department (several of each,
- * independent, kept in the URL), Clear Filters, and each staff member's actions. Administrators aren't
+ * Staff ("/admin/users", PBI 17): one search, the Filter (Division, Department and Permission, several of each,
+ * kept in the URL), Clear Filters, and each staff member's actions. Administrators aren't
  * staff: they are on Manage Organization → Admins.
  */
 export function AdminUsersPage() {
@@ -47,24 +50,25 @@ export function AdminUsersPage() {
 
   const [query, setQuery] = useState('')
   const searchRef = useRef<HTMLInputElement>(null)
-  // The Filter is in the URL (`?division=a,b&dept=x,y`); the Department chips follow the selected divisions, and
-  // choices no longer offered (an old link) are dropped.
+  // The Filter is in the URL (`?division=a,b&dept=x,y&permission=author,reviewer`); the Department chips follow the
+  // selected divisions, and choices no longer offered (an old link) are dropped.
   const [params, setParams] = useSearchParams()
   const filterData = useMemo(() => filterDepartmentsFrom(activeDepartments), [activeDepartments])
   const { divisionChoices, divisions, groups: departmentGroups, departments: departmentIds } = useMemo(
     () => filterSelection(filterData, readList(params, 'division'), readList(params, 'dept')), [filterData, params])
-  const hasFilters = query.trim().length > 0 || divisions.length > 0 || departmentIds.length > 0
+  const permissions = useMemo(() => PERMISSIONS.filter((permission) => readList(params, 'permission').includes(permission)), [params])
+  const hasFilters = query.trim().length > 0 || divisions.length > 0 || departmentIds.length > 0 || permissions.length > 0
   const visible = useMemo(
-    () => filterUsers(activeUsers, getDepartment, { query, divisions, departmentIds }, usersEn.permissions),
-    [activeUsers, getDepartment, query, divisions, departmentIds],
+    () => filterUsers(activeUsers, getDepartment, { query, divisions, departmentIds, permissions }, usersEn.permissions),
+    [activeUsers, getDepartment, query, divisions, departmentIds, permissions],
   )
   // Replacing the URL: no history entry per click. Deselecting a division also deselects its departments (one update).
-  const setFilter = (changes: { division?: string[]; dept?: string[] }) => setParams((current) => updateParams(current,
-    Object.fromEntries(Object.entries(changes).map(([name, ids]) => [name, listParam(ids)])), { division: '', dept: '' }), { replace: true })
+  const setFilter = (changes: { division?: string[]; dept?: string[]; permission?: string[] }) => setParams((current) => updateParams(current,
+    Object.fromEntries(Object.entries(changes).map(([name, ids]) => [name, listParam(ids)])), { division: '', dept: '', permission: '' }), { replace: true })
   const setDivisions = (ids: string[]) => setFilter({ division: ids, dept: departmentsKept(filterData, ids, departmentIds) })
   function clearFilters() {
     setQuery('')
-    setParams((current) => updateParams(current, { division: undefined, dept: undefined }, { division: '', dept: '' }), { replace: true })
+    setParams((current) => updateParams(current, { division: undefined, dept: undefined, permission: undefined }, { division: '', dept: '', permission: '' }), { replace: true })
     searchRef.current?.focus()
   }
   const count = (visible.length === 1 ? content.count.one : content.count.other).replace('{count}', String(visible.length))
@@ -142,13 +146,15 @@ export function AdminUsersPage() {
         />
         {/* The Filter field of every list page: its panel opens under the field (no Sort column to line up with). */}
         <FilterPopover className="relative min-w-0" label={filtersEn.label} allLabel={filtersEn.all} title={filtersEn.title} clearLabel={filtersEn.clearAll}
-          onClear={() => setFilter({ division: [], dept: [] })}
+          onClear={() => setFilter({ division: [], dept: [], permission: [] })}
           sections={[
             { id: 'division', legend: filtersEn.division.legend, options: divisionChoices, value: divisions, onChange: setDivisions,
               emptyText: filtersEn.division.empty, summary: filtersEn.division.count, scrollable: true },
             { id: 'department', legend: filtersEn.department.legend, value: departmentIds, onChange: (ids) => setFilter({ dept: ids }),
               emptyText: filtersEn.department.empty, summary: filtersEn.department.count, scrollable: true,
               groups: departmentGroups.map((group) => ({ id: group.id, label: group.unassigned ? filtersEn.department.unassigned : group.label, options: group.options })) },
+            { id: 'permission', legend: filtersEn.permission.legend, options: permissionOptions, value: permissions,
+              onChange: (next) => setFilter({ permission: next as Permission[] }), emptyText: '', summary: filtersEn.permission.count },
           ]} />
       </div>
 

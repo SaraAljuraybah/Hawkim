@@ -214,3 +214,36 @@ describe('permission badges', () => {
     expect(renderToStaticMarkup(<PermissionBadges user={{ permissions: [] }} />)).toBe('')
   })
 })
+
+describe('the Permission section of the Staff Filter', () => {
+  const byPermission = (permissions: User['permissions'], divisions: string[] = [], departmentIds: string[] = []) =>
+    filterUsers(fixture.users, getDepartment, { query: '', divisions, departmentIds, permissions }, usersEn.permissions).map((user) => user.id)
+
+  it('comes after Department, with a chip per permission labelled as on the badges', () => {
+    const html = render()
+    expect([...html.matchAll(/<legend[^>]*>([^<]+)<\/legend>/g)].map((match) => match[1])).toEqual(['Division', 'Department', 'Permission'])
+    expect(chips(html, 'Permission')).toEqual(['author', 'reviewer', 'approver', 'admin'].map((permission) => usersEn.permissions[permission as User['permissions'][number]]))
+  })
+
+  it('matches anyone with ANY chosen permission, AND the Division and Department filter', () => {
+    expect(byPermission(['approver'])).toEqual(['reem'])
+    expect(byPermission(['reviewer', 'approver'])).toEqual(['reem', 'sara'])
+    expect(byPermission([])).toEqual(['admin', 'reem', 'sara'])
+    // Approver in Regulatory & Drug Safety: Reem is an approver, but in Quality Assurance.
+    expect(byPermission(['approver'], ['regulatory_drug_safety'])).toEqual([])
+    expect(byPermission(['author', 'approver'], [], ['qa'])).toEqual(['reem'])
+  })
+
+  it('is read from the URL, summed up in the field, and cleared by Clear Filters', () => {
+    const html = render('?permission=author,reviewer,gone')
+    expect(chips(html, 'Permission')).toEqual(['Author ✓', 'Reviewer ✓', 'Approver', usersEn.permissions.admin])
+    expect(html).toContain('>1 staff member<')
+    expect(filterField(html)).toContain('aria-label="Filter: 2 permissions"')
+    expect(filterField(render('?permission=approver'))).toContain('>1 permission</span>')
+    expect(html).toContain('>Clear Filters<')
+    // With a division: both apply (Sara is an author in Regulatory & Drug Safety).
+    const both = render('?division=regulatory_drug_safety&permission=approver')
+    expect(both).toContain('>0 staff members<')
+    expect(filterField(both)).toContain('>1 division, 1 permission</span>')
+  })
+})

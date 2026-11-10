@@ -1726,6 +1726,8 @@ export interface FiltersContent {
   division: { legend: string; empty: string; count: CountText }
   /** `unassigned`: the group of departments without a division. */
   department: { legend: string; empty: string; count: CountText; unassigned: string }
+  /** Staff only: the permissions (their chip labels are usersEn.permissions, as on the badges). */
+  permission: { legend: string; count: CountText }
 }
 
 export interface AdminUsersListContent {

@@ -81,13 +81,16 @@ export interface UserFilter {
   divisions: string[]
   /** Selected department ids. */
   departmentIds: string[]
+  /** Selected permissions: a user matches with any of them; none means everyone. */
+  permissions?: Permission[]
 }
 
 /**
  * The Staff list's users matching the search and the Filter, by name. The Filter is the linked rule of
  * every list page (matchesDivisionDepartmentFilter): in a division with departments selected, only
  * those departments; a selected division without any keeps all its departments; departments without a
- * division match only when selected. `permissionLabels`: the names shown.
+ * division match only when selected. With permissions selected, the user must also have one of them
+ * (any, AND with the divisions and departments). `permissionLabels`: the names shown.
  */
 export function filterUsers(users: User[], getDepartment: (id: string) => Department | undefined, filter: UserFilter, permissionLabels: Record<Permission, string>): User[] {
   const text = filter.query.trim().toLowerCase()
@@ -96,7 +99,8 @@ export function filterUsers(users: User[], getDepartment: (id: string) => Depart
       const department = getDepartment(user.departmentId)
       const searched = [user.name, user.email, divisionLabel(department), department?.name ?? '', ...user.permissions.map((permission) => permissionLabels[permission])]
       return (!text || searched.some((value) => value.toLowerCase().includes(text))) &&
-        matchesDivisionDepartmentFilter(user.departmentId, filter.divisions, filter.departmentIds, (id) => getDepartment(id)?.divisionId || UNASSIGNED_GROUP_ID)
+        matchesDivisionDepartmentFilter(user.departmentId, filter.divisions, filter.departmentIds, (id) => getDepartment(id)?.divisionId || UNASSIGNED_GROUP_ID) &&
+        (!filter.permissions?.length || filter.permissions.some((permission) => user.permissions.includes(permission)))
     })
     .sort((a, b) => a.name.localeCompare(b.name))
 }

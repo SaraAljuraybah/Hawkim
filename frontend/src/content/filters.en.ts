@@ -22,4 +22,8 @@ export const filtersEn: FiltersContent = {
     count: { one: '{count} department', other: '{count} departments' },
     unassigned: 'Unassigned departments',
   },
+  permission: {
+    legend: 'Permission',
+    count: { one: '{count} permission', other: '{count} permissions' },
+  },
 }
