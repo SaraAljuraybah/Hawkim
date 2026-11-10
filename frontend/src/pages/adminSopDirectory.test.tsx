@@ -83,7 +83,7 @@ describe('the SOP Directory in the admin portal', () => {
     expect(html).toContain('>2 SOPs found<')
   })
 
-  it('replaces the dropdowns with the Filter panel: Division and Department chips, no Role card, no Clear Filters', () => {
+  it('replaces the dropdowns with the Filter panel: Division and Department chips, no Role card, and no Clear Filters by default', () => {
     const html = directory()
     const button = html.match(/<label for="([^"]+)" class="mb-1.5 block text-sm font-medium text-maroon">Filter<\/label><button id="([^"]+)" type="button" aria-label="Filter" aria-expanded="false" aria-controls="[^"]+"[^>]*>/)!
     expect(button[1]).toBe(button[2])
@@ -102,7 +102,7 @@ describe('the SOP Directory in the admin portal', () => {
     expect(html).not.toContain('Gone Division')
   })
 
-  it('keeps the selected divisions and departments from the URL, with the count and the badge, and no Clear Filters', () => {
+  it('keeps the selected divisions and departments from the URL, with the count, the badge and Clear Filters', () => {
     fixture.sops = [sop('1', 'it'), sop('9', 'pv')]
     const byDivision = directory('?division=med,gone')
     expect(byDivision).toContain('>Procedure 9<')
@@ -110,7 +110,7 @@ describe('the SOP Directory in the admin portal', () => {
     expect(byDivision).toContain('>1 SOP found<')
     expect(byDivision).toContain('aria-label="Filter, 1 active"')
     expect(byDivision).toMatch(/aria-pressed="true"[^>]*>(?:<svg.*?<\/svg>)?<span class="min-w-0 break-words">Medical</)
-    expect(byDivision).not.toContain('>Clear Filters<')
+    expect(byDivision).toContain('>Clear Filters<')
     // With a division selected, only its departments are offered (no Unassigned group).
     expect(byDivision).not.toContain('>Unassigned departments</p>')
     // An old single-value link still works.
@@ -134,12 +134,12 @@ describe('the SOP Directory in the admin portal', () => {
     expect(directory('?division=__no-division__')).toContain('>2 SOPs found<')
   })
 
-  it('shows the normal empty state, without Clear Filters, when nothing matches', () => {
+  it('shows the normal empty state, with Clear Filters, when nothing matches', () => {
     fixture.sops = [sop('9', 'pv')]
     const html = directory('?q=nothing')
     expect(html).toContain('>0 SOPs found<')
     expect(html).toContain(`>${sopsEn.filters.empty}<`)
-    expect(html).not.toContain('>Clear Filters<')
+    expect(html).toContain('>Clear Filters<')
   })
 
   it('shows SOPs of the last three months on Recently Published', () => {

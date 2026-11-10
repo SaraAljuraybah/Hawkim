@@ -39,6 +39,18 @@ interface FilterPopoverProps {
   title: string
   clearLabel: string
   sections: FilterSection[]
+  /**
+   * Clear all as one change. Without it, Clear all calls each section's onChange([]) in turn, which
+   * suits plain state; filters kept in the URL need one update instead (with React Router, each
+   * setSearchParams update starts from the last-rendered URL, so a second call would undo the first).
+   */
+  onClear?: () => void
+}
+
+/** What Clear all does: `onClear` when given, otherwise every section emptied. */
+export function clearFilterSections(sections: FilterSection[], onClear?: () => void) {
+  if (onClear) onClear()
+  else sections.forEach((section) => section.onChange([]))
 }
 
 function Chips({ options, value, onChange }: { options: SelectOption[]; value: string[]; onChange: (next: string[]) => void }) {
@@ -67,7 +79,7 @@ function Chips({ options, value, onChange }: { options: SelectOption[]; value: s
  * (disclosure pattern) of sections, each a small card of toggle chips (several can be on).
  * Choices apply at once. Escape or a click outside closes the panel.
  */
-export function FilterPopover({ label, activeLabel, title, clearLabel, sections, className = 'relative' }: FilterPopoverProps) {
+export function FilterPopover({ label, activeLabel, title, clearLabel, sections, onClear, className = 'relative' }: FilterPopoverProps) {
   const [open, setOpen] = useState(false)
   // The panel's max height: the visible space below the button (it scrolls when taller).
   const [maxHeight, setMaxHeight] = useState<number>()
@@ -131,7 +143,7 @@ export function FilterPopover({ label, activeLabel, title, clearLabel, sections,
         className="absolute top-full right-0 left-0 z-30 mt-2 max-h-[calc(100vh-10rem)] overflow-y-auto overscroll-contain rounded-xl border border-beige bg-white p-4 shadow-lg sm:left-auto sm:w-[22.5rem] sm:max-w-full">
         <div className="mb-3 flex items-center justify-between gap-3">
           <h2 id={titleId} className="text-base">{title}</h2>
-          <button type="button" disabled={!count} onClick={() => sections.forEach((section) => section.onChange([]))}
+          <button type="button" disabled={!count} onClick={() => clearFilterSections(sections, onClear)}
             className="rounded-sm text-sm font-medium text-maroon underline-offset-2 hover:underline disabled:cursor-not-allowed disabled:text-text-gray disabled:no-underline">
             {clearLabel}
           </button>

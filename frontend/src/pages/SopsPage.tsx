@@ -98,6 +98,8 @@ function SopDirectory({ activeDepartment, admin = false }: { activeDepartment: D
   const [memory, setMemory] = useState<RememberedPages<SopTabKey>>({ department: '', pages: {} })
   // The sort order isn't a filter: it doesn't show Clear Filters and isn't reset by it.
   const hasFilters = query.length > 0 || filterDivisions.length > 0 || filterDepartments.length > 0
+  // Clear Filters: everyone else's shows for the search; the admin's also for the filters and a sort other than the default.
+  const showClear = hasFilters || (admin && sort !== DIRECTORY_URL_DEFAULTS.sort)
   const [view, setView] = useState<ViewMode>(readStoredView)
 
   useEffect(() => {
@@ -176,10 +178,13 @@ function SopDirectory({ activeDepartment, admin = false }: { activeDepartment: D
     })
   }
 
+  // Clear Filters: the search and filters (and, for the admin, the sort) at once, in one URL update. The tab and view stay.
   function clearFilters() {
-    changeResults({ q: undefined, division: undefined, dept: undefined })
+    changeResults({ q: undefined, division: undefined, dept: undefined, ...(admin ? { sort: undefined } : {}) })
     searchRef.current?.focus()
   }
+  // The panel's Clear all: divisions and departments only (not the search or sort), in one URL update.
+  const clearDivisionsAndDepartments = () => changeResults({ division: undefined, dept: undefined })
 
   return (
     <>
@@ -203,7 +208,7 @@ function SopDirectory({ activeDepartment, admin = false }: { activeDepartment: D
           {admin && (
             // As on Organizational Structure: a labelled icon button whose panel lines up with this row's right edge (from lg).
             <FilterPopover className="relative min-w-0 lg:static" label={content.filters.panel.filter} activeLabel={content.filters.panel.filterActive}
-              title={content.filters.panel.title} clearLabel={content.filters.panel.clearAll}
+              title={content.filters.panel.title} clearLabel={content.filters.panel.clearAll} onClear={clearDivisionsAndDepartments}
               sections={[
                 { id: 'division', legend: content.filters.panel.division, options: divisionChoices, value: filterDivisions, onChange: setDivisions,
                   emptyText: content.filters.panel.divisionEmpty, scrollable: true },
@@ -224,8 +229,7 @@ function SopDirectory({ activeDepartment, admin = false }: { activeDepartment: D
           <p role="status" aria-live="polite" aria-atomic="true" className="text-sm text-text-gray">
             {visibleSops.length === 1 ? content.filters.oneResult : content.filters.results.replace('{count}', String(visibleSops.length))}
           </p>
-          {/* The admin clears divisions and departments with the panel's Clear all, and the search by deleting its text. */}
-          {!admin && hasFilters && <Button size="sm" variant="secondary" onClick={clearFilters}>{content.filters.clear}</Button>}
+          {showClear && <Button size="sm" variant="secondary" onClick={clearFilters}>{content.filters.clear}</Button>}
         </div>
       </div>
 
