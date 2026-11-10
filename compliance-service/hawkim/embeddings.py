@@ -24,6 +24,10 @@ class Embedder:
         self.backend = cfg["backend"]
         self.model_name = cfg.get("model")
         self.batch_size = int(cfg.get("batch_size", 16))
+        # Building a GVP index (on_progress): smaller batches and a shorter text window use less memory.
+        # GVP requirement units are short, so the window doesn't cut them.
+        self.index_batch_size = int(cfg.get("index_batch_size", 8))
+        self.index_max_seq_length = int(cfg.get("index_max_seq_length", 1024))
         self.query_prompt = cfg.get("query_prompt")
         self._model = None
         self._vectorizer = None
@@ -50,14 +54,24 @@ class Embedder:
         if on_progress is None:
             return self._model.encode(texts, batch_size=self.batch_size, normalize_embeddings=True,
                                       show_progress_bar=True, convert_to_numpy=True)
-        # In chunks of a few batches, reporting after each chunk.
-        total = -(-len(texts) // self.batch_size)
-        step = self.batch_size * 4
+        # In chunks of a few batches, reporting after each chunk, with less memory than a search.
+        import gc
+        batch = max(1, self.index_batch_size)
+        total = -(-len(texts) // batch)
+        step = batch * 4
         parts = []
-        for start in range(0, len(texts), step):
-            parts.append(self._model.encode(texts[start:start + step], batch_size=self.batch_size,
-                                            normalize_embeddings=True, show_progress_bar=False, convert_to_numpy=True))
-            on_progress(min(total, -(-(start + step) // self.batch_size)), total)
+        window = getattr(self._model, "max_seq_length", None)
+        if window:
+            self._model.max_seq_length = min(window, self.index_max_seq_length)
+        try:
+            for start in range(0, len(texts), step):
+                parts.append(self._model.encode(texts[start:start + step], batch_size=batch, normalize_embeddings=True,
+                                                show_progress_bar=False, convert_to_numpy=True))
+                gc.collect()
+                on_progress(min(total, -(-(start + step) // batch)), total)
+        finally:
+            if window:
+                self._model.max_seq_length = window
         return np.vstack(parts) if parts else np.zeros((0, 0), dtype=np.float32)
 
     # -- queries (SOP chunks)

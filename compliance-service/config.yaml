@@ -67,6 +67,10 @@ embedding:
   device: null               # null = auto (cuda if available), or "cpu", "cuda", "mps"
   batch_size: 16
   max_seq_length: 1024       # BGE-M3 supports 8192; 1024 is enough for units of <=2500 chars and is faster
+  # Building the index of a GVP version added on the website: smaller batches use less memory (about half
+  # of batch_size 16). Lower it to 4 if processing runs out of memory; it gets a little slower.
+  index_batch_size: 8
+  index_max_seq_length: 1024
   # Instruction added to SOP queries only. Leave null for BGE-M3.
   # For Qwen/Qwen3-Embedding-0.6B use something like:
   # "Instruct: Given an SOP passage, retrieve the SFDA GVP requirement it must comply with\nQuery: "
