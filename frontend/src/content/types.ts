@@ -417,8 +417,10 @@ export interface SopsContent {
 
 export interface SopDetailContent {
   fileFailed: string
-  /** Under the title; `{date}`, `{department}` and `{version}` are replaced, " · " separates the parts. */
+  /** Under the title; `{division}`, `{department}` and `{date}` are replaced, " · " separates the parts. */
   subtitle: string
+  /** The same for a department without a division. */
+  subtitleNoDivision: string
   /** `{title}` is replaced, e.g. "Data Integrity | Hawkim". */
   pageTitle: string
   /** The same in the admin portal. */

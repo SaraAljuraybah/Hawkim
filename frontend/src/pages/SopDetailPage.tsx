@@ -15,6 +15,7 @@ import { sopDownloadName } from '../lib/sopPresentation'
 import { formatDate } from '../lib/format'
 import { ADMIN_SOPS_PATH, requestDepartmentAccessPath } from '../lib/routes'
 import { getSopAccess } from '../lib/sopAccess'
+import { divisionLabel } from '../lib/userAdmin'
 import { fileUrlOf } from '../services/files'
 import { useDepartments } from '../state/departmentsContext'
 import { useMyRequests } from '../state/requestsContext'
@@ -52,6 +53,8 @@ export function SopDetailPage({ admin = false }: { admin?: boolean }) {
 
   const access = getSopAccess(sop, user, requests)
   const departmentName = departments.nameOf(sop.departmentId)
+  // The department's division by name ('' without one: the subtitle then starts with the department).
+  const divisionName = divisionLabel(departments.getDepartment(sop.departmentId))
   const granted = access === 'granted'
 
   async function download() {
@@ -88,13 +91,13 @@ export function SopDetailPage({ admin = false }: { admin?: boolean }) {
       <div className="mt-5 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <h1 className="mt-1 text-2xl leading-tight tracking-tight sm:text-3xl">{sop.title}</h1>
-          {/* "Published on <date> · <department> · SOP v<n>": the date is the one on the directory cards;
-              screen readers hear a comma instead of each "·". */}
+          {/* "<division> · <department> · Published on <date>" (no division: from the department): the date is
+              the one on the directory cards; screen readers hear a comma instead of each "·". */}
           <p className="mt-2 text-sm text-text-gray">
-            {content.subtitle.split(/(\{date\}|\{department\}|\{version\}| · )/).filter(Boolean).map((part, index) =>
+            {(divisionName ? content.subtitle : content.subtitleNoDivision).split(/(\{division\}|\{department\}|\{date\}| · )/).filter(Boolean).map((part, index) =>
               part === '{date}' ? <time key={index} dateTime={sop.lastUpdated}>{formatDate(sop.lastUpdated)}</time>
-                : part === '{department}' ? <span key={index}>{departmentName}</span>
-                  : part === '{version}' ? <span key={index}>{sop.version}</span>
+                : part === '{division}' ? <span key={index}>{divisionName}</span>
+                  : part === '{department}' ? <span key={index}>{departmentName}</span>
                     : part === ' · ' ? <span key={index}><span aria-hidden="true"> · </span><span className="sr-only">, </span></span>
                       : <span key={index}>{part}</span>,
             )}

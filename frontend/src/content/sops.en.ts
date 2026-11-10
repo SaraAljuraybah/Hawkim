@@ -53,7 +53,8 @@ subtitle: 'Browse published SOPs available to you.',
 
   detail: {
     fileFailed: "The file couldn't be opened. Try again.",
-    subtitle: 'Published on {date} · {department} · SOP v{version}',
+    subtitle: '{division} · {department} · Published on {date}',
+    subtitleNoDivision: '{department} · Published on {date}',
     pageTitle: '{title} | Hawkim',
     adminPageTitle: '{title} · System Admin | Hawkim',
    back: { label: 'Back to SOP Directory', href: '/sops' },

@@ -36,6 +36,7 @@ vi.mock('../state/usersContext', () => ({ useUsers: () => ({ users: [fixture.use
 vi.mock('../state/departmentsContext', () => ({ useDepartments: () => ({
   departments: [fixture.home, fixture.other], activeDepartments: [fixture.home, fixture.other],
   nameOf: (id: string) => id === 'home' ? fixture.home.name : fixture.other.name,
+  getDepartment: (id: string) => [fixture.home, fixture.other].find((department) => department.id === id),
 }) }))
 vi.mock('../state/guidelinesContext', () => ({ useGuidelines: () => ({ current: { version: '4.0' }, getRequirement: () => undefined }) }))
 
