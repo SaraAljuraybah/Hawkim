@@ -42,20 +42,21 @@ function requirementsCell(version: GuidelineVersion, actions: GuidelineVersionAc
 }
 
 /**
- * A GVP version's values, in the order of GuidelineVersionFields: title, version, issued by SFDA,
- * added to Hawkim (the Riyadh date it was added) and by whom, source, file and requirements (each unless left out).
- * Shared by the details list and the version history table.
+ * A GVP version's values, in one order wherever the version card appears (the admin's Current Version
+ * card, a version's own page and the authors' GVP page): Title, Version, Source, then Issued by SFDA On,
+ * Added to Hawkim On (the Riyadh date it was added) and Added By, then File and Requirements (each
+ * unless left out). In the card's three columns that is one row of each three.
  */
 export function useGuidelineVersionValues(actions: GuidelineVersionActions = {}) {
   const { nameOf } = useUsers()
   return (version: GuidelineVersion): { label: string; value: ReactNode }[] => [
     { label: text.fields.title, value: version.title || text.none },
     { label: text.fields.version, value: version.version },
+    { label: text.fields.source, value: <SourceLink source={version.source} /> },
     { label: text.fields.issued, value: dateCell(version.issuedDate) },
     { label: text.fields.added, value: dateCell(version.addedAt ? riyadhDate(new Date(version.addedAt)) : undefined) },
     // No recorded uploader: the temporary placeholder name (a recorded one whose name is unknown stays "—").
     { label: text.fields.addedBy, value: version.addedById ? nameOf(version.addedById) || text.none : text.addedByFallback },
-    { label: text.fields.source, value: <SourceLink source={version.source} /> },
     ...(actions.withoutFile ? [] : [{ label: text.fields.file, value: <span className="break-all">{version.fileName}</span> }]),
     ...(actions.withoutRequirements ? [] : [{ label: text.fields.requirements, value: requirementsCell(version, actions) }]),
   ]

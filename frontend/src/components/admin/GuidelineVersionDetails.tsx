@@ -2,8 +2,8 @@ import type { GuidelineVersion } from '../../data/mock/types'
 import { useGuidelineVersionValues, type GuidelineVersionActions } from './guidelineVersionValues'
 
 /**
- * A GVP version's details: title, version, issued by SFDA, added to Hawkim (and by whom), source,
- * file and number of requirements. "—" for what isn't known. `actions` (a version's own page) makes
+ * A GVP version's details: title, version and source; issued by SFDA, added to Hawkim and by whom;
+ * then file and number of requirements. "—" for what isn't known. `actions` (a version's own page) makes
  * the requirements count a disclosure and can leave out the file (shown in its own card).
  */
 export function GuidelineVersionDetails({ version, actions, className = '' }: { version: GuidelineVersion; actions?: GuidelineVersionActions; className?: string }) {
