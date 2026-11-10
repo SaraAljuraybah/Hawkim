@@ -328,6 +328,13 @@ export const adminEn: AdminContent = {
     title: 'SFDA Regulatory Requirements',
     subtitle: 'Manage the SFDA GVP versions used for compliance checks.',
     addVersion: { label: 'Add New Version', href: '/admin/regulations/new' },
+    // Add New Version while another version is waiting for or being processed (one at a time).
+    inProgress: {
+      title: 'A Version Is Being Processed',
+      text: 'GVP {version} is still being processed. You can add a new version when its processing finishes.',
+      view: 'View GVP {version}',
+      close: 'Close',
+    },
     versionName: 'GVP Version {version}',
     added: 'GVP version {version} added.',
     current: { title: 'Current Version', badge: 'Current' },
@@ -409,6 +416,7 @@ export const adminEn: AdminContent = {
       versionInvalid: 'Enter a version number like 4.1.',
       versionExists: 'Version {version} already exists. Enter a new version number.',
       versionNotHigher: 'The new version must be higher than {current}.',
+      versionProcessing: 'GVP {version} is still being processed. Add the new version when its processing finishes.',
       addedRequired: 'The date it is added to Hawkim is missing. Reload the page.',
       issuedRequired: 'Enter the date SFDA issued this version.',
       issuedAfterAdded: "The issue date can't be after the date it's added to Hawkim.",

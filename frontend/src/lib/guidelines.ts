@@ -38,6 +38,14 @@ export function newestVersion(allVersions: GuidelineVersion[], fallback: Guideli
   return allVersions.filter((version) => !version.neverCurrent).at(-1) ?? fallback
 }
 
+/**
+ * The added version waiting for or being processed by the compliance service, if any. Only one at a time:
+ * a new version can be added when it has finished (create_guideline_draft refuses otherwise).
+ */
+export function versionInProgress(allVersions: GuidelineVersion[]): GuidelineVersion | undefined {
+  return allVersions.find((version) => version.neverCurrent && (version.processing?.status === 'waiting' || version.processing?.status === 'processing'))
+}
+
 /** A web link starting with https://, with a host (e.g. https://www.sfda.gov.sa/...). */
 export function isHttpsLink(value: string): boolean {
   if (!value.startsWith('https://')) return false

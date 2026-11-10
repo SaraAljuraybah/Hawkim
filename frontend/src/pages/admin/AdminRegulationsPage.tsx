@@ -11,7 +11,7 @@ import { IconButton } from '../../components/ui/IconButton'
 import { adminEn } from '../../content/admin.en'
 import type { GuidelineVersion } from '../../data/mock/types'
 import { useDocumentTitle } from '../../hooks/useDocumentTitle'
-import { newestVersion } from '../../lib/guidelines'
+import { newestVersion, versionInProgress } from '../../lib/guidelines'
 import { adminRegulationEditPath, adminRegulationPath } from '../../lib/routes'
 import { GuidelineError } from '../../services/guidelines'
 import { useGuidelines } from '../../state/guidelinesContext'
@@ -35,12 +35,15 @@ export function AdminRegulationsPage() {
   const arrived = useLocation().state as AdminRegulationsLocationState | null
   const navigate = useNavigate()
   const { allVersions, addedStatus, retryAdded, current, deleteVersion } = useGuidelines()
+  const inProgress = versionInProgress(allVersions)
   const history = [...allVersions].reverse()
   const shownCurrent = newestVersion(allVersions, current)
 
   const [notice, setNotice] = useState(() => (arrived?.added ? text.added.replace('{version}', arrived.added) : arrived?.updated ?? ''))
   const [deleting, setDeleting] = useState<GuidelineVersion>()
   const [refusal, setRefusal] = useState('')
+  // One version at a time: Add New Version explains why it has to wait while another is processing.
+  const [explainingWait, setExplainingWait] = useState(false)
   const noticeRef = useRef<HTMLDivElement>(null)
   const deleteTrigger = useRef<HTMLButtonElement | null>(null)
 
@@ -97,10 +100,17 @@ export function AdminRegulationsPage() {
           <h1 className="text-2xl tracking-tight sm:text-3xl">{text.title}</h1>
           <p className="mt-2 text-text-gray">{text.subtitle}</p>
         </div>
-        <Button to={text.addVersion.href} className="shrink-0 self-start sm:self-auto">
-          <Plus aria-hidden="true" className="size-4" strokeWidth={2} />
-          {text.addVersion.label}
-        </Button>
+        {inProgress ? (
+          <Button onClick={() => setExplainingWait(true)} className="shrink-0 self-start sm:self-auto">
+            <Plus aria-hidden="true" className="size-4" strokeWidth={2} />
+            {text.addVersion.label}
+          </Button>
+        ) : (
+          <Button to={text.addVersion.href} className="shrink-0 self-start sm:self-auto">
+            <Plus aria-hidden="true" className="size-4" strokeWidth={2} />
+            {text.addVersion.label}
+          </Button>
+        )}
       </div>
 
       <div role="status" ref={noticeRef} tabIndex={-1} className="rounded-lg focus:outline-none">
@@ -147,6 +157,18 @@ export function AdminRegulationsPage() {
         </section>
       </div>
 
+      <ConfirmDialog
+        open={explainingWait && !!inProgress}
+        title={text.inProgress.title}
+        description={inProgress ? text.inProgress.text.replace('{version}', inProgress.version) : ''}
+        cancelLabel={text.inProgress.close}
+        confirmLabel={inProgress ? text.inProgress.view.replace('{version}', inProgress.version) : ''}
+        onConfirm={() => {
+          setExplainingWait(false)
+          if (inProgress) navigate(adminRegulationPath(inProgress.id))
+        }}
+        onCancel={() => setExplainingWait(false)}
+      />
       <ConfirmDialog
         open={!!deleting}
         title={text.deleteDialog.title}

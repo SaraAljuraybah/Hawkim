@@ -1381,6 +1381,8 @@ export interface AdminRegulationsContent {
   title: string
   subtitle: string
   addVersion: LinkContent
+  /** Add New Version while another version is processing; `{version}` is replaced. */
+  inProgress: { title: string; text: string; view: string; close: string }
   /** "GVP version {version}" */
   versionName: string
   /** Shown after adding a version; `{version}` is replaced. */
@@ -1443,6 +1445,8 @@ export interface AdminRegulationFormContent {
     versionExists: string
     /** `{current}` is replaced with the current version. */
     versionNotHigher: string
+    /** Another version is still being processed; `{version}` is replaced. */
+    versionProcessing: string
     addedRequired: string
     issuedRequired: string
     issuedAfterAdded: string

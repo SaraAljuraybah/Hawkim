@@ -26,13 +26,15 @@ export type GuidelineFailure =
   | 'file-missing'
   | 'file-in-use'
   | 'file-exists'
+  /** Another added version is still waiting for or being processed (one at a time). */
+  | 'version-processing'
   | 'upload'
   | 'permission'
   | 'other'
 
 const HINTS: GuidelineFailure[] = [
   'title-invalid', 'version-invalid', 'version-exists', 'version-not-higher', 'issued-required', 'issued-after-added',
-  'source-invalid', 'file-not-pdf', 'file-too-large', 'file-missing', 'file-in-use', 'file-exists',
+  'source-invalid', 'file-not-pdf', 'file-too-large', 'file-missing', 'file-in-use', 'file-exists', 'version-processing',
 ]
 
 export class GuidelineError extends Error {
