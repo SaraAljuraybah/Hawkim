@@ -162,11 +162,10 @@ export function GuidelinesProvider({ children }: { children: ReactNode }) {
   const processing = addedVersions.some((version) => version.processing?.status === 'waiting' || version.processing?.status === 'processing')
   useEffect(() => {
     if (!processing) return
-    const timer = window.setInterval(() => {
-      if (addedKeyRef.current) void loadAdded(addedKeyRef.current)
-    }, PROCESSING_REFRESH_MS)
+    // Both lists: a version that finishes processing leaves the added ones and becomes the current published one.
+    const timer = window.setInterval(() => void reload(), PROCESSING_REFRESH_MS)
     return () => window.clearInterval(timer)
-  }, [processing, loadAdded])
+  }, [processing, reload])
 
   const store = useMemo<GuidelinesStore>(
     () => ({ status, versions, current, currentGuideline, allVersions, addedStatus, retryAdded, getVersion, getRequirement, addVersion, updateVersion, deleteVersion, retryProcessing, makeCurrent }),

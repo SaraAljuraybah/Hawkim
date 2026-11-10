@@ -452,7 +452,7 @@ export const adminEn: AdminContent = {
       page: 'p. {page}',
     },
     processing: {
-      title: 'Processing',
+      title: 'Status',
       status: {
         waiting: 'Waiting for the compliance service to process this version.',
         processing: 'The compliance service is reading this version and preparing its requirements. This can take several minutes.',

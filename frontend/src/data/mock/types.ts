@@ -497,6 +497,8 @@ export interface GuidelineVersion {
   requirements: Requirement[]
   /** Added by an admin and never current: it can be deleted, and its version number changed. */
   neverCurrent?: boolean
+  /** A published version that was added on the website: the id it had while it was being processed. */
+  fromDraftId?: string
   /** For an added version: processing by the compliance service before it can be made current. */
   processing?: GuidelineProcessing
 }

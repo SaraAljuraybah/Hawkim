@@ -15,7 +15,7 @@ import { supabase } from './supabase'
 /** The hint start_compliance_check raises when this version already has a completed check. */
 export const CHECK_ALREADY_COMPLETED_HINT = 'check-already-completed'
 
-const GUIDELINE_COLUMNS = `id, name, version, issued_date, effective_date, file_name, added_by, added_at, source, storage_path, file_size,
+const GUIDELINE_COLUMNS = `id, name, version, issued_date, effective_date, file_name, added_by, added_at, source, storage_path, file_size, draft_id,
   guideline_requirements!guideline_requirements_guideline_version_id_fkey (code, module, section, section_title, short_title, page, summary)`
 
 export interface GuidelineVersionRow {
@@ -39,6 +39,8 @@ export interface GuidelineVersionRow {
     page: number
     summary: string
   }[]
+  /** The added version this one was published from (GVP phase 2); null for the others. */
+  draft_id?: string | null
 }
 
 /** A guideline row as a GuidelineVersion; requirements in code order (R1, R2… R10). */
@@ -47,6 +49,7 @@ export function toGuidelineVersion(row: GuidelineVersionRow): GuidelineVersion {
     id: row.id,
     title: row.name,
     version: row.version,
+    ...(row.draft_id ? { fromDraftId: row.draft_id } : {}),
     ...(row.issued_date ? { issuedDate: row.issued_date } : {}),
     effectiveDate: row.effective_date,
     fileName: row.file_name,

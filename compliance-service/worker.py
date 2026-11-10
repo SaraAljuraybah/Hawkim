@@ -16,6 +16,7 @@ OPENROUTER_API_KEY. The secret key gives full database access: keep it on this m
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import shutil
 import sys
@@ -74,11 +75,23 @@ class Supabase:
         dest.write_bytes(r.content)
         return True
 
-    def upload_object(self, bucket: str, path: str, data: bytes, content_type: str = "application/octet-stream"):
+    def upload_object(self, bucket: str, path: str, data: bytes, content_type: str = "application/octet-stream",
+                      attempts: int = 3):
+        """Uploads with up to `attempts` tries (a slow connection can time out) and a long time limit."""
         headers = {**self.headers, "Content-Type": content_type, "x-upsert": "true"}
-        r = requests.post(f"{self.url}/storage/v1/object/{bucket}/{path}", data=data, headers=headers, timeout=300)
-        if r.status_code >= 300:
-            raise RuntimeError(f"Could not upload {path}: HTTP {r.status_code} {r.text[:200]}")
+        for attempt in range(1, attempts + 1):
+            try:
+                r = requests.post(f"{self.url}/storage/v1/object/{bucket}/{path}", data=data, headers=headers,
+                                  timeout=(30, 900))
+            except requests.RequestException:
+                if attempt == attempts:
+                    raise
+                print(f"[worker] upload of {path} failed (try {attempt} of {attempts}); trying again")
+                time.sleep(10 * attempt)
+                continue
+            if r.status_code >= 300:
+                raise RuntimeError(f"Could not upload {path}: HTTP {r.status_code} {r.text[:200]}")
+            return
 
 
 # GVP versions added on the website: their PDFs and their indexes.
@@ -103,47 +116,76 @@ def local_index(sb: "Supabase", index_path: str) -> Path:
     return folder
 
 
+class GuidelineProcessingError(RuntimeError):
+    """A failure the admin can act on; its text is shown on the version's page."""
+
+
+MEMORY_MESSAGE = ("The computer running the compliance service ran out of memory. Close other programs on it "
+                  "(for example Ollama or a browser with many tabs) and try again.")
+UPLOAD_MESSAGE = ("The requirements were prepared, but saving them to Hawkim timed out (slow connection). "
+                  "Try again: they won't be prepared again, only saved.")
+
+
 def process_guideline(job: dict, svc: ComplianceService, sb: "Supabase"):
-    """Builds the index of a GVP version an admin added, uploads it and marks the version ready."""
+    """Builds the index of a GVP version an admin added, uploads it and completes the version (which
+    makes it current). The index is kept in index/versions/<id>/ before uploading, so a retry after a
+    failed upload only uploads it again."""
     from hawkim.guidelines import build_index
     draft_id = job["id"]
+    index_path = f"versions/{draft_id}"
+    local = INDEX_CACHE / index_path
     print(f"[worker] GVP {job['version']}: processing {job['file_name']}")
-    work = Path(tempfile.mkdtemp(prefix="hawkim_gvp_"))
-    try:
-        pdf = work / Path(job["file_name"]).name
-        sb.download_object(GUIDELINE_FILES_BUCKET, job["storage_path"], pdf, what="the guideline PDF")
-        t0 = time.time()
-        built = work / "index"
-        last = [0.0]
+    last = [0.0]
 
-        def progress(stage: str, done: int, total: int):
-            # At most every 3 seconds (and always at the end of a stage); a failed report is only logged.
-            now = time.time()
-            if stage == "embedding" and done < total and now - last[0] < 3:
-                return
-            last[0] = now
+    def progress(stage: str, done: int, total: int):
+        # At most every 3 seconds (and always at the end of a stage); a failed report is only logged.
+        now = time.time()
+        if stage == "embedding" and done < total and now - last[0] < 3:
+            return
+        last[0] = now
+        try:
+            sb.rpc("report_guideline_progress", {"p_id": draft_id, "p_stage": stage, "p_done": done, "p_total": total})
+        except Exception as e:
+            print(f"[worker] progress report failed: {e}")
+
+    t0 = time.time()
+    report_file = local / "report.json"
+    if (local / "meta.json").exists() and report_file.exists():
+        # Prepared before (the upload failed then): don't embed again.
+        print(f"[worker] GVP {job['version']}: reusing the requirements prepared earlier")
+        report = json.loads(report_file.read_text(encoding="utf-8"))
+    else:
+        work = Path(tempfile.mkdtemp(prefix="hawkim_gvp_"))
+        try:
+            pdf = work / Path(job["file_name"]).name
+            sb.download_object(GUIDELINE_FILES_BUCKET, job["storage_path"], pdf, what="the guideline PDF")
+            built = work / "index"
             try:
-                sb.rpc("report_guideline_progress", {"p_id": draft_id, "p_stage": stage, "p_done": done, "p_total": total})
-            except Exception as e:
-                print(f"[worker] progress report failed: {e}")
+                _, _, report = build_index(svc.cfg, pdf, built, svc.embedder, log=print, progress=progress)
+            except MemoryError as e:
+                raise GuidelineProcessingError(MEMORY_MESSAGE) from e
+            except RuntimeError as e:
+                if "not enough memory" in str(e).lower() or "out of memory" in str(e).lower():
+                    raise GuidelineProcessingError(MEMORY_MESSAGE) from e
+                raise
+            shutil.rmtree(local, ignore_errors=True)
+            local.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copytree(built, local)
+            report_file.write_text(json.dumps(report), encoding="utf-8")
+        finally:
+            shutil.rmtree(work, ignore_errors=True)
 
-        _, _, report = build_index(svc.cfg, pdf, built, svc.embedder, log=print, progress=progress)
-        progress("saving", 0, 0)
-        index_path = f"versions/{draft_id}"
-        for f in sorted(built.iterdir()):
-            if f.is_file():
+    progress("saving", 0, 0)
+    try:
+        for f in sorted(local.iterdir()):
+            if f.is_file() and f.name != "report.json":
                 sb.upload_object(GUIDELINE_INDEX_BUCKET, f"{index_path}/{f.name}", f.read_bytes())
-        # Keep it here too, so the first check with this version doesn't download it again.
-        local = INDEX_CACHE / index_path
-        shutil.rmtree(local, ignore_errors=True)
-        local.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copytree(built, local)
-        report["seconds"] = round(time.time() - t0, 1)
-        sb.rpc("complete_guideline_processing", {"p_id": draft_id, "p_index_path": index_path, "p_report": report})
-        print(f"[worker] GVP {job['version']}: ready, {report['requirements']} requirements "
-              f"in {report['sections']} sections ({report['seconds']} s)")
-    finally:
-        shutil.rmtree(work, ignore_errors=True)
+    except requests.RequestException as e:
+        raise GuidelineProcessingError(UPLOAD_MESSAGE) from e
+    report["seconds"] = round(time.time() - t0, 1)
+    sb.rpc("complete_guideline_processing", {"p_id": draft_id, "p_index_path": index_path, "p_report": report})
+    print(f"[worker] GVP {job['version']}: done and current, {report['requirements']} requirements "
+          f"in {report['sections']} sections ({report['seconds']} s)")
 
 
 def process(job: dict, svc: ComplianceService, sb: Supabase, scfg: dict):
