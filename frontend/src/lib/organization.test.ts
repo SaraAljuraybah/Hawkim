@@ -1,53 +1,117 @@
 import { describe, expect, it } from 'vitest'
 import type { Permission } from '../data/mock/types'
-import { filterPeople, matchesName, matchesRoles, OTHERS_FILTER, roleFilters } from './organization'
+import type { OrganizationEmployee, OrganizationHierarchy } from '../services/organization'
+import { isFiltering, matchesRoles, matchesSearch, organizationRows, OTHERS_FILTER, UNASSIGNED_GROUP_ID, type OrganizationFilters } from './organization'
 
-const person = (name: string, permissions: Permission[] = []) => ({ name, permissions })
-const author = person('Sara Ahmed', ['author'])
-const both = person('Noura Alqahtani', ['author', 'reviewer'])
-const reviewer = person('Huda Alotaibi', ['reviewer'])
-const approver = person('Reem Saleh', ['approver'])
-const none = person('Lama Fahad')
-const people = [author, both, reviewer, approver, none]
+const person = (id: string, name: string, permissions: Permission[] = [], email = `${id}@test.invalid`): OrganizationEmployee =>
+  ({ id, name, initials: 'XX', email, permissions })
+const sara = person('sara', 'Sara Ahmed', ['author'])
+const noura = person('noura', 'Noura Alqahtani', ['author', 'reviewer'])
+const huda = person('huda', 'Huda Alotaibi', ['reviewer'])
+const reem = person('reem', 'Reem Saleh', ['approver'])
+const lama = person('lama', 'Lama Fahad')
 
-describe('name search', () => {
-  it('matches part of the name, ignoring case and surrounding spaces', () => {
-    expect(matchesName(author, 'sara')).toBe(true)
-    expect(matchesName(author, '  AHMED  ')).toBe(true)
-    expect(matchesName(author, 'noura')).toBe(false)
+const hierarchy: OrganizationHierarchy = {
+  organization: null,
+  divisions: [
+    { id: 'ops', name: 'Operations', email: 'ops-team@test.invalid' },
+    { id: 'qual', name: 'Quality Division', email: null },
+    { id: 'empty', name: 'Empty Division' },
+  ],
+  departments: [
+    { id: 'pv', name: 'Pharmacovigilance', divisionId: 'ops', email: 'pv@test.invalid', employees: [sara, noura] },
+    { id: 'reg', name: 'Regulatory Affairs', divisionId: 'ops', email: null, employees: [huda] },
+    { id: 'qa', name: 'Quality Assurance', divisionId: 'qual', employees: [reem, lama] },
+    { id: 'legacy', name: 'Legacy Unit', divisionId: null, employees: [] },
+  ],
+}
+const none: OrganizationFilters = { query: '', divisions: [], roles: [] }
+const rows = (filters: Partial<OrganizationFilters> = {}, sort?: Parameters<typeof organizationRows>[2]) => organizationRows(hierarchy, { ...none, ...filters }, sort)
+/** division id → { open, departments: department id → { open, staff ids } } */
+const shape = (filters: Partial<OrganizationFilters> = {}) => Object.fromEntries(rows(filters).map((row) => [row.id, {
+  open: row.autoOpen,
+  departments: Object.fromEntries(row.departments.map((d) => [d.department.id, { open: d.autoOpen, staff: d.staff.map((s) => s.id) }])),
+}]))
+
+describe('search and role matching', () => {
+  it('searches the name or the email, ignoring case and surrounding spaces', () => {
+    expect(matchesSearch(sara, '  AHMED ')).toBe(true)
+    expect(matchesSearch(sara, 'sara@test')).toBe(true)
+    expect(matchesSearch({ name: 'A', email: null }, 'x')).toBe(false)
+    expect(matchesSearch(sara, '')).toBe(true)
   })
-  it('matches everyone when the search is empty or only spaces', () => {
-    expect(filterPeople(people, '', [])).toEqual(people)
-    expect(filterPeople(people, '   ', [])).toEqual(people)
+  it('matches ANY selected role; "Others" means no Author, Reviewer or Approver role', () => {
+    expect(matchesRoles(noura, ['reviewer'])).toBe(true)
+    expect(matchesRoles(sara, ['reviewer', 'approver'])).toBe(false)
+    expect(matchesRoles(lama, [OTHERS_FILTER])).toBe(true)
+    expect(matchesRoles(reem, [OTHERS_FILTER])).toBe(false)
+    expect(matchesRoles(reem, [])).toBe(true)
   })
-  it('searches the name only', () => {
-    expect(filterPeople(people, 'author', [])).toEqual([])
+  it('counts only a non-blank search or a selection as filtering', () => {
+    expect(isFiltering(none)).toBe(false)
+    expect(isFiltering({ ...none, query: '   ' })).toBe(false)
+    expect(isFiltering({ ...none, roles: ['author'] })).toBe(true)
   })
 })
 
-describe('role filter', () => {
-  it('shows a person with ANY of the selected roles, so two roles match either one', () => {
-    expect(filterPeople(people, '', ['author'])).toEqual([author, both])
-    expect(filterPeople(people, '', ['reviewer'])).toEqual([both, reviewer])
-    expect(filterPeople(people, '', ['author', 'reviewer'])).toEqual([author, both, reviewer])
+describe('organization rows', () => {
+  it('lists every division, then the unassigned group, with everything and nothing opened', () => {
+    const all = rows()
+    expect(all.map((row) => row.id)).toEqual(['ops', 'qual', 'empty', UNASSIGNED_GROUP_ID])
+    expect(all.every((row) => !row.autoOpen && row.departments.every((d) => !d.autoOpen))).toBe(true)
+    expect(all[0].departmentCount).toBe(2)
+    expect(all[0].email).toBe('ops-team@test.invalid')
+    expect(all[2].email).toBeNull()
+    expect(all[3]).toMatchObject({ unassigned: true, departmentCount: 1 })
   })
-  it('"Others" means no Author, Reviewer or Approver role', () => {
-    expect(filterPeople(people, '', [OTHERS_FILTER])).toEqual([none])
-    expect(filterPeople(people, '', ['approver', OTHERS_FILTER])).toEqual([approver, none])
-    expect(matchesRoles(approver, [OTHERS_FILTER])).toBe(false)
+  it('has no unassigned group when every department has a division', () => {
+    const data = { ...hierarchy, departments: hierarchy.departments.filter((d) => d.divisionId) }
+    expect(organizationRows(data, none).map((row) => row.id)).toEqual(['ops', 'qual', 'empty'])
   })
-  it('shows everyone when nothing is selected', () => {
-    expect(filterPeople(people, '', [])).toEqual(people)
+  it('staff match: shows only that person, with their department and division opened', () => {
+    expect(shape({ query: 'huda' })).toEqual({ ops: { open: true, departments: { reg: { open: true, staff: ['huda'] } } } })
+    expect(shape({ query: 'noura@test' })).toEqual({ ops: { open: true, departments: { pv: { open: true, staff: ['noura'] } } } })
   })
-  it('combines with the search: a person must match both', () => {
-    expect(filterPeople(people, 'noura', ['author'])).toEqual([both])
-    expect(filterPeople(people, 'sara', ['reviewer'])).toEqual([])
+  it('department match: shows it, closed, with all its staff, under its opened division', () => {
+    expect(shape({ query: 'regulatory' })).toEqual({ ops: { open: true, departments: { reg: { open: false, staff: ['huda'] } } } })
+    expect(shape({ query: 'pv@test' })).toEqual({ ops: { open: true, departments: { pv: { open: false, staff: ['sara', 'noura'] } } } })
   })
-})
-
-describe('role filter options', () => {
-  it('offers Approver only in the Quality department', () => {
-    expect(roleFilters(true)).toEqual(['author', 'reviewer', 'approver', OTHERS_FILTER])
-    expect(roleFilters(false)).toEqual(['author', 'reviewer', OTHERS_FILTER])
+  it('division match: shows it, closed, with all its departments and staff', () => {
+    expect(shape({ query: 'ops-team' })).toEqual({ ops: { open: false, departments: {
+      pv: { open: false, staff: ['sara', 'noura'] }, reg: { open: false, staff: ['huda'] } } } })
+  })
+  it('a matching division also opens down to matching rows inside it', () => {
+    // "quality" matches the division and its department: the division opens, the department stays closed.
+    expect(shape({ query: 'quality' })).toEqual({ qual: { open: true, departments: { qa: { open: false, staff: ['reem', 'lama'] } } } })
+  })
+  it('searches departments in the unassigned group, but never the group label', () => {
+    expect(shape({ query: 'legacy' })).toEqual({ [UNASSIGNED_GROUP_ID]: { open: true, departments: { legacy: { open: false, staff: [] } } } })
+    expect(shape({ query: 'unassigned' })).toEqual({})
+  })
+  it('role filter: only staff with a selected role, opened down to them', () => {
+    expect(shape({ roles: ['reviewer'] })).toEqual({ ops: { open: true, departments: {
+      pv: { open: true, staff: ['noura'] }, reg: { open: true, staff: ['huda'] } } } })
+    expect(shape({ roles: [OTHERS_FILTER] })).toEqual({ qual: { open: true, departments: { qa: { open: true, staff: ['lama'] } } } })
+  })
+  it('combines the role filter with the search', () => {
+    expect(shape({ query: 'operations', roles: ['author'] })).toEqual({ ops: { open: true, departments: { pv: { open: true, staff: ['sara', 'noura'] } } } })
+    expect(shape({ query: 'sara', roles: ['reviewer'] })).toEqual({})
+  })
+  it('division filter: only the selected divisions, closed, never the unassigned group', () => {
+    expect(shape({ divisions: ['empty', 'qual'] })).toEqual({
+      qual: { open: false, departments: { qa: { open: false, staff: ['reem', 'lama'] } } },
+      empty: { open: false, departments: {} },
+    })
+    expect(shape({ divisions: ['qual'], query: 'huda' })).toEqual({})
+  })
+  it('keeps the totals whatever is filtered', () => {
+    expect(rows({ query: 'huda' })[0].departmentCount).toBe(2)
+    expect(rows({ query: 'huda' })[0].departments[0].department.employees).toHaveLength(1)
+  })
+  it('sorts divisions only, keeping the unassigned group last', () => {
+    expect(rows({}, 'name-desc').map((row) => row.id)).toEqual(['qual', 'ops', 'empty', UNASSIGNED_GROUP_ID])
+    expect(rows({}, 'departments-desc').map((row) => row.id)).toEqual(['ops', 'qual', 'empty', UNASSIGNED_GROUP_ID])
+    expect(rows({}, 'departments-asc').map((row) => row.id)).toEqual(['empty', 'qual', 'ops', UNASSIGNED_GROUP_ID])
+    expect(rows({}, 'name-asc').find((row) => row.id === 'ops')!.departments.map((d) => d.department.id)).toEqual(['pv', 'reg'])
   })
 })

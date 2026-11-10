@@ -1,23 +1,31 @@
 import { describe, expect, it, vi } from 'vitest'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { MemoryRouter } from 'react-router-dom'
-import { OrganizationChart } from '../components/layout/OrganizationChart'
 import { Sidebar } from '../components/layout/Sidebar'
+import { OrganizationTable } from '../components/layout/OrganizationTable'
 import { adminEn } from '../content/admin.en'
+import { organizationRows, type OrganizationFilters } from '../lib/organization'
 import type { OrganizationHierarchy } from '../services/organization'
-import { OrganizationalStructurePage, OrganizationContent } from './OrganizationalStructurePage'
+import { OrganizationalStructurePage, OrganizationContent, OrganizationStructure } from './OrganizationalStructurePage'
 
 vi.mock('../state/sessionContext', () => ({ useSession: () => ({ signOut: vi.fn() }), useCurrentUser: () => ({ id: 'admin' }) }))
 vi.mock('../hooks/useDocumentTitle', () => ({ useDocumentTitle: () => {} }))
-vi.mock('../state/departmentsContext', () => ({ useDepartments: () => ({ departments: [] }) }))
 const hierarchy: OrganizationHierarchy = {
-  organization: { name: 'Configured Organization' }, divisions: [{ id: 'division-1', name: 'Operations' }],
+  organization: null,
+  divisions: [{ id: 'division-1', name: 'Operations', email: 'ops@test.invalid' }, { id: 'division-2', name: 'R&D Division', email: null }],
   departments: [
-    { id: 'department-1', name: 'Quality', divisionId: 'division-1', employees: [{ id: 'person-1', name: 'Test Employee', initials: 'TE', email: 'test.employee@test.invalid', position: 'Specialist', permissions: ['author', 'reviewer', 'approver'] }] },
-    { id: 'department-2', name: 'Empty Department', divisionId: null, employees: [] },
+    { id: 'department-1', name: 'Quality', divisionId: 'division-1', email: 'quality@test.invalid', employees: [
+      { id: 'person-1', name: 'Dana Fahad', initials: 'DF', email: 'dana@test.invalid', position: 'Specialist', permissions: ['author', 'reviewer'] },
+      { id: 'person-2', name: 'No Role Person', initials: 'NR', email: 'norole@test.invalid', permissions: [] },
+    ] },
+    { id: 'department-2', name: 'Empty Department', divisionId: 'division-1', employees: [] },
   ],
 }
-const chart = (value = hierarchy, qualityDepartmentId?: string) => renderToStaticMarkup(<OrganizationChart hierarchy={value} qualityDepartmentId={qualityDepartmentId} />)
+const page = (value = hierarchy) => renderToStaticMarkup(<OrganizationStructure hierarchy={value} />)
+const table = (filters: Partial<OrganizationFilters>, value = hierarchy) => {
+  const all = { query: '', divisions: [], roles: [], ...filters }
+  return renderToStaticMarkup(<OrganizationTable rows={organizationRows(value, all)} filtering filterKey="test" />)
+}
 
 describe('Organizational Structure', () => {
   it('puts Organizational Structure fourth, after SFDA Regulatory Requirements, with its existing active indicator', () => {
@@ -25,145 +33,100 @@ describe('Organizational Structure', () => {
     expect(adminEn.shell.nav[3]?.label).toBe('Organizational Structure')
     expect(html.indexOf('>SFDA Regulatory Requirements<')).toBeLessThan(html.indexOf('>Organizational Structure<'))
     expect(html.indexOf('>Organizational Structure<')).toBeLessThan(html.indexOf('>SOP Directory<'))
-    expect(html.indexOf('>Requests<')).toBeLessThan(html.indexOf('>Sign Out<'))
     expect(html).toMatch(/<a[^>]*aria-current="page"[^>]*href="\/admin\/organizational-structure"/)
-    expect(html).toContain('lucide-network')
   })
-  it('keeps the page heading and removes the description without a replacement subtitle', () => {
+  it('has one h1 and no tree', () => {
     const html = renderToStaticMarkup(<OrganizationalStructurePage />)
+    expect(html.match(/<h1/g)).toHaveLength(1)
     expect(html).toContain('>Organizational Structure</h1>')
-    expect(html).not.toContain("Explore the organization")
-    expect(html.slice(0, html.indexOf('role="status"'))).not.toMatch(/<p(?:\s|>)/)
-    expect(html).not.toContain('Refresh')
-    expect(html).not.toContain('lucide-refresh-cw')
-    expect(html).not.toContain('<button')
+    for (const removed of ['org-root', 'org-branches', '<details', '>Organization<']) expect(page()).not.toContain(removed)
   })
-  it('renders real division and department relationships with accurate membership counts and all permissions', () => {
-    const html = chart()
-    for (const text of ['Configured Organization', 'Operations', 'Quality', 'Test Employee', 'Author', 'Reviewer', 'Approver', '1 employee', '0 employees']) expect(html).toContain(text)
-    expect(html).toContain('Departments without a division')
-    const qualityMembers = html.match(/<ul aria-label="Quality".*?<\/ul>/)![0]
-    expect(qualityMembers).toContain('Test Employee')
+  it('shows a Name | Email table with no Users, SOPs or action columns', () => {
+    const html = page()
+    expect([...html.matchAll(/<th scope="col"[^>]*>([^<]*)<\/th>/g)].map((match) => match[1])).toEqual(['Name', 'Email'])
+    for (const text of ['>Users<', '>SOPs<', 'lucide-pencil', 'lucide-trash', 'lucide-plus', 'lucide-eye']) expect(html).not.toContain(text)
   })
-  it('shows each person as name, then roles, then email with a copy button, without the position', () => {
-    const html = chart()
-    const row = html.match(/<li[^>]*bg-offwhite.*?<\/li>/)![0]
-    const name = row.indexOf('>Test Employee</p>')
-    const roles = row.indexOf('Permissions: </span>Author, Reviewer, Approver</p>')
-    const email = row.indexOf('Email: </span>test.employee@test.invalid</p>')
-    // One line, truncated by CSS only: the full address stays in the text and the title.
-    expect(row).toContain('<p title="test.employee@test.invalid" class="min-w-0 flex-1 truncate">')
-    expect(name).toBeGreaterThan(-1)
-    expect(roles).toBeGreaterThan(name)
-    expect(email).toBeGreaterThan(roles)
-    expect(row.indexOf('aria-label="Copy Test Employee&#x27;s email"')).toBeGreaterThan(email)
-    expect(row).toContain('aria-live="polite"')
-    // A decorative envelope in the avatar column, on the email line, before the email itself.
-    expect(row).toContain('grid-cols-[2.25rem_minmax(0,1fr)]')
-    const envelope = row.match(/<span aria-hidden="true" class="flex h-6 items-center justify-center text-text-gray"><svg[^>]*lucide-mail[^>]*>/)
-    expect(envelope).not.toBeNull()
-    expect(envelope![0]).toContain('aria-hidden="true"')
-    expect(row.indexOf('lucide-mail')).toBeGreaterThan(roles)
-    expect(row.indexOf('lucide-mail')).toBeLessThan(email)
-    expect(html).not.toContain('Specialist')
-    expect(html).not.toContain('Position')
-  })
-  it('uses plain comma-separated permissions, without chart icons or role badges', () => {
-    const html = chart()
-    expect(html).toContain('Permissions: </span>Author, Reviewer, Approver</p>')
-    expect(html).not.toContain('rounded-full border')
-    for (const icon of ['lucide-folder', 'lucide-building-2', 'lucide-network']) expect(html).not.toContain(icon)
-    expect(html).toContain('lucide-chevron-down')
-    expect(html).toContain('org-root--connected')
-    expect(html).toContain('!text-white')
-    expect(html).not.toContain('overflow-x-auto')
-    expect(html).not.toContain('w-80')
-  })
-  it('retains database labels and department names, and shows no role label for people without a role', () => {
-    const data = structuredClone(hierarchy)
-    data.divisions[0].id = 'rnd'
-    data.divisions[0].name = 'R&D Division'
-    data.departments[0].divisionId = 'rnd'
-    data.departments[0].name = 'Legal & Governance'
-    data.departments[0].employees[0].permissions = []
-    delete data.departments[0].employees[0].position
-    const html = chart(data)
+  it('shows divisions with their department count and email, or "—" when there is none', () => {
+    const html = page()
+    expect(html).toContain('>Operations</span>')
+    expect(html).toContain('>Departments (2)</span>')
+    expect(html).toContain('>Departments (0)</span>')
     expect(html).toContain('R&amp;D Division')
-    expect(html).toContain('Legal &amp; Governance')
-    expect(html).not.toContain('Permissions:')
-    expect(html).not.toContain('>Employee<')
-    expect(html).toContain('>Test Employee</p>')
+    expect(html).toContain('title="ops@test.invalid"')
+    expect(html).toContain('aria-label="Copy email for Operations"')
+    expect(html).toContain('<span aria-hidden="true">—</span><span class="sr-only">No email</span>')
   })
-  it.each([
-    ['rnd', 'Clinical Research & Development'],
-    ['governance_quality_compliance', 'Quality & Compliance'],
-  ])('displays the RPC-provided name for division %s without renaming its department', (id, name) => {
+  it('starts with everything collapsed, each level a real toggle button', () => {
+    const html = page()
+    const toggles = html.slice(html.indexOf('<table')).match(/<button type="button" aria-expanded="[^"]+"[^>]*>/g)!
+    // 2 divisions, 2 departments: all closed.
+    expect(toggles).toHaveLength(4)
+    for (const toggle of toggles) expect(toggle).toContain('aria-expanded="false"')
+    expect(html).toContain('aria-controls="org-children-division-1"')
+    expect(html).toMatch(/<tbody id="org-children-division-1" hidden="">/)
+    expect(html).toContain('aria-controls="org-staff-department-1-person-1 org-staff-department-1-person-2"')
+  })
+  it('shows departments with their staff count and email, and "No staff in this department"', () => {
+    const html = page()
+    expect(html).toContain('>Staff (2)</span>')
+    expect(html).toContain('>Staff (0)</span>')
+    expect(html).toContain('aria-label="Copy email for Quality"')
+    expect(html).toContain('No staff in this department')
+    expect(html).not.toContain('Employee')
+    expect(html).not.toContain('>Users')
+  })
+  it('shows each person with avatar, name, roles and email with a copy button; nothing under a name without a role', () => {
+    const html = table({ query: 'dana' })
+    const row = html.match(/<tr id="org-staff-department-1-person-1".*?<\/tr>/)![0]
+    expect(row).not.toMatch(/^<tr[^>]* hidden=/)
+    expect(row).toContain('>DF</span>')
+    expect(row).toContain('>Dana Fahad</span>')
+    expect(row).toContain('Roles: </span>Author, Reviewer</span>')
+    expect(row).toContain('title="dana@test.invalid"')
+    expect(row).toContain('aria-label="Copy email for Dana Fahad"')
+    expect(row).toContain('aria-live="polite"')
+    expect(row).not.toContain('Specialist')
+    const noRole = table({ query: 'no role' }).match(/<tr id="org-staff-department-1-person-2".*?<\/tr>/)![0]
+    expect(noRole).toContain('>No Role Person</span></span>')
+    expect(noRole).not.toContain('Roles:')
+    expect(noRole).not.toContain('Employee')
+  })
+  it('opens the rows needed to show search results, and shows only the matches', () => {
+    const html = table({ query: 'dana' })
+    expect(html.match(/aria-expanded="true"/g)).toHaveLength(2)
+    expect(html).not.toContain('No Role Person')
+    expect(html).not.toContain('Empty Department')
+    expect(html).not.toContain('R&amp;D Division')
+  })
+  it('shows an empty state when nothing matches', () => {
+    expect(table({ query: 'nobody' })).toContain('No divisions, departments or staff match your search and filters.')
+    expect(renderToStaticMarkup(<OrganizationTable rows={[]} filtering={false} filterKey="" />)).toContain('No divisions or departments have been configured yet.')
+  })
+  it('adds an "Unassigned departments" group row last, only when such a department exists', () => {
+    expect(page()).not.toContain('Unassigned departments')
     const data = structuredClone(hierarchy)
-    data.divisions = [{ id, name }]
-    data.departments[0].divisionId = id
-    data.departments[0].name = 'Legal & Governance'
-    expect(chart(data)).toContain(`>${name.replaceAll('&', '&amp;')}</h3>`)
-    expect(chart(data)).toContain('Legal &amp; Governance')
-    data.divisions[0].name = 'A different persisted division label'
-    expect(chart(data)).toContain('>A different persisted division label</h3>')
-    expect(chart(data)).not.toContain(`>${name.replaceAll('&', '&amp;')}</h3>`)
+    data.departments.push({ id: 'department-3', name: 'Legacy Unit', divisionId: null, employees: [] })
+    const html = page(data)
+    expect(html).toContain('<th scope="colgroup" colSpan="2" class="bg-beige/20 p-4 text-maroon">Unassigned departments</th>')
+    expect(html.indexOf('Unassigned departments')).toBeGreaterThan(html.indexOf('R&amp;D Division'))
+    expect(html.indexOf('Legacy Unit')).toBeGreaterThan(html.indexOf('Unassigned departments'))
   })
-  it('uses independent native disclosures for mouse and keyboard expansion without exclusive grouping', () => {
-    const html = chart()
-    const disclosures = html.match(/<details[^>]*>/g)!
-    expect(disclosures).toHaveLength(2)
-    for (const disclosure of disclosures) {
-      expect(disclosure).not.toContain(' name=')
-      expect(disclosure).not.toContain(' open=')
-    }
-    expect(html.match(/<summary /g)).toHaveLength(2)
-    expect(html).toContain('group-open:rotate-180')
-    expect(html).toContain('max-h-80 overflow-y-auto')
-  })
-  it('shows empty departments, generic organization and an honest fallback without fabricated divisions', () => {
-    const html = chart({ ...hierarchy, organization: null, divisions: [] })
-    expect(html).toContain('>Organization<')
-    expect(html).toContain('until divisions are configured')
-    expect(html).toContain('No employees assigned')
-    expect(html).not.toContain('Operations')
-    expect(chart({ organization: null, divisions: [], departments: [] })).toContain('No departments have been configured yet')
-  })
-  it('gives each department with employees its own compact search and filter row, on one line', () => {
-    const html = chart()
-    const searches = html.match(/<div role="search"[^>]*>/g)!
-    expect(searches).toEqual(['<div role="search" aria-label="Search and filter Quality" class="flex items-center gap-2 border-b border-beige p-3">'])
-    expect(html).not.toContain('@xs:grid-cols-2')
-    expect(html).not.toContain('@container')
-    // The labels are kept for screen readers only; the placeholder is a short "Search".
-    expect(html).toMatch(/<label for="[^"]+" class="sr-only">Search by name<\/label>/)
-    const search = html.match(/<input[^>]*name="organization-search-department-1"[^>]*>/)![0]
-    expect(search).toContain('type="search"')
-    expect(search).toContain('placeholder="Search"')
-    expect(search).toContain('class="h-10 ')
-    expect(html).not.toContain('>Filter by role<')
-    expect(html).not.toContain('All roles')
-    // The filter is a funnel icon button at the end of the row, named for screen readers.
-    expect(html).toMatch(/<button type="button" aria-label="Filter by role" aria-expanded="false"[^>]*size-10[^>]*><svg[^>]*lucide-funnel/)
-    // No search box in a department without employees, and no "No matching employees" before searching.
-    expect(html).not.toContain('organization-search-department-2')
-    expect(html).not.toContain('No matching employees')
-  })
-  it('offers Approver in the role filter only in the Quality department', () => {
-    const options = (html: string) => [...html.matchAll(/name="organization-roles-department-1" value="([^"]+)"/g)].map((match) => match[1])
-    const roleLabels = (html: string) => [...html.matchAll(/<span class="min-w-0 break-words">([^<]+)<\/span>/g)].map((match) => match[1])
-    const quality = chart(hierarchy, 'department-1')
-    expect(options(quality)).toEqual(['author', 'reviewer', 'approver', 'others'])
-    expect(roleLabels(quality)).toEqual(['Author', 'Reviewer', 'Approver', 'Others'])
-    const other = chart(hierarchy, 'department-2')
-    expect(options(other)).toEqual(['author', 'reviewer', 'others'])
-    expect(roleLabels(other)).toEqual(['Author', 'Reviewer', 'Others'])
-    expect(options(chart())).toEqual(['author', 'reviewer', 'others'])
+  it('has one search, a Filter button with Division and Role chips, and a Sort without SOP options', () => {
+    const html = page()
+    expect(html.match(/type="search"/g)).toHaveLength(1)
+    expect(html).toContain('placeholder="Search by name or email"')
+    expect(html).toMatch(/<button type="button" aria-expanded="false" aria-controls="[^"]+"[^>]*>.*?lucide-funnel.*?Filter<\/button>/)
+    expect([...html.matchAll(/<legend[^>]*>([^<]+)<\/legend>/g)].map((match) => match[1])).toEqual(['Division', 'Role'])
+    const chips = [...html.matchAll(/aria-pressed="false"[^>]*><span class="min-w-0 break-words">([^<]+)<\/span>/g)].map((match) => match[1])
+    expect(chips).toEqual(['Operations', 'R&amp;D Division', 'Author', 'Reviewer', 'Approver', 'Others'])
+    expect(html).toContain('>Clear all</button>')
+    const sorts = [...html.matchAll(/<option value="[^"]+"[^>]*>([^<]+)<\/option>/g)].map((match) => match[1])
+    expect(sorts).toEqual(['Default order', 'Name: A to Z', 'Name: Z to A', 'Departments: High to Low', 'Departments: Low to High'])
   })
   it('renders loading skeletons and a clear retry state', () => {
     expect(renderToStaticMarkup(<OrganizationContent state={{ status: 'loading' }} reload={() => {}} />)).toContain('role="status"')
     const html = renderToStaticMarkup(<OrganizationContent state={{ status: 'error' }} reload={() => {}} />)
     expect(html).toContain('role="alert"')
     expect(html).toContain('>Retry<')
-    expect(html).not.toContain('Test Employee')
   })
 })

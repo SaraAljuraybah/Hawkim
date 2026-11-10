@@ -1,22 +1,64 @@
-import { useEffect, useState } from 'react'
-import { OrganizationChart } from '../components/layout/OrganizationChart'
+import { useEffect, useMemo, useState } from 'react'
+import { OrganizationTable } from '../components/layout/OrganizationTable'
 import { Button } from '../components/ui/Button'
+import { FilterPopover } from '../components/ui/FilterPopover'
+import { SelectField } from '../components/ui/SelectField'
+import { TextField } from '../components/ui/TextField'
 import { adminEn } from '../content/admin.en'
 import { organizationEn as content } from '../content/organization.en'
+import { usersEn } from '../content/users.en'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
-import { qualityDepartment } from '../lib/approval'
+import { isFiltering, ORGANIZATION_SORTS, organizationRows, OTHERS_FILTER, ROLE_FILTERS, type OrganizationSort, type RoleFilter } from '../lib/organization'
 import { fetchOrganization, type OrganizationHierarchy } from '../services/organization'
-import { useDepartments } from '../state/departmentsContext'
 import { useCurrentUser } from '../state/sessionContext'
 
 export type OrganizationLoadState = { status: 'loading' } | { status: 'error' } | { status: 'ready'; hierarchy: OrganizationHierarchy }
 
-export function OrganizationContent({ state, reload, qualityDepartmentId }: { state: OrganizationLoadState; reload: () => void; qualityDepartmentId?: string }) {
+const roleOptions = ROLE_FILTERS.map((role) => ({ value: role, label: role === OTHERS_FILTER ? content.others : usersEn.permissions[role] }))
+
+/** The search, Filter and Sort toolbar and the table (view only). */
+export function OrganizationStructure({ hierarchy }: { hierarchy: OrganizationHierarchy }) {
+  const [query, setQuery] = useState('')
+  const [divisionFilter, setDivisionFilter] = useState<string[]>([])
+  const [roles, setRoles] = useState<RoleFilter[]>([])
+  const [sort, setSort] = useState<OrganizationSort>('default')
+  // Options come from the loaded divisions, A to Z. A selected division that no longer exists is dropped.
+  const divisionOptions = useMemo(() => [...hierarchy.divisions]
+    .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }) || a.id.localeCompare(b.id))
+    .map((division) => ({ value: division.id, label: division.name })), [hierarchy])
+  const divisions = divisionFilter.filter((id) => divisionOptions.some((option) => option.value === id))
+  const filters = { query, divisions, roles }
+  const filtering = isFiltering(filters)
+  const rows = organizationRows(hierarchy, filters, sort)
+  return (
+    <>
+      {/* Search, filter and sort span the table's width (about 60/20/20 on large screens); they stack on small screens. */}
+      <div className="mt-6 grid gap-4 lg:grid-cols-[minmax(0,3fr)_minmax(0,1fr)_minmax(0,1fr)] lg:items-end">
+        <TextField className="min-w-0" name="organizationSearch" type="search" label={content.search} placeholder={content.searchPlaceholder}
+          autoComplete="off" value={query} onChange={(event) => setQuery(event.target.value)} />
+        <FilterPopover className="min-w-0" label={content.filter} activeLabel={content.filterActive} title={content.filtersTitle} clearLabel={content.clearAll}
+          sections={[
+            { id: 'division', legend: content.divisionFilter, options: divisionOptions, value: divisions, onChange: setDivisionFilter, emptyText: content.divisionFilterEmpty },
+            { id: 'role', legend: content.roleFilter, options: roleOptions, value: roles, onChange: (next) => setRoles(next as RoleFilter[]), emptyText: '' },
+          ]} />
+        <SelectField className="min-w-0" name="organizationSort" label={content.sort} value={sort}
+          options={ORGANIZATION_SORTS.map((value) => ({ value, label: content.sortOptions[value] }))}
+          onChange={(event) => setSort(event.target.value as OrganizationSort)} />
+      </div>
+      <OrganizationTable rows={rows} filtering={filtering} filterKey={JSON.stringify([query.trim().toLowerCase(), [...divisions].sort(), [...roles].sort()])} />
+    </>
+  )
+}
+
+export function OrganizationContent({ state, reload }: { state: OrganizationLoadState; reload: () => void }) {
   if (state.status === 'loading') return (
-    <div role="status" aria-label={content.loading} className="mt-8 space-y-8 motion-safe:animate-pulse">
+    <div role="status" aria-label={content.loading} className="mt-6 space-y-4 motion-safe:animate-pulse">
       <span className="sr-only">{content.loading}</span>
-      <div className="mx-auto h-20 w-full max-w-64 rounded-xl bg-beige" />
-      <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-4">{[0, 1, 2, 3].map((key) => <div key={key} className="h-48 rounded-xl border border-beige bg-white" />)}</div>
+      <div className="h-11 w-full rounded-lg bg-beige" />
+      <div className="overflow-hidden rounded-xl border border-beige bg-white">
+        <div className="h-12 bg-beige" />
+        {[0, 1, 2, 3].map((key) => <div key={key} className="h-16 border-t border-beige" />)}
+      </div>
     </div>
   )
   if (state.status === 'error') return (
@@ -25,7 +67,7 @@ export function OrganizationContent({ state, reload, qualityDepartmentId }: { st
       <Button variant="secondary" onClick={reload}>{content.retry}</Button>
     </div>
   )
-  return <OrganizationChart hierarchy={state.hierarchy} qualityDepartmentId={qualityDepartmentId} />
+  return <OrganizationStructure hierarchy={state.hierarchy} />
 }
 
 /**
@@ -35,8 +77,6 @@ export function OrganizationContent({ state, reload, qualityDepartmentId }: { st
 export function OrganizationalStructurePage({ admin = false }: { admin?: boolean }) {
   useDocumentTitle(admin ? adminEn.pageTitle.replace('{page}', content.title) : content.pageTitle)
   const user = useCurrentUser()
-  // The Quality department is identified as for the Approver rule (departments.is_quality).
-  const qualityDepartmentId = qualityDepartment(useDepartments().departments)?.id
   const [attempt, setAttempt] = useState(0)
   const [loaded, setLoaded] = useState<{ userId: string; attempt: number; state: OrganizationLoadState } | null>(null)
   const state: OrganizationLoadState = loaded?.userId === user.id && loaded.attempt === attempt ? loaded.state : { status: 'loading' }
@@ -52,7 +92,7 @@ export function OrganizationalStructurePage({ admin = false }: { admin?: boolean
   return (
     <div className="min-w-0">
       <h1 className="text-2xl tracking-tight sm:text-3xl">{content.title}</h1>
-      <OrganizationContent state={state} reload={reload} qualityDepartmentId={qualityDepartmentId} />
+      <OrganizationContent state={state} reload={reload} />
     </div>
   )
 }

@@ -8,7 +8,6 @@ const host = vi.hoisted(() => ({ slots: [] as Slot[], index: 0, effects: [] as (
 vi.mock('../services/organization', () => ({ fetchOrganization: host.load }))
 vi.mock('../state/sessionContext', () => ({ useCurrentUser: () => ({ id: host.userId }) }))
 vi.mock('../hooks/useDocumentTitle', () => ({ useDocumentTitle: () => {} }))
-vi.mock('../state/departmentsContext', () => ({ useDepartments: () => ({ departments: [] }) }))
 // Same deterministic hook-host approach used by the existing provider tests.
 vi.mock('react', async (original) => {
   const react = await original<typeof import('react')>()
