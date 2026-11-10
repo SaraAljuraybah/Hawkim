@@ -10,9 +10,8 @@ export const adminEn: AdminContent = {
     skipLink: 'Skip to main content',
     brandName: 'Hawkim',
     homeHref: '/admin/departments',
-    portalLabel: 'Admin',
-    homeLinkLabel: 'Hawkim admin, go to Divisions & Departments',
-    navAriaLabel: 'Admin',
+    homeLinkLabel: 'Hawkim System Admin, go to Divisions & Departments',
+    navAriaLabel: 'System Admin',
     nav: [
       // A collapsible group, not a page: it opens by itself on any of its pages.
       {
@@ -34,19 +33,18 @@ export const adminEn: AdminContent = {
     openMenu: 'Open menu',
     closeMenu: 'Close menu',
     drawerLabel: 'Navigation',
-    roleLabel: 'Administrator',
-    positionSeparator: '|',
+    rolesLabel: 'Your roles',
+    roleLabel: 'System Admin',
     profileLink: { label: 'My Profile, {name}', href: '/admin/profile' },
     pendingLabel: '{count} pending',
   },
-  pageTitle: '{page} · Admin | Hawkim',
+  pageTitle: '{page} · System Admin | Hawkim',
 
   usersList: {
     title: 'Staff',
     addUser: { label: 'Add Staff', href: '/admin/users/new' },
     search: { label: 'Search Staff', placeholder: 'Search by staff name, email, division, department' },
-    divisionFilter: { label: 'Division', all: 'All Divisions', noDivision: 'No Division' },
-    departmentFilter: { label: 'Department', all: 'All Departments' },
+    clearFilters: 'Clear Filters',
     count: { one: '{count} staff member', other: '{count} staff members' },
     tableLabel: 'Staff',
     columns: { name: 'Name', division: 'Division', department: 'Department', permissions: 'Permission', actions: 'Actions' },
@@ -73,7 +71,7 @@ export const adminEn: AdminContent = {
     author: 'Adds SOPs, works on them with co-authors and submits them for review.',
     reviewer: 'Reviews submitted SOPs and returns them with comments when needed.',
     approver: 'Approves reviewed SOPs and publishes them.',
-    admin: 'Manages staff and permissions in the admin portal.',
+    admin: 'Manages staff and permissions in the System Admin portal.',
   },
 
   addUser: {
@@ -81,8 +79,8 @@ export const adminEn: AdminContent = {
     subtitle: 'Add someone who should be able to use Hawkim.',
     back: { label: 'Back to Staff', href: '/admin/users' },
     name: { label: 'Full Name' },
-    email: { label: 'Email', hint: 'They sign in with this email.' },
-    phone: { label: 'Phone Number', hint: 'Saudi mobile number in the format +9665XXXXXXXX.', placeholder: '+966512345678' },
+    email: { label: 'Email' },
+    phone: { label: 'Phone Number', hint: 'Saudi mobile number: +9665XXXXXXXX' },
     division: {
       label: 'Division',
       placeholder: 'Select or type a division',
@@ -107,7 +105,7 @@ export const adminEn: AdminContent = {
       forbidden: "You don't have permission to add staff. Sign in again and retry.",
       'email-taken': 'A staff member with this email already exists.',
       invalid: 'Check the details and try again.',
-      'admin-exclusive': "An Admin can't have any other permission.",
+      'admin-exclusive': "A System Admin can't have any other permission.",
       'approver-quality': 'Approver is only allowed in the Quality department.',
       'department-unavailable': 'This department is no longer available. Choose another.',
       'account-failed': "The account couldn't be created. Try again in a few minutes.",
@@ -119,7 +117,7 @@ export const adminEn: AdminContent = {
       emailInvalid: 'Enter a valid email address, e.g. name@example.com.',
       emailTaken: 'A staff member with this email already exists.',
       phoneRequired: 'Enter a phone number.',
-      phoneInvalid: 'Enter a Saudi mobile number as +9665 followed by 8 digits, e.g. +966512345678.',
+      phoneInvalid: 'Enter the 8 digits after +9665.',
       divisionRequired: 'Select a division from the list.',
       departmentRequired: 'Select a department from the list.',
       positionRequired: "Enter the staff member's position.",
@@ -130,7 +128,6 @@ export const adminEn: AdminContent = {
 
   editUser: {
     title: 'Edit Staff',
-    subtitle: "Update this staff member's details and permissions.",
     submit: 'Save Changes',
     saving: 'Saving…',
     saved: 'Changes saved.',
@@ -141,12 +138,12 @@ export const adminEn: AdminContent = {
       'not-found': 'This staff member no longer exists. Go back to the Staff list.',
       conflict: 'Someone else changed this staff member. Reload the page and try again.',
       invalid: 'Check the name, phone number and position, then try again.',
-      'self-admin': "You can't remove your own Admin permission.",
-      'last-admin': 'Hawkim must always have at least one admin.',
-      'admin-exclusive': "An Admin can't have any other permission.",
+      'self-admin': "You can't remove your own System Admin permission.",
+      'last-admin': 'Hawkim must always have at least one System Admin.',
+      'admin-exclusive': "A System Admin can't have any other permission.",
       'approver-quality': 'Approver is only allowed in the Quality department.',
       'department-unavailable': 'This department is no longer available. Choose another.',
-      'department-required': 'Staff need a department. Choose one, or keep Admin as their only permission.',
+      'department-required': 'Staff need a department. Choose one, or keep System Admin as their only permission.',
       failed: 'Check your connection and try again.',
     },
     /** A permission still in use, with the number of SOPs; `{permission}` and `{count}` are replaced. */
@@ -201,8 +198,8 @@ export const adminEn: AdminContent = {
     },
     blockers: {
       selfDelete: "You can't delete your own account.",
-      selfAdmin: "You can't remove your own Admin permission.",
-      lastAdmin: 'Hawkim must always have at least one admin, and {name} is the only one.',
+      selfAdmin: "You can't remove your own System Admin permission.",
+      lastAdmin: 'Hawkim must always have at least one System Admin, and {name} is the only one.',
       inUse: {
         author: '{name} authors or co-authors {sops} (not published yet).',
         reviewer: '{name} is assigned as a reviewer on {sops}.',
@@ -285,7 +282,7 @@ export const adminEn: AdminContent = {
   },
 
   requestDetails: {
-    pageTitle: '{title} · Requests · Admin | Hawkim',
+    pageTitle: '{title} · Requests · System Admin | Hawkim',
     back: { label: 'Back to Requests', href: '/admin/requests' },
     requester: {
       title: 'Requester',

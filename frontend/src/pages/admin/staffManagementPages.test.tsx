@@ -65,10 +65,12 @@ describe('the staff form', () => {
     }
   })
 
-  it('takes the phone number as +9665XXXXXXXX, with an example', () => {
-    const phone = form(staff).match(/<input[^>]*name="phone"[^>]*>/)![0]
-    expect(phone).toContain('placeholder="+966512345678"')
-    expect(form(staff)).toContain('Saudi mobile number in the format +9665XXXXXXXX.')
+  it('takes the phone number as +9665XXXXXXXX: the 8 digits after a fixed "+9665"', () => {
+    const html = form(staff)
+    const phone = html.match(/<input[^>]*name="phone"[^>]*>/)![0]
+    expect(phone).toContain('inputMode="numeric"')
+    expect(html).toMatch(/<span id="[^"]+">\+9665<\/span>/)
+    expect(html).toContain('Saudi mobile number: +9665XXXXXXXX')
   })
 
   it('hides division, department and position for a System Admin, keeping name, email and phone required', () => {

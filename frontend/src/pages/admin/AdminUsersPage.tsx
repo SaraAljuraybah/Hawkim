@@ -1,20 +1,22 @@
 import { useMemo, useRef, useState } from 'react'
 import { flushSync } from 'react-dom'
-import { useLocation, useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { CircleAlert, CircleCheck, Eye, Pencil, Plus, Users } from 'lucide-react'
 import { DeleteUserButton } from '../../components/admin/DeleteUserButton'
 import { PermissionBadges, UserAvatar } from '../../components/admin/UserBits'
 import { Button } from '../../components/ui/Button'
 import { IconButton } from '../../components/ui/IconButton'
-import { SelectField } from '../../components/ui/SelectField'
+import { MultiSelectField } from '../../components/ui/MultiSelectField'
 import { TextField } from '../../components/ui/TextField'
 import { tableStyles } from '../../components/ui/tableStyles'
 import { adminEn } from '../../content/admin.en'
+import { organizationAdminEn as filterText } from '../../content/organizationAdmin.en'
 import { usersEn } from '../../content/users.en'
 import type { User } from '../../data/mock/types'
 import { useDocumentTitle } from '../../hooks/useDocumentTitle'
+import { listParam, readList, updateParams } from '../../lib/pagination'
 import { adminUserEditPath, adminUserPath } from '../../lib/routes'
-import { ALL_FILTER as ALL, departmentsInDivision, divisionLabel, divisionNameIn, divisionOptions, filterUsers, isSystemAdmin, NO_DIVISION } from '../../lib/userAdmin'
+import { departmentFilterOptions, divisionFilterOptions, divisionLabel, filterUsers, isSystemAdmin } from '../../lib/userAdmin'
 import { useDepartments } from '../../state/departmentsContext'
 import { useUsers } from '../../state/usersContext'
 
@@ -24,8 +26,9 @@ export interface AdminUsersLocationState {
 }
 
 /**
- * Staff ("/admin/users", PBI 17): one search, Division and Department filters, and each staff member's
- * actions. Administrators aren't staff: they are on Manage Organization → Admins.
+ * Staff ("/admin/users", PBI 17): one search, Filter by Division and Filter by Department (several of each,
+ * independent, kept in the URL), Clear Filters, and each staff member's actions. Administrators aren't
+ * staff: they are on Manage Organization → Admins.
  */
 export function AdminUsersPage() {
   const content = adminEn.usersList
@@ -41,13 +44,26 @@ export function AdminUsersPage() {
   const refusedRef = useRef<HTMLDivElement>(null)
 
   const [query, setQuery] = useState('')
-  const [division, setDivision] = useState(ALL)
-  const [departmentId, setDepartmentId] = useState(ALL)
-  const departmentChoices = division === ALL ? activeDepartments : departmentsInDivision(activeDepartments, division)
+  const searchRef = useRef<HTMLInputElement>(null)
+  // The filters are in the URL (`?division=a,b&dept=x,y`); choices that no longer exist are dropped.
+  const [params, setParams] = useSearchParams()
+  const divisionChoices = useMemo(() => divisionFilterOptions(activeDepartments, filterText.filterNoDivision), [activeDepartments])
+  const departmentChoices = useMemo(() => departmentFilterOptions(activeDepartments), [activeDepartments])
+  const divisions = useMemo(() => readList(params, 'division').filter((id) => divisionChoices.some((option) => option.value === id)), [params, divisionChoices])
+  const departmentIds = useMemo(() => readList(params, 'dept').filter((id) => departmentChoices.some((option) => option.value === id)), [params, departmentChoices])
+  const hasFilters = query.trim().length > 0 || divisions.length > 0 || departmentIds.length > 0
   const visible = useMemo(
-    () => filterUsers(activeUsers, getDepartment, { query, division, departmentId }, usersEn.permissions),
-    [activeUsers, getDepartment, query, division, departmentId],
+    () => filterUsers(activeUsers, getDepartment, { query, divisions, departmentIds }, usersEn.permissions),
+    [activeUsers, getDepartment, query, divisions, departmentIds],
   )
+  // Independent: changing one never changes the other. Replacing the URL: no history entry per click.
+  const setFilter = (name: 'division' | 'dept', ids: string[]) =>
+    setParams((current) => updateParams(current, { [name]: listParam(ids) }, { division: '', dept: '' }), { replace: true })
+  function clearFilters() {
+    setQuery('')
+    setParams((current) => updateParams(current, { division: undefined, dept: undefined }, { division: '', dept: '' }), { replace: true })
+    searchRef.current?.focus()
+  }
   const count = (visible.length === 1 ? content.count.one : content.count.other).replace('{count}', String(visible.length))
 
   function deleted(message: string) {
@@ -107,9 +123,12 @@ export function AdminUsersPage() {
         </div>
       )}
 
-      {/* One search, and the Division and Department filters (the departments of the chosen division) */}
-      <div className="mt-8 grid gap-4 md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)]">
+      {/* One search, then Filter by Division and Filter by Department (each lists all its choices): stacked on phones;
+          from sm the search across the top and the two filters side by side; one row from xl. */}
+      <div className="mt-8 grid items-end gap-4 sm:grid-cols-2 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)]">
         <TextField
+          ref={searchRef}
+          className="sm:col-span-2 xl:col-span-1"
           name="search"
           type="search"
           label={content.search.label}
@@ -119,37 +138,26 @@ export function AdminUsersPage() {
           value={query}
           onChange={(event) => setQuery(event.target.value)}
         />
-        <SelectField
-          name="division"
-          label={content.divisionFilter.label}
-          options={[
-            { value: ALL, label: content.divisionFilter.all },
-            ...divisionOptions(activeDepartments).map((item) => ({ value: item, label: item === NO_DIVISION ? content.divisionFilter.noDivision : divisionNameIn(activeDepartments, item) })),
-          ]}
-          value={division}
-          onChange={(event) => {
-            const next = event.target.value
-            setDivision(next)
-            // Keep the department only if it belongs to the new division.
-            if (next !== ALL && !departmentsInDivision(activeDepartments, next).some((item) => item.id === departmentId)) setDepartmentId(ALL)
-          }}
-        />
-        <SelectField
-          name="department"
-          label={content.departmentFilter.label}
-          options={[
-            { value: ALL, label: content.departmentFilter.all },
-            ...departmentChoices.map((department) => ({ value: department.id, label: department.name })),
-          ]}
-          value={departmentId}
-          onChange={(event) => setDepartmentId(event.target.value)}
-        />
+        {/* As on Divisions & Departments: a visible label; the control's accessible name is the same text. */}
+        <div className="min-w-0">
+          <span aria-hidden="true" className="mb-1.5 block text-sm font-medium text-maroon">{filterText.filterDivisions}</span>
+          <MultiSelectField name="division" label={filterText.filterDivisions} placeholder={filterText.filterPlaceholder} emptyText={filterText.filterEmpty}
+            options={divisionChoices} value={divisions} onChange={(ids) => setFilter('division', ids)} />
+        </div>
+        <div className="min-w-0">
+          <span aria-hidden="true" className="mb-1.5 block text-sm font-medium text-maroon">{filterText.filterDepartments}</span>
+          <MultiSelectField name="department" label={filterText.filterDepartments} placeholder={filterText.filterDepartmentsPlaceholder}
+            emptyText={filterText.filterDepartmentsEmpty} options={departmentChoices} value={departmentIds} onChange={(ids) => setFilter('dept', ids)} />
+        </div>
       </div>
 
-      {/* Announced as the results change */}
-      <p role="status" className="mt-6 text-sm font-medium text-text-gray">
-        {count}
-      </p>
+      <div className="mt-6 flex min-h-8 flex-wrap items-center justify-between gap-2">
+        {/* Announced as the results change */}
+        <p role="status" className="text-sm font-medium text-text-gray">
+          {count}
+        </p>
+        {hasFilters && <Button size="sm" variant="secondary" onClick={clearFilters}>{content.clearFilters}</Button>}
+      </div>
 
       {visible.length === 0 ? (
         <div className="mt-3 flex flex-col items-center rounded-xl border border-dashed border-beige bg-white px-6 py-14 text-center">

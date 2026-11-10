@@ -20,8 +20,7 @@ export const complianceEn: ComplianceContent = {
   guideline: '{name} v{version}',
   details: {
     checked: 'Check Date',
-    version: 'Version Checked',
-    guideline: 'Guideline',
+    version: 'SOP Version Checked',
   },
   card: {
     title: 'Compliance Overview',
@@ -35,7 +34,7 @@ export const complianceEn: ComplianceContent = {
       note: 'Last checked against GVP v{checked}. The current version is v{current}.',
     },
     guideline: {
-      tableLabel: 'GVP version used for compliance checks',
+      dates: 'Issued by SFDA on {issued} · Added to Hawkim on {added}',
     },
   },
   guidelinePage: {
@@ -52,7 +51,7 @@ export const complianceEn: ComplianceContent = {
     header: {
       title: 'Report Details',
       sop: 'SOP',
-      version: 'Version Checked',
+      version: 'SOP Version Checked',
       author: 'Author',
       coAuthors: 'Co-authors',
       department: 'Department',
@@ -74,7 +73,6 @@ export const complianceEn: ComplianceContent = {
         'action-required': 'Action Required',
       },
       tilesLabel: 'Results by label',
-      goToFindings: 'Go to {category} findings',
     },
     overview: {
       title: 'Requirements Overview',
@@ -84,10 +82,10 @@ export const complianceEn: ComplianceContent = {
         unknown: 'For this specific SOP, AI checked each procedure against the relevant GVP requirements. The results are presented as findings, with each finding linked to the corresponding GVP requirement.',
       },
       findingId: 'Finding ID',
-      requirementTitle: 'Requirement Title',
-      requirementReference: 'Requirement Reference',
+      requirementTitle: 'GVP Requirement Title',
+      requirementReference: 'GVP Requirement Reference',
       result: 'Result',
-      referenceLine: 'Requirement Reference: {reference}',
+      referenceLine: 'GVP Requirement Reference: {reference}',
       none: '—',
     },
     findings: {
@@ -107,8 +105,8 @@ export const complianceEn: ComplianceContent = {
       section: 'Section:',
       page: 'Page:',
       none: '—',
-      requirementReference: 'Requirement Reference',
-      requirement: 'Requirement Text',
+      requirementReference: 'GVP Requirement Reference',
+      requirement: 'GVP Requirement Text',
       sopReference: 'SOP Reference',
       lineSeparator: ' · ',
       noSectionNumberValue: 'Number not found',

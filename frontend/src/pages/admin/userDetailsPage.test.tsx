@@ -47,6 +47,14 @@ describe('a user\'s details page', () => {
     expect(detail(render(), 'Division')).toBe('Medical Division')
   })
 
+  it('has the shared header: large avatar, the name as the h1 with Edit Staff and Delete beside it, and the badges', () => {
+    const html = render()
+    expect(html).toContain('<span aria-hidden="true" class="inline-flex size-9 shrink-0 items-center justify-center rounded-full bg-beige text-xs font-semibold text-maroon size-14 text-base">RA</span>')
+    // Edit Staff (the way to the edit form from here) before the trash, both beside the name.
+    expect(html).toMatch(/<div class="flex items-start gap-2"><h1 class="min-w-0 text-2xl break-words tracking-tight sm:text-3xl">Rana<\/h1><div class="flex shrink-0 items-center gap-2 "><a [^>]*href="\/admin\/users\/[^"]+\/edit"[^>]*>.*?Edit Staff<\/a><span class="relative inline-flex"><button type="button" aria-label="Delete Rana"/)
+    expect(html.match(/<h1/g)).toHaveLength(1)
+  })
+
   it('has one Delete user: the Trash button in the header, and no Delete User section', () => {
     const html = render()
     const header = html.slice(html.indexOf('<h1'), html.indexOf('details-title'))

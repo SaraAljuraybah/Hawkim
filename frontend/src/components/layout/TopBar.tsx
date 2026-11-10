@@ -66,20 +66,21 @@ export function TopBar({ content, user, menuOpen, onOpenMenu, menuButtonRef }: T
               >
                 {user.name}
               </Link>
-              {/* "Position | Department" side by side on one line, never stacked: only a very long position
-                  wraps within its own column. The position is plain text; the department stays the
-                  switcher. A System Admin has neither, so the line isn't shown for them. */}
+              {/* "Department | Position" side by side on one line, never stacked: only a very long position
+                  wraps within its own column. The department stays the switcher; the position is plain
+                  text. A System Admin has neither (and uses the admin portal's top bar, with only "System
+                  Admin"), so the line isn't shown for them. */}
               {!isSystemAdmin(user) && (
                 <div className="hidden items-center gap-x-1.5 text-xs text-text-gray sm:flex">
-                  {user.position && (
-                    <>
-                      <span className="min-w-0 break-words">{user.position}</span>
-                      <span aria-hidden="true" className="shrink-0 text-text-gray/60">{content.positionSeparator}</span>
-                    </>
-                  )}
                   <span className="shrink-0">
                     <DepartmentSwitcher content={content.departmentSwitcher} variant="topbar" />
                   </span>
+                  {user.position && (
+                    <>
+                      <span aria-hidden="true" className="shrink-0 text-text-gray/60">{content.positionSeparator}</span>
+                      <span className="min-w-0 break-words">{user.position}</span>
+                    </>
+                  )}
                 </div>
               )}
             </div>

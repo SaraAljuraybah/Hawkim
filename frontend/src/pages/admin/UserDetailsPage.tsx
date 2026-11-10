@@ -2,9 +2,8 @@ import { useRef, useState, type ReactNode } from 'react'
 import { flushSync } from 'react-dom'
 import { Link, Navigate, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, CircleAlert, CircleCheck, Pencil } from 'lucide-react'
-import { DeleteUserButton } from '../../components/admin/DeleteUserButton'
 import { RefusedBox } from '../../components/admin/RefusedBox'
-import { PermissionBadges, UserAvatar } from '../../components/admin/UserBits'
+import { UserHeader } from '../../components/admin/UserHeader'
 import { Button } from '../../components/ui/Button'
 import { StatusBadge } from '../../components/ui/StatusBadge'
 import { adminEn } from '../../content/admin.en'
@@ -27,9 +26,9 @@ export interface UserDetailsLocationState {
 
 /**
  * A staff member's page in the admin portal ("/admin/users/:id", PBI 17, 19): their details, the SOPs
- * they are involved in, and Edit Staff and Delete in the header. Edit Staff opens the edit form, which
- * saves to the database. A System Admin has no division, department or position, so those aren't
- * listed for them. Deleted and unknown staff show Not Found.
+ * they are involved in, and Edit Staff and Delete beside their name. Edit Staff opens the edit form,
+ * which saves to the database. A System Admin has no division, department or position, so those
+ * aren't listed for them. Deleted and unknown staff show Not Found.
  */
 export function UserDetailsPage() {
   const { id } = useParams()
@@ -117,21 +116,18 @@ function UserPanels({ user }: { user: User }) {
 
   return (
     <>
-      {/* Header, with Edit Staff and Delete at the top right */}
-      <div className="mt-5 flex items-start gap-4">
-        <UserAvatar user={user} className="size-14 text-base" />
-        <div className="min-w-0 flex-1">
-          <h1 className="text-2xl break-words tracking-tight sm:text-3xl">{user.name}</h1>
-          <PermissionBadges user={user} className="mt-2" />
-        </div>
-        <div className="flex shrink-0 items-center gap-2">
+      {/* The shared header; Edit Staff (the way to the edit form from here) beside Delete */}
+      <UserHeader
+        user={user}
+        onDeleted={deleted}
+        onRefused={refuseDelete}
+        actions={
           <Button variant="secondary" size="sm" to={adminUserEditPath(user.id)}>
             <Pencil aria-hidden="true" className="size-4" strokeWidth={1.75} />
             {text.edit}
           </Button>
-          <DeleteUserButton user={user} onDeleted={deleted} onRefused={refuseDelete} />
-        </div>
-      </div>
+        }
+      />
 
       {deleteRefused && <RefusedBox ref={deleteErrorRef} title={deleteRefused.title} messages={deleteRefused.reasons} />}
 

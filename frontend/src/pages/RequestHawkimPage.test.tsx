@@ -14,7 +14,10 @@ describe('Request Hawkim page', () => {
       expect(html).toContain(`>${label}`)
     }
     expect(html).toContain('type="email"')
-    expect(html).toContain('type="tel"')
+    // The phone: the 8 digits after a fixed "+9665", with the number keyboard; the prefix read before the hint.
+    expect(html).toMatch(/<input id="[^"]+" aria-describedby="([^"]+) [^"]+-hint"[^>]*inputMode="numeric"[^>]*name="phone"[^>]*\/><div[^>]*><span id="\1">\+9665<\/span>/)
+    expect(html).toContain('>Saudi mobile number: +9665XXXXXXXX</p>')
+    expect(requestHawkimEn.errors.phone).toBe('Enter the 8 digits after +9665.')
     expect(html).toContain('<textarea')
     expect(html).toContain(requestHawkimEn.submit)
   })

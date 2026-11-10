@@ -9,7 +9,7 @@ export const usersEn: UsersContent = {
     author: 'Author',
     reviewer: 'Reviewer',
     approver: 'Approver',
-    admin: 'Admin',
+    admin: 'System Admin',
   },
   deletedName: '{name} (deleted)',
 }

@@ -11,7 +11,7 @@ export const requestHawkimEn: RequestHawkimContent = {
     jobTitle: 'Position',
     email: 'Email',
     phone: 'Phone',
-    phoneHint: 'Saudi mobile number, for example 05XXXXXXXX.',
+    phoneHint: 'Saudi mobile number: +9665XXXXXXXX',
     approxUsers: 'Approximate number of users',
     message: 'Message (Optional)',
     messagePlaceholder: 'Add a message for the Hawkim team…',
@@ -22,7 +22,7 @@ export const requestHawkimEn: RequestHawkimContent = {
   errors: {
     required: 'This field is required.',
     email: 'Enter a valid email address, like you@organization.com.',
-    phone: 'Enter a Saudi mobile number, like 05XXXXXXXX.',
+    phone: 'Enter the 8 digits after +9665.',
     approxUsers: 'Enter a whole number from 1 to 100000.',
     tooLong: 'This is too long.',
     tooManyRequests: 'Too many requests from this email address today. Please try again tomorrow.',
@@ -41,7 +41,7 @@ export const reviewRequestEn: ReviewRequestContent = {
   logoAlt: 'Hawkim',
   loading: 'Loading the request…',
   title: 'Review request',
-  text: 'Accepting creates the contact person’s account as the organization’s Admin and emails them a link to set their password.',
+  text: 'Accepting creates the contact person’s account as the organization’s System Admin and emails them a link to set their password.',
   labels: {
     organization: 'Organization',
     contactName: 'Contact person',

@@ -4,7 +4,7 @@ import { MemoryRouter } from 'react-router-dom'
 import { adminEn } from '../../content/admin.en'
 import { usersEn } from '../../content/users.en'
 import type { Department, User } from '../../data/mock/types'
-import { ALL_FILTER, filterUsers, NO_DIVISION } from '../../lib/userAdmin'
+import { filterUsers, NO_DIVISION } from '../../lib/userAdmin'
 import { PermissionBadges } from '../../components/admin/UserBits'
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
 import { AdminUsersPage } from './AdminUsersPage'
@@ -28,11 +28,16 @@ vi.mock('../../state/departmentsContext', () => ({
   useDepartments: () => ({ activeDepartments: fixture.departments, getDepartment: (id: string) => fixture.departments.find((item) => item.id === id) }),
 }))
 
-const render = () => renderToStaticMarkup(<MemoryRouter><AdminUsersPage /></MemoryRouter>)
+const render = (search = '') => renderToStaticMarkup(<MemoryRouter initialEntries={[`/admin/users${search}`]}><AdminUsersPage /></MemoryRouter>)
 const table = (html: string) => html.slice(html.indexOf('<table'), html.indexOf('</table>'))
 const getDepartment = (id: string) => fixture.departments.find((item) => item.id === id)
-const search = (query: string, division = ALL_FILTER, departmentId = ALL_FILTER) =>
-  filterUsers(fixture.users, getDepartment, { query, division, departmentId }, usersEn.permissions).map((user) => user.id)
+const search = (query: string, divisions: string[] = [], departmentIds: string[] = []) =>
+  filterUsers(fixture.users, getDepartment, { query, divisions, departmentIds }, usersEn.permissions).map((user) => user.id)
+/** A checkbox dropdown's button and its list of checkboxes (MultiSelectField). */
+const dropdown = (html: string, name: string) => {
+  const start = html.lastIndexOf('<button', html.indexOf(`name="${name}"`))
+  return html.slice(start, html.indexOf('</div>', html.lastIndexOf(`name="${name}"`)))
+}
 
 /** The fixture's staff: everyone but the administrators. */
 const staffOnly = () => fixture.users.filter((user) => !user.permissions.includes('admin'))
@@ -85,20 +90,32 @@ describe('Users list', () => {
     expect(html).toContain('hidden md:block')
   })
 
-  it('offers one search, and the Division and Department filters, with the count', () => {
+  it('offers one search, then Filter by Division and Filter by Department checkbox dropdowns, with the count', () => {
     const html = render()
     expect(html).toContain('>Search Staff<')
     expect(html).toContain('placeholder="Search by staff name, email, division, department"')
-    // Task 7: no description under the title.
+    // No description under the title.
     expect(html).not.toContain('Manage who can use Hawkim and what they can do.')
-    expect(html).toContain('>All Divisions<')
-    // The division's name, with its id as the value.
-    expect(html).toMatch(/<option value="regulatory_drug_safety"[^>]*>Regulatory &amp; Drug Safety<\/option>/)
-    expect(html).not.toContain('>regulatory_drug_safety<')
-    expect(html).toContain('>No Division</option>')
-    expect(html).toContain('>All Departments<')
+    expect(html).not.toContain('<select')
+    // The Divisions & Departments page's dropdown: visible label, placeholder, and a closed list of checkboxes.
+    const divisions = dropdown(html, 'division')
+    expect(html).toContain('<span aria-hidden="true" class="mb-1.5 block text-sm font-medium text-maroon">Filter by Division</span>')
+    expect(divisions).toMatch(/^<button type="button" aria-label="Filter by Division" aria-expanded="false"/)
+    expect(divisions).toContain('>All divisions</span>')
+    expect(divisions).toContain('role="group" aria-label="Filter by Division" hidden=""')
+    // Each division by name (its id as the value), then No Division.
+    expect([...divisions.matchAll(/value="([^"]+)"\/><span[^>]*>([^<]+)<\/span>/g)].map((match) => [match[1], match[2]]))
+      .toEqual([['regulatory_drug_safety', 'Regulatory &amp; Drug Safety'], [NO_DIVISION, 'No Division']])
+    // Every department, by name, whatever the division filter.
+    const departments = dropdown(html, 'department')
+    expect(html).toContain('>Filter by Department</span>')
+    expect(departments).toContain('>All departments</span>')
+    expect([...departments.matchAll(/value="([^"]+)"\/><span[^>]*>([^<]+)<\/span>/g)].map((match) => match[1])).toEqual(['pv', 'qa'])
     expect(html).not.toContain('All Permissions')
+    // Administrators aren't staff, so Nouf (an admin) isn't counted.
     expect(html).toContain('>2 staff members<')
+    // Nothing to clear yet.
+    expect(html).not.toContain('>Clear Filters<')
   })
 
   it('leaves out administrators: they are on Manage Organization → Admins', () => {
@@ -109,6 +126,20 @@ describe('Users list', () => {
       expect(html).not.toContain(`>${admin.name}<`)
       expect(html).not.toContain(`aria-label="View ${admin.name}"`)
     }
+  })
+
+  it('reads both filters from the URL, independently, with the count and Clear Filters', () => {
+    // The department filter keeps Pharmacovigilance though No Division is checked: nobody matches both.
+    const mismatch = render('?division=__no-division__&dept=pv')
+    expect(mismatch).toContain('>0 staff members<')
+    expect(mismatch).toContain(`>${adminEn.usersList.empty}<`)
+    expect(dropdown(mismatch, 'department')).toContain('checked="" value="pv"')
+    // Reem only: Nouf is in Quality Assurance without a division too, but is an administrator.
+    const html = render('?division=__no-division__,gone&dept=qa')
+    expect(html).toContain('>1 staff member<')
+    expect(dropdown(html, 'division')).toContain('aria-label="Filter by Division: No Division"')
+    expect(dropdown(html, 'department')).toContain('>Quality Assurance</span>')
+    expect(html).toContain('>Clear Filters<')
   })
 })
 
@@ -124,12 +155,19 @@ describe('searching and filtering users', () => {
     expect(search('  ')).toEqual(['admin', 'reem', 'sara'])
   })
 
-  it('combines the search with the Division and Department filters', () => {
-    expect(search('', 'regulatory_drug_safety')).toEqual(['sara'])
-    expect(search('', NO_DIVISION)).toEqual(['admin', 'reem'])
-    expect(search('', ALL_FILTER, 'qa')).toEqual(['admin', 'reem'])
-    expect(search('reem', NO_DIVISION, 'qa')).toEqual(['reem'])
-    expect(search('sara', NO_DIVISION)).toEqual([])
+  it('combines the search with the Division and Department filters, several of each', () => {
+    expect(search('', ['regulatory_drug_safety'])).toEqual(['sara'])
+    expect(search('', [NO_DIVISION])).toEqual(['admin', 'reem'])
+    expect(search('', ['regulatory_drug_safety', NO_DIVISION])).toEqual(['admin', 'reem', 'sara'])
+    expect(search('', [], ['qa'])).toEqual(['admin', 'reem'])
+    expect(search('', [], ['qa', 'pv'])).toEqual(['admin', 'reem', 'sara'])
+    expect(search('reem', [NO_DIVISION], ['qa'])).toEqual(['reem'])
+    expect(search('sara', [NO_DIVISION])).toEqual([])
+  })
+
+  it('needs both filters to match when both are used: a mismatch leaves nobody', () => {
+    expect(search('', ['regulatory_drug_safety'], ['qa'])).toEqual([])
+    expect(search('', ['regulatory_drug_safety'], ['pv', 'qa'])).toEqual(['sara'])
   })
 
   it('says when no user matches', () => {

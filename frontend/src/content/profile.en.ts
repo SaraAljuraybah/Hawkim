@@ -7,11 +7,11 @@ import type { ProfileContent, ResetPasswordContent } from './types'
 
 export const profileEn: ProfileContent = {
   pageTitle: 'My Profile | Hawkim',
-  adminPageTitle: 'My Profile · Admin | Hawkim',
+  adminPageTitle: 'My Profile · System Admin | Hawkim',
   title: 'My Profile',
   fields: { name: 'Name', email: 'Email', phone: 'Phone Number', position: 'Position', division: 'Division', department: 'Department', roles: 'Permission', password: 'Password' },
   none: '—',
-  roles: { author: 'Author', reviewer: 'Reviewer', approver: 'Approver', admin: 'Admin' },
+  roles: { author: 'Author', reviewer: 'Reviewer', approver: 'Approver', admin: 'System Admin' },
   password: {
     change: 'Change',
     changeLabel: 'Change Password',

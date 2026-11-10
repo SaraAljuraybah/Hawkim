@@ -58,15 +58,15 @@ export const adminsEn: AdminsContent = {
   form: {
     back: { label: 'Back to Admins', href: '/admin/admins' },
     name: { label: 'Full Name' },
-    email: { label: 'Email', hint: 'They sign in with this email.' },
-    phone: { label: 'Phone Number', hint: 'Saudi mobile number in the format +9665XXXXXXXX.', placeholder: '+966512345678' },
+    email: { label: 'Email' },
+    phone: { label: 'Phone Number', hint: 'Saudi mobile number: +9665XXXXXXXX' },
     cancel: 'Cancel',
     errors: {
       nameRequired: "Enter the administrator's full name.",
       emailInvalid: 'Enter a valid email address, e.g. name@example.com.',
       emailTaken: 'Someone with this email already has a Hawkim account.',
       phoneRequired: 'Enter a phone number.',
-      phoneInvalid: 'Enter a Saudi mobile number as +9665 followed by 8 digits, e.g. +966512345678.',
+      phoneInvalid: 'Enter the 8 digits after +9665.',
     },
   },
 

@@ -16,7 +16,7 @@ export const requestsEn: RequestsContent = {
   submit: {
     pageTitle: 'Submit a Request | Hawkim',
     title: 'Submit a Request',
-    subtitle: "Send a request to the admin team. We'll review it and get back to you.",
+    subtitle: "Send a request to the System Admin team. We'll review it and get back to you.",
     fields: {
       type: { label: 'Request Type', placeholder: 'Select request type' },
       department: { label: 'Department', placeholder: 'Select department' },
@@ -48,7 +48,7 @@ export const requestsEn: RequestsContent = {
     submit: { label: 'Submit Request', loadingLabel: 'Submitting…' },
     confirmation: {
       title: 'Request Submitted',
-      text: 'Your request has been sent to the admin team. You can track its status in My Requests.',
+      text: 'Your request has been sent to the System Admin team. You can track its status in My Requests.',
       viewRequests: { label: 'View My Requests', href: '/requests' },
       submitAnother: 'Submit Another Request',
     },
@@ -57,7 +57,7 @@ export const requestsEn: RequestsContent = {
   myRequests: {
     pageTitle: 'My Requests | Hawkim',
     title: 'My Requests',
-    subtitle: 'View and track your requests to the admin team.',
+    subtitle: 'View and track your requests to the System Admin team.',
     newRequest: { label: 'New Request', href: '/requests/new' },
     tabsLabel: 'Filter requests',
     // Cancelled requests appear under "All" only.

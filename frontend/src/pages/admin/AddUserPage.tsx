@@ -70,6 +70,8 @@ export function AddUserPage() {
         busyLabel={content.adding}
         notice={refused.length > 0 && <RefusedBox ref={refusedRef} title={content.notAdded} messages={refused} />}
         onSubmit={add}
+        // Leaving with anything typed asks first, as on Edit Staff (not while adding: the new page opens).
+        unsavedChanges={adminEn.editUser.discard}
       />
     </>
   )

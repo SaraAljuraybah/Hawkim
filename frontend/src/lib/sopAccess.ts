@@ -8,13 +8,16 @@ export type SopAccess = 'granted' | 'requested' | 'locked'
  * An SOP moved to Others belongs to a deleted department: membership of, or access requests for, that
  * department never open it. Only its main author and co-authors find it in the directory (the
  * database, can_view_sop, keeps the same people able to read it).
+ * A System Admin may open every department's published SOPs, but not those in Others (the database's
+ * admin_can_read_published_sop allows the same).
  */
 export function getSopAccess(
   sop: Pick<Sop, 'departmentId' | 'status'> & Partial<Pick<Sop, 'directoryGroup' | 'authorId' | 'coAuthorIds'>>,
-  user: Pick<User, 'id' | 'departmentId' | 'deletedAt'>,
+  user: Pick<User, 'id' | 'departmentId' | 'deletedAt'> & Partial<Pick<User, 'permissions'>>,
   requests: UserRequest[],
 ): SopAccess {
   if (sop.status !== 'published' || user.deletedAt) return 'locked'
+  if (user.permissions?.includes('admin') && sop.directoryGroup !== 'others') return 'granted'
   if (sop.directoryGroup === 'others') {
     return sop.authorId === user.id || !!sop.coAuthorIds?.includes(user.id) ? 'granted' : 'locked'
   }
@@ -24,7 +27,7 @@ export function getSopAccess(
 }
 
 /** Authorize before directory search, counts, links or document rendering. */
-export function directorySopsFor(sops: Sop[], user: Pick<User, 'id' | 'departmentId' | 'deletedAt'>, requests: UserRequest[]): Sop[] {
+export function directorySopsFor(sops: Sop[], user: Pick<User, 'id' | 'departmentId' | 'deletedAt'> & Partial<Pick<User, 'permissions'>>, requests: UserRequest[]): Sop[] {
   return sops.filter((sop) => getSopAccess(sop, user, requests) === 'granted')
 }
 

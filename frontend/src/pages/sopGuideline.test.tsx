@@ -2,8 +2,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import type { ReactNode } from 'react'
-import { tableStyles } from '../components/ui/tableStyles'
-import { complianceEn } from '../content/compliance.en'
 import type { GuidelineVersion, Sop, User } from '../data/mock/types'
 import { sops } from '../data/mock/sops'
 import { sopGuidelinePath } from '../lib/routes'
@@ -55,33 +53,26 @@ beforeEach(() => {
 describe('the GVP version on the author\'s Compliance Overview', () => {
   it('comes before the card\'s text: one row, the version compliance checks use, with the Current badge', () => {
     const html = overview(workflow())
-    expect(html.indexOf(`<table aria-label="${complianceEn.card.guideline.tableLabel}"`)).toBeGreaterThan(-1)
-    expect(html.indexOf('<table')).toBeLessThan(html.indexOf('v1 hasn’t been checked yet.'))
-    const table = html.slice(html.indexOf('<table'), html.indexOf('</table>'))
-    expect([...table.matchAll(/<th scope="col"[^>]*>(?:<span class="sr-only">)?([^<]+)/g)].map((match) => match[1])).toEqual(['Title', 'Version', 'Issued by SFDA On', 'Added to Hawkim On', 'Actions'])
-    expect(table.match(/<tr>/g)).toHaveLength(2)
-    expect(table).toContain(`<th scope="row" class="${tableStyles.rowHeader}">SFDA GVP</th>`)
-    expect(table).toMatch(/<span class="inline-flex items-center gap-2 whitespace-nowrap">4\.0<span class="[^"]*">Current<\/span><\/span>/)
-    expect(table).toContain('<time dateTime="2015-05-27">')
-    expect(table).toContain('<time dateTime="2026-10-26">')
+    expect(html).not.toContain('<table')
+    expect(html.indexOf('SFDA GVP')).toBeLessThan(html.indexOf('<hr'))
+    expect(html.indexOf('<hr')).toBeLessThan(html.indexOf('v1 hasn’t been checked yet.'))
+    expect(html).toMatch(/<span class="min-w-0">SFDA GVP<\/span><span class="[^"]*">v4\.0<\/span><span class="[^"]*">Current<\/span>/)
+    expect(html).toMatch(/Issued by SFDA on <time dateTime="2015-05-27">[^<]+<\/time> · Added to Hawkim on <time dateTime="2026-10-26">[^<]+<\/time>/)
   })
 
   it('never shows a version an admin added since', () => {
     expect(overview(workflow())).not.toContain('4.1')
   })
 
-  it('has the same style as the admin\'s Version History, and only a View button', () => {
+  it('has only a View button, with an accessible label', () => {
     const html = overview(workflow())
-    expect(html).toContain(`<div class="mb-5 ${tableStyles.frame}"><div class="${tableStyles.wide}">`)
-    expect(html).toContain(`<thead class="${tableStyles.head.replace('&', '&amp;')}">`)
-    expect(html).toContain(`<ul aria-label="${complianceEn.card.guideline.tableLabel}" class="${tableStyles.cards}">`)
-    expect(html.match(/aria-label="View SFDA GVP v4\.0"/g)).toHaveLength(2)
+    expect(html.match(/aria-label="View SFDA GVP v4\.0"/g)).toHaveLength(1)
     expect(html).not.toMatch(/aria-label="(Edit|Delete) /)
   })
 
   it('isn\'t there when the SOP\'s department needs no compliance checks (no Compliance Overview)', () => {
     fixture.checks = false
-    expect(workflow()).not.toContain(complianceEn.card.guideline.tableLabel)
+    expect(workflow()).not.toContain('View SFDA GVP')
   })
 
   it('isn\'t on the review page', () => {
@@ -90,7 +81,6 @@ describe('the GVP version on the author\'s Compliance Overview', () => {
     fixture.userId = 'reviewer'
     const html = at('/reviews/test', '/reviews/:id', <ReviewPage />)
     expect(html).toContain('Visible Procedure')
-    expect(html).not.toContain(complianceEn.card.guideline.tableLabel)
     expect(html).not.toContain('View SFDA GVP')
   })
 })

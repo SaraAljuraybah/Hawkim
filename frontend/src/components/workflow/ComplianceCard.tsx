@@ -18,8 +18,8 @@ interface ComplianceCardProps {
 
 /**
  * The compliance check of the current version (PBI 4, 5): running, completed
- * (date, version, guideline and counts per result, with a link to the full
- * report) or failed, or a "not checked yet" line before the version has a check. Checks
+ * (date, SOP version and counts per result, with a link to the full report) or
+ * failed, or a "not checked yet" line before the version has a check. Checks
  * run only from SOP history's button. The results are sample results for now.
  */
 export function ComplianceCard({ sop, content }: ComplianceCardProps) {
@@ -70,7 +70,7 @@ export function ComplianceCard({ sop, content }: ComplianceCardProps) {
 
       {check?.status === 'completed' && (
         <>
-          <dl className="grid gap-x-12 gap-y-3 text-sm sm:grid-cols-[auto_auto_1fr]">
+          <dl className="grid gap-x-12 gap-y-3 text-sm sm:grid-cols-[auto_1fr]">
             <div>
               <dt className="text-text-gray">{content.details.checked}</dt>
               <dd className="mt-0.5 font-medium text-maroon">
@@ -80,12 +80,6 @@ export function ComplianceCard({ sop, content }: ComplianceCardProps) {
             <div>
               <dt className="text-text-gray">{content.details.version}</dt>
               <dd className="mt-0.5 font-medium text-maroon">{content.versionLabel.replace('{version}', check.version)}</dd>
-            </div>
-            <div className="min-w-0">
-              <dt className="text-text-gray">{content.details.guideline}</dt>
-              <dd className="mt-0.5 font-medium text-maroon">
-                {content.guideline.replace('{name}', check.guideline.name).replace('{version}', check.guideline.version)}
-              </dd>
             </div>
           </dl>
           <div className="mt-5">

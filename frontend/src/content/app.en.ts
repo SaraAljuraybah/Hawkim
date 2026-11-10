@@ -26,6 +26,7 @@ export const appShellEn: AppShellContent = {
   signOut: { label: 'Sign Out', href: '/login', icon: 'signOut' },
   openMenu: 'Open menu',
   closeMenu: 'Close menu',
+  rolesLabel: 'Your roles',
   drawerLabel: 'Navigation',
   reviewsToDoLabel: '{count} to do',
   profileLink: { label: 'My Profile, {name}', href: '/profile' },

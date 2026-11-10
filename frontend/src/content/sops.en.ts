@@ -9,14 +9,14 @@ import type { SopsContent } from './types'
 export const sopsEn: SopsContent = {
   
 pageTitle: 'SOP Directory | Hawkim',
-adminPageTitle: 'SOP Directory · Admin | Hawkim',
+adminPageTitle: 'SOP Directory · System Admin | Hawkim',
 title: 'SOP Directory',
 subtitle: 'Browse published SOPs available to you.',
 
   tabsLabel: 'Filter SOPs',
   tabs: {
     all: 'All',
-    recent: 'Recently Added',
+    recent: 'Recently Published',
     others: 'Others',
   },
   filters: {
@@ -48,11 +48,14 @@ subtitle: 'Browse published SOPs available to you.',
   othersEmpty: 'No SOPs in Others.',
   versionTemplate: 'v{version}',
   empty: 'No SOPs in this department yet.',
+  adminEmpty: 'No published SOPs yet.',
+  recentEmpty: 'No SOPs published in the last 3 months.',
 
   detail: {
     fileFailed: "The file couldn't be opened. Try again.",
+    subtitle: 'Published on {date} · {department} · SOP v{version}',
     pageTitle: '{title} | Hawkim',
-    adminPageTitle: '{title} · Admin | Hawkim',
+    adminPageTitle: '{title} · System Admin | Hawkim',
    back: { label: 'Back to SOP Directory', href: '/sops' },
     exportPdf: 'Export PDF',
     descriptionTitle: 'SOP Description',
@@ -75,7 +78,7 @@ subtitle: 'Browse published SOPs available to you.',
     },
     pendingAccess: {
       title: 'Your access request is pending review',
-      text: "You'll be able to open this SOP once the admin team approves your access to {department}.",
+      text: "You'll be able to open this SOP once the System Admin team approves your access to {department}.",
     },
   },
 }

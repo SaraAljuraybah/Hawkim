@@ -20,6 +20,7 @@ import {
 import { useDepartments } from '../../state/departmentsContext'
 import { Button } from '../ui/Button'
 import { CheckboxGroup } from '../ui/CheckboxGroup'
+import { PhoneField } from '../ui/PhoneField'
 import { SelectCombobox } from '../ui/SelectCombobox'
 import { TextField } from '../ui/TextField'
 import { UnsavedChangesGuard, type UnsavedChangesText } from '../ui/UnsavedChangesGuard'
@@ -56,10 +57,11 @@ interface UserFormProps {
 
 /**
  * The form of Add/Edit Staff and Add/Edit Admin: full name, email (valid and unique) and phone number
- * (+9665XXXXXXXX) are required; staff also need a division, a department (one of that division's)
- * and a position. An administrator (the Admin permission, set by the Admins pages, which offer no
- * permissions) has none of those, so they are hidden. Staff permissions are optional. Division comes first: the department list waits for it,
- * and when "No Division" is the only choice it is chosen from the start.
+ * (+9665XXXXXXXX: the 8 digits typed after a fixed "+9665") are required; staff also need a division,
+ * a department (one of that division's) and a position. An administrator (the Admin permission, set by
+ * the Admins pages, which offer no permissions) has none of those, so they are hidden. Staff permissions
+ * are optional. Division comes first: the department list waits for it, and when "No Division" is the
+ * only choice it is chosen from the start.
  */
 export function UserForm({ initial, otherUsers, submitLabel, busyLabel, notice, onEdit, onSubmit, unsavedChanges, text, permissionOptions = STAFF_PERMISSIONS }: UserFormProps) {
   const content = adminEn.addUser
@@ -81,6 +83,7 @@ export function UserForm({ initial, otherUsers, submitLabel, busyLabel, notice, 
   const division = values.divisionId ?? defaultDivision(activeDepartments)
   const user: NewUser = { ...values, divisionId: division }
   const systemAdmin = isSystemAdmin(values)
+  // The phone is compared as stored ("+9665" and the digits), so an untouched number is no change.
   const dirty = hasUnsavedChanges({ ...initial, divisionId: initial.divisionId ?? defaultDivision(activeDepartments) }, user)
   const departmentOptions = departmentsInDivision(activeDepartments, division).map((department) => ({ value: department.id, label: department.name }))
 
@@ -164,27 +167,24 @@ export function UserForm({ initial, otherUsers, submitLabel, busyLabel, notice, 
         label={fieldText.email.label}
         required
         requiredMark
-        hint={fieldText.email.hint}
         value={values.email}
         error={errors.email}
         onChange={(event) => change({ ...values, email: event.target.value })}
         onBlur={() => blur('email')}
         className="mt-5"
       />
-      <TextField
+      {/* "+9665" before the field and the 8 digits in it; values.phone keeps "+9665" and the digits */}
+      <PhoneField
         ref={phoneRef}
         name="phone"
-        type="tel"
-        inputMode="tel"
-        autoComplete="off"
         label={fieldText.phone.label}
         required
         requiredMark
         hint={fieldText.phone.hint}
-        placeholder={fieldText.phone.placeholder}
+        invalidMessage={fieldText.errors.phoneInvalid}
         value={values.phone}
         error={errors.phone}
-        onChange={(event) => change({ ...values, phone: event.target.value })}
+        onChange={(phone) => change({ ...values, phone })}
         onBlur={() => blur('phone')}
         className="mt-5"
       />

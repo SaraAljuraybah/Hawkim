@@ -4,6 +4,7 @@ import { LoaderCircle } from 'lucide-react'
 import { MessageScreen } from '../components/layout/MessageScreen'
 import { PageBackLink } from '../components/layout/PageBackLink'
 import { Button } from '../components/ui/Button'
+import { PhoneField } from '../components/ui/PhoneField'
 import { TextAreaField } from '../components/ui/TextAreaField'
 import { TextField } from '../components/ui/TextField'
 import { FORM_CARD } from '../components/ui/formCard'
@@ -104,7 +105,20 @@ export function RequestHawkimPage() {
         {field('contactName', { autoComplete: 'name', maxLength: 100 })}
         {field('jobTitle', { autoComplete: 'organization-title', maxLength: 100 })}
         {field('email', { type: 'email', autoComplete: 'email', autoCapitalize: 'none', spellCheck: false })}
-        {field('phone', { type: 'tel', autoComplete: 'tel', hint: content.fields.phoneHint })}
+        {/* "+9665" before the field and the 8 digits in it; values.phone keeps "+9665" and the digits */}
+        <PhoneField
+          ref={(element: HTMLInputElement | null) => { refs.current.phone = element }}
+          name="phone"
+          label={content.fields.phone}
+          required
+          requiredMark
+          autoComplete="tel-national"
+          hint={content.fields.phoneHint}
+          invalidMessage={content.errors.phone}
+          value={values.phone}
+          error={errors.phone}
+          onChange={(phone) => set('phone')({ target: { value: phone } })}
+        />
         {field('approxUsers', { type: 'number', inputMode: 'numeric', min: 1, max: 100000 })}
         <TextAreaField
           ref={(element: HTMLTextAreaElement | null) => { refs.current.message = element }}

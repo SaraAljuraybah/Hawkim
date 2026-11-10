@@ -2,14 +2,18 @@ import { describe, expect, it, vi } from 'vitest'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { MemoryRouter } from 'react-router-dom'
 import { adminEn } from '../../content/admin.en'
+import { appShellEn } from '../../content/app.en'
+import type { Permission } from '../../data/mock/types'
 import { ADMIN_HOME_PATH } from '../../lib/routes'
 import { Sidebar } from './Sidebar'
-import { appShellEn } from '../../content/app.en'
 import { isNavGroup, navLinks } from '../../lib/sidebarNav'
 import appSource from '../../App.tsx?raw'
 import signInSource from '../../pages/SignInPage.tsx?raw'
 
-vi.mock('../../state/sessionContext', () => ({ useSession: () => ({ signOut: () => {} }) }))
+const session = vi.hoisted(() => ({ permissions: undefined as Permission[] | undefined }))
+vi.mock('../../state/sessionContext', () => ({
+  useSession: () => ({ signOut: () => {}, user: session.permissions && { permissions: session.permissions } }),
+}))
 
 const links = navLinks(adminEn.shell.nav)
 const render = (path: string) => renderToStaticMarkup(<MemoryRouter initialEntries={[path]}><Sidebar content={adminEn.shell} /></MemoryRouter>)
@@ -54,7 +58,7 @@ describe('the admin portal sidebar', () => {
 
   it('takes the logo to Divisions & Departments, named for it', () => {
     const html = renderToStaticMarkup(<MemoryRouter><Sidebar content={adminEn.shell} /></MemoryRouter>)
-    const logo = html.match(/<a[^>]*aria-label="Hawkim admin, go to Divisions &amp; Departments"[^>]*>/)![0]
+    const logo = html.match(/<a[^>]*aria-label="Hawkim System Admin, go to Divisions &amp; Departments"[^>]*>/)![0]
     expect(logo).toContain('href="/admin/departments"')
   })
 })
@@ -103,6 +107,30 @@ describe('Manage Organization', () => {
   it('is only in the admin portal: the employee app has no group and no Admins link', () => {
     expect(appShellEn.nav.some((entry) => 'children' in entry)).toBe(false)
     expect(appShellEn.nav.some((entry) => entry.href.startsWith('/admin'))).toBe(false)
+  })
+})
+
+describe('the signed-in user\'s role badges under the logo', () => {
+  const badges = (html: string) => [...html.matchAll(/<li class="inline-flex[^"]*bg-gold-light [^"]*">([^<]+)<\/li>/g)].map((match) => match[1])
+
+  it('shows "System Admin" for an admin, outside the logo link, in a labelled list', () => {
+    session.permissions = ['admin']
+    const html = renderToStaticMarkup(<MemoryRouter><Sidebar content={adminEn.shell} /></MemoryRouter>)
+    expect(badges(html)).toEqual(['System Admin'])
+    expect(html).toContain('<ul aria-label="Your roles" class="inline')
+    expect(html.indexOf('</a>')).toBeLessThan(html.indexOf('aria-label="Your roles"'))
+  })
+
+  it('shows one badge per role, in the usual order', () => {
+    session.permissions = ['author', 'reviewer', 'approver']
+    const html = renderToStaticMarkup(<MemoryRouter><Sidebar content={appShellEn} /></MemoryRouter>)
+    expect(badges(html)).toEqual(['Author', 'Reviewer', 'Approver'])
+  })
+
+  it('shows no badge for a user without a role', () => {
+    session.permissions = []
+    const html = renderToStaticMarkup(<MemoryRouter><Sidebar content={appShellEn} /></MemoryRouter>)
+    expect(html).not.toContain('Your roles')
   })
 })
 
