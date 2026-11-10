@@ -102,16 +102,25 @@ const group = (page) => page.evaluate(() => {
   return { expanded: button.getAttribute('aria-expanded'), hidden: list?.hidden, links: [...list.querySelectorAll('a')].map((a) => a.textContent.trim()), current: current?.getAttribute('href') ?? null }
 })
 const groupButton = (page) => page.waitForSelector('::-p-xpath(//div[contains(@class,"lg:block")]//button[@aria-expanded and contains(normalize-space(.),"Manage Organization")])')
+// The role shown for the signed-in person: the desktop sidebar's badge and the line under the name in the top bar.
+const roleLabels = (page) => page.evaluate(() => ({
+  badge: [...document.querySelectorAll('.lg\\:block ul[aria-label="Your roles"] li')].map((li) => li.textContent.trim()).join(','),
+  topBar: document.querySelector('header p.text-xs')?.textContent.trim() ?? '',
+}))
+const roleLabelsAre = (page, label) => page.waitForFunction((l) => {
+  const badge = [...document.querySelectorAll('.lg\\:block ul[aria-label="Your roles"] li')].map((li) => li.textContent.trim()).join(',')
+  return badge === l && document.querySelector('header p.text-xs')?.textContent.trim() === l
+}, { timeout: 15000 }, label).catch(async () => { throw new Error(`expected "${label}", got ${JSON.stringify(await roleLabels(page))}`) })
 const hasButton = (page, label) => page.evaluate((l) => !!document.querySelector(`[aria-label="${l}"]`) || [...document.querySelectorAll('button, a')].some((e) => e.textContent.trim() === l), label)
 
 // ---------- 1. Sidebar ----------
 const sa = await signIn(superAdmin.email)
-await check('Manage Organization is open on Divisions & Departments, with exactly its three pages', async () => {
+await check('Manage Organization is open on Divisions and Departments, with exactly its three pages', async () => {
   await sa.goto(`${APP}/admin/departments`, { waitUntil: 'networkidle2' })
   const state = await group(sa)
   assert(state, 'no group')
   assert(state.expanded === 'true' && state.hidden === false, `expected open, got ${JSON.stringify(state)}`)
-  assert(JSON.stringify(state.links) === JSON.stringify(['Divisions & Departments', 'Staff', 'Admins']), `links ${state.links}`)
+  assert(JSON.stringify(state.links) === JSON.stringify(['Divisions and Departments', 'Staff', 'Admins']), `links ${state.links}`)
   assert(state.current === '/admin/departments', `current ${state.current}`)
 })
 await check('clicking it closes and opens it, and so do Enter and Space', async () => {
@@ -143,6 +152,21 @@ await check('it is closed on other pages after a refresh', async () => {
   assert(state.expanded === 'false' && state.hidden === true, JSON.stringify(state))
 })
 
+await check('the Super Admin is shown as "Super Admin" in the sidebar and top bar; the portal never says "System Admin"', async () => {
+  await roleLabelsAre(sa, 'Super Admin')
+  const title = await sa.title()
+  assert(title.endsWith('· Admin Portal | Hawkim'), `title ${title}`)
+  for (const path of ['/admin/departments', '/admin/admins', '/admin/profile']) {
+    await sa.goto(`${APP}${path}`, { waitUntil: 'networkidle2' })
+    await roleLabelsAre(sa, 'Super Admin')
+    const text = await sa.evaluate(() => document.documentElement.outerHTML)
+    assert(!/system admin/i.test(text), `"System Admin" on ${path}`)
+  }
+  await waitText(sa, 'Permission')
+  const permission = await sa.evaluate(() => [...document.querySelectorAll('dt')].find((dt) => dt.textContent.trim() === 'Permission')?.nextElementSibling?.textContent.trim())
+  assert(permission === 'Super Admin', `My Profile permission ${permission}`)
+})
+
 // ---------- 2. List ----------
 await check('the list shows administrators only, with the Super Admin badge, and Delete only on regular Admins', async () => {
   await sa.goto(`${APP}/admin/admins`, { waitUntil: 'networkidle2' })
@@ -153,6 +177,8 @@ await check('the list shows administrators only, with the Super Admin badge, and
   assert(!(await hasButton(sa, `Delete ${superAdmin.name}`)), 'Delete on the Super Admin')
   const badge = await sa.evaluate((name) => [...document.querySelectorAll('tr')].find((tr) => tr.innerText.includes(name))?.innerText.includes('Super Admin'), superAdmin.name)
   assert(badge, 'no Super Admin badge on its row')
+  const headings = await sa.evaluate(() => [...document.querySelectorAll('thead th')].map((th) => th.textContent.trim()))
+  assert(JSON.stringify(headings) === JSON.stringify(['Full Name', 'Email', 'Phone Number', 'Role', 'Actions']), `headings ${headings}`)
 })
 await check('search finds by email', async () => {
   await fill(sa, 'search', regular.email)
@@ -244,6 +270,7 @@ await check('a regular Admin sees no Delete, and no Edit on the Super Admin', as
   assert(!(await ra.evaluate(() => !!document.querySelector('[aria-label^="Delete "]'))), 'a Delete control')
   assert(!(await hasButton(ra, `Edit ${superAdmin.name}`)), 'Edit on the Super Admin')
   assert(await hasButton(ra, `Edit ${regular.name}`), 'no Edit on a regular Admin')
+  await roleLabelsAre(ra, 'Admin')
 })
 await check("a regular Admin gets an explanation instead of the Super Admin's Edit form", async () => {
   await ra.goto(`${APP}/admin/admins/${superAdmin.id}/edit`, { waitUntil: 'networkidle2' })
@@ -278,6 +305,8 @@ await check('Confirm Transfer moves the role at once; the page drops the elevate
   assert(superAdminId() === regular.id, `Super Admin is ${superAdminId()}`)
   assert(ownerSql('select count(*) from public.super_admin;') === '1', 'not exactly one')
   assert(!(await hasButton(sa, 'Make Super Admin')) && !(await hasButton(sa, `Delete ${regular.name}`)), 'still shows elevated actions')
+  // The same page, without a reload: the former Super Admin is now shown as "Admin".
+  await roleLabelsAre(sa, 'Admin')
   const audit = ownerSql(`select details->>'previousSuperAdminId' || ',' || (details->>'newSuperAdminId') from public.organization_management_audit where action = 'transfer-super-admin' order by id desc limit 1;`)
   assert(audit === `${superAdmin.id},${regular.id}`, `audit ${audit}`)
 })
@@ -293,6 +322,7 @@ await check("the former Super Admin's open session can no longer delete or trans
 const next = await signIn(regular.email)
 await check('the new Super Admin deletes the former one after confirming', async () => {
   await next.goto(`${APP}/admin/admins`, { waitUntil: 'networkidle2' })
+  await roleLabelsAre(next, 'Super Admin')
   await waitText(next, superAdmin.name)
   await (await next.waitForSelector(`[aria-label="Delete ${superAdmin.name}"]`)).click()
   await waitText(next, 'Delete Admin?')
