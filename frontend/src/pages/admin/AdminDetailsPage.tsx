@@ -8,6 +8,7 @@ import { MakeSuperAdminButton } from '../../components/admin/MakeSuperAdminButto
 import { RefusedBox } from '../../components/admin/RefusedBox'
 import { UserAvatar } from '../../components/admin/UserBits'
 import { Button } from '../../components/ui/Button'
+import { CopyButton } from '../../components/ui/CopyButton'
 import { adminsEn } from '../../content/admins.en'
 import type { User } from '../../data/mock/types'
 import { useDocumentTitle } from '../../hooks/useDocumentTitle'
@@ -120,7 +121,7 @@ function AdminPanels({ admin, superAdmin }: { admin: User; superAdmin: SuperAdmi
     [text.phone, admin.phone],
   ]
 
-  const explanation = role === 'superAdmin' ? (isSelf ? text.ownSuperAdmin : text.superAdminReadOnly) : isSelf ? text.you : ''
+  const explanation = role === 'superAdmin' ? (isSelf ? text.ownSuperAdmin : text.superAdminReadOnly) : ''
 
   return (
     <>
@@ -175,7 +176,15 @@ function AdminPanels({ admin, superAdmin }: { admin: User; superAdmin: SuperAdmi
             {details.map(([label, value]) => (
               <div key={label} className="contents">
                 <dt className="font-bold text-maroon">{label}</dt>
-                <dd className="min-w-0 break-words text-maroon max-sm:mb-1">{value?.trim() || text.notSet}</dd>
+                {label === text.email && value?.trim() ? (
+                  // The address and its copy icon stay together, as on Divisions and Departments; the confirmation takes its own line.
+                  <dd className="flex min-w-0 flex-wrap items-center gap-x-1.5 text-maroon max-sm:mb-1">
+                    <span className="min-w-0 break-all">{value}</span>
+                    <CopyButton text={value} label={text.copyEmail.replace('{name}', admin.name)} copiedText={text.copied} failedText={text.copyFailed} />
+                  </dd>
+                ) : (
+                  <dd className="min-w-0 break-words text-maroon max-sm:mb-1">{value?.trim() || text.notSet}</dd>
+                )}
               </div>
             ))}
             <div className="contents">

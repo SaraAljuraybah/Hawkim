@@ -1885,8 +1885,6 @@ export interface AdminsContent {
   add: {
     title: string
     subtitle: string
-    /** Under the form: every new account is a regular Admin. */
-    roleNote: string
     submit: string
     adding: string
     notAdded: string
@@ -1916,8 +1914,10 @@ export interface AdminsContent {
     role: string
     notSet: string
     edit: string
-    /** Under the role, for the signed-in person's own entry. */
-    you: string
+    /** The copy icon beside the email: accessible name and tooltip (`{name}` is replaced), then its confirmations. */
+    copyEmail: string
+    copied: string
+    copyFailed: string
     /** Shown to a regular Admin on the Super Admin's page. */
     superAdminReadOnly: string
     /** Shown to the Super Admin on their own page. */
