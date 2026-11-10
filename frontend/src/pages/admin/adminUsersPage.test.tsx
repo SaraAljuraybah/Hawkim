@@ -4,7 +4,7 @@ import { MemoryRouter } from 'react-router-dom'
 import { adminEn } from '../../content/admin.en'
 import { usersEn } from '../../content/users.en'
 import type { Department, User } from '../../data/mock/types'
-import { filterUsers } from '../../lib/userAdmin'
+import { clearedStaffParams, filterUsers } from '../../lib/userAdmin'
 import { PermissionBadges } from '../../components/admin/UserBits'
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
 import { AdminUsersPage } from './AdminUsersPage'
@@ -99,7 +99,9 @@ describe('Users list', () => {
     expect(html).toContain('placeholder="Search by staff name, email, division, department"')
     // No description under the title.
     expect(html).not.toContain('Manage who can use Hawkim and what they can do.')
-    expect(html).not.toContain('<select')
+    // The only dropdown is Sort; the Filter is the shared panel, not a select.
+    expect(html.match(/<select/g)).toHaveLength(1)
+    expect(html).toContain('name="staffSort"')
     expect(html).not.toContain('Filter by Division')
     // One Filter field ("All" while nothing is chosen) opening the shared panel.
     expect(filterField(html)).toMatch(/^<label[^>]*>Filter<\/label><button id="[^"]+" type="button" aria-label="Filter" aria-expanded="false" aria-controls="[^"]+"/)
@@ -245,5 +247,49 @@ describe('the Permission section of the Staff Filter', () => {
     const both = render('?division=regulatory_drug_safety&permission=approver')
     expect(both).toContain('>0 staff members<')
     expect(filterField(both)).toContain('>1 division, 1 permission</span>')
+  })
+})
+
+describe('the Staff Sort', () => {
+  const sorted = (sort?: 'name-asc' | 'name-desc', query = '', divisions: string[] = [], departmentIds: string[] = []) =>
+    filterUsers(fixture.users, getDepartment, { query, divisions, departmentIds, sort }, usersEn.permissions).map((user) => user.id)
+  const rows = (html: string) => [...table(html).matchAll(/<th scope="row"[^>]*>[\s\S]*?>([A-Z][a-z]+ [A-Za-z]+)<\/[^>]+>/g)].map((match) => match[1])
+
+  it('is the third column of the toolbar (Search | Filter | Sort), a dropdown like on Divisions and Departments', () => {
+    const html = render()
+    const order = ['name="search"', '>Filter</label>', 'name="staffSort"']
+    expect(order.map((text) => html.indexOf(text)).every((index, i, all) => index > 0 && (i === 0 || index > all[i - 1]))).toBe(true)
+    expect(html).toMatch(/>Sort<\/label>/)
+    // The Filter panel lines up with the toolbar's right edge from lg, as on Divisions and Departments.
+    expect(html).toContain('class="relative min-w-0 lg:static"')
+    const select = html.match(/<select[^>]*name="staffSort"[^>]*>([\s\S]*?)<\/select>/)![1]
+    expect([...select.matchAll(/<option value="([^"]+)"[^>]*>([^<]+)<\/option>/g)].map((match) => [match[1], match[2]]))
+      .toEqual([['name-asc', 'Name: A to Z'], ['name-desc', 'Name: Z to A']])
+    expect(select).not.toContain('<optgroup')
+  })
+
+  it('orders by name, A to Z by default (as before) or Z to A, after the search and the Filter', () => {
+    expect(sorted()).toEqual(['admin', 'reem', 'sara'])
+    expect(sorted('name-asc')).toEqual(['admin', 'reem', 'sara'])
+    expect(sorted('name-desc')).toEqual(['sara', 'reem', 'admin'])
+    expect(sorted('name-desc', 'a', [], ['qa', 'pv'])).toEqual(['sara', 'reem', 'admin'])
+    expect(sorted('name-desc', '', [], ['qa'])).toEqual(['reem', 'admin'])
+  })
+
+  it('is read from the URL (?sort=name-desc); the default or an unknown value is A to Z', () => {
+    expect(rows(render())).toEqual(['Reem Alharbi', 'Sara Aljuraybah'])
+    const desc = render('?sort=name-desc')
+    expect(rows(desc)).toEqual(['Sara Aljuraybah', 'Reem Alharbi'])
+    expect(desc).toMatch(/<option value="name-desc"[^>]*selected="">/)
+    expect(rows(render('?sort=bogus'))).toEqual(['Reem Alharbi', 'Sara Aljuraybah'])
+    // With the Filter: still sorted, still filtered.
+    expect(rows(render('?sort=name-desc&dept=qa,pv'))).toEqual(['Sara Aljuraybah', 'Reem Alharbi'])
+  })
+
+  it('is reset by Clear Filters, shown when only the sort differs from the default', () => {
+    expect(render('?sort=name-desc')).toContain('>Clear Filters<')
+    expect(render('?sort=name-asc')).not.toContain('>Clear Filters<')
+    const cleared = clearedStaffParams(new URLSearchParams('division=x&dept=y&permission=author&sort=name-desc&other=1'))
+    expect(cleared.toString()).toBe('other=1')
   })
 })

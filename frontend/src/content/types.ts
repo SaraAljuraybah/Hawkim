@@ -1734,7 +1734,9 @@ export interface AdminUsersListContent {
   title: string
   addUser: LinkContent
   search: { label: string; placeholder: string }
-  /** Clears the search and both filters (their texts are organizationAdminEn's, shared with the other pages). */
+  /** The Sort dropdown: its label and one option per order (the first is the default). */
+  sort: { label: string; options: Record<'name-asc' | 'name-desc', string> }
+  /** Clears the search, the Filter and the sort. */
   clearFilters: string
   count: CountText
   /** Accessible name of the table. */

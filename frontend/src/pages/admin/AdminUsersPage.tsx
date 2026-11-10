@@ -7,6 +7,7 @@ import { PermissionBadges, UserAvatar } from '../../components/admin/UserBits'
 import { Button } from '../../components/ui/Button'
 import { IconButton } from '../../components/ui/IconButton'
 import { FilterPopover } from '../../components/ui/FilterPopover'
+import { SelectField } from '../../components/ui/SelectField'
 import { TextField } from '../../components/ui/TextField'
 import { tableStyles } from '../../components/ui/tableStyles'
 import { LIST_TOOLBAR } from '../../components/ui/toolbar'
@@ -16,9 +17,9 @@ import { usersEn } from '../../content/users.en'
 import type { Permission, User } from '../../data/mock/types'
 import { useDocumentTitle } from '../../hooks/useDocumentTitle'
 import { departmentsKept, filterDepartmentsFrom, filterSelection } from '../../lib/organization'
-import { listParam, readList, updateParams } from '../../lib/pagination'
+import { listParam, readChoice, readList, updateParams } from '../../lib/pagination'
 import { adminUserEditPath, adminUserPath } from '../../lib/routes'
-import { divisionLabel, filterUsers, isSystemAdmin, PERMISSIONS } from '../../lib/userAdmin'
+import { clearedStaffParams, divisionLabel, filterUsers, isSystemAdmin, PERMISSIONS, STAFF_SORTS, type StaffSort } from '../../lib/userAdmin'
 import { useDepartments } from '../../state/departmentsContext'
 import { useUsers } from '../../state/usersContext'
 
@@ -32,7 +33,7 @@ export interface AdminUsersLocationState {
 
 /**
  * Staff ("/admin/users", PBI 17): one search, the Filter (Division, Department and Permission, several of each,
- * kept in the URL), Clear Filters, and each staff member's actions. Administrators aren't
+ * kept in the URL), Sort by name (in the URL too), Clear Filters, and each staff member's actions. Administrators aren't
  * staff: they are on Manage Organization → Admins.
  */
 export function AdminUsersPage() {
@@ -57,18 +58,21 @@ export function AdminUsersPage() {
   const { divisionChoices, divisions, groups: departmentGroups, departments: departmentIds } = useMemo(
     () => filterSelection(filterData, readList(params, 'division'), readList(params, 'dept')), [filterData, params])
   const permissions = useMemo(() => PERMISSIONS.filter((permission) => readList(params, 'permission').includes(permission)), [params])
-  const hasFilters = query.trim().length > 0 || divisions.length > 0 || departmentIds.length > 0 || permissions.length > 0
+  // `?sort=name-desc`; the default (A to Z) leaves it out.
+  const sort = readChoice<StaffSort>(params, 'sort', STAFF_SORTS, 'name-asc')
+  const hasFilters = query.trim().length > 0 || divisions.length > 0 || departmentIds.length > 0 || permissions.length > 0 || sort !== 'name-asc'
   const visible = useMemo(
-    () => filterUsers(activeUsers, getDepartment, { query, divisions, departmentIds, permissions }, usersEn.permissions),
-    [activeUsers, getDepartment, query, divisions, departmentIds, permissions],
+    () => filterUsers(activeUsers, getDepartment, { query, divisions, departmentIds, permissions, sort }, usersEn.permissions),
+    [activeUsers, getDepartment, query, divisions, departmentIds, permissions, sort],
   )
+  const setSort = (next: StaffSort) => setParams((current) => updateParams(current, { sort: next }, { sort: 'name-asc' }), { replace: true })
   // Replacing the URL: no history entry per click. Deselecting a division also deselects its departments (one update).
   const setFilter = (changes: { division?: string[]; dept?: string[]; permission?: string[] }) => setParams((current) => updateParams(current,
     Object.fromEntries(Object.entries(changes).map(([name, ids]) => [name, listParam(ids)])), { division: '', dept: '', permission: '' }), { replace: true })
   const setDivisions = (ids: string[]) => setFilter({ division: ids, dept: departmentsKept(filterData, ids, departmentIds) })
   function clearFilters() {
     setQuery('')
-    setParams((current) => updateParams(current, { division: undefined, dept: undefined, permission: undefined }, { division: '', dept: '', permission: '' }), { replace: true })
+    setParams(clearedStaffParams, { replace: true })
     searchRef.current?.focus()
   }
   const count = (visible.length === 1 ? content.count.one : content.count.other).replace('{count}', String(visible.length))
@@ -130,7 +134,7 @@ export function AdminUsersPage() {
         </div>
       )}
 
-      {/* Search | Filter, the same row as on every list page (no Sort here). */}
+      {/* Search | Filter | Sort, the same row as on every list page; from lg the Filter panel lines up with its right edge. */}
       <div className={`mt-8 ${LIST_TOOLBAR}`}>
         <TextField
           ref={searchRef}
@@ -144,8 +148,8 @@ export function AdminUsersPage() {
           value={query}
           onChange={(event) => setQuery(event.target.value)}
         />
-        {/* The Filter field of every list page: its panel opens under the field (no Sort column to line up with). */}
-        <FilterPopover className="relative min-w-0" label={filtersEn.label} allLabel={filtersEn.all} title={filtersEn.title} clearLabel={filtersEn.clearAll}
+        {/* The Filter field of every list page. */}
+        <FilterPopover className="relative min-w-0 lg:static" label={filtersEn.label} allLabel={filtersEn.all} title={filtersEn.title} clearLabel={filtersEn.clearAll}
           onClear={() => setFilter({ division: [], dept: [], permission: [] })}
           sections={[
             { id: 'division', legend: filtersEn.division.legend, options: divisionChoices, value: divisions, onChange: setDivisions,
@@ -156,6 +160,9 @@ export function AdminUsersPage() {
             { id: 'permission', legend: filtersEn.permission.legend, options: permissionOptions, value: permissions,
               onChange: (next) => setFilter({ permission: next as Permission[] }), emptyText: '', summary: filtersEn.permission.count },
           ]} />
+        <SelectField className="min-w-0" name="staffSort" label={content.sort.label} value={sort}
+          options={STAFF_SORTS.map((value) => ({ value, label: content.sort.options[value] }))}
+          onChange={(event) => setSort(event.target.value as StaffSort)} />
       </div>
 
       <div className="mt-6 flex min-h-8 flex-wrap items-center justify-between gap-2">

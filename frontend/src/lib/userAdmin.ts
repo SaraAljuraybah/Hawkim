@@ -1,3 +1,4 @@
+import { updateParams } from './pagination'
 import type { Department, DepartmentId, Permission, Sop, User } from '../data/mock/types'
 import type { SopStatus } from '../types/status'
 import { matchesDivisionDepartmentFilter, UNASSIGNED_GROUP_ID } from './organization'
@@ -74,6 +75,15 @@ export function divisionNameIn(departments: Pick<Department, 'divisionId' | 'div
   return divisionLabel(departments.find((department) => department.divisionId === division)) || division
 }
 
+/** The Staff list's orders; the first is the default (A to Z). */
+export const STAFF_SORTS = ['name-asc', 'name-desc'] as const
+export type StaffSort = (typeof STAFF_SORTS)[number]
+
+/** Clear Filters: the URL without the Filter and the sort (other parameters stay). */
+export function clearedStaffParams(current: URLSearchParams): URLSearchParams {
+  return updateParams(current, { division: undefined, dept: undefined, permission: undefined, sort: undefined }, {})
+}
+
 export interface UserFilter {
   /** Searched in name, email, division, department and permission names, ignoring case. */
   query: string
@@ -83,6 +93,8 @@ export interface UserFilter {
   departmentIds: string[]
   /** Selected permissions: a user matches with any of them; none means everyone. */
   permissions?: Permission[]
+  /** The order, by name; A to Z when missing. */
+  sort?: StaffSort
 }
 
 /**
@@ -90,7 +102,7 @@ export interface UserFilter {
  * every list page (matchesDivisionDepartmentFilter): in a division with departments selected, only
  * those departments; a selected division without any keeps all its departments; departments without a
  * division match only when selected. With permissions selected, the user must also have one of them
- * (any, AND with the divisions and departments). `permissionLabels`: the names shown.
+ * (any, AND with the divisions and departments). Ordered by name, A to Z or Z to A. `permissionLabels`: the names shown.
  */
 export function filterUsers(users: User[], getDepartment: (id: string) => Department | undefined, filter: UserFilter, permissionLabels: Record<Permission, string>): User[] {
   const text = filter.query.trim().toLowerCase()
@@ -102,7 +114,7 @@ export function filterUsers(users: User[], getDepartment: (id: string) => Depart
         matchesDivisionDepartmentFilter(user.departmentId, filter.divisions, filter.departmentIds, (id) => getDepartment(id)?.divisionId || UNASSIGNED_GROUP_ID) &&
         (!filter.permissions?.length || filter.permissions.some((permission) => user.permissions.includes(permission)))
     })
-    .sort((a, b) => a.name.localeCompare(b.name))
+    .sort((a, b) => (filter.sort === 'name-desc' ? -1 : 1) * a.name.localeCompare(b.name))
 }
 
 /** The Division choice for departments that have none. */
