@@ -19,8 +19,8 @@ describe('the admin portal sidebar', () => {
     expect(adminEn.shell.nav.map(({ label, href, icon }) => [label, href, icon])).toEqual([
       ['Divisions & Departments', '/admin/departments', 'departments'],
       ['Staff', '/admin/users', 'employees'],
-      ['SFDA Regulatory Requirements', '/admin/regulations', 'regulatory'],
       ['Organizational Structure', '/admin/organizational-structure', 'hierarchy'],
+      ['SFDA Regulatory Requirements', '/admin/regulations', 'regulatory'],
       ['SOP Directory', '/admin/sops', 'sops'],
       ['Requests', '/admin/requests', 'requests'],
     ])

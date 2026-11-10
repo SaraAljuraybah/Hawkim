@@ -28,11 +28,11 @@ const table = (filters: Partial<OrganizationFilters>, value = hierarchy) => {
 }
 
 describe('Organizational Structure', () => {
-  it('puts Organizational Structure fourth, after SFDA Regulatory Requirements, with its existing active indicator', () => {
+  it('puts Organizational Structure third, after Staff and before SFDA Regulatory Requirements, with its existing active indicator', () => {
     const html = renderToStaticMarkup(<MemoryRouter initialEntries={['/admin/organizational-structure']}><Sidebar content={adminEn.shell} /></MemoryRouter>)
-    expect(adminEn.shell.nav[3]?.label).toBe('Organizational Structure')
-    expect(html.indexOf('>SFDA Regulatory Requirements<')).toBeLessThan(html.indexOf('>Organizational Structure<'))
-    expect(html.indexOf('>Organizational Structure<')).toBeLessThan(html.indexOf('>SOP Directory<'))
+    expect(adminEn.shell.nav[2]?.label).toBe('Organizational Structure')
+    expect(html.indexOf('>Staff<')).toBeLessThan(html.indexOf('>Organizational Structure<'))
+    expect(html.indexOf('>Organizational Structure<')).toBeLessThan(html.indexOf('>SFDA Regulatory Requirements<'))
     expect(html).toMatch(/<a[^>]*aria-current="page"[^>]*href="\/admin\/organizational-structure"/)
   })
   it('has one h1, then the short description, and no tree', () => {
