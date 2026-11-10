@@ -1,4 +1,5 @@
 import type { ManagedDepartment, ManagementSnapshot } from '../services/organizationAdmin'
+import { matchesDivisionDepartmentFilter, UNASSIGNED_GROUP_ID, type FilterDepartments } from './organization'
 
 /**
  * How the table is ordered; 'default' keeps the server's order. 'division-…' orders the division rows;
@@ -18,6 +19,11 @@ export const sortGroup = (sort: DivisionSort): 'divisions' | 'departments' | und
 export interface HierarchyOptions {
   /** Division ids to show (any of them); empty or missing shows every division. */
   divisions?: string[]
+  /**
+   * Department ids to show, with the linked rule of every list page: a division with departments chosen
+   * lists only those (and opens by itself); a chosen division without any keeps all its departments.
+   */
+  departments?: string[]
   sort?: DivisionSort
 }
 
@@ -32,17 +38,55 @@ const byName = (a: { name: string; id: string }, b: { name: string; id: string }
  */
 export function hierarchyRows(snapshot: ManagementSnapshot, query = '', options: HierarchyOptions = {}) {
   const search = query.trim().toLowerCase()
-  const selected = new Set(options.divisions ?? [])
+  const divisions = options.divisions ?? []
+  const departments = options.departments ?? []
+  const filtering = divisions.length > 0 || departments.length > 0
+  const groupOf = departmentGroup(snapshot)
   const rows = snapshot.divisions.map((division) => {
     const children = snapshot.departments.filter((department) => department.division_id === division.id)
+    // The filter decides which departments are listed; the search then looks in those.
+    const kept = filtering ? children.filter((child) => matchesDivisionDepartmentFilter(child.id, divisions, departments, groupOf)) : children
+    const picked = departments.some((id) => groupOf(id) === division.id)
     const match = division.name.toLowerCase().includes(search)
-    return { division, children: children.filter((child) => match || child.name.toLowerCase().includes(search)),
+    return { division, children: kept.filter((child) => match || child.name.toLowerCase().includes(search)),
       // Prefer the server's totals (distinct people); fall back to summing every child row.
       departmentCount: division.department_count ?? children.length,
       employees: division.employees ?? children.reduce((sum, row) => sum + row.employees, 0),
-      sops: division.sops ?? children.reduce((sum, row) => sum + row.sops, 0), matches: match || children.some((child) => child.name.toLowerCase().includes(search)) }
-  }).filter((row) => row.matches && (!selected.size || selected.has(row.division.id)))
+      sops: division.sops ?? children.reduce((sum, row) => sum + row.sops, 0),
+      /** Departments of this division are chosen in the filter: it opens by itself. */
+      picked,
+      matches: (match || kept.some((child) => child.name.toLowerCase().includes(search))) && (!filtering || picked || divisions.includes(division.id)) }
+  }).filter((row) => row.matches)
   return sortRows(rows, options.sort ?? 'default')
+}
+
+/** The department's filter group: its division, or the unassigned group (no division, or one that's gone). */
+function departmentGroup(snapshot: ManagementSnapshot) {
+  const divisionIds = new Set(snapshot.divisions.map((division) => division.id))
+  const divisionOf = new Map(snapshot.departments.map((department) => [department.id, department.division_id]))
+  return (id: string) => {
+    const division = divisionOf.get(id)
+    return division && divisionIds.has(division) ? division : UNASSIGNED_GROUP_ID
+  }
+}
+
+/**
+ * The departments without a division (or whose division is gone), listed last: those matching the search,
+ * and, while filtering, only the chosen ones (a division filter alone leaves none).
+ */
+export function unassignedRows(snapshot: ManagementSnapshot, query = '', options: Pick<HierarchyOptions, 'divisions' | 'departments'> = {}) {
+  const search = query.trim().toLowerCase()
+  const groupOf = departmentGroup(snapshot)
+  return snapshot.departments.filter((row) => groupOf(row.id) === UNASSIGNED_GROUP_ID && row.name.toLowerCase().includes(search)
+    && matchesDivisionDepartmentFilter(row.id, options.divisions ?? [], options.departments ?? [], groupOf))
+}
+
+/** The Filter's data on this page: every division (even without departments) and every department. */
+export function managementFilterData(snapshot: ManagementSnapshot): FilterDepartments {
+  return {
+    divisions: snapshot.divisions.map((division) => ({ id: division.id, name: division.name })),
+    departments: snapshot.departments.map((department) => ({ id: department.id, name: department.name, divisionId: department.division_id })),
+  }
 }
 
 /** Orders the rows (or each row's departments); equal values fall back to the name, then the id, so the order is always the same. */

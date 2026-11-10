@@ -61,12 +61,17 @@ describe('the Divisions and Departments page', () => {
     expect(select.indexOf('Default order')).toBeLessThan(select.indexOf('<optgroup'))
   })
 
-  it('has the Filter field of every list page with the Division section only, the loaded divisions as chips by name', () => {
+  it('has the Filter field of every list page: Division, then Department grouped by division, by name', () => {
     management.value = { data: snapshot, refresh: vi.fn() }
     const html = page()
-    expect([...html.matchAll(/<legend[^>]*>([^<]+)<\/legend>/g)].map((match) => match[1])).toEqual(['Division'])
-    const chips = [...html.matchAll(/aria-pressed="false"[^>]*><span class="min-w-0 break-words">([^<]+)<\/span>/g)].map((match) => match[1])
-    expect(chips).toEqual(['Clinical Research &amp; Development', 'Quality &amp; Compliance'])
+    expect([...html.matchAll(/<legend[^>]*>([^<]+)<\/legend>/g)].map((match) => match[1])).toEqual(['Division', 'Department'])
+    const section = (legend: string) => html.slice(html.indexOf(`>${legend}</legend>`), html.indexOf('</fieldset>', html.indexOf(`>${legend}</legend>`)))
+    const chips = (legend: string) => [...section(legend).matchAll(/aria-pressed="false"[^>]*><span class="min-w-0 break-words">([^<]+)<\/span>/g)].map((match) => match[1])
+    expect(chips('Division')).toEqual(['Clinical Research &amp; Development', 'Quality &amp; Compliance'])
+    // Under their divisions (A to Z), then the departments without one.
+    expect(chips('Department')).toEqual(['Clinical Operations', 'Quality Assurance', 'Legacy'])
+    const headings = [...section('Department').matchAll(/<p[^>]*>([^<]+)<\/p>/g)].map((match) => match[1])
+    expect(headings).toEqual(['Clinical Research &amp; Development', 'Quality &amp; Compliance', 'Unassigned departments'])
     expect(html).toMatch(/>Filter<\/label><button id="[^"]+" type="button" aria-label="Filter"[^>]*><span class="truncate text-text-gray">All<\/span>/)
     expect(html).not.toContain('All divisions')
   })
@@ -107,6 +112,25 @@ describe('the division filter on the table', () => {
     expect(table({ divisions: ['q'], query: 'operations' })).toContain('No divisions or departments match your search and filters.')
   })
 
+  it('with departments chosen: only their divisions, opened, listing only those departments, counts per row', () => {
+    const many: ManagementSnapshot = { ...snapshot, departments: [...snapshot.departments,
+      { id: 'qc', name: 'Quality Control', initials: 'QC', description: '', division_id: 'q', updated_at: 'r', employees: 1, sops: 4, status_counts: {} }] }
+    const html = table({ snapshot: many, departments: ['qc'] })
+    expect(html).toContain('aria-expanded="true" aria-controls="children-q"')
+    expect(html).toContain('>Quality Control</span>')
+    expect(html).not.toContain('>Quality Assurance</span>')
+    expect(html).not.toContain('Clinical Research')
+    expect(html).not.toContain('Unassigned departments')
+    // The division keeps its own totals (3 staff, 2 SOPs) and department count.
+    expect(html).toMatch(/>Departments \(1\)<\/span><\/span><\/button><\/th><td[^>]*>3<\/td><td[^>]*>2<\/td>/)
+    // A chosen department without a division: under Unassigned departments only.
+    const legacy = table({ departments: ['old'] })
+    expect(legacy).toContain('Unassigned departments')
+    expect(legacy).toContain('>Legacy</span>')
+    expect(legacy).not.toContain('aria-controls="children-')
+    expect(table({ departments: ['qa'], query: 'clinical' })).toContain('No divisions or departments match your search and filters.')
+  })
+
   it('uses the same centred alignment for the Staff and SOPs values of divisions and departments', () => {
     const html = table({ query: 'quality' })
     const cells = html.match(/<td class="[^"]*">\d+<\/td>/g)!
@@ -125,21 +149,23 @@ type Element = ReactElement<Record<string, unknown>>
 const flatten = (node: ReactNode): Element[] => Array.isArray(node) ? node.flatMap(flatten)
   : isValidElement<Record<string, unknown>>(node) ? [node, ...flatten(node.props.children as ReactNode)] : []
 
-describe('the selected divisions', () => {
-  const options = [{ value: 'c', label: 'Clinical Research & Development' }, { value: 'q', label: 'Quality & Compliance' }]
-
+describe('the selected divisions and departments', () => {
   it('are listed by name, each removable, with Clear Filters', () => {
-    const onChange = vi.fn()
-    const nodes = flatten(ActiveFilters({ options, selected: ['q', 'c'], onChange }))
+    const removeClinical = vi.fn()
+    const onClear = vi.fn()
+    const nodes = flatten(ActiveFilters({ onClear, items: [
+      { id: 'division-c', label: 'Clinical Research & Development', onRemove: removeClinical },
+      { id: 'department-qa', label: 'Quality Assurance', onRemove: vi.fn() },
+    ] }))
     const remove = nodes.filter((node) => String(node.props['aria-label'] ?? '').startsWith('Remove '))
     expect(remove.map((node) => node.props['aria-label'])).toEqual([
-      'Remove Clinical Research & Development from the filter', 'Remove Quality & Compliance from the filter',
+      'Remove Clinical Research & Development from the filter', 'Remove Quality Assurance from the filter',
     ])
     ;(remove[0].props.onClick as () => void)()
-    expect(onChange).toHaveBeenLastCalledWith(['q'])
+    expect(removeClinical).toHaveBeenCalledOnce()
     const clear = nodes.find((node) => node.props.children === 'Clear Filters')!
     ;(clear.props.onClick as () => void)()
-    expect(onChange).toHaveBeenLastCalledWith([])
+    expect(onClear).toHaveBeenCalledOnce()
   })
 })
 

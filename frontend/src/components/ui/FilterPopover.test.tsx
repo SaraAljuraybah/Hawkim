@@ -40,7 +40,7 @@ describe('the Filter field of every list page', () => {
     expect(filterSummary([division([]), department([])])).toBe('')
   })
 
-  it('shows only the sections a page has (Divisions and Departments: Division only)', () => {
+  it('shows only the sections a page has', () => {
     const html = render([division([])])
     expect([...html.matchAll(/<legend[^>]*>([^<]+)<\/legend>/g)].map((match) => match[1])).toEqual(['Division'])
   })
