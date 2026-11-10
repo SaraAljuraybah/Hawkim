@@ -76,7 +76,7 @@ describe('the SOP Directory in the admin portal', () => {
     expect(html).toContain('role="tablist"')
     expect(html).toContain('>Recently Published<')
     // Every department, so no "Department: …" line under the subtitle.
-    expect(html).not.toContain(`${sopsEn.departmentLabel}: </span>`)
+    expect(html).not.toContain('Department: </span>')
   })
 
   it('lists every department\'s published SOPs, never Others', () => {
@@ -206,12 +206,12 @@ describe('the employee pages stay as they were', () => {
     expect(() => renderToStaticMarkup(<MemoryRouter><SopsPage /></MemoryRouter>)).toThrow('ActiveDepartmentProvider')
   })
 
-  it('still offer Request Access and go back to /sops', () => {
+  it('show the no-access panel without Request Access for an SOP they didn\'t work on, and go back to /sops', () => {
     fixture.user = { ...fixture.user, permissions: ['author'] }
     fixture.sops = [sop('9', 'pv')]
     const html = renderToStaticMarkup(<MemoryRouter initialEntries={['/sops/9']}><Routes><Route path="/sops/:id" element={<SopDetailPage />} /></Routes></MemoryRouter>)
-    expect(html).toContain('Request Access')
-    expect(html).toContain('Request access to that department to view it.')
+    expect(html).not.toContain('Request Access')
+    expect(html).toContain(sopsEn.detail.noAccess.text)
     expect(html).toMatch(/<a[^>]*href="\/sops"[^>]*>.*Back to SOP Directory<\/a>/)
     expect(fixture.titles.at(-1)).toBe('Procedure 9 | Hawkim')
     fixture.user = { ...fixture.user, permissions: ['admin'] }

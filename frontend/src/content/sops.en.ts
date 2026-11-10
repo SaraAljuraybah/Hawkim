@@ -11,13 +11,13 @@ export const sopsEn: SopsContent = {
 pageTitle: 'SOP Directory | Hawkim',
 adminPageTitle: 'SOP Directory · System Admin | Hawkim',
 title: 'SOP Directory',
-subtitle: 'Browse published SOPs available to you.',
+subtitle: 'Published SOPs you authored, co-authored, reviewed or approved.',
+adminSubtitle: 'Browse every published SOP in your organization.',
 
   tabsLabel: 'Filter SOPs',
   tabs: {
     all: 'All',
     recent: 'Recently Published',
-    others: 'Others',
   },
   filters: {
     label: 'Search and filter SOPs',
@@ -43,11 +43,8 @@ subtitle: 'Browse published SOPs available to you.',
     version: 'Version',
     lastUpdated: 'Last Updated',
   },
-  departmentLabel: 'Department',
-  othersSection: 'Others: SOPs of departments that no longer exist',
-  othersEmpty: 'No SOPs in Others.',
   versionTemplate: 'v{version}',
-  empty: 'No SOPs in this department yet.',
+  empty: "You haven't worked on any published SOPs yet.",
   adminEmpty: 'No published SOPs yet.',
   recentEmpty: 'No SOPs published in the last 3 months.',
 
@@ -73,13 +70,8 @@ subtitle: 'Browse published SOPs available to you.',
     noFile: "The file for this SOP isn't available yet.",
     noAccess: {
       title: "You don't have access to this SOP",
-      text: 'This SOP belongs to {department}. Request access to that department to view it.',
+      text: 'You can open the published SOPs you authored, co-authored, reviewed or approved.',
       adminText: 'This SOP belongs to {department}.',
-      requestAccess: 'Request Access',
-    },
-    pendingAccess: {
-      title: 'Your access request is pending review',
-      text: "You'll be able to open this SOP once the System Admin team approves your access to {department}.",
     },
   },
 }

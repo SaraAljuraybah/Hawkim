@@ -26,9 +26,37 @@ export function getSopAccess(
   return pending ? 'requested' : 'locked'
 }
 
+/**
+ * Whether the user worked on the SOP: its main author, a co-author, a reviewer who completed or returned
+ * a review (any version, any round), or an approver who approved it. Approvals aren't saved in the
+ * database yet, so approvers count only where this browser has them.
+ */
+export function workedOn(sop: Pick<Sop, 'authorId' | 'coAuthorIds' | 'reviewers' | 'approvers'> & Partial<Pick<Sop, 'internalReviewRounds'>>, userId: string): boolean {
+  const reviewed = (decision: string) => decision === 'completed' || decision === 'returned'
+  return sop.authorId === userId
+    || sop.coAuthorIds.includes(userId)
+    || !!sop.internalReviewRounds?.some((round) => round.assignments.some((item) => item.userId === userId && reviewed(item.decision)))
+    || sop.reviewers.some((item) => item.userId === userId && reviewed(item.decision))
+    || sop.approvers.some((item) => item.userId === userId && item.decision === 'approved')
+}
+
+/**
+ * The SOP Directory and an SOP's directory page (not the workflow or review pages): only published SOPs.
+ * A System Admin opens every department's (not Others); everyone else only those they worked on, in any
+ * department, Others included. The active department and access requests don't matter here.
+ */
+export function directoryAccess(
+  sop: Parameters<typeof workedOn>[0] & Pick<Sop, 'status'> & Partial<Pick<Sop, 'directoryGroup'>>,
+  user: Pick<User, 'id' | 'deletedAt'> & Partial<Pick<User, 'permissions'>>,
+): 'granted' | 'locked' {
+  if (sop.status !== 'published' || user.deletedAt) return 'locked'
+  if (user.permissions?.includes('admin')) return sop.directoryGroup === 'others' ? 'locked' : 'granted'
+  return workedOn(sop, user.id) ? 'granted' : 'locked'
+}
+
 /** Authorize before directory search, counts, links or document rendering. */
-export function directorySopsFor(sops: Sop[], user: Pick<User, 'id' | 'departmentId' | 'deletedAt'> & Partial<Pick<User, 'permissions'>>, requests: UserRequest[]): Sop[] {
-  return sops.filter((sop) => getSopAccess(sop, user, requests) === 'granted')
+export function directorySopsFor(sops: Sop[], user: Pick<User, 'id' | 'deletedAt'> & Partial<Pick<User, 'permissions'>>): Sop[] {
+  return sops.filter((sop) => directoryAccess(sop, user) === 'granted')
 }
 
 /** Directory approvals cannot authorize creation, including direct store calls. */

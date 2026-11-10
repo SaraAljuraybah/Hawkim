@@ -9,6 +9,8 @@ import { inDivisions } from './userAdmin'
 export const OTHERS_SECTION = '__others__'
 /** Every department's directory at once (the System Admin's SOP Directory). Never Others. */
 export const ALL_DEPARTMENTS = '__all__'
+/** Every SOP given, in any department and Others too (everyone else's directory: the SOPs they worked on). */
+export const EVERY_SOP = '__every__'
 
 /** Recently Published: SOPs whose date (the one on the card) is within this many months. */
 export const RECENT_MONTHS = 3
@@ -39,15 +41,15 @@ export interface DirectoryFilters {
  */
 export function filterDirectorySops(
   all: Sop[],
-  section: DepartmentId | typeof OTHERS_SECTION | typeof ALL_DEPARTMENTS,
+  section: DepartmentId | typeof OTHERS_SECTION | typeof ALL_DEPARTMENTS | typeof EVERY_SOP,
   query = '',
   sort: MySopSort = 'newest',
   { since, divisions = [], getDepartment, departments = [] }: DirectoryFilters = {},
 ): Sop[] {
   const search = query.trim().toLowerCase()
-  const inSection = (sop: Sop) => section === OTHERS_SECTION
+  const inSection = (sop: Sop) => section === EVERY_SOP || (section === OTHERS_SECTION
     ? sop.directoryGroup === 'others'
-    : sop.directoryGroup !== 'others' && (section === ALL_DEPARTMENTS || sop.departmentId === section)
+    : sop.directoryGroup !== 'others' && (section === ALL_DEPARTMENTS || sop.departmentId === section))
   const visible = all.filter((sop) =>
     sop.status === 'published' && inSection(sop) &&
     (divisions.length === 0 || inDivisions(getDepartment?.(sop.departmentId), divisions)) &&
@@ -76,12 +78,12 @@ export interface DirectoryUrlState {
 export const DIRECTORY_URL_DEFAULTS = { tab: 'all', q: '', sort: 'newest', division: '', dept: '', page: '1' }
 
 /**
- * Reads the directory from the URL; an invalid value means its default (Others falls back to All when it
- * isn't shown). Anything else in the address, such as `type` from the removed File Type filter, is ignored.
+ * Reads the directory from the URL; an invalid value means its default (an old link to the removed Others
+ * tab opens All). Anything else in the address, such as `type` from the removed File Type filter, is ignored.
  */
 export function readDirectoryUrl(params: URLSearchParams): DirectoryUrlState {
   return {
-    tab: readChoice(params, 'tab', ['all', 'recent', 'others'] as const, 'all'),
+    tab: readChoice(params, 'tab', ['all', 'recent'] as const, 'all'),
     query: params.get('q') ?? '',
     sort: readChoice(params, 'sort', ['newest', 'oldest'] as const, 'newest'),
     divisions: readList(params, 'division'),

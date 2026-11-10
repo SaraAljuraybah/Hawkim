@@ -370,8 +370,7 @@ export interface DashboardContent {
 
 /* ---------- Signed-in app: SOPs list ---------- */
 
-/** 'others': SOPs of deleted departments (shown only to people who have some). */
-export type SopTabKey = 'all' | 'recent' | 'others'
+export type SopTabKey = 'all' | 'recent'
 
 export interface SopsContent {
   /** Browser tab title. */
@@ -379,7 +378,10 @@ export interface SopsContent {
   /** Browser tab title in the admin portal. */
   adminPageTitle: string
   title: string
+  /** Under the title, for everyone but the System Admin (their directory: SOPs they worked on). */
   subtitle: string
+  /** Under the title, for the System Admin (every published SOP). */
+  adminSubtitle: string
   /** Accessible name of the tab list. */
   tabsLabel: string
   tabs: Record<SopTabKey, string>
@@ -398,12 +400,6 @@ export interface SopsContent {
   viewToggle: { label: string; grid: string; list: string }
   /** Column headings for the list view. */
   columns: { code: string; title: string; department: string; version: string; lastUpdated: string }
-  /** Screen-reader label before the active department's name, e.g. "Department: ". */
-  departmentLabel: string
-  /** Shown instead of the department name on the Others tab. */
-  othersSection: string
-  /** Empty Others tab. */
-  othersEmpty: string
   /** `{version}` is replaced with the version number, e.g. "v3". */
   versionTemplate: string
   /** Shown when the list is empty. */
@@ -439,8 +435,8 @@ export interface SopDetailContent {
   noFile: string
   /** `{department}` is replaced with the department name. */
   /** `adminText`: the same in the admin portal, where there is no Request Access. */
-  noAccess: { title: string; text: string; adminText: string; requestAccess: string }
-  pendingAccess: { title: string; text: string }
+  /** An SOP the user may not open: `text` for everyone but the System Admin, `adminText` (`{department}`) for them. */
+  noAccess: { title: string; text: string; adminText: string }
 }
 
 /* ---------- Signed-in app: requests ---------- */
