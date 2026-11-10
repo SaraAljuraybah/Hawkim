@@ -36,7 +36,7 @@ describe('Edit Staff', () => {
     fixture.titles.length = 0
     const html = render()
     expect(html.match(/<h1/g)).toHaveLength(1)
-    expect(html).toContain('<h1 class="min-w-0 text-2xl break-words tracking-tight sm:text-3xl"><span class="block text-sm font-medium tracking-normal text-text-gray">Edit Staff</span> Rana Saleh</h1>')
+    expect(html).toContain('<h1 class="min-w-0 text-xl break-words tracking-tight sm:text-3xl"><span class="block text-sm font-medium tracking-normal text-text-gray">Edit Staff</span> Rana Saleh</h1>')
     expect(html).not.toContain('Update this staff member&#x27;s details and permissions.')
     expect(fixture.titles.at(-1)).toBe(adminEn.pageTitle.replace('{page}', 'Edit Staff'))
   })
@@ -83,7 +83,7 @@ describe('Edit Staff', () => {
   it('has the User Details header above the form: large avatar, name, Delete beside it and the saved badges', () => {
     const html = render()
     const header = html.slice(0, html.indexOf('<form'))
-    expect(header).toContain('class="inline-flex size-9 shrink-0 items-center justify-center rounded-full bg-beige text-xs font-semibold text-maroon size-14 text-base">RS</span>')
+    expect(header).toContain('class="inline-flex size-9 shrink-0 items-center justify-center rounded-full bg-beige text-xs font-semibold text-maroon size-10 text-sm sm:size-14 sm:text-base">RS</span>')
     // Delete beside the name, below the "Edit Staff" line; no Edit Staff button here.
     expect(header).toMatch(/Rana Saleh<\/h1><div class="flex shrink-0 items-center gap-2 mt-5"><span class="relative inline-flex"><button type="button" aria-label="Delete Rana Saleh"/)
     expect(header).not.toContain('>Edit Staff</a>')

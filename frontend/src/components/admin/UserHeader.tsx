@@ -33,11 +33,13 @@ export function UserHeader({
   onRefused: (title: string, reasons: string[]) => void
 }) {
   return (
-    <div className="mt-5 flex items-start gap-4">
-      <UserAvatar user={user} className="size-14 text-base" />
+    // On phones the avatar and the name are a step smaller, so a long first name fits beside the buttons
+    // instead of breaking mid-word; from sm up, as before.
+    <div className="mt-5 flex items-start gap-3 sm:gap-4">
+      <UserAvatar user={user} className="size-10 text-sm sm:size-14 sm:text-base" />
       <div className="min-w-0 flex-1">
         <div className="flex items-start gap-2">
-          <h1 className="min-w-0 text-2xl break-words tracking-tight sm:text-3xl">
+          <h1 className="min-w-0 text-xl break-words tracking-tight sm:text-3xl">
             {/* The space keeps "Edit User" and the name apart for screen readers */}
             {label && <><span className="block text-sm font-medium tracking-normal text-text-gray">{label}</span>{' '}</>}
             {user.name}
