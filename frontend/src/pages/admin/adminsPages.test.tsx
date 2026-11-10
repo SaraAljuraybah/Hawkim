@@ -68,7 +68,7 @@ describe('the Admins list', () => {
 
   it('has the columns Name, Email, Phone Number, Role and Actions', () => {
     const columns = [...at('/admin/admins').matchAll(/<th scope="col"[^>]*>(?:<span class="sr-only">)?([^<]+)(?:<\/span>)?<\/th>/g)].map((match) => match[1])
-    expect(columns).toEqual(['Name', 'Email', 'Phone Number', 'Role', 'Actions'])
+    expect(columns).toEqual(['Full Name', 'Email', 'Phone Number', 'Role', 'Actions'])
   })
 
   it('lists administrators only, the Super Admin first with its own badge', () => {

@@ -28,7 +28,7 @@ export const adminsEn: AdminsContent = {
     search: { label: 'Search Admins', placeholder: 'Search by name or email' },
     count: { one: '{count} administrator', other: '{count} administrators' },
     tableLabel: 'Admins',
-    columns: { name: 'Name', email: 'Email', phone: 'Phone Number', role: 'Role', actions: 'Actions' },
+    columns: { name: 'Full Name', email: 'Email', phone: 'Phone Number', role: 'Role', actions: 'Actions' },
     none: '—',
     actions: { view: 'View {name}', edit: 'Edit {name}' },
     empty: 'No administrators yet.',
