@@ -3,7 +3,7 @@ import type { SopTabKey } from '../content/types'
 import { todayIsoDate } from './format'
 import type { MySopSort } from './mySops'
 import { parsePage, readChoice, readList } from './pagination'
-import { inDivisions } from './userAdmin'
+import { matchesDivisionDepartmentFilter, UNASSIGNED_GROUP_ID } from './organization'
 
 /** The directory section shown: the active department's SOPs, or Others (SOPs of deleted departments). */
 export const OTHERS_SECTION = '__others__'
@@ -26,18 +26,21 @@ export function recentSince(today = new Date()): string {
 export interface DirectoryFilters {
   /** Only SOPs dated on or after this ISO date (Recently Published). */
   since?: string
-  /** Only SOPs of departments in these divisions (NO_DIVISION: none); empty or left out means every division. */
+  /** Selected divisions (the admin's Filter): see `departments`. Empty or left out: every division. */
   divisions?: string[]
-  /** Looks up an SOP's department, for the division filter. */
+  /** Looks up an SOP's department, for its division (none: the unassigned departments). */
   getDepartment?: (id: DepartmentId) => Pick<Department, 'divisionId'> | undefined
-  /** Only these departments; empty or left out means every department of the section. */
+  /**
+   * Selected departments. With `divisions`, Rule 1 (matchesDivisionDepartmentFilter): in a division
+   * with departments selected, only those; a selected division with none selected keeps all its departments.
+   */
   departments?: DepartmentId[]
 }
 
 /**
  * Search only inside the active department's published directory (or Others, or every department),
  * ordered by the date shown on the card. A department's directory never includes SOPs moved to Others.
- * The division and department filters are independent: an SOP must match both.
+ * The division and department filters work together (Rule 1, as on Organizational Structure).
  */
 export function filterDirectorySops(
   all: Sop[],
@@ -50,10 +53,10 @@ export function filterDirectorySops(
   const inSection = (sop: Sop) => section === EVERY_SOP || (section === OTHERS_SECTION
     ? sop.directoryGroup === 'others'
     : sop.directoryGroup !== 'others' && (section === ALL_DEPARTMENTS || sop.departmentId === section))
+  const groupOf = (id: DepartmentId) => getDepartment?.(id)?.divisionId || UNASSIGNED_GROUP_ID
   const visible = all.filter((sop) =>
     sop.status === 'published' && inSection(sop) &&
-    (divisions.length === 0 || inDivisions(getDepartment?.(sop.departmentId), divisions)) &&
-    (departments.length === 0 || departments.includes(sop.departmentId)) &&
+    matchesDivisionDepartmentFilter(sop.departmentId, divisions, departments, groupOf) &&
     (!since || sop.lastUpdated >= since) &&
     (!search || sop.code.toLowerCase().includes(search) || sop.title.toLowerCase().includes(search)),
   )

@@ -157,13 +157,20 @@ export interface DepartmentFilterGroup {
   options: { value: string; label: string }[]
 }
 
+/** What the Department filter's chips need: the divisions, and the departments with their division (none: unassigned). */
+export interface FilterDepartments {
+  divisions: { id: string; name: string }[]
+  departments: { id: string; name: string; divisionId?: string | null }[]
+}
+
 /**
  * The Department filter's chips, grouped by division (A to Z, departments A to Z), then the
- * unassigned departments. With divisions selected, only those divisions' groups.
+ * unassigned departments. With divisions selected, only those divisions' groups. Used by
+ * Organizational Structure and the admin SOP Directory.
  */
-export function departmentFilterGroups(hierarchy: OrganizationHierarchy, selectedDivisions: string[]): DepartmentFilterGroup[] {
+export function departmentFilterGroups(hierarchy: FilterDepartments, selectedDivisions: string[]): DepartmentFilterGroup[] {
   const divisionIds = new Set(hierarchy.divisions.map((division) => division.id))
-  const options = (departments: OrganizationDepartment[]) => [...departments].sort(byName).map((department) => ({ value: department.id, label: department.name }))
+  const options = (departments: FilterDepartments['departments']) => [...departments].sort(byName).map((department) => ({ value: department.id, label: department.name }))
   const groups: DepartmentFilterGroup[] = [...hierarchy.divisions].sort(byName)
     .filter((division) => !selectedDivisions.length || selectedDivisions.includes(division.id))
     .map((division) => ({ id: division.id, label: division.name, unassigned: false,
@@ -172,4 +179,21 @@ export function departmentFilterGroups(hierarchy: OrganizationHierarchy, selecte
   const unassigned = hierarchy.departments.filter((department) => !department.divisionId || !divisionIds.has(department.divisionId))
   if (!selectedDivisions.length && unassigned.length) groups.push({ id: UNASSIGNED_GROUP_ID, label: '', unassigned: true, options: options(unassigned) })
   return groups
+}
+
+/**
+ * The Division and Department filters together (Rule 1), for a list of items in departments (the
+ * admin SOP Directory). Nothing selected: everything matches. Otherwise the department's group (its
+ * division, or the unassigned group, from `groupOf`) must have departments selected, in which case
+ * only those departments match, or else be a selected division; a selected division with no
+ * departments selected keeps all its departments.
+ */
+export function matchesDivisionDepartmentFilter(
+  departmentId: string, divisions: string[], departments: string[], groupOf: (departmentId: string) => string,
+): boolean {
+  if (!divisions.length && !departments.length) return true
+  const group = groupOf(departmentId)
+  const picked = departments.filter((id) => groupOf(id) === group)
+  if (picked.length) return picked.includes(departmentId)
+  return group !== UNASSIGNED_GROUP_ID && divisions.includes(group)
 }

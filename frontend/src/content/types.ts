@@ -414,6 +414,20 @@ export interface SopsContent {
     empty: string
     oneResult: string
     results: string
+    /** The admin's Filter button and panel (Division and Department chips), as on Organizational Structure. */
+    panel: {
+      filter: string
+      /** The Filter button's accessible name while filters are on. */
+      filterActive: (count: number) => string
+      title: string
+      clearAll: string
+      division: string
+      divisionEmpty: string
+      department: string
+      departmentEmpty: string
+      /** The Department chips of departments without a division. */
+      unassigned: string
+    }
   }
   viewToggle: { label: string; grid: string; list: string }
   /** Column headings for the list view. */

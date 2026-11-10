@@ -103,6 +103,13 @@ describe('directory selection never changes authoring or membership context', ()
       expect(render(<SopsPage />)).toContain('foreign-reviewed')
     }
   })
+  it('keeps the non-admin toolbar as it was: no Filter panel, and Clear Filters while searching', () => {
+    const html = render(<SopsPage />, '/test?q=nothing-matches')
+    expect(html).not.toContain('>Filter</label>')
+    expect(html).not.toContain('>Clear all</button>')
+    expect(html).toContain('>Clear Filters<')
+    expect(render(<SopsPage />)).not.toContain('>Clear Filters<')
+  })
   it('offers Sort By next to the search, Newest to Oldest by default, and stacks on small screens', () => {
     fixture.sops = [{ ...sop('older-sop', 'other', 'published', 'visitor'), lastUpdated: '2026-01-01' }, { ...sop('newer-sop', 'other', 'published', 'visitor'), lastUpdated: '2026-10-01' }]
     const html = render(<SopsPage />)

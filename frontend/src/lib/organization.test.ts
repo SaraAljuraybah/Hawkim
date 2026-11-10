@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { Permission } from '../data/mock/types'
 import type { OrganizationEmployee, OrganizationHierarchy } from '../services/organization'
-import { departmentFilterGroups, isFiltering, overflows, matchesRoles, matchesSearch, organizationRows, OTHERS_FILTER, UNASSIGNED_GROUP_ID, type OrganizationFilters } from './organization'
+import { departmentFilterGroups, isFiltering, matchesDivisionDepartmentFilter, overflows, matchesRoles, matchesSearch, organizationRows, OTHERS_FILTER, UNASSIGNED_GROUP_ID, type OrganizationFilters } from './organization'
 
 const person = (id: string, name: string, permissions: Permission[] = [], email = `${id}@test.invalid`): OrganizationEmployee =>
   ({ id, name, initials: 'XX', email, permissions })
@@ -152,5 +152,37 @@ describe('staff scroll box', () => {
     expect(overflows(360, 360)).toBe(false)
     expect(overflows(361, 360)).toBe(false)
     expect(overflows(200, 200)).toBe(false)
+  })
+})
+
+describe('Division and Department filter together (Rule 1, the admin SOP Directory)', () => {
+  const group: Record<string, string> = { pv: 'ops', reg: 'ops', qa: 'qual', legacy: UNASSIGNED_GROUP_ID }
+  const match = (department: string, divisions: string[], departments: string[]) =>
+    matchesDivisionDepartmentFilter(department, divisions, departments, (id) => group[id] ?? UNASSIGNED_GROUP_ID)
+  it('matches everything when nothing is selected', () => {
+    for (const department of ['pv', 'qa', 'legacy']) expect(match(department, [], [])).toBe(true)
+  })
+  it('keeps every department of a selected division without selected departments', () => {
+    expect(match('pv', ['ops'], [])).toBe(true)
+    expect(match('reg', ['ops'], [])).toBe(true)
+    expect(match('qa', ['ops'], [])).toBe(false)
+    expect(match('legacy', ['ops'], [])).toBe(false)
+  })
+  it('narrows only the division whose departments are selected', () => {
+    expect(match('pv', ['ops', 'qual'], ['pv'])).toBe(true)
+    expect(match('reg', ['ops', 'qual'], ['pv'])).toBe(false)
+    expect(match('qa', ['ops', 'qual'], ['pv'])).toBe(true)
+  })
+  it('shows selected departments without their division selected, and unassigned ones when picked', () => {
+    expect(match('reg', [], ['reg'])).toBe(true)
+    expect(match('pv', [], ['reg'])).toBe(false)
+    expect(match('legacy', [], ['legacy'])).toBe(true)
+  })
+})
+
+describe('Organizational Structure keeps its Department chips', () => {
+  it('gives the same groups from its hierarchy as before (the widened input type)', () => {
+    expect(departmentFilterGroups(hierarchy, ['ops']).map((g) => [g.id, g.options.map((o) => o.value)])).toEqual([['ops', ['pv', 'reg']]])
+    expect(departmentFilterGroups(hierarchy, []).map((g) => g.id)).toEqual(['ops', 'qual', UNASSIGNED_GROUP_ID])
   })
 })

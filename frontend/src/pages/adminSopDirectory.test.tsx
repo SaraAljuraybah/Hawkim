@@ -35,12 +35,6 @@ const sop = (id: string, departmentId: string, status: Sop['status'] = 'publishe
   id, code: `SOP-${id}`, title: `Procedure ${id}`, authorId: 'someone', coAuthorIds: [], departmentId, status, version: '1',
   lastUpdated: '2026-10-01', fileName: 'a.pdf', fileType: 'pdf', versions: [], reviewers: [], approvers: [], timeline: [], comments: [], complianceChecks: [],
 })
-/** A checkbox dropdown's button and its list of checkboxes (MultiSelectField). */
-const dropdown = (html: string, name: string) => {
-  const start = html.lastIndexOf('<button', html.indexOf(`name="${name}"`))
-  return html.slice(start, html.indexOf('</div>', html.lastIndexOf(`name="${name}"`)))
-}
-const choices = (html: string) => [...html.matchAll(/value="([^"]+)"(?: checked="")?\/><span[^>]*>([^<]+)<\/span>/g)].map((match) => match[2])
 const directory = (search = '') => renderToStaticMarkup(<MemoryRouter initialEntries={[`/admin/sops${search}`]}><AdminSopsPage /></MemoryRouter>)
 const detail = (id: string) => renderToStaticMarkup(
   <MemoryRouter initialEntries={[`/admin/sops/${id}`]}><Routes><Route path="/admin/sops/:id" element={<SopDetailPage admin />} /></Routes></MemoryRouter>,
@@ -66,12 +60,12 @@ describe('the SOP Directory in the admin portal', () => {
     expect(fixture.titles.at(-1)).toBe('SOP Directory · Admin Portal | Hawkim')
   })
 
-  it('has Search, Filter by Division, Filter by Department and Sort By on one row, the views, no File Type filter and no department line', () => {
+  it('has Search, Filter and Sort By on one row (as on Organizational Structure), the views, no File Type filter and no department line', () => {
     const html = directory()
     for (const name of ['sopSearch', 'sopSort']) expect(html).toContain(`name="${name}"`)
-    // Stacked on phones, 2×2 from sm, one row from xl.
-    expect(html).toContain('sm:grid-cols-2 xl:grid-cols-[minmax(0,1.4fr)_repeat(3,minmax(0,1fr))]')
-    const order = ['name="sopSearch"', '>Filter by Division</span>', '>Filter by Department</span>', 'name="sopSort"'].map((part) => html.indexOf(part))
+    // Stacked on small screens; one row from lg, positioned so the panel lines up with its right edge.
+    expect(html).toContain('relative lg:grid-cols-[minmax(0,4fr)_auto_minmax(0,1fr)]')
+    const order = ['name="sopSearch"', '>Filter</label>', 'name="sopSort"'].map((part) => html.indexOf(part))
     expect(order.every((position, index) => position > -1 && (index === 0 || position > order[index - 1]))).toBe(true)
     expect(html).not.toContain('name="documentType"')
     expect(html).toContain('role="tablist"')
@@ -89,41 +83,63 @@ describe('the SOP Directory in the admin portal', () => {
     expect(html).toContain('>2 SOPs found<')
   })
 
-  it('uses the Divisions and Departments checkbox dropdowns, from the real data without removed departments', () => {
+  it('replaces the dropdowns with the Filter panel: Division and Department chips, no Role card, no Clear Filters', () => {
     const html = directory()
-    const divisions = dropdown(html, 'divisionFilter')
-    expect(divisions).toMatch(/^<button type="button" aria-label="Filter by Division" aria-expanded="false"/)
-    expect(divisions).toContain('>All divisions</span>')
-    expect(divisions).toContain('role="group" aria-label="Filter by Division" hidden=""')
-    expect(choices(divisions)).toEqual(['Medical', 'No Division'])
-    const departments = dropdown(html, 'departmentFilter')
-    expect(departments).toContain('>All departments</span>')
-    expect(choices(departments)).toEqual(['Information Technology', 'Pharmacovigilance'])
+    const button = html.match(/<label for="([^"]+)" class="mb-1.5 block text-sm font-medium text-maroon">Filter<\/label><button id="([^"]+)" type="button" aria-label="Filter" aria-expanded="false" aria-controls="[^"]+"[^>]*>/)!
+    expect(button[1]).toBe(button[2])
+    expect(button[0]).toContain('size-11')
+    expect([...html.matchAll(/<legend[^>]*>([^<]+)<\/legend>/g)].map((match) => match[1])).toEqual(['Division', 'Department'])
+    expect(html).not.toContain('>Role<')
+    for (const removed of ['name="divisionFilter"', 'name="departmentFilter"', 'Filter by Division', 'Filter by Department', 'No Division', '>Clear Filters<'])
+      expect(html).not.toContain(removed)
+    expect(html).toContain('>Clear all</button>')
+    // Division chips from the real data (removed departments left out); Department chips grouped by division, unassigned last.
+    const chips = [...html.matchAll(/aria-pressed="false"[^>]*><span class="min-w-0 break-words">([^<]+)<\/span>/g)].map((match) => match[1])
+    expect(chips).toEqual(['Medical', 'Pharmacovigilance', 'Information Technology'])
+    expect([...html.matchAll(/<p id="[^"]+" class="mb-1.5 text-xs font-semibold text-text-gray">([^<]+)<\/p>/g)].map((match) => match[1])).toEqual(['Medical', 'Unassigned departments'])
+    expect(html.match(/max-h-\[8.5rem\] overflow-y-auto/g)).toHaveLength(2)
     expect(html).not.toContain('Old Department')
     expect(html).not.toContain('Gone Division')
-    expect(html).not.toContain('>Clear Filters<')
   })
 
-  it('keeps the checked divisions and departments from the URL, with the count and Clear Filters', () => {
+  it('keeps the selected divisions and departments from the URL, with the count and the badge, and no Clear Filters', () => {
     fixture.sops = [sop('1', 'it'), sop('9', 'pv')]
     const byDivision = directory('?division=med,gone')
     expect(byDivision).toContain('>Procedure 9<')
     expect(byDivision).not.toContain('Procedure 1<')
     expect(byDivision).toContain('>1 SOP found<')
-    expect(dropdown(byDivision, 'divisionFilter')).toContain('aria-label="Filter by Division: Medical"')
-    expect(byDivision).toContain('>Clear Filters<')
+    expect(byDivision).toContain('aria-label="Filter, 1 active"')
+    expect(byDivision).toMatch(/aria-pressed="true"[^>]*>(?:<svg.*?<\/svg>)?<span class="min-w-0 break-words">Medical</)
+    expect(byDivision).not.toContain('>Clear Filters<')
+    // With a division selected, only its departments are offered (no Unassigned group).
+    expect(byDivision).not.toContain('>Unassigned departments</p>')
+    // An old single-value link still works.
     const byDepartment = directory('?dept=it')
     expect(byDepartment).toContain('>Procedure 1<')
     expect(byDepartment).not.toContain('Procedure 9<')
-    expect(dropdown(byDepartment, 'departmentFilter')).toContain('aria-label="Filter by Department: Information Technology"')
+    expect(byDepartment).toContain('aria-label="Filter, 1 active"')
   })
 
-  it('needs both when both are used: a mismatch shows the normal empty state, and the department stays checked', () => {
+  it('combines them with Rule 1, and ignores the removed No Division value in old links', () => {
     fixture.sops = [sop('1', 'it'), sop('9', 'pv')]
-    const html = directory('?division=med&dept=it')
+    // The unassigned department isn't offered while a division is selected, so it is dropped; the division keeps its departments.
+    const both = directory('?division=med&dept=it')
+    expect(both).toContain('>Procedure 9<')
+    expect(both).not.toContain('Procedure 1<')
+    expect(both).toContain('aria-label="Filter, 1 active"')
+    // Departments only: just those, in any division.
+    expect(directory('?dept=pv,it')).toContain('>2 SOPs found<')
+    expect(directory('?dept=pv')).toContain('>1 SOP found<')
+    // "No Division" (the removed chip) in an old link is ignored.
+    expect(directory('?division=__no-division__')).toContain('>2 SOPs found<')
+  })
+
+  it('shows the normal empty state, without Clear Filters, when nothing matches', () => {
+    fixture.sops = [sop('9', 'pv')]
+    const html = directory('?q=nothing')
     expect(html).toContain('>0 SOPs found<')
     expect(html).toContain(`>${sopsEn.filters.empty}<`)
-    expect(dropdown(html, 'departmentFilter')).toContain('checked="" value="it"')
+    expect(html).not.toContain('>Clear Filters<')
   })
 
   it('shows SOPs of the last three months on Recently Published', () => {
