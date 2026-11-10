@@ -34,6 +34,8 @@ const results = []
 let failed = 0
 async function check(name, fn) {
   try { await fn(); results.push(`PASS  ${name}`) } catch (error) { failed++; results.push(`FAIL  ${name}: ${error.message.split('\n')[0]}`) }
+  // Printed as each check ends, so an aborted run still shows what passed and what failed.
+  console.log(results.at(-1))
 }
 const assert = (condition, message) => { if (!condition) throw new Error(message) }
 async function ok(promise, what) { const { data, error } = await promise; if (error) throw new Error(`${what}: ${error.message}`); return data }
@@ -194,13 +196,14 @@ await check('Add Admin creates a real regular Admin through add-user', async () 
   assert(!(await sa.$('input[type="checkbox"]')) && !(await sa.$('select')), 'a role can be chosen')
   await fill(sa, 'name', `Admins added ${run}`)
   await fill(sa, 'email', `ad-added-${run}@test.invalid`)
-  await fill(sa, 'phone', '+966512340000')
+  await fill(sa, 'phone', '12340000') // The field shows +9665; people type the 8 digits after it.
   await clickText(sa, 'Add Admin', 'button')
   await sa.waitForFunction(() => /^\/admin\/admins\/[0-9a-f-]{36}$/.test(location.pathname), { timeout: 30000 })
   await waitText(sa, 'Admin added')
   const id = (await pathname(sa)).split('/').pop()
   const saved = await profile(id)
   assert(saved.user_roles.map((r) => r.role).join() === 'admin', `roles ${JSON.stringify(saved.user_roles)}`)
+  assert(saved.phone === '+966512340000', `phone ${saved.phone}`)
   assert(superAdminId() === superAdmin.id, 'Add Admin moved the Super Admin')
   added = { id, email: `ad-added-${run}@test.invalid`, name: `Admins added ${run}` }
   await ok(service.auth.admin.updateUserById(id, { password }), 'set password')
@@ -209,7 +212,7 @@ await check('Add Admin refuses an email that is taken, without adding anyone', a
   await sa.goto(`${APP}/admin/admins/new`, { waitUntil: 'networkidle2' })
   await fill(sa, 'name', 'Duplicate')
   await fill(sa, 'email', regular.email)
-  await fill(sa, 'phone', '+966512340001')
+  await fill(sa, 'phone', '12340001')
   await clickText(sa, 'Add Admin', 'button')
   await waitText(sa, 'already has a Hawkim account')
   assert(await pathname(sa) === '/admin/admins/new', 'left the form')
@@ -231,7 +234,7 @@ await check('Edit Admin saves name and email (with the sign-in account) and keep
   added.name = `Admins renamed ${run}`
 })
 await check('leaving Edit Admin with unsaved changes asks first', async () => {
-  await fill(sa, 'phone', '+966512349999')
+  await fill(sa, 'phone', '12349999')
   await clickText(sa, 'Cancel', 'a')
   await waitText(sa, 'Discard unsaved changes?')
   await clickText(sa, 'Keep Editing', 'button')
@@ -346,6 +349,5 @@ await check('Admins fits a phone screen without horizontal scrolling', async () 
 })
 
 await browser.close()
-console.log(results.join('\n'))
 console.log(`\n${results.length - failed} passed, ${failed} failed`)
 process.exit(failed ? 1 : 0)
