@@ -15,9 +15,9 @@ function EmailCell({ email, name }: { email?: string | null; name: string }) {
   return (
     <td className="px-4 py-3 text-xs text-text-gray">
       {email ? (
-        // One line: the email is truncated (full address on hover and for screen readers), the copy button stays at the end.
+        // One line: the copy button sits right after the email, which is truncated (full address on hover and for screen readers) so the button stays visible.
         <div className="flex min-w-0 flex-wrap items-center gap-x-1.5">
-          <span title={email} className="min-w-0 flex-1 truncate">{email}</span>
+          <span title={email} className="min-w-0 truncate">{email}</span>
           <CopyButton text={email} label={content.copyEmail(name)} copiedText={content.copied} failedText={content.copyFailed} />
         </div>
       ) : <><span aria-hidden="true">—</span><span className="sr-only">{content.noEmail}</span></>}

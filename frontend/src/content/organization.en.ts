@@ -3,6 +3,7 @@ import type { OrganizationContent } from './types'
 export const organizationEn: OrganizationContent = {
   pageTitle: 'Organizational Structure | Hawkim',
   title: 'Organizational Structure',
+  subtitle: "Browse the organization's divisions, departments and staff, and find their contact emails.",
   retry: 'Retry',
   loading: 'Loading organizational structure…',
   error: 'The organizational structure could not be loaded. Please try again.',
@@ -28,6 +29,8 @@ export const organizationEn: OrganizationContent = {
   clearAll: 'Clear all',
   divisionFilter: 'Division',
   divisionFilterEmpty: 'No divisions yet.',
+  departmentFilter: 'Department',
+  departmentFilterEmpty: 'No departments yet.',
   roleFilter: 'Role',
   others: 'Others',
   sort: 'Sort',

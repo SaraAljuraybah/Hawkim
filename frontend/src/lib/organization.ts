@@ -25,6 +25,11 @@ export interface OrganizationFilters {
   query: string
   /** Division ids (any of them); empty: every division. */
   divisions: string[]
+  /**
+   * Department ids (any of them); empty: every department. Narrows only the divisions they belong
+   * to: another selected division keeps all its departments.
+   */
+  departments: string[]
   /** Roles (any of them); empty: every person. */
   roles: RoleFilter[]
 }
@@ -68,7 +73,7 @@ export function matchesSearch(item: { name: string; email?: string | null }, que
 
 /** Whether any search text or filter is active. */
 export function isFiltering(filters: OrganizationFilters): boolean {
-  return !!filters.query.trim() || filters.divisions.length > 0 || filters.roles.length > 0
+  return !!filters.query.trim() || filters.divisions.length > 0 || filters.departments.length > 0 || filters.roles.length > 0
 }
 
 const byName = (a: { name: string; id: string }, b: { name: string; id: string }) =>
@@ -92,7 +97,9 @@ function sortRows(rows: DivisionRow[], sort: OrganizationSort): DivisionRow[] {
  *  - a row is opened automatically only when something inside it is a result;
  *  - the Role filter applies to staff: only staff with a selected role are shown, and only the
  *    departments and divisions that contain such staff;
- *  - the Division filter keeps only the selected divisions (never the unassigned group).
+ *  - the Division filter keeps only the selected divisions (never the unassigned group);
+ *  - the Department filter keeps only the selected departments in their divisions (or the
+ *    unassigned group), opened to show them; other selected divisions keep all their departments.
  */
 export function organizationRows(hierarchy: OrganizationHierarchy, filters: OrganizationFilters, sort: OrganizationSort = 'default'): DivisionRow[] {
   const divisionIds = new Set(hierarchy.divisions.map((division) => division.id))
@@ -106,6 +113,7 @@ export function organizationRows(hierarchy: OrganizationHierarchy, filters: Orga
   const query = filters.query.trim()
   const roles = filters.roles
   const selected = new Set(filters.divisions)
+  const selectedDepartments = new Set(filters.departments)
   const rows: DivisionRow[] = []
   for (const group of all) {
     const base = { id: group.id, name: group.name, email: group.email, unassigned: group.unassigned, departmentCount: group.departments.length }
@@ -113,10 +121,12 @@ export function organizationRows(hierarchy: OrganizationHierarchy, filters: Orga
       rows.push({ ...base, autoOpen: false, departments: group.departments.map((department) => ({ department, staff: department.employees, autoOpen: false })) })
       continue
     }
-    if (selected.size && (group.unassigned || !selected.has(group.id))) continue
+    // Departments picked in this group: only they are shown, and the group opens to show them.
+    const picked = group.departments.filter((department) => selectedDepartments.has(department.id))
+    if ((selected.size || selectedDepartments.size) && !picked.length && (group.unassigned || !selected.has(group.id))) continue
     const divisionMatch = !!query && !group.unassigned && matchesSearch(group, query)
     const departments: (DepartmentRow & { hit: boolean })[] = []
-    for (const department of group.departments) {
+    for (const department of picked.length ? picked : group.departments) {
       const departmentMatch = !!query && matchesSearch(department, query)
       const inherited = divisionMatch || departmentMatch
       const staff = department.employees.filter((person) => matchesRoles(person, roles) && (inherited || matchesSearch(person, query)))
@@ -127,9 +137,34 @@ export function organizationRows(hierarchy: OrganizationHierarchy, filters: Orga
     }
     const visible = roles.length ? departments.length > 0 : !query || divisionMatch || departments.length > 0
     if (!visible) continue
-    rows.push({ ...base, autoOpen: departments.some((row) => row.hit), departments: departments.map(({ department, staff, autoOpen }) => ({ department, staff, autoOpen })) })
+    rows.push({ ...base, autoOpen: picked.length > 0 || departments.some((row) => row.hit), departments: departments.map(({ department, staff, autoOpen }) => ({ department, staff, autoOpen })) })
   }
   // The unassigned group stays last whatever the sort.
   const assigned = rows.filter((row) => !row.unassigned)
   return [...sortRows(assigned, sort), ...rows.filter((row) => row.unassigned)]
+}
+
+export interface DepartmentFilterGroup {
+  id: string
+  /** The division's name; empty for the unassigned group. */
+  label: string
+  unassigned: boolean
+  options: { value: string; label: string }[]
+}
+
+/**
+ * The Department filter's chips, grouped by division (A to Z, departments A to Z), then the
+ * unassigned departments. With divisions selected, only those divisions' groups.
+ */
+export function departmentFilterGroups(hierarchy: OrganizationHierarchy, selectedDivisions: string[]): DepartmentFilterGroup[] {
+  const divisionIds = new Set(hierarchy.divisions.map((division) => division.id))
+  const options = (departments: OrganizationDepartment[]) => [...departments].sort(byName).map((department) => ({ value: department.id, label: department.name }))
+  const groups: DepartmentFilterGroup[] = [...hierarchy.divisions].sort(byName)
+    .filter((division) => !selectedDivisions.length || selectedDivisions.includes(division.id))
+    .map((division) => ({ id: division.id, label: division.name, unassigned: false,
+      options: options(hierarchy.departments.filter((department) => department.divisionId === division.id)) }))
+    .filter((group) => group.options.length > 0)
+  const unassigned = hierarchy.departments.filter((department) => !department.divisionId || !divisionIds.has(department.divisionId))
+  if (!selectedDivisions.length && unassigned.length) groups.push({ id: UNASSIGNED_GROUP_ID, label: '', unassigned: true, options: options(unassigned) })
+  return groups
 }

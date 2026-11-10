@@ -30,7 +30,7 @@ vi.mock('react', async (original) => {
 function render() {
   host.index = 0
   const page = OrganizationalStructurePage({})
-  const content = page.props.children[1] as ReactElement<{ state: OrganizationLoadState; reload: () => void }>
+  const content = page.props.children[2] as ReactElement<{ state: OrganizationLoadState; reload: () => void }>
   host.effects.splice(0).forEach((effect) => effect())
   return content.props
 }

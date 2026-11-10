@@ -1815,6 +1815,8 @@ export interface DevSamplesContent {
 export interface OrganizationContent {
   pageTitle: string
   title: string
+  /** The short description under the heading. */
+  subtitle: string
   retry: string
   loading: string
   error: string
@@ -1849,6 +1851,8 @@ export interface OrganizationContent {
   clearAll: string
   divisionFilter: string
   divisionFilterEmpty: string
+  departmentFilter: string
+  departmentFilterEmpty: string
   roleFilter: string
   /** The Role filter's chip for staff without a role. */
   others: string

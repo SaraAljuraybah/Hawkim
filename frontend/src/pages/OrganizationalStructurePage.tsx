@@ -8,7 +8,7 @@ import { adminEn } from '../content/admin.en'
 import { organizationEn as content } from '../content/organization.en'
 import { usersEn } from '../content/users.en'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
-import { isFiltering, ORGANIZATION_SORTS, organizationRows, OTHERS_FILTER, ROLE_FILTERS, type OrganizationSort, type RoleFilter } from '../lib/organization'
+import { departmentFilterGroups, isFiltering, ORGANIZATION_SORTS, organizationRows, OTHERS_FILTER, ROLE_FILTERS, type OrganizationSort, type RoleFilter } from '../lib/organization'
 import { fetchOrganization, type OrganizationHierarchy } from '../services/organization'
 import { useCurrentUser } from '../state/sessionContext'
 
@@ -20,6 +20,7 @@ const roleOptions = ROLE_FILTERS.map((role) => ({ value: role, label: role === O
 export function OrganizationStructure({ hierarchy }: { hierarchy: OrganizationHierarchy }) {
   const [query, setQuery] = useState('')
   const [divisionFilter, setDivisionFilter] = useState<string[]>([])
+  const [departmentFilter, setDepartmentFilter] = useState<string[]>([])
   const [roles, setRoles] = useState<RoleFilter[]>([])
   const [sort, setSort] = useState<OrganizationSort>('default')
   // Options come from the loaded divisions, A to Z. A selected division that no longer exists is dropped.
@@ -27,25 +28,36 @@ export function OrganizationStructure({ hierarchy }: { hierarchy: OrganizationHi
     .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }) || a.id.localeCompare(b.id))
     .map((division) => ({ value: division.id, label: division.name })), [hierarchy])
   const divisions = divisionFilter.filter((id) => divisionOptions.some((option) => option.value === id))
-  const filters = { query, divisions, roles }
+  // Department chips follow the selected divisions; a selected department no longer offered is dropped.
+  const departmentGroups = departmentFilterGroups(hierarchy, divisions)
+  const departments = departmentFilter.filter((id) => departmentGroups.some((group) => group.options.some((option) => option.value === id)))
+  // Deselecting a division also deselects its departments.
+  const changeDivisions = (next: string[]) => {
+    const offered = departmentFilterGroups(hierarchy, next).flatMap((group) => group.options.map((option) => option.value))
+    setDivisionFilter(next)
+    setDepartmentFilter(departments.filter((id) => offered.includes(id)))
+  }
+  const filters = { query, divisions, departments, roles }
   const filtering = isFiltering(filters)
   const rows = organizationRows(hierarchy, filters, sort)
   return (
     <>
       {/* Search, filter and sort span the table's width (about 60/20/20 on large screens); they stack on small screens. */}
-      <div className="mt-6 grid gap-4 lg:grid-cols-[minmax(0,3fr)_minmax(0,1fr)_minmax(0,1fr)] lg:items-end">
+      <div className="mt-6 grid gap-4 lg:grid-cols-[minmax(0,4fr)_auto_minmax(0,1fr)] lg:items-end">
         <TextField className="min-w-0" name="organizationSearch" type="search" label={content.search} placeholder={content.searchPlaceholder}
           autoComplete="off" value={query} onChange={(event) => setQuery(event.target.value)} />
         <FilterPopover className="min-w-0" label={content.filter} activeLabel={content.filterActive} title={content.filtersTitle} clearLabel={content.clearAll}
           sections={[
-            { id: 'division', legend: content.divisionFilter, options: divisionOptions, value: divisions, onChange: setDivisionFilter, emptyText: content.divisionFilterEmpty },
+            { id: 'division', legend: content.divisionFilter, options: divisionOptions, value: divisions, onChange: changeDivisions, emptyText: content.divisionFilterEmpty, scrollable: true },
+            { id: 'department', legend: content.departmentFilter, value: departments, onChange: setDepartmentFilter, emptyText: content.departmentFilterEmpty, scrollable: true,
+              groups: departmentGroups.map((group) => ({ id: group.id, label: group.unassigned ? content.unassigned : group.label, options: group.options })) },
             { id: 'role', legend: content.roleFilter, options: roleOptions, value: roles, onChange: (next) => setRoles(next as RoleFilter[]), emptyText: '' },
           ]} />
         <SelectField className="min-w-0" name="organizationSort" label={content.sort} value={sort}
           options={ORGANIZATION_SORTS.map((value) => ({ value, label: content.sortOptions[value] }))}
           onChange={(event) => setSort(event.target.value as OrganizationSort)} />
       </div>
-      <OrganizationTable rows={rows} filtering={filtering} filterKey={JSON.stringify([query.trim().toLowerCase(), [...divisions].sort(), [...roles].sort()])} />
+      <OrganizationTable rows={rows} filtering={filtering} filterKey={JSON.stringify([query.trim().toLowerCase(), [...divisions].sort(), [...departments].sort(), [...roles].sort()])} />
     </>
   )
 }
@@ -92,6 +104,7 @@ export function OrganizationalStructurePage({ admin = false }: { admin?: boolean
   return (
     <div className="min-w-0">
       <h1 className="text-2xl tracking-tight sm:text-3xl">{content.title}</h1>
+      <p className="mt-2 text-text-gray">{content.subtitle}</p>
       <OrganizationContent state={state} reload={reload} />
     </div>
   )

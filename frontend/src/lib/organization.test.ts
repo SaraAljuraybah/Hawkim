@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { Permission } from '../data/mock/types'
 import type { OrganizationEmployee, OrganizationHierarchy } from '../services/organization'
-import { isFiltering, matchesRoles, matchesSearch, organizationRows, OTHERS_FILTER, UNASSIGNED_GROUP_ID, type OrganizationFilters } from './organization'
+import { departmentFilterGroups, isFiltering, matchesRoles, matchesSearch, organizationRows, OTHERS_FILTER, UNASSIGNED_GROUP_ID, type OrganizationFilters } from './organization'
 
 const person = (id: string, name: string, permissions: Permission[] = [], email = `${id}@test.invalid`): OrganizationEmployee =>
   ({ id, name, initials: 'XX', email, permissions })
@@ -25,7 +25,7 @@ const hierarchy: OrganizationHierarchy = {
     { id: 'legacy', name: 'Legacy Unit', divisionId: null, employees: [] },
   ],
 }
-const none: OrganizationFilters = { query: '', divisions: [], roles: [] }
+const none: OrganizationFilters = { query: '', divisions: [], departments: [], roles: [] }
 const rows = (filters: Partial<OrganizationFilters> = {}, sort?: Parameters<typeof organizationRows>[2]) => organizationRows(hierarchy, { ...none, ...filters }, sort)
 /** division id → { open, departments: department id → { open, staff ids } } */
 const shape = (filters: Partial<OrganizationFilters> = {}) => Object.fromEntries(rows(filters).map((row) => [row.id, {
@@ -51,6 +51,7 @@ describe('search and role matching', () => {
     expect(isFiltering(none)).toBe(false)
     expect(isFiltering({ ...none, query: '   ' })).toBe(false)
     expect(isFiltering({ ...none, roles: ['author'] })).toBe(true)
+    expect(isFiltering({ ...none, departments: ['qa'] })).toBe(true)
   })
 })
 
@@ -104,6 +105,22 @@ describe('organization rows', () => {
     })
     expect(shape({ divisions: ['qual'], query: 'huda' })).toEqual({})
   })
+  it('department filter: only the selected departments, closed, under their opened division', () => {
+    expect(shape({ departments: ['reg'] })).toEqual({ ops: { open: true, departments: { reg: { open: false, staff: ['huda'] } } } })
+    expect(shape({ departments: ['legacy'] })).toEqual({ [UNASSIGNED_GROUP_ID]: { open: true, departments: { legacy: { open: false, staff: [] } } } })
+  })
+  it('department filter narrows only its own division; other selected divisions keep all departments (Rule 1)', () => {
+    expect(shape({ divisions: ['ops', 'qual'], departments: ['pv'] })).toEqual({
+      ops: { open: true, departments: { pv: { open: false, staff: ['sara', 'noura'] } } },
+      qual: { open: false, departments: { qa: { open: false, staff: ['reem', 'lama'] } } },
+    })
+  })
+  it('combines the department filter with search and roles', () => {
+    expect(shape({ departments: ['pv'], query: 'noura' })).toEqual({ ops: { open: true, departments: { pv: { open: true, staff: ['noura'] } } } })
+    expect(shape({ departments: ['pv'], roles: ['reviewer'] })).toEqual({ ops: { open: true, departments: { pv: { open: true, staff: ['noura'] } } } })
+    expect(shape({ departments: ['pv'], query: 'huda' })).toEqual({})
+    expect(shape({ departments: ['pv'], roles: ['approver'] })).toEqual({})
+  })
   it('keeps the totals whatever is filtered', () => {
     expect(rows({ query: 'huda' })[0].departmentCount).toBe(2)
     expect(rows({ query: 'huda' })[0].departments[0].department.employees).toHaveLength(1)
@@ -113,5 +130,18 @@ describe('organization rows', () => {
     expect(rows({}, 'departments-desc').map((row) => row.id)).toEqual(['ops', 'qual', 'empty', UNASSIGNED_GROUP_ID])
     expect(rows({}, 'departments-asc').map((row) => row.id)).toEqual(['empty', 'qual', 'ops', UNASSIGNED_GROUP_ID])
     expect(rows({}, 'name-asc').find((row) => row.id === 'ops')!.departments.map((d) => d.department.id)).toEqual(['pv', 'reg'])
+  })
+})
+
+describe('department filter chips', () => {
+  it('groups departments by division A to Z, skipping empty divisions, then the unassigned ones', () => {
+    expect(departmentFilterGroups(hierarchy, []).map((group) => [group.id, group.label, group.options.map((option) => option.label)])).toEqual([
+      ['ops', 'Operations', ['Pharmacovigilance', 'Regulatory Affairs']],
+      ['qual', 'Quality Division', ['Quality Assurance']],
+      [UNASSIGNED_GROUP_ID, '', ['Legacy Unit']],
+    ])
+  })
+  it('offers only the departments of the selected divisions, never the unassigned ones', () => {
+    expect(departmentFilterGroups(hierarchy, ['qual']).map((group) => group.id)).toEqual(['qual'])
   })
 })
