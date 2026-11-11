@@ -91,13 +91,13 @@ describe('a user\'s details page', () => {
     expect(html.match(/<h1/g)).toHaveLength(1)
   })
 
-  it('has one Delete Staff: a labelled burgundy button with the Trash icon, and no Delete User section', () => {
+  it('has one Delete Staff: a labelled maroon filled button with the Trash icon, and no Delete User section', () => {
     const html = render()
     const header = html.slice(html.indexOf('<h1'), html.indexOf('details-title'))
     const button = header.match(/<button type="button"[^>]*>.*?<\/button>/)![0]
     expect(button).toMatch(/lucide-trash/)
     expect(button).toContain('>Delete Staff</button>')
-    expect(button).toContain('border-burgundy bg-white text-burgundy')
+    expect(button).toContain('border border-maroon bg-maroon text-offwhite')
     expect(html.match(/>Delete Staff</g)).toHaveLength(1)
     expect(html).not.toContain('>Delete User<')
     expect(html).not.toContain('delete-title')

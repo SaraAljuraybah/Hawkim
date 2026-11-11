@@ -19,7 +19,7 @@ interface DeleteUserButtonProps {
   /** Deactivating was refused (their own account, SOP work in progress, or by the server): the title and the reasons. */
   onRefused: (title: string, reasons: string[]) => void
   /**
-   * A visible label (e.g. "Delete Staff" on a staff member's page): a burgundy outlined button with the
+   * A visible label (e.g. "Delete Staff" on a staff member's page): a maroon filled button (like Add Admin) with the
    * Trash icon and this text, instead of the icon-only button. While saving it shows `busyLabel`.
    */
   label?: string
@@ -84,7 +84,7 @@ export function DeleteUserButton({ user, onDeleted, onRefused, label, busyLabel 
   return (
     <>
       {label ? (
-        <Button ref={buttonRef} variant="burgundy" size="sm" aria-disabled={busy || undefined} onClick={() => !busy && setConfirming(true)}>
+        <Button ref={buttonRef} aria-disabled={busy || undefined} onClick={() => !busy && setConfirming(true)}>
           {busy
             ? <LoaderCircle aria-hidden="true" className="size-4 motion-safe:animate-spin" strokeWidth={1.75} />
             : <Trash2 aria-hidden="true" className="size-4" strokeWidth={1.75} />}

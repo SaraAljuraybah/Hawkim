@@ -28,10 +28,10 @@ const details = () => renderToStaticMarkup(<MemoryRouter initialEntries={['/admi
 const labels = (html: string) => [...html.matchAll(/<dt[^>]*>([^<]+)<\/dt>/g)].map((match) => match[1])
 
 describe('Staff Details', () => {
-  it('opens Edit Staff from the header, in the burgundy outlined button style', () => {
+  it('opens Edit Staff from the header, in the maroon filled button style of Add Admin', () => {
     const link = details().match(/<a[^>]*href="\/admin\/users\/rana\/edit"[^>]*>.*?<\/a>/)![0]
     expect(link).toContain('Edit Staff')
-    expect(link).toContain('border-burgundy bg-white text-burgundy')
+    expect(link).toContain('border border-maroon bg-maroon text-offwhite')
   })
 
   it('lists the organizational fields for staff', () => {

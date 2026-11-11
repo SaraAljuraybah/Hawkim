@@ -47,7 +47,7 @@ export function DeleteAdminButton({ admin, onDeleted, onFailed, labeled = false 
   return (
     <>
       {labeled ? (
-        <Button ref={buttonRef} variant="burgundy" size="sm" aria-disabled={busy || undefined} onClick={() => !busy && setConfirming(true)}>
+        <Button ref={buttonRef} aria-disabled={busy || undefined} onClick={() => !busy && setConfirming(true)}>
           {busy
             ? <LoaderCircle aria-hidden="true" className="size-4 motion-safe:animate-spin" strokeWidth={1.75} />
             : <Trash2 aria-hidden="true" className="size-4" strokeWidth={1.75} />}

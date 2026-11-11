@@ -127,7 +127,7 @@ function AdminPanels({ admin, superAdmin }: { admin: User; superAdmin: SuperAdmi
           mayEdit || mayTransfer || mayDelete ? (
             <>
               {mayEdit && (
-                <Button variant="burgundy" size="sm" to={adminAdminEditPath(admin.id)}>
+                <Button to={adminAdminEditPath(admin.id)}>
                   <Pencil aria-hidden="true" className="size-4" strokeWidth={1.75} />
                   {text.edit}
                 </Button>

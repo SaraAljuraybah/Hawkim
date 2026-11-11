@@ -158,12 +158,13 @@ describe("an administrator's page", () => {
     expect(html).toContain('>Delete Admin</button>')
   })
 
-  it('shows its actions as labelled burgundy outlined buttons at the top right, with a gold crown', () => {
+  it('shows its actions as labelled maroon filled buttons (like Add Admin) at the top right, with a gold crown', () => {
     const html = at('/admin/admins/nouf')
     const group = html.match(/<\/h1>.*?<div class="flex flex-wrap items-center gap-2">(.*?)<\/div>/)![1]
     const buttons = group.match(/<(a|button) [^>]*>.*?<\/\1>/g)!
     expect(buttons.map((button) => button.replace(/<[^>]*>/g, ''))).toEqual(['Edit Admin', 'Make Super Admin', 'Delete Admin'])
-    for (const button of buttons) expect(button).toContain('border-burgundy bg-white text-burgundy')
+    for (const button of buttons) expect(button).toContain('border border-maroon bg-maroon text-offwhite')
+    for (const button of buttons) expect(button).toContain('h-10 px-4 text-sm')
     expect(group).toMatch(/lucide-crown[^"]*text-gold"/)
     expect(group).toMatch(/lucide-trash/)
   })

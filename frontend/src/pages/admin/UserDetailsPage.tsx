@@ -109,7 +109,7 @@ function UserPanels({ user }: { user: User }) {
         badges={<StaffPermissionBadges labels={permissions} />}
         actions={
           <>
-            <Button variant="burgundy" size="sm" to={adminUserEditPath(user.id)}>
+            <Button to={adminUserEditPath(user.id)}>
               <Pencil aria-hidden="true" className="size-4" strokeWidth={1.75} />
               {text.edit}
             </Button>

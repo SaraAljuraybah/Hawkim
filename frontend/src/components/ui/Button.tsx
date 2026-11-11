@@ -3,13 +3,12 @@ import { ArrowRight } from 'lucide-react'
 import { Link, type LinkProps } from 'react-router-dom'
 
 /**
- * - primary:   maroon filled (main call to action on light backgrounds)
+ * - primary:   maroon filled (main call to action on light backgrounds; also the actions on the Staff and Admin details pages)
  * - secondary: maroon outline (supporting action on light backgrounds)
  * - accent:    gold filled with maroon text (call to action on maroon backgrounds)
  * - danger:    red outline (a destructive action, e.g. Delete user; always confirmed)
- * - burgundy:  burgundy outline on white (the actions on the Staff and Admin details pages)
  */
-type ButtonVariant = 'primary' | 'secondary' | 'accent' | 'danger' | 'burgundy'
+type ButtonVariant = 'primary' | 'secondary' | 'accent' | 'danger'
 type ButtonSize = 'sm' | 'md' | 'lg'
 
 interface CommonProps {
@@ -59,10 +58,6 @@ const disabledLook: Record<ButtonVariant, string> = {
     'disabled:border-text-gray/40 disabled:text-text-gray disabled:hover:border-text-gray/40 disabled:hover:bg-transparent',
   accent: '',
   danger: '',
-  // Busy (aria-disabled): a gray outline, no hover change
-  burgundy:
-    'disabled:border-text-gray/40 disabled:text-text-gray disabled:hover:bg-white ' +
-    'aria-disabled:border-text-gray/40 aria-disabled:text-text-gray aria-disabled:hover:bg-white',
 }
 
 /** `grayWhenDisabled`: gray text on beige (≈ 6.2:1), full opacity, no hover change. */
@@ -81,7 +76,6 @@ const variants: Record<ButtonVariant, string> = {
     'focus-visible:outline-gold-light',
   danger:
     'border border-status-rejected-fg/60 bg-transparent text-status-rejected-fg hover:border-status-rejected-fg hover:bg-status-rejected-bg',
-  burgundy: 'border border-burgundy bg-white text-burgundy hover:bg-burgundy/5',
 }
 
 const sizes: Record<ButtonSize, string> = {
