@@ -30,6 +30,8 @@ type FieldErrors = Partial<Record<DepartmentFormField, string>>
  * (with `department`) in the same dialog as DivisionForm. Same rules as the Add/Edit Department page
  * (lib/departmentForm.ts); initials are generated from the name. A legacy department without a division
  * may stay unassigned; a new one needs a division. On success the dialog closes and `onSaved` reports it.
+ * Added from a division that exists, the division is fixed: shown read-only (not a dropdown), and the
+ * department is always saved under that division's id, whatever the form state holds.
  */
 export function DepartmentForm({ snapshot, department, divisionId, onClose, onSaved }: {
   snapshot: ManagementSnapshot; department?: ManagedDepartment; divisionId?: string
@@ -40,6 +42,9 @@ export function DepartmentForm({ snapshot, department, divisionId, onClose, onSa
   // Decided once: a snapshot refresh while the dialog is open doesn't change what is being edited.
   const [divisionOptional] = useState(() => divisionIsOptional(department))
   const [expectedUpdatedAt] = useState(department?.updated_at)
+  // Add Department from a division: that division, by id. Read from the props on every render, so a
+  // dialog opened for another division never keeps a previous one.
+  const fixedDivision = department ? undefined : snapshot.divisions.find((division) => division.id === divisionId)
   const [values, setValues] = useState<DepartmentFormValues>(() => ({
     name: department?.name ?? '',
     divisionId: initialDivisionId(snapshot, department, divisionId),
@@ -92,15 +97,22 @@ export function DepartmentForm({ snapshot, department, divisionId, onClose, onSa
         return false
       }
       try {
-        const { state } = await submitDepartmentForm(values, formInitials(values, snapshot, department), department, expectedUpdatedAt, { save: saveDepartment, reload })
+        const saved = fixedDivision ? { ...values, divisionId: fixedDivision.id } : values
+        const { state } = await submitDepartmentForm(saved, formInitials(values, snapshot, department), department, expectedUpdatedAt, { save: saveDepartment, reload })
         onSaved?.(state.notice)
       } catch (reason) { setError((reason as Error).message); return false }
     }}>
     <TextField ref={nameRef} name="departmentName" autoComplete="off" label={content.name.label} required requiredMark
       value={values.name} error={errors.name} onChange={set('name')} onBlur={() => blur('name')} />
-    <SelectField ref={divisionRef} name="departmentDivision" label={orgText.division}
-      required={!divisionOptional} requiredMark={!divisionOptional} placeholder={divisionOptional ? undefined : orgText.selectDivision}
-      options={divisionOptions} value={values.divisionId} error={errors.divisionId} onChange={set('divisionId')} onBlur={() => blur('divisionId')} />
+    {fixedDivision ? (
+      // Fixed by the division whose Add Department was used: read-only, same height and style as the other fields.
+      <TextField name="departmentDivision" label={orgText.division} required requiredMark readOnly
+        value={fixedDivision.name} title={fixedDivision.name} className="[&_input]:cursor-default [&_input]:truncate [&_input]:bg-offwhite" />
+    ) : (
+      <SelectField ref={divisionRef} name="departmentDivision" label={orgText.division}
+        required={!divisionOptional} requiredMark={!divisionOptional} placeholder={divisionOptional ? undefined : orgText.selectDivision}
+        options={divisionOptions} value={values.divisionId} error={errors.divisionId} onChange={set('divisionId')} onBlur={() => blur('divisionId')} />
+    )}
     <TextField ref={emailRef} name="departmentEmail" type="email" autoComplete="off" label={content.email.label} placeholder={content.email.placeholder}
       value={values.email} error={errors.email} onChange={set('email')} onBlur={() => blur('email')} />
     <TextAreaField ref={descriptionRef} name="departmentDescription" rows={3} label={content.description.label} maxLength={DESCRIPTION_MAX}

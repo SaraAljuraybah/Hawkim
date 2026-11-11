@@ -101,11 +101,27 @@ describe('department dialog layout', () => {
     expect(html).toMatch(/>Cancel<\/button><button type="submit"[^>]*>Save Changes<\/button>/)
   })
 
-  it('pre-selects the division whose Add Department was used', () => {
-    expect(field(render({ divisionId: 'medical' }), 'departmentDivision').props.value).toBe('medical')
-    host.states = []
-    // A division that is no longer available: the admin chooses.
-    expect(field(render({ divisionId: 'gone' }), 'departmentDivision').props.value).toBe('')
+  it('shows the division whose Add Department was used as a fixed, read-only field (no dropdown)', () => {
+    const html = markup({ divisionId: 'medical' })
+    expect(html).not.toContain('<select')
+    expect(html).not.toContain('lucide-chevron-down')
+    const input = html.match(/<input[^>]*name="departmentDivision"[^>]*>/)![0]
+    expect(input).toContain('readOnly=""')
+    expect(input).toContain('value="Medical Division"')
+    expect(html).toMatch(/<label[^>]*>Division<span[^>]*>\*<\/span><\/label>/)
+  })
+
+  it('shows the division of the Add Department used now, not one from before', () => {
+    expect(markup({ divisionId: 'medical' })).toContain('value="Medical Division"')
+    const html = markup({ divisionId: 'quality' })
+    expect(html).toContain('value="Quality Division"')
+    expect(html).not.toContain('Medical Division')
+  })
+
+  it('lets the admin choose when the division is no longer available', () => {
+    const division = field(render({ divisionId: 'gone' }), 'departmentDivision')
+    expect(division.props.value).toBe('')
+    expect(division.props.options).toBeDefined()
   })
 
   it('starts from the saved values when editing', () => {
@@ -178,6 +194,15 @@ describe('saving from the department dialog', () => {
     expect(host.save).toHaveBeenCalledWith({ name: 'Clinical Operations', divisionId: 'medical', email: ' clinops@test.invalid ', description: '', initials: 'CO' }, undefined, undefined)
     expect(host.reload).toHaveBeenCalledOnce()
     expect(onSaved).toHaveBeenCalledWith('added')
+  })
+
+  it('saves under the division whose Add Department was used, even if the form state names another', async () => {
+    change(render({ divisionId: 'medical' }), 'departmentName', 'Clinical Operations')
+    // Simulate a tampered form state: the fixed division's id is still the one saved.
+    const values = host.states.find((state) => (state as { divisionId?: string })?.divisionId === 'medical') as { divisionId: string }
+    values.divisionId = 'quality'
+    await expect(confirm(render({ divisionId: 'medical' }))).resolves.toBeUndefined()
+    expect(host.save).toHaveBeenCalledWith(expect.objectContaining({ name: 'Clinical Operations', divisionId: 'medical' }), undefined, undefined)
   })
 
   it('edits with the department id and the version it opened with, and regenerates initials on a rename', async () => {
