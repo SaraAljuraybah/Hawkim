@@ -41,7 +41,8 @@ const views = {
   list: (sops: Sop[], onDelete = vi.fn()) => <AuthoredSopList sops={sops} content={mySopsEn} userId="me" onDelete={onDelete} />,
 }
 const html = (element: ReactElement) => renderToStaticMarkup(<MemoryRouter>{element}</MemoryRouter>)
-const deleteButtons = (markup: string) => [...markup.matchAll(/aria-label="Delete ([^"]+) procedure"/g)].map((match) => match[1])
+// Which SOPs have a Delete button (the List view has the table and the phone rows, so each SOP once).
+const deleteButtons = (markup: string) => [...new Set([...markup.matchAll(/aria-label="Delete ([^"]+) procedure"/g)].map((match) => match[1]))]
 
 /** The rendered element tree (function components called), to press a button's onClick without a DOM. */
 function findByLabel(node: ReactNode, label: string): ReactElement<{ onClick: (event: unknown) => void }> | undefined {
@@ -103,11 +104,13 @@ describe.each(['grid', 'list'] as const)('the Delete button in the %s view', (vi
 })
 
 describe('the list view columns', () => {
-  it('adds the Delete column only when a row has the button', () => {
-    expect(html(views.list([...deletable, notDeletable[0]]))).toContain('sm:grid-cols-[13rem_5.5rem_6.5rem_2.25rem]')
+  it('adds the Delete column (a headed action column, as on the admin tables) only when a row has the button', () => {
+    const withDelete = html(views.list([...deletable, notDeletable[0]]))
+    expect(withDelete).toMatch(/<th scope="col" class="[^"]*text-center[^"]*">Delete<\/th>/)
+    expect(withDelete).toContain('<col class="w-24"/>')
     const without = html(views.list(notDeletable))
-    expect(without).toContain('sm:grid-cols-[13rem_5.5rem_6.5rem]')
-    expect(without).not.toContain('2.25rem]')
+    expect(without).not.toContain('>Delete</th>')
+    expect(without).not.toContain('<colgroup>')
   })
 })
 

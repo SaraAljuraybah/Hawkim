@@ -603,6 +603,9 @@ export interface MySopsContent {
   /** Label on SOPs the user co-authors. */
   coAuthorLabel: string
   mainAuthorLabel: string
+  /** The table view: its accessible name and column headings. */
+  tableLabel: string
+  columns: { title: string; role: string; status: string; version: string; lastUpdated: string; delete: string }
   tabsLabel: string
   tabs: { new: string; progress: string; completed: string }
   viewToggle: { label: string; grid: string; list: string }

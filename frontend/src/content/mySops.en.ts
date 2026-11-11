@@ -16,6 +16,9 @@ export const mySopsEn: MySopsContent = {
   uploadedMessage: 'SOP added as a draft.',
   coAuthorLabel: 'Co-Author',
   mainAuthorLabel: 'Main Author',
+  // The table view's headings, as on the SOP Directory.
+  tableLabel: 'My SOPs',
+  columns: { title: 'Title', role: 'Role', status: 'Status', version: 'Version', lastUpdated: 'Last Updated', delete: 'Delete' },
   tabsLabel: 'My SOP categories',
   tabs: { new: 'New SOPs', progress: 'In Progress', completed: 'Completed' },
   viewToggle: { label: 'My SOPs view', grid: 'Grid view', list: 'List view' },
