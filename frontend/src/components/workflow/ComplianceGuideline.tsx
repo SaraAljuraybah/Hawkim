@@ -13,7 +13,7 @@ import { useGuidelines } from '../../state/guidelinesContext'
 /**
  * The GVP version compliance checks use (the database's current version, never one an admin has
  * added since), as one bordered row: its title, version pill and Current badge, when SFDA issued it
- * and when it was added to Hawkim, and a View button to its read-only page. On the SOP workflow page,
+ * and when it was added to Hawkim, and a View button (with "Preview" above it) to its read-only page. On the SOP workflow page,
  * before the Compliance Overview's text.
  */
 export function ComplianceGuideline({ sopId }: { sopId: string }) {
@@ -44,7 +44,12 @@ export function ComplianceGuideline({ sopId }: { sopId: string }) {
           {afterAdded}
         </p>
       </div>
-      <IconButton label={names.actions.view.replace('{name}', name)} icon={Eye} onClick={() => navigate(sopGuidelinePath(sopId))} />
+      {/* "Preview" above the eye, like the SOP History table's action headings (same size, weight and colour).
+          Only a visual heading: the button keeps its own accessible name. */}
+      <div className="flex shrink-0 flex-col items-center gap-1">
+        <span aria-hidden="true" className="text-sm font-medium text-text-gray">{complianceEn.card.guideline.preview}</span>
+        <IconButton label={names.actions.view.replace('{name}', name)} icon={Eye} onClick={() => navigate(sopGuidelinePath(sopId))} />
+      </div>
     </div>
   )
 }

@@ -35,6 +35,7 @@ export const complianceEn: ComplianceContent = {
     },
     guideline: {
       dates: 'Issued by SFDA on {issued} · Added to Hawkim on {added}',
+      preview: 'Preview',
     },
   },
   guidelinePage: {

@@ -968,6 +968,8 @@ export interface ComplianceContent {
     guideline: {
       /** Under its title; `{issued}` and `{added}` are the dates. */
       dates: string
+      /** Above the View (eye) button, styled like the SOP History table's action headings. */
+      preview: string
     }
   }
   /** The authors' read-only page of that GVP version, from the card's View button. */
