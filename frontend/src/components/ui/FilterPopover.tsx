@@ -5,6 +5,7 @@ import { toggleOption } from './multiSelect'
 import type { SelectOption } from './SelectField'
 import { controlClasses } from './useFieldIds'
 import { filterSummary } from './filterSummary'
+import { clearFilterSections } from './filterSections'
 
 export interface FilterChipGroup {
   id: string
@@ -50,12 +51,6 @@ interface FilterPopoverProps {
    * setSearchParams update starts from the last-rendered URL, so a second call would undo the first).
    */
   onClear?: () => void
-}
-
-/** What Clear all does: `onClear` when given, otherwise every section emptied. */
-export function clearFilterSections(sections: FilterSection[], onClear?: () => void) {
-  if (onClear) onClear()
-  else sections.forEach((section) => section.onChange([]))
 }
 
 function Chips({ options, value, onChange }: { options: SelectOption[]; value: string[]; onChange: (next: string[]) => void }) {
