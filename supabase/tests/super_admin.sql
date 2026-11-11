@@ -158,8 +158,9 @@ begin
   perform public.update_admin(a1, 'Admin Two', '+966512345612');
   perform pg_temp.expect_error(format('select public.update_admin(%L, %L, %L)', sa, 'Hijacked', '+966512345699'), '42501', 'super-admin-protected');
   -- …nor through the Staff save or the email change (refused already in update-user-email's dry run).
-  perform pg_temp.expect_error(format('select public.save_user(%L, %L, %L, null, null, array[''admin''], %L, array[''admin''])',
-    sa, 'Hijacked', '+966512345699', 'sa-home'), '42501', 'super-admin-protected');
+  -- (The Super Admin has no department since 20261112140000: the expected one is null.)
+  perform pg_temp.expect_error(format('select public.save_user(%L, %L, %L, null, null, array[''admin''], null, array[''admin''])',
+    sa, 'Hijacked', '+966512345699'), '42501', 'super-admin-protected');
   perform pg_temp.expect_error(format('select public.set_user_email(%L, %L, false)', sa, 'evil@test.invalid'), '42501', 'super-admin-protected');
   perform pg_temp.expect_error(format('select public.update_admin(%L, %L, %L)', st, 'Staff', '+966512345604'), 'P0002');
   perform pg_temp.expect_error(format('select public.update_admin(%L, %L, %L)', a2, '  ', '+966512345604'), '23514', 'invalid');
