@@ -19,7 +19,7 @@ import { useDocumentTitle } from '../../hooks/useDocumentTitle'
 import { departmentsKept, filterDepartmentsFrom, filterSelection } from '../../lib/organization'
 import { listParam, readChoice, readList, updateParams } from '../../lib/pagination'
 import { adminUserEditPath, adminUserPath } from '../../lib/routes'
-import { clearedStaffParams, divisionLabel, filterUsers, isSystemAdmin, PERMISSIONS, STAFF_SORTS, type StaffSort } from '../../lib/userAdmin'
+import { clearedStaffParams, divisionLabel, filterUsers, isSystemAdmin, PERMISSIONS, STAFF_SORTS, staffSortGroup, type StaffSort } from '../../lib/userAdmin'
 import { useDepartments } from '../../state/departmentsContext'
 import { useUsers } from '../../state/usersContext'
 
@@ -58,7 +58,7 @@ export function AdminUsersPage() {
   const { divisionChoices, divisions, groups: departmentGroups, departments: departmentIds } = useMemo(
     () => filterSelection(filterData, readList(params, 'division'), readList(params, 'dept')), [filterData, params])
   const permissions = useMemo(() => PERMISSIONS.filter((permission) => readList(params, 'permission').includes(permission)), [params])
-  // `?sort=name-asc` or `?sort=name-desc`; the default order leaves it out.
+  // `?sort=name-asc`, `?sort=division-desc` and so on (STAFF_SORTS); the default order leaves it out.
   const sort = readChoice<StaffSort>(params, 'sort', STAFF_SORTS, 'default')
   const hasFilters = query.trim().length > 0 || divisions.length > 0 || departmentIds.length > 0 || permissions.length > 0 || sort !== 'default'
   const visible = useMemo(
@@ -165,7 +165,10 @@ export function AdminUsersPage() {
               onChange: (next) => setFilter({ permission: next as Permission[] }), emptyText: '', summary: filtersEn.permission.count },
           ]} />
         <SelectField className="min-w-0" name="staffSort" label={content.sort.label} value={sort}
-          options={STAFF_SORTS.map((value) => ({ value, label: content.sort.options[value] }))}
+          options={STAFF_SORTS.map((value) => {
+            const group = staffSortGroup(value)
+            return { value, label: content.sort.options[value], ...(group ? { group: content.sort.groups[group] } : {}) }
+          })}
           onChange={(event) => setSort(event.target.value as StaffSort)} />
       </div>
 

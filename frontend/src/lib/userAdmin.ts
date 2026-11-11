@@ -75,9 +75,22 @@ export function divisionNameIn(departments: Pick<Department, 'divisionId' | 'div
   return divisionLabel(departments.find((department) => department.divisionId === division)) || division
 }
 
-/** The Staff list's orders; the first is the default, which is by name, A to Z (the same as 'name-asc'). */
-export const STAFF_SORTS = ['default', 'name-asc', 'name-desc'] as const
+/**
+ * The Staff list's orders; the first is the default, which is by name, A to Z (the same as 'name-asc').
+ * Each other one orders by one column (Name, Division, Department or Permission), A to Z or Z to A.
+ */
+export const STAFF_SORTS = [
+  'default',
+  'name-asc', 'name-desc',
+  'division-asc', 'division-desc',
+  'department-asc', 'department-desc',
+  'permission-asc', 'permission-desc',
+] as const
 export type StaffSort = (typeof STAFF_SORTS)[number]
+export type StaffSortGroup = 'name' | 'division' | 'department' | 'permission'
+/** The group each sort is listed under in the Sort menu ('default' has none). */
+export const staffSortGroup = (sort: StaffSort): StaffSortGroup | undefined =>
+  sort === 'default' ? undefined : (sort.slice(0, sort.lastIndexOf('-')) as StaffSortGroup)
 
 /** Clear Filters: the URL without the Filter and the sort (other parameters stay). */
 export function clearedStaffParams(current: URLSearchParams): URLSearchParams {
@@ -93,7 +106,7 @@ export interface UserFilter {
   departmentIds: string[]
   /** Selected permissions: a user matches with any of them; none means everyone. */
   permissions?: Permission[]
-  /** The order, by name; A to Z when missing or 'default'. */
+  /** The order; by name, A to Z, when missing or 'default'. */
   sort?: StaffSort
 }
 
@@ -102,7 +115,9 @@ export interface UserFilter {
  * every list page (matchesDivisionDepartmentFilter): in a division with departments selected, only
  * those departments; a selected division without any keeps all its departments; departments without a
  * division match only when selected. With permissions selected, the user must also have one of them
- * (any, AND with the divisions and departments). Ordered by name, A to Z or Z to A. `permissionLabels`: the names shown.
+ * (any, AND with the divisions and departments). Ordered by the sort (see STAFF_SORTS): by the column's text as
+ * shown, staff without one (no division, department or permission) last either way, ties by name A to Z.
+ * `permissionLabels`: the names shown.
  */
 export function filterUsers(users: User[], getDepartment: (id: string) => Department | undefined, filter: UserFilter, permissionLabels: Record<Permission, string>): User[] {
   const text = filter.query.trim().toLowerCase()
@@ -114,7 +129,25 @@ export function filterUsers(users: User[], getDepartment: (id: string) => Depart
         matchesDivisionDepartmentFilter(user.departmentId, filter.divisions, filter.departmentIds, (id) => getDepartment(id)?.divisionId || UNASSIGNED_GROUP_ID) &&
         (!filter.permissions?.length || filter.permissions.some((permission) => user.permissions.includes(permission)))
     })
-    .sort((a, b) => (filter.sort === 'name-desc' ? -1 : 1) * a.name.localeCompare(b.name))
+    .sort(staffCompare(filter.sort ?? 'default', getDepartment, permissionLabels))
+}
+
+function staffCompare(sort: StaffSort, getDepartment: (id: string) => Department | undefined, permissionLabels: Record<Permission, string>): (a: User, b: User) => number {
+  const byName = (a: User, b: User) => a.name.localeCompare(b.name)
+  const group = staffSortGroup(sort)
+  const direction = sort.endsWith('-desc') ? -1 : 1
+  if (!group || group === 'name') return (a, b) => direction * byName(a, b)
+  const text: Record<Exclude<StaffSortGroup, 'name'>, (user: User) => string> = {
+    division: (user) => divisionLabel(getDepartment(user.departmentId)),
+    department: (user) => getDepartment(user.departmentId)?.name ?? '',
+    permission: (user) => user.permissions.map((permission) => permissionLabels[permission]).join(', '),
+  }
+  const value = text[group]
+  return (a, b) => {
+    const first = value(a), second = value(b)
+    if (!first || !second) return Number(!first) - Number(!second) || byName(a, b)
+    return direction * first.localeCompare(second) || byName(a, b)
+  }
 }
 
 /** The Division choice for departments that have none. */

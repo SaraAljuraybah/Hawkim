@@ -44,7 +44,17 @@ export const adminEn: AdminContent = {
     subtitle: "View and manage your organization's staff and their permissions.",
     addUser: { label: 'Add Staff', href: '/admin/users/new' },
     search: { label: 'Search Staff', placeholder: 'Search by staff name, email, division, department' },
-    sort: { label: 'Sort', options: { default: 'Default order', 'name-asc': 'Name: A to Z', 'name-desc': 'Name: Z to A' } },
+    sort: {
+      label: 'Sort',
+      options: {
+        default: 'Default order',
+        'name-asc': 'A to Z', 'name-desc': 'Z to A',
+        'division-asc': 'A to Z', 'division-desc': 'Z to A',
+        'department-asc': 'A to Z', 'department-desc': 'Z to A',
+        'permission-asc': 'A to Z', 'permission-desc': 'Z to A',
+      },
+      groups: { name: 'Name', division: 'Division', department: 'Department', permission: 'Permission' },
+    },
     clearFilters: 'Clear Filters',
     count: { one: '{count} staff member', other: '{count} staff members' },
     tableLabel: 'Staff',

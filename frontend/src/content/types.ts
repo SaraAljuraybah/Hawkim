@@ -9,6 +9,7 @@ import type {
 } from '../data/mock/types'
 import type { SopDeleteErrorCode } from '../lib/mySops'
 import type { OrganizationSort, OrganizationSortGroup } from '../lib/organization'
+import type { StaffSort, StaffSortGroup } from '../lib/userAdmin'
 import type { SopStatus } from '../types/status'
 
 /*
@@ -1762,8 +1763,8 @@ export interface AdminUsersListContent {
   subtitle: string
   addUser: LinkContent
   search: { label: string; placeholder: string }
-  /** The Sort dropdown: its label and one option per order (the first is the default). */
-  sort: { label: string; options: Record<'default' | 'name-asc' | 'name-desc', string> }
+  /** The Sort dropdown: its label, one option per order (the first is the default) and the headings of its groups. */
+  sort: { label: string; options: Record<StaffSort, string>; groups: Record<StaffSortGroup, string> }
   /** Clears the search, the Filter and the sort. */
   clearFilters: string
   count: CountText

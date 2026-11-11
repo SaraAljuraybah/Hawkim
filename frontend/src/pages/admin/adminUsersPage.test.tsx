@@ -4,7 +4,7 @@ import { MemoryRouter } from 'react-router-dom'
 import { adminEn } from '../../content/admin.en'
 import { usersEn } from '../../content/users.en'
 import type { Department, User } from '../../data/mock/types'
-import { clearedStaffParams, filterUsers } from '../../lib/userAdmin'
+import { clearedStaffParams, filterUsers, type StaffSort } from '../../lib/userAdmin'
 import { PermissionBadges } from '../../components/admin/UserBits'
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
 import { AdminUsersPage } from './AdminUsersPage'
@@ -266,7 +266,7 @@ describe('the Permission section of the Staff Filter', () => {
 })
 
 describe('the Staff Sort', () => {
-  const sorted = (sort?: 'default' | 'name-asc' | 'name-desc', query = '', divisions: string[] = [], departmentIds: string[] = []) =>
+  const sorted = (sort?: StaffSort, query = '', divisions: string[] = [], departmentIds: string[] = []) =>
     filterUsers(fixture.users, getDepartment, { query, divisions, departmentIds, sort }, usersEn.permissions).map((user) => user.id)
   const rows = (html: string) => [...table(html).matchAll(/<th scope="row"[^>]*>[\s\S]*?>([A-Z][a-z]+ [A-Za-z]+)<\/[^>]+>/g)].map((match) => match[1])
 
@@ -278,11 +278,24 @@ describe('the Staff Sort', () => {
     // The Filter panel lines up with the toolbar's right edge from lg, as on Divisions and Departments.
     expect(html).toContain('class="relative min-w-0 lg:static"')
     const select = html.match(/<select[^>]*name="staffSort"[^>]*>([\s\S]*?)<\/select>/)![1]
-    expect([...select.matchAll(/<option value="([^"]+)"[^>]*>([^<]+)<\/option>/g)].map((match) => [match[1], match[2]]))
-      .toEqual([['default', 'Default order'], ['name-asc', 'Name: A to Z'], ['name-desc', 'Name: Z to A']])
+    expect([...select.matchAll(/<option value="([^"]+)"[^>]*>([^<]+)<\/option>/g)].map((match) => [match[1], match[2]])).toEqual([
+      ['default', 'Default order'],
+      ['name-asc', 'A to Z'], ['name-desc', 'Z to A'],
+      ['division-asc', 'A to Z'], ['division-desc', 'Z to A'],
+      ['department-asc', 'A to Z'], ['department-desc', 'Z to A'],
+      ['permission-asc', 'A to Z'], ['permission-desc', 'Z to A'],
+    ])
     // Closed, nothing chosen: Default order.
     expect(select).toMatch(/<option value="default"[^>]*selected="">Default order</)
-    expect(select).not.toContain('<optgroup')
+    // Default order on its own, then a group per column, each with A to Z and Z to A.
+    expect([...select.matchAll(/<optgroup label="([^"]+)">((?:(?!<\/optgroup>)[\s\S])*)<\/optgroup>/g)].map((match) => [match[1], [...match[2].matchAll(/value="([^"]+)"/g)].map((value) => value[1])]))
+      .toEqual([
+        ['Name', ['name-asc', 'name-desc']],
+        ['Division', ['division-asc', 'division-desc']],
+        ['Department', ['department-asc', 'department-desc']],
+        ['Permission', ['permission-asc', 'permission-desc']],
+      ])
+    expect(select.indexOf('value="default"')).toBeLessThan(select.indexOf('<optgroup'))
   })
 
   it('orders by name: Default order is A to Z (as before), or Z to A, after the search and the Filter', () => {
@@ -292,6 +305,19 @@ describe('the Staff Sort', () => {
     expect(sorted('name-desc')).toEqual(['sara', 'reem', 'admin'])
     expect(sorted('name-desc', 'a', [], ['qa', 'pv'])).toEqual(['sara', 'reem', 'admin'])
     expect(sorted('name-desc', '', [], ['qa'])).toEqual(['reem', 'admin'])
+  })
+
+  it('orders by division, department or permission as shown, A to Z or Z to A; staff without one last, ties by name', () => {
+    // Nouf and Reem are in Quality Assurance, which has no division; Sara is in Pharmacovigilance.
+    expect(sorted('division-asc')).toEqual(['sara', 'admin', 'reem'])
+    expect(sorted('division-desc')).toEqual(['sara', 'admin', 'reem'])
+    expect(sorted('department-asc')).toEqual(['sara', 'admin', 'reem'])
+    expect(sorted('department-desc')).toEqual(['admin', 'reem', 'sara'])
+    // Admin, Approver, "Author, Reviewer".
+    expect(sorted('permission-asc')).toEqual(['admin', 'reem', 'sara'])
+    expect(sorted('permission-desc')).toEqual(['sara', 'reem', 'admin'])
+    expect(rows(render('?sort=department-desc'))).toEqual(['Reem Alharbi', 'Sara Aljuraybah'])
+    expect(render('?sort=permission-desc')).toMatch(/<option value="permission-desc"[^>]*selected="">/)
   })
 
   it('is read from the URL (?sort=name-asc or name-desc); none or an unknown value is Default order (A to Z)', () => {
