@@ -46,15 +46,21 @@ const chips = (html: string, legend: string) => {
 const staffOnly = () => fixture.users.filter((user) => !user.permissions.includes('admin'))
 
 describe('Users list', () => {
-  it('has the columns Name, Division, Department, Permission and Actions, without Email', () => {
+  it('has the columns Name, Division, Department, Permission, then Preview, Edit and Delete with visible headings, without Email', () => {
     const html = table(render())
-    const columns = [...html.matchAll(/<th scope="col"[^>]*>(?:<span class="sr-only">)?([^<]+)(?:<\/span>)?<\/th>/g)].map((match) => match[1])
-    expect(columns).toEqual(['Name', 'Division', 'Department', 'Permission', 'Actions'])
-    // "Actions" is the column's accessible name only.
-    expect(html).toContain('<span class="sr-only">Actions</span></th>')
+    const columns = [...html.matchAll(/<th scope="col"[^>]*>([^<]+)<\/th>/g)].map((match) => match[1])
+    expect(columns).toEqual(['Name', 'Division', 'Department', 'Permission', 'Preview', 'Edit', 'Delete'])
+    expect(html).not.toContain('sr-only">Actions')
+    // As on Divisions and Departments: 6rem per action column, each heading centred above its button.
+    expect(html).toContain('<colgroup><col/><col/><col/><col/><col class="w-24"/><col class="w-24"/><col class="w-24"/></colgroup>')
+    for (const heading of ['Preview', 'Edit', 'Delete']) {
+      expect(html).toContain(`<th scope="col" class="px-2 py-3 text-center font-semibold last:rounded-tr-xl">${heading}</th>`)
+    }
     // The admin sidebar's maroon, with off-white text, on every header cell (keeping the rounded corners).
     expect(html).toContain('<thead class="text-offwhite [&amp;_th]:bg-maroon">')
-    for (const th of html.match(/<th scope="col" class="[^"]*"/g)!) expect(th).toContain('first:rounded-tl-xl last:rounded-tr-xl')
+    const headers = html.match(/<th scope="col" class="[^"]*"/g)!
+    expect(headers[0]).toContain('first:rounded-tl-xl')
+    expect(headers.at(-1)).toContain('last:rounded-tr-xl')
     expect(html).not.toContain('sara@example.test')
     // The division of the department, or — without one.
     expect(html).toContain('>Regulatory &amp; Drug Safety<')
@@ -80,6 +86,15 @@ describe('Users list', () => {
     // Delete is never disabled, not even on the signed-in admin's own row.
     expect(html).not.toContain('aria-disabled="true"')
     expect(html.match(/aria-label="Delete [^"]+"[^>]*>/g)!.every((button) => button.includes('text-status-rejected-fg'))).toBe(true)
+  })
+
+  it('puts each action in its own centred cell, in the order Preview, Edit, Delete', () => {
+    const rows = table(render()).split('<tr>').slice(2)
+    expect(rows).toHaveLength(staffOnly().length)
+    for (const row of rows) {
+      const cells = [...row.matchAll(/<td class="px-2 py-3\.5 text-center \[&amp;&gt;\*\]:mx-auto">(.*?)<\/td>/g)].map((match) => match[1])
+      expect(cells.map((cell) => cell.match(/aria-label="(\w+) /)?.[1])).toEqual(['View', 'Edit', 'Delete'])
+    }
   })
 
   it('shows the same users and actions as stacked cards on narrow screens', () => {

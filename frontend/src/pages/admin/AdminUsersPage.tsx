@@ -94,13 +94,16 @@ export function AdminUsersPage() {
   }
 
   const divisionText = (user: User) => divisionLabel(getDepartment(user.departmentId)) || content.none
-  const actions = (user: User) => (
-    <div className="flex justify-end gap-1">
-      <IconButton label={content.actions.view.replace('{name}', user.name)} icon={Eye} onClick={() => navigate(adminUserPath(user.id))} />
-      <IconButton label={content.actions.edit.replace('{name}', user.name)} icon={Pencil} onClick={() => navigate(adminUserEditPath(user.id))} />
-      <DeleteUserButton user={user} onDeleted={deleted} onRefused={refuse} />
-    </div>
-  )
+  // Each action on its own, for its column in the table; the cards (below md) keep them together.
+  const actionButtons = (user: User) => ({
+    preview: <IconButton label={content.actions.view.replace('{name}', user.name)} icon={Eye} onClick={() => navigate(adminUserPath(user.id))} />,
+    edit: <IconButton label={content.actions.edit.replace('{name}', user.name)} icon={Pencil} onClick={() => navigate(adminUserEditPath(user.id))} />,
+    delete: <DeleteUserButton user={user} onDeleted={deleted} onRefused={refuse} />,
+  })
+  const actions = (user: User) => {
+    const buttons = actionButtons(user)
+    return <div className="flex justify-end gap-1">{buttons.preview}{buttons.edit}{buttons.delete}</div>
+  }
 
   return (
     <>
@@ -186,6 +189,8 @@ export function AdminUsersPage() {
           {/* Table — md and up */}
           <div className={tableStyles.wide}>
             <table aria-label={content.tableLabel} className={tableStyles.table}>
+              {/* The action columns are as wide as on Divisions and Departments (6rem each). */}
+              <colgroup><col /><col /><col /><col /><col className={tableStyles.actionCol} /><col className={tableStyles.actionCol} /><col className={tableStyles.actionCol} /></colgroup>
               {/* The admin sidebar's maroon, off-white text (about 16:1). The colour is on the cells, so the
                   first and last keep the table's rounded top corners. */}
               <thead className={tableStyles.head}>
@@ -194,9 +199,10 @@ export function AdminUsersPage() {
                   <th scope="col" className={tableStyles.headCell}>{content.columns.division}</th>
                   <th scope="col" className={tableStyles.headCell}>{content.columns.department}</th>
                   <th scope="col" className={tableStyles.headCell}>{content.columns.permissions}</th>
-                  <th scope="col" className={`${tableStyles.headCell} text-right`}>
-                    <span className="sr-only">{content.columns.actions}</span>
-                  </th>
+                  {/* One column per action, each heading centred above its button, as on Divisions and Departments. */}
+                  <th scope="col" className={tableStyles.actionHead}>{content.columns.preview}</th>
+                  <th scope="col" className={tableStyles.actionHead}>{content.columns.edit}</th>
+                  <th scope="col" className={tableStyles.actionHead}>{content.columns.delete}</th>
                 </tr>
               </thead>
               <tbody className={tableStyles.body}>
@@ -213,7 +219,9 @@ export function AdminUsersPage() {
                     <td className={tableStyles.cell}>
                       <PermissionBadges user={user} />
                     </td>
-                    <td className={tableStyles.cell}>{actions(user)}</td>
+                    {(['preview', 'edit', 'delete'] as const).map((action) => (
+                      <td key={action} className={tableStyles.actionCell}>{actionButtons(user)[action]}</td>
+                    ))}
                   </tr>
                 ))}
               </tbody>

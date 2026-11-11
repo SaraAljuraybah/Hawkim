@@ -1767,7 +1767,8 @@ export interface AdminUsersListContent {
   count: CountText
   /** Accessible name of the table. */
   tableLabel: string
-  columns: { name: string; division: string; department: string; permissions: string; actions: string }
+  /** `preview`, `edit` and `delete`: the action columns' headings, as on Divisions and Departments. */
+  columns: { name: string; division: string; department: string; permissions: string; preview: string; edit: string; delete: string }
   /** An empty cell (e.g. no division). */
   none: string
   /** Accessible names and tooltips of the row's icon buttons; `{name}` is replaced. */

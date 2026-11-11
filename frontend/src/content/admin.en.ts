@@ -48,7 +48,7 @@ export const adminEn: AdminContent = {
     clearFilters: 'Clear Filters',
     count: { one: '{count} staff member', other: '{count} staff members' },
     tableLabel: 'Staff',
-    columns: { name: 'Name', division: 'Division', department: 'Department', permissions: 'Permission', actions: 'Actions' },
+    columns: { name: 'Name', division: 'Division', department: 'Department', permissions: 'Permission', preview: 'Preview', edit: 'Edit', delete: 'Delete' },
     none: '—',
     actions: { view: 'View {name}', edit: 'Edit {name}' },
     empty: 'No staff found.',
