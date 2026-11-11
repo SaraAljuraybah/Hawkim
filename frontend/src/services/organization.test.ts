@@ -25,8 +25,8 @@ describe('persisted organizational structure', () => {
     await expect(fetchOrganization()).rejects.toThrow('permission denied')
   })
   it.each([
-    ['rnd', 'Clinical Research & Development'],
-    ['governance_quality_compliance', 'Quality & Compliance'],
+    ['rnd', 'Clinical Research and Development'],
+    ['governance_quality_compliance', 'Quality and Compliance'],
   ])('passes the persisted division name through unchanged for %s', async (id, name) => {
     const hierarchy = { organization: null, divisions: [{ id, name }], departments: [] }
     rpc.mockResolvedValue({ data: hierarchy, error: null })

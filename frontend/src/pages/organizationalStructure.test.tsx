@@ -16,7 +16,7 @@ vi.mock('../hooks/useDocumentTitle', () => ({ useDocumentTitle: (title?: string)
 vi.mock('../hooks/useOrganizationName', () => ({ useOrganizationName: () => ({ ...headingFixture.name, set: () => {} }) }))
 const hierarchy: OrganizationHierarchy = {
   organization: null,
-  divisions: [{ id: 'division-1', name: 'Operations', email: 'ops@test.invalid' }, { id: 'division-2', name: 'R&D Division', email: null }],
+  divisions: [{ id: 'division-1', name: 'Operations', email: 'ops@test.invalid' }, { id: 'division-2', name: 'R and D Division', email: null }],
   departments: [
     { id: 'department-1', name: 'Quality', divisionId: 'division-1', email: 'quality@test.invalid', employees: [
       { id: 'person-1', name: 'Dana Fahad', initials: 'DF', email: 'dana@test.invalid', position: 'Specialist', permissions: ['author', 'reviewer'] },
@@ -87,7 +87,7 @@ describe('Organizational Structure', () => {
     expect(html).toContain('>Operations</span>')
     expect(html).toContain('>Departments (2)</span>')
     expect(html).toContain('>Departments (0)</span>')
-    expect(html).toContain('R&amp;D Division')
+    expect(html).toContain('R and D Division')
     expect(html).toContain('title="ops@test.invalid"')
     expect(html).toContain('aria-label="Copy email for Operations"')
     expect(html).toContain('<span aria-hidden="true">—</span><span class="sr-only">No email</span>')
@@ -117,16 +117,17 @@ describe('Organizational Structure', () => {
     expect(html).toMatch(/<tr id="org-staff-department-1" class=/)
     const row = html.match(/<tr class="border-t border-beige first:border-t-0">(?:(?!<\/tr>).)*Dana Fahad.*?<\/tr>/)![0]
     expect(row).toContain('>DF</span>')
-    expect(row).toContain('>Dana Fahad</span>')
-    expect(row).toContain('Roles: </span>Author, Reviewer</span>')
+    // The name opens their Profile Preview: a real button, named for what it does, underlined on hover and focus.
+    expect(row).toMatch(/<button type="button" aria-haspopup="dialog" aria-label="View Dana Fahad’s profile" class="[^"]*text-maroon underline-offset-2 hover:underline focus-visible:underline"[^>]*>Dana Fahad<\/button>/)
+    expect(row).toContain('Permissions: </span>Author, Reviewer</span>')
     // The copy button right after the email (which truncates, never pushing the button out of view).
     expect(row).toContain('<span title="dana@test.invalid" class="min-w-0 truncate">dana@test.invalid</span><span class="contents">')
     expect(row).toContain('aria-label="Copy email for Dana Fahad"')
     expect(row).toContain('aria-live="polite"')
     expect(row).not.toContain('Specialist')
     const noRole = table({ query: 'no role' }).match(/<tr class="border-t border-beige first:border-t-0">(?:(?!<\/tr>).)*No Role Person.*?<\/tr>/)![0]
-    expect(noRole).toContain('>No Role Person</span></span>')
-    expect(noRole).not.toContain('Roles:')
+    expect(noRole).toContain('>No Role Person</button></span>')
+    expect(noRole).not.toContain('Permissions:')
     expect(noRole).not.toContain('Employee')
   })
   it('opens the rows needed to show search results, and shows only the matches', () => {
@@ -134,7 +135,7 @@ describe('Organizational Structure', () => {
     expect(html.match(/aria-expanded="true"/g)).toHaveLength(2)
     expect(html).not.toContain('No Role Person')
     expect(html).not.toContain('Empty Department')
-    expect(html).not.toContain('R&amp;D Division')
+    expect(html).not.toContain('R and D Division')
   })
   it('shows an empty state when nothing matches', () => {
     expect(table({ query: 'nobody' })).toContain('No divisions, departments or staff match your search and filters.')
@@ -146,7 +147,7 @@ describe('Organizational Structure', () => {
     data.departments.push({ id: 'department-3', name: 'Legacy Unit', divisionId: null, employees: [] })
     const html = page(data)
     expect(html).toContain('<th scope="colgroup" colSpan="2" class="bg-beige/20 p-4 text-maroon">Unassigned departments</th>')
-    expect(html.indexOf('Unassigned departments')).toBeGreaterThan(html.indexOf('R&amp;D Division'))
+    expect(html.indexOf('Unassigned departments')).toBeGreaterThan(html.indexOf('R and D Division'))
     expect(html.indexOf('Legacy Unit')).toBeGreaterThan(html.indexOf('Unassigned departments'))
   })
   it('has one search and a Filter button with Division and Role chips', () => {
@@ -160,9 +161,9 @@ describe('Organizational Structure', () => {
     expect(button[3]).toContain('>All</span>')
     expect(button[3]).toContain('lucide-chevron-down')
     expect(button[3]).not.toContain('lucide-funnel')
-    expect([...html.matchAll(/<legend[^>]*>([^<]+)<\/legend>/g)].map((match) => match[1])).toEqual(['Division', 'Department', 'Role'])
+    expect([...html.matchAll(/<legend[^>]*>([^<]+)<\/legend>/g)].map((match) => match[1])).toEqual(['Division', 'Department', 'Permission'])
     const chips = [...html.matchAll(/aria-pressed="false"[^>]*><span class="min-w-0 break-words">([^<]+)<\/span>/g)].map((match) => match[1])
-    expect(chips).toEqual(['Operations', 'R&amp;D Division', 'Empty Department', 'Quality', 'Author', 'Reviewer', 'Approver', 'Others'])
+    expect(chips).toEqual(['Operations', 'R and D Division', 'Empty Department', 'Quality', 'Author', 'Reviewer', 'Approver', 'Others'])
     // Departments under their division's subheading; Division and Department chips scroll inside their cards.
     expect(html).toMatch(/<p id="[^"]+" class="mb-1.5 text-xs font-semibold text-text-gray">Operations<\/p>/)
     expect(html.match(/max-h-\[8.5rem\] overflow-y-auto/g)).toHaveLength(2)

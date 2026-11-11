@@ -85,7 +85,7 @@ export const landingEn: LandingContent = {
         title: 'Recent Activity',
         items: [
           {
-            title: 'Your access request to Research & Development is under review',
+            title: 'Your access request to Research and Development is under review',
             meta: '2 hours ago',
             status: 'Pending',
           },
@@ -145,11 +145,11 @@ export const landingEn: LandingContent = {
       {
         icon: 'organization',
         title: 'Centralized Organization Management',
-        description: 'Manage departments, users, roles and permissions across your organization.',
+        description: 'Manage departments, users and permissions across your organization.',
       },
       {
         icon: 'traceability',
-        title: 'Traceability & Version Control',
+        title: 'Traceability and Version Control',
         description: 'Track changes, maintain revision history and keep complete audit trails.',
       },
     ],

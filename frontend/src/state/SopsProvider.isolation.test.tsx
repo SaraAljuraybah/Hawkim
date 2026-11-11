@@ -110,7 +110,7 @@ vi.mock('../services/sops', async () => {
     }),
     addCoAuthors: vi.fn(async (id: string, ids: string[]) => change(id, (sop) => workflow.addCoAuthors(sop, fixture.user!.id, ids))),
     removeCoAuthor: vi.fn(async (id: string, coAuthorId: string) => change(id, (sop) => workflow.removeCoAuthor(sop, fixture.user!.id, coAuthorId))),
-    updateSopDescription: vi.fn(async (id: string, text: string) => change(id, (sop) => workflow.updateDescription(sop, fixture.user!.id, text))),
+    updateSopDetails: vi.fn(async (id: string, details: { title: string; description: string }) => change(id, (sop) => workflow.updateDetails(sop, fixture.user!.id, details))),
   }
 })
 vi.mock('../services/review', async () => {

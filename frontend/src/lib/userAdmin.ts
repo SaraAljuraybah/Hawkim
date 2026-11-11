@@ -92,7 +92,16 @@ export type StaffSortGroup = 'name' | 'division' | 'department' | 'permission'
 export const staffSortGroup = (sort: StaffSort): StaffSortGroup | undefined =>
   sort === 'default' ? undefined : (sort.slice(0, sort.lastIndexOf('-')) as StaffSortGroup)
 
-/** Clear Filters: the URL without the Filter and the sort (other parameters stay). */
+/** The Staff page's tabs (`?status=`): Active Staff (the default) and Deactive Staff. */
+export const STAFF_STATUSES = ['active', 'deactivated'] as const
+export type StaffStatus = (typeof STAFF_STATUSES)[number]
+
+/** The staff on a Staff tab: never Admins (they are on the Admins page); active or deactivated only. */
+export function staffWithStatus(users: User[], status: StaffStatus): User[] {
+  return users.filter((user) => !isSystemAdmin(user) && (status === 'deactivated' ? !!user.deletedAt : !user.deletedAt))
+}
+
+/** Clear Filters: the URL without the Filter and the sort (other parameters, like the tab, stay). */
 export function clearedStaffParams(current: URLSearchParams): URLSearchParams {
   return updateParams(current, { division: undefined, dept: undefined, permission: undefined, sort: undefined }, {})
 }

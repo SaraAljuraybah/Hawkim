@@ -32,7 +32,8 @@ export interface UsersStore {
   /**
    * Changes a user's details and permissions (the same checks as adding, and permissions in use can't
    * be removed). Everything but the email is saved to the database first, all or nothing: if that fails
-   * it rejects with a SaveUserError and nothing changes. The email only changes this tab's copy.
+   * it rejects with a SaveUserError and nothing changes. Then the email, with their sign-in account.
+   * A deactivated staff member can be edited too, and stays deactivated.
    */
   updateUser: (userId: string, user: NewUser, context: AdminActionContext) => Promise<void>
   /**
@@ -41,6 +42,12 @@ export interface UsersStore {
    * has done it; rejects with a DeactivateStaffError (nothing changes).
    */
   deleteUser: (userId: string, context: AdminActionContext) => Promise<void>
+  /**
+   * Reactivate (Deactive Staff tab): makes a deactivated staff member active again in the database
+   * (reactivate_staff), with the permissions and history they had. The list changes only once the server
+   * has done it; rejects with a ReactivateStaffError (nothing changes).
+   */
+  reactivateUser: (userId: string) => Promise<void>
 
   // Manage Organization → Admins. The server checks who may do each (services/admins.ts).
   /**

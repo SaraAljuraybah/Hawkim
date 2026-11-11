@@ -49,6 +49,7 @@ export function CommentDialog({ text, dialogs, required = false, onConfirm, onCl
         ref={commentRef}
         name="comment"
         rows={4}
+        required={required}
         label={text.label}
         maxLength={COMMENT_MAX}
         counter={dialogs.counter.replace('{count}', String(comment.length)).replace('{max}', String(COMMENT_MAX))}
@@ -111,6 +112,7 @@ export function RouteDialog({ sop, dialogs, onConfirm, onClose }: RouteDialogPro
         <>
           <PeoplePicker
             label={text.pickerLabel}
+            required
             hint={text.pickerHint.replace('{department}', departmentName(sop.departmentId))}
             error={error}
             options={options}

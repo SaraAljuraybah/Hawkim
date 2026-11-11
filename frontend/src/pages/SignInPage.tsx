@@ -162,6 +162,7 @@ export function SignInPage() {
                 ref={emailRef}
                 name="email"
                 type="email"
+                required
                 autoComplete="email"
                 autoCapitalize="none"
                 spellCheck={false}
@@ -176,6 +177,7 @@ export function SignInPage() {
               <PasswordField
                 ref={passwordRef}
                 name="password"
+                required
                 autoComplete="current-password"
                 label={content.password.label}
                 placeholder={content.password.placeholder}

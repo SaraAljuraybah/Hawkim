@@ -20,6 +20,28 @@ export const sopWorkflowEn: SopWorkflowContent = {
     cancel: 'Cancel',
     failed: "The description couldn't be saved. Try again.",
   },
+  details: {
+    title: 'SOP Details',
+    edit: 'Edit',
+    fields: { title: 'Title', description: 'Description', division: 'Division', department: 'Department', dateAdded: 'Date Added' },
+    notProvided: 'Not provided',
+    dialog: {
+      title: 'Edit SOP Details',
+      description: 'Change the title and description. The workflow status, reviewers and SOP file stay as they are.',
+      counter: '{count} / {max}',
+      titleHint: 'Up to 50 characters.',
+      save: 'Save Changes',
+      saving: 'Saving…',
+      cancel: 'Cancel',
+      errors: {
+        titleRequired: 'Enter a title.',
+        titleTooLong: 'Enter a title of up to 50 characters.',
+        descriptionTooLong: 'Enter a description of up to 1,000 characters.',
+      },
+      failed: "The SOP details couldn't be saved. Your changes are still here: try again.",
+    },
+    saved: 'SOP details updated.',
+  },
   roles: { reviewer: 'Reviewer', approver: 'Approver', author: 'Author', coAuthor: 'Co-author', system: 'System' },
 
   reviewerDeadline: {

@@ -76,9 +76,9 @@ describe('My Profile', () => {
   it('shows — without a division, and the division\'s name when configured, never its id', () => {
     expect(render()).toContain('>—<')
     fixture.home.divisionId = 'regulatory_drug_safety'
-    fixture.home.divisionName = 'Regulatory & Drug Safety'
+    fixture.home.divisionName = 'Regulatory and Drug Safety'
     const html = render()
-    expect(html).toContain('>Regulatory &amp; Drug Safety<')
+    expect(html).toContain('>Regulatory and Drug Safety<')
     expect(html).not.toContain('regulatory_drug_safety')
   })
 
@@ -256,5 +256,13 @@ describe('My Profile in the admin portal', () => {
     expect(profilePathFor({ permissions: ['author'] })).toBe(PROFILE_PATH)
     expect(profilePathFor({ permissions: [] })).toBe(PROFILE_PATH)
     expect(profilePathFor(null)).toBe(PROFILE_PATH)
+  })
+})
+
+describe('the email on My Profile', () => {
+  it('has the copy button right after it', () => {
+    const html = render()
+    expect(html).toContain('<span class="min-w-0 break-all">sara@example.test</span>')
+    expect(html).toContain('aria-label="Copy your email"')
   })
 })

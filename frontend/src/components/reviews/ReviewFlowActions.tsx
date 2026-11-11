@@ -82,7 +82,7 @@ export function ReviewFlowActions({ sop, onComplete }: Props) {
           <TextField name="existingReviewer" label={representative ? text.assignedReviewer : text.reviewer2}
             value={users.find((person) => person.id === forwardTarget)?.name ?? ''} readOnly hint={text.savedHandoff} />
         </>}
-        <TextAreaField ref={commentRef} name="reviewComment" rows={4} label={dialog.startsWith('return-') ? text.requiredComment : text.comment} maxLength={1000} value={comment} onChange={(event) => { setComment(event.target.value); setError('') }} />
+        <TextAreaField ref={commentRef} name="reviewComment" rows={4} required={dialog.startsWith('return-')} label={dialog.startsWith('return-') ? text.requiredComment : text.comment} maxLength={1000} value={comment} onChange={(event) => { setComment(event.target.value); setError('') }} />
       </FormDialog>}
     </div>
   )

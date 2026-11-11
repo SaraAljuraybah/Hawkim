@@ -21,6 +21,11 @@ interface ConfirmDialogProps {
   error?: string
   /** More of the message under the description (e.g. a list); read with it. */
   children?: ReactNode
+  /**
+   * A larger title over smaller (14px) message text, all left-aligned: for a consequential action whose
+   * message lists what happens (Delete and Reactivate on Staff).
+   */
+  prominent?: boolean
 }
 
 /**
@@ -28,7 +33,7 @@ interface ConfirmDialogProps {
  * makes it inert, closes on Escape. Focus starts on the safe choice and Tab
  * wraps between the two buttons. The caller decides where focus goes afterwards.
  */
-export function ConfirmDialog({ open, title, description, cancelLabel, confirmLabel, onConfirm, onCancel, canConfirm, error, children }: ConfirmDialogProps) {
+export function ConfirmDialog({ open, title, description, cancelLabel, confirmLabel, onConfirm, onCancel, canConfirm, error, children, prominent = false }: ConfirmDialogProps) {
   const dialogRef = useRef<HTMLDialogElement>(null)
   const confirmedRef = useRef(false)
   const titleId = useId()
@@ -79,10 +84,10 @@ export function ConfirmDialog({ open, title, description, cancelLabel, confirmLa
     >
       {open && (
         <div className="p-6">
-          <h2 id={titleId} className="text-lg">
+          <h2 id={titleId} className={prominent ? 'text-left text-xl break-words sm:text-2xl' : 'text-lg'}>
             {title}
           </h2>
-          <div id={descriptionId} className="mt-2 text-text-gray">
+          <div id={descriptionId} className={prominent ? 'mt-3 text-left text-sm text-text-gray' : 'mt-2 text-text-gray'}>
             <p>{description}</p>
             {children}
           </div>

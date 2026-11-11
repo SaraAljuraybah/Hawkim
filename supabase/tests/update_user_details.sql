@@ -86,7 +86,9 @@ begin
   perform pg_temp.expect_error(format('select public.update_user_details(%L, ''N'', null, ''T'')', target), '23514');
   perform pg_temp.expect_error(format('select public.update_user_details(%L, ''N'', %L, ''  '')', target, phone), '23514');
   perform pg_temp.expect_error(format('select public.update_user_details(%L, ''N'', %L, repeat(''p'', 101))', target, phone), '23514');
-  perform pg_temp.expect_error(format('select public.update_user_details(%L, ''N'', %L, ''T'')', gone, phone), 'P0002');
+  -- A deactivated staff member is found (Edit Staff on the Deactive Staff tab) and stays deactivated.
+  perform public.update_user_details(gone, 'Gone Person', phone, 'New Title');
+  assert (select deleted_at is not null and "position" = 'New Title' from public.profiles where id = gone), 'Edited, still deactivated';
   perform pg_temp.expect_error(format('select public.update_user_details(%L, ''N'', %L, ''T'')', gen_random_uuid(), phone), 'P0002');
 
   -- ---------- A name and phone change: initials follow, position and its rows untouched ----------

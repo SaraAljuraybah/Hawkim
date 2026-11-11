@@ -30,7 +30,7 @@ export const organizationAdminEn = {
   addDivision: 'Add Division', addDepartment: 'Add Department', departments: 'Departments',
   name: 'Name', users: 'Users', staff: 'Staff', sops: 'SOPs',
   /** Headings of the four action columns, above each row's buttons. */
-  actionColumns: { add: 'Add', preview: 'Preview', edit: 'Edit', delete: 'Delete' }, position: 'Position', email: 'Email',
+  actionColumns: { add: 'Add Department', preview: 'Preview', edit: 'Edit', delete: 'Delete' }, position: 'Position', email: 'Email',
   description: 'Description', division: 'Division', unassigned: 'Unassigned departments',
   selectDivision: 'Select a division', noDivision: 'No division (existing assignment)',
   divisionNone: 'No division', saving: 'Saving…',

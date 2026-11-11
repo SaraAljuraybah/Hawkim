@@ -1,13 +1,14 @@
 import type { ReactNode } from 'react'
 import type { User } from '../../data/mock/types'
 import { DeleteUserButton } from './DeleteUserButton'
+import { ReactivateUserButton } from './ReactivateUserButton'
 import { StaffPermissionBadges } from './DetailsCard'
 import { usersEn } from '../../content/users.en'
 import { UserAvatar } from './UserBits'
 
 /**
  * The header of Edit Staff (a staff member's page uses DetailsHeader): large avatar, the name as the page's h1 with
- * Delete right beside it (after any `actions`, e.g. Edit Staff), and the saved permissions as badges
+ * Delete right beside it (Reactivate for a deactivated staff member; after any `actions`, e.g. Edit Staff), and the saved permissions as badges
  * under it (none without one). `label` (e.g. "Edit Staff") is a small line above the name, inside the
  * h1 so the heading says the page's purpose too. `description` is one short line under the badges.
  * The name wraps on narrow screens; the buttons stay beside its first line.
@@ -22,6 +23,7 @@ export function UserHeader({
   description,
   actions,
   onDeleted,
+  onReactivated,
   onRefused,
 }: {
   user: User
@@ -31,6 +33,8 @@ export function UserHeader({
   /** Buttons before Delete, beside the name. */
   actions?: ReactNode
   onDeleted: (message: string) => void
+  /** After Reactivate (deactivated staff only). */
+  onReactivated?: (message: string) => void
   onRefused: (title: string, reasons: string[]) => void
 }) {
   return (
@@ -48,7 +52,9 @@ export function UserHeader({
           {/* Below the label's line (1.25rem), so they sit beside the name */}
           <div className={`flex shrink-0 items-center gap-2 ${label ? 'mt-5' : ''}`}>
             {actions}
-            <DeleteUserButton user={user} onDeleted={onDeleted} onRefused={onRefused} />
+            {user.deletedAt
+              ? <ReactivateUserButton user={user} onReactivated={(message) => onReactivated?.(message)} onRefused={onRefused} />
+              : <DeleteUserButton user={user} onDeleted={onDeleted} onRefused={onRefused} />}
           </div>
         </div>
         <StaffPermissionBadges labels={user.permissions.map((permission) => usersEn.permissions[permission])} className="mt-2" />

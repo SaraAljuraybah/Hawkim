@@ -3,12 +3,23 @@ import { adminsEn } from '../../content/admins.en'
 import type { AdminRoleKey } from '../../content/types'
 
 /**
- * An administrator's role. Admin looks like the Staff permission badges (light gold, maroon text
- * 11.63:1); Super Admin is maroon with off-white text (about 16:1) and a crown, so the two are told
- * apart by more than colour.
+ * An administrator's permission (Admin or Super Admin). By default, Admin looks like the Staff permission
+ * badges (light gold, maroon text 11.63:1) and Super Admin is maroon with off-white text (about 16:1)
+ * and a crown, so the two are told apart by more than colour.
+ *
+ * `tone="gold"` (the Permission row of an Admin's details) shows both in the solid light gold of the
+ * staff permission badges (maroon text 8.84:1); the Super Admin keeps its crown.
  */
-export function AdminRoleBadge({ role, className = '' }: { role: AdminRoleKey; className?: string }) {
+export function AdminRoleBadge({ role, className = '', tone = 'default' }: { role: AdminRoleKey; className?: string; tone?: 'default' | 'gold' }) {
   const base = 'inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-semibold whitespace-nowrap'
+  if (tone === 'gold') {
+    return (
+      <span className={`${base} bg-gold-light px-2 text-maroon ${className}`}>
+        {role === 'superAdmin' && <Crown aria-hidden="true" className="size-3.5" strokeWidth={2} />}
+        {adminsEn.roles[role]}
+      </span>
+    )
+  }
   if (role === 'superAdmin') {
     return (
       <span className={`${base} bg-maroon text-offwhite ${className}`}>

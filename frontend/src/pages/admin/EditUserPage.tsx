@@ -10,7 +10,7 @@ import { adminEn } from '../../content/admin.en'
 import { usersEn } from '../../content/users.en'
 import type { User } from '../../data/mock/types'
 import { useDocumentTitle } from '../../hooks/useDocumentTitle'
-import { ADMIN_USERS_PATH, adminAdminPath } from '../../lib/routes'
+import { ADMIN_DEACTIVATED_USERS_PATH, ADMIN_USERS_PATH, adminAdminPath } from '../../lib/routes'
 import { isSystemAdmin, permissionChangeBlockers, responsibilitiesInProgress, transfersDepartment, userFormValues, type NewUser } from '../../lib/userAdmin'
 import { ChangeEmailError, SaveUserError, type SaveUserFailure } from '../../services/people'
 import { useDepartments } from '../../state/departmentsContext'
@@ -26,7 +26,9 @@ import type { AdminUsersLocationState } from './AdminUsersPage'
  * filled in with their details. Save stays here; a change the rules or the database refuse saves nothing
  * and is explained. Everything is saved to the database; a new email also changes their sign-in
  * account. Moving someone to another department is refused while they have SOP work in progress.
- * Leaving with unsaved changes asks first. Deleted and unknown staff show Not Found.
+ * A deactivated staff member (from the Deactive Staff tab) can be edited too and stays deactivated: their
+ * header has Reactivate instead of Delete, and Back and Cancel return to the Deactive Staff tab.
+ * Leaving with unsaved changes asks first. Unknown people show Not Found.
  */
 export function EditUserPage() {
   const { id } = useParams()
@@ -36,8 +38,9 @@ export function EditUserPage() {
 
 function EditUser({ id }: { id: string | undefined }) {
   const content = adminEn.editUser
-  const { activeUsers } = useUsers()
-  const user = activeUsers.find((item) => item.id === id)
+  const { users } = useUsers()
+  // Active staff, and deactivated staff (Admins are never edited here).
+  const user = users.find((item) => item.id === id && (!item.deletedAt || !isSystemAdmin(item)))
   useDocumentTitle(user ? adminEn.pageTitle.replace('{page}', content.title) : undefined)
 
   if (!user) return <NotFoundPage embedded />
@@ -61,6 +64,8 @@ function EditUserContent({ user }: { user: User }) {
   const [savedCount, setSavedCount] = useState(0)
   const [refused, setRefused] = useState<{ title: string; reasons: string[] }>()
   const [deleteRefused, setDeleteRefused] = useState<{ title: string; reasons: string[] }>()
+  // Where Back and Cancel go: the tab this staff member is listed on.
+  const listPath = user.deletedAt ? ADMIN_DEACTIVATED_USERS_PATH : ADMIN_USERS_PATH
   const statusRef = useRef<HTMLDivElement>(null)
   const refusedRef = useRef<HTMLDivElement>(null)
   const deleteErrorRef = useRef<HTMLDivElement>(null)
@@ -135,6 +140,13 @@ function EditUserContent({ user }: { user: User }) {
     navigate(ADMIN_USERS_PATH, { state })
   }
 
+  function reactivated(message: string) {
+    setDeleteRefused(undefined)
+    setRefused(undefined)
+    flushSync(() => setSaved(message))
+    statusRef.current?.focus()
+  }
+
   function refuseDelete(title: string, reasons: string[]) {
     setSaved('')
     flushSync(() => setDeleteRefused({ title, reasons }))
@@ -144,13 +156,13 @@ function EditUserContent({ user }: { user: User }) {
   return (
     <>
       <Link
-        to={adminEn.addUser.back.href}
+        to={listPath}
         className="inline-flex items-center gap-1.5 rounded-sm text-sm font-medium text-text-gray transition-colors hover:text-maroon"
       >
         <ArrowLeft aria-hidden="true" className="size-4" strokeWidth={1.75} />
         {adminEn.addUser.back.label}
       </Link>
-      <UserHeader user={user} label={content.title} description={content.subtitle} onDeleted={deleted} onRefused={refuseDelete} />
+      <UserHeader user={user} label={content.title} description={content.subtitle} onDeleted={deleted} onReactivated={reactivated} onRefused={refuseDelete} />
       {deleteRefused && <RefusedBox ref={deleteErrorRef} title={deleteRefused.title} messages={deleteRefused.reasons} />}
 
       {/* Success message after saving (live region stays mounted) */}
@@ -168,6 +180,7 @@ function EditUserContent({ user }: { user: User }) {
         initial={userFormValues(user, activeDepartments)}
         // The user's own email isn't a duplicate of itself.
         otherUsers={activeUsers.filter((other) => other.id !== user.id)}
+        text={{ ...adminEn.addUser, back: { ...adminEn.addUser.back, href: listPath } }}
         submitLabel={content.submit}
         busyLabel={content.saving}
         notice={refused && <RefusedBox ref={refusedRef} title={refused.title} messages={refused.reasons} />}

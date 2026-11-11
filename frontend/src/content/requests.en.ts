@@ -15,6 +15,7 @@ export const requestsEn: RequestsContent = {
 
   submit: {
     pageTitle: 'Submit a Request | Hawkim',
+    back: { label: 'Back to My Requests', href: '/requests' },
     title: 'Submit a Request',
     subtitle: "Send a request to your Admins. We'll review it and get back to you.",
     fields: {

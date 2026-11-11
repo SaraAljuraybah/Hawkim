@@ -40,7 +40,7 @@ import { supabase } from './supabase'
  * selected only while WORKING_DAY_DEADLINES_ACTIVE is on.
  */
 const REQUEST_POLICY_COLUMN = WORKING_DAY_DEADLINES_ACTIVE ? ' deadline_policy,' : ''
-const SOP_COLUMNS = `id, code, title, description, department_id, author_id, status, current_version, updated_at, directory_group,
+const SOP_COLUMNS = `id, code, title, description, department_id, author_id, status, current_version, created_at, updated_at, directory_group,
   sop_versions!sop_versions_sop_id_fkey (version, file_name, file_type, storage_path, uploaded_by, uploaded_at, deleted_at, deleted_by),
   sop_co_authors!sop_co_authors_sop_id_fkey (user_id, added_at),
   timeline_events!timeline_events_sop_id_fkey (id, type, actor_id, version, recipient_ids, subject_id, note, created_at,
@@ -168,6 +168,8 @@ export interface SopRow {
   author_id: string
   status: SopStatus
   current_version: number
+  /** When the SOP was added (sops.created_at). */
+  created_at?: string
   updated_at: string
   /** "others" once its department was deleted with "Move SOPs to Others" (supabase/migrations/20261107120100). */
   directory_group?: 'department' | 'others' | null
@@ -352,6 +354,7 @@ export function toSop(row: SopRow): Sop {
     version: String(row.current_version),
     status: row.status,
     lastUpdated: todayIsoDate(new Date(row.updated_at)),
+    ...(row.created_at ? { createdAt: row.created_at } : {}),
     fileName: current?.fileName ?? '',
     fileType: current?.fileType ?? 'pdf',
     // In the order they were added.
@@ -456,8 +459,14 @@ export async function removeCoAuthor(sopId: string, userId: string): Promise<voi
   if (error) throw new Error(error.message)
 }
 
-/** Main author: changes the description before the SOP is published (trimmed and checked by the database). */
-export async function updateSopDescription(sopId: string, description: string): Promise<void> {
-  const { error } = await supabase().rpc('update_sop_description', { p_sop_id: sopId, p_description: description.trim() })
+/**
+ * Main author: changes the SOP's title and description (SOP Details) before it is published, at any stage
+ * (trimmed and checked by the database, update_sop_details). Nothing else changes: status, reviewers,
+ * decisions and files stay as they are.
+ */
+export async function updateSopDetails(sopId: string, details: { title: string; description: string }): Promise<void> {
+  const { error } = await supabase().rpc('update_sop_details', {
+    p_sop_id: sopId, p_title: details.title.trim(), p_description: details.description.trim(),
+  })
   if (error) throw new Error(error.message)
 }

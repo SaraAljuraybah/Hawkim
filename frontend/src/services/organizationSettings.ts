@@ -27,6 +27,22 @@ export async function fetchOrganizationName(): Promise<string | null> {
   return data
 }
 
+type NameListener = (name: string) => void
+const nameListeners = new Set<NameListener>()
+
+/** Calls `listener` with each newly saved organization name (e.g. from Organization Profile); returns the unsubscribe. */
+export function onOrganizationNameSaved(listener: NameListener): () => void {
+  nameListeners.add(listener)
+  return () => {
+    nameListeners.delete(listener)
+  }
+}
+
+/** Tells every shown organization name (the top bar) about a name saved elsewhere, without reloading. */
+export function notifyOrganizationName(name: string): void {
+  for (const listener of nameListeners) listener(name)
+}
+
 /** Saves the organization's name (the Super Admin only; the server checks) and returns it as stored. */
 export async function saveOrganizationName(name: string): Promise<string> {
   const { data, error } = await supabase().rpc('set_organization_name', { p_name: name })

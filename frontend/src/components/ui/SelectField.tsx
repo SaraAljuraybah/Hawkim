@@ -28,7 +28,7 @@ export interface SelectFieldProps extends Omit<SelectHTMLAttributes<HTMLSelectEl
   placeholder?: string
   hint?: string
   error?: string
-  /** Shows a red asterisk after the label (visual only; pass `required` too). */
+  /** Shows a red asterisk after the label. It is shown by itself for a `required` field (always matching what is checked); pass true to show it without `required`. */
   requiredMark?: boolean
   ref?: Ref<HTMLSelectElement>
   className?: string
@@ -53,7 +53,7 @@ export function SelectField({
   const showingPlaceholder = value === '' || value === undefined
 
   return (
-    <FieldShell label={label} inputId={inputId} hint={hint} hintId={hintId} error={error} errorId={errorId} requiredMark={requiredMark} className={className}>
+    <FieldShell label={label} inputId={inputId} hint={hint} hintId={hintId} error={error} errorId={errorId} requiredMark={requiredMark || !!selectProps.required} className={className}>
       <div className="relative">
         <select
           ref={ref}

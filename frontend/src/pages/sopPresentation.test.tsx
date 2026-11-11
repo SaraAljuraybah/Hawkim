@@ -221,3 +221,30 @@ describe('author workflow section layout', () => {
     expect(panel).not.toContain(internalReviewEn.panel.noActive)
   })
 })
+
+describe('Back to My SOPs on Add SOP', () => {
+  it('goes back to My SOPs (where Cancel goes), above the one h1, in the shared back-link style', () => {
+    const html = render(<UploadSopPage />)
+    const back = html.match(/<a[^>]*href="\/my-sops"[^>]*>(?:(?!<\/a>).)*Back to My SOPs<\/a>/)![0]
+    expect(back).toContain('inline-flex items-center gap-1.5 rounded-sm text-sm font-medium text-text-gray transition-colors hover:text-maroon')
+    expect(back).toMatch(/lucide-arrow-left/)
+    expect(html.indexOf('Back to My SOPs')).toBeLessThan(html.indexOf('<h1'))
+    expect(html.match(/<h1/g)).toHaveLength(1)
+  })
+})
+
+describe('SOP Details on the author page', () => {
+  it('comes right after Workflow status with Title, Description, Division, Department and Date Added', () => {
+    const html = render(<SopWorkflowPage />)
+    const positions = ['tracker-title', 'sop-details-title', 'authors-title'].map((id) => html.indexOf(`id="${id}"`))
+    expect(positions.every((position) => position >= 0)).toBe(true)
+    expect([...positions].sort((a, b) => a - b)).toEqual(positions)
+    const card = html.slice(html.indexOf('id="sop-details-title"'), html.indexOf('id="authors-title"'))
+    const labels = [...card.matchAll(/<dt class="text-sm font-bold text-maroon">([^<]+)<\/dt>/g)].map((match) => match[1])
+    expect(labels).toEqual(['Title', 'Description', 'Division', 'Department', 'Date Added'])
+    // The description is in its own white box, the full width of the card, and no longer under the title.
+    expect(card).toMatch(/<dd class="min-w-0 rounded-lg border border-beige bg-white px-4 py-3[^"]*whitespace-pre-line[^"]*">/)
+    const header = html.slice(html.indexOf('<h1'), html.indexOf('id="tracker-title"'))
+    expect(header).not.toContain('Edit Description')
+  })
+})

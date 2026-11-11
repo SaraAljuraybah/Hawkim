@@ -349,6 +349,45 @@ export async function deactivateStaff(userId: string): Promise<{ deactivatedAt: 
   return { deactivatedAt }
 }
 
+/** Why a deactivated staff member could not be reactivated. */
+export type ReactivateStaffFailure =
+  | 'forbidden' | 'not-found' | 'admin-managed-separately' | 'email-taken' | 'account-unavailable' | 'department-unavailable' | 'failed'
+
+export class ReactivateStaffError extends Error {
+  readonly reason: ReactivateStaffFailure
+  constructor(reason: ReactivateStaffFailure) {
+    super(`The staff member was not reactivated (${reason})`)
+    this.reason = reason
+  }
+}
+
+const REACTIVATE_HINTS: ReactivateStaffFailure[] = ['admin-managed-separately', 'email-taken', 'account-unavailable', 'department-unavailable']
+
+/**
+ * Reactivates a deactivated staff member (Reactivate on the Deactive Staff tab) through reactivate_staff:
+ * the same profile and sign-in account are active again, with the permissions, department and history
+ * they had (nothing is created or reassigned). A repeated request succeeds without changing anything.
+ * Throws a ReactivateStaffError.
+ */
+export async function reactivateStaff(userId: string): Promise<void> {
+  let response
+  try {
+    response = await supabase().rpc('reactivate_staff', { p_user_id: userId })
+  } catch {
+    throw new ReactivateStaffError('failed')
+  }
+  const error = response.error
+  if (error) {
+    const hinted = REACTIVATE_HINTS.find((reason) => reason === error.hint)
+    if (hinted) throw new ReactivateStaffError(hinted)
+    // PGRST30x: the session's token has expired or isn't valid.
+    if (error.code === '42501' || error.code?.startsWith('PGRST30')) throw new ReactivateStaffError('forbidden')
+    if (error.code === 'P0002') throw new ReactivateStaffError('not-found')
+    throw new ReactivateStaffError('failed')
+  }
+  if ((response.data as { id?: unknown } | null)?.id !== userId) throw new ReactivateStaffError('failed')
+}
+
 /** A department row as a Department. */
 export function toDepartment(row: DepartmentRow): Department {
   return {

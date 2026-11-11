@@ -13,7 +13,7 @@ import { UserDetailsPage } from './UserDetailsPage'
 const home: Department = { id: 'home', name: 'Home', initials: 'HM', description: '' }
 const fixture = vi.hoisted(() => ({ user: null as User | null }))
 vi.mock('../../hooks/useDocumentTitle', () => ({ useDocumentTitle: () => {} }))
-vi.mock('../../state/usersContext', () => ({ useUsers: () => ({ activeUsers: [fixture.user], deleteUser: vi.fn() }) }))
+vi.mock('../../state/usersContext', () => ({ useUsers: () => ({ users: [fixture.user], activeUsers: [fixture.user], deleteUser: vi.fn(), reactivateUser: vi.fn() }) }))
 vi.mock('../../state/sessionContext', () => ({ useCurrentUser: () => ({ id: 'admin' }) }))
 vi.mock('../../state/sopsContext', () => ({ useSops: () => ({ sops: [] }) }))
 vi.mock('../../state/departmentsContext', () => ({

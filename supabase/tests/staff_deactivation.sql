@@ -191,12 +191,13 @@ begin
   assert not public.can_manage_organization(), 'A deactivated Admin manages nothing';
   perform pg_temp.expect_error(format('select public.deactivate_staff(%L)', peer), '42501');
 
-  -- ---------- 5. Edit Staff can't reactivate (only Add Staff can) ----------
+  -- ---------- 5. Edit Staff edits a deactivated staff member but never reactivates them ----------
+  -- (20261113130000_staff_reactivation.sql: Edit Staff finds deactivated staff; only Reactivate and Add Staff reactivate.)
   perform pg_temp.act_as(admin);
-  perform pg_temp.expect_error(format(
-    'select public.save_user(%L::uuid, ''SD Person 4'', ''+966512345604'', ''Officer'', ''sd-home'', array[''author'']::text[], ''sd-home'', array[''author'',''reviewer'']::text[])', free), 'P0002');
-  perform pg_temp.expect_error(format('select public.update_user_details(%L, ''SD Person 4'', ''+966512345604'', ''Officer'')', free), 'P0002');
-  perform pg_temp.expect_error(format('select public.set_user_email(%L, ''sd-4-new@test.invalid'', true)', free), 'P0002');
+  perform public.save_user(free, 'SD Person 4', '+966512345604', 'Officer', 'sd-home', array['author']::text[], 'sd-home', array['author','reviewer']::text[]);
+  perform public.update_user_details(free, 'SD Person 4', '+966512345604', 'Officer');
+  -- The sign-in account still has the old email, so applying a new one is refused (as for anyone).
+  perform pg_temp.expect_error(format('select public.set_user_email(%L, ''sd-4-new@test.invalid'', true)', free), '23514', 'invalid');
   perform pg_temp.expect_error(format('update public.profiles set deleted_at = null where id = %L', free), '42501');
   perform pg_temp.as_owner();
   assert (select deleted_at from public.profiles where id = free) = v_ended, 'Still deactivated';

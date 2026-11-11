@@ -15,7 +15,7 @@ import {
 import { useDepartments } from './departmentsContext'
 import { useLoadAfterSignIn } from './useLoadAfterSignIn'
 import { UsersContext, type AdminActionContext, type AdminDetails, type UsersStore } from './usersContext'
-import { addUserAccount, changeUserEmail, deactivateStaff, fetchPeople, saveUser } from '../services/people'
+import { addUserAccount, changeUserEmail, deactivateStaff, fetchPeople, reactivateStaff, saveUser } from '../services/people'
 import { AdminActionError, deleteAdminAccount, updateAdminDetails } from '../services/admins'
 
 /** What the admin entered, as a user's saved fields. A System Admin has no department or position. */
@@ -36,9 +36,8 @@ function savedFields(input: NewUser, departmentId: string) {
 /**
  * Users store shared by the employee screens (names, people pickers) and the admin
  * portal. The people and their roles are loaded from the database after sign-in.
- * Adding a user and changing their name, email, phone, position, department and permissions are saved
- * on the server. Deleting them only changes this tab's copy (lost on reload).
- * TODO: Save deleting users once that feature is connected.
+ * Adding, editing, deleting (deactivating) and reactivating staff, and the Admin actions, are saved on the
+ * server first; this copy changes only once the database has done it.
  * Must be inside <SessionProvider>.
  */
 export function UsersProvider({ children }: { children: ReactNode }) {
@@ -63,12 +62,15 @@ export function UsersProvider({ children }: { children: ReactNode }) {
     [users],
   )
 
-  /** The admin and the active user being changed, from the latest list (throws if either isn't valid). */
-  const resolve = useCallback((userId: string, context: AdminActionContext) => {
+  /**
+   * The admin and the user being changed, from the latest list (throws if either isn't valid). The user must
+   * be active, unless `deactivatedStaff` allows a deactivated staff member (Edit Staff on the Deactive Staff tab).
+   */
+  const resolve = useCallback((userId: string, context: AdminActionContext, deactivatedStaff = false) => {
     const active = latestRef.current.filter((user) => !user.deletedAt)
     const actor = active.find((user) => user.id === context.actorId)
     if (!actor?.permissions.includes('admin')) throw new Error('Only an admin can manage users')
-    const target = active.find((user) => user.id === userId)
+    const target = latestRef.current.find((user) => user.id === userId && (!user.deletedAt || (deactivatedStaff && !isSystemAdmin(user))))
     if (!target) throw new Error(`Unknown user ${userId}`)
     return { target, rules: { actorId: actor.id, users: active, sops: context.sops } }
   }, [])
@@ -89,7 +91,7 @@ export function UsersProvider({ children }: { children: ReactNode }) {
 
   const updateUser = useCallback(
     async (userId: string, input: NewUser, context: AdminActionContext) => {
-      const { target, rules } = resolve(userId, context)
+      const { target, rules } = resolve(userId, context, true)
       // The user's own email isn't a duplicate of itself.
       const problems = validateNewUser(input, rules.users.filter((user) => user.id !== userId), departments)
       const systemAdmin = isSystemAdmin(input)
@@ -145,6 +147,15 @@ export function UsersProvider({ children }: { children: ReactNode }) {
     [commit, resolve],
   )
 
+  const reactivateUser = useCallback(
+    async (userId: string) => {
+      // The server first: the list changes only once the database has reactivated them.
+      await reactivateStaff(userId)
+      commit(latestRef.current.map((user) => (user.id === userId ? { ...user, deletedAt: undefined } : user)))
+    },
+    [commit],
+  )
+
   const updateAdmin = useCallback(
     async (userId: string, details: AdminDetails) => {
       const target = latestRef.current.find((user) => user.id === userId && !user.deletedAt && isSystemAdmin(user))
@@ -177,8 +188,8 @@ export function UsersProvider({ children }: { children: ReactNode }) {
   )
 
   const store = useMemo<UsersStore>(
-    () => ({ status, users, activeUsers, getUser, nameOf, addUser, updateUser, deleteUser, updateAdmin, deleteAdmin }),
-    [status, users, activeUsers, getUser, nameOf, addUser, updateUser, deleteUser, updateAdmin, deleteAdmin],
+    () => ({ status, users, activeUsers, getUser, nameOf, addUser, updateUser, deleteUser, reactivateUser, updateAdmin, deleteAdmin }),
+    [status, users, activeUsers, getUser, nameOf, addUser, updateUser, deleteUser, reactivateUser, updateAdmin, deleteAdmin],
   )
 
   return <UsersContext.Provider value={store}>{children}</UsersContext.Provider>

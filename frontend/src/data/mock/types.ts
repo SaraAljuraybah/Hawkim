@@ -89,6 +89,8 @@ export interface Sop {
   status: SopStatus
   /** ISO date, e.g. "2024-01-12" */
   lastUpdated: string
+  /** When the SOP was added (ISO timestamp from the database), when known: SOP Details' Date Added. */
+  createdAt?: string
   /** Id of the main author (User.id), when known. */
   authorId?: string
   /** Co-authors can replace a draft's file and upload new versions, but not submit. */

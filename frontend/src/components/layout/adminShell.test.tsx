@@ -34,6 +34,7 @@ describe('the admin portal sidebar', () => {
       ['SFDA Regulatory Requirements', '/admin/regulations', 'regulatory'],
       ['SOP Directory', '/admin/sops', 'sops'],
       ['Requests', '/admin/requests', 'requests'],
+      ['Organization Profile', '/admin/organization-profile', 'organization'],
     ])
   })
 
@@ -125,8 +126,8 @@ describe('the signed-in user\'s role badges under the logo', () => {
     session.permissions = ['admin']
     const html = portal({ status: 'ready', superAdminId: 'me' })
     expect(badges(html)).toEqual(['Super Admin'])
-    expect(html).toContain('<ul aria-label="Your roles" class="inline')
-    expect(html.indexOf('</a>')).toBeLessThan(html.indexOf('aria-label="Your roles"'))
+    expect(html).toContain('<ul aria-label="Your permissions" class="inline')
+    expect(html.indexOf('</a>')).toBeLessThan(html.indexOf('aria-label="Your permissions"'))
   })
 
   it('shows "Admin" for any other administrator, and when no Super Admin is assigned', () => {
@@ -137,8 +138,8 @@ describe('the signed-in user\'s role badges under the logo', () => {
 
   it('shows no role badge until it is known who the Super Admin is', () => {
     session.permissions = ['admin']
-    expect(portal({ status: 'loading', superAdminId: null })).not.toContain('Your roles')
-    expect(portal({ status: 'error', superAdminId: null })).not.toContain('Your roles')
+    expect(portal({ status: 'loading', superAdminId: null })).not.toContain('Your permissions')
+    expect(portal({ status: 'error', superAdminId: null })).not.toContain('Your permissions')
   })
 
   it('never names a third administrator role', () => {
@@ -153,7 +154,7 @@ describe('the signed-in user\'s role badges under the logo', () => {
     session.permissions = ['author', 'reviewer', 'approver']
     const html = renderToStaticMarkup(<MemoryRouter><Sidebar content={appShellEn} /></MemoryRouter>)
     expect(badges(html)).toEqual([])
-    expect(html).not.toContain('Your roles')
+    expect(html).not.toContain('Your permissions')
     const header = html.slice(0, html.indexOf('<nav'))
     for (const label of ['Author', 'Reviewer', 'Approver']) expect(header).not.toContain(label)
     expect(header).toContain(`>${appShellEn.brandName}</span>`)
@@ -169,7 +170,7 @@ describe('the signed-in user\'s role badges under the logo', () => {
   it('shows no badge for a user without a role', () => {
     session.permissions = []
     const html = renderToStaticMarkup(<MemoryRouter><Sidebar content={appShellEn} /></MemoryRouter>)
-    expect(html).not.toContain('Your roles')
+    expect(html).not.toContain('Your permissions')
   })
 })
 

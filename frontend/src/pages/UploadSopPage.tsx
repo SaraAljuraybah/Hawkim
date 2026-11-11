@@ -1,7 +1,7 @@
 import { useRef, useState, type FormEvent } from 'react'
 import { flushSync } from 'react-dom'
-import { useNavigate } from 'react-router-dom'
-import { LoaderCircle, Upload } from 'lucide-react'
+import { Link, useNavigate } from 'react-router-dom'
+import { ArrowLeft, LoaderCircle, Upload } from 'lucide-react'
 import { Button } from '../components/ui/Button'
 import { FileDropzone } from '../components/ui/FileDropzone'
 import { TextAreaField } from '../components/ui/TextAreaField'
@@ -100,7 +100,14 @@ export function UploadSopPage() {
 
   return (
     <>
-      <h1 className="text-2xl tracking-tight sm:text-3xl">{content.title}</h1>
+      <Link
+        to={content.back.href}
+        className="inline-flex items-center gap-1.5 rounded-sm text-sm font-medium text-text-gray transition-colors hover:text-maroon"
+      >
+        <ArrowLeft aria-hidden="true" className="size-4" strokeWidth={1.75} />
+        {content.back.label}
+      </Link>
+      <h1 className="mt-5 text-2xl tracking-tight sm:text-3xl">{content.title}</h1>
       <p className="mt-2 text-text-gray">{content.subtitle.replace('{department}', homeDepartment.name)}</p>
 
       <div className="mt-8 max-w-[45rem] rounded-xl border border-beige bg-white p-5 sm:p-8">

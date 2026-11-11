@@ -20,7 +20,7 @@ export const reviewFlowEn = {
   noneEligible: 'No eligible reviewer is available for this step. An Admin must configure eligible Reviewer accounts in this department.',
   forward: 'Complete and Forward Review', complete: 'Complete Review', returnReview: 'Return Review to Reviewer 1',
   returnAuthor: 'Return SOP to Author', returnReviewHelp: 'Request another review from Reviewer 1. The SOP stays In Review and reviewers cannot edit the file.',
-  comment: 'Comments (Optional)', requiredComment: 'Return Comment (Required)', commentRequired: 'Enter a return comment.',
+  comment: 'Comments (Optional)', requiredComment: 'Return Comment', commentRequired: 'Enter a return comment.',
   selectDepartments: 'Select Departments and Representatives', departmentReview: 'Require Department Review', skip: 'No Additional Review Required',
   departmentsHelp: 'Select every relevant department and one eligible representative for each. Each representative selects a different reviewer in their department.',
   noDepartments: 'No departments with configured division relationships are available for this scope.',

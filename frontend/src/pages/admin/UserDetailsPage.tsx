@@ -3,6 +3,7 @@ import { flushSync } from 'react-dom'
 import { Link, Navigate, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, CircleAlert, CircleCheck, Pencil } from 'lucide-react'
 import { DeleteUserButton } from '../../components/admin/DeleteUserButton'
+import { ReactivateUserButton } from '../../components/admin/ReactivateUserButton'
 import { DetailRow, DetailsCard, DetailsHeader, EmailDetail, StaffPermissionBadges } from '../../components/admin/DetailsCard'
 import { RefusedBox } from '../../components/admin/RefusedBox'
 import { Button } from '../../components/ui/Button'
@@ -10,7 +11,7 @@ import { adminEn } from '../../content/admin.en'
 import { usersEn } from '../../content/users.en'
 import type { User } from '../../data/mock/types'
 import { useDocumentTitle } from '../../hooks/useDocumentTitle'
-import { ADMIN_USERS_PATH, adminAdminPath, adminUserEditPath } from '../../lib/routes'
+import { ADMIN_DEACTIVATED_USERS_PATH, ADMIN_USERS_PATH, adminAdminPath, adminUserEditPath } from '../../lib/routes'
 import { divisionLabel, isSystemAdmin } from '../../lib/userAdmin'
 import { useDepartments } from '../../state/departmentsContext'
 import { useUsers } from '../../state/usersContext'
@@ -28,8 +29,10 @@ export interface UserDetailsLocationState {
 /**
  * A staff member's page in the admin portal ("/admin/users/:id", PBI 17, 19): their details, and
  * Edit Staff and Delete Staff at the top right, laid out like an Admin's page. Edit Staff opens the edit form,
- * which saves to the database. A System Admin has no division, department or position, so those
- * aren't listed for them. Deleted and unknown staff show Not Found.
+ * which saves to the database. A deactivated staff member (the Deactive Staff tab's Preview) has Reactivate
+ * instead of Delete, and Back returns to the Deactive Staff tab. Their permissions are shown once, in the
+ * Details card. A System Admin has no division, department or position, so those aren't listed for them.
+ * Unknown people show Not Found.
  */
 export function UserDetailsPage() {
   const { id } = useParams()
@@ -39,8 +42,9 @@ export function UserDetailsPage() {
 
 function UserDetails({ id }: { id: string | undefined }) {
   const text = adminEn.userDetails
-  const { activeUsers } = useUsers()
-  const user = activeUsers.find((item) => item.id === id)
+  const { users } = useUsers()
+  // Active staff, and deactivated staff (Admins are never shown here).
+  const user = users.find((item) => item.id === id && (!item.deletedAt || !isSystemAdmin(item)))
   useDocumentTitle(user ? adminEn.pageTitle.replace('{page}', user.name) : undefined)
 
   if (!user) return <NotFoundPage embedded />
@@ -50,7 +54,7 @@ function UserDetails({ id }: { id: string | undefined }) {
   return (
     <>
       <Link
-        to={text.back.href}
+        to={user.deletedAt ? ADMIN_DEACTIVATED_USERS_PATH : text.back.href}
         className="inline-flex items-center gap-1.5 rounded-sm text-sm font-medium text-text-gray transition-colors hover:text-maroon"
       >
         <ArrowLeft aria-hidden="true" className="size-4" strokeWidth={1.75} />
@@ -72,6 +76,8 @@ function UserPanels({ user }: { user: User }) {
   const [reactivated] = useState(() => !!(location.state as UserDetailsLocationState | null)?.reactivated)
   const [deleteRefused, setDeleteRefused] = useState<{ title: string; reasons: string[] }>()
   const deleteErrorRef = useRef<HTMLDivElement>(null)
+  const [reactivatedNotice, setReactivatedNotice] = useState('')
+  const reactivatedRef = useRef<HTMLDivElement>(null)
 
   const department = getDepartment(user.departmentId)
 
@@ -82,8 +88,16 @@ function UserPanels({ user }: { user: User }) {
 
   function refuseDelete(title: string, reasons: string[]) {
     setAdded(false)
+    setReactivatedNotice('')
     flushSync(() => setDeleteRefused({ title, reasons }))
     deleteErrorRef.current?.focus()
+  }
+
+  function reactivatedHere(message: string) {
+    setAdded(false)
+    setDeleteRefused(undefined)
+    flushSync(() => setReactivatedNotice(message))
+    reactivatedRef.current?.focus()
   }
 
   // Same order as My Profile; an empty value shows notSet. A System Admin has no
@@ -103,22 +117,32 @@ function UserPanels({ user }: { user: User }) {
 
   return (
     <>
-      {/* Header, with Edit Staff and Delete Staff at the top right (as on an Admin's page) */}
+      {/* Header, with Edit Staff and Delete Staff (Reactivate Staff when deactivated) at the top right, as on an Admin's page */}
       <DetailsHeader
         user={user}
-        badges={<StaffPermissionBadges labels={permissions} />}
         actions={
           <>
             <Button to={adminUserEditPath(user.id)}>
               <Pencil aria-hidden="true" className="size-4" strokeWidth={1.75} />
               {text.edit}
             </Button>
-            <DeleteUserButton user={user} onDeleted={deleted} onRefused={refuseDelete} label={text.delete} busyLabel={text.deleting} />
+            {user.deletedAt
+              ? <ReactivateUserButton user={user} onReactivated={reactivatedHere} onRefused={refuseDelete} labeled />
+              : <DeleteUserButton user={user} onDeleted={deleted} onRefused={refuseDelete} label={text.delete} busyLabel={text.deleting} />}
           </>
         }
       />
 
       {deleteRefused && <RefusedBox ref={deleteErrorRef} title={deleteRefused.title} messages={deleteRefused.reasons} />}
+
+      <div role="status" ref={reactivatedRef} tabIndex={-1} className="rounded-lg focus:outline-none">
+        {reactivatedNotice && (
+          <p className="mt-6 flex items-center gap-2 rounded-lg border border-status-approved-fg/25 bg-status-approved-bg px-4 py-3 text-sm font-medium text-status-approved-fg">
+            <CircleCheck aria-hidden="true" className="size-4 shrink-0" strokeWidth={2} />
+            {reactivatedNotice}
+          </p>
+        )}
+      </div>
 
       <div role="status">
         {added && invitationFailed && (

@@ -15,7 +15,7 @@ describe('the My SOPs table', () => {
     expect(html).toContain('<table aria-label="My SOPs"')
     expect(html).toContain('<thead class="text-offwhite [&amp;_th]:bg-maroon">')
     const headings = [...html.matchAll(/<th scope="col" class="[^"]*">([^<]+)<\/th>/g)].map((match) => match[1])
-    expect(headings).toEqual(['Title', 'Role', 'Status', 'Version', 'Last Updated'])
+    expect(headings).toEqual(['Title', 'Permission', 'Status', 'Version', 'Last Updated'])
     expect(html).toMatch(/<th scope="row"[^>]*>[\s\S]*?href="\/my-sops\/draft"/)
     expect(html).toContain('>Main Author<')
   })

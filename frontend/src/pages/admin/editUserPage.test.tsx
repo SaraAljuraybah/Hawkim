@@ -11,7 +11,7 @@ const medicalToo: Department = { ...medical, id: 'affairs', name: 'Medical Affai
 const other: Department = { ...medical, id: 'it', name: 'Information Technology', divisionId: 'tech', divisionName: 'Technology Division' }
 const fixture = vi.hoisted(() => ({ users: [] as User[], titles: [] as string[] }))
 vi.mock('../../hooks/useDocumentTitle', () => ({ useDocumentTitle: (title?: string) => { if (title) fixture.titles.push(title) } }))
-vi.mock('../../state/usersContext', () => ({ useUsers: () => ({ activeUsers: fixture.users, updateUser: vi.fn(), deleteUser: vi.fn() }) }))
+vi.mock('../../state/usersContext', () => ({ useUsers: () => ({ users: fixture.users, activeUsers: fixture.users, updateUser: vi.fn(), deleteUser: vi.fn(), reactivateUser: vi.fn() }) }))
 vi.mock('../../state/sessionContext', () => ({ useCurrentUser: () => ({ id: 'admin' }) }))
 vi.mock('../../state/sopsContext', () => ({ useSops: () => ({ sops: [] }) }))
 vi.mock('../../state/departmentsContext', () => ({ useDepartments: () => ({ activeDepartments: [medical, medicalToo, other] }) }))
@@ -109,5 +109,24 @@ describe('Edit Staff', () => {
 
   it('shows Not Found for an unknown user', () => {
     expect(render('nobody')).not.toContain('<form')
+  })
+})
+
+describe('Edit Staff for a deactivated staff member', () => {
+  it('opens with their details, Reactivate in place of Delete, and Back and Cancel to the Deactive Staff tab', () => {
+    fixture.users = [{ ...fixture.users[0], deletedAt: '2026-11-01T09:00:00Z' }]
+    const html = render()
+    expect(html).toContain('Rana Saleh</h1>')
+    expect(control(html, 'name')).toContain('value="Rana Saleh"')
+    expect(html).toContain('aria-label="Reactivate Rana Saleh"')
+    expect(html).not.toContain('aria-label="Delete Rana Saleh"')
+    expect(html).toMatch(/<a[^>]*href="\/admin\/users\?status=deactivated"[^>]*>(?:(?!<\/a>).)*Back to Staff<\/a>/)
+    expect(html).toMatch(/<a[^>]*href="\/admin\/users\?status=deactivated"[^>]*>Cancel<\/a>/)
+  })
+
+  it('keeps Back and Cancel on the Active Staff list for an active staff member', () => {
+    const html = render()
+    expect(html).toMatch(/<a[^>]*href="\/admin\/users"[^>]*>Cancel<\/a>/)
+    expect(html).not.toContain('status=deactivated')
   })
 })

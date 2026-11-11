@@ -7,7 +7,7 @@ import { UserDetailsPage } from './UserDetailsPage'
 
 const fixture = vi.hoisted(() => ({ user: null as User | null, department: null as Department | null }))
 vi.mock('../../hooks/useDocumentTitle', () => ({ useDocumentTitle: () => {} }))
-vi.mock('../../state/usersContext', () => ({ useUsers: () => ({ activeUsers: [fixture.user], deleteUser: vi.fn() }) }))
+vi.mock('../../state/usersContext', () => ({ useUsers: () => ({ users: [fixture.user], activeUsers: [fixture.user], deleteUser: vi.fn(), reactivateUser: vi.fn() }) }))
 vi.mock('../../state/sessionContext', () => ({ useCurrentUser: () => ({ id: 'admin' }) }))
 vi.mock('../../state/sopsContext', () => ({ useSops: () => ({ sops: [] }) }))
 vi.mock('../../state/departmentsContext', () => ({ useDepartments: () => ({ getDepartment: (id: string) => (fixture.department?.id === id ? fixture.department : undefined) }) }))
@@ -37,13 +37,13 @@ describe('a user\'s details page', () => {
     expect(html).not.toContain('Directory Access')
   })
 
-  it('shows the permissions as solid light-gold badges under the name and in Details, with no description', () => {
+  it('shows the permissions once, as solid light-gold badges in Details, with no description', () => {
     const html = render()
     expect(html).not.toContain('contact details, placement and permissions')
     expect(html).not.toContain('<p class="mt-2 text-text-gray">')
     const badges = [...html.matchAll(/<li class="([^"]*)">([^<]+)<\/li>/g)]
-    // Once under the name, once as the Permission value.
-    expect(badges.map((match) => match[2])).toEqual(['Author', 'Reviewer', 'Author', 'Reviewer'])
+    // Only as the Permission value: no duplicate badges under the name.
+    expect(badges.map((match) => match[2])).toEqual(['Author', 'Reviewer'])
     for (const [, className] of badges) {
       expect(className.split(' ')).toContain('bg-gold-light')
       expect(className).toContain('text-maroon')
@@ -83,11 +83,11 @@ describe('a user\'s details page', () => {
     expect(detail(render(), 'Division')).toBe('Medical Division')
   })
 
-  it("has the Admin page's header: avatar, the name as the h1 with the badges under it, and Edit Staff and Delete Staff at the top right", () => {
+  it("has the Admin page's header: avatar, the name as the h1 (no badges under it), and Edit Staff and Delete Staff at the top right", () => {
     const html = render()
     expect(html).toContain('<span aria-hidden="true" class="inline-flex size-9 shrink-0 items-center justify-center rounded-full bg-beige text-xs font-semibold text-maroon size-10 text-sm sm:size-14 sm:text-base">RA</span>')
     // The name block, then the actions (Edit Staff before Delete Staff) in their own group after it.
-    expect(html).toMatch(/<h1 class="text-xl break-words tracking-tight sm:text-3xl">Rana<\/h1><div class="mt-2 flex flex-wrap"><ul[^>]*>.*?<\/ul><\/div><\/div><\/div><div class="flex flex-wrap items-center gap-2"><a [^>]*href="\/admin\/users\/[^"]+\/edit"[^>]*>.*?Edit Staff<\/a><button type="button"[^>]*>.*?Delete Staff<\/button>/)
+    expect(html).toMatch(/<h1 class="text-xl break-words tracking-tight sm:text-3xl">Rana<\/h1><\/div><\/div><div class="flex flex-wrap items-center gap-2"><a [^>]*href="\/admin\/users\/[^"]+\/edit"[^>]*>.*?Edit Staff<\/a><button type="button"[^>]*>.*?Delete Staff<\/button>/)
     expect(html.match(/<h1/g)).toHaveLength(1)
   })
 
@@ -142,5 +142,22 @@ describe('after Add User', () => {
     const html = opened(null)
     expect(html).not.toContain('Staff member added')
     expect(html).toContain('<div role="status"></div>')
+  })
+})
+
+describe("a deactivated staff member's page (Preview on the Deactive Staff tab)", () => {
+  it('opens, with Edit Staff and Reactivate Staff in place of Delete, and Back to the Deactive Staff tab', () => {
+    fixture.user = { ...fixture.user!, deletedAt: '2026-11-01T09:00:00Z' }
+    const html = render()
+    expect(html).toContain('>Rana</h1>')
+    expect(html).toContain('>Edit Staff</a>')
+    expect(html).toMatch(/<button type="button"[^>]*>(?:(?!<\/button>).)*lucide-rotate-ccw(?:(?!<\/button>).)*Reactivate Staff<\/button>/)
+    expect(html).not.toContain('>Delete Staff<')
+    expect(html).toMatch(/<a[^>]*href="\/admin\/users\?status=deactivated"[^>]*>(?:(?!<\/a>).)*Back to Staff<\/a>/)
+  })
+
+  it('still shows Not Found for a deactivated Admin (Admins are on the Admins page)', () => {
+    fixture.user = { ...fixture.user!, permissions: ['admin'], deletedAt: '2026-11-01T09:00:00Z' }
+    expect(render()).not.toContain('>Rana</h1>')
   })
 })

@@ -28,12 +28,14 @@ export const adminEn: AdminContent = {
       { label: 'SFDA Regulatory Requirements', href: '/admin/regulations', icon: 'regulatory', matchSubpaths: true },
       { label: 'SOP Directory', href: '/admin/sops', icon: 'sops', matchSubpaths: true },
       { label: 'Requests', href: '/admin/requests', icon: 'requests', matchSubpaths: true },
+      // Placed last for now; the final order of the tabs is decided separately.
+      { label: 'Organization Profile', href: '/admin/organization-profile', icon: 'organization', matchSubpaths: true },
     ],
     signOut: { label: 'Sign Out', href: '/login', icon: 'signOut' },
     openMenu: 'Open menu',
     closeMenu: 'Close menu',
     drawerLabel: 'Navigation',
-    rolesLabel: 'Your roles',
+    rolesLabel: 'Your permissions',
     profileLink: { label: 'My Profile, {name}', href: '/admin/profile' },
     pendingLabel: '{count} pending',
   },
@@ -56,40 +58,72 @@ export const adminEn: AdminContent = {
       groups: { name: 'Name', division: 'Division', department: 'Department', permission: 'Permission' },
     },
     clearFilters: 'Clear Filters',
-    count: { one: '{count} staff member', other: '{count} staff members' },
+    tabs: { label: 'Staff status', active: 'Active Staff', deactivated: 'Deactive Staff' },
     tableLabel: 'Staff',
-    columns: { name: 'Name', division: 'Division', department: 'Department', permissions: 'Permission', preview: 'Preview', edit: 'Edit', delete: 'Delete' },
+    columns: {
+      name: 'Name', division: 'Division', department: 'Department', permissions: 'Permission',
+      preview: 'Preview', edit: 'Edit', delete: 'Delete', reactivate: 'Reactivate',
+    },
     none: '—',
     actions: { view: 'View {name}', edit: 'Edit {name}' },
     empty: 'No staff found.',
+    emptyDeactivated: 'No deactivated staff members found.',
   },
 
   /**
-   * Delete Staff, the same on the Staff list and a staff member's page: it deactivates them (they lose
-   * access, and their account and history are kept). Add Staff with their email brings them back.
+   * Delete Staff, the same everywhere (Active Staff tab, a staff member's page, Edit Staff): it makes their
+   * account inactive (they lose access, and their account and history are kept). Reactivate brings them back.
    */
   deleteUser: {
     /** Accessible name and tooltip of the Trash button; `{name}` is replaced. */
     button: 'Delete {name}',
-    busy: 'Deactivating {name}…',
-    title: 'Deactivate Staff?',
-    description: 'Are you sure you want to deactivate {name}? They will lose access to Hawkim, but their account information and history will be preserved.',
+    busy: 'Deleting {name}…',
+    title: 'Delete {name}?',
+    description: 'Deleting a staff member makes their account inactive. Nothing is permanently deleted.',
+    consequences: [
+      'Their account status will change to Inactive.',
+      'All of their staff information and historical records will be kept.',
+      'They won’t be able to access Hawkim while their account is inactive.',
+      'You can reactivate their account later from the Deactive Staff tab.',
+    ],
     cancel: 'Cancel',
-    confirm: 'Deactivate',
-    /** Above the reasons when deactivating is refused; `{name}` is replaced. */
-    refused: "{name} wasn't deactivated:",
+    confirm: 'Delete',
+    /** Above the reasons when deleting is refused; `{name}` is replaced. */
+    refused: "{name} wasn't deleted:",
     /** Shown afterwards; `{name}` is replaced. */
-    done: '{name} deactivated successfully.',
+    done: '{name} was deleted. Their account is now inactive.',
     failures: {
-      forbidden: "You don't have permission to deactivate staff. Sign in again and retry.",
+      forbidden: "You don't have permission to delete staff. Sign in again and retry.",
       'not-found': 'This staff member no longer exists. Reload the page.',
-      'self-delete': "You can't deactivate your own account.",
+      'self-delete': "You can't delete your own account.",
       'admin-managed-separately': 'Admins are managed on the Admins page.',
       failed: 'Check your connection and try again.',
     },
     inProgress: {
-      one: '{name} has {count} SOP in progress. All assigned SOP work must be completed before they can be deactivated.',
-      other: '{name} has {count} SOPs in progress. All assigned SOP work must be completed before they can be deactivated.',
+      one: '{name} has {count} SOP in progress. All assigned SOP work must be completed before they can be deleted.',
+      other: '{name} has {count} SOPs in progress. All assigned SOP work must be completed before they can be deleted.',
+    },
+  },
+
+  /** Reactivate, for a deactivated staff member (Deactive Staff tab, their page, Edit Staff). */
+  reactivateUser: {
+    button: 'Reactivate {name}',
+    label: 'Reactivate Staff',
+    busy: 'Reactivating {name}…',
+    title: 'Reactivate {name}?',
+    description: 'Their account will be active again, with the same permissions, division and department as before. They can sign in to Hawkim with their existing password.',
+    cancel: 'Cancel',
+    confirm: 'Reactivate',
+    refused: "{name} wasn't reactivated:",
+    done: '{name} was reactivated. Their account is active again.',
+    failures: {
+      forbidden: "You don't have permission to reactivate staff. Sign in again and retry.",
+      'not-found': 'This staff member no longer exists. Reload the page.',
+      'admin-managed-separately': 'Admins are managed on the Admins page.',
+      'email-taken': 'Another active account now uses this email. Change their email in Edit Staff, then reactivate them.',
+      'account-unavailable': "Their sign-in account is no longer available, so they can't be reactivated.",
+      'department-unavailable': 'Their department is no longer available. Choose another department in Edit Staff, then reactivate them.',
+      failed: 'Check your connection and try again.',
     },
   },
 
@@ -206,7 +240,7 @@ export const adminEn: AdminContent = {
     back: { label: 'Back to Staff', href: '/admin/users' },
     edit: 'Edit Staff',
     delete: 'Delete Staff',
-    deleting: 'Deactivating…',
+    deleting: 'Deleting…',
     copyEmail: 'Copy {name}’s email',
     copied: 'Email copied',
     copyFailed: 'Could not copy email. Select and copy the address.',

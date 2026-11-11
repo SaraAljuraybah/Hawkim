@@ -11,8 +11,8 @@ vi.mock('../../hooks/useOrganizationManagement', () => ({ useOrganizationManagem
 
 const snapshot: ManagementSnapshot = {
   divisions: [
-    { id: 'q', name: 'Quality & Compliance', description: '', email: null, updated_at: null, department_count: 1, employees: 3, sops: 2 },
-    { id: 'c', name: 'Clinical Research & Development', description: '', email: null, updated_at: null, department_count: 1, employees: 5, sops: 7 },
+    { id: 'q', name: 'Quality and Compliance', description: '', email: null, updated_at: null, department_count: 1, employees: 3, sops: 2 },
+    { id: 'c', name: 'Clinical Research and Development', description: '', email: null, updated_at: null, department_count: 1, employees: 5, sops: 7 },
   ],
   departments: [
     { id: 'qa', name: 'Quality Assurance', initials: 'QA', description: '', division_id: 'q', updated_at: 'r', employees: 3, sops: 2, status_counts: {} },
@@ -67,11 +67,11 @@ describe('the Divisions and Departments page', () => {
     expect([...html.matchAll(/<legend[^>]*>([^<]+)<\/legend>/g)].map((match) => match[1])).toEqual(['Division', 'Department'])
     const section = (legend: string) => html.slice(html.indexOf(`>${legend}</legend>`), html.indexOf('</fieldset>', html.indexOf(`>${legend}</legend>`)))
     const chips = (legend: string) => [...section(legend).matchAll(/aria-pressed="false"[^>]*><span class="min-w-0 break-words">([^<]+)<\/span>/g)].map((match) => match[1])
-    expect(chips('Division')).toEqual(['Clinical Research &amp; Development', 'Quality &amp; Compliance'])
+    expect(chips('Division')).toEqual(['Clinical Research and Development', 'Quality and Compliance'])
     // Under their divisions (A to Z), then the departments without one.
     expect(chips('Department')).toEqual(['Clinical Operations', 'Quality Assurance', 'Legacy'])
     const headings = [...section('Department').matchAll(/<p[^>]*>([^<]+)<\/p>/g)].map((match) => match[1])
-    expect(headings).toEqual(['Clinical Research &amp; Development', 'Quality &amp; Compliance', 'Unassigned departments'])
+    expect(headings).toEqual(['Clinical Research and Development', 'Quality and Compliance', 'Unassigned departments'])
     expect(html).toMatch(/>Filter<\/label><button id="[^"]+" type="button" aria-label="Filter"[^>]*><span class="truncate text-text-gray">All<\/span>/)
     expect(html).not.toContain('All divisions')
   })
@@ -100,7 +100,7 @@ describe('the Divisions and Departments page', () => {
 describe('the division filter on the table', () => {
   it('shows only the selected divisions, with their server totals, and hides unassigned departments', () => {
     const html = table({ divisions: ['q'] })
-    expect(html).toContain('Quality &amp; Compliance')
+    expect(html).toContain('Quality and Compliance')
     expect(html).not.toContain('Clinical Research')
     expect(html).not.toContain('Unassigned departments')
     expect(html).toMatch(/>3<\/td><td[^>]*>2<\/td>/)
@@ -108,16 +108,16 @@ describe('the division filter on the table', () => {
 
   it('shows several selected divisions (OR)', () => {
     const html = table({ divisions: ['q', 'c'] })
-    expect(html).toContain('Quality &amp; Compliance')
-    expect(html).toContain('Clinical Research &amp; Development')
+    expect(html).toContain('Quality and Compliance')
+    expect(html).toContain('Clinical Research and Development')
   })
 
   it('combines with search and sort, and says when nothing matches', () => {
     const sorted = table({ divisions: ['q', 'c'], sort: 'division-sops-desc' })
-    expect(sorted.indexOf('Clinical Research')).toBeLessThan(sorted.indexOf('Quality &amp; Compliance'))
+    expect(sorted.indexOf('Clinical Research')).toBeLessThan(sorted.indexOf('Quality and Compliance'))
     const searched = table({ divisions: ['q', 'c'], query: 'operations' })
     expect(searched).toContain('>Clinical Operations</span>')
-    expect(searched).not.toContain('Quality &amp; Compliance')
+    expect(searched).not.toContain('Quality and Compliance')
     expect(table({ divisions: ['q'], query: 'operations' })).toContain('No divisions or departments match your search and filters.')
   })
 
@@ -163,12 +163,12 @@ describe('the selected divisions and departments', () => {
     const removeClinical = vi.fn()
     const onClear = vi.fn()
     const nodes = flatten(ActiveFilters({ onClear, items: [
-      { id: 'division-c', label: 'Clinical Research & Development', onRemove: removeClinical },
+      { id: 'division-c', label: 'Clinical Research and Development', onRemove: removeClinical },
       { id: 'department-qa', label: 'Quality Assurance', onRemove: vi.fn() },
     ] }))
     const remove = nodes.filter((node) => String(node.props['aria-label'] ?? '').startsWith('Remove '))
     expect(remove.map((node) => node.props['aria-label'])).toEqual([
-      'Remove Clinical Research & Development from the filter', 'Remove Quality Assurance from the filter',
+      'Remove Clinical Research and Development from the filter', 'Remove Quality Assurance from the filter',
     ])
     ;(remove[0].props.onClick as () => void)()
     expect(removeClinical).toHaveBeenCalledOnce()
@@ -182,7 +182,7 @@ describe('names in the table', () => {
   it('shows division and department names as plain text: no links and no underline', () => {
     const html = table({ query: 'quality' })
     // Division name: inside the expand toggle, which still toggles (aria-expanded).
-    expect(html).toMatch(/<button type="button" aria-expanded="true"[\s\S]*?<span class="block font-semibold text-maroon">Quality &amp; Compliance<\/span>/)
+    expect(html).toMatch(/<button type="button" aria-expanded="true"[\s\S]*?<span class="block font-semibold text-maroon">Quality and Compliance<\/span>/)
     // Department name: plain text, no longer a link to its page.
     expect(html).toMatch(/<span class="min-w-0 break-words">Quality Assurance<\/span>/)
     expect(html).not.toContain('href="/admin/departments/qa"')
@@ -203,7 +203,7 @@ describe('department row actions', () => {
   })
   it('shows "Preview {name}" as the tooltip of both eye buttons, the same as the accessible name', () => {
     const html = table({ query: 'quality' })
-    for (const name of ['Quality &amp; Compliance', 'Quality Assurance']) {
+    for (const name of ['Quality and Compliance', 'Quality Assurance']) {
       // The tooltip that follows this button.
       const after = html.slice(html.indexOf(`aria-label="Preview ${name}"`))
       expect(after.match(/role="tooltip"[^>]*><span[^>]*>([^<]*)</)![1]).toBe(`Preview ${name}`)

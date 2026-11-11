@@ -10,7 +10,7 @@ export interface TextFieldProps extends Omit<InputHTMLAttributes<HTMLInputElemen
   error?: string
   /** Marks the input as invalid without an inline error, e.g. while the error is shown in a pop-up. */
   invalid?: boolean
-  /** Shows a red asterisk after the label. Pass `required` as well so screen readers announce it. */
+  /** Shows a red asterisk after the label. It is shown by itself for a `required` field (always matching what is checked); pass true to show it without `required`. */
   requiredMark?: boolean
   /**
    * Character counter text shown under the field on the right (e.g. "12 / 50").
@@ -66,7 +66,7 @@ export function TextField({
       hintId={hintId}
       error={error}
       errorId={errorId}
-      requiredMark={requiredMark}
+      requiredMark={requiredMark || !!inputProps.required}
       hideLabel={labelHidden}
       className={className}
       aside={

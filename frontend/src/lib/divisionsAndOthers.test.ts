@@ -9,8 +9,8 @@ const row = { name: 'Dept', initials: 'DP', description: '', is_quality: false, 
 
 describe('departments carry their database division', () => {
   it('maps departments.division_id and the division name', () => {
-    expect(toDepartment({ ...row, id: 'pv', division_id: 'regulatory_drug_safety', division: { name: 'Regulatory & Drug Safety' } }))
-      .toMatchObject({ id: 'pv', divisionId: 'regulatory_drug_safety', divisionName: 'Regulatory & Drug Safety' })
+    expect(toDepartment({ ...row, id: 'pv', division_id: 'regulatory_drug_safety', division: { name: 'Regulatory and Drug Safety' } }))
+      .toMatchObject({ id: 'pv', divisionId: 'regulatory_drug_safety', divisionName: 'Regulatory and Drug Safety' })
   })
   it('keeps a department without a division unassigned', () => {
     const department = toDepartment({ ...row, id: 'legacy', division_id: null, division: null })

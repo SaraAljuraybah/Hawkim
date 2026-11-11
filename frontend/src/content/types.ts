@@ -1,3 +1,4 @@
+import type { ReactivateStaffFailure } from '../services/people'
 import type { ResendFailureReason } from '../services/invitations'
 import type { FileDropzoneText } from '../components/ui/FileDropzone'
 import type {
@@ -488,6 +489,8 @@ export interface SopDetailContent {
 export interface SubmitRequestContent {
   /** Browser tab title. */
   pageTitle: string
+  /** Back to My Requests, above the title. */
+  back: LinkContent
   title: string
   subtitle: string
   fields: {
@@ -676,6 +679,8 @@ export interface MySopsContent {
 export interface UploadSopContent {
   /** Browser tab title. */
   pageTitle: string
+  /** Back to My SOPs, above the title (goes where Cancel goes). */
+  back: LinkContent
   title: string
   /** `{department}` is replaced with the active department's name. */
   subtitle: string
@@ -740,6 +745,33 @@ export interface SopWorkflowContent {
     save: string
     cancel: string
     failed: string
+  }
+  /**
+   * The SOP Details card under Workflow status: Title, Description, Division, Department and Date Added. The main
+   * author edits Title and Description in a dialog until the SOP is published; the rest is read-only.
+   */
+  details: {
+    title: string
+    /** The Edit button (opens the dialog). */
+    edit: string
+    fields: { title: string; description: string; division: string; department: string; dateAdded: string }
+    /** An empty value (e.g. no description). */
+    notProvided: string
+    dialog: {
+      title: string
+      description: string
+      /** `{count}` and `{max}` are replaced. */
+      counter: string
+      titleHint: string
+      save: string
+      saving: string
+      cancel: string
+      errors: { titleRequired: string; titleTooLong: string; descriptionTooLong: string }
+      /** The save failed; what was typed stays in the dialog. */
+      failed: string
+    }
+    /** Announced after saving. */
+    saved: string
   }
   roles: { reviewer: string; approver: string; author: string; coAuthor: string; system: string }
   reviewerDeadline: {
@@ -1401,6 +1433,7 @@ export interface AdminContent {
   editUser: AdminEditUserContent
   userDetails: AdminUserDetailsContent
   deleteUser: AdminDeleteUserContent
+  reactivateUser: AdminReactivateUserContent
   departmentsList: AdminDepartmentsListContent
   departmentForm: AdminDepartmentFormContent
   departmentDetails: AdminDepartmentDetailsContent
@@ -1809,26 +1842,37 @@ export interface AdminUsersListContent {
   sort: { label: string; options: Record<StaffSort, string>; groups: Record<StaffSortGroup, string> }
   /** Clears the search, the Filter and the sort. */
   clearFilters: string
-  count: CountText
+  /** The two tabs above the table: active staff (the default) and deactivated staff. `label` names the tab list. */
+  tabs: { label: string; active: string; deactivated: string }
   /** Accessible name of the table. */
   tableLabel: string
-  /** `preview`, `edit` and `delete`: the action columns' headings, as on Divisions and Departments. */
-  columns: { name: string; division: string; department: string; permissions: string; preview: string; edit: string; delete: string }
+  /**
+   * `preview`, `edit`, `delete` and `reactivate`: the action columns' headings, as on Divisions and Departments
+   * (Active Staff has Delete, Deactive Staff has Reactivate in that column).
+   */
+  columns: { name: string; division: string; department: string; permissions: string; preview: string; edit: string; delete: string; reactivate: string }
   /** An empty cell (e.g. no division). */
   none: string
   /** Accessible names and tooltips of the row's icon buttons; `{name}` is replaced. */
   actions: { view: string; edit: string }
+  /** No active staff (match the search and Filter). */
   empty: string
+  /** No deactivated staff (match the search and Filter). */
+  emptyDeactivated: string
 }
 
-/** Delete User, on the Users list and a user's page; `{name}` is replaced. */
-/** Delete on Staff: deactivates the staff member (nothing is removed). */
+/**
+ * Delete on Staff (the Active Staff tab, a staff member's page and Edit Staff): deactivates the staff member
+ * (nothing is removed). `{name}` is replaced.
+ */
 export interface AdminDeleteUserContent {
   button: string
   /** The button's label while the deactivation is being saved; `{name}` is replaced. */
   busy: string
   title: string
   description: string
+  /** What deleting does, listed under the description. */
+  consequences: string[]
   cancel: string
   confirm: string
   refused: string
@@ -1837,6 +1881,26 @@ export interface AdminDeleteUserContent {
   failures: Record<'forbidden' | 'not-found' | 'self-delete' | 'admin-managed-separately' | 'failed', string>
   /** SOP work in progress; `{name}` and `{count}` are replaced. */
   inProgress: { one: string; other: string }
+}
+
+/**
+ * Reactivate on Staff (the Deactive Staff tab, a deactivated staff member's page and Edit Staff): makes them
+ * active again. `{name}` is replaced.
+ */
+export interface AdminReactivateUserContent {
+  /** Accessible name and tooltip of the icon button. */
+  button: string
+  /** The labelled button on a staff member's page and Edit Staff. */
+  label: string
+  /** While it is being saved. */
+  busy: string
+  title: string
+  description: string
+  cancel: string
+  confirm: string
+  refused: string
+  done: string
+  failures: Record<ReactivateStaffFailure, string>
 }
 
 /** The public Request Hawkim form (pages/RequestHawkimPage.tsx). */
@@ -2075,7 +2139,7 @@ export interface OrganizationContent {
   noDepartments: string
   /** The group of departments without a division. */
   unassigned: string
-  /** Screen-reader prefix of a person's roles. */
+  /** Screen-reader prefix of a person's permissions. */
   rolesLabel: string
   /** The copy button's accessible name, e.g. "Copy email for Dana Fahad". */
   copyEmail: (name: string) => string
@@ -2083,13 +2147,82 @@ export interface OrganizationContent {
   copyFailed: string
   search: string
   searchPlaceholder: string
-  /** The Filter control's Role section (the other texts are filtersEn's); `roleCount` is its summary. */
+  /** The Filter control's Permission section (the other texts are filtersEn's); `roleCount` is its summary. */
   roleFilter: string
   roleCount: CountText
-  /** The Role filter's chip for staff without a role. */
+  /** The Permission filter's chip for staff without a permission. */
   others: string
   sort: string
   sortOptions: Record<OrganizationSort, string>
   /** Headings of the Sort menu's groups. */
   sortGroups: Record<OrganizationSortGroup, string>
+  /**
+   * A staff member's Profile Preview, opened from their name: what this page already shows about them
+   * (no phone or other private details). `open` names the name's button; `notSet` is an empty value.
+   */
+  profilePreview: {
+    open: (name: string) => string
+    close: string
+    email: string
+    position: string
+    division: string
+    department: string
+    permission: string
+    notSet: string
+  }
+}
+
+/** A field of the Organization Profile, in the order shown. */
+export type OrganizationProfileField = 'name' | 'email' | 'description' | 'address' | 'mapsUrl' | 'website'
+
+/**
+ * Organization Profile in the admin portal (pages/admin/OrganizationProfilePage.tsx): every active Admin sees the
+ * organization's details; the Super Admin edits them.
+ */
+export interface OrganizationProfileContent {
+  pageTitle: string
+  title: string
+  subtitle: string
+  /** The card's heading. */
+  detailsTitle: string
+  /** The shared box holding the address and the Google Maps link side by side. */
+  addressTitle: string
+  fields: Record<OrganizationProfileField, { label: string; placeholder?: string; hint?: string }>
+  /** A value not saved yet. */
+  notSet: string
+  /** Opens a link (the Google Maps link, the website) in a new tab; `{label}` is replaced. */
+  opensInNewTab: string
+  edit: string
+  save: string
+  saving: string
+  cancel: string
+  /** Shown to Admins who aren't the Super Admin. */
+  readOnly: string
+  loading: string
+  loadFailed: string
+  retry: string
+  saved: string
+  /** Above the reasons when saving is refused; what was typed stays. */
+  notSaved: string
+  errors: {
+    required: Record<OrganizationProfileField, string>
+    emailInvalid: string
+    urlInvalid: string
+    tooLong: string
+  }
+  failures: { forbidden: string; invalid: string; failed: string }
+  copyEmail: string
+  copied: string
+  copyFailed: string
+  discard: { title: string; description: string; keep: string; discard: string }
+}
+
+/** The copy button next to a displayed email address, where the page has no copy texts of its own. */
+export interface EmailCopyContent {
+  /** Accessible name and tooltip; `{name}` is the person's name. */
+  copyNamed: string
+  /** On My Profile (the signed-in person's own email). */
+  copyOwn: string
+  copied: string
+  failed: string
 }

@@ -19,7 +19,7 @@ describe('unified divisions and departments table', () => {
     expect(html).toContain('>Staff</th>'); expect(html).toContain('>SOPs</th>'); expect(html).not.toContain('Employees')
     expect(html).not.toContain('>Users</th>')
     expect(html).toMatch(/<colgroup><col class="w-\[40%\]"\/><col class="w-28"\/><col class="w-28"\/><col\/>(<col class="w-24"\/>){4}<\/colgroup>/)
-    expect([...html.matchAll(/<th scope="col" class="px-2 py-4 text-center">([^<]+)<\/th>/g)].map((match) => match[1])).toEqual(['Add', 'Preview', 'Edit', 'Delete'])
+    expect([...html.matchAll(/<th scope="col" class="px-2 py-4 text-center">([^<]+)<\/th>/g)].map((match) => match[1])).toEqual(['Add Department', 'Preview', 'Edit', 'Delete'])
     expect(html).not.toContain('With Access'); expect(html).not.toContain('>Description</th>')
     expect(html).toContain('Departments (1)')
   })
@@ -82,6 +82,7 @@ describe('admin navigation', () => {
     expect(html).toMatch(/aria-current="page"[^>]*href="\/admin\/departments"|href="\/admin\/departments"[^>]*aria-current="page"/)
     expect(navLinks(adminEn.shell.nav).filter((item) => item.label === 'Departments')).toHaveLength(0)
     expect(navLinks(adminEn.shell.nav).filter((item) => item.label === 'Divisions and Departments')).toHaveLength(1)
-    expect(adminEn.shell.nav.at(-1)?.label).toBe('Requests')
+    // Requests, then the new Organization Profile last (its final place is decided separately).
+    expect(adminEn.shell.nav.slice(-2).map((entry) => entry.label)).toEqual(['Requests', 'Organization Profile'])
   })
 })

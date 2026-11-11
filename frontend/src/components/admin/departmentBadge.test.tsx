@@ -8,6 +8,6 @@ describe('DepartmentBadge', () => {
     expect(html).toMatch(/aria-hidden="true"[^>]*>CO<\/span>/)
   })
   it('follows a rename', () => {
-    expect(renderToStaticMarkup(<DepartmentBadge department={{ name: 'Research & Development' }} />)).toContain('>RD</span>')
+    expect(renderToStaticMarkup(<DepartmentBadge department={{ name: 'Research and Development' }} />)).toContain('>RD</span>')
   })
 })

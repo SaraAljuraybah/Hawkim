@@ -48,7 +48,7 @@ export function TextAreaField({
     <FieldShell
       label={label}
       hideLabel={hideLabel}
-      requiredMark={requiredMark}
+      requiredMark={requiredMark || !!textareaProps.required}
       inputId={fieldIds.inputId}
       hint={hint}
       hintId={fieldIds.hintId}

@@ -18,7 +18,7 @@ export const mySopsEn: MySopsContent = {
   mainAuthorLabel: 'Main Author',
   // The table view's headings, as on the SOP Directory.
   tableLabel: 'My SOPs',
-  columns: { title: 'Title', role: 'Role', status: 'Status', version: 'Version', lastUpdated: 'Last Updated', delete: 'Delete' },
+  columns: { title: 'Title', role: 'Permission', status: 'Status', version: 'Version', lastUpdated: 'Last Updated', delete: 'Delete' },
   tabsLabel: 'My SOP categories',
   tabs: { new: 'New SOPs', progress: 'In Progress', completed: 'Completed' },
   viewToggle: { label: 'My SOPs view', grid: 'Grid view', list: 'List view' },
@@ -35,7 +35,7 @@ export const mySopsEn: MySopsContent = {
       groups: { lastUpdated: 'Last Updated', title: 'Title' },
     },
     roleLabel: 'My Permission',
-    allRoles: 'All roles',
+    allRoles: 'All permissions',
     clear: 'Clear Filters',
     oneResult: '1 SOP found',
     results: '{count} SOPs found',
@@ -65,6 +65,7 @@ export const mySopsEn: MySopsContent = {
 
 export const uploadSopEn: UploadSopContent = {
   pageTitle: 'Add SOP | Hawkim',
+  back: { label: 'Back to My SOPs', href: '/my-sops' },
   title: 'Add SOP',
   subtitle: 'Add a new SOP to {department}. It will be saved as a draft.',
   fields: {

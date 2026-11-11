@@ -15,8 +15,8 @@ interface MakeSuperAdminButtonProps {
 }
 
 /**
- * Make Super Admin, on a regular Admin's page and shown only to the Super Admin. It asks first
- * (Transfer Super Admin Role?); Cancel, Escape or the backdrop change nothing. Confirm Transfer makes
+ * Make Super Admin, on Edit Admin for a regular Admin and shown only to the Super Admin. It asks first
+ * (Transfer Super Admin Permission?); Cancel, Escape or the backdrop change nothing. Confirm Transfer makes
  * ONE server call that moves the role atomically and checks, at that moment, that the caller is still
  * the Super Admin and the recipient an active Admin. While it runs, another press does nothing.
  */

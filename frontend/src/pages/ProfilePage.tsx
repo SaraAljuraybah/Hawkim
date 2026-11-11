@@ -1,8 +1,10 @@
 import { useRef, useState } from 'react'
 import { CircleCheck } from 'lucide-react'
+import { EmailDetail } from '../components/admin/DetailsCard'
 import { ChangePasswordDialog } from '../components/profile/ChangePasswordDialog'
 import { Card } from '../components/ui/Card'
 import { controlClasses } from '../components/ui/useFieldIds'
+import { emailCopyEn } from '../content/emailCopy.en'
 import { profileEn } from '../content/profile.en'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { divisionLabel } from '../lib/userAdmin'
@@ -56,7 +58,12 @@ export function ProfilePage({ admin = false }: { admin?: boolean }) {
           {details.map(([label, value]) => (
             <div key={label} className="contents">
               <dt className="font-bold text-maroon">{label}</dt>
-              <dd className="min-w-0 break-words text-maroon max-sm:mb-1">{value}</dd>
+              <dd className="min-w-0 break-words text-maroon max-sm:mb-1">
+                {/* The email with its copy button */}
+                {label === content.fields.email && value !== content.none
+                  ? <EmailDetail email={value} copyLabel={emailCopyEn.copyOwn} copiedText={emailCopyEn.copied} failedText={emailCopyEn.failed} />
+                  : value}
+              </dd>
             </div>
           ))}
           {/* Last row, under a divider: a field-style box with hidden dots and the Change action */}

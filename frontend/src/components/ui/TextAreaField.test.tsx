@@ -9,7 +9,9 @@ describe('TextAreaField', () => {
     expect(html).toContain('required=""')
   })
 
-  it('shows no asterisk by default, even on a required field', () => {
-    expect(renderToStaticMarkup(<TextAreaField label="Reason for Removing" required />)).not.toContain('*')
+  it('shows the red asterisk on a required field by itself, and none on an optional one', () => {
+    expect(renderToStaticMarkup(<TextAreaField label="Reason for Removing" required />))
+      .toContain('Reason for Removing<span aria-hidden="true" class="ml-0.5 text-status-rejected-fg">*</span></label>')
+    expect(renderToStaticMarkup(<TextAreaField label="Reason for Removing" />)).not.toContain('*')
   })
 })

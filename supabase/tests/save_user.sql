@@ -124,7 +124,9 @@ begin
   perform pg_temp.expect_error(format('update public.profiles set department_id = ''su-other'' where id = %L', plain), '42501');
 
   -- ---------- What it refuses ----------
-  perform pg_temp.expect_error(pg_temp.call(gone, 'su-home', '{}', 'su-home', '{}'), 'P0002');
+  -- A deactivated staff member is found (Edit Staff on the Deactive Staff tab) and stays deactivated.
+  execute pg_temp.call(gone, 'su-home', '{}', 'su-home', '{}');
+  assert (select deleted_at is not null from public.profiles where id = gone), 'Saving never reactivates';
   perform pg_temp.expect_error(pg_temp.call(gen_random_uuid(), 'su-home', '{}', 'su-home', '{}'), 'P0002');
   perform pg_temp.expect_error(pg_temp.call(plain, 'su-home', '{owner}', 'su-home', '{}'), '23514', 'invalid');
   perform pg_temp.expect_error(pg_temp.call(plain, 'su-home', null, 'su-home', '{}'), '23514', 'invalid');

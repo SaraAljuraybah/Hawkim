@@ -14,7 +14,7 @@ import { blockerMessage } from './blockerMessages'
 
 interface DeleteUserButtonProps {
   user: User
-  /** After the server deactivated the user; `message` is "{name} deactivated successfully.". */
+  /** After the server deactivated the user; `message` is adminEn.deleteUser.done. */
   onDeleted: (message: string) => void
   /** Deactivating was refused (their own account, SOP work in progress, or by the server): the title and the reasons. */
   onRefused: (title: string, reasons: string[]) => void
@@ -27,9 +27,10 @@ interface DeleteUserButtonProps {
 }
 
 /**
- * The Trash icon button of Delete Staff (the Staff list and a staff member's page). It always opens the
- * warning dialog; Deactivate then deactivates the staff member in the database (deactivate_staff): they
- * lose access to Hawkim, and their account and history are kept. Nothing changes on screen until the
+ * The Trash icon button of Delete Staff (the Active Staff tab, a staff member's page and Edit Staff). It always
+ * opens the same warning dialog (larger title, what deleting does as a list); Delete then deactivates the staff
+ * member in the database (deactivate_staff): their account becomes inactive, they lose access to Hawkim, and
+ * their account and history are kept (nothing is permanently deleted). Nothing changes on screen until the
  * server has done it; meanwhile the button can't be pressed again. Refused (here, by lib/userAdmin.ts
  * deleteBlockers and the SOP work count the database also uses, or by the server): onRefused explains
  * why and nothing changes. Focus returns to the button when the dialog is cancelled, and stays on it
@@ -102,8 +103,9 @@ export function DeleteUserButton({ user, onDeleted, onRefused, label, busyLabel 
       )}
       <ConfirmDialog
         open={confirming}
-        title={text.title}
-        description={text.description.replace('{name}', user.name)}
+        prominent
+        title={text.title.replace('{name}', user.name)}
+        description={text.description}
         cancelLabel={text.cancel}
         confirmLabel={text.confirm}
         onConfirm={() => void confirm()}
@@ -111,7 +113,11 @@ export function DeleteUserButton({ user, onDeleted, onRefused, label, busyLabel 
           setConfirming(false)
           buttonRef.current?.focus()
         }}
-      />
+      >
+        <ul className="mt-3 list-disc space-y-1.5 pl-5">
+          {text.consequences.map((line) => <li key={line}>{line}</li>)}
+        </ul>
+      </ConfirmDialog>
     </>
   )
 }

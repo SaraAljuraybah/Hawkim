@@ -4,6 +4,7 @@ import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { CircleCheck, Eye, LoaderCircle, Pencil, Plus, UserCog } from 'lucide-react'
 import { AdminRoleBadge } from '../../components/admin/AdminRoleBadge'
 import { DeleteAdminButton } from '../../components/admin/DeleteAdminButton'
+import { EmailDetail } from '../../components/admin/DetailsCard'
 import { RefusedBox } from '../../components/admin/RefusedBox'
 import { UserAvatar } from '../../components/admin/UserBits'
 import { Button } from '../../components/ui/Button'
@@ -67,6 +68,10 @@ export function AdminAdminsPage() {
   const visible = useMemo(() => listAdmins(admins, superAdminId, query, { roles, sort }), [admins, superAdminId, query, roles, sort])
   const count = (visible.length === 1 ? content.count.one : content.count.other).replace('{count}', String(visible.length))
   const loading = status === 'loading' || superAdmin.status === 'loading'
+  // Only the Super Admin can delete Admins, so only they get the Delete column (no empty column for anyone else).
+  // (Worked out only when there are rows to show.)
+  const showDelete = visible.length > 0 && superAdmin.status === 'ready' && superAdminId !== null && viewer.id === superAdminId
+  const actionKeys = showDelete ? (['preview', 'edit', 'delete'] as const) : (['preview', 'edit'] as const)
   const failed = status === 'error' || superAdmin.status === 'error'
 
   function deleted(message: string) {
@@ -184,7 +189,7 @@ export function AdminAdminsPage() {
               <div className={tableStyles.wide}>
                 <table aria-label={content.tableLabel} className={tableStyles.table}>
                   {/* The action columns are as wide as on Divisions and Departments (6rem each). */}
-                  <colgroup><col /><col /><col /><col /><col className={tableStyles.actionCol} /><col className={tableStyles.actionCol} /><col className={tableStyles.actionCol} /></colgroup>
+                  <colgroup><col /><col /><col /><col />{actionKeys.map((action) => <col key={action} className={tableStyles.actionCol} />)}</colgroup>
                   <thead className={tableStyles.head}>
                     <tr>
                       <th scope="col" className={tableStyles.headCell}>{content.columns.name}</th>
@@ -194,7 +199,7 @@ export function AdminAdminsPage() {
                       {/* One column per action, each heading centred above its button, as on Divisions and Departments. */}
                       <th scope="col" className={tableStyles.actionHead}>{content.columns.preview}</th>
                       <th scope="col" className={tableStyles.actionHead}>{content.columns.edit}</th>
-                      <th scope="col" className={tableStyles.actionHead}>{content.columns.delete}</th>
+                      {showDelete && <th scope="col" className={tableStyles.actionHead}>{content.columns.delete}</th>}
                     </tr>
                   </thead>
                   <tbody className={tableStyles.body}>
@@ -206,13 +211,15 @@ export function AdminAdminsPage() {
                             {admin.name}
                           </span>
                         </th>
-                        <td className={`${tableStyles.cell} break-all text-text-gray`}>{admin.email}</td>
+                        <td className={`${tableStyles.cell} text-text-gray`}>
+                          <EmailDetail email={admin.email} copyLabel={adminsEn.details.copyEmail.replace('{name}', admin.name)} copiedText={adminsEn.details.copied} failedText={adminsEn.details.copyFailed} />
+                        </td>
                         <td className={`${tableStyles.cell} whitespace-nowrap text-text-gray`}>{admin.phone ?? content.none}</td>
                         <td className={tableStyles.cell}>
                           <AdminRoleBadge role={adminRole(admin.id, superAdminId)} />
                         </td>
                         {/* An action the viewer can't take (e.g. Delete on the Super Admin) leaves its cell empty, so the columns stay aligned. */}
-                        {(['preview', 'edit', 'delete'] as const).map((action) => (
+                        {actionKeys.map((action) => (
                           <td key={action} className={tableStyles.actionCell}>{actionButtons(admin)[action]}</td>
                         ))}
                       </tr>
@@ -230,7 +237,9 @@ export function AdminAdminsPage() {
                       <p className="text-sm font-medium break-words text-maroon">{admin.name}</p>
                       <dl className="mt-1 grid grid-cols-[auto_minmax(0,1fr)] gap-x-2 gap-y-0.5 text-sm">
                         <dt className="text-text-gray">{content.columns.email}</dt>
-                        <dd className="break-all text-maroon">{admin.email}</dd>
+                        <dd className="min-w-0 text-maroon">
+                          <EmailDetail email={admin.email} copyLabel={adminsEn.details.copyEmail.replace('{name}', admin.name)} copiedText={adminsEn.details.copied} failedText={adminsEn.details.copyFailed} />
+                        </dd>
                         <dt className="text-text-gray">{content.columns.phone}</dt>
                         <dd className="text-maroon">{admin.phone ?? content.none}</dd>
                       </dl>

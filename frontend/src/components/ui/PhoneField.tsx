@@ -47,7 +47,7 @@ export function PhoneField({ name, label, hint, value, onChange, onBlur, error, 
       hint={hint}
       error={shown}
       required={required}
-      requiredMark={requiredMark}
+      requiredMark={requiredMark || !!required}
       className={className}
       aria-describedby={prefixId}
       startAdornment={<span id={prefixId}>{PHONE_PREFIX}</span>}

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { fetchOrganizationName } from '../services/organizationSettings'
+import { fetchOrganizationName, onOrganizationNameSaved } from '../services/organizationSettings'
 import type { LoadStatus } from '../state/useLoadAfterSignIn'
 
 export interface OrganizationNameState {
@@ -10,7 +10,7 @@ export interface OrganizationNameState {
   set: (name: string) => void
 }
 
-/** Reads the organization's name from the database once, when the page opens. */
+/** Reads the organization's name from the database once, when the page opens, and follows names saved later (Organization Profile). */
 export function useOrganizationName(): OrganizationNameState {
   const [state, setState] = useState<{ status: LoadStatus; name: string | null }>({ status: 'loading', name: null })
   useEffect(() => {
@@ -19,8 +19,10 @@ export function useOrganizationName(): OrganizationNameState {
       (name) => active && setState({ status: 'ready', name }),
       () => active && setState({ status: 'error', name: null }),
     )
+    const unsubscribe = onOrganizationNameSaved((name) => active && setState({ status: 'ready', name }))
     return () => {
       active = false
+      unsubscribe()
     }
   }, [])
   const set = useCallback((name: string) => setState({ status: 'ready', name }), [])

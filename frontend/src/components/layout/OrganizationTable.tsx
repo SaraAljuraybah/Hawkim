@@ -7,6 +7,7 @@ import { DepartmentBadge } from '../admin/DepartmentBadge'
 import { CopyButton } from '../ui/CopyButton'
 import { tableStyles } from '../ui/tableStyles'
 import { UserAvatar } from '../ui/UserAvatar'
+import { StaffProfilePreview, type StaffProfilePreviewPerson } from './StaffProfilePreview'
 
 const NO_TOGGLES: ReadonlySet<string> = new Set()
 
@@ -82,12 +83,20 @@ function Chevron({ open }: { open: boolean }) {
  * opened with its chevron button. `filterKey` identifies the current search and filters: while
  * filtering, rows open automatically to show the results and can still be closed or opened by hand;
  * any change to the search or filters (including clearing them) starts again from those defaults.
+ * Each staff member's name is a button that opens their Profile Preview (StaffProfilePreview); closing it
+ * returns focus to the name.
  */
 export function OrganizationTable({ rows, filtering, filterKey }: { rows: DivisionRow[]; filtering: boolean; filterKey: string }) {
   // The rows toggled by hand, from the default (closed, or opened automatically while filtering).
   const [toggles, setToggles] = useState<{ key: string; ids: ReadonlySet<string> }>({ key: filterKey, ids: NO_TOGGLES })
   const toggled = toggles.key === filterKey ? toggles.ids : NO_TOGGLES
   const isOpen = (id: string, autoOpen: boolean) => (filtering && autoOpen) !== toggled.has(id)
+  const [preview, setPreview] = useState<StaffProfilePreviewPerson>()
+  const previewOpener = useRef<HTMLButtonElement | null>(null)
+  function closePreview() {
+    setPreview(undefined)
+    previewOpener.current?.focus()
+  }
   const toggle = (id: string) => {
     const next = new Set(toggled)
     if (next.has(id)) next.delete(id); else next.add(id)
@@ -167,7 +176,14 @@ export function OrganizationTable({ rows, filtering, filterKey }: { rows: Divisi
                                         <span className="flex items-center gap-3 border-l border-beige pl-5">
                                           <UserAvatar user={person} />
                                           <span className="min-w-0">
-                                            <span className="block font-medium break-words text-maroon">{person.name}</span>
+                                            <button type="button" aria-haspopup="dialog" aria-label={content.profilePreview.open(person.name)}
+                                              className="block rounded-sm text-left font-medium break-words text-maroon underline-offset-2 hover:underline focus-visible:underline"
+                                              onClick={(event) => {
+                                                previewOpener.current = event.currentTarget
+                                                setPreview({ person, departmentName: department.name, divisionName: division.unassigned ? undefined : division.name })
+                                              }}>
+                                              {person.name}
+                                            </button>
                                             {/* People without a role show nothing under their name. */}
                                             {person.permissions.length > 0 && (
                                               <span className="mt-0.5 block text-xs text-text-gray">
@@ -196,6 +212,7 @@ export function OrganizationTable({ rows, filtering, filterKey }: { rows: Divisi
           <tbody><tr><td colSpan={2} className="p-10 text-center text-text-gray">{filtering ? content.noMatches : content.empty}</td></tr></tbody>
         )}
       </table>
+      {preview && <StaffProfilePreview preview={preview} onClose={closePreview} />}
     </div>
   )
 }

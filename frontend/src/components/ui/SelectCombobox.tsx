@@ -126,7 +126,7 @@ export function SelectCombobox({
   }
 
   return (
-    <FieldShell label={label} inputId={inputId} hint={hint} hintId={hintId} error={error} errorId={errorId} requiredMark={requiredMark} className={className}>
+    <FieldShell label={label} inputId={inputId} hint={hint} hintId={hintId} error={error} errorId={errorId} requiredMark={requiredMark || required} className={className}>
       <div className="relative">
         <input
           ref={ref}

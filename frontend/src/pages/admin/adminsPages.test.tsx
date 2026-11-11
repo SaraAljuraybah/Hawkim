@@ -71,7 +71,7 @@ describe('the Admins list', () => {
   it('has the columns Name, Email, Phone Number, Role, then Preview, Edit and Delete with visible headings', () => {
     const html = at('/admin/admins')
     const columns = [...html.matchAll(/<th scope="col"[^>]*>([^<]+)<\/th>/g)].map((match) => match[1])
-    expect(columns).toEqual(['Full Name', 'Email', 'Phone Number', 'Role', 'Preview', 'Edit', 'Delete'])
+    expect(columns).toEqual(['Full Name', 'Email', 'Phone Number', 'Permission', 'Preview', 'Edit', 'Delete'])
     expect(html).not.toContain('sr-only">Actions')
     // As on Divisions and Departments: 6rem per action column, each heading centred above its button.
     expect(html).toContain('<colgroup><col/><col/><col/><col/><col class="w-24"/><col class="w-24"/><col class="w-24"/></colgroup>')
@@ -86,9 +86,25 @@ describe('the Admins list', () => {
     expect(named('Nouf Saleh')).toEqual(['View Nouf Saleh', 'Edit Nouf Saleh', 'Delete Nouf Saleh'])
     expect(named('Amal Fahad')).toEqual(['View Amal Fahad', 'Edit Amal Fahad', ''])
     expect(cells('Amal Fahad')[2]).toBe('')
-    // A regular Admin: no Edit on the Super Admin and no Delete, the cells kept.
+    // A regular Admin: no Edit on the Super Admin (its cell kept), and no Delete column at all.
     fixture.viewer = 'nouf'
-    expect(named('Amal Fahad')).toEqual(['View Amal Fahad', '', ''])
+    expect(named('Amal Fahad')).toEqual(['View Amal Fahad', ''])
+  })
+
+  it('shows the Delete column (heading, cells and its 6rem column) to the Super Admin only', () => {
+    const headings = (html: string) => [...table(html).matchAll(/<th scope="col"[^>]*>([^<]+)<\/th>/g)].map((match) => match[1])
+    const actionCols = (html: string) => (table(html).match(/<col class="w-24"\/>/g) ?? []).length
+    const superAdminView = at('/admin/admins')
+    expect(headings(superAdminView)).toEqual(['Full Name', 'Email', 'Phone Number', 'Permission', 'Preview', 'Edit', 'Delete'])
+    expect(actionCols(superAdminView)).toBe(3)
+    fixture.viewer = 'nouf'
+    const regular = at('/admin/admins')
+    expect(headings(regular)).toEqual(['Full Name', 'Email', 'Phone Number', 'Permission', 'Preview', 'Edit'])
+    expect(actionCols(regular)).toBe(2)
+    // Every row has as many cells as there are headings: no empty Delete cells left behind.
+    for (const name of ['Amal Fahad', 'Nouf Saleh', 'Zaid Omar']) {
+      expect((row(regular, name).match(/<td /g) ?? []).length).toBe(5)
+    }
   })
 
   it('lists administrators only, the Super Admin first with its own badge', () => {
@@ -99,6 +115,8 @@ describe('the Admins list', () => {
     expect(row(at('/admin/admins'), 'Amal Fahad')).toContain('>Super Admin</span>')
     expect(row(at('/admin/admins'), 'Nouf Saleh')).toContain('>Admin</span>')
     expect(html).toContain('>nouf@example.test<')
+    // Every email has its copy button.
+    expect(row(at('/admin/admins'), 'Nouf Saleh')).toContain('aria-label="Copy Nouf Saleh’s email"')
     expect(html).toContain('>+966512345678<')
   })
 
@@ -113,7 +131,7 @@ describe('the Admins list', () => {
     fixture.viewer = 'nouf'
     const html = at('/admin/admins')
     expect(html).not.toMatch(/aria-label="Delete /)
-    expect(labels(row(html, 'Amal Fahad'))).toEqual(['View Amal Fahad'])
+    expect(labels(row(html, 'Amal Fahad'))).toEqual(['Copy Amal Fahad’s email', 'View Amal Fahad'])
     expect(labels(row(html, 'Zaid Omar'))).toEqual(expect.arrayContaining(['View Zaid Omar', 'Edit Zaid Omar']))
     expect(labels(row(html, 'Nouf Saleh'))).toEqual(expect.arrayContaining(['Edit Nouf Saleh']))
   })
@@ -151,21 +169,30 @@ describe('the Admins list', () => {
 describe("an administrator's page", () => {
   const actions = (html: string) => html.slice(html.indexOf('</h1>'), html.indexOf('admin-details-title'))
 
-  it('shows the Super Admin Edit, Make Super Admin and Delete on a regular Admin', () => {
+  it('shows the Super Admin Edit and Delete on a regular Admin; Make Super Admin is on Edit Admin', () => {
     const html = actions(at('/admin/admins/nouf'))
     expect(html).toContain('href="/admin/admins/nouf/edit"')
-    expect(html).toContain('>Make Super Admin<')
+    expect(html).not.toContain('Make Super Admin')
     expect(html).toContain('>Delete Admin</button>')
   })
 
-  it('shows its actions as labelled maroon filled buttons (like Add Admin) at the top right, with a gold crown', () => {
+  it('shows the Permission once, as a gold badge in the Details card (none under the name)', () => {
+    const html = at('/admin/admins/nouf')
+    const header = html.slice(html.indexOf('<h1'), html.indexOf('admin-details-title'))
+    expect(header).not.toContain('>Admin</span>')
+    const permission = html.slice(html.indexOf('>Permission</dt>'))
+    expect(permission).toMatch(/^>Permission<\/dt><dd[^>]*><span class="[^"]*bg-gold-light px-2 text-maroon[^"]*">Admin<\/span>/)
+    const superAdmin = at(`/admin/admins/${SUPER}`)
+    expect(superAdmin.slice(superAdmin.indexOf('>Permission</dt>'))).toMatch(/^>Permission<\/dt><dd[^>]*><span class="[^"]*bg-gold-light px-2 text-maroon[^"]*"><svg[^>]*lucide-crown[^>]*>.*?<\/svg>Super Admin<\/span>/)
+  })
+
+  it('shows its actions as labelled maroon filled buttons (like Add Admin) at the top right', () => {
     const html = at('/admin/admins/nouf')
     const group = html.match(/<\/h1>.*?<div class="flex flex-wrap items-center gap-2">(.*?)<\/div>/)![1]
     const buttons = group.match(/<(a|button) [^>]*>.*?<\/\1>/g)!
-    expect(buttons.map((button) => button.replace(/<[^>]*>/g, ''))).toEqual(['Edit Admin', 'Make Super Admin', 'Delete Admin'])
+    expect(buttons.map((button) => button.replace(/<[^>]*>/g, ''))).toEqual(['Edit Admin', 'Delete Admin'])
     for (const button of buttons) expect(button).toContain('border border-maroon bg-maroon text-offwhite')
     for (const button of buttons) expect(button).toContain('h-10 px-4 text-sm')
-    expect(group).toMatch(/lucide-crown[^"]*text-gold"/)
     expect(group).toMatch(/lucide-trash/)
   })
 
@@ -203,7 +230,7 @@ describe("an administrator's page", () => {
 
   it('lists name, email, phone and role, in the same order as Edit Admin', () => {
     const html = at('/admin/admins/nouf')
-    expect([...html.matchAll(/<dt[^>]*>([^<]+)<\/dt>/g)].map((match) => match[1])).toEqual(['Full Name', 'Email', 'Phone Number', 'Role'])
+    expect([...html.matchAll(/<dt[^>]*>([^<]+)<\/dt>/g)].map((match) => match[1])).toEqual(['Full Name', 'Email', 'Phone Number', 'Permission'])
     expect(html).not.toContain('>Division<')
   })
 
@@ -245,7 +272,34 @@ describe('Edit Admin', () => {
     expect(html).toContain('value="nouf@example.test"')
     expect(html).not.toContain('Super Admin</option>')
     expect(html).not.toContain('type="checkbox"')
-    expect(html).toMatch(/<a[^>]*href="\/admin\/admins\/nouf"[^>]*>Cancel<\/a>/)
+    // Cancel and Back both return to the Admins list, never to the Admin's page.
+    expect(html).toMatch(/<a[^>]*href="\/admin\/admins"[^>]*>Cancel<\/a>/)
+    expect(html).not.toMatch(/href="\/admin\/admins\/nouf"/)
+  })
+
+  it('goes Back to the Admins list', () => {
+    const html = at('/admin/admins/nouf/edit')
+    expect(html).toMatch(/^.*?<a[^>]*href="\/admin\/admins"[^>]*><svg[^>]*lucide-arrow-left/s)
+    expect(html).toContain('Back to Admins')
+    fixture.viewer = 'nouf'
+    // The read-only explanation's button goes to the list too.
+    const readOnly = at(`/admin/admins/${SUPER}/edit`)
+    expect(readOnly).not.toMatch(new RegExp(`href="/admin/admins/${SUPER}"`))
+  })
+
+  it('offers Make Super Admin (gold crown, maroon filled) to the Super Admin on a regular Admin only', () => {
+    const html = at('/admin/admins/nouf/edit')
+    const button = html.match(/<button[^>]*>(?:(?!<\/button>).)*Make Super Admin<\/button>/s)![0]
+    expect(button).toContain('border border-maroon bg-maroon text-offwhite')
+    expect(button).toMatch(/lucide-crown[^"]*text-gold"/)
+    // Before the form, beside the name.
+    expect(html.indexOf('Make Super Admin')).toBeLessThan(html.indexOf('<form'))
+    // Not on their own account (they are the Super Admin already).
+    expect(at(`/admin/admins/${SUPER}/edit`)).not.toContain('Make Super Admin')
+    // Never for a regular Admin, on anyone.
+    fixture.viewer = 'nouf'
+    expect(at('/admin/admins/zaid/edit')).not.toContain('Make Super Admin')
+    expect(at('/admin/admins/nouf/edit')).not.toContain('Make Super Admin')
   })
 
   it("is read-only for a regular Admin on the Super Admin's account", () => {
@@ -279,13 +333,13 @@ describe('Add Admin', () => {
 describe('Make Super Admin', () => {
   it('asks with the agreed title, text and buttons', () => {
     const text = adminsEn.transfer
-    expect(text.title).toBe('Transfer Super Admin Role?')
+    expect(text.title).toBe('Transfer Super Admin Permission?')
     expect(text.intro.replace('{name}', 'Nouf Saleh')).toBe('Are you sure you want to make Nouf Saleh the new Super Admin?')
     expect(text.proceed).toBe('If you proceed:')
     expect(text.consequences.map((line) => line.replace('{name}', 'Nouf Saleh'))).toEqual([
       'Nouf Saleh will become the new Super Admin.',
-      'Your role will change to a regular Admin.',
-      'You will lose permission to delete Admins and transfer the Super Admin role.',
+      'Your permission will change to a regular Admin.',
+      'You will lose permission to delete Admins and transfer the Super Admin permission.',
       'You will retain your regular Admin permissions.',
     ])
     expect(text.effect).toBe('This change will take effect immediately.')

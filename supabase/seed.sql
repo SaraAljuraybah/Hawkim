@@ -20,12 +20,12 @@ insert into public.departments (id, name, initials, description, is_quality, req
   ('quality-assurance', 'Quality Assurance', 'QA', 'Responsible for quality oversight and compliance.', true, false),
   ('regulatory-affairs', 'Regulatory Affairs', 'RA', 'Handles regulatory submissions and communications.', false, false),
   ('pharmacovigilance', 'Pharmacovigilance', 'PV', 'Monitors and evaluates product safety.', false, true),
-  ('research-development', 'Research & Development', 'RD', 'Drives innovation and product development.', false, false),
+  ('research-development', 'Research and Development', 'RD', 'Drives innovation and product development.', false, false),
   ('information-technology', 'Information Technology', 'IT', 'Supports the organization''s technology infrastructure.', false, false),
   ('human-resources', 'Human Resources', 'HR', 'Manages people, policies and culture.', false, false),
-  ('finance-administration', 'Finance & Administration', 'FA', 'Oversees financial and administrative operations.', false, false),
+  ('finance-administration', 'Finance and Administration', 'FA', 'Oversees financial and administrative operations.', false, false),
   ('clinical-operations', 'Clinical Operations', 'CL', 'Supports clinical studies and operations.', false, false),
-  ('legal-governance', 'Legal & Governance', 'LG', 'Ensures legal compliance and governance.', false, false)
+  ('legal-governance', 'Legal and Governance', 'LG', 'Ensures legal compliance and governance.', false, false)
 on conflict (id) do update set
   name = excluded.name,
   initials = excluded.initials,

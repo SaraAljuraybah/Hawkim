@@ -61,13 +61,24 @@ describe('Delete Staff calls the server', () => {
   })
 })
 
-describe('the Delete Staff wording says it deactivates', () => {
-  it('asks to deactivate, says what is kept, and confirms afterwards', () => {
-    expect(adminEn.deleteUser.title).toBe('Deactivate Staff?')
-    expect(adminEn.deleteUser.description).toBe('Are you sure you want to deactivate {name}? They will lose access to Hawkim, but their account information and history will be preserved.')
-    expect(adminEn.deleteUser.confirm).toBe('Deactivate')
-    expect(adminEn.deleteUser.cancel).toBe('Cancel')
-    expect(adminEn.deleteUser.done).toBe('{name} deactivated successfully.')
+describe('the Delete Staff wording says it makes the account inactive', () => {
+  it('asks to delete, says the account becomes inactive and what is kept, and confirms afterwards', () => {
+    const text = adminEn.deleteUser
+    expect(text.title).toBe('Delete {name}?')
+    expect(text.description).toBe('Deleting a staff member makes their account inactive. Nothing is permanently deleted.')
+    expect(text.consequences).toEqual([
+      'Their account status will change to Inactive.',
+      'All of their staff information and historical records will be kept.',
+      'They won’t be able to access Hawkim while their account is inactive.',
+      'You can reactivate their account later from the Deactive Staff tab.',
+    ])
+    expect(text.confirm).toBe('Delete')
+    expect(text.cancel).toBe('Cancel')
+    expect(text.done).toBe('{name} was deleted. Their account is now inactive.')
+    // Never suggests the record is removed for good.
+    for (const line of [text.title, text.description, ...text.consequences, text.done]) {
+      expect(line).not.toMatch(/permanently removed|can.t be undone|cannot be undone/i)
+    }
   })
 })
 

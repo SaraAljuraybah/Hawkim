@@ -26,7 +26,7 @@ const fixture = vi.hoisted(() => ({ sop: null as Sop | null, userId: 'author', c
 vi.mock('../hooks/useDocumentTitle', () => ({ useDocumentTitle: () => {} }))
 vi.mock('../state/sessionContext', () => ({ useCurrentUser: () => fixture.users.find((user) => user.id === fixture.userId), useSession: () => ({ status: 'signed-in', user: fixture.users.find((user) => user.id === fixture.userId) }) }))
 vi.mock('../state/usersContext', () => ({ useUsers: () => ({ users: fixture.users, activeUsers: fixture.users, nameOf: (id: string) => fixture.users.find((user) => user.id === id)?.name ?? '', getUser: (id: string) => fixture.users.find((user) => user.id === id) }) }))
-vi.mock('../state/departmentsContext', () => ({ useDepartments: () => ({ departments: [{ id: 'home', name: 'Home', initials: 'HM', description: '', requiresComplianceCheck: fixture.checks }], nameOf: () => 'Home' }) }))
+vi.mock('../state/departmentsContext', () => ({ useDepartments: () => ({ departments: [{ id: 'home', name: 'Home', initials: 'HM', description: '', requiresComplianceCheck: fixture.checks }], nameOf: () => 'Home', getDepartment: () => undefined }) }))
 vi.mock('../state/guidelinesContext', () => ({
   useGuidelines: () => ({ versions: [v40], current: v40, currentGuideline: { name: 'GVP', version: '4.0' }, allVersions: [v40, v41], getRequirement: () => undefined, getVersion: () => undefined }),
 }))
