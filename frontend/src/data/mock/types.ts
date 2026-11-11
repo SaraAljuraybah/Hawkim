@@ -539,7 +539,7 @@ export interface DashboardStat {
 }
 
 /** What an activity item is about; decides its icon. */
-export type ActivityKind = 'accessRequest' | 'departmentMembership' | 'sopRequest'
+export type ActivityKind = 'accessRequest' | 'departmentMembership' | 'sopRequest' | 'sop' | 'review' | 'request'
 
 export interface ActivityItem {
   id: string

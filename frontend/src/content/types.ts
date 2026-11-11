@@ -382,7 +382,29 @@ export interface DashboardContent {
   subtitle: string
   /** Label, sublabel and icon for each statistic (values come from the data). */
   stats: Record<DashboardStatKey, { label: string; sublabel: string; icon: IconName }>
-  recentActivity: { title: string }
+  recentActivity: {
+    title: string
+    /** No activity yet. */
+    empty: string
+    /** Under a minute ago. */
+    justNow: string
+    /** One line per kind of action; `{title}` (SOP or request title) and `{version}` are replaced. */
+    messages: {
+      sopAdded: string
+      versionUploaded: string
+      submitted: string
+      resubmitted: string
+      reviewCompleted: string
+      reviewAccepted: string
+      reviewDeclined: string
+      returned: string
+      approved: string
+      coAuthorAdded: string
+      requestSent: string
+      requestApproved: string
+      requestRejected: string
+    }
+  }
   quickActions: {
     title: string
     primary: AppNavItem

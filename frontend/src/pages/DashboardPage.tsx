@@ -1,4 +1,4 @@
-import { Building2, FileText, KeyRound, type LucideIcon } from 'lucide-react'
+import { Building2, ClipboardCheck, FileText, KeyRound, Send, type LucideIcon } from 'lucide-react'
 import { icons } from '../components/icons'
 import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
@@ -6,10 +6,13 @@ import { StatCard } from '../components/ui/StatCard'
 import { StatusBadge } from '../components/ui/StatusBadge'
 import { dashboardEn } from '../content/app.en'
 import type { DashboardContent } from '../content/types'
-import { getDashboardStats, recentActivity } from '../data/mock/dashboard'
+import { useMemo, useState } from 'react'
+import { getDashboardStats } from '../data/mock/dashboard'
 import type { ActivityKind } from '../data/mock/types'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
+import { recentActivity } from '../lib/activity'
 import { members } from '../lib/departmentAdmin'
+import { formatRelativeTime } from '../lib/format'
 import { hasAnyPermission } from '../lib/permissions'
 import { useActiveDepartment } from '../state/activeDepartmentContext'
 import { useMyRequests } from '../state/requestsContext'
@@ -22,6 +25,9 @@ const activityIcons: Record<ActivityKind, LucideIcon> = {
   accessRequest: KeyRound,
   departmentMembership: Building2,
   sopRequest: FileText,
+  sop: FileText,
+  review: ClipboardCheck,
+  request: Send,
 }
 
 /** Morning 05:00–11:59, afternoon 12:00–16:59, evening otherwise (local time). */
@@ -48,6 +54,10 @@ export function DashboardPage() {
   const { sops } = useSops()
   const { users } = useUsers()
   const dashboardStats = getDashboardStats(requests, homeDepartment, sops, members(homeDepartment.id, users).length)
+  // The user's last 3 actions (SOPs, reviews, requests), from the SOP timelines and their requests.
+  const activity = useMemo(() => recentActivity(user.id, sops, requests, content.recentActivity.messages), [user.id, sops, requests, content])
+  // When the page opened: "2 hours ago" is measured from it.
+  const [now] = useState(() => Date.now())
 
   return (
     <>
@@ -82,8 +92,9 @@ export function DashboardPage() {
       <div className="mt-6 grid gap-6 lg:mt-8 lg:grid-cols-3 lg:items-start">
         {/* Recent activity (about two-thirds) */}
         <Card title={content.recentActivity.title} titleId="recent-activity-title" className="lg:col-span-2">
+          {activity.length === 0 && <p className="text-sm text-text-gray">{content.recentActivity.empty}</p>}
           <ul className="divide-y divide-beige">
-            {recentActivity.map((item) => {
+            {activity.map((item) => {
               const Icon = activityIcons[item.kind]
               return (
                 <li key={item.id} className="flex items-start gap-3 py-4 first:pt-0 last:pb-0 sm:gap-4">
@@ -95,7 +106,9 @@ export function DashboardPage() {
                   </span>
                   <div className="min-w-0 flex-1">
                     <p className="text-sm leading-snug font-medium text-maroon sm:text-[0.9375rem]">{item.message}</p>
-                    <p className="mt-1 text-xs text-text-gray sm:text-sm">{item.timeAgo}</p>
+                    <p className="mt-1 text-xs text-text-gray sm:text-sm">
+                      <time dateTime={item.at}>{formatRelativeTime(item.at, now, content.recentActivity.justNow)}</time>
+                    </p>
                   </div>
                   {item.status && <StatusBadge status={item.status} className="mt-0.5" />}
                 </li>
