@@ -16,7 +16,7 @@ vi.mock('../../services/supabase', () => ({ supabase: () => ({ rpc }) }))
 const org = vi.hoisted(() => ({ status: 'ready', name: null as string | null }))
 vi.mock('../../hooks/useOrganizationName', () => ({ useOrganizationName: () => ({ ...org, set: () => {} }) }))
 // The staff top bar's own parts, which need the signed-in app's state.
-vi.mock('../layout/NotificationsBell', () => ({ NotificationsBell: () => <button type="button">Notifications</button> }))
+vi.mock('../layout/NotificationsBell', () => ({ NotificationsBell: () => <button type="button">Notifications</button>, AdminNotificationsBell: () => <button type="button">Notifications</button> }))
 vi.mock('../layout/DepartmentSwitcher', () => ({ DepartmentSwitcher: () => <button type="button">Department Switcher</button> }))
 
 const banner = (name: string | null, canEdit: boolean) => renderToStaticMarkup(<OrganizationBanner name={name} canEdit={canEdit} onEdit={vi.fn()} />)
@@ -135,6 +135,10 @@ describe('the organization name in the admin top bar', () => {
     expect(menu).toBeGreaterThan(-1)
     expect(menu).toBeLessThan(name)
     expect(name).toBeLessThan(profile)
+    // The notifications bell sits between the name and the profile, as in the staff top bar.
+    const bell = html.indexOf('>Notifications<')
+    expect(name).toBeLessThan(bell)
+    expect(bell).toBeLessThan(profile)
     expect(html).toContain('<div class="flex min-w-0 flex-1 items-center">')
     expect(html).toMatch(/<button type="button" aria-label="Open menu"[^>]*class="inline-flex size-10 shrink-0 /)
     expect(html).toContain('<div class="flex shrink-0 items-center gap-3">')

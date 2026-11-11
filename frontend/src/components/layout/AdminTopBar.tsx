@@ -5,6 +5,7 @@ import type { AdminShellContent } from '../../content/types'
 import type { User } from '../../data/mock/types'
 import { useAdminRoleLabel } from '../../state/superAdminContext'
 import { OrganizationName } from '../admin/OrganizationBanner'
+import { AdminNotificationsBell } from './NotificationsBell'
 
 interface AdminTopBarProps {
   content: AdminShellContent
@@ -15,7 +16,7 @@ interface AdminTopBarProps {
   menuButtonRef: Ref<HTMLButtonElement>
 }
 
-/** Top bar of the admin portal: menu button (small screens), the organization's name, and the admin's name and role. */
+/** Top bar of the admin portal: menu button (small screens), the organization's name, notifications, and the admin's name and role. */
 export function AdminTopBar({ content, user, menuOpen, onOpenMenu, menuButtonRef }: AdminTopBarProps) {
   const role = useAdminRoleLabel(user)
   return (
@@ -37,6 +38,12 @@ export function AdminTopBar({ content, user, menuOpen, onOpenMenu, menuButtonRef
             pushes the menu button or the profile. */}
         <div className="flex min-w-0 flex-1 items-center">
           <OrganizationName user={user} />
+        </div>
+
+        {/* Notifications (expired invitations), as in the employee top bar */}
+        <div className="flex shrink-0 items-center gap-3 sm:gap-4">
+          <AdminNotificationsBell />
+          <span aria-hidden="true" className="h-8 w-px shrink-0 bg-beige" />
         </div>
 
         {/* Signed-in admin: the avatar is the link to their profile, as in the employee top bar */}

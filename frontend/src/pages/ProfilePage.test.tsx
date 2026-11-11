@@ -20,7 +20,7 @@ const fixture = vi.hoisted(() => ({
 vi.mock('../hooks/useDocumentTitle', () => ({ useDocumentTitle: (title: string) => { fixture.titles.push(title) } }))
 vi.mock('../state/sessionContext', () => ({ useCurrentUser: () => fixture.user }))
 vi.mock('../state/departmentsContext', () => ({ useDepartments: () => ({ getDepartment: (id: string) => (id === fixture.home.id ? fixture.home : undefined) }) }))
-vi.mock('../components/layout/NotificationsBell', () => ({ NotificationsBell: () => null }))
+vi.mock('../components/layout/NotificationsBell', () => ({ NotificationsBell: () => null, AdminNotificationsBell: () => <button type="button">Notifications</button> }))
 vi.mock('../components/layout/DepartmentSwitcher', () => ({ DepartmentSwitcher: () => <button type="button">Department Switcher</button> }))
 
 const render = () => renderToStaticMarkup(<MemoryRouter><ProfilePage /></MemoryRouter>)
