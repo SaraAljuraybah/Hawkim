@@ -10,9 +10,16 @@ import { adminEn } from '../content/admin.en'
 import { organizationEn as content } from '../content/organization.en'
 import { usersEn } from '../content/users.en'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
+import { useOrganizationName } from '../hooks/useOrganizationName'
 import { departmentFilterGroups, isFiltering, ORGANIZATION_SORTS, organizationRows, organizationSortGroup, OTHERS_FILTER, ROLE_FILTERS, type OrganizationSort, type RoleFilter } from '../lib/organization'
 import { fetchOrganization, type OrganizationHierarchy } from '../services/organization'
 import { useCurrentUser } from '../state/sessionContext'
+
+/** The page's heading: "{name} Structure", or "Organizational Structure" without a (non-blank) name. */
+function organizationHeading(name: string | null | undefined): string {
+  const trimmed = name?.trim()
+  return trimmed ? content.titleFor(trimmed) : content.title
+}
 
 export type OrganizationLoadState = { status: 'loading' } | { status: 'error' } | { status: 'ready'; hierarchy: OrganizationHierarchy }
 
@@ -92,9 +99,14 @@ export function OrganizationContent({ state, reload }: { state: OrganizationLoad
 /**
  * Organizational Structure, the same page for every signed-in user: in the employee app
  * ("/organizational-structure") and in the admin portal (`admin`, only the tab title differs).
+ * The heading (and tab title) is "{organization name} Structure", from the same name as the top bar
+ * (get_organization_name, readable by every active user); "Organizational Structure" while it loads
+ * or when there is none.
  */
 export function OrganizationalStructurePage({ admin = false }: { admin?: boolean }) {
-  useDocumentTitle(admin ? adminEn.pageTitle.replace('{page}', content.title) : content.pageTitle)
+  const organization = useOrganizationName()
+  const heading = organizationHeading(organization.status === 'ready' ? organization.name : null)
+  useDocumentTitle(admin ? adminEn.pageTitle.replace('{page}', heading) : content.pageTitle(heading))
   const user = useCurrentUser()
   const [attempt, setAttempt] = useState(0)
   const [loaded, setLoaded] = useState<{ userId: string; attempt: number; state: OrganizationLoadState } | null>(null)
@@ -110,7 +122,7 @@ export function OrganizationalStructurePage({ admin = false }: { admin?: boolean
   }, [user.id, attempt])
   return (
     <div className="min-w-0">
-      <h1 className="text-2xl tracking-tight sm:text-3xl">{content.title}</h1>
+      <h1 className="text-2xl tracking-tight break-words sm:text-3xl">{heading}</h1>
       <p className="mt-2 text-text-gray">{content.subtitle}</p>
       <OrganizationContent state={state} reload={reload} />
     </div>

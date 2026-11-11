@@ -2046,8 +2046,12 @@ export interface AdminsContent {
 /* ---------- Organizational Structure (every signed-in user; "Staff" wording on this page only) ---------- */
 
 export interface OrganizationContent {
-  pageTitle: string
+  /** The browser tab's title, from the heading, e.g. "Sitco Structure | Hawkim". */
+  pageTitle: (heading: string) => string
+  /** The heading without an organization name (missing, empty, or still loading). */
   title: string
+  /** The heading with the organization's name, e.g. "Sitco Structure". */
+  titleFor: (organization: string) => string
   /** The short description under the heading. */
   subtitle: string
   retry: string

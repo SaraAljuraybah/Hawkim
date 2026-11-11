@@ -8,6 +8,8 @@ const host = vi.hoisted(() => ({ slots: [] as Slot[], index: 0, effects: [] as (
 vi.mock('../services/organization', () => ({ fetchOrganization: host.load }))
 vi.mock('../state/sessionContext', () => ({ useCurrentUser: () => ({ id: host.userId }) }))
 vi.mock('../hooks/useDocumentTitle', () => ({ useDocumentTitle: () => {} }))
+// The heading's organization name is loaded by its own hook (not part of these hook-by-hook checks).
+vi.mock('../hooks/useOrganizationName', () => ({ useOrganizationName: () => ({ status: 'ready', name: null, set: () => {} }) }))
 // Same deterministic hook-host approach used by the existing provider tests.
 vi.mock('react', async (original) => {
   const react = await original<typeof import('react')>()

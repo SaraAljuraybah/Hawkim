@@ -10,7 +10,10 @@ import { OrganizationalStructurePage, OrganizationContent, OrganizationStructure
 import { navLinks } from '../lib/sidebarNav'
 
 vi.mock('../state/sessionContext', () => ({ useSession: () => ({ signOut: vi.fn() }), useCurrentUser: () => ({ id: 'admin' }) }))
-vi.mock('../hooks/useDocumentTitle', () => ({ useDocumentTitle: () => {} }))
+const headingFixture = vi.hoisted(() => ({ name: { status: 'ready', name: null } as { status: string; name: string | null }, titles: [] as string[] }))
+vi.mock('../hooks/useDocumentTitle', () => ({ useDocumentTitle: (title?: string) => { if (title) headingFixture.titles.push(title) } }))
+// The organization's name, as the top bar reads it (get_organization_name).
+vi.mock('../hooks/useOrganizationName', () => ({ useOrganizationName: () => ({ ...headingFixture.name, set: () => {} }) }))
 const hierarchy: OrganizationHierarchy = {
   organization: null,
   divisions: [{ id: 'division-1', name: 'Operations', email: 'ops@test.invalid' }, { id: 'division-2', name: 'R&D Division', email: null }],
@@ -41,8 +44,37 @@ describe('Organizational Structure', () => {
   it('has one h1, then the short description, and no tree', () => {
     const html = renderToStaticMarkup(<OrganizationalStructurePage />)
     expect(html.match(/<h1/g)).toHaveLength(1)
-    expect(html).toContain('>Organizational Structure</h1><p class="mt-2 text-text-gray">Browse the organization&#x27;s divisions, departments and staff, and find their contact emails.</p>')
+    expect(html).toContain('Organizational Structure</h1><p class="mt-2 text-text-gray">Browse the organization&#x27;s divisions, departments and staff, and find their contact emails.</p>')
     for (const removed of ['org-root', 'org-branches', '<details', '>Organization<']) expect(page()).not.toContain(removed)
+  })
+  it('names the heading and the tab title after the organization, e.g. "Sitco Structure"', () => {
+    headingFixture.name = { status: 'ready', name: 'Sitco' }
+    headingFixture.titles.length = 0
+    const html = renderToStaticMarkup(<OrganizationalStructurePage />)
+    expect(html.match(/<h1/g)).toHaveLength(1)
+    expect(html).toMatch(/<h1 class="[^"]*break-words[^"]*">Sitco Structure<\/h1>/)
+    expect(headingFixture.titles.at(-1)).toBe('Sitco Structure | Hawkim')
+    renderToStaticMarkup(<OrganizationalStructurePage admin />)
+    expect(headingFixture.titles.at(-1)).toBe('Sitco Structure · Admin Portal | Hawkim')
+    headingFixture.name = { status: 'ready', name: null }
+  })
+  it.each([
+    ['no name saved', { status: 'ready', name: null }],
+    ['a blank name', { status: 'ready', name: '   ' }],
+    ['the name still loading', { status: 'loading', name: null }],
+    ['the name failing to load', { status: 'error', name: null }],
+  ])('falls back to "Organizational Structure" with %s', (_case, name) => {
+    headingFixture.name = name
+    headingFixture.titles.length = 0
+    const html = renderToStaticMarkup(<OrganizationalStructurePage />)
+    expect(html).toMatch(/<h1 class="[^"]*">Organizational Structure<\/h1>/)
+    expect(headingFixture.titles.at(-1)).toBe('Organizational Structure | Hawkim')
+    headingFixture.name = { status: 'ready', name: null }
+  })
+  it('keeps the sidebar item as "Organizational Structure"', () => {
+    headingFixture.name = { status: 'ready', name: 'Sitco' }
+    expect(navLinks(adminEn.shell.nav).find((item) => item.href === '/admin/organizational-structure')?.label).toBe('Organizational Structure')
+    headingFixture.name = { status: 'ready', name: null }
   })
   it('shows a Name | Email table with no Users, SOPs or action columns', () => {
     const html = page()
