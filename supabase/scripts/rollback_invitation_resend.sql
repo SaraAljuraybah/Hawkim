@@ -1,4 +1,4 @@
--- Undoes 20261111160000_invitation_resend.sql: drops its functions and its table. Nothing else used
+-- Undoes 20261112130000_invitation_resend.sql: drops its functions and its table. Nothing else used
 -- them, and that migration changed no existing object, so nothing is restored.
 -- Data loss: the recorded invitations (when each was sent, by whom, and when it was activated).
 begin;

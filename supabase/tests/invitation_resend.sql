@@ -1,4 +1,4 @@
--- Tests for 20261111160000_invitation_resend.sql: recording invitations, activation, who is notified of
+-- Tests for 20261112130000_invitation_resend.sql: recording invitations, activation, who is notified of
 -- an expired one, and resending (claim and revert). Every call is made as the API would make it (role
 -- anon or authenticated, with the caller's id in the JWT claims). Only for a disposable LOCAL database
 -- with every migration applied; never the shared project. Everything is rolled back.

@@ -1,5 +1,5 @@
 -- Run on a disposable LOCAL database right after supabase/scripts/rollback_invitation_resend.sql:
--- checks that the rollback left nothing of 20261111160000_invitation_resend.sql behind.
+-- checks that the rollback left nothing of 20261112130000_invitation_resend.sql behind.
 do $$
 begin
   assert to_regclass('public.user_invitations') is null, 'table dropped';

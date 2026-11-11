@@ -1,5 +1,5 @@
 /*
- * Invitations (migration 20261111160000, Edge Function resend-invitation): marking one's own account
+ * Invitations (migration 20261112130000, Edge Function resend-invitation): marking one's own account
  * activated, the signed-in Admin's expired invitations (bell notifications), and Resend invitation.
  */
 
