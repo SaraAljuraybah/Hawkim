@@ -10,7 +10,7 @@ import { adminEn } from '../content/admin.en'
 import { organizationEn as content } from '../content/organization.en'
 import { usersEn } from '../content/users.en'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
-import { departmentFilterGroups, isFiltering, ORGANIZATION_SORTS, organizationRows, OTHERS_FILTER, ROLE_FILTERS, type OrganizationSort, type RoleFilter } from '../lib/organization'
+import { departmentFilterGroups, isFiltering, ORGANIZATION_SORTS, organizationRows, organizationSortGroup, OTHERS_FILTER, ROLE_FILTERS, type OrganizationSort, type RoleFilter } from '../lib/organization'
 import { fetchOrganization, type OrganizationHierarchy } from '../services/organization'
 import { useCurrentUser } from '../state/sessionContext'
 
@@ -58,7 +58,10 @@ export function OrganizationStructure({ hierarchy }: { hierarchy: OrganizationHi
             { id: 'role', legend: content.roleFilter, options: roleOptions, value: roles, onChange: (next) => setRoles(next as RoleFilter[]), emptyText: '', summary: content.roleCount },
           ]} />
         <SelectField className="min-w-0" name="organizationSort" label={content.sort} value={sort}
-          options={ORGANIZATION_SORTS.map((value) => ({ value, label: content.sortOptions[value] }))}
+          options={ORGANIZATION_SORTS.map((value) => {
+            const group = organizationSortGroup(value)
+            return { value, label: content.sortOptions[value], ...(group ? { group: content.sortGroups[group] } : {}) }
+          })}
           onChange={(event) => setSort(event.target.value as OrganizationSort)} />
       </div>
       <OrganizationTable rows={rows} filtering={filtering} filterKey={JSON.stringify([query.trim().toLowerCase(), [...divisions].sort(), [...departments].sort(), [...roles].sort()])} />

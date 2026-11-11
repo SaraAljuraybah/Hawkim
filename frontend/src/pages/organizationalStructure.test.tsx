@@ -117,7 +117,7 @@ describe('Organizational Structure', () => {
     expect(html.indexOf('Unassigned departments')).toBeGreaterThan(html.indexOf('R&amp;D Division'))
     expect(html.indexOf('Legacy Unit')).toBeGreaterThan(html.indexOf('Unassigned departments'))
   })
-  it('has one search, a Filter button with Division and Role chips, and a Sort without SOP options', () => {
+  it('has one search and a Filter button with Division and Role chips', () => {
     const html = page()
     expect(html.match(/type="search"/g)).toHaveLength(1)
     expect(html).toContain('placeholder="Search divisions, departments or staff by name or email"')
@@ -142,8 +142,19 @@ describe('Organizational Structure', () => {
     // Chip text is left-aligned when a long name wraps.
     expect(html).toMatch(/aria-pressed="false" class="inline-flex [^"]*text-left/)
     expect(html).toContain('>Clear all</button>')
-    const sorts = [...html.matchAll(/<option value="[^"]+"[^>]*>([^<]+)<\/option>/g)].map((match) => match[1])
-    expect(sorts).toEqual(['Default order', 'Division name: A to Z', 'Division name: Z to A', 'Departments: High to Low', 'Departments: Low to High'])
+  })
+  it('offers the default order, then the Divisions and Departments sorts under their headings', () => {
+    const select = page().match(/<select[^>]*name="organizationSort"[^>]*>([\s\S]*?)<\/select>/)![1]
+    expect([...select.matchAll(/<option value="[^"]+"[^>]*>([^<]+)<\/option>/g)].map((match) => match[1])).toEqual([
+      'Default order',
+      'A to Z', 'Z to A', 'Number of Departments',
+      'A to Z', 'Z to A', 'Number of Staff',
+    ])
+    const groups = [...select.matchAll(/<optgroup label="([^"]+)">([\s\S]*?)<\/optgroup>/g)]
+    expect(groups.map((group) => group[1])).toEqual(['Divisions', 'Departments'])
+    expect(groups.map((group) => (group[2].match(/<option/g) ?? []).length)).toEqual([3, 3])
+    expect(select.indexOf('Default order')).toBeLessThan(select.indexOf('<optgroup'))
+    expect(select).not.toContain('High to Low')
   })
   it('lists unassigned departments under their own subheading in the Department filter', () => {
     const data = structuredClone(hierarchy)

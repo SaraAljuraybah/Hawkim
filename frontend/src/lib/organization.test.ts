@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { Permission } from '../data/mock/types'
 import type { OrganizationEmployee, OrganizationHierarchy } from '../services/organization'
-import { departmentFilterGroups, isFiltering, matchesDivisionDepartmentFilter, overflows, matchesRoles, matchesSearch, organizationRows, OTHERS_FILTER, UNASSIGNED_GROUP_ID, type OrganizationFilters } from './organization'
+import { departmentFilterGroups, isFiltering, matchesDivisionDepartmentFilter, overflows, matchesRoles, matchesSearch, ORGANIZATION_SORTS, organizationRows, organizationSortGroup, OTHERS_FILTER, UNASSIGNED_GROUP_ID, type OrganizationFilters, type OrganizationSort } from './organization'
 
 const person = (id: string, name: string, permissions: Permission[] = [], email = `${id}@test.invalid`): OrganizationEmployee =>
   ({ id, name, initials: 'XX', email, permissions })
@@ -125,11 +125,75 @@ describe('organization rows', () => {
     expect(rows({ query: 'huda' })[0].departmentCount).toBe(2)
     expect(rows({ query: 'huda' })[0].departments[0].department.employees).toHaveLength(1)
   })
-  it('sorts divisions only, keeping the unassigned group last', () => {
-    expect(rows({}, 'name-desc').map((row) => row.id)).toEqual(['qual', 'ops', 'empty', UNASSIGNED_GROUP_ID])
-    expect(rows({}, 'departments-desc').map((row) => row.id)).toEqual(['ops', 'qual', 'empty', UNASSIGNED_GROUP_ID])
-    expect(rows({}, 'departments-asc').map((row) => row.id)).toEqual(['empty', 'qual', 'ops', UNASSIGNED_GROUP_ID])
-    expect(rows({}, 'name-asc').find((row) => row.id === 'ops')!.departments.map((d) => d.department.id)).toEqual(['pv', 'reg'])
+})
+
+describe('sort', () => {
+  // Default order: Gamma, Alpha, Beta. Alpha's departments: Zeta (1 staff), Eta (2), Mu (1).
+  const sortable: OrganizationHierarchy = {
+    organization: null,
+    divisions: [{ id: 'g', name: 'Gamma' }, { id: 'a', name: 'Alpha' }, { id: 'b', name: 'Beta' }],
+    departments: [
+      { id: 'zeta', name: 'Zeta', divisionId: 'a', employees: [sara] },
+      { id: 'eta', name: 'Eta', divisionId: 'a', employees: [noura, huda] },
+      { id: 'mu', name: 'Mu', divisionId: 'a', employees: [reem] },
+      { id: 'kappa', name: 'Kappa', divisionId: 'b', employees: [] },
+      { id: 'iota', name: 'Iota', divisionId: 'g', employees: [] },
+      { id: 'omega', name: 'Omega', divisionId: null, employees: [] },
+      { id: 'beta-unit', name: 'Beta Unit', divisionId: null, employees: [lama] },
+    ],
+  }
+  const sorted = (sort: OrganizationSort) => organizationRows(sortable, none, sort)
+  const divisionOrder = (sort: OrganizationSort) => sorted(sort).map((row) => row.id)
+  const departmentOrder = (sort: OrganizationSort, divisionId: string) =>
+    sorted(sort).find((row) => row.id === divisionId)!.departments.map((row) => row.department.id)
+
+  it('lists Default order, then three division sorts and three department sorts, each in its group', () => {
+    expect(ORGANIZATION_SORTS).toEqual([
+      'default',
+      'division-name-asc', 'division-name-desc', 'division-departments-desc',
+      'department-name-asc', 'department-name-desc', 'department-staff-desc',
+    ])
+    expect(ORGANIZATION_SORTS.map(organizationSortGroup)).toEqual([
+      undefined, 'divisions', 'divisions', 'divisions', 'departments', 'departments', 'departments',
+    ])
+  })
+  it('keeps the loaded order by default', () => {
+    expect(divisionOrder('default')).toEqual(['g', 'a', 'b', UNASSIGNED_GROUP_ID])
+    expect(departmentOrder('default', 'a')).toEqual(['zeta', 'eta', 'mu'])
+  })
+  it('orders the divisions by name, keeping their departments and the unassigned group last', () => {
+    expect(divisionOrder('division-name-asc')).toEqual(['a', 'b', 'g', UNASSIGNED_GROUP_ID])
+    expect(divisionOrder('division-name-desc')).toEqual(['g', 'b', 'a', UNASSIGNED_GROUP_ID])
+    expect(departmentOrder('division-name-asc', 'a')).toEqual(['zeta', 'eta', 'mu'])
+    expect(departmentOrder('division-name-asc', UNASSIGNED_GROUP_ID)).toEqual(['omega', 'beta-unit'])
+  })
+  it('orders the divisions by number of departments, most first, ties by name', () => {
+    // Beta and Gamma both have one department: Beta first, although Gamma comes first by default.
+    expect(divisionOrder('division-departments-desc')).toEqual(['a', 'b', 'g', UNASSIGNED_GROUP_ID])
+  })
+  it('orders the departments inside each division by name, the divisions keeping their order', () => {
+    expect(divisionOrder('department-name-asc')).toEqual(['g', 'a', 'b', UNASSIGNED_GROUP_ID])
+    expect(departmentOrder('department-name-asc', 'a')).toEqual(['eta', 'mu', 'zeta'])
+    expect(departmentOrder('department-name-asc', UNASSIGNED_GROUP_ID)).toEqual(['beta-unit', 'omega'])
+    expect(divisionOrder('department-name-desc')).toEqual(['g', 'a', 'b', UNASSIGNED_GROUP_ID])
+    expect(departmentOrder('department-name-desc', 'a')).toEqual(['zeta', 'mu', 'eta'])
+  })
+  it('orders the departments inside each division by number of staff, most first, ties by name', () => {
+    expect(divisionOrder('department-staff-desc')).toEqual(['g', 'a', 'b', UNASSIGNED_GROUP_ID])
+    // Mu and Zeta both have one person: Mu first, although Zeta comes first by default.
+    expect(departmentOrder('department-staff-desc', 'a')).toEqual(['eta', 'mu', 'zeta'])
+    expect(departmentOrder('department-staff-desc', UNASSIGNED_GROUP_ID)).toEqual(['beta-unit', 'omega'])
+  })
+  it('keeps the staff inside a department in their order', () => {
+    for (const sort of ORGANIZATION_SORTS) {
+      const eta = sorted(sort).find((row) => row.id === 'a')!.departments.find((row) => row.department.id === 'eta')!
+      expect(eta.staff.map((person) => person.id)).toEqual(['noura', 'huda'])
+    }
+  })
+  it('falls back to the id when names are the same', () => {
+    const twins: OrganizationHierarchy = { organization: null, divisions: [{ id: 'd2', name: 'Same' }, { id: 'd1', name: 'same' }], departments: [] }
+    expect(organizationRows(twins, none, 'division-name-asc').map((row) => row.id)).toEqual(['d1', 'd2'])
+    expect(organizationRows(twins, none, 'division-departments-desc').map((row) => row.id)).toEqual(['d1', 'd2'])
   })
 })
 

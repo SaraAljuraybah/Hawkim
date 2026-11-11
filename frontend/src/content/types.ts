@@ -8,7 +8,7 @@ import type {
   TimelineEventType,
 } from '../data/mock/types'
 import type { SopDeleteErrorCode } from '../lib/mySops'
-import type { OrganizationSort } from '../lib/organization'
+import type { OrganizationSort, OrganizationSortGroup } from '../lib/organization'
 import type { SopStatus } from '../types/status'
 
 /*
@@ -2043,4 +2043,6 @@ export interface OrganizationContent {
   others: string
   sort: string
   sortOptions: Record<OrganizationSort, string>
+  /** Headings of the Sort menu's groups. */
+  sortGroups: Record<OrganizationSortGroup, string>
 }

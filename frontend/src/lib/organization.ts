@@ -14,9 +14,21 @@ export const ROLE_FILTERS: RoleFilter[] = ['author', 'reviewer', 'approver', OTH
 
 const FILTER_ROLES: Permission[] = ['author', 'reviewer', 'approver']
 
-/** The Divisions and Departments sort options, without the SOP ones. Sorting orders divisions only. */
-export const ORGANIZATION_SORTS = ['default', 'name-asc', 'name-desc', 'departments-desc', 'departments-asc'] as const
+/**
+ * The Sort options; 'default' keeps the loaded order. 'division-…' orders the division rows;
+ * 'department-…' orders the departments inside each division (the divisions keep their order, the
+ * staff inside a department keep theirs). Counts go from most to fewest; ties go by name, then id.
+ */
+export const ORGANIZATION_SORTS = [
+  'default',
+  'division-name-asc', 'division-name-desc', 'division-departments-desc',
+  'department-name-asc', 'department-name-desc', 'department-staff-desc',
+] as const
 export type OrganizationSort = (typeof ORGANIZATION_SORTS)[number]
+export type OrganizationSortGroup = 'divisions' | 'departments'
+/** The group each sort is listed under in the Sort menu ('default' has none). */
+export const organizationSortGroup = (sort: OrganizationSort): OrganizationSortGroup | undefined =>
+  sort.startsWith('division-') ? 'divisions' : sort.startsWith('department-') ? 'departments' : undefined
 
 /** The group of departments without a (shown) division: always last, never a Division filter choice. */
 export const UNASSIGNED_GROUP_ID = 'unassigned'
@@ -84,15 +96,25 @@ export function isFiltering(filters: OrganizationFilters): boolean {
 const byName = (a: { name: string; id: string }, b: { name: string; id: string }) =>
   a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }) || a.id.localeCompare(b.id)
 
+type DivisionCompare = (a: DivisionRow, b: DivisionRow) => number
+type DepartmentCompare = (a: DepartmentRow, b: DepartmentRow) => number
+const DIVISION_COMPARE: Record<Extract<OrganizationSort, `division-${string}`>, DivisionCompare> = {
+  'division-name-asc': byName,
+  'division-name-desc': (a, b) => -byName(a, b),
+  'division-departments-desc': (a, b) => b.departmentCount - a.departmentCount || byName(a, b),
+}
+const DEPARTMENT_COMPARE: Record<Extract<OrganizationSort, `department-${string}`>, DepartmentCompare> = {
+  'department-name-asc': (a, b) => byName(a.department, b.department),
+  'department-name-desc': (a, b) => -byName(a.department, b.department),
+  'department-staff-desc': (a, b) => b.department.employees.length - a.department.employees.length || byName(a.department, b.department),
+}
+
+/** The assigned divisions reordered (division sorts), or each group's departments reordered (department sorts). */
 function sortRows(rows: DivisionRow[], sort: OrganizationSort): DivisionRow[] {
   if (sort === 'default') return rows
-  const compare: Record<Exclude<OrganizationSort, 'default'>, (a: DivisionRow, b: DivisionRow) => number> = {
-    'name-asc': byName,
-    'name-desc': (a, b) => -byName(a, b),
-    'departments-desc': (a, b) => b.departmentCount - a.departmentCount || byName(a, b),
-    'departments-asc': (a, b) => a.departmentCount - b.departmentCount || byName(a, b),
-  }
-  return [...rows].sort(compare[sort])
+  if (sort in DIVISION_COMPARE) return [...rows].sort(DIVISION_COMPARE[sort as keyof typeof DIVISION_COMPARE])
+  const compare = DEPARTMENT_COMPARE[sort as keyof typeof DEPARTMENT_COMPARE]
+  return rows.map((row) => ({ ...row, departments: [...row.departments].sort(compare) }))
 }
 
 /**
@@ -144,9 +166,10 @@ export function organizationRows(hierarchy: OrganizationHierarchy, filters: Orga
     if (!visible) continue
     rows.push({ ...base, autoOpen: picked.length > 0 || departments.some((row) => row.hit), departments: departments.map(({ department, staff, autoOpen }) => ({ department, staff, autoOpen })) })
   }
-  // The unassigned group stays last whatever the sort.
+  // The unassigned group stays last whatever the sort; a department sort orders its departments too.
   const assigned = rows.filter((row) => !row.unassigned)
-  return [...sortRows(assigned, sort), ...rows.filter((row) => row.unassigned)]
+  const unassignedRows = rows.filter((row) => row.unassigned)
+  return [...sortRows(assigned, sort), ...(organizationSortGroup(sort) === 'departments' ? sortRows(unassignedRows, sort) : unassignedRows)]
 }
 
 export interface DepartmentFilterGroup {

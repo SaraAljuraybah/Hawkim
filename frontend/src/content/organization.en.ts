@@ -29,7 +29,9 @@ export const organizationEn: OrganizationContent = {
   others: 'Others',
   sort: 'Sort',
   sortOptions: {
-    default: 'Default order', 'name-asc': 'Division name: A to Z', 'name-desc': 'Division name: Z to A',
-    'departments-desc': 'Departments: High to Low', 'departments-asc': 'Departments: Low to High',
+    default: 'Default order',
+    'division-name-asc': 'A to Z', 'division-name-desc': 'Z to A', 'division-departments-desc': 'Number of Departments',
+    'department-name-asc': 'A to Z', 'department-name-desc': 'Z to A', 'department-staff-desc': 'Number of Staff',
   },
+  sortGroups: { divisions: 'Divisions', departments: 'Departments' },
 }
