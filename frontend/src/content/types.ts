@@ -1905,6 +1905,10 @@ export interface AdminsContent {
     description: string
     add: LinkContent
     search: { label: string; placeholder: string }
+    /** The Filter's Role section. */
+    role: { legend: string; count: CountText }
+    sort: { label: string; options: Record<'default' | 'name-asc' | 'name-desc', string> }
+    clearFilters: string
     count: CountText
     tableLabel: string
     /** `preview`, `edit`, `delete`: the action columns' headings, as on Divisions and Departments. */

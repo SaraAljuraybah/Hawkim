@@ -1,21 +1,25 @@
 import { useMemo, useRef, useState } from 'react'
 import { flushSync } from 'react-dom'
-import { useLocation, useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { CircleCheck, Eye, LoaderCircle, Pencil, Plus, UserCog } from 'lucide-react'
 import { AdminRoleBadge } from '../../components/admin/AdminRoleBadge'
 import { DeleteAdminButton } from '../../components/admin/DeleteAdminButton'
 import { RefusedBox } from '../../components/admin/RefusedBox'
 import { UserAvatar } from '../../components/admin/UserBits'
 import { Button } from '../../components/ui/Button'
+import { FilterPopover } from '../../components/ui/FilterPopover'
 import { IconButton } from '../../components/ui/IconButton'
+import { SelectField } from '../../components/ui/SelectField'
 import { TextField } from '../../components/ui/TextField'
 import { LIST_TOOLBAR } from '../../components/ui/toolbar'
 import { tableStyles } from '../../components/ui/tableStyles'
 import { adminsEn } from '../../content/admins.en'
+import { filtersEn } from '../../content/filters.en'
 import type { User } from '../../data/mock/types'
 import { useDocumentTitle } from '../../hooks/useDocumentTitle'
 import { useSuperAdmin } from '../../hooks/useSuperAdmin'
-import { adminRole, administrators, canDeleteAdmin, canEditAdmin, listAdmins } from '../../lib/adminAccess'
+import { ADMIN_ROLES, ADMIN_SORTS, adminRole, administrators, canDeleteAdmin, canEditAdmin, listAdmins, type AdminSort } from '../../lib/adminAccess'
+import { listParam, readChoice, readList, updateParams } from '../../lib/pagination'
 import { adminAdminEditPath, adminAdminPath } from '../../lib/routes'
 import { useCurrentUser } from '../../state/sessionContext'
 import { useUsers } from '../../state/usersContext'
@@ -26,7 +30,8 @@ export interface AdminAdminsLocationState {
 }
 
 /**
- * Manage Organization → Admins ("/admin/admins"): the administrators with their role, a search by
+ * Manage Organization → Admins ("/admin/admins"): the administrators with their role, a Filter (Role) and Sort
+ * (in the URL, as on Staff), a search by
  * name or email, and the actions the signed-in administrator may take on each (Delete only for the
  * Super Admin, never on the Super Admin; Edit on the Super Admin only for the Super Admin).
  */
@@ -43,10 +48,23 @@ export function AdminAdminsPage() {
   const noticeRef = useRef<HTMLDivElement>(null)
   const refusedRef = useRef<HTMLDivElement>(null)
   const [query, setQuery] = useState('')
+  const searchRef = useRef<HTMLInputElement>(null)
+  // The Filter (Role) and Sort are in the URL, as on the Staff page: `?role=superAdmin,admin&sort=name-asc`.
+  const [params, setParams] = useSearchParams()
+  const roles = useMemo(() => ADMIN_ROLES.filter((role) => readList(params, 'role').includes(role)), [params])
+  const sort = readChoice<AdminSort>(params, 'sort', ADMIN_SORTS, 'default')
+  const hasFilters = query.trim().length > 0 || roles.length > 0 || sort !== 'default'
+  const setRoles = (next: string[]) => setParams((current) => updateParams(current, { role: listParam(next) }, { role: '' }), { replace: true })
+  const setSort = (next: AdminSort) => setParams((current) => updateParams(current, { sort: next }, { sort: 'default' }), { replace: true })
+  function clearFilters() {
+    setQuery('')
+    setParams((current) => updateParams(current, { role: undefined, sort: undefined }, {}), { replace: true })
+    searchRef.current?.focus()
+  }
 
   const admins = useMemo(() => administrators(activeUsers), [activeUsers])
   const superAdminId = superAdmin.superAdminId
-  const visible = useMemo(() => listAdmins(admins, superAdminId, query), [admins, superAdminId, query])
+  const visible = useMemo(() => listAdmins(admins, superAdminId, query, { roles, sort }), [admins, superAdminId, query, roles, sort])
   const count = (visible.length === 1 ? content.count.one : content.count.other).replace('{count}', String(visible.length))
   const loading = status === 'loading' || superAdmin.status === 'loading'
   const failed = status === 'error' || superAdmin.status === 'error'
@@ -104,9 +122,10 @@ export function AdminAdminsPage() {
       </div>
       {refused && <RefusedBox ref={refusedRef} title={refused.title} messages={refused.reasons} />}
 
-      {/* The search in the same row as every list page's, so it's just as wide (no Filter or Sort here). */}
+      {/* Search | Filter | Sort, the same row as on every list page. */}
       <div className={`mt-8 ${LIST_TOOLBAR}`}>
         <TextField
+          ref={searchRef}
           className="min-w-0"
           name="search"
           type="search"
@@ -117,6 +136,16 @@ export function AdminAdminsPage() {
           value={query}
           onChange={(event) => setQuery(event.target.value)}
         />
+        {/* The Filter field of every list page, with one section: Role. */}
+        <FilterPopover className="relative min-w-0 lg:static" label={filtersEn.label} allLabel={filtersEn.all} title={filtersEn.title} clearLabel={filtersEn.clearAll}
+          onClear={() => setRoles([])}
+          sections={[
+            { id: 'role', legend: content.role.legend, options: ADMIN_ROLES.map((role) => ({ value: role, label: adminsEn.roles[role] })),
+              value: roles, onChange: setRoles, emptyText: '', summary: content.role.count },
+          ]} />
+        <SelectField className="min-w-0" name="adminSort" label={content.sort.label} value={sort}
+          options={ADMIN_SORTS.map((value) => ({ value, label: content.sort.options[value] }))}
+          onChange={(event) => setSort(event.target.value as AdminSort)} />
       </div>
 
       {loading ? (
@@ -134,10 +163,13 @@ export function AdminAdminsPage() {
         </div>
       ) : (
         <>
-          {/* Announced as the results change */}
-          <p role="status" className="mt-6 text-sm font-medium text-text-gray">
-            {count}
-          </p>
+          <div className="mt-6 flex min-h-8 flex-wrap items-center justify-between gap-2">
+            {/* Announced as the results change */}
+            <p role="status" className="text-sm font-medium text-text-gray">
+              {count}
+            </p>
+            {hasFilters && <Button size="sm" variant="secondary" onClick={clearFilters}>{content.clearFilters}</Button>}
+          </div>
 
           {visible.length === 0 ? (
             <div className="mt-3 flex flex-col items-center rounded-xl border border-dashed border-beige bg-white px-6 py-14 text-center">
