@@ -45,10 +45,10 @@ export function MakeSuperAdminButton({ admin, onTransferred, onFailed }: MakeSup
 
   return (
     <>
-      <Button variant="secondary" size="sm" aria-disabled={busy || undefined} onClick={() => !busy && setConfirming(true)}>
+      <Button variant="burgundy" size="sm" aria-disabled={busy || undefined} onClick={() => !busy && setConfirming(true)}>
         {busy
           ? <LoaderCircle aria-hidden="true" className="size-4 motion-safe:animate-spin" strokeWidth={1.75} />
-          : <Crown aria-hidden="true" className="size-4" strokeWidth={1.75} />}
+          : <Crown aria-hidden="true" className="size-4 text-gold" strokeWidth={1.75} />}
         {busy ? text.transferring : text.button}
       </Button>
       <ConfirmDialog

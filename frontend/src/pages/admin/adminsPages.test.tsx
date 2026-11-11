@@ -137,7 +137,24 @@ describe("an administrator's page", () => {
     const html = actions(at('/admin/admins/nouf'))
     expect(html).toContain('href="/admin/admins/nouf/edit"')
     expect(html).toContain('>Make Super Admin<')
-    expect(html).toContain('aria-label="Delete Nouf Saleh"')
+    expect(html).toContain('>Delete Admin</button>')
+  })
+
+  it('shows its actions as labelled burgundy outlined buttons at the top right, with a gold crown', () => {
+    const html = at('/admin/admins/nouf')
+    const group = html.match(/<\/h1>.*?<div class="flex flex-wrap items-center gap-2">(.*?)<\/div>/)![1]
+    const buttons = group.match(/<(a|button) [^>]*>.*?<\/\1>/g)!
+    expect(buttons.map((button) => button.replace(/<[^>]*>/g, ''))).toEqual(['Edit Admin', 'Make Super Admin', 'Delete Admin'])
+    for (const button of buttons) expect(button).toContain('border-burgundy bg-white text-burgundy')
+    expect(group).toMatch(/lucide-crown[^"]*text-gold"/)
+    expect(group).toMatch(/lucide-trash/)
+  })
+
+  it('lays out the Details card like a staff member\'s page: 14px bold maroon labels, 16px regular maroon values, dividers', () => {
+    const html = at('/admin/admins/nouf')
+    expect(html).toContain('<dl class="mt-4 divide-y divide-beige">')
+    for (const dt of html.match(/<dt[^>]*>/g)!) expect(dt).toContain('text-sm font-bold text-maroon')
+    for (const dd of html.match(/<dd[^>]*>/g)!) expect(dd).toContain('text-base break-words text-maroon')
   })
 
   it('shows a regular Admin only Edit on another regular Admin', () => {
@@ -145,7 +162,7 @@ describe("an administrator's page", () => {
     const html = actions(at('/admin/admins/nouf'))
     expect(html).toContain('href="/admin/admins/nouf/edit"')
     expect(html).not.toContain('Make Super Admin')
-    expect(html).not.toContain('aria-label="Delete')
+    expect(html).not.toContain('>Delete Admin<')
   })
 
   it("shows a regular Admin the Super Admin's details only, and says why", () => {
@@ -153,7 +170,7 @@ describe("an administrator's page", () => {
     const html = at(`/admin/admins/${SUPER}`)
     expect(actions(html)).not.toContain('/edit')
     expect(actions(html)).not.toContain('Make Super Admin')
-    expect(actions(html)).not.toContain('aria-label="Delete')
+    expect(actions(html)).not.toContain('>Delete Admin<')
     expect(html).toContain(adminsEn.details.superAdminReadOnly)
   })
 
@@ -161,7 +178,7 @@ describe("an administrator's page", () => {
     const html = at(`/admin/admins/${SUPER}`)
     expect(actions(html)).toContain(`href="/admin/admins/${SUPER}/edit"`)
     expect(actions(html)).not.toContain('Make Super Admin')
-    expect(actions(html)).not.toContain('aria-label="Delete')
+    expect(actions(html)).not.toContain('>Delete Admin<')
     expect(html).toContain(adminsEn.details.ownSuperAdmin)
   })
 

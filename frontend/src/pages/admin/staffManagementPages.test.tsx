@@ -28,14 +28,14 @@ const details = () => renderToStaticMarkup(<MemoryRouter initialEntries={['/admi
 const labels = (html: string) => [...html.matchAll(/<dt[^>]*>([^<]+)<\/dt>/g)].map((match) => match[1])
 
 describe('Staff Details', () => {
-  it('opens Edit Staff from the header, in the secondary button style', () => {
+  it('opens Edit Staff from the header, in the burgundy outlined button style', () => {
     const link = details().match(/<a[^>]*href="\/admin\/users\/rana\/edit"[^>]*>.*?<\/a>/)![0]
     expect(link).toContain('Edit Staff')
-    expect(link).toContain('border-maroon/40')
+    expect(link).toContain('border-burgundy bg-white text-burgundy')
   })
 
   it('lists the organizational fields for staff', () => {
-    expect(labels(details())).toEqual(['Name', 'Email', 'Phone Number', 'Division', 'Department', 'Position', 'Permission'])
+    expect(labels(details())).toEqual(['Full Name', 'Email', 'Phone Number', 'Division', 'Department', 'Position', 'Permission'])
   })
 
   it("sends an administrator's Staff page to their page under Manage Organization → Admins", () => {

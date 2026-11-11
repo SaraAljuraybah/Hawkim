@@ -4,11 +4,10 @@ import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, CircleAlert, CircleCheck, Info, LoaderCircle, Pencil } from 'lucide-react'
 import { AdminRoleBadge } from '../../components/admin/AdminRoleBadge'
 import { DeleteAdminButton } from '../../components/admin/DeleteAdminButton'
+import { DetailRow, DetailsCard, DetailsHeader, EmailDetail } from '../../components/admin/DetailsCard'
 import { MakeSuperAdminButton } from '../../components/admin/MakeSuperAdminButton'
 import { RefusedBox } from '../../components/admin/RefusedBox'
-import { UserAvatar } from '../../components/admin/UserBits'
 import { Button } from '../../components/ui/Button'
-import { CopyButton } from '../../components/ui/CopyButton'
 import { adminsEn } from '../../content/admins.en'
 import type { User } from '../../data/mock/types'
 import { useDocumentTitle } from '../../hooks/useDocumentTitle'
@@ -114,35 +113,31 @@ function AdminPanels({ admin, superAdmin }: { admin: User; superAdmin: SuperAdmi
     navigate(ADMIN_ADMINS_PATH, { state })
   }
 
-  // Same order as Edit Admin.
-  const details: [string, string | undefined][] = [
-    [text.name, admin.name],
-    [text.email, admin.email],
-    [text.phone, admin.phone],
-  ]
+  const email = admin.email.trim()
 
   const explanation = role === 'superAdmin' ? (isSelf ? text.ownSuperAdmin : text.superAdminReadOnly) : ''
 
   return (
     <>
       {/* Header, with the actions at the top right */}
-      <div className="mt-5 flex flex-wrap items-start gap-4">
-        <UserAvatar user={admin} className="size-14 text-base" />
-        <div className="min-w-0 flex-1">
-          <h1 className="text-2xl break-words tracking-tight sm:text-3xl">{admin.name}</h1>
-          <AdminRoleBadge role={role} className="mt-2" />
-        </div>
-        <div className="flex shrink-0 flex-wrap items-center gap-2">
-          {mayEdit && (
-            <Button variant="secondary" size="sm" to={adminAdminEditPath(admin.id)}>
-              <Pencil aria-hidden="true" className="size-4" strokeWidth={1.75} />
-              {text.edit}
-            </Button>
-          )}
-          {mayTransfer && <MakeSuperAdminButton admin={admin} onTransferred={transferred} onFailed={refuse} />}
-          {mayDelete && <DeleteAdminButton admin={admin} onDeleted={deleted} onFailed={refuse} />}
-        </div>
-      </div>
+      <DetailsHeader
+        user={admin}
+        badges={<AdminRoleBadge role={role} />}
+        actions={
+          mayEdit || mayTransfer || mayDelete ? (
+            <>
+              {mayEdit && (
+                <Button variant="burgundy" size="sm" to={adminAdminEditPath(admin.id)}>
+                  <Pencil aria-hidden="true" className="size-4" strokeWidth={1.75} />
+                  {text.edit}
+                </Button>
+              )}
+              {mayTransfer && <MakeSuperAdminButton admin={admin} onTransferred={transferred} onFailed={refuse} />}
+              {mayDelete && <DeleteAdminButton admin={admin} onDeleted={deleted} onFailed={refuse} labeled />}
+            </>
+          ) : undefined
+        }
+      />
 
       {refused && <RefusedBox ref={refusedRef} title={refused.title} messages={refused.reasons} />}
 
@@ -167,41 +162,32 @@ function AdminPanels({ admin, superAdmin }: { admin: User; superAdmin: SuperAdmi
         )}
       </div>
 
-      <div className="mt-6 grid max-w-3xl gap-6">
-        <section aria-labelledby="admin-details-title" className="rounded-xl border border-beige bg-white p-5 sm:p-6">
-          <h2 id="admin-details-title" className="text-lg">
-            {text.title}
-          </h2>
-          <dl className="mt-4 grid gap-x-6 gap-y-3 text-sm sm:grid-cols-[10rem_minmax(0,1fr)]">
-            {details.map(([label, value]) => (
-              <div key={label} className="contents">
-                <dt className="font-bold text-maroon">{label}</dt>
-                {label === text.email && value?.trim() ? (
-                  // The address and its copy icon stay together, as on Divisions and Departments; the confirmation takes its own line.
-                  <dd className="flex min-w-0 flex-wrap items-center gap-x-1.5 text-maroon max-sm:mb-1">
-                    <span className="min-w-0 break-all">{value}</span>
-                    <CopyButton text={value} label={text.copyEmail.replace('{name}', admin.name)} copiedText={text.copied} failedText={text.copyFailed} />
-                  </dd>
-                ) : (
-                  <dd className="min-w-0 break-words text-maroon max-sm:mb-1">{value?.trim() || text.notSet}</dd>
-                )}
-              </div>
-            ))}
-            <div className="contents">
-              <dt className="font-bold text-maroon">{text.role}</dt>
-              <dd className="min-w-0 max-sm:mb-1">
-                <AdminRoleBadge role={role} />
-              </dd>
-            </div>
-          </dl>
-          {explanation && (
+      {/* The same Details card as a staff member's page; same order as Edit Admin */}
+      <DetailsCard
+        id="admin-details-title"
+        title={text.title}
+        footer={
+          explanation && (
             <p className="mt-5 flex items-start gap-2 border-t border-beige pt-4 text-sm text-text-gray">
               <Info aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-maroon" strokeWidth={1.75} />
               {explanation}
             </p>
+          )
+        }
+      >
+        <DetailRow label={text.name}>{admin.name.trim() || text.notSet}</DetailRow>
+        <DetailRow label={text.email}>
+          {email ? (
+            <EmailDetail email={email} copyLabel={text.copyEmail.replace('{name}', admin.name)} copiedText={text.copied} failedText={text.copyFailed} />
+          ) : (
+            text.notSet
           )}
-        </section>
-      </div>
+        </DetailRow>
+        <DetailRow label={text.phone}>{admin.phone?.trim() || text.notSet}</DetailRow>
+        <DetailRow label={text.role}>
+          <AdminRoleBadge role={role} />
+        </DetailRow>
+      </DetailsCard>
     </>
   )
 }

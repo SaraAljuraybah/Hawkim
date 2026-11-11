@@ -1685,10 +1685,16 @@ export interface AdminEditUserContent {
 
 export interface AdminUserDetailsContent {
   back: LinkContent
-  /** One line under the staff member's name. */
-  subtitle: string
   /** Opens Edit Staff. */
   edit: string
+  /** The labelled Delete button in the header; it deactivates the staff member. */
+  delete: string
+  /** Delete's label while the deactivation is being saved. */
+  deleting: string
+  /** The email's copy button; `{name}` is replaced. */
+  copyEmail: string
+  copied: string
+  copyFailed: string
   /** Shown after adding a user. */
   added: string
   /** Shown after adding a user whose invitation email couldn't be sent. */
@@ -1955,6 +1961,8 @@ export interface AdminsContent {
   delete: {
     /** Accessible name of the Trash button; `{name}` is replaced. */
     button: string
+    /** Visible label of the Delete button on an Admin's page. */
+    label: string
     title: string
     /** `{name}` and `{email}` are replaced. */
     description: string

@@ -1,11 +1,12 @@
 import type { ReactNode } from 'react'
 import type { User } from '../../data/mock/types'
 import { DeleteUserButton } from './DeleteUserButton'
+import { StaffPermissionBadges } from './DetailsCard'
 import { usersEn } from '../../content/users.en'
 import { UserAvatar } from './UserBits'
 
 /**
- * The header of a staff member's page and Edit Staff: large avatar, the name as the page's h1 with
+ * The header of Edit Staff (a staff member's page uses DetailsHeader): large avatar, the name as the page's h1 with
  * Delete right beside it (after any `actions`, e.g. Edit Staff), and the saved permissions as badges
  * under it (none without one). `label` (e.g. "Edit Staff") is a small line above the name, inside the
  * h1 so the heading says the page's purpose too. `description` is one short line under the badges.
@@ -50,18 +51,7 @@ export function UserHeader({
             <DeleteUserButton user={user} onDeleted={onDeleted} onRefused={onRefused} />
           </div>
         </div>
-        {user.permissions.length > 0 && (
-          <ul className="mt-2 flex flex-wrap gap-1.5">
-            {user.permissions.map((permission) => (
-              <li
-                key={permission}
-                className="inline-flex items-center rounded-md bg-gold-light px-2 py-0.5 text-xs font-semibold whitespace-nowrap text-maroon"
-              >
-                {usersEn.permissions[permission]}
-              </li>
-            ))}
-          </ul>
-        )}
+        <StaffPermissionBadges labels={user.permissions.map((permission) => usersEn.permissions[permission])} className="mt-2" />
         {description && <p className="mt-2 text-text-gray">{description}</p>}
       </div>
     </div>

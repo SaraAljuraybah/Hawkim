@@ -1,9 +1,10 @@
-import { useRef, useState, type ReactNode } from 'react'
+import { useRef, useState } from 'react'
 import { flushSync } from 'react-dom'
 import { Link, Navigate, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, CircleAlert, CircleCheck, Pencil } from 'lucide-react'
+import { DeleteUserButton } from '../../components/admin/DeleteUserButton'
+import { DetailRow, DetailsCard, DetailsHeader, EmailDetail, StaffPermissionBadges } from '../../components/admin/DetailsCard'
 import { RefusedBox } from '../../components/admin/RefusedBox'
-import { UserHeader } from '../../components/admin/UserHeader'
 import { Button } from '../../components/ui/Button'
 import { adminEn } from '../../content/admin.en'
 import { usersEn } from '../../content/users.en'
@@ -26,7 +27,7 @@ export interface UserDetailsLocationState {
 
 /**
  * A staff member's page in the admin portal ("/admin/users/:id", PBI 17, 19): their details, and
- * Edit Staff and Delete beside their name. Edit Staff opens the edit form,
+ * Edit Staff and Delete Staff at the top right, laid out like an Admin's page. Edit Staff opens the edit form,
  * which saves to the database. A System Admin has no division, department or position, so those
  * aren't listed for them. Deleted and unknown staff show Not Found.
  */
@@ -60,18 +61,6 @@ function UserDetails({ id }: { id: string | undefined }) {
   )
 }
 
-/** A white card with an h2. */
-function Panel({ id, title, children }: { id: string; title: string; children: ReactNode }) {
-  return (
-    <section aria-labelledby={id} className="rounded-xl border border-beige bg-white p-5 sm:p-6">
-      <h2 id={id} className="text-lg">
-        {title}
-      </h2>
-      <div className="mt-4">{children}</div>
-    </section>
-  )
-}
-
 function UserPanels({ user }: { user: User }) {
   const text = adminEn.userDetails
   const { getDepartment } = useDepartments()
@@ -100,8 +89,6 @@ function UserPanels({ user }: { user: User }) {
   // Same order as My Profile; an empty value shows notSet. A System Admin has no
   // organizational fields.
   const details: [string, string | undefined][] = [
-    [text.details.name, user.name],
-    [text.details.email, user.email],
     [text.details.phone, user.phone],
     ...(isSystemAdmin(user)
       ? []
@@ -110,22 +97,24 @@ function UserPanels({ user }: { user: User }) {
           [text.details.department, department?.name],
           [text.details.position, user.position],
         ] as [string, string | undefined][])),
-    [text.details.permission, user.permissions.map((permission) => usersEn.permissions[permission]).join(', ')],
   ]
+  const permissions = user.permissions.map((permission) => usersEn.permissions[permission])
+  const email = user.email.trim()
 
   return (
     <>
-      {/* The shared header; Edit Staff (the way to the edit form from here) beside Delete */}
-      <UserHeader
+      {/* Header, with Edit Staff and Delete Staff at the top right (as on an Admin's page) */}
+      <DetailsHeader
         user={user}
-        description={text.subtitle}
-        onDeleted={deleted}
-        onRefused={refuseDelete}
+        badges={<StaffPermissionBadges labels={permissions} />}
         actions={
-          <Button variant="secondary" size="sm" to={adminUserEditPath(user.id)}>
-            <Pencil aria-hidden="true" className="size-4" strokeWidth={1.75} />
-            {text.edit}
-          </Button>
+          <>
+            <Button variant="burgundy" size="sm" to={adminUserEditPath(user.id)}>
+              <Pencil aria-hidden="true" className="size-4" strokeWidth={1.75} />
+              {text.edit}
+            </Button>
+            <DeleteUserButton user={user} onDeleted={deleted} onRefused={refuseDelete} label={text.delete} busyLabel={text.deleting} />
+          </>
         }
       />
 
@@ -146,20 +135,24 @@ function UserPanels({ user }: { user: User }) {
         )}
       </div>
 
-      <div className="mt-6 grid max-w-3xl gap-6">
-        <Panel id="details-title" title={text.details.title}>
-          {/* Label above value on small screens; side by side, on one baseline, from sm. Rows are
-              separated by a thin divider so each label stays with its value. */}
-          <dl className="divide-y divide-beige">
-            {details.map(([label, value]) => (
-              <div key={label} className="grid gap-1 py-3 first:pt-0 last:pb-0 sm:grid-cols-[11rem_minmax(0,1fr)] sm:items-baseline sm:gap-6">
-                <dt className="text-sm font-semibold text-text-gray">{label}</dt>
-                <dd className="min-w-0 text-base break-words text-maroon">{value?.trim() || text.details.notSet}</dd>
-              </div>
-            ))}
-          </dl>
-        </Panel>
-      </div>
+      <DetailsCard id="details-title" title={text.details.title}>
+        <DetailRow label={text.details.name}>{user.name.trim() || text.details.notSet}</DetailRow>
+        <DetailRow label={text.details.email}>
+          {email ? (
+            <EmailDetail email={email} copyLabel={text.copyEmail.replace('{name}', user.name)} copiedText={text.copied} failedText={text.copyFailed} />
+          ) : (
+            text.details.notSet
+          )}
+        </DetailRow>
+        {details.map(([label, value]) => (
+          <DetailRow key={label} label={label}>
+            {value?.trim() || text.details.notSet}
+          </DetailRow>
+        ))}
+        <DetailRow label={text.details.permission}>
+          {permissions.length > 0 ? <StaffPermissionBadges labels={permissions} /> : text.details.notSet}
+        </DetailRow>
+      </DetailsCard>
     </>
   )
 }

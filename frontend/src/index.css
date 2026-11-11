@@ -27,6 +27,8 @@
 
   /* Secondary & neutral */
   --color-maroon-secondary: #6b0026;
+  /* Action buttons on the Staff and Admin details pages (on white: 11.6:1) */
+  --color-burgundy: #80002d;
   --color-gold-light: #d8b77a;
   --color-beige: #f1ece4;
   --color-text-gray: #55565a;

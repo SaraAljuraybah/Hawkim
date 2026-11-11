@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react'
-import { Trash2 } from 'lucide-react'
+import { LoaderCircle, Trash2 } from 'lucide-react'
 import { adminEn } from '../../content/admin.en'
 import type { User } from '../../data/mock/types'
 import { deleteBlockers, responsibilitiesInProgress } from '../../lib/userAdmin'
@@ -7,6 +7,7 @@ import { DeactivateStaffError } from '../../services/people'
 import { useCurrentUser } from '../../state/sessionContext'
 import { useSops } from '../../state/sopsContext'
 import { useUsers } from '../../state/usersContext'
+import { Button } from '../ui/Button'
 import { ConfirmDialog } from '../ui/ConfirmDialog'
 import { IconButton } from '../ui/IconButton'
 import { blockerMessage } from './blockerMessages'
@@ -17,6 +18,12 @@ interface DeleteUserButtonProps {
   onDeleted: (message: string) => void
   /** Deactivating was refused (their own account, SOP work in progress, or by the server): the title and the reasons. */
   onRefused: (title: string, reasons: string[]) => void
+  /**
+   * A visible label (e.g. "Delete Staff" on a staff member's page): a burgundy outlined button with the
+   * Trash icon and this text, instead of the icon-only button. While saving it shows `busyLabel`.
+   */
+  label?: string
+  busyLabel?: string
 }
 
 /**
@@ -28,7 +35,7 @@ interface DeleteUserButtonProps {
  * why and nothing changes. Focus returns to the button when the dialog is cancelled, and stays on it
  * while saving.
  */
-export function DeleteUserButton({ user, onDeleted, onRefused }: DeleteUserButtonProps) {
+export function DeleteUserButton({ user, onDeleted, onRefused, label, busyLabel }: DeleteUserButtonProps) {
   const text = adminEn.deleteUser
   const admin = useCurrentUser()
   const { activeUsers, deleteUser } = useUsers()
@@ -76,14 +83,23 @@ export function DeleteUserButton({ user, onDeleted, onRefused }: DeleteUserButto
 
   return (
     <>
-      <IconButton
-        ref={buttonRef}
-        label={text.button.replace('{name}', user.name)}
-        icon={Trash2}
-        danger
-        disabledReason={busy ? text.busy.replace('{name}', user.name) : undefined}
-        onClick={() => setConfirming(true)}
-      />
+      {label ? (
+        <Button ref={buttonRef} variant="burgundy" size="sm" aria-disabled={busy || undefined} onClick={() => !busy && setConfirming(true)}>
+          {busy
+            ? <LoaderCircle aria-hidden="true" className="size-4 motion-safe:animate-spin" strokeWidth={1.75} />
+            : <Trash2 aria-hidden="true" className="size-4" strokeWidth={1.75} />}
+          {busy ? (busyLabel ?? label) : label}
+        </Button>
+      ) : (
+        <IconButton
+          ref={buttonRef}
+          label={text.button.replace('{name}', user.name)}
+          icon={Trash2}
+          danger
+          disabledReason={busy ? text.busy.replace('{name}', user.name) : undefined}
+          onClick={() => setConfirming(true)}
+        />
+      )}
       <ConfirmDialog
         open={confirming}
         title={text.title}

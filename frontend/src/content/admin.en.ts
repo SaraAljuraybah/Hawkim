@@ -194,15 +194,19 @@ export const adminEn: AdminContent = {
 
   userDetails: {
     back: { label: 'Back to Staff', href: '/admin/users' },
-    subtitle: "View this staff member's contact details, placement and permissions.",
     edit: 'Edit Staff',
+    delete: 'Delete Staff',
+    deleting: 'Deactivating…',
+    copyEmail: 'Copy {name}’s email',
+    copied: 'Email copied',
+    copyFailed: 'Could not copy email. Select and copy the address.',
     added: "Staff member added. We've emailed them an invitation to set their password.",
     addedInvitationFailed: "Staff member added, but the invitation email couldn't be sent. Ask them to use Forgot Password on the sign-in page.",
     reactivated: 'Staff member reactivated. A new invitation has been sent.',
     reactivatedInvitationFailed: "Staff member reactivated, but the invitation email couldn't be sent. Ask them to use Forgot Password on the sign-in page.",
     details: {
       title: 'Details',
-      name: 'Name',
+      name: 'Full Name',
       email: 'Email',
       phone: 'Phone Number',
       division: 'Division',

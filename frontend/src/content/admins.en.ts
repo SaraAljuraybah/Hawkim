@@ -115,6 +115,7 @@ export const adminsEn: AdminsContent = {
 
   delete: {
     button: 'Delete {name}',
+    label: 'Delete Admin',
     title: 'Delete Admin?',
     description: "Are you sure you want to delete {name} ({email})? They will no longer be able to sign in to Hawkim. Their name stays on past records. This can't be undone.",
     cancel: 'Cancel',

@@ -21,28 +21,43 @@ beforeEach(() => {
 })
 
 describe('a user\'s details page', () => {
-  it('lists Name, Email, Phone Number, Division, Department, Position and Permission, like My Profile', () => {
+  it('lists Full Name, Email, Phone Number, Division, Department, Position and Permission, like My Profile', () => {
     const html = render()
     const labels = [...html.matchAll(/<dt[^>]*>([^<]+)<\/dt>/g)].map((match) => match[1])
-    expect(labels).toEqual(['Name', 'Email', 'Phone Number', 'Division', 'Department', 'Position', 'Permission'])
-    // Labels are smaller and grey, values larger and maroon, so each value stands out from its label.
-    for (const dt of html.match(/<dt[^>]*>/g)!) expect(dt).toContain('text-sm font-semibold text-text-gray')
-    for (const dd of html.match(/<dd[^>]*>/g)!) expect(dd).toContain('text-base')
-    expect(detail(html, 'Name')).toBe('Rana')
+    expect(labels).toEqual(['Full Name', 'Email', 'Phone Number', 'Division', 'Department', 'Position', 'Permission'])
+    // As on an Admin's page: labels 14px bold maroon, values 16px regular maroon.
+    for (const dt of html.match(/<dt[^>]*>/g)!) expect(dt).toContain('text-sm font-bold text-maroon')
+    for (const dd of html.match(/<dd[^>]*>/g)!) {
+      expect(dd).toContain('text-base')
+      expect(dd).toContain('text-maroon')
+      expect(dd).not.toMatch(/font-(semibold|bold)|text-text-gray/)
+    }
+    expect(detail(html, 'Full Name')).toBe('Rana')
     expect(detail(html, 'Department')).toBe('Home')
-    expect(detail(html, 'Permission')).toBe('Author, Reviewer')
     expect(html).not.toContain('Directory Access')
   })
 
-  it('has a short description under the name, and the permissions as solid light-gold badges', () => {
+  it('shows the permissions as solid light-gold badges under the name and in Details, with no description', () => {
     const html = render()
-    expect(html).toContain(`<p class="mt-2 text-text-gray">${adminEn.userDetails.subtitle.replace("'", '&#x27;')}</p>`)
+    expect(html).not.toContain('contact details, placement and permissions')
+    expect(html).not.toContain('<p class="mt-2 text-text-gray">')
     const badges = [...html.matchAll(/<li class="([^"]*)">([^<]+)<\/li>/g)]
-    expect(badges.map((match) => match[2])).toEqual(['Author', 'Reviewer'])
+    // Once under the name, once as the Permission value.
+    expect(badges.map((match) => match[2])).toEqual(['Author', 'Reviewer', 'Author', 'Reviewer'])
     for (const [, className] of badges) {
       expect(className.split(' ')).toContain('bg-gold-light')
       expect(className).toContain('text-maroon')
     }
+    const permission = html.slice(html.indexOf('>Permission</dt>'))
+    expect(permission).toMatch(/^>Permission<\/dt><dd[^>]*><ul class="flex flex-wrap gap-1\.5 "><li[^>]*>Author<\/li><li[^>]*>Reviewer<\/li><\/ul>/)
+  })
+
+  it('copies the email from a copy icon right after the address', () => {
+    const html = render()
+    const email = html.slice(html.indexOf('>Email</dt>'), html.indexOf('>Phone Number</dt>'))
+    expect(email).toContain('<span class="min-w-0 break-all">rana@example.test</span>')
+    expect(email).toContain(`aria-label="${adminEn.userDetails.copyEmail.replace('{name}', 'Rana')}"`)
+    expect(email).toContain('aria-live="polite"')
   })
 
   it('shows only the Details card, with no "Involved in" section', () => {
@@ -56,6 +71,7 @@ describe('a user\'s details page', () => {
     fixture.user = { ...fixture.user!, permissions: [] }
     const html = render()
     for (const label of ['Phone Number', 'Division', 'Position', 'Permission']) expect(detail(html, label)).toBe('—')
+    expect(html).not.toContain('<li')
     for (const name of ['phone', 'position', 'division']) expect(html).not.toContain(`name="${name}"`)
     fixture.user = { ...fixture.user!, phone: '+966512345678', position: 'Regulatory Specialist' }
     expect(detail(render(), 'Phone Number')).toBe('+966512345678')
@@ -67,19 +83,22 @@ describe('a user\'s details page', () => {
     expect(detail(render(), 'Division')).toBe('Medical Division')
   })
 
-  it('has the shared header: large avatar, the name as the h1 with Edit Staff and Delete beside it, and the badges', () => {
+  it("has the Admin page's header: avatar, the name as the h1 with the badges under it, and Edit Staff and Delete Staff at the top right", () => {
     const html = render()
     expect(html).toContain('<span aria-hidden="true" class="inline-flex size-9 shrink-0 items-center justify-center rounded-full bg-beige text-xs font-semibold text-maroon size-10 text-sm sm:size-14 sm:text-base">RA</span>')
-    // Edit Staff (the way to the edit form from here) before the trash, both beside the name.
-    expect(html).toMatch(/<div class="flex items-start gap-2"><h1 class="min-w-0 text-xl break-words tracking-tight sm:text-3xl">Rana<\/h1><div class="flex shrink-0 items-center gap-2 "><a [^>]*href="\/admin\/users\/[^"]+\/edit"[^>]*>.*?Edit Staff<\/a><span class="relative inline-flex"><button type="button" aria-label="Delete Rana"/)
+    // The name block, then the actions (Edit Staff before Delete Staff) in their own group after it.
+    expect(html).toMatch(/<h1 class="text-xl break-words tracking-tight sm:text-3xl">Rana<\/h1><div class="mt-2 flex flex-wrap"><ul[^>]*>.*?<\/ul><\/div><\/div><\/div><div class="flex flex-wrap items-center gap-2"><a [^>]*href="\/admin\/users\/[^"]+\/edit"[^>]*>.*?Edit Staff<\/a><button type="button"[^>]*>.*?Delete Staff<\/button>/)
     expect(html.match(/<h1/g)).toHaveLength(1)
   })
 
-  it('has one Delete user: the Trash button in the header, and no Delete User section', () => {
+  it('has one Delete Staff: a labelled burgundy button with the Trash icon, and no Delete User section', () => {
     const html = render()
     const header = html.slice(html.indexOf('<h1'), html.indexOf('details-title'))
-    expect(header).toMatch(/<button type="button" aria-label="Delete Rana"[^>]*text-status-rejected-fg/)
-    expect(html.match(/aria-label="Delete Rana"/g)).toHaveLength(1)
+    const button = header.match(/<button type="button"[^>]*>.*?<\/button>/)![0]
+    expect(button).toMatch(/lucide-trash/)
+    expect(button).toContain('>Delete Staff</button>')
+    expect(button).toContain('border-burgundy bg-white text-burgundy')
+    expect(html.match(/>Delete Staff</g)).toHaveLength(1)
     expect(html).not.toContain('>Delete User<')
     expect(html).not.toContain('delete-title')
   })
