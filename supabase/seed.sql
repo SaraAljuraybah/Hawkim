@@ -107,10 +107,11 @@ create temporary table seed_people (
   email text primary key,
   full_name text not null,
   initials text not null,
-  department_id text not null,
+  -- Null for the Admin: Admins have no department or position.
+  department_id text,
   roles public.app_role[] not null,
   phone text not null,
-  "position" text not null
+  "position" text
 );
 
 insert into seed_people (email, full_name, initials, department_id, roles, phone, "position") values
@@ -121,8 +122,8 @@ insert into seed_people (email, full_name, initials, department_id, roles, phone
   ('lulwah.alrasheed@hawkim.test', 'Lulwah Alrasheed', 'LA', 'pharmacovigilance', '{reviewer}', '+966500000004', 'Pharmacovigilance Manager'),
   ('omar.alghamdi@hawkim.test', 'Omar Alghamdi', 'OA', 'pharmacovigilance', '{author}', '+966500000005', 'Signal Detection Analyst'),
   ('lama.alshehri@hawkim.test', 'Lama Alshehri', 'LA', 'pharmacovigilance', '{reviewer}', '+966500000006', 'Qualified Person for Pharmacovigilance'),
-  -- Information Technology
-  ('nouf.almutairi@hawkim.test', 'Nouf Almutairi', 'NA', 'information-technology', '{admin}', '+966500000007', 'Systems Administrator'),
+  -- The Admin: no department or position (20261112140000_admins_without_department.sql)
+  ('nouf.almutairi@hawkim.test', 'Nouf Almutairi', 'NA', null, '{admin}', '+966500000007', null),
   -- Quality Assurance (the only department with Approvers)
   ('faisal.alharbi@hawkim.test', 'Faisal Alharbi', 'FA', 'quality-assurance', '{reviewer}', '+966500000008', 'Quality Assurance Specialist'),
   ('abeer.alhamdan@hawkim.test', 'Abeer Alhamdan', 'AA', 'quality-assurance', '{author,reviewer}', '+966500000009', 'Quality Systems Specialist'),
