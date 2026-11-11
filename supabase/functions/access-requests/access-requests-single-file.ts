@@ -167,6 +167,7 @@ export function normalizePhone(input: string): string | undefined {
 }
 
 export type RequestForm = {
+  /** No longer asked (the applicant becomes the Super Admin, and Admins have no position): '' when not sent. */
   organization: string; contactName: string; jobTitle: string; email: string; phone: string
   approxUsers: number; message: string
 }
@@ -181,7 +182,8 @@ export function validateForm(input: Record<string, unknown>): { form: RequestFor
   const approxUsers = Number(input.approxUsers)
   if (!organization || organization.length > 200) invalid.push("organization")
   if (!contactName || contactName.length > 100) invalid.push("contactName")
-  if (!jobTitle || jobTitle.length > 100) invalid.push("jobTitle")
+  // Optional: an older form may still send one, and it is checked as before.
+  if (jobTitle.length > 100) invalid.push("jobTitle")
   if (!EMAIL.test(email) || email.length > 254) invalid.push("email")
   if (!phone) invalid.push("phone")
   if (!Number.isInteger(approxUsers) || approxUsers < 1 || approxUsers > 100000) invalid.push("approxUsers")
@@ -244,11 +246,12 @@ async function sendEmail(to: string, subject: string, html: string): Promise<voi
   if (!res.ok) throw new Error(`SNDR ${res.status}: ${(await res.text()).slice(0, 200)}`)
 }
 
-function detailsTable(f: RequestForm): string {
+/** The request's details in the review email; Position only when the applicant gave one. */
+export function detailsTable(f: RequestForm): string {
   const row = (label: string, value: string) =>
     `<tr><td style="padding:6px 12px 6px 0;color:#6D5D62;white-space:nowrap;vertical-align:top;">${label}</td><td style="padding:6px 0;color:#2A1B20;">${value}</td></tr>`
   return `<table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:12px 0 4px 0;font-size:15px;line-height:22px;">
-    ${row("Organization", esc(f.organization))}${row("Contact person", esc(f.contactName))}${row("Position", esc(f.jobTitle))}
+    ${row("Organization", esc(f.organization))}${row("Contact person", esc(f.contactName))}${f.jobTitle ? row("Position", esc(f.jobTitle)) : ""}
     ${row("Email", esc(f.email))}${row("Phone", esc(f.phone))}${row("Approximate number of users", String(f.approxUsers))}
     ${row("Message", f.message ? esc(f.message).replace(/\n/g, "<br>") : "—")}</table>`
 }
@@ -256,7 +259,7 @@ function detailsTable(f: RequestForm): string {
 // ---------- Actions ----------
 
 type StoredRequest = {
-  id: string; organization: string; contact_name: string; job_title: string; email: string; phone: string
+  id: string; organization: string; contact_name: string; job_title: string | null; email: string; phone: string
   approx_users: number; message: string; status: "pending" | "accepted" | "rejected"; created_at: string
   decided_at: string | null; expired: boolean; account_exists: boolean
 }

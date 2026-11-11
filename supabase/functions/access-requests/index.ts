@@ -16,6 +16,9 @@
 //   supabase functions deploy access-requests --no-verify-jwt
 
 import { renderEmail } from "../send-email/templates.ts"
+import { detailsTable, esc, normalizePhone, type RequestForm, validateForm } from "./form.ts"
+
+export { detailsTable, normalizePhone, validateForm, type RequestForm }
 
 const env = (name: string, fallback = "") => Deno.env.get(name) ?? fallback
 const CORS = {
@@ -27,44 +30,11 @@ const json = (status: number, body: unknown) =>
   new Response(JSON.stringify(body), { status, headers: { ...CORS, "Content-Type": "application/json" } })
 const fail = (status: number, error: string, extra: Record<string, unknown> = {}) => json(status, { error, ...extra })
 
-const esc = (s: string) =>
-  s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;")
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const TOKEN = /^[A-Za-z0-9_-]{43}$/
-const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 // ---------- Validation ----------
 
-/** A Saudi mobile number as +9665XXXXXXXX (the profiles.phone format), or undefined. */
-export function normalizePhone(input: string): string | undefined {
-  const digits = input.replace(/[\s\-().]/g, "")
-  const m = digits.match(/^(?:\+966|00966|966|0)?(5\d{8})$/)
-  return m ? `+966${m[1]}` : undefined
-}
-
-export type RequestForm = {
-  organization: string; contactName: string; jobTitle: string; email: string; phone: string
-  approxUsers: number; message: string
-}
-
-/** The cleaned form, or the names of the fields that are not valid. */
-export function validateForm(input: Record<string, unknown>): { form: RequestForm } | { invalid: string[] } {
-  const text = (k: string) => (typeof input[k] === "string" ? (input[k] as string).trim() : "")
-  const invalid: string[] = []
-  const organization = text("organization"), contactName = text("contactName"), jobTitle = text("jobTitle")
-  const email = text("email").toLowerCase(), message = text("message")
-  const phone = normalizePhone(text("phone"))
-  const approxUsers = Number(input.approxUsers)
-  if (!organization || organization.length > 200) invalid.push("organization")
-  if (!contactName || contactName.length > 100) invalid.push("contactName")
-  if (!jobTitle || jobTitle.length > 100) invalid.push("jobTitle")
-  if (!EMAIL.test(email) || email.length > 254) invalid.push("email")
-  if (!phone) invalid.push("phone")
-  if (!Number.isInteger(approxUsers) || approxUsers < 1 || approxUsers > 100000) invalid.push("approxUsers")
-  if (message.length > 2000) invalid.push("message")
-  if (invalid.length) return { invalid }
-  return { form: { organization, contactName, jobTitle, email, phone: phone!, approxUsers, message } }
-}
 
 // ---------- Review link token ----------
 
@@ -120,19 +90,11 @@ async function sendEmail(to: string, subject: string, html: string): Promise<voi
   if (!res.ok) throw new Error(`SNDR ${res.status}: ${(await res.text()).slice(0, 200)}`)
 }
 
-function detailsTable(f: RequestForm): string {
-  const row = (label: string, value: string) =>
-    `<tr><td style="padding:6px 12px 6px 0;color:#6D5D62;white-space:nowrap;vertical-align:top;">${label}</td><td style="padding:6px 0;color:#2A1B20;">${value}</td></tr>`
-  return `<table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:12px 0 4px 0;font-size:15px;line-height:22px;">
-    ${row("Organization", esc(f.organization))}${row("Contact person", esc(f.contactName))}${row("Position", esc(f.jobTitle))}
-    ${row("Email", esc(f.email))}${row("Phone", esc(f.phone))}${row("Approximate number of users", String(f.approxUsers))}
-    ${row("Message", f.message ? esc(f.message).replace(/\n/g, "<br>") : "—")}</table>`
-}
 
 // ---------- Actions ----------
 
 type StoredRequest = {
-  id: string; organization: string; contact_name: string; job_title: string; email: string; phone: string
+  id: string; organization: string; contact_name: string; job_title: string | null; email: string; phone: string
   approx_users: number; message: string; status: "pending" | "accepted" | "rejected"; created_at: string
   decided_at: string | null; expired: boolean; account_exists: boolean
 }
