@@ -48,11 +48,12 @@ export function AdminRegulationsPage() {
   const deleteTrigger = useRef<HTMLButtonElement | null>(null)
 
   const label = (version: GuidelineVersion) => text.versionLabel.replace('{title}', version.title ?? '').replace('{version}', version.version)
-  const actions = (version: GuidelineVersion) => (
-    <div className="flex justify-end gap-1">
-      <IconButton label={text.actions.view.replace('{name}', label(version))} icon={Eye} onClick={() => navigate(adminRegulationPath(version.id))} />
-      <IconButton label={text.actions.edit.replace('{name}', label(version))} icon={Pencil} onClick={() => navigate(adminRegulationEditPath(version.id))} />
-      {/* Only a version that was never current can be deleted; on the others Delete is disabled, saying why. */}
+  // Each action on its own, for its column in the table (the cards show them together).
+  const actions = (version: GuidelineVersion) => ({
+    preview: <IconButton label={text.actions.view.replace('{name}', label(version))} icon={Eye} onClick={() => navigate(adminRegulationPath(version.id))} />,
+    edit: <IconButton label={text.actions.edit.replace('{name}', label(version))} icon={Pencil} onClick={() => navigate(adminRegulationEditPath(version.id))} />,
+    // Only a version that was never current can be deleted; on the others Delete is disabled, saying why.
+    delete: (
       <IconButton
         label={text.actions.delete.replace('{name}', label(version))}
         icon={Trash2}
@@ -65,8 +66,8 @@ export function AdminRegulationsPage() {
           setDeleting(version)
         }}
       />
-    </div>
-  )
+    ),
+  })
 
   /** Why a version can't be deleted: it is current in the database, or was current before (and so used for checks). */
   function deleteBlocked(version: GuidelineVersion): string | undefined {

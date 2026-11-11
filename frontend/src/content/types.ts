@@ -1402,11 +1402,11 @@ export interface AdminRegulationsContent {
   requirementsCount: CountText
   /** The versions admins added couldn't be loaded (the published ones are still listed). */
   addedLoadFailed: { text: string; retry: string }
-  /** Every version, newest first; `columns.actions` is a visually hidden header. */
+  /** Every version, newest first; `preview`, `edit` and `delete` head the action columns. */
   history: {
     title: string
     tableLabel: string
-    columns: { title: string; version: string; issued: string; added: string; actions: string }
+    columns: { title: string; version: string; issued: string; added: string; preview: string; edit: string; delete: string }
   }
   /** `{title}` and `{version}` are replaced; the result is `{name}` below. */
   versionLabel: string

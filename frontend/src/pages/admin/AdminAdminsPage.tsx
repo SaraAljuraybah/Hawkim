@@ -25,10 +25,6 @@ export interface AdminAdminsLocationState {
   notice?: string
 }
 
-/** An action column's heading and cells: centred, so each button sits under its heading (as on Divisions and Departments). */
-const actionHead = 'px-2 py-3 text-center font-semibold last:rounded-tr-xl'
-const actionCell = 'px-2 py-3.5 text-center [&>*]:mx-auto'
-
 /**
  * Manage Organization → Admins ("/admin/admins"): the administrators with their role, a search by
  * name or email, and the actions the signed-in administrator may take on each (Delete only for the
@@ -156,7 +152,7 @@ export function AdminAdminsPage() {
               <div className={tableStyles.wide}>
                 <table aria-label={content.tableLabel} className={tableStyles.table}>
                   {/* The action columns are as wide as on Divisions and Departments (6rem each). */}
-                  <colgroup><col /><col /><col /><col /><col className="w-24" /><col className="w-24" /><col className="w-24" /></colgroup>
+                  <colgroup><col /><col /><col /><col /><col className={tableStyles.actionCol} /><col className={tableStyles.actionCol} /><col className={tableStyles.actionCol} /></colgroup>
                   <thead className={tableStyles.head}>
                     <tr>
                       <th scope="col" className={tableStyles.headCell}>{content.columns.name}</th>
@@ -164,9 +160,9 @@ export function AdminAdminsPage() {
                       <th scope="col" className={tableStyles.headCell}>{content.columns.phone}</th>
                       <th scope="col" className={tableStyles.headCell}>{content.columns.role}</th>
                       {/* One column per action, each heading centred above its button, as on Divisions and Departments. */}
-                      <th scope="col" className={actionHead}>{content.columns.preview}</th>
-                      <th scope="col" className={actionHead}>{content.columns.edit}</th>
-                      <th scope="col" className={actionHead}>{content.columns.delete}</th>
+                      <th scope="col" className={tableStyles.actionHead}>{content.columns.preview}</th>
+                      <th scope="col" className={tableStyles.actionHead}>{content.columns.edit}</th>
+                      <th scope="col" className={tableStyles.actionHead}>{content.columns.delete}</th>
                     </tr>
                   </thead>
                   <tbody className={tableStyles.body}>
@@ -185,7 +181,7 @@ export function AdminAdminsPage() {
                         </td>
                         {/* An action the viewer can't take (e.g. Delete on the Super Admin) leaves its cell empty, so the columns stay aligned. */}
                         {(['preview', 'edit', 'delete'] as const).map((action) => (
-                          <td key={action} className={actionCell}>{actionButtons(admin)[action]}</td>
+                          <td key={action} className={tableStyles.actionCell}>{actionButtons(admin)[action]}</td>
                         ))}
                       </tr>
                     ))}

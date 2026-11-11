@@ -390,7 +390,7 @@ export const adminEn: AdminContent = {
     history: {
       title: 'Version History',
       tableLabel: 'GVP versions, newest first',
-      columns: { title: 'Title', version: 'Version', issued: 'Issued by SFDA On', added: 'Added to Hawkim On', actions: 'Actions' },
+      columns: { title: 'Title', version: 'Version', issued: 'Issued by SFDA On', added: 'Added to Hawkim On', preview: 'Preview', edit: 'Edit', delete: 'Delete' },
     },
     /** "{title} v{version}", e.g. in button names and notices. */
     versionLabel: '{title} v{version}',

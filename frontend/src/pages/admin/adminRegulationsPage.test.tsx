@@ -75,16 +75,31 @@ describe('SFDA Regulatory Requirements page', () => {
     expect(card).toContain('<span class="sr-only"> (opens in a new tab)</span>')
   })
 
-  it('lists only Title, Version, Issued by SFDA On and Added to Hawkim On, with a hidden Actions header that does not wrap', () => {
+  it('lists Title, Version, Issued by SFDA On and Added to Hawkim On, then Preview, Edit and Delete with visible headings', () => {
     const html = table(render())
-    const columns = [...html.matchAll(/<th scope="col"[^>]*>(?:<span class="sr-only">)?([^<]+)/g)].map((match) => match[1])
-    expect(columns).toEqual(['Title', 'Version', 'Issued by SFDA On', 'Added to Hawkim On', 'Actions'])
-    expect(html).toContain('<span class="sr-only">Actions</span>')
+    const columns = [...html.matchAll(/<th scope="col"[^>]*>([^<]+)<\/th>/g)].map((match) => match[1])
+    expect(columns).toEqual(['Title', 'Version', 'Issued by SFDA On', 'Added to Hawkim On', 'Preview', 'Edit', 'Delete'])
+    expect(html).not.toContain('sr-only">Actions')
+    // As on Divisions and Departments: 6rem per action column, each heading centred above its button.
+    expect(html).toContain('<colgroup><col/><col/><col/><col/><col class="w-24"/><col class="w-24"/><col class="w-24"/></colgroup>')
+    for (const heading of ['Preview', 'Edit', 'Delete']) {
+      expect(html).toContain(`<th scope="col" class="px-2 py-3 text-center font-semibold last:rounded-tr-xl">${heading}</th>`)
+    }
     for (const header of ['Version', 'Issued by SFDA On', 'Added to Hawkim On']) {
       expect(html).toMatch(new RegExp(`<th scope="col" class="[^"]*whitespace-nowrap[^"]*">${header}</th>`))
     }
     expect(html).toContain('<thead class="text-offwhite [&amp;_th]:bg-maroon">')
     for (const removed of ['Added By', 'Source', 'File', 'Requirements', 'View Requirements']) expect(html).not.toContain(`>${removed}<`)
+  })
+
+  it('puts each action in its own centred cell, in the order Preview, Edit, Delete (a disabled Delete keeps its cell)', () => {
+    const html = table(render())
+    const rows = html.split('<tr>').slice(2)
+    expect(rows.length).toBeGreaterThan(0)
+    for (const row of rows) {
+      const cells = [...row.matchAll(/<td class="px-2 py-3\.5 text-center \[&amp;&gt;\*\]:mx-auto">(.*?)<\/td>/g)].map((match) => match[1])
+      expect(cells.map((cell) => cell.match(/aria-label="(\w+) /)?.[1])).toEqual(['View', 'Edit', 'Delete'])
+    }
   })
 
   it('lists every version together, newest first by when it was added, with the Current badge only on the current one', () => {
