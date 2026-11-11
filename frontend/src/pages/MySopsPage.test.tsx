@@ -40,11 +40,12 @@ describe('My SOPs presentation and permissions', () => {
   it('renders one view toggle, search, combined filter controls and the three categories', () => {
     const html = renderPage()
     expect(html.match(/aria-label="My SOPs view"/g)).toHaveLength(1)
-    for (const text of ['Search SOPs', 'Sort By', 'My Permission', 'New SOPs', 'In Progress', 'Completed']) expect(html).toContain(text)
+    for (const text of ['Search SOPs', '>Sort<', 'My Permission', 'New SOPs', 'In Progress', 'Completed']) expect(html).toContain(text)
     expect(html).not.toContain('My Role')
+    expect(html).not.toContain('Sort By')
     // Search | My Permission | Sort, the row of every list page, on the page background.
     expect(html).toContain('<div role="search" aria-label="Search and filter My SOPs" class="mt-6"><div class="relative grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)] lg:items-end">')
-    expect(html.indexOf('>My Permission<')).toBeLessThan(html.indexOf('>Sort By<'))
+    expect(html.indexOf('>My Permission<')).toBeLessThan(html.indexOf('>Sort<'))
     for (const text of ['SOP Name', 'Last updated', 'type="date"']) expect(html).not.toContain(text)
     expect(html).toContain('role="tabpanel"')
     expect(html).toContain('aria-labelledby="my-sops-tab-new"')
@@ -60,7 +61,7 @@ describe('My SOPs presentation and permissions', () => {
 
   it('sorts Newest to Oldest by default', () => {
     const sort = renderPage().match(/<select[^>]*name="mySopSort"[^>]*>.*?<\/select>/)![0]
-    expect(sort.match(/>([^<]+)<\/option>/g)).toEqual(['>Newest to Oldest</option>', '>Oldest to Newest</option>'])
+    expect(sort.match(/>([^<]+)<\/option>/g)).toEqual(['>Newest to Oldest</option>', '>Oldest to Newest</option>', '>A to Z</option>', '>Z to A</option>'])
     expect(sort).toMatch(/<option[^>]*selected=""[^>]*>Newest to Oldest/)
   })
 

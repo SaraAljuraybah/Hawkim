@@ -17,7 +17,7 @@ import { paginationEn } from '../content/pagination.en'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { devSampleCount, devSampleSops } from '../lib/devSampleSops'
 import { hasPermission } from '../lib/permissions'
-import { authoredSopsFor, filterMySops, MY_SOPS_URL_DEFAULTS, mySopTitles, readMySopsUrl, sortMySops, type MySopCategory, type MySopRole, type MySopSort } from '../lib/mySops'
+import { authoredSopsFor, clearedMySopsParams, filterMySops, MY_SOP_SORTS, MY_SOPS_URL_DEFAULTS, mySopSortGroup, mySopTitles, readMySopsUrl, sortMySops, type MySopCategory, type MySopRole, type MySopSort } from '../lib/mySops'
 import { clampPage, pageAfterRemoval, pageCount, pageSlice, resultsParams, tabSwitch, updateParams } from '../lib/pagination'
 import { useActiveDepartment } from '../state/activeDepartmentContext'
 import { useCurrentUser } from '../state/sessionContext'
@@ -103,8 +103,8 @@ export function MySopsPage() {
     () => mySopTitles(filterMySops(authoredSops, user.id, { category, role })),
     [authoredSops, user.id, category, role],
   )
-  // The sort order isn't a filter: it doesn't show Clear Filters and isn't reset by it.
-  const hasFilters = query.length > 0 || role !== 'all'
+  // As on Staff and Admins, a sort other than Newest to Oldest also shows Clear Filters, which resets it.
+  const hasFilters = query.length > 0 || role !== 'all' || sort !== 'newest'
   const ids = tabIds(TAB_ID_PREFIX, category)
   // A page that's too high (an old link, or after a delete) shows the last page.
   const pages = pageCount(visibleSops.length)
@@ -143,7 +143,8 @@ export function MySopsPage() {
   }
 
   function clearFilters() {
-    changeResults({ q: undefined, role: undefined })
+    setTabPages({})
+    setParams(clearedMySopsParams, { replace: true })
     searchRef.current?.focus()
   }
 
@@ -222,10 +223,10 @@ export function MySopsPage() {
           />
           <SelectField
             name="mySopSort"
-            label={content.filters.sortLabel}
+            label={content.filters.sort.label}
             value={sort}
             onChange={(event) => setSort(event.target.value as MySopSort)}
-            options={[{ value: 'newest', label: content.filters.sortNewest }, { value: 'oldest', label: content.filters.sortOldest }]}
+            options={MY_SOP_SORTS.map((value) => ({ value, label: content.filters.sort.options[value], group: content.filters.sort.groups[mySopSortGroup(value)] }))}
             className="min-w-0"
           />
         </div>

@@ -28,9 +28,12 @@ export const mySopsEn: MySopsContent = {
     searchPlaceholder: 'Search by SOP title',
     showTitles: 'Show SOP Titles',
     noTitles: 'No matching SOPs',
-    sortLabel: 'Sort By',
-    sortNewest: 'Newest to Oldest',
-    sortOldest: 'Oldest to Newest',
+    // As on Staff: each order under its heading.
+    sort: {
+      label: 'Sort',
+      options: { newest: 'Newest to Oldest', oldest: 'Oldest to Newest', 'title-asc': 'A to Z', 'title-desc': 'Z to A' },
+      groups: { lastUpdated: 'Last Updated', title: 'Title' },
+    },
     roleLabel: 'My Permission',
     allRoles: 'All roles',
     clear: 'Clear Filters',

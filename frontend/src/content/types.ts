@@ -617,9 +617,12 @@ export interface MySopsContent {
     showTitles: string
     /** Shown in that list when no title matches the search. */
     noTitles: string
-    sortLabel: string
-    sortNewest: string
-    sortOldest: string
+    /** The Sort field: each order's label, listed under its group's heading. */
+    sort: {
+      label: string
+      options: { newest: string; oldest: string; 'title-asc': string; 'title-desc': string }
+      groups: { lastUpdated: string; title: string }
+    }
     roleLabel: string
     allRoles: string
     clear: string
