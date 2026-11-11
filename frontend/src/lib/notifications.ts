@@ -1,4 +1,6 @@
 import type { ClosedReviewRequest, Sop, TimelineEvent, UserRequest } from '../data/mock/types'
+import type { ExpiredInvitation } from '../services/invitations'
+import { adminAdminPath, adminUserPath } from './routes'
 import { isOpenDecision, latestAssignmentOf, latestAssignments, requestDeadline } from './internalReviewStatus'
 import { mySopPath, reviewPath } from './routes'
 import { reviewSopForUser } from './reviewAccess'
@@ -42,6 +44,8 @@ export type NotificationType =
   /** My request. */
   | 'request-approved'
   | 'request-rejected'
+  /** Admins: an invitation I'm responsible for expired before the person activated their account. */
+  | 'invitation-expired'
 
 export interface AppNotification {
   /** Stable: the source (timeline event, due-date round or request) and the recipient. */
@@ -75,6 +79,8 @@ export interface AppNotification {
   unresolved?: boolean
   /** Request notifications. */
   request?: Pick<UserRequest, 'title' | 'type' | 'departmentId'>
+  /** invitation-expired: who it was for (the notification offers Resend invitation). */
+  invitation?: Pick<ExpiredInvitation, 'userId' | 'name' | 'email' | 'expiredAt'>
 }
 
 const REVIEWS_PATH = '/reviews'
@@ -253,12 +259,35 @@ function authorOverdue(sop: Sop, userId: string, now: number): AppNotification[]
   })
 }
 
+/**
+ * An Admin's expired invitations (only those they are notified of, from the database). Each sending has
+ * its own id, so a resent link that expires again is a new, unread notification. Unresolved: it stays
+ * unread until it is opened or marked read, and stays listed until resent, activated or deleted.
+ */
+export function invitationNotifications(userId: string, invitations: ExpiredInvitation[]): AppNotification[] {
+  return invitations.map((invitation) => ({
+    id: `invitation:${invitation.userId}:${invitation.sentAt}:${userId}`,
+    type: 'invitation-expired',
+    createdAt: invitation.expiredAt,
+    link: invitation.kind === 'admin' ? adminAdminPath(invitation.userId) : adminUserPath(invitation.userId),
+    unresolved: true,
+    invitation: { userId: invitation.userId, name: invitation.name, email: invitation.email, expiredAt: invitation.expiredAt },
+  }))
+}
+
 /** Every notification for the user, newest first. */
 export function deriveNotifications(
   userId: string,
-  { sops, requests, now, closedRequests = [] }: { sops: Sop[]; requests: UserRequest[]; now: number; closedRequests?: ClosedReviewRequest[] },
+  { sops, requests, now, closedRequests = [], invitations = [] }: {
+    sops: Sop[]; requests: UserRequest[]; now: number; closedRequests?: ClosedReviewRequest[]
+    /** Admins only: their expired invitations. */
+    invitations?: ExpiredInvitation[]
+  },
 ): AppNotification[] {
-  const notifications: AppNotification[] = closedRequests.flatMap((request) => fromClosedRequest(request, userId))
+  const notifications: AppNotification[] = [
+    ...closedRequests.flatMap((request) => fromClosedRequest(request, userId)),
+    ...invitationNotifications(userId, invitations),
+  ]
   for (const sop of sops) {
     for (const event of sop.timeline) {
       const notification = fromEvent(sop, event, userId)

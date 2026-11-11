@@ -13,6 +13,8 @@ export interface NotificationsStore {
   now: number
   markRead: (id: string) => void
   markAllRead: () => void
+  /** Admins: reads their expired invitations again (when the bell opens, and after a resend). */
+  refreshInvitations: () => Promise<void>
 }
 
 export const NotificationsContext = createContext<NotificationsStore | null>(null)

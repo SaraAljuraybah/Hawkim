@@ -1,3 +1,4 @@
+import type { ResendFailureReason } from '../services/invitations'
 import type { FileDropzoneText } from '../components/ui/FileDropzone'
 import type {
   ComplianceResult,
@@ -1204,6 +1205,19 @@ export interface NotificationsContent {
     overdue: { review: string; approval: string }
     accessRequest: { approved: string; rejected: string }
     request: { approved: string; rejected: string }
+  }
+  /**
+   * Admins' expired-invitation notifications and their Resend invitation button. `{name}`, `{email}` and
+   * `{date}` (when the link expired) are replaced; `failures` are the reasons Resend didn't send.
+   */
+  invitations: {
+    expired: string
+    resend: string
+    /** The button's accessible name. */
+    resendLabel: string
+    sending: string
+    sent: string
+    failures: Record<ResendFailureReason, string>
   }
 }
 
