@@ -21,6 +21,7 @@ import { organizationAdminEn as text } from '../../content/organizationAdmin.en'
 import { useDocumentTitle } from '../../hooks/useDocumentTitle'
 import { useOrganizationManagement } from '../../hooks/useOrganizationManagement'
 import { departmentsKept, filterSelection } from '../../lib/organization'
+import { formatCount } from '../../lib/count'
 import { departmentDeleteBlocker, DIVISION_SORTS, hierarchyRows, managementFilterData, sortGroup, unassignedRows, type DivisionSort } from '../../lib/organizationAdmin'
 import { deleteDivision, type DivisionRecord, type ManagedDepartment, type ManagementSnapshot } from '../../services/organizationAdmin'
 
@@ -54,6 +55,10 @@ export function AdminDepartmentsPage() {
   const setDivisions = (ids: string[]) => { setDivisionFilter(ids); setDepartmentFilter(departmentsKept(filterData, ids, selectedDepartments)) }
   const clearFilter = () => { setDivisionFilter([]); setDepartmentFilter([]) }
   const departmentLabel = (id: string) => data?.departments.find((row) => row.id === id)?.name ?? id
+  // How many divisions the table shows (search and filters applied), above it as on Staff and Admins.
+  const shownDivisions = useMemo(
+    () => (data ? hierarchyRows(data, query, { divisions: selectedDivisions, departments: selectedDepartments }).length : 0),
+    [data, query, selectedDivisions, selectedDepartments])
   const close = () => { setEditing(undefined); setPreview(undefined); setDeleting(undefined); setDepartment(undefined); setViewing(undefined); setDepartmentForm(undefined); trigger.current?.focus() }
   return <>
     {/* The title and its description, with Add Division on the right, as on the Admins page. */}
@@ -85,6 +90,8 @@ export function AdminDepartmentsPage() {
         .map((option) => ({ id: `division-${option.value}`, label: option.label, onRemove: () => setDivisions(selectedDivisions.filter((id) => id !== option.value)) })),
       ...selectedDepartments.map((id) => ({ id: `department-${id}`, label: departmentLabel(id), onRemove: () => setDepartmentFilter(selectedDepartments.filter((other) => other !== id)) })),
     ]} />}
+    {/* The number of divisions, announced as it changes (as on Staff and Admins). */}
+    {data && !error && <p role="status" className="mt-6 text-sm font-medium text-text-gray">{formatCount(shownDivisions, text.divisionCount)}</p>}
     <p role="status" className="mt-4 text-sm text-status-approved-fg">{feedback}</p>
     {error ? <div role="alert"><p>{text.loadFailed}</p><Button variant="secondary" onClick={() => void refresh()}>{text.retry}</Button></div>
       : !data ? <PageLoading /> : <HierarchyTable snapshot={data} query={query} divisions={selectedDivisions} departments={selectedDepartments} sort={sort}

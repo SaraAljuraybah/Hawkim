@@ -76,6 +76,15 @@ describe('the Divisions and Departments page', () => {
     expect(html).not.toContain('All divisions')
   })
 
+  it('shows the number of divisions above the table, like Staff and Admins (the unassigned group isn\'t a division)', () => {
+    management.value = { data: snapshot, refresh: vi.fn() }
+    const html = page()
+    expect(html).toMatch(/<p role="status" class="mt-6 text-sm font-medium text-text-gray">2 divisions<\/p>/)
+    expect(html.indexOf('2 divisions')).toBeLessThan(html.indexOf('<table'))
+    management.value = { data: { ...snapshot, divisions: snapshot.divisions.slice(0, 1) }, refresh: vi.fn() }
+    expect(page()).toContain('>1 division<')
+  })
+
   it('keeps the Staff column label, loading state and Retry', () => {
     management.value = { data: snapshot, refresh: vi.fn() }
     expect(page()).toContain('>Staff</th>')

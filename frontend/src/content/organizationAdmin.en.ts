@@ -18,6 +18,8 @@ export const organizationAdminEn = {
   search: 'Search', searchPlaceholder: 'Search divisions or departments...',
   filterDivisions: 'Filter by Division',
   clearFilters: 'Clear Filters', filteredBy: 'Filtered by:', removeFilter: 'Remove {name} from the filter',
+  // Above the table, as on Staff and Admins: the divisions shown (after search and filters).
+  divisionCount: { one: '{count} division', other: '{count} divisions' },
   sort: 'Sort', sortOptions: {
     default: 'Default order',
     'division-name-asc': 'A to Z', 'division-name-desc': 'Z to A', 'division-staff-desc': 'Number of Staff', 'division-sops-desc': 'Number of SOPs',
