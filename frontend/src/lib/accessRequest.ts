@@ -1,6 +1,10 @@
 // Checks for the Request Hawkim form. The access-requests Edge Function checks the same rules again.
+// No Position: the applicant becomes the Super Admin, and Admins have no position.
 
-export type RequestField = 'organization' | 'contactName' | 'jobTitle' | 'email' | 'phone' | 'approxUsers' | 'message'
+import { reviewRequestEn } from '../content/accessRequest.en'
+import type { AccessRequestView } from '../services/accessRequests'
+
+export type RequestField = 'organization' | 'contactName' | 'email' | 'phone' | 'approxUsers' | 'message'
 export type RequestValues = Record<RequestField, string>
 export type FieldProblem = 'required' | 'email' | 'phone' | 'approxUsers' | 'tooLong'
 
@@ -17,7 +21,7 @@ export function normalizePhone(input: string): string | undefined {
 export function requestProblems(values: RequestValues): Partial<Record<RequestField, FieldProblem>> {
   const problems: Partial<Record<RequestField, FieldProblem>> = {}
   const text = (field: RequestField) => values[field].trim()
-  for (const [field, max] of [['organization', 200], ['contactName', 100], ['jobTitle', 100]] as const) {
+  for (const [field, max] of [['organization', 200], ['contactName', 100]] as const) {
     if (!text(field)) problems[field] = 'required'
     else if (text(field).length > max) problems[field] = 'tooLong'
   }
@@ -47,4 +51,22 @@ export function liveProblem(field: RequestField, values: RequestValues): FieldPr
  */
 export function failureField(reason: string): { field: RequestField; error: 'organizationTaken' } | undefined {
   return reason === 'organization-taken' ? { field: 'organization', error: 'organizationTaken' } : undefined
+}
+
+/**
+ * A request's details as the review page lists them. Position only when the request has one: requests
+ * sent before Position was removed may have it; newer ones never do.
+ */
+export function reviewDetails(request: AccessRequestView): [string, string][] {
+  const labels = reviewRequestEn.labels
+  return [
+    [labels.organization, request.organization],
+    [labels.contactName, request.contactName],
+    ...(request.jobTitle ? [[labels.jobTitle, request.jobTitle] as [string, string]] : []),
+    [labels.email, request.email],
+    [labels.phone, request.phone],
+    [labels.approxUsers, String(request.approxUsers)],
+    [labels.message, request.message || reviewRequestEn.noMessage],
+    [labels.received, new Date(request.createdAt).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })],
+  ]
 }

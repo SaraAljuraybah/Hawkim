@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { failureField, liveProblem, normalizePhone, requestProblems, type RequestValues } from './accessRequest'
+import { failureField, liveProblem, normalizePhone, requestProblems, reviewDetails, type RequestValues } from './accessRequest'
+import type { AccessRequestView } from '../services/accessRequests'
 
 const valid: RequestValues = {
-  organization: 'Riyadh Pharma Co.', contactName: 'Lama Alotaibi', jobTitle: 'QPPV', email: 'lama@riyadhpharma.example',
+  organization: 'Riyadh Pharma Co.', contactName: 'Lama Alotaibi', email: 'lama@riyadhpharma.example',
   phone: '05 1234 5678', approxUsers: '25', message: '',
 }
 
@@ -14,8 +15,9 @@ describe('Request Hawkim form checks', () => {
     for (const input of ['0112345678', '05123', '+971512345678', 'phone']) expect(normalizePhone(input)).toBeUndefined()
   })
 
-  it('accepts a complete form', () => {
+  it('accepts a complete form, which has no Position (Admins have none)', () => {
     expect(requestProblems(valid)).toEqual({})
+    expect(Object.keys(valid)).not.toContain('jobTitle')
   })
 
   it('names the problem of each field', () => {
@@ -27,7 +29,7 @@ describe('Request Hawkim form checks', () => {
 })
 
 describe('Request Hawkim live checks (on leaving a field, and while its error shows)', () => {
-  const filled: RequestValues = { organization: 'Org', contactName: 'Sara', jobTitle: 'Lead', email: 'sara@org.sa', phone: '+966512345678', approxUsers: '20', message: '' }
+  const filled: RequestValues = { organization: 'Org', contactName: 'Sara', email: 'sara@org.sa', phone: '+966512345678', approxUsers: '20', message: '' }
 
   it('shows a wrong email, phone or number of users at once', () => {
     expect(liveProblem('email', { ...filled, email: 'sara@' })).toBe('email')
@@ -37,13 +39,13 @@ describe('Request Hawkim live checks (on leaving a field, and while its error sh
   })
 
   it('shows nothing once the value is valid', () => {
-    for (const field of ['organization', 'contactName', 'jobTitle', 'email', 'phone', 'approxUsers', 'message'] as const) {
+    for (const field of ['organization', 'contactName', 'email', 'phone', 'approxUsers', 'message'] as const) {
       expect(liveProblem(field, filled), field).toBeUndefined()
     }
   })
 
   it('leaves "required" to Send Request: an empty field shows nothing', () => {
-    for (const field of ['organization', 'contactName', 'jobTitle', 'email', 'phone', 'approxUsers'] as const) {
+    for (const field of ['organization', 'contactName', 'email', 'phone', 'approxUsers'] as const) {
       expect(requestProblems({ ...filled, [field]: '' })[field], field).toBe('required')
       expect(liveProblem(field, { ...filled, [field]: '' }), field).toBeUndefined()
     }
@@ -57,5 +59,24 @@ describe('a refused Send Request', () => {
 
   it('leaves every other refusal above the form', () => {
     for (const reason of ['invalid', 'too-many-requests', 'not-connected', 'failed']) expect(failureField(reason), reason).toBeUndefined()
+  })
+})
+
+describe('a request on the review page', () => {
+  const request: AccessRequestView = {
+    organization: 'Riyadh Pharma', contactName: 'Lama Alotaibi', email: 'lama@riyadhpharma.example', phone: '+966512345678',
+    approxUsers: 20, message: '', status: 'pending', createdAt: '2026-11-11T08:00:00Z', decidedAt: null, expired: false, accountExists: false,
+  }
+  const labels = (details: [string, string][]) => details.map(([label]) => label)
+
+  it('lists no Position for a request without one', () => {
+    expect(labels(reviewDetails(request))).toEqual(['Organization', 'Contact person', 'Email', 'Phone', 'Approximate number of users', 'Message', 'Received'])
+    expect(labels(reviewDetails({ ...request, jobTitle: null }))).not.toContain('Position')
+    expect(labels(reviewDetails({ ...request, jobTitle: '' }))).not.toContain('Position')
+  })
+
+  it('still lists the Position of a request sent before it was removed, after Contact person', () => {
+    const details = reviewDetails({ ...request, jobTitle: 'QPPV' })
+    expect(details[2]).toEqual(['Position', 'QPPV'])
   })
 })

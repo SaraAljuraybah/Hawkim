@@ -8,7 +8,6 @@ export const requestHawkimEn: RequestHawkimContent = {
   fields: {
     organization: 'Organization',
     contactName: 'Contact person',
-    jobTitle: 'Position',
     email: 'Email',
     phone: 'Phone',
     phoneHint: 'Saudi mobile number: +9665XXXXXXXX',

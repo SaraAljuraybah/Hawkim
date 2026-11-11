@@ -30,10 +30,18 @@ describe('Request Hawkim page', () => {
 
   it('marks the required fields like the other forms, and labels the message (Optional) with a counter', () => {
     const marks = html.match(/<span[^>]*text-status-rejected-fg[^>]*>\*<\/span>/g) ?? []
-    expect(marks).toHaveLength(6)
+    // Organization, Contact person, Email, Phone and Approximate number of users (no Position).
+    expect(marks).toHaveLength(5)
     expect(html).toContain('>Message (Optional)<')
     expect(html).not.toContain('>Optional.<')
     expect(html).toContain('0 / 2000')
+  })
+
+  it('has no Position field (the applicant becomes the Super Admin, and Admins have no position)', () => {
+    expect([...html.matchAll(/<(?:input|textarea)[^>]*name="([^"]+)"/g)].map((match) => match[1]))
+      .toEqual(['organization', 'contactName', 'email', 'phone', 'approxUsers', 'message', 'website'])
+    expect(html).not.toContain('>Position')
+    expect(html).not.toContain('organization-title')
   })
 })
 

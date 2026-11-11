@@ -7,7 +7,7 @@ const invoke = vi.fn()
 vi.mock('./supabase', () => ({ supabase: () => ({ functions: { invoke } }) }))
 
 const values = {
-  organization: '  Riyadh Pharma ', contactName: 'Lama', jobTitle: 'QPPV', email: 'lama@riyadhpharma.example',
+  organization: '  Riyadh Pharma ', contactName: 'Lama', email: 'lama@riyadhpharma.example',
   phone: '+966512345678', approxUsers: '25', message: '',
 }
 /** The access-requests Edge Function refusing with this status and error code. */

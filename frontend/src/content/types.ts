@@ -1820,7 +1820,6 @@ export interface RequestHawkimContent {
   fields: {
     organization: string
     contactName: string
-    jobTitle: string
     email: string
     phone: string
     phoneHint: string
@@ -1856,6 +1855,7 @@ export interface ReviewRequestContent {
   loading: string
   title: string
   text: string
+  /** `jobTitle` (Position): only for requests sent before it was removed from the form. */
   labels: { organization: string; contactName: string; jobTitle: string; email: string; phone: string; approxUsers: string; message: string; received: string }
   noMessage: string
   accountExists: string

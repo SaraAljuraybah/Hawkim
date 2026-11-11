@@ -12,7 +12,8 @@ export type AccessRequestStatus = 'pending' | 'accepted' | 'rejected'
 export interface AccessRequestView {
   organization: string
   contactName: string
-  jobTitle: string
+  /** Only on requests sent before Position was removed from the form. */
+  jobTitle?: string | null
   email: string
   phone: string
   approxUsers: number
@@ -46,7 +47,6 @@ export async function submitAccessRequest(values: RequestValues, website = ''): 
     action: 'submit',
     organization: values.organization.trim(),
     contactName: values.contactName.trim(),
-    jobTitle: values.jobTitle.trim(),
     email: values.email.trim(),
     phone: normalizePhone(values.phone) ?? values.phone.trim(),
     approxUsers: Number(values.approxUsers.trim()),

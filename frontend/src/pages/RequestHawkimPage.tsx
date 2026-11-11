@@ -16,8 +16,8 @@ import { submitAccessRequest, type SubmitFailure } from '../services/accessReque
 const content = requestHawkimEn
 /** Longest message (the database and the function allow 2000 characters). */
 const MESSAGE_MAX = 2000
-const FIELDS: RequestField[] = ['organization', 'contactName', 'jobTitle', 'email', 'phone', 'approxUsers', 'message']
-const EMPTY: RequestValues = { organization: '', contactName: '', jobTitle: '', email: '', phone: '', approxUsers: '', message: '' }
+const FIELDS: RequestField[] = ['organization', 'contactName', 'email', 'phone', 'approxUsers', 'message']
+const EMPTY: RequestValues = { organization: '', contactName: '', email: '', phone: '', approxUsers: '', message: '' }
 
 /**
  * "/request-hawkim": the public Request Hawkim form. The access-requests Edge Function stores the
@@ -125,7 +125,6 @@ export function RequestHawkimPage() {
         {failure && <p role="alert" className="text-sm text-status-rejected-fg">{failure}</p>}
         {field('organization', { autoComplete: 'organization', maxLength: 200 })}
         {field('contactName', { autoComplete: 'name', maxLength: 100 })}
-        {field('jobTitle', { autoComplete: 'organization-title', maxLength: 100 })}
         {field('email', { type: 'email', autoComplete: 'email', autoCapitalize: 'none', spellCheck: false })}
         {/* "+9665" before the field and the 8 digits in it; values.phone keeps "+9665" and the digits */}
         <PhoneField
