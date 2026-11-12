@@ -82,7 +82,7 @@ describe('admin navigation', () => {
     expect(html).toMatch(/aria-current="page"[^>]*href="\/admin\/departments"|href="\/admin\/departments"[^>]*aria-current="page"/)
     expect(navLinks(adminEn.shell.nav).filter((item) => item.label === 'Departments')).toHaveLength(0)
     expect(navLinks(adminEn.shell.nav).filter((item) => item.label === 'Divisions and Departments')).toHaveLength(1)
-    // Requests, then the new Organization Profile last (its final place is decided separately).
-    expect(adminEn.shell.nav.slice(-2).map((entry) => entry.label)).toEqual(['Requests', 'Organization Profile'])
+    expect(adminEn.shell.nav[0]?.label).toBe('Organization Profile')
+    expect(adminEn.shell.nav.at(-1)?.label).toBe('Requests')
   })
 })

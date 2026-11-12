@@ -13,6 +13,8 @@ export const adminEn: AdminContent = {
     homeLinkLabel: 'Hawkim Admin Portal, go to Divisions and Departments',
     navAriaLabel: 'Admin Portal',
     nav: [
+      { label: 'Organization Profile', href: '/admin/organization-profile', icon: 'organization', matchSubpaths: true },
+      { label: 'Organizational Structure', href: '/admin/organizational-structure', icon: 'hierarchy', matchSubpaths: true },
       // A collapsible group, not a page: it opens by itself on any of its pages.
       {
         id: 'manage-organization',
@@ -24,12 +26,9 @@ export const adminEn: AdminContent = {
           { label: 'Admins', href: '/admin/admins', icon: 'admins', matchSubpaths: true },
         ],
       },
-      { label: 'Organizational Structure', href: '/admin/organizational-structure', icon: 'hierarchy', matchSubpaths: true },
       { label: 'SFDA Regulatory Requirements', href: '/admin/regulations', icon: 'regulatory', matchSubpaths: true },
       { label: 'SOP Directory', href: '/admin/sops', icon: 'sops', matchSubpaths: true },
       { label: 'Requests', href: '/admin/requests', icon: 'requests', matchSubpaths: true },
-      // Placed last for now; the final order of the tabs is decided separately.
-      { label: 'Organization Profile', href: '/admin/organization-profile', icon: 'organization', matchSubpaths: true },
     ],
     signOut: { label: 'Sign Out', href: '/login', icon: 'signOut' },
     openMenu: 'Open menu',

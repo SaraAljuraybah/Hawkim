@@ -29,12 +29,12 @@ describe('the admin portal sidebar', () => {
   it('lists the tabs in this order, with Manage Organization holding Divisions and Departments, Staff and Admins', () => {
     const top = adminEn.shell.nav.map((entry) => (isNavGroup(entry) ? [entry.label, entry.children.map(({ label, href }) => [label, href])] : [entry.label, entry.href, entry.icon]))
     expect(top).toEqual([
-      ['Manage Organization', [['Divisions and Departments', '/admin/departments'], ['Staff', '/admin/users'], ['Admins', '/admin/admins']]],
+      ['Organization Profile', '/admin/organization-profile', 'organization'],
       ['Organizational Structure', '/admin/organizational-structure', 'hierarchy'],
+      ['Manage Organization', [['Divisions and Departments', '/admin/departments'], ['Staff', '/admin/users'], ['Admins', '/admin/admins']]],
       ['SFDA Regulatory Requirements', '/admin/regulations', 'regulatory'],
       ['SOP Directory', '/admin/sops', 'sops'],
       ['Requests', '/admin/requests', 'requests'],
-      ['Organization Profile', '/admin/organization-profile', 'organization'],
     ])
   })
 
