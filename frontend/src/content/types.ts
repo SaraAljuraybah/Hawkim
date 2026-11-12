@@ -1994,8 +1994,14 @@ export interface ReviewRequestContent {
   loading: string
   title: string
   text: string
-  /** `jobTitle` (Position): only for requests sent before it was removed from the form. */
-  labels: { organization: string; contactName: string; jobTitle: string; email: string; phone: string; approxUsers: string; message: string; received: string }
+  /** `jobTitle` (Position): only for requests sent before it was removed from the form. `email`: the contact person's. */
+  labels: {
+    organization: string; contactName: string; jobTitle: string; email: string; phone: string
+    organizationEmail: string; organizationAddress: string; organizationMapsUrl: string; organizationWebsite: string; organizationDescription: string
+    approxUsers: string; message: string; received: string
+  }
+  /** An organization detail the request doesn't have (sent before the form asked, or an optional one left empty). */
+  notProvided: string
   noMessage: string
   accountExists: string
   accept: string

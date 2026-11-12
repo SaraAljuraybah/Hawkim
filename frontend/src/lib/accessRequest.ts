@@ -90,16 +90,23 @@ export function failureField(reason: string): { field: RequestField; error: 'org
 
 /**
  * A request's details as the review page lists them. Position only when the request has one: requests
- * sent before Position was removed may have it; newer ones never do.
+ * sent before Position was removed may have it; newer ones never do. The organization's details always
+ * show: "Not provided" when the request has none (sent before the form asked for them, or an optional one).
  */
 export function reviewDetails(request: AccessRequestView): [string, string][] {
   const labels = reviewRequestEn.labels
+  const given = (value: string | null | undefined) => value || reviewRequestEn.notProvided
   return [
     [labels.organization, request.organization],
     [labels.contactName, request.contactName],
     ...(request.jobTitle ? [[labels.jobTitle, request.jobTitle] as [string, string]] : []),
     [labels.email, request.email],
     [labels.phone, request.phone],
+    [labels.organizationEmail, given(request.organizationEmail)],
+    [labels.organizationAddress, given(request.organizationAddress)],
+    [labels.organizationMapsUrl, given(request.organizationMapsUrl)],
+    [labels.organizationWebsite, given(request.organizationWebsite)],
+    [labels.organizationDescription, given(request.organizationDescription)],
     [labels.approxUsers, String(request.approxUsers)],
     [labels.message, request.message || reviewRequestEn.noMessage],
     [labels.received, new Date(request.createdAt).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })],

@@ -18,6 +18,12 @@ export interface AccessRequestView {
   phone: string
   approxUsers: number
   message: string
+  /** The organization's details: null (or missing) on requests sent before the form asked for them. */
+  organizationEmail?: string | null
+  organizationAddress?: string | null
+  organizationMapsUrl?: string | null
+  organizationWebsite?: string | null
+  organizationDescription?: string | null
   status: AccessRequestStatus
   createdAt: string
   decidedAt: string | null

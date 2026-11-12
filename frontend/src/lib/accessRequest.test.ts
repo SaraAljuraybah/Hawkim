@@ -112,7 +112,10 @@ describe('a request on the review page', () => {
   const labels = (details: [string, string][]) => details.map(([label]) => label)
 
   it('lists no Position for a request without one', () => {
-    expect(labels(reviewDetails(request))).toEqual(['Organization', 'Contact person', 'Email', 'Phone', 'Approximate number of users', 'Message', 'Received'])
+    expect(labels(reviewDetails(request))).toEqual([
+      'Organization', 'Contact person', 'Contact person email', 'Phone', 'Organization email', 'Address', 'Google Maps link', 'Website',
+      'Description', 'Approximate number of users', 'Message', 'Received',
+    ])
     expect(labels(reviewDetails({ ...request, jobTitle: null }))).not.toContain('Position')
     expect(labels(reviewDetails({ ...request, jobTitle: '' }))).not.toContain('Position')
   })
@@ -120,5 +123,27 @@ describe('a request on the review page', () => {
   it('still lists the Position of a request sent before it was removed, after Contact person', () => {
     const details = reviewDetails({ ...request, jobTitle: 'QPPV' })
     expect(details[2]).toEqual(['Position', 'QPPV'])
+  })
+
+  it('lists the organization’s details of a new request', () => {
+    const details = new Map(reviewDetails({
+      ...request, organizationEmail: 'info@riyadhpharma.example', organizationAddress: 'King Fahd Road, Riyadh',
+      organizationMapsUrl: 'https://maps.google.com/?q=riyadh', organizationWebsite: 'https://riyadhpharma.example', organizationDescription: 'Makes medicines.',
+    }))
+    expect(details.get('Contact person email')).toBe('lama@riyadhpharma.example')
+    expect(details.get('Organization email')).toBe('info@riyadhpharma.example')
+    expect(details.get('Address')).toBe('King Fahd Road, Riyadh')
+    expect(details.get('Google Maps link')).toBe('https://maps.google.com/?q=riyadh')
+    expect(details.get('Website')).toBe('https://riyadhpharma.example')
+    expect(details.get('Description')).toBe('Makes medicines.')
+  })
+
+  it('shows "Not provided" for details a request doesn’t have (sent before the form asked, or optional and empty)', () => {
+    const old = new Map(reviewDetails(request))
+    for (const label of ['Organization email', 'Address', 'Google Maps link', 'Website', 'Description']) expect(old.get(label), label).toBe('Not provided')
+    const partial = new Map(reviewDetails({ ...request, organizationAddress: 'King Fahd Road', organizationMapsUrl: null, organizationWebsite: '' }))
+    expect(partial.get('Address')).toBe('King Fahd Road')
+    expect(partial.get('Google Maps link')).toBe('Not provided')
+    expect(partial.get('Website')).toBe('Not provided')
   })
 })
