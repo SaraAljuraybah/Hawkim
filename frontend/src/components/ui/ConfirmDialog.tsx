@@ -87,7 +87,8 @@ export function ConfirmDialog({ open, title, description, cancelLabel, confirmLa
           <h2 id={titleId} className={prominent ? 'text-left text-xl break-words sm:text-2xl' : 'text-lg'}>
             {title}
           </h2>
-          <div id={descriptionId} className={prominent ? 'mt-3 text-left text-sm text-text-gray' : 'mt-2 text-text-gray'}>
+          {/* The message is small body text (14px), clearly below the title. */}
+          <div id={descriptionId} className={prominent ? 'mt-3 text-left text-sm text-text-gray' : 'mt-2 text-sm text-text-gray'}>
             <p>{description}</p>
             {children}
           </div>
