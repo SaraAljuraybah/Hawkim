@@ -5,6 +5,7 @@ import { EmailDetail } from '../../components/admin/DetailsCard'
 import { RefusedBox } from '../../components/admin/RefusedBox'
 import { Button } from '../../components/ui/Button'
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
+import { EitherFieldGroup } from '../../components/ui/EitherFieldGroup'
 import { TextAreaField } from '../../components/ui/TextAreaField'
 import { TextField } from '../../components/ui/TextField'
 import { UnsavedChangesGuard } from '../../components/ui/UnsavedChangesGuard'
@@ -20,6 +21,7 @@ import {
   organizationProfileProblems,
   saveOrganizationProfile,
   type OrganizationProfile,
+  type OrganizationProfileErrorKey,
   type OrganizationProfileProblem,
 } from '../../services/organizationProfile'
 import { useCurrentUser } from '../../state/sessionContext'
@@ -30,8 +32,9 @@ type Load = { status: 'loading' } | { status: 'error' } | { status: 'ready'; pro
  * Organization Profile ("/admin/organization-profile"): the organization's name, email, description, address,
  * Google Maps link and website, from the database (organization_settings; nothing is invented or filled in).
  * Every Admin sees them; the Super Admin also gets Edit, which turns the card into a form with the same six
- * values (all required, the email and the two links checked) and Save Changes / Cancel. The Address and the
- * Google Maps Link are two separate values in ONE Address box, side by side (stacked on narrow screens).
+ * values (name, email and description required; an address or a Google Maps link, at least one; the website
+ * optional; the email and the https:// links checked) and Save Changes / Cancel. The Address and the Google
+ * Maps Link are two separate values in ONE Address box, "or" between them (stacked on narrow screens).
  * Saving sends all six to the database, each to its own column, then shows what was stored; a refused save
  * keeps what was typed and says why. Leaving with unsaved changes asks first.
  */
@@ -184,17 +187,21 @@ export function ProfileView({ profile }: { profile: OrganizationProfile }) {
   )
 }
 
-/** The message for a value's problem. */
-function problemText(field: OrganizationProfileField, problem: OrganizationProfileProblem): string {
-  if (problem === 'required') return content.errors.required[field]
+/** The message for a problem. Only name, email, description and the Address group can be missing. */
+function problemText(key: OrganizationProfileErrorKey, problem: OrganizationProfileProblem): string {
+  if (key === 'addressGroup') return content.errors.required.addressGroup
+  if (problem === 'required') return content.errors.required[key as keyof typeof content.errors.required]
   if (problem === 'email') return content.errors.emailInvalid
   if (problem === 'url') return content.errors.urlInvalid
-  return content.errors.tooLong.replace('{max}', String(ORGANIZATION_PROFILE_MAX[field]))
+  return content.errors.tooLong.replace('{max}', String(ORGANIZATION_PROFILE_MAX[key]))
 }
+
+/** The problems in the form's order: the Address group comes before its two values. */
+const ERROR_ORDER: readonly OrganizationProfileErrorKey[] = ['name', 'email', 'description', 'addressGroup', 'address', 'mapsUrl', 'website']
 
 export function ProfileForm({ initial, onSaved, onCancel }: { initial: OrganizationProfile; onSaved: (profile: OrganizationProfile) => void; onCancel: () => void }) {
   const [values, setValues] = useState<OrganizationProfile>(initial)
-  const [errors, setErrors] = useState<Partial<Record<OrganizationProfileField, string>>>({})
+  const [errors, setErrors] = useState<Partial<Record<OrganizationProfileErrorKey, string>>>({})
   const [busy, setBusy] = useState(false)
   const [refused, setRefused] = useState<string>()
   // Cancel with unsaved changes asks first (as leaving the page does).
@@ -205,7 +212,11 @@ export function ProfileForm({ initial, onSaved, onCancel }: { initial: Organizat
 
   const change = (field: OrganizationProfileField) => (value: string) => {
     setValues((current) => ({ ...current, [field]: value }))
-    if (errors[field]) setErrors((current) => ({ ...current, [field]: undefined }))
+    // Typing in the address or the Google Maps link also clears the group's error.
+    const inGroup = field === 'address' || field === 'mapsUrl'
+    if (errors[field] || (inGroup && errors.addressGroup)) {
+      setErrors((current) => ({ ...current, [field]: undefined, ...(inGroup && { addressGroup: undefined }) }))
+    }
   }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -213,12 +224,13 @@ export function ProfileForm({ initial, onSaved, onCancel }: { initial: Organizat
     if (busy) return
     const problems = organizationProfileProblems(values)
     const found = Object.fromEntries(
-      ORGANIZATION_PROFILE_FIELDS.filter((field) => problems[field]).map((field) => [field, problemText(field, problems[field]!)]),
-    ) as Partial<Record<OrganizationProfileField, string>>
+      ERROR_ORDER.filter((key) => problems[key]).map((key) => [key, problemText(key, problems[key]!)]),
+    ) as Partial<Record<OrganizationProfileErrorKey, string>>
     setErrors(found)
-    const first = ORGANIZATION_PROFILE_FIELDS.find((field) => found[field])
+    const first = ERROR_ORDER.find((key) => found[key])
     if (first) {
-      refs.current[first]?.focus()
+      // The group's error: focus its first box, the address.
+      refs.current[first === 'addressGroup' ? 'address' : first]?.focus()
       return
     }
     setBusy(true)
@@ -234,13 +246,14 @@ export function ProfileForm({ initial, onSaved, onCancel }: { initial: Organizat
     }
   }
 
+  // Name, email and description are required (*); the address and the Google Maps link are a group (the * is on
+  // its title), and the website is optional.
   const field = (name: OrganizationProfileField) => ({
     name,
-    label: content.fields[name].label,
+    label: content.fields[name].formLabel ?? content.fields[name].label,
     placeholder: content.fields[name].placeholder,
     hint: content.fields[name].hint,
-    required: true,
-    requiredMark: true,
+    required: name === 'name' || name === 'email' || name === 'description',
     maxLength: ORGANIZATION_PROFILE_MAX[name],
     value: values[name],
     error: errors[name],
@@ -255,16 +268,17 @@ export function ProfileForm({ initial, onSaved, onCancel }: { initial: Organizat
         onChange={(event) => change('email')(event.target.value)} />
       <TextAreaField {...field('description')} ref={(element) => { refs.current.description = element }} rows={4}
         onChange={(event) => change('description')(event.target.value)} />
-      {/* ONE Address box: two separate, separately saved values side by side (stacked on phones). */}
-      <fieldset className="rounded-lg border border-beige p-4">
-        <legend className="px-1 text-sm font-bold text-maroon">{content.addressTitle}</legend>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <TextField {...field('address')} ref={(element) => { refs.current.address = element }} autoComplete="street-address"
+      {/* ONE Address box: two separate, separately saved values, "or" between them; at least one is required. */}
+      <EitherFieldGroup legend={content.addressTitle} hint={content.addressHint} orLabel={content.or} requiredMark error={errors.addressGroup}
+        first={(group) => (
+          <TextField {...field('address')} {...group} ref={(element) => { refs.current.address = element }} autoComplete="street-address"
             onChange={(event) => change('address')(event.target.value)} />
-          <TextField {...field('mapsUrl')} ref={(element) => { refs.current.mapsUrl = element }} type="url" inputMode="url" spellCheck={false}
+        )}
+        second={(group) => (
+          <TextField {...field('mapsUrl')} {...group} ref={(element) => { refs.current.mapsUrl = element }} type="url" inputMode="url" spellCheck={false}
             onChange={(event) => change('mapsUrl')(event.target.value)} />
-        </div>
-      </fieldset>
+        )}
+      />
       <TextField {...field('website')} ref={(element) => { refs.current.website = element }} type="url" inputMode="url" autoComplete="url" spellCheck={false}
         onChange={(event) => change('website')(event.target.value)} />
       <div className="flex flex-col-reverse gap-3 border-t border-beige pt-5 sm:flex-row sm:justify-end">

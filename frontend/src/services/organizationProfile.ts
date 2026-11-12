@@ -1,5 +1,5 @@
 import type { OrganizationProfileField } from '../content/types'
-import { ORGANIZATION_DETAIL_MAX, organizationDetailProblem, type OrganizationDetailProblem } from '../lib/organizationDetails'
+import { missingAddressAndMapsUrl, ORGANIZATION_DETAIL_MAX, organizationDetailProblem, type OrganizationDetailProblem } from '../lib/organizationDetails'
 import { notifyOrganizationName } from './organizationSettings'
 import { supabase } from './supabase'
 
@@ -16,17 +16,25 @@ export const EMPTY_ORGANIZATION_PROFILE: OrganizationProfile = { name: '', email
 /** What can be wrong with a value: missing, not an email, not a link, or too long. */
 export type OrganizationProfileProblem = 'required' | OrganizationDetailProblem
 
+/** Where a problem shows: one of the six values, or the Address group (Address and Google Maps link both empty). */
+export type OrganizationProfileErrorKey = OrganizationProfileField | 'addressGroup'
+
+/** The values that must be given; Address and Google Maps link are a group (one is enough), Website is optional. */
+const REQUIRED: readonly OrganizationProfileField[] = ['name', 'email', 'description']
+
 /**
- * Every value's problem (trimmed), as save_organization_profile checks them: all six are required; the email
- * must look like an address; the Google Maps link and the website must be http(s) links; none may be too long
- * (the shared rules in lib/organizationDetails.ts).
+ * Every problem (trimmed), as save_organization_profile checks them: name, email and description are required;
+ * an address or a Google Maps link (at least one); the website is optional; the email must look like an address;
+ * links must start with https://; none may be too long (the shared rules in lib/organizationDetails.ts).
  */
-export function organizationProfileProblems(values: OrganizationProfile): Partial<Record<OrganizationProfileField, OrganizationProfileProblem>> {
-  const problems: Partial<Record<OrganizationProfileField, OrganizationProfileProblem>> = {}
+export function organizationProfileProblems(values: OrganizationProfile): Partial<Record<OrganizationProfileErrorKey, OrganizationProfileProblem>> {
+  const problems: Partial<Record<OrganizationProfileErrorKey, OrganizationProfileProblem>> = {}
   for (const field of ORGANIZATION_PROFILE_FIELDS) {
-    const problem = values[field].trim() ? organizationDetailProblem(field, values[field]) : 'required'
+    const missing = REQUIRED.includes(field) && !values[field].trim()
+    const problem = missing ? 'required' : organizationDetailProblem(field, values[field])
     if (problem) problems[field] = problem
   }
+  if (missingAddressAndMapsUrl(values.address, values.mapsUrl)) problems.addressGroup = 'required'
   return problems
 }
 

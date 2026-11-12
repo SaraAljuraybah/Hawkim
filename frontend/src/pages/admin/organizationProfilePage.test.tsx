@@ -50,26 +50,34 @@ describe('Organization Profile', () => {
     expect(html).not.toContain('<a href')
   })
 
-  it('edits the six values with their saved values, each required with the red asterisk', () => {
+  it('edits the six values with their saved values: name, email and description required, the website optional', () => {
     const html = form()
+    const input = (name: string) => html.match(new RegExp(`<input[^>]*name="${name}"[^>]*>`))![0]
     for (const [name, value] of [['name', saved.name], ['email', saved.email], ['address', saved.address], ['mapsUrl', saved.mapsUrl], ['website', saved.website]]) {
-      const input = html.match(new RegExp(`<input[^>]*name="${name}"[^>]*>`))![0]
-      expect(input).toContain('required=""')
-      expect(input).toContain(`value="${value}"`)
+      expect(input(name)).toContain(`value="${value}"`)
     }
+    for (const name of ['name', 'email']) expect(input(name)).toContain('required=""')
+    for (const name of ['address', 'mapsUrl', 'website']) expect(input(name)).not.toContain('required=""')
     const description = html.match(/<textarea[^>]*name="description"[^>]*>[^<]*<\/textarea>/)![0]
     expect(description).toContain('required=""')
     expect(description).toContain('>Makes medicines.</textarea>')
-    // One asterisk per field, after its label.
-    expect(html.match(/<span aria-hidden="true" class="ml-0\.5 text-status-rejected-fg">\*<\/span>/g)).toHaveLength(6)
+    // Asterisks: Organization Name, Organization Email, Description and the Address group's title.
+    expect(html.match(/<span aria-hidden="true" class="ml-0\.5 text-status-rejected-fg">\*<\/span>/g)).toHaveLength(4)
+    expect(html).toContain('>Website (Optional)</label>')
     expect(html).toContain('type="email"')
     expect(html.match(/type="url"/g)).toHaveLength(2)
   })
 
-  it('keeps the Address and the Google Maps Link as two inputs in one Address box in the form too', () => {
+  it('keeps the Address and the Google Maps Link as two inputs in one required Address box, "or" between them', () => {
     const html = form()
-    const box = html.match(/<fieldset class="rounded-lg border border-beige p-4"><legend[^>]*>Address<\/legend><div class="grid gap-4 sm:grid-cols-2">(.*?)<\/fieldset>/)![1]
+    const box = html.match(/<fieldset[^>]*>(.*?)<\/fieldset>/)![0]
+    expect(box).toMatch(/<legend[^>]*>Address<span aria-hidden="true"[^>]*>\*<\/span><\/legend>/)
     expect([...box.matchAll(/<input[^>]*name="([^"]+)"/g)].map((match) => match[1])).toEqual(['address', 'mapsUrl'])
+    // The rule is a hint linked to the group and to both inputs; the visible "or" is hidden from screen readers.
+    const hintId = box.match(/<p id="([^"]+)"[^>]*>Enter an address, a Google Maps link, or both\.<\/p>/)![1]
+    expect(box).toMatch(new RegExp(`^<fieldset aria-describedby="${hintId}"`))
+    for (const name of ['address', 'mapsUrl']) expect(box).toMatch(new RegExp(`<input[^>]*aria-describedby="${hintId}[^"]*"[^>]*name="${name}"`))
+    expect(box).toMatch(/name="address"[^>]*\/>(?:<\/div>)+<span aria-hidden="true"[^>]*>or<\/span><div/)
   })
 
   it('ends with Cancel and Save Changes', () => {

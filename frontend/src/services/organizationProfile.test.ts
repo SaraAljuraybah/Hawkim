@@ -28,19 +28,27 @@ describe('the Organization Profile checks', () => {
     expect(organizationProfileProblems(valid)).toEqual({})
   })
 
-  it('requires every value', () => {
+  it('requires the name, the email and the description, and an address or a Google Maps link', () => {
     expect(organizationProfileProblems(EMPTY_ORGANIZATION_PROFILE)).toEqual({
-      name: 'required', email: 'required', description: 'required', address: 'required', mapsUrl: 'required', website: 'required',
+      name: 'required', email: 'required', description: 'required', addressGroup: 'required',
     })
-    expect(organizationProfileProblems({ ...valid, address: '   ' })).toEqual({ address: 'required' })
+    expect(organizationProfileProblems({ ...valid, address: '   ', mapsUrl: ' ' })).toEqual({ addressGroup: 'required' })
   })
 
-  it('rejects an invalid email and links that are not http(s) URLs', () => {
+  it('takes only one of the address and the Google Maps link, and no website', () => {
+    expect(organizationProfileProblems({ ...valid, address: '   ' })).toEqual({})
+    expect(organizationProfileProblems({ ...valid, mapsUrl: '' })).toEqual({})
+    expect(organizationProfileProblems({ ...valid, website: '' })).toEqual({})
+  })
+
+  it('rejects an invalid email and links that do not start with https://', () => {
     expect(organizationProfileProblems({ ...valid, email: 'info@' })).toEqual({ email: 'email' })
     expect(organizationProfileProblems({ ...valid, mapsUrl: 'maps.google.com' })).toEqual({ mapsUrl: 'url' })
     expect(organizationProfileProblems({ ...valid, website: 'ftp://riyadh-pharma.test' })).toEqual({ website: 'url' })
     expect(organizationProfileProblems({ ...valid, website: 'https://riyadh pharma.test' })).toEqual({ website: 'url' })
-    expect(organizationProfileProblems({ ...valid, mapsUrl: 'http://maps.app.goo.gl/abc' })).toEqual({})
+    expect(organizationProfileProblems({ ...valid, mapsUrl: 'http://maps.app.goo.gl/abc' })).toEqual({ mapsUrl: 'url' })
+    expect(organizationProfileProblems({ ...valid, website: 'http://riyadh-pharma.test' })).toEqual({ website: 'url' })
+    expect(organizationProfileProblems({ ...valid, mapsUrl: 'HTTPS://maps.app.goo.gl/abc' })).toEqual({})
   })
 
   it('rejects values that are too long', () => {

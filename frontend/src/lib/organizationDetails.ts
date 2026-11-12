@@ -12,8 +12,8 @@ export const ORGANIZATION_DETAIL_MAX: Record<OrganizationProfileField, number> =
 }
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-/** An http(s) link with a host that has a dot and no spaces (as the database checks). */
-const URL_PATTERN = /^https?:\/\/[^\s/?#]+\.[^\s]*$/i
+/** An https:// link with a host that has a dot and no spaces (as the database checks). http:// is refused. */
+const URL_PATTERN = /^https:\/\/[^\s/?#]+\.[^\s]*$/i
 
 /** What can be wrong with a value that was given: not an email, not a link, or too long. */
 export type OrganizationDetailProblem = 'email' | 'url' | 'tooLong'
@@ -26,4 +26,9 @@ export function organizationDetailProblem(field: OrganizationProfileField, value
   if (field === 'email' && !EMAIL.test(text)) return 'email'
   if ((field === 'mapsUrl' || field === 'website') && !URL_PATTERN.test(text)) return 'url'
   return undefined
+}
+
+/** The Address group's rule: an address or a Google Maps link, at least one (both is fine). */
+export function missingAddressAndMapsUrl(address: string, mapsUrl: string): boolean {
+  return !address.trim() && !mapsUrl.trim()
 }

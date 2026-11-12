@@ -2211,7 +2211,12 @@ export interface OrganizationProfileContent {
   detailsTitle: string
   /** The shared box holding the address and the Google Maps link side by side. */
   addressTitle: string
-  fields: Record<OrganizationProfileField, { label: string; placeholder?: string; hint?: string }>
+  /** Under the Address title in the form: one of the two is enough. */
+  addressHint: string
+  /** Between the address and the Google Maps link in the form. */
+  or: string
+  /** `formLabel`: the label in the form when it differs, e.g. "(Optional)". */
+  fields: Record<OrganizationProfileField, { label: string; formLabel?: string; placeholder?: string; hint?: string }>
   /** A value not saved yet. */
   notSet: string
   /** Opens a link (the Google Maps link, the website) in a new tab; `{label}` is replaced. */
@@ -2229,7 +2234,8 @@ export interface OrganizationProfileContent {
   /** Above the reasons when saving is refused; what was typed stays. */
   notSaved: string
   errors: {
-    required: Record<OrganizationProfileField, string>
+    /** `addressGroup`: both the address and the Google Maps link are empty. */
+    required: { name: string; email: string; description: string; addressGroup: string }
     emailInvalid: string
     urlInvalid: string
     tooLong: string
