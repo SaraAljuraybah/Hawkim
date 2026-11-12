@@ -35,7 +35,7 @@ describe('membership and read-only directory grants', () => {
     expect(ids(getDirectoryDepartments(user, [request('a')], departments.map((department) => department.id === 'a' ? { ...department, removedAt: '2026-10-23' } : department)))).toEqual(['home'])
     expect(getDirectoryDepartments({ ...user, deletedAt: '2026-10-23' }, [request('a')], departments)).toEqual([])
   })
-  it('filters directory data to the published SOPs the user worked on, whatever their access requests', () => {
+  it('filters directory data to their department\'s published SOPs and those they worked on, whatever their access requests', () => {
     const sop = (id: string, departmentId: string, status: Sop['status'], authorId = 'someone') =>
       ({ id, departmentId, status, authorId, coAuthorIds: [], reviewers: [], approvers: [] }) as unknown as Sop
     const items = [
@@ -45,7 +45,7 @@ describe('membership and read-only directory grants', () => {
       sop('a-mine', 'a', 'published', user.id),
       sop('a-mine-draft', 'a', 'draft', user.id),
     ]
-    // Approved directory requests no longer open a department's other SOPs (directorySopsFor ignores them).
-    expect(directorySopsFor(items, user).map((item) => item.id)).toEqual(['home-mine', 'a-mine'])
+    // Approved directory requests don't open another department's SOPs (directorySopsFor ignores them).
+    expect(directorySopsFor(items, user).map((item) => item.id)).toEqual(['home-published', 'home-mine', 'a-mine'])
   })
 })

@@ -42,20 +42,23 @@ export function workedOn(sop: Pick<Sop, 'authorId' | 'coAuthorIds' | 'reviewers'
 
 /**
  * The SOP Directory and an SOP's directory page (not the workflow or review pages): only published SOPs.
- * A System Admin opens every department's (not Others); everyone else only those they worked on, in any
- * department, Others included. The active department and access requests don't matter here.
+ * A System Admin opens every department's (not Others). Everyone else opens every published SOP of their
+ * own department, plus those they worked on in any department (Others included), as the database's
+ * can_view_sop allows. The active department and access requests don't matter here.
  */
 export function directoryAccess(
-  sop: Parameters<typeof workedOn>[0] & Pick<Sop, 'status'> & Partial<Pick<Sop, 'directoryGroup'>>,
-  user: Pick<User, 'id' | 'deletedAt'> & Partial<Pick<User, 'permissions'>>,
+  sop: Parameters<typeof workedOn>[0] & Pick<Sop, 'status' | 'departmentId'> & Partial<Pick<Sop, 'directoryGroup'>>,
+  user: Pick<User, 'id' | 'deletedAt' | 'departmentId'> & Partial<Pick<User, 'permissions'>>,
 ): 'granted' | 'locked' {
   if (sop.status !== 'published' || user.deletedAt) return 'locked'
   if (user.permissions?.includes('admin')) return sop.directoryGroup === 'others' ? 'locked' : 'granted'
-  return workedOn(sop, user.id) ? 'granted' : 'locked'
+  // Others belongs to a deleted department: only those who worked on it, never by department.
+  const ownDepartment = sop.directoryGroup !== 'others' && !!user.departmentId && sop.departmentId === user.departmentId
+  return ownDepartment || workedOn(sop, user.id) ? 'granted' : 'locked'
 }
 
 /** Authorize before directory search, counts, links or document rendering. */
-export function directorySopsFor(sops: Sop[], user: Pick<User, 'id' | 'deletedAt'> & Partial<Pick<User, 'permissions'>>): Sop[] {
+export function directorySopsFor(sops: Sop[], user: Pick<User, 'id' | 'deletedAt' | 'departmentId'> & Partial<Pick<User, 'permissions'>>): Sop[] {
   return sops.filter((sop) => directoryAccess(sop, user) === 'granted')
 }
 

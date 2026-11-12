@@ -19,7 +19,7 @@ vi.mock('../state/activeDepartmentContext', () => ({ useActiveDepartment: () => 
 vi.mock('../state/requestsContext', () => ({ useMyRequests: () => [], useRequests: () => ({ requests: [] }) }))
 vi.mock('../state/sopsContext', () => ({ useSops: () => ({ sops: fixture.sops, deleteSop: vi.fn() }) }))
 vi.mock('../state/guidelinesContext', () => ({ useGuidelines: () => ({ current: { version: '4.0' } }) }))
-vi.mock('../state/departmentsContext', () => ({ useDepartments: () => ({ departments: [fixture.home], activeDepartments: [fixture.home], nameOf: () => fixture.home.name }) }))
+vi.mock('../state/departmentsContext', () => ({ useDepartments: () => ({ departments: [fixture.home], activeDepartments: [fixture.home], nameOf: () => fixture.home.name, getDepartment: () => fixture.home }) }))
 
 /** `count` SOPs, "Procedure 01" the oldest; newest first is the highest number. */
 function sops(count: number, status: Sop['status'], extra: (n: number) => Partial<Sop> = () => ({})): Sop[] {

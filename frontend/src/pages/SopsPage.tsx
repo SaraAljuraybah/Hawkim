@@ -10,7 +10,7 @@ import { SelectField } from '../components/ui/SelectField'
 import type { Department } from '../data/mock/types'
 import type { MySopSort } from '../lib/mySops'
 import { clampPage, listParam, pageCount, pageSlice, rememberedPagesFor, resultsParams, tabSwitch, updateParams, type RememberedPages } from '../lib/pagination'
-import { ALL_DEPARTMENTS, DIRECTORY_URL_DEFAULTS, EVERY_SOP, filterDirectorySops, readDirectoryUrl, recentSince } from '../lib/sopDirectory'
+import { ALL_DEPARTMENTS, DIRECTORY_URL_DEFAULTS, EVERY_SOP, filterDirectorySops, readDirectoryUrl, RECENT_MONTHS, recentSince } from '../lib/sopDirectory'
 import { departmentsKept, filterDepartmentsFrom, filterSelection } from '../lib/organization'
 import { devSampleCount, devSampleSops } from '../lib/devSampleSops'
 import { directorySopsFor } from '../lib/sopAccess'
@@ -103,8 +103,9 @@ function SopDirectory({ activeDepartment, admin = false }: { activeDepartment: D
     const count = devSampleCount(params)
     return count ? [...sops, ...devSampleSops(count, user.id, activeDepartment.id, true)] : sops
   }, [sops, params, user.id, activeDepartment.id])
-  // Only published SOPs: the System Admin's are every department's; everyone else's are those they
-  // worked on, in any department (Others included). The active department doesn't narrow it.
+  // Only published SOPs: the System Admin's are every department's; everyone else's are their own
+  // department's plus those they worked on, in any department (Others included). The active department
+  // doesn't narrow it.
   const authorized = useMemo(() => directorySopsFor(listSops, user), [listSops, user])
   const tabKeys: SopTabKey[] = ['all', 'recent']
   const tabItems: TabItem<SopTabKey>[] = tabKeys.map((key) => ({
@@ -173,7 +174,7 @@ function SopDirectory({ activeDepartment, admin = false }: { activeDepartment: D
   return (
     <>
       <h1 className="text-2xl tracking-tight sm:text-3xl">{content.title}</h1>
-      <p className="mt-2 text-text-gray">{admin ? content.adminSubtitle : content.subtitle}</p>
+      <p className="mt-2 text-text-gray">{admin ? content.adminSubtitle : content.subtitle.replace('{department}', getDepartment(user.departmentId)?.name ?? user.departmentId)}</p>
 
       {/* On the page background, like Staff: Search | Filter (admin) | Sort, the same row as on every list page. */}
       <div role="search" aria-label={content.filters.label} className="mt-6">
@@ -209,9 +210,13 @@ function SopDirectory({ activeDepartment, admin = false }: { activeDepartment: D
           />
         </div>
         <div className="mt-3 flex min-h-8 flex-wrap items-center justify-between gap-2">
-          <p role="status" aria-live="polite" aria-atomic="true" className="text-sm text-text-gray">
-            {visibleSops.length === 1 ? content.filters.oneResult : content.filters.results.replace('{count}', String(visibleSops.length))}
-          </p>
+          <div>
+            <p role="status" aria-live="polite" aria-atomic="true" className="text-sm text-text-gray">
+              {visibleSops.length === 1 ? content.filters.oneResult : content.filters.results.replace('{count}', String(visibleSops.length))}
+            </p>
+            {/* What Recently Published means, on that tab only */}
+            {selectedTab === 'recent' && <p className="mt-0.5 text-sm text-text-gray">{content.recentNote.replace('{count}', String(RECENT_MONTHS))}</p>}
+          </div>
           {showClear && <Button size="sm" variant="secondary" onClick={clearFilters}>{content.filters.clear}</Button>}
         </div>
       </div>

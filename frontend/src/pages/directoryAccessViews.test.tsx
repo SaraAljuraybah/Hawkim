@@ -89,9 +89,13 @@ describe('directory selection never changes authoring or membership context', ()
     expect(html).toContain('break-words')
     expect(html.match(/<button[^>]*aria-haspopup="menu"[^>]*>.*?<\/button>/)![0]).toContain('lucide-chevron-down')
   })
-  it('lists only the published SOPs the user worked on, whatever the selected directory or access requests', () => {
+  it('lists their department\'s published SOPs plus those they worked on, whatever the selected directory or access requests', () => {
+    fixture.sops = [...fixture.sops, sop('home-published', 'home', 'published'), { ...sop('home-reviewed', 'home', 'published'), reviewers: [{ userId: 'visitor', decision: 'completed' }] }]
     const html = render(<SopsPage />)
     expect(html).toContain('foreign-reviewed')
+    // Every published SOP of their own department, whether or not they worked on it; each once.
+    expect(html).toContain('home-published')
+    expect(html.match(/>home-reviewed</g)).toHaveLength(1)
     // Published but not theirs: not listed, even with an approved request for that directory.
     expect(html).not.toContain('foreign-published')
     // Theirs but not published: not listed.
@@ -159,10 +163,43 @@ describe('published directory access remains separate from internal views', () =
   it('shows the no-access panel, without Request Access, for a published SOP they didn\'t work on (a direct link)', () => {
     const html = render(<SopDetailPage />, '/foreign-published')
     expect(html).toContain("You don&#x27;t have access to this SOP")
-    expect(html).toContain('You can open the published SOPs you authored, co-authored, reviewed or approved.')
+    expect(html).toContain('You can open the published SOPs of your department, plus the ones you authored, co-authored, reviewed or approved.')
     expect(html).not.toContain('Confidential multiline description')
     expect(html).not.toContain('/files/foreign-published.docx')
     expect(html).not.toContain('Request Access')
     expect(html).not.toContain('/requests/new')
+  })
+})
+
+describe('the SOP Directory texts for everyone but the System Admin', () => {
+  it('names their department in the description', () => {
+    expect(render(<SopsPage />)).toContain('Published SOPs from Home Department, plus the ones you authored, co-authored, reviewed or approved.')
+  })
+
+  it('says "No published SOPs yet." when there are none', () => {
+    fixture.sops = []
+    expect(render(<SopsPage />)).toContain('No published SOPs yet.')
+  })
+
+  it('explains Recently Published under the result count on that tab only', () => {
+    const note = 'Recently Published shows SOPs published in the last 3 months.'
+    const recent = render(<SopsPage />, '/test?tab=recent')
+    expect(recent).toContain(note)
+    expect(recent.indexOf('SOPs found')).toBeLessThan(recent.indexOf(note))
+    expect(render(<SopsPage />)).not.toContain(note)
+  })
+})
+
+describe('the SOP detail page for their department', () => {
+  it('opens a published SOP of their own department they didn\'t work on', () => {
+    fixture.sops = [sop('home-published', 'home', 'published')]
+    const html = render(<SopDetailPage />, '/home-published')
+    expect(html).not.toContain("You don&#x27;t have access to this SOP")
+    expect(html).toContain('Confidential multiline description')
+  })
+
+  it('still refuses one of their department that isn\'t published', () => {
+    fixture.sops = [sop('home-draft', 'home', 'draft')]
+    expect(render(<SopDetailPage />, '/home-draft')).not.toContain('Confidential multiline description')
   })
 })

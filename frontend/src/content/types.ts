@@ -422,7 +422,7 @@ export interface SopsContent {
   /** Browser tab title in the admin portal. */
   adminPageTitle: string
   title: string
-  /** Under the title, for everyone but the System Admin (their directory: SOPs they worked on). */
+  /** Under the title, for everyone but the System Admin (their department's SOPs and those they worked on); `{department}` is their department. */
   subtitle: string
   /** Under the title, for the System Admin (every published SOP). */
   adminSubtitle: string
@@ -452,6 +452,8 @@ export interface SopsContent {
   adminEmpty: string
   /** An empty Recently Published tab. */
   recentEmpty: string
+  /** Under the result count on the Recently Published tab; `{count}` is the number of months. */
+  recentNote: string
   /** SOP detail page ("/sops/:id"). */
   detail: SopDetailContent
 }
