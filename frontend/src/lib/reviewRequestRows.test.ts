@@ -20,13 +20,12 @@ describe('review request rows', () => {
     expect(requestReviewDueDate(request({ acceptedAt: '2026-10-02T08:00:00Z' }))).toBeUndefined()
   })
 
-  it('collects the comments and reasons, each with its date', () => {
+  it('collects only the review comments, with their date: reasons are in the Review Timeline', () => {
     const comments = [{ id: 'comment', version: '1', authorId: 'alpha', role: 'reviewer', text: 'Revise section 2', createdAt: '2026-10-04T08:00:00Z' }] as never
     expect(reviewNotes({ comments }, request({}))).toEqual([])
-    expect(reviewNotes({ comments }, request({ declineReason: 'On leave', decidedAt: '2026-10-03T08:00:00Z' }))).toEqual([{ kind: 'decline', text: 'On leave', date: '2026-10-03T08:00:00Z' }])
+    expect(reviewNotes({ comments }, request({ declineReason: 'On leave', decidedAt: '2026-10-03T08:00:00Z' }))).toEqual([])
     expect(reviewNotes({ comments }, request({ commentId: 'comment', removalReason: 'Not needed', removedAt: '2026-10-05T08:00:00Z' }))).toEqual([
       { kind: 'comment', text: 'Revise section 2', date: '2026-10-04T08:00:00Z' },
-      { kind: 'removal', text: 'Not needed', date: '2026-10-05T08:00:00Z' },
     ])
   })
 

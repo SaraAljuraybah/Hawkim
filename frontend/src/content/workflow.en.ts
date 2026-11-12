@@ -179,8 +179,12 @@ export const sopWorkflowEn: SopWorkflowContent = {
 
   timeline: {
     title: 'Review Timeline',
-    columns: { action: 'Action', by: 'By', to: 'To', date: 'Date', version: 'Version', comment: 'Comment' },
+    columns: { action: 'Action', by: 'By', to: 'To', date: 'Date', version: 'Version', comment: 'Comment', preview: 'Preview' },
     none: 'None',
+    reason: {
+      view: { 'reviewer-removed': 'View the Reason for Removing {name}', 'review-declined': 'View the Reason {name} Declined' },
+      title: { 'reviewer-removed': 'Reason for Removing {name}', 'review-declined': 'Reason {name} Declined' },
+    },
     viewMore: 'View More',
     viewLess: 'View Less',
     deadlineChange: 'From {old} to {new}',

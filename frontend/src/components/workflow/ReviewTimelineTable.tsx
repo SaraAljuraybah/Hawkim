@@ -1,13 +1,18 @@
-import { useId, useState, type ReactNode } from 'react'
+import { useId, useRef, useState, type MouseEvent, type ReactNode } from 'react'
+import { Eye } from 'lucide-react'
+import { internalReviewEn } from '../../content/internalReview.en'
 import { reviewFlowEn } from '../../content/reviewFlow.en'
 import type { SopWorkflowContent } from '../../content/types'
 import type { Sop, TimelineEvent } from '../../data/mock/types'
 import { formatReviewDate, formatReviewDateTime as formatDateTime, formatReviewDateTimeNoZone } from '../../lib/format'
 import { visibleTimelineEvents } from '../../lib/releaseScope'
+import { REASON_EVENTS, timelineReason } from '../../lib/reviewRequestRows'
 import { commentForEvent, timelineRecipients } from '../../lib/workflow'
 import { useDepartments } from '../../state/departmentsContext'
 import { useUsers } from '../../state/usersContext'
+import { IconButton } from '../ui/IconButton'
 import { personWithRole } from './people'
+import { ReviewNotesDialog } from './ReviewNotesDialog'
 
 interface ReviewTimelineTableProps {
   sop: Sop
@@ -16,7 +21,13 @@ interface ReviewTimelineTableProps {
   mainAuthorOnly?: boolean
   /** The author's page: only the actions in the current release's scope (see lib/releaseScope). */
   releaseScoped?: boolean
+  /**
+   * The author's page: a Preview column. A removal's or decline's reason opens from its eye there,
+   * instead of showing in Comment.
+   */
+  reasonPreview?: boolean
 }
+
 
 /** Comments longer than this are shortened, with View more / View less. */
 const COMMENT_PREVIEW = 120
@@ -68,7 +79,7 @@ function Comment({ text, content }: { text: string | undefined; content: SopWork
  * note or a response). Stacked cards on phones. Used on the author's workflow page
  * (where a return's "To" shows only the main author) and on the review page.
  */
-export function ReviewTimelineTable({ sop, content, mainAuthorOnly = false, releaseScoped = false }: ReviewTimelineTableProps) {
+export function ReviewTimelineTable({ sop, content, mainAuthorOnly = false, releaseScoped = false, reasonPreview = false }: ReviewTimelineTableProps) {
   const { timeline, versionTemplate, roles } = content
   const { nameOf } = useUsers()
   const { nameOf: departmentName } = useDepartments()
@@ -84,7 +95,20 @@ export function ReviewTimelineTable({ sop, content, mainAuthorOnly = false, rele
   const deadlineChange = (event: TimelineEvent) => timeline.deadlineChange
     .replace('{old}', event.previousReviewDueAt ? formatReviewDate(event.previousReviewDueAt) : timeline.noDeadline)
     .replace('{new}', event.newReviewDueAt ? formatReviewDate(event.newReviewDueAt) : timeline.noDeadline)
-  const comment = (event: TimelineEvent) => event.type === 'review-deadline-changed' ? deadlineChange(event) : event.note ?? commentForEvent(sop, event)?.text
+  const comment = (event: TimelineEvent) => reasonPreview && event.type in REASON_EVENTS ? undefined
+    : event.type === 'review-deadline-changed' ? deadlineChange(event) : event.note ?? commentForEvent(sop, event)?.text
+  const [viewing, setViewing] = useState<NonNullable<ReturnType<typeof timelineReason>> | null>(null)
+  const trigger = useRef<HTMLButtonElement | null>(null)
+  function closeReason() {
+    setViewing(null)
+    requestAnimationFrame(() => trigger.current?.focus())
+  }
+  function preview(event: TimelineEvent) {
+    const reason = timelineReason(event)
+    if (!reason) return <span className="inline-flex size-9 items-center justify-center text-text-gray">{empty}</span>
+    return <IconButton label={timeline.reason.view[reason.type].replace('{name}', nameOf(reason.reviewerId))} icon={Eye}
+      onClick={(click: MouseEvent<HTMLButtonElement>) => { trigger.current = click.currentTarget; setViewing(reason) }} />
+  }
   const version = (event: TimelineEvent) => versionTemplate.replace('{version}', event.version)
   const date = (event: TimelineEvent) => <time dateTime={event.createdAt}>{formatReviewDateTimeNoZone(event.createdAt)}</time>
   const empty = (
@@ -134,6 +158,7 @@ export function ReviewTimelineTable({ sop, content, mainAuthorOnly = false, rele
           <col className="w-[13%]" />
           <col className="w-20" />
           <col />
+          {reasonPreview && <col className="w-20" />}
         </colgroup>
         <thead>
           <tr className="border-b border-beige text-text-gray">
@@ -144,6 +169,7 @@ export function ReviewTimelineTable({ sop, content, mainAuthorOnly = false, rele
               timeline.columns.date,
               timeline.columns.version,
               timeline.columns.comment,
+              ...(reasonPreview ? [timeline.columns.preview] : []),
             ].map((column) => (
               <th key={column} scope="col" className="py-2 pr-4 align-bottom font-medium last:pr-0">
                 {column}
@@ -162,9 +188,10 @@ export function ReviewTimelineTable({ sop, content, mainAuthorOnly = false, rele
               <td className="py-3 pr-4 break-words text-text-gray">{to(event) || empty}</td>
               <td className="py-3 pr-4 text-text-gray">{date(event)}</td>
               <td className="py-3 pr-4 text-text-gray">{version(event)}</td>
-              <td className="py-3">
+              <td className={reasonPreview ? 'py-3 pr-4' : 'py-3'}>
                 <Comment text={comment(event)} content={timeline} />
               </td>
+              {reasonPreview && <td className="py-1.5 text-center">{preview(event)}</td>}
             </tr>
           ))}
         </tbody>
@@ -195,9 +222,21 @@ export function ReviewTimelineTable({ sop, content, mainAuthorOnly = false, rele
                 <Comment text={comment(event)} content={timeline} />
               </div>
             )}
+            {reasonPreview && timelineReason(event) && (
+              <div className="mt-2 flex items-center justify-between gap-3">
+                <span className="text-text-gray">{timeline.columns.preview}</span>
+                {preview(event)}
+              </div>
+            )}
           </li>
         ))}
       </ul>
+
+      {viewing && (
+        <ReviewNotesDialog title={timeline.reason.title[viewing.type].replace('{name}', nameOf(viewing.reviewerId))}
+          notes={[viewing.note]}
+          labels={internalReviewEn.panel.table.notes} closeLabel={internalReviewEn.panel.table.close} onClose={closeReason} />
+      )}
     </>
   )
 }

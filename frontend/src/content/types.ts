@@ -909,9 +909,14 @@ export interface SopWorkflowContent {
   }
   timeline: {
     title: string
-    columns: { action: string; by: string; to: string; date: string; version: string; comment: string }
+    columns: { action: string; by: string; to: string; date: string; version: string; comment: string; preview: string }
     /** Screen-reader text of an empty cell. */
     none: string
+    /** A removal's or decline's reason, behind the Preview eye on the author's page; `{name}` is the reviewer. */
+    reason: {
+      view: { 'reviewer-removed': string; 'review-declined': string }
+      title: { 'reviewer-removed': string; 'review-declined': string }
+    }
     viewMore: string
     viewLess: string
     events: Record<TimelineEventType, string>

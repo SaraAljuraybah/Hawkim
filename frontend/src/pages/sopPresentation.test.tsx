@@ -145,9 +145,9 @@ describe('SOP title presentation without exposing generated serial numbers', () 
   })
 
   it('limits the timeline on the author page only, keeping hidden types on the review page', () => {
-    const declined = { id: 'declined', type: 'review-declined' as const, actorId: 'reviewer', version: '1', createdAt: '2026-10-29T08:30:00Z' }
-    fixture.sop = { ...reviewSop(), timeline: [...reviewSop().timeline, declined] }
-    const label = `>${sopWorkflowEn.timeline.events['review-declined']}<`
+    const accepted = { id: 'accepted', type: 'review-accepted' as const, actorId: 'reviewer', version: '1', createdAt: '2026-10-29T08:30:00Z' }
+    fixture.sop = { ...reviewSop(), timeline: [...reviewSop().timeline, accepted] }
+    const label = `>${sopWorkflowEn.timeline.events['review-accepted']}<`
     const submitted = `>${sopWorkflowEn.timeline.events.submitted}<`
     const author = render(<SopWorkflowPage />)
     expect(author).toContain(submitted)

@@ -64,7 +64,7 @@ describe('Reviewers table on the author SOP page', () => {
     expect(table(html)).toMatch(/<tr class="text-text-gray"><th scope="row"[^>]*>Reviewer Gamma/)
   })
 
-  it('keeps every row of a declined reviewer asked again, with the decline reason', () => {
+  it('keeps every row of a declined reviewer asked again; the decline reason is in the Review Timeline', () => {
     let sop = started()
     sop = declineInternalReview(sop, 'alpha', currentInternalRound(sop)!.id, request(sop, 'alpha').id, 'On leave', env())
     sop = addInternalReviewers(sop, 'author', { reviewerIds: ['alpha'] }, env())
@@ -72,7 +72,8 @@ describe('Reviewers table on the author SOP page', () => {
     expect(table(html).match(/<th scope="row"[^>]*>Reviewer Alpha/g)).toHaveLength(2)
     expect(table(html)).toContain('</span>Declined</span>')
     expect(table(html)).toContain('</span>Pending</span>')
-    expect(html.match(/aria-label="View Comments from Reviewer Alpha"/g)!.length).toBeGreaterThan(0)
+    expect(html).not.toContain('aria-label="View Comments from Reviewer Alpha"')
+    expect(html).not.toContain('On leave')
     expect(html.match(/<li class="rounded-lg border border-beige p-4">/g)).toHaveLength(4)
   })
   it('keeps every row of a removed reviewer asked again', () => {
@@ -92,7 +93,7 @@ describe('Reviewers table on the author SOP page', () => {
     expect(accepted).toContain(`dateTime="${request(sop, 'alpha').acceptedAt}"`)
   })
 
-  it('offers the notes only when there is something to show', () => {
+  it('offers the eye only for review comments, not for decline or removal reasons', () => {
     let sop = started()
     const round = currentInternalRound(sop)!
     sop = acceptInternalReview(sop, 'alpha', round.id, request(sop, 'alpha').id, env())
@@ -100,9 +101,13 @@ describe('Reviewers table on the author SOP page', () => {
     sop = declineInternalReview(sop, 'beta', round.id, request(sop, 'beta').id, 'On leave', env())
     const html = render(sop)
     expect(row(html, 'Reviewer Alpha')).toContain('aria-label="View Comments from Reviewer Alpha"')
-    expect(row(html, 'Reviewer Beta')).toContain('aria-label="View Comments from Reviewer Beta"')
+    expect(row(html, 'Reviewer Beta')).not.toContain('View Comments')
+    expect(row(html, 'Reviewer Beta')).toContain('No Comments')
     expect(row(html, 'Reviewer Gamma')).not.toContain('View Comments')
     expect(row(html, 'Reviewer Gamma')).toContain('No Comments')
+    const removed = render(removeInternalReviewer(sop, 'author', round.id, request(sop, 'gamma').id, 'Not needed', env()))
+    expect(row(removed, 'Reviewer Gamma')).not.toContain('View Comments')
+    expect(removed).not.toContain('Not needed')
   })
 
   it('offers Remove on pending, accepted, completed and returned requests only, to the main author', () => {

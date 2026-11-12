@@ -20,6 +20,9 @@ const RELEASE_1_TIMELINE_TYPES: readonly TimelineEventType[] = [
   'review-deadline-changed',
   'review-expired',
   'review-request-resent',
+  // Their reasons open from the Preview eye (ReviewTimelineTable reasonPreview).
+  'reviewer-removed',
+  'review-declined',
 ]
 
 /** The events a release-scoped timeline shows (see RELEASE_1_TIMELINE_ONLY). */

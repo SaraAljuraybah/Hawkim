@@ -14,8 +14,8 @@ vi.mock('./releaseScope', async (original) => {
 vi.mock('../state/usersContext', () => ({ useUsers: () => ({ nameOf: () => 'Main Author' }) }))
 vi.mock('../state/departmentsContext', () => ({ useDepartments: () => ({ nameOf: () => 'Home' }) }))
 
-const shown: TimelineEventType[] = ['version-uploaded', 'version-deleted', 'co-author-added', 'co-author-removed', 'compliance-check-completed', 'compliance-check-failed', 'submitted', 'resubmitted', 'response', 'review-deadline-changed', 'review-expired', 'review-request-resent']
-const hidden: TimelineEventType[] = ['review-accepted', 'review-declined', 'review-completed', 'review-changes-requested', 'returned', 'review-returned', 'review-withdrawn', 'reviewer-removed', 'review-assigned', 'review-scope-decided', 'internal-review-completed', 'routed', 'stage-due-date-set', 'external-reviews-not-required', 'submitted-for-approval', 'forwarded-to-approver', 'approved-by', 'approved', 'published']
+const shown: TimelineEventType[] = ['version-uploaded', 'version-deleted', 'co-author-added', 'co-author-removed', 'compliance-check-completed', 'compliance-check-failed', 'submitted', 'resubmitted', 'response', 'review-deadline-changed', 'review-expired', 'review-request-resent', 'reviewer-removed', 'review-declined']
+const hidden: TimelineEventType[] = ['review-accepted', 'review-completed', 'review-changes-requested', 'returned', 'review-returned', 'review-withdrawn', 'review-assigned', 'review-scope-decided', 'internal-review-completed', 'routed', 'stage-due-date-set', 'external-reviews-not-required', 'submitted-for-approval', 'forwarded-to-approver', 'approved-by', 'approved', 'published']
 const all = [...hidden, ...shown]
 const timeline = all.map((type, index): TimelineEvent => ({ id: `event-${index}`, type, actorId: 'author', version: '1', createdAt: `2026-10-01T08:${String(index).padStart(2, '0')}:00Z` }))
 const sop = { id: 'sop', authorId: 'author', coAuthorIds: [], reviewers: [], approvers: [], comments: [], timeline } as unknown as Sop
