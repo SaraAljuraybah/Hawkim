@@ -14,9 +14,12 @@ vi.mock('../state/sopsContext', () => ({ useSops: () => ({ addDraft: vi.fn() }) 
 vi.mock('../state/activeDepartmentContext', () => ({ useActiveDepartment: () => ({ activeDepartment: fixture.home, homeDepartment: fixture.home }) }))
 
 const render = () => renderToStaticMarkup(<MemoryRouter><UploadSopPage /></MemoryRouter>)
-/** The read-only value shown under a label, styled like Department. */
+/** The red asterisk of the required fields, hidden from screen readers. */
+const MARK = '<span aria-hidden="true" class="ml-0.5 text-status-rejected-fg">*</span>'
+const MARK_PATTERN = MARK.replace(/[.*]/g, (character) => `\\${character}`)
+/** The read-only value shown under a label (with its asterisk), styled like Department. */
 const value = (html: string, label: string) =>
-  html.match(new RegExp(`<p class="mb-1.5 text-sm font-medium text-maroon">${label}</p><p class="([^"]+)">(.*?)</p>`))
+  html.match(new RegExp(`<p class="mb-1.5 text-sm font-medium text-maroon">${label}${MARK_PATTERN}</p><p class="([^"]+)">(.*?)</p>`))
 
 beforeEach(() => vi.useFakeTimers({ now: new Date('2026-11-12T10:00:00+03:00') }))
 afterEach(() => vi.useRealTimers())
@@ -46,6 +49,16 @@ describe('the read-only fields on Add SOP', () => {
     // 22:30 UTC on 12 November is 01:30 on 13 November in Riyadh.
     vi.setSystemTime(new Date('2026-11-12T22:30:00Z'))
     expect(value(render(), 'Added to Hawkim On')![2]).toBe('<time dateTime="2026-11-13">Nov 13, 2026</time>')
+  })
+
+  it('marks all three with the red required asterisk of Title and SOP File, for the eye only', () => {
+    const html = render()
+    for (const label of ['Division', 'Department', 'Added to Hawkim On']) expect(value(html, label)).not.toBeNull()
+    // The same mark as Title (FieldShell) and SOP File use.
+    expect(html.match(/<label[^>]*>Title(<span[^>]*>\*<\/span>)<\/label>/)![1]).toBe(MARK)
+    // Not inputs: nothing tells screen readers they must be filled in.
+    expect(html).not.toMatch(/aria-required="true"[^>]*name="(division|department|addedOn)"/)
+    expect(html.match(/aria-hidden="true" class="ml-0.5 text-status-rejected-fg">\*</g)!.length).toBeGreaterThanOrEqual(5)
   })
 
   it('sends none of them: they are text, not form fields', () => {

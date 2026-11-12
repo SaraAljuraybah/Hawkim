@@ -3,6 +3,7 @@ import { flushSync } from 'react-dom'
 import { Link, useNavigate } from 'react-router-dom'
 import { ArrowLeft, LoaderCircle, Upload } from 'lucide-react'
 import { Button } from '../components/ui/Button'
+import { RequiredMark } from '../components/ui/FieldShell'
 import { FileDropzone } from '../components/ui/FileDropzone'
 import { TextAreaField } from '../components/ui/TextAreaField'
 import { TextField } from '../components/ui/TextField'
@@ -187,11 +188,14 @@ export function UploadSopPage() {
   )
 }
 
-/** A pre-filled value the form shows but doesn't send. */
+/**
+ * A pre-filled value the form shows but doesn't send. It carries the red asterisk of the required
+ * fields, for the eye only: it isn't an input, so nothing tells screen readers to fill it in.
+ */
 function ReadOnlyValue({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div>
-      <p className="mb-1.5 text-sm font-medium text-maroon">{label}</p>
+      <p className="mb-1.5 text-sm font-medium text-maroon">{label}<RequiredMark /></p>
       <p className="rounded-lg border border-beige bg-beige/50 px-3.5 py-2.5 text-[0.9375rem] text-maroon">{children}</p>
     </div>
   )
