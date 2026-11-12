@@ -12,6 +12,7 @@ import { InternalReviewPanel } from '../components/workflow/InternalReviewPanel'
 import { PeopleList } from '../components/workflow/PeopleList'
 import { personWithRole } from '../components/workflow/people'
 import { PreviewDialog } from '../components/workflow/PreviewDialog'
+import { MetaLine } from '../components/ui/MetaLine'
 import { ResponseDialog } from '../components/workflow/ResponseDialog'
 import { ResubmitDialog } from '../components/workflow/ResubmitDialog'
 import { ReviewTimelineTable } from '../components/workflow/ReviewTimelineTable'
@@ -32,7 +33,7 @@ import { approvalButtonBlocker } from '../lib/approval'
 import { hasResponseOutsideReviewers } from '../lib/reviewRequestRows'
 import { canAddReviewers, canSendNewVersion } from '../lib/internalReview'
 import { reviewAllowsNewVersion } from '../lib/internalReviewStatus'
-import { formatDate } from '../lib/format'
+import { formatDate, formatReviewDate } from '../lib/format'
 import { hasPermission } from '../lib/permissions'
 import { sopPath } from '../lib/routes'
 import { divisionLabel } from '../lib/userAdmin'
@@ -597,6 +598,12 @@ export function SopWorkflowPage() {
       {previewing && (
         <PreviewDialog
           title={content.history.previewTitle.replace('{title}', sop.title).replace('{version}', previewing.version.version)}
+          // "<file name> · Added on <date> · by <name>": the file's original name, the day in Riyadh the version was added, and who added it.
+          meta={<MetaLine template={previewing.version.uploadedById ? content.history.previewMeta : content.history.previewMetaNoUploader} values={{
+            file: previewing.version.fileName,
+            date: <time dateTime={previewing.version.uploadedAt}>{formatReviewDate(previewing.version.uploadedAt)}</time>,
+            name: previewing.version.uploadedById ? nameOf(previewing.version.uploadedById) : '',
+          }} />}
           url={previewing.url}
           viewerTitle={(previewing.version.fileType === 'docx' ? content.history.docxViewerTitle : content.history.viewerTitle)
             .replace('{title}', sop.title)

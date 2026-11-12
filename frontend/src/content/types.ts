@@ -879,6 +879,10 @@ export interface SopWorkflowContent {
     checkCompleted: string
     /** Preview dialog: `{title}` and `{version}` are replaced. */
     previewTitle: string
+    /** The preview dialog's header line: `{file}` (the file's original name), `{date}` (when the version was added) and `{name}` (who added it). */
+    previewMeta: string
+    /** The same when the uploader isn't known. */
+    previewMetaNoUploader: string
     /** Accessible name of the embedded viewer; `{title}` and `{version}` are replaced. */
     viewerTitle: string
     /** The same, for a Word file's preview. */

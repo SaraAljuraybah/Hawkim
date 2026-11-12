@@ -150,6 +150,8 @@ export const sopWorkflowEn: SopWorkflowContent = {
     },
     checkCompleted: 'Add a new version to run another check.',
     previewTitle: '{title} · v{version}',
+    previewMeta: '{file} · Added on {date} · by {name}',
+    previewMetaNoUploader: '{file} · Added on {date}',
     viewerTitle: '{title}, v{version} (PDF)',
     docxViewerTitle: '{title}, v{version} (Word document preview)',
     close: 'Close preview',

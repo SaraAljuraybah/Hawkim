@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef } from 'react'
+import { useEffect, useId, useRef, type ReactNode } from 'react'
 import { X } from 'lucide-react'
 import { DocxViewer } from '../sops/DocxViewer'
 import { PdfViewer } from '../sops/PdfViewer'
@@ -6,6 +6,8 @@ import { PdfViewer } from '../sops/PdfViewer'
 interface PreviewDialogProps {
   /** Accessible name of the dialog (for screen readers only), e.g. "SOP-081 · v2". */
   title: string
+  /** A line about the file, shown in the header: e.g. its name, when and by whom it was added. */
+  meta?: ReactNode
   url: string
   /** Accessible name of the embedded viewer. */
   viewerTitle: string
@@ -21,7 +23,7 @@ interface PreviewDialogProps {
  * A large modal with the PDF (or Word document) of one version, built on the native <dialog> like the
  * other dialogs: dims and inerts the page and closes on Escape. Focus starts on Close.
  */
-export function PreviewDialog({ title, url, viewerTitle, closeLabel, fallback, docx, onClose }: PreviewDialogProps) {
+export function PreviewDialog({ title, meta, url, viewerTitle, closeLabel, fallback, docx, onClose }: PreviewDialogProps) {
   const dialogRef = useRef<HTMLDialogElement>(null)
   const closeRef = useRef<HTMLButtonElement>(null)
   const titleId = useId()
@@ -43,10 +45,11 @@ export function PreviewDialog({ title, url, viewerTitle, closeLabel, fallback, d
       onClick={(event) => event.target === dialogRef.current && dialogRef.current?.close()}
       className="m-auto max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-5xl overflow-y-auto rounded-xl border border-beige bg-white p-0 shadow-xl backdrop:bg-maroon/40"
     >
-      <div className="flex items-center justify-end gap-3 border-b border-beige px-5 py-3">
+      <div className="flex items-center justify-between gap-3 border-b border-beige px-5 py-3">
         <h2 id={titleId} className="sr-only">
           {title}
         </h2>
+        <div className="min-w-0 break-words">{meta}</div>
         <button
           ref={closeRef}
           type="button"
