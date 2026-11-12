@@ -92,6 +92,14 @@ export const internalReviewEn = {
       invalid: 'Enter a whole number of working days from 1 to 3,650.',
       past: 'That deadline has already passed. Enter more working days.',
       unchanged: 'That is already the review deadline. Enter a different number.',
+      pending: {
+        title: 'Change Review Duration for {name}',
+        current: 'Current review duration: {count} working days', currentOne: 'Current review duration: 1 working day', noCurrent: 'Current review duration: none',
+        hint: 'The review time starts when they accept (by {date}), excluding weekends.',
+        preview: 'Latest due date: {date} (if they accept on the last day).',
+        confirm: 'Change Duration',
+        unchanged: 'That is already the review duration. Enter a different number.',
+      },
       unavailable: "This reviewer isn't reviewing this version any more.",
       failed: 'The review deadline could not be changed.',
       changed: 'Review deadline changed for {name}.',
@@ -104,11 +112,22 @@ export const internalReviewEn = {
     /** The Reviewers table on the author's SOP page. */
     table: {
       version: 'Version {version}', versionCurrent: 'Version {version} (Current)', caption: 'Review requests for version {version}',
-      columns: { reviewer: 'Reviewer', department: 'Department', division: 'Division', sent: 'Request Sent', status: 'Status', response: 'Response Date', deadline: 'Review Deadline', actions: 'Actions' },
+      columns: { reviewer: 'Reviewer', department: 'Department', division: 'Division', sent: 'Request Sent', status: 'Status', response: 'Response Date', deadline: 'Review Deadline', preview: 'Preview', sendAgain: 'Send Again', edit: 'Edit', delete: 'Delete' },
       none: '—', noNotes: 'No Comments',
       viewNotes: 'View Comments from {name}', notesTitle: 'Comments from {name}', close: 'Close',
       notes: { comment: 'Comments', decline: 'Reason for Declining', removal: 'Reason for Removing' },
       editDeadline: 'Edit Review Deadline for {name}',
+      editDuration: 'Edit Review Duration for {name}',
+      /** Why Edit is disabled for a request. */
+      editBlocked: {
+        closed: 'This review is no longer open.',
+        removed: 'This reviewer was removed.',
+        declined: 'This reviewer declined the request.',
+        withdrawn: 'This request was withdrawn.',
+        expired: 'This request expired. Use Send Again instead.',
+        completed: 'This reviewer completed the review.',
+        returned: 'This reviewer returned the review with comments.',
+      },
     },
   },
 } as const

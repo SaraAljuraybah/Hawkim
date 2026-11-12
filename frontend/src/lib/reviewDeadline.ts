@@ -1,7 +1,7 @@
 import type { InternalReviewerAssignment } from '../data/mock/types'
 import { fixedResponseDueDate } from './fixedResponseDeadline'
 import { isValidReviewDuration, REVIEW_DURATION_CONFIRM_ABOVE, requestDeadline } from './internalReviewStatus'
-import { addRiyadhCalendarDays, addRiyadhWorkingDays, endOfRiyadhDay, reviewWorkingDueDateFrom } from './riyadhWorkingDays'
+import { addRiyadhCalendarDays, addRiyadhWorkingDays, endOfRiyadhDay, reviewWorkingDueDateFrom, WORKING_DAY_POLICY } from './riyadhWorkingDays'
 
 /** The database refused a change of deadline: this tab was behind (the reviewer finished, say). */
 export class ReviewDeadlineUnavailableError extends Error {}
@@ -30,6 +30,28 @@ export function latestReviewDueDate(duration: string, now = new Date(), workingD
   if (days === undefined) return undefined
   const lastDayToAccept = fixedResponseDueDate(now)
   return workingDays ? addRiyadhWorkingDays(lastDayToAccept, days) : addRiyadhCalendarDays(lastDayToAccept, days)
+}
+
+export interface PendingDurationPreview {
+  /** Why it can't be used. */
+  problem?: 'invalid' | 'unchanged'
+  /** The latest the review can be due: the reviewer accepts on the last day of their response window. */
+  latestDueDate?: string
+  /** Above the number of working days the author confirms. */
+  long: boolean
+}
+
+/**
+ * A pending request's new review duration: it starts when the reviewer accepts, so there is no
+ * deadline yet, only the latest it can be (accepted on the last day to accept), counted as
+ * accept_review will. The same duration under the working-day policy is no change.
+ */
+export function previewPendingDuration(request: Pick<InternalReviewerAssignment, 'responseDueDate' | 'reviewDurationDays' | 'deadlinePolicy'>, duration: string): PendingDurationPreview {
+  const days = durationDays(duration)
+  if (days === undefined) return { problem: 'invalid', long: false }
+  const latestDueDate = request.responseDueDate ? addRiyadhWorkingDays(request.responseDueDate, days) : undefined
+  const unchanged = days === request.reviewDurationDays && request.deadlinePolicy === WORKING_DAY_POLICY
+  return { ...(unchanged ? { problem: 'unchanged' as const } : {}), ...(latestDueDate ? { latestDueDate } : {}), long: days > REVIEW_DURATION_CONFIRM_ABOVE }
 }
 
 export interface ReviewDeadlinePreview {

@@ -17,6 +17,7 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import { notificationsEn } from '../../content/notifications.en'
+import { sopWorkflowEn } from '../../content/workflow.en'
 import { Button } from '../ui/Button'
 import type { NotificationType } from '../../lib/notifications'
 import { isReadOnlyDepartment, needsHomeDepartment } from '../../lib/departmentNavigation'
@@ -47,6 +48,7 @@ const ICONS: Record<NotificationType, LucideIcon> = {
   'sop-returned': Undo2,
   response: MessageSquareReply,
   'review-deadline-changed': Clock,
+  'review-duration-changed': Clock,
   'sop-approved': BadgeCheck,
   'sop-published': BookOpen,
   'due-soon': Clock,
@@ -157,6 +159,9 @@ function NotificationsBellPanel({ onOpenLink }: { onOpenLink: (link: string) => 
         return fill(t.response)
       case 'review-deadline-changed':
         return fill(t.reviewDeadlineChanged).replace('{date}', item.dueAt ? formatReviewDate(item.dueAt) : '')
+      case 'review-duration-changed':
+        return fill(t.reviewDurationChanged).replace('{days}', item.reviewDurationDays === 1 ? sopWorkflowEn.timeline.durationDay
+          : sopWorkflowEn.timeline.durationDays.replace('{count}', String(item.reviewDurationDays ?? '')))
       case 'sop-approved':
         return fill(t.approved)
       case 'sop-published':

@@ -41,6 +41,7 @@ export const notificationsEn: NotificationsContent = {
     published: '{title} · v{version} was published',
     response: '{name} responded to the comments on {title} · v{version}',
     reviewDeadlineChanged: '{name} changed your review deadline for {title} · v{version} to {date}',
+    reviewDurationChanged: '{name} changed the review duration of your request for {title} · v{version} to {days}',
     dueSoon: {
       review: '{title} is due for your review {day}',
       response: '{title}: accept or decline the review request {day}, or it will expire',

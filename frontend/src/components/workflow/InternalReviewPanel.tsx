@@ -3,7 +3,7 @@ import { flushSync } from 'react-dom'
 import { internalReviewEn as text } from '../../content/internalReview.en'
 import { sopWorkflowEn } from '../../content/workflow.en'
 import type { InternalReviewerAssignment, InternalReviewRound, Sop } from '../../data/mock/types'
-import { canChangeReviewDeadline, canResendRequest, resendIsTooEarly, REVIEW_TEXT_MAX } from '../../lib/internalReview'
+import { canResendRequest, deadlineEditBlocker, resendIsTooEarly, REVIEW_TEXT_MAX } from '../../lib/internalReview'
 import { isInactiveDecision, latestAssignmentOf, RequestNotResendableError, ReviewerOrderError } from '../../lib/internalReviewStatus'
 import { fixedResponseDueDate } from '../../lib/fixedResponseDeadline'
 import { formatDate } from '../../lib/format'
@@ -115,7 +115,8 @@ export function InternalReviewPanel({ sop, canRemove, inactive = false, table = 
     </li>)}</ul>}
     {table && requests.length > 0 && <ReviewRequestsTable sop={sop} response={response} onRemove={askToRemove}
       canRemove={(round, assignment) => removable && isLatestRequest(round, assignment) && (assignment.decision === 'expired' || !isInactiveDecision(assignment.decision))}
-      canEditDeadline={(round, assignment) => canRemove && canChangeReviewDeadline(sop, round, assignment)}
+      authorActions={canRemove}
+      deadlineBlocked={(round, assignment) => { const blocker = inactive ? 'closed' : deadlineEditBlocker(sop, round, assignment); return blocker && text.panel.table.editBlocked[blocker] }}
       onEditDeadline={(round, assignment, trigger) => { triggerRef.current = trigger; setEditing({ roundId: round.id, assignment }) }}
       canResend={(round, assignment) => !inactive && canRemove && canResendRequest(sop, round, assignment)}
       resendBlocked={(assignment) => resendIsTooEarly(sop, assignment, users) ? mustFinish() : undefined}

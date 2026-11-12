@@ -1,9 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { SYSTEM_ACTOR, type InternalReviewRound, type Sop, type User } from '../data/mock/types'
-import { acceptInternalReview, canResendRequest, resendInternalReview, addableReviewers, addInternalReviewers, canAddReviewers, changeInternalReviewDeadline, currentInternalRound, decideInternalReview, declineInternalReview, isInternalReviewPending, nextExpiryAt, removeInternalReviewer, canSendNewVersion, sendNewVersionForReview, startInternalReview, expireUnanswered } from './internalReview'
+import { acceptInternalReview, canResendRequest, deadlineEditBlocker, resendInternalReview, addableReviewers, addInternalReviewers, canAddReviewers, changeInternalReviewDeadline, currentInternalRound, decideInternalReview, declineInternalReview, isInternalReviewPending, nextExpiryAt, removeInternalReviewer, canSendNewVersion, sendNewVersionForReview, startInternalReview, expireUnanswered } from './internalReview'
 import { latestAssignmentOf, projectReviewers, reviewAllowsNewVersion } from './internalReviewStatus'
 import { fixedResponseDueDate } from './fixedResponseDeadline'
 import { endOfRiyadhDay } from './riyadhWorkingDays'
+import { previewReviewDeadline } from './reviewDeadline'
 import { deriveNotifications } from './notifications'
 import { reviewTasks } from './reviews'
 import { deleteBlockers, permissionChangeBlockers, sopsUsing } from './userAdmin'
@@ -618,12 +619,51 @@ describe('changing a review deadline', () => {
     expect(reminder(moved, '2026-11-08T12:00:00+03:00')!.id).not.toBe(reminder(sop, '2026-11-05T12:00:00+03:00')!.id)
   })
 
-  it('is only for the main author, on a request being reviewed', () => {
+  it('is only for the main author, on a request being reviewed or still pending', () => {
     const sop = accepted()
     for (const actor of ['coauthor', 'a', 'admin']) expect(() => change(sop, 3, actor)).toThrow()
-    expect(() => change(sop, 3, 'author', 'b')).toThrow(/any more/)
+    for (const actor of ['coauthor', 'b', 'admin']) expect(() => change(sop, 3, actor, 'b')).toThrow()
     const finished = decideInternalReview(sop, 'a', currentInternalRound(sop)!.id, task(sop, 'a').id, 'completed', undefined, env())
     expect(() => change(finished, 3)).toThrow(/any more/)
+  })
+
+  it('changes a pending request\'s review duration only: no deadline until they accept', () => {
+    const sop = accepted()
+    const before = task(sop, 'b')
+    const changed = change(sop, 7, 'author', 'b')
+    expect(task(changed, 'b')).toMatchObject({ decision: 'pending', reviewDurationDays: 7, responseDueDate: before.responseDueDate, responseDueAt: before.responseDueAt })
+    expect(task(changed, 'b').reviewDueDate).toBeUndefined()
+    expect(changed.timeline.at(-1)).toMatchObject({ type: 'review-duration-changed', actorId: 'author', recipientIds: ['b'], reviewAssignmentId: before.id,
+      previousReviewDurationDays: before.reviewDurationDays, newReviewDurationDays: 7 })
+    expect(() => change(changed, 7, 'author', 'b')).toThrow(/already the review duration/)
+    for (const days of [0, 3651, 2.5]) expect(() => change(sop, days, 'author', 'b')).toThrow(/1 to 3,650/)
+    // Accepting starts the review with the new duration.
+    const started = acceptInternalReview(changed, 'b', currentInternalRound(changed)!.id, task(changed, 'b').id, env())
+    expect(task(started, 'b').reviewDurationDays).toBe(7)
+    expect(task(started, 'b').reviewDueDate).toBe(previewReviewDeadline(task(started, 'b'), '7').dueDate)
+  })
+
+  it('tells why it can\'t change: removed, declined, expired, completed, returned, an older version or a Draft', () => {
+    const sop = accepted()
+    const round = () => currentInternalRound(sop)!
+    expect(deadlineEditBlocker(sop, round(), task(sop, 'a'))).toBeUndefined()
+    expect(deadlineEditBlocker(sop, round(), task(sop, 'b'))).toBeUndefined()
+    const removed = cancel(sop, 'b')
+    expect(deadlineEditBlocker(removed, currentInternalRound(removed)!, task(removed, 'b'))).toBe('removed')
+    const declined = decline(sop, 'c')
+    expect(deadlineEditBlocker(declined, currentInternalRound(declined)!, task(declined, 'c'))).toBe('declined')
+    const expired = expireUnanswered(sop, Date.parse(endOfRiyadhDay(task(sop, 'b').responseDueDate!)))
+    expect(deadlineEditBlocker(expired, currentInternalRound(expired)!, task(expired, 'b'))).toBe('expired')
+    const completed = decide(sop, 'a')
+    expect(deadlineEditBlocker(completed, currentInternalRound(completed)!, task(completed, 'a'))).toBe('completed')
+    const returned = decide(sop, 'a', 'returned', 'Changes')
+    expect(deadlineEditBlocker(returned, currentInternalRound(returned)!, task(returned, 'a'))).toBe('returned')
+    const older = { ...sop, version: '2' }
+    expect(deadlineEditBlocker(older, round(), task(sop, 'a'))).toBe('closed')
+    let draftAgain = start()
+    for (const user of ['a', 'b', 'c']) draftAgain = cancel(draftAgain, user)
+    expect(draftAgain.status).toBe('draft')
+    expect(deadlineEditBlocker(draftAgain, currentInternalRound(draftAgain)!, task(draftAgain, 'a'))).toBe('closed')
   })
 })
 

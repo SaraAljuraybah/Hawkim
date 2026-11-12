@@ -347,6 +347,7 @@ export type TimelineEventType =
   | 'version-deleted'
   | 'response'
   | 'review-deadline-changed'
+  | 'review-duration-changed'
   | 'submitted'
   | 'resubmitted'
   | 'forwarded-to-approver'
@@ -395,6 +396,9 @@ export interface TimelineEvent {
   /** For review-deadline-changed: the deadline before (none if there wasn't one) and after. */
   previousReviewDueAt?: string
   newReviewDueAt?: string
+  /** For review-duration-changed (a pending request): the review duration before (none if there wasn't one) and after, in working days. */
+  previousReviewDurationDays?: number
+  newReviewDurationDays?: number
   /** For stage-due-date-set: which stage and its due date (ISO date and time). */
   stage?: 'review' | 'approval'
   dueAt?: string

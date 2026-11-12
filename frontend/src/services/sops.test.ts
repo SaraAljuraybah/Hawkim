@@ -207,6 +207,14 @@ describe('a changed review deadline in the timeline', () => {
   })
 })
 
+describe('a changed review duration in the timeline', () => {
+  it('keeps the old and new durations of a pending request, and leaves out an old one that was empty', () => {
+    const event = (previous: number | null) => ({ ...row.timeline_events[0], type: 'review-duration-changed' as const, previous_review_duration_days: previous, new_review_duration_days: 7 })
+    expect(toSop({ ...row, timeline_events: [event(3)] }).timeline[0]).toMatchObject({ type: 'review-duration-changed', previousReviewDurationDays: 3, newReviewDurationDays: 7 })
+    expect(toSop({ ...row, timeline_events: [event(null)] }).timeline[0].previousReviewDurationDays).toBeUndefined()
+  })
+})
+
 describe('reading SOPs', () => {
   it('selects the saved deadlines and their policy, but no column outside the schema', async () => {
     await fetchSops()

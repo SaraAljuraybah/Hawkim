@@ -3,7 +3,7 @@ import { checkRequired, hasCurrentCheck } from './compliance'
 import { fixedResponseDueDate } from './fixedResponseDeadline'
 import { todayIsoDate } from './format'
 import { isInactiveDecision, isOpenDecision, isUnsentVersion, isValidReviewDuration, isExpiryDue, latestAssignmentOf, latestAssignments, projectReviewers, requestDeadline, reviewDueDateFrom, expiryDueAt } from './internalReviewStatus'
-import { previewReviewDeadline } from './reviewDeadline'
+import { previewPendingDuration, previewReviewDeadline } from './reviewDeadline'
 import { assignableReviewers, eligibleReviewers, type ReviewEnvironment } from './reviewFlow'
 import { WORKING_DAY_DEADLINES_ACTIVE } from './deadlinePolicy'
 import { parseResponseDueDate } from './responseTime'
@@ -301,20 +301,42 @@ export function removeInternalReviewer(sop: Sop, actorId: string, roundId: strin
   const updated = update(round, assignmentId, { decision: 'removed', removedAt: now, removedById: actorId, removalReason: trimmed })
   return settleRound(sop, updated, [event(round, 'reviewer-removed', actorId, { reviewAssignmentId: assignmentId, note: trimmed, recipientIds: [assignment.userId] })])
 }
-/** The reviewer is reviewing the current version (accepted, on their latest request, in an open round), so their deadline can change. */
+/** Why a request's review deadline or duration can't be changed: the review is over for it, or the request has ended. */
+export type DeadlineEditBlocker = 'closed' | 'removed' | 'declined' | 'withdrawn' | 'expired' | 'completed' | 'returned'
+
+/**
+ * Whether the main author can change this request's review time, as change_review_deadline allows:
+ * the reviewer's latest request, pending (its review duration, before it starts) or accepted (its
+ * review deadline), in the open round of the current version of an SOP In Review.
+ */
+export function deadlineEditBlocker(sop: Sop, round: InternalReviewRound, assignment: InternalReviewerAssignment): DeadlineEditBlocker | undefined {
+  if (sop.status !== 'in-review' || round !== currentInternalRound(sop) || round.version !== sop.version || round.status !== 'open') return 'closed'
+  if (assignment.decision === 'pending' || assignment.decision === 'accepted') return latestAssignmentOf(round, assignment.userId) === assignment ? undefined : 'closed'
+  return assignment.decision
+}
+/** The reviewer's latest request is pending or accepted in the current version's open round, so its review time can change. */
 export function canChangeReviewDeadline(sop: Sop, round: InternalReviewRound, assignment: InternalReviewerAssignment): boolean {
-  return sop.status === 'in-review' && round === currentInternalRound(sop) && round.version === sop.version && round.status === 'open' &&
-    assignment.decision === 'accepted' && latestAssignmentOf(round, assignment.userId) === assignment
+  return !deadlineEditBlocker(sop, round, assignment)
 }
 /**
- * The main author changes a reviewer's review deadline, or sets one: a number of working days from
- * acceptance. The request then follows the working-day policy, whichever one it was sent under.
+ * The main author changes a reviewer's review time: for an accepted request its review deadline (or
+ * sets one), a number of working days from acceptance; for a pending one the review duration it will
+ * start with once they accept. The request then follows the working-day policy, whichever one it was
+ * sent under. The response deadline never changes.
  */
 export function changeInternalReviewDeadline(sop: Sop, actorId: string, roundId: string, assignmentId: string, days: number, env: ReviewEnvironment): Sop {
   author(sop, actorId, env)
   const round = currentInternalRound(sop)
   const assignment = round?.assignments.find((person) => person.id === assignmentId)
   assert(round?.id === roundId && assignment && canChangeReviewDeadline(sop, round, assignment), "This reviewer isn't reviewing this version any more")
+  if (assignment.decision === 'pending') {
+    const planned = previewPendingDuration(assignment, String(days))
+    assert(planned.problem !== 'invalid', 'Choose a review duration of 1 to 3,650 working days')
+    assert(planned.problem !== 'unchanged', 'That is already the review duration')
+    const updated = update(round, assignmentId, { reviewDurationDays: days, deadlinePolicy: WORKING_DAY_POLICY })
+    return save(sop, updated, [event(round, 'review-duration-changed', actorId, { reviewAssignmentId: assignmentId, recipientIds: [assignment.userId],
+      ...(assignment.reviewDurationDays !== undefined ? { previousReviewDurationDays: assignment.reviewDurationDays } : {}), newReviewDurationDays: days })])
+  }
   const preview = previewReviewDeadline(assignment, String(days))
   assert(preview.problem !== 'invalid', 'Choose a review duration of 1 to 3,650 working days')
   assert(preview.problem !== 'past', 'That deadline has already passed')

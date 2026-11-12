@@ -95,8 +95,11 @@ export function ReviewTimelineTable({ sop, content, mainAuthorOnly = false, rele
   const deadlineChange = (event: TimelineEvent) => timeline.deadlineChange
     .replace('{old}', event.previousReviewDueAt ? formatReviewDate(event.previousReviewDueAt) : timeline.noDeadline)
     .replace('{new}', event.newReviewDueAt ? formatReviewDate(event.newReviewDueAt) : timeline.noDeadline)
+  const days = (count: number | undefined) => count === undefined ? timeline.noDuration : count === 1 ? timeline.durationDay : timeline.durationDays.replace('{count}', String(count))
+  const durationChange = (event: TimelineEvent) => timeline.durationChange.replace('{old}', days(event.previousReviewDurationDays)).replace('{new}', days(event.newReviewDurationDays))
   const comment = (event: TimelineEvent) => reasonPreview && event.type in REASON_EVENTS ? undefined
-    : event.type === 'review-deadline-changed' ? deadlineChange(event) : event.note ?? commentForEvent(sop, event)?.text
+    : event.type === 'review-deadline-changed' ? deadlineChange(event)
+      : event.type === 'review-duration-changed' ? durationChange(event) : event.note ?? commentForEvent(sop, event)?.text
   const [viewing, setViewing] = useState<NonNullable<ReturnType<typeof timelineReason>> | null>(null)
   const trigger = useRef<HTMLButtonElement | null>(null)
   function closeReason() {

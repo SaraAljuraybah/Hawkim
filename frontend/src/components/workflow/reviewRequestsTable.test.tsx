@@ -39,7 +39,7 @@ afterEach(() => vi.useRealTimers())
 describe('Reviewers table on the author SOP page', () => {
   it('has the agreed columns, row headers and a stacked card for each request', () => {
     const html = render(started())
-    expect([...table(html).matchAll(/<th scope="col"[^>]*>([^<]+)</g)].map((match) => match[1])).toEqual(['Reviewer', 'Division', 'Department', 'Request Sent', 'Status', 'Response Date', 'Review Deadline', 'Actions'])
+    expect([...table(html).matchAll(/<th scope="col"[^>]*>([^<]+)</g)].map((match) => match[1])).toEqual(['Reviewer', 'Division', 'Department', 'Request Sent', 'Status', 'Response Date', 'Review Deadline', 'Preview', 'Send Again', 'Edit', 'Delete'])
     expect(table(html).match(/<th scope="row"/g)).toHaveLength(3)
     // The cards use the same label; the old one is gone.
     expect(html.slice(html.indexOf('</table>')).match(/>Response Date</g)).toHaveLength(3)
@@ -121,15 +121,48 @@ describe('Reviewers table on the author SOP page', () => {
     expect(render(sop, false)).not.toContain('from this review')
   })
 
-  it('shows the pencil to the main author on requests being reviewed in the current version only', () => {
+  it('always shows the pencil to the main author: the deadline when accepted, the duration when pending', () => {
     let sop = started()
     sop = acceptInternalReview(sop, 'alpha', currentInternalRound(sop)!.id, request(sop, 'alpha').id, env())
-    const pencil = row(render(sop), 'Reviewer Alpha').match(/<button[^>]*aria-label="Edit Review Deadline for Reviewer Alpha"[^>]*>/)![0]
-    expect(pencil).not.toContain('aria-disabled="true"')
-    expect(row(render(sop), 'Reviewer Beta')).not.toContain('Edit Review Deadline')
-    expect(render(sop, false)).not.toContain('Edit Review Deadline')
-    const finished = decideInternalReview(sop, 'alpha', currentInternalRound(sop)!.id, request(sop, 'alpha').id, 'completed', undefined, env())
-    expect(row(render(finished), 'Reviewer Alpha')).not.toContain('Edit Review Deadline')
+    const pencil = (html: string, name: string, label = 'Edit Review Deadline') => row(html, name).match(new RegExp(`<button[^>]*aria-label="${label} for ${name}"[^>]*>`))![0]
+    expect(pencil(render(sop), 'Reviewer Alpha')).not.toContain('aria-disabled="true"')
+    expect(pencil(render(sop), 'Reviewer Beta', 'Edit Review Duration')).not.toContain('aria-disabled="true"')
+    // Co-authors see neither Edit nor the other author actions.
+    expect(render(sop, false)).not.toContain('Edit Review')
+    expect(table(render(sop, false))).not.toContain('>Edit<')
+  })
+
+  it.each([
+    ['completed', 'This reviewer completed the review.'],
+    ['returned', 'This reviewer returned the review with comments.'],
+  ] as const)('disables the pencil, with a tooltip, once the reviewer %s it', (decision, reason) => {
+    let sop = started()
+    sop = acceptInternalReview(sop, 'alpha', currentInternalRound(sop)!.id, request(sop, 'alpha').id, env())
+    sop = decideInternalReview(sop, 'alpha', currentInternalRound(sop)!.id, request(sop, 'alpha').id, decision, decision === 'returned' ? 'Fix it' : undefined, env())
+    const cell = row(render(sop), 'Reviewer Alpha')
+    expect(cell.match(/<button[^>]*aria-label="Edit Review Deadline for Reviewer Alpha"[^>]*>/)![0]).toContain('aria-disabled="true"')
+    expect(cell).toContain(reason)
+  })
+
+  it('disables the pencil for removed, declined and expired requests, and older versions', () => {
+    const begun = started()
+    const round = currentInternalRound(begun)!
+    let sop = removeInternalReviewer(begun, 'author', round.id, request(begun, 'alpha').id, 'Not needed', env())
+    sop = declineInternalReview(sop, 'beta', round.id, request(sop, 'beta').id, 'On leave', env())
+    const html = render(sop)
+    expect(row(html, 'Reviewer Alpha')).toContain('This reviewer was removed.')
+    expect(row(html, 'Reviewer Beta')).toContain('This reviewer declined the request.')
+    const expired = expireUnanswered(acceptInternalReview(begun, 'gamma', round.id, request(begun, 'gamma').id, env()), Date.parse(endOfRiyadhDay(request(begun, 'alpha').responseDueDate!)))
+    expect(row(render(expired), 'Reviewer Alpha')).toContain('This request expired. Use Send Again instead.')
+    const older: Sop = { ...begun, version: '2', internalReviewRounds: [round, { ...round, id: 'second', version: '2', assignments: [] }] }
+    const olderTable = render(older).slice(render(older).indexOf(`id="review-requests-${round.id}"`))
+    expect(olderTable).toContain('This review is no longer open.')
+  })
+
+  it('gives each action its own centered column, like the other tables', () => {
+    const headers = table(render(started())).match(/<th scope="col" class="w-20 py-2 text-center font-medium">[^<]+<\/th>/g)!
+    expect(headers.map((header) => header.replace(/<[^>]+>/g, ''))).toEqual(['Preview', 'Send Again', 'Edit', 'Delete'])
+    expect(table(render(started(), false)).match(/<th scope="col" class="w-20 py-2 text-center font-medium">[^<]+<\/th>/g)!.map((header) => header.replace(/<[^>]+>/g, ''))).toEqual(['Preview'])
   })
 
   it('shows one disclosure per version, newest first, with only the newest expanded', () => {

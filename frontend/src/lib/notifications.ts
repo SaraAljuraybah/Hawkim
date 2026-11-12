@@ -38,6 +38,7 @@ export type NotificationType =
   | 'response'
   /** The main author changed my review deadline. */
   | 'review-deadline-changed'
+  | 'review-duration-changed'
   /** My pending decision in the open stage. */
   | 'due-soon'
   | 'overdue'
@@ -73,6 +74,8 @@ export interface AppNotification {
   dueAt?: string
   /** A decline or removal reason. */
   reason?: string
+  /** review-duration-changed: the new review duration, in working days. */
+  reviewDurationDays?: number
   /** review-withdrawn and review-expired: whether the user is the reviewer whose request it was (otherwise the author). */
   forReviewer?: boolean
   /** review-expired: nobody has acted on it yet, so it stays unread however old it is. */
@@ -188,6 +191,8 @@ function fromEvent(sop: Sop, event: TimelineEvent, userId: string): AppNotificat
       return isRecipient ? { ...base, type: 'response', link: reviewPath(sop.id) } : undefined
     case 'review-deadline-changed':
       return isRecipient ? { ...base, type: 'review-deadline-changed', dueAt: event.newReviewDueAt, link: reviewPath(sop.id) } : undefined
+    case 'review-duration-changed':
+      return isRecipient ? { ...base, type: 'review-duration-changed', reviewDurationDays: event.newReviewDurationDays, link: reviewPath(sop.id) } : undefined
     case 'published':
       return isWriter && event.actorId !== userId ? { ...base, type: 'sop-published', link: mySopPath(sop.id) } : undefined
     default:
