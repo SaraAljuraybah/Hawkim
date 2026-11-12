@@ -193,6 +193,13 @@ describe('author workflow section layout', () => {
     expect(sopTitleProblem('x'.repeat(51))).toBe('too-long')
   })
 
+  it('names the SOP History date column Added Date', () => {
+    const html = render(<SopWorkflowPage />)
+    const history = html.slice(html.indexOf('id="history-title"'), html.indexOf('</section>', html.indexOf('id="history-title"')))
+    expect(history).toMatch(/<th scope="col"[^>]*>\s*Added Date\s*<\/th>/)
+    expect(history).not.toMatch(/<th scope="col"[^>]*>\s*Date\s*<\/th>/)
+  })
+
   it('keeps the initial Add Reviewers action in Reviewers, with the required section order and no actions in Timeline', () => {
     const html = render(<SopWorkflowPage />)
     const ids = ['authors-title', 'history-title', 'compliance-title', 'internal-review-title', 'timeline-title']

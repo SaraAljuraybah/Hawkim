@@ -119,7 +119,7 @@ export const sopWorkflowEn: SopWorkflowContent = {
 
   history: {
     title: 'SOP History',
-    columns: { version: 'Version', author: 'Author', date: 'Date', preview: 'Preview', download: 'Download', delete: 'Delete' },
+    columns: { version: 'Version', author: 'Author', date: 'Added Date', preview: 'Preview', download: 'Download', delete: 'Delete' },
     current: 'Current',
     you: 'You',
     previewLabel: 'Preview v{version}',
