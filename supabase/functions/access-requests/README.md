@@ -15,7 +15,9 @@ The public **Request Hawkim** form (`/request-hawkim`) and the Hawkim team's **r
 
 ## Setup (once)
 
-1. Apply the migration (the database owner).
+1. Apply the migration (the database owner). Since `20261115120000_request_organization_details.sql`
+   the function sends the organization's details to the 13-parameter `submit_access_request`: apply that
+   migration first, then deploy this function straight away (new requests fail in between).
 2. Deploy with JWT verification off: `npx supabase functions deploy access-requests --no-verify-jwt`
    (or Dashboard → Edge Functions → Deploy a new function → Via editor, name `access-requests`,
    paste `access-requests-single-file.ts`, then turn JWT verification off in its settings).

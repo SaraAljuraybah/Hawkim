@@ -156,6 +156,8 @@ const fail = (status: number, error: string, extra: Record<string, unknown> = {}
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const TOKEN = /^[A-Za-z0-9_-]{43}$/
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+/** A link as the Organization Profile takes it: https:// and a host with a dot, no spaces. */
+const HTTPS_LINK = /^https:\/\/[^\s/?#]+\.[^\s]*$/i
 
 // ---------- Validation ----------
 
@@ -170,6 +172,9 @@ export type RequestForm = {
   /** No longer asked (the applicant becomes the Super Admin, and Admins have no position): '' when not sent. */
   organization: string; contactName: string; jobTitle: string; email: string; phone: string
   approxUsers: number; message: string
+  /** The organization's details ('' for an optional one not given). Website is `organizationWebsite`: `website` is the hidden field for bots. */
+  organizationEmail: string; organizationAddress: string; organizationMapsUrl: string
+  organizationWebsite: string; organizationDescription: string
 }
 
 /** The cleaned form, or the names of the fields that are not valid. */
@@ -180,16 +185,32 @@ export function validateForm(input: Record<string, unknown>): { form: RequestFor
   const email = text("email").toLowerCase(), message = text("message")
   const phone = normalizePhone(text("phone"))
   const approxUsers = Number(input.approxUsers)
+  // The organization's details, with the Organization Profile's rules (save_organization_profile).
+  const organizationEmail = text("organizationEmail"), organizationAddress = text("organizationAddress")
+  const organizationMapsUrl = text("organizationMapsUrl"), organizationWebsite = text("organizationWebsite")
+  const organizationDescription = text("organizationDescription")
+  const link = (value: string) => value.length <= 2048 && HTTPS_LINK.test(value)
   if (!organization || organization.length > 200) invalid.push("organization")
   if (!contactName || contactName.length > 100) invalid.push("contactName")
   // Optional: an older form may still send one, and it is checked as before.
   if (jobTitle.length > 100) invalid.push("jobTitle")
   if (!EMAIL.test(email) || email.length > 254) invalid.push("email")
   if (!phone) invalid.push("phone")
+  if (!EMAIL.test(organizationEmail) || organizationEmail.length > 254) invalid.push("organizationEmail")
+  // An address or a Google Maps link (at least one); the address on one line.
+  if ((!organizationAddress && !organizationMapsUrl) || organizationAddress.length > 300 || /\p{Cc}/u.test(organizationAddress)) {
+    invalid.push("organizationAddress")
+  }
+  if (organizationMapsUrl && !link(organizationMapsUrl)) invalid.push("organizationMapsUrl")
+  if (organizationWebsite && !link(organizationWebsite)) invalid.push("organizationWebsite")
+  if (!organizationDescription || organizationDescription.length > 1000) invalid.push("organizationDescription")
   if (!Number.isInteger(approxUsers) || approxUsers < 1 || approxUsers > 100000) invalid.push("approxUsers")
   if (message.length > 2000) invalid.push("message")
   if (invalid.length) return { invalid }
-  return { form: { organization, contactName, jobTitle, email, phone: phone!, approxUsers, message } }
+  return { form: {
+    organization, contactName, jobTitle, email, phone: phone!, approxUsers, message,
+    organizationEmail, organizationAddress, organizationMapsUrl, organizationWebsite, organizationDescription,
+  } }
 }
 
 // ---------- Review link token ----------
@@ -250,9 +271,13 @@ async function sendEmail(to: string, subject: string, html: string): Promise<voi
 export function detailsTable(f: RequestForm): string {
   const row = (label: string, value: string) =>
     `<tr><td style="padding:6px 12px 6px 0;color:#6D5D62;white-space:nowrap;vertical-align:top;">${label}</td><td style="padding:6px 0;color:#2A1B20;">${value}</td></tr>`
+  const optional = (value: string) => (value ? esc(value) : "—")
   return `<table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:12px 0 4px 0;font-size:15px;line-height:22px;">
     ${row("Organization", esc(f.organization))}${row("Contact person", esc(f.contactName))}${f.jobTitle ? row("Position", esc(f.jobTitle)) : ""}
-    ${row("Email", esc(f.email))}${row("Phone", esc(f.phone))}${row("Approximate number of users", String(f.approxUsers))}
+    ${row("Contact person email", esc(f.email))}${row("Phone", esc(f.phone))}
+    ${row("Organization email", esc(f.organizationEmail))}${row("Address", optional(f.organizationAddress))}${row("Google Maps link", optional(f.organizationMapsUrl))}
+    ${row("Website", optional(f.organizationWebsite))}${row("Description", esc(f.organizationDescription).replace(/\n/g, "<br>"))}
+    ${row("Approximate number of users", String(f.approxUsers))}
     ${row("Message", f.message ? esc(f.message).replace(/\n/g, "<br>") : "—")}</table>`
 }
 
@@ -262,6 +287,9 @@ type StoredRequest = {
   id: string; organization: string; contact_name: string; job_title: string | null; email: string; phone: string
   approx_users: number; message: string; status: "pending" | "accepted" | "rejected"; created_at: string
   decided_at: string | null; expired: boolean; account_exists: boolean
+  /** null on requests sent before the form asked for them. */
+  organization_email: string | null; organization_address: string | null; organization_maps_url: string | null
+  organization_website: string | null; organization_description: string | null
 }
 
 async function submit(input: Record<string, unknown>): Promise<Response> {
@@ -276,10 +304,15 @@ async function submit(input: Record<string, unknown>): Promise<Response> {
     id = await rpc<string>("submit_access_request", {
       p_organization: f.organization, p_contact_name: f.contactName, p_job_title: f.jobTitle, p_email: f.email,
       p_phone: f.phone, p_approx_users: f.approxUsers, p_message: f.message, p_token_hash: await sha256Hex(token),
+      p_organization_email: f.organizationEmail, p_organization_address: f.organizationAddress,
+      p_organization_maps_url: f.organizationMapsUrl, p_organization_website: f.organizationWebsite,
+      p_organization_description: f.organizationDescription,
     })
   } catch (e) {
     if (e instanceof DbError && e.message === "too_many_requests") return fail(429, "too_many_requests")
     if (e instanceof DbError && e.message === "organization_taken") return fail(409, "organization_taken")
+    // The database checks the organization's details again (validateForm checked them first).
+    if (e instanceof DbError && e.message === "invalid_organization_details") return fail(400, "invalid")
     console.error("access-requests: submit failed:", e instanceof Error ? e.message : e)
     return fail(500, "failed")
   }
@@ -325,6 +358,9 @@ function publicView(r: StoredRequest) {
     organization: r.organization, contactName: r.contact_name, jobTitle: r.job_title, email: r.email, phone: r.phone,
     approxUsers: r.approx_users, message: r.message, status: r.status, createdAt: r.created_at, decidedAt: r.decided_at,
     expired: r.expired, accountExists: r.account_exists,
+    organizationEmail: r.organization_email, organizationAddress: r.organization_address,
+    organizationMapsUrl: r.organization_maps_url, organizationWebsite: r.organization_website,
+    organizationDescription: r.organization_description,
   }
 }
 

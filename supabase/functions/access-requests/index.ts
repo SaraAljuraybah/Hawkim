@@ -97,6 +97,9 @@ type StoredRequest = {
   id: string; organization: string; contact_name: string; job_title: string | null; email: string; phone: string
   approx_users: number; message: string; status: "pending" | "accepted" | "rejected"; created_at: string
   decided_at: string | null; expired: boolean; account_exists: boolean
+  /** null on requests sent before the form asked for them. */
+  organization_email: string | null; organization_address: string | null; organization_maps_url: string | null
+  organization_website: string | null; organization_description: string | null
 }
 
 async function submit(input: Record<string, unknown>): Promise<Response> {
@@ -111,10 +114,15 @@ async function submit(input: Record<string, unknown>): Promise<Response> {
     id = await rpc<string>("submit_access_request", {
       p_organization: f.organization, p_contact_name: f.contactName, p_job_title: f.jobTitle, p_email: f.email,
       p_phone: f.phone, p_approx_users: f.approxUsers, p_message: f.message, p_token_hash: await sha256Hex(token),
+      p_organization_email: f.organizationEmail, p_organization_address: f.organizationAddress,
+      p_organization_maps_url: f.organizationMapsUrl, p_organization_website: f.organizationWebsite,
+      p_organization_description: f.organizationDescription,
     })
   } catch (e) {
     if (e instanceof DbError && e.message === "too_many_requests") return fail(429, "too_many_requests")
     if (e instanceof DbError && e.message === "organization_taken") return fail(409, "organization_taken")
+    // The database checks the organization's details again (validateForm checked them first).
+    if (e instanceof DbError && e.message === "invalid_organization_details") return fail(400, "invalid")
     console.error("access-requests: submit failed:", e instanceof Error ? e.message : e)
     return fail(500, "failed")
   }
@@ -160,6 +168,9 @@ function publicView(r: StoredRequest) {
     organization: r.organization, contactName: r.contact_name, jobTitle: r.job_title, email: r.email, phone: r.phone,
     approxUsers: r.approx_users, message: r.message, status: r.status, createdAt: r.created_at, decidedAt: r.decided_at,
     expired: r.expired, accountExists: r.account_exists,
+    organizationEmail: r.organization_email, organizationAddress: r.organization_address,
+    organizationMapsUrl: r.organization_maps_url, organizationWebsite: r.organization_website,
+    organizationDescription: r.organization_description,
   }
 }
 
