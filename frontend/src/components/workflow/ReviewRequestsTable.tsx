@@ -1,41 +1,29 @@
-import { useRef, useState, type MouseEvent, type ReactNode } from 'react'
-import { ChevronDown, Eye, Pencil, RotateCw, Trash2 } from 'lucide-react'
+import { useState, type MouseEvent, type ReactNode } from 'react'
+import { ChevronDown, Pencil, RotateCw, Trash2 } from 'lucide-react'
 import { internalReviewEn } from '../../content/internalReview.en'
 import type { InternalReviewerAssignment, InternalReviewRound, Sop } from '../../data/mock/types'
 import { formatDate, formatReviewDate } from '../../lib/format'
 import { isInactiveDecision, REVIEW_DEADLINE_EDITING_ACTIVE } from '../../lib/internalReviewStatus'
-import { canRespondToRequest, requestResponseDate, requestReviewDueDate, reviewNotes, visibleReviewRequests, type ReviewNote } from '../../lib/reviewRequestRows'
+import { requestResponseDate, requestReviewDueDate, visibleReviewRequests } from '../../lib/reviewRequestRows'
 import { useDepartments } from '../../state/departmentsContext'
 import { useUsers } from '../../state/usersContext'
 import { IconButton } from '../ui/IconButton'
 import { RequestStatusBadge } from './ReviewRequestDetails'
-import { ReviewNotesDialog } from './ReviewNotesDialog'
 import { divisionLabel } from '../../lib/userAdmin'
 
 interface ReviewRequestsTableProps {
   sop: Sop
-  /** Whether this request's reviewer can be removed now. */
-  canRemove: (round: InternalReviewRound, request: InternalReviewerAssignment) => boolean
+  /** Why this request's reviewer can't be removed now (Delete's tooltip), or undefined when they can. */
+  removeBlocked: (round: InternalReviewRound, request: InternalReviewerAssignment) => string | undefined
   onRemove: (round: InternalReviewRound, request: InternalReviewerAssignment, trigger: HTMLButtonElement) => void
   /** The main author: the Send Again, Edit and Delete columns. */
   authorActions: boolean
   /** Why Edit is disabled for this request (its tooltip), or undefined when the review time can change. */
   deadlineBlocked: (round: InternalReviewRound, request: InternalReviewerAssignment) => string | undefined
   onEditDeadline?: (round: InternalReviewRound, request: InternalReviewerAssignment, trigger: HTMLButtonElement) => void
-  /** Whether this expired request can be sent again. */
-  canResend: (round: InternalReviewRound, request: InternalReviewerAssignment) => boolean
-  /** Why it can't be sent again yet: the action stays visible, disabled, with this tooltip. */
-  resendBlocked: (request: InternalReviewerAssignment) => string | undefined
+  /** Why this request can't be sent again now (Send Again's tooltip), or undefined when it can. */
+  resendBlocked: (round: InternalReviewRound, request: InternalReviewerAssignment) => string | undefined
   onResend: (round: InternalReviewRound, request: InternalReviewerAssignment, trigger: HTMLButtonElement) => void
-  /** Responding from the comments dialog (the author's SOP page). */
-  response?: ReviewRequestResponse
-}
-
-export interface ReviewRequestResponse {
-  /** Who a response to this request goes to, as shown in the dialog. */
-  recipients: (request: InternalReviewerAssignment) => string
-  /** Saves the response; if it throws, the dialog stays open and says so. */
-  send: (request: InternalReviewerAssignment, text: string) => Promise<void>
 }
 
 const text = internalReviewEn.panel.table
@@ -49,28 +37,20 @@ function Timestamp({ value, format }: { value?: string; format: (value: string) 
  * The review requests of the SOP, one table per version, newest first (the author's SOP page). An
  * expired request that was sent again is left out (see visibleReviewRequests); every other request
  * shows. The newest version starts expanded and the older ones collapsed. Requests no longer taking
- * part use lighter text. Each action has its own column: Preview (the review comments), and for the
- * main author Send Again, Edit (always shown, disabled with the reason when the review time can't
- * change) and Delete. A table from xl up (the columns don't fit beside the sidebar earlier); stacked
- * cards below.
+ * part use lighter text. For the main author, each action has its own column: Send Again, Edit and
+ * Delete, shown on every row and disabled, with the reason as their tooltip, when they don't apply.
+ * Review comments and reasons open from the Review Timeline's Preview column. A table from xl up
+ * (the columns don't fit beside the sidebar earlier); stacked cards below.
  */
-export function ReviewRequestsTable({ sop, canRemove, onRemove, authorActions, deadlineBlocked, onEditDeadline, canResend, resendBlocked, onResend, response }: ReviewRequestsTableProps) {
+export function ReviewRequestsTable({ sop, removeBlocked, onRemove, authorActions, deadlineBlocked, onEditDeadline, resendBlocked, onResend }: ReviewRequestsTableProps) {
   const { nameOf, getUser } = useUsers()
   const { departments } = useDepartments()
   const [toggled, setToggled] = useState<Record<string, boolean>>({})
-  const [viewing, setViewing] = useState<{ name: string; notes: ReviewNote[]; request: InternalReviewerAssignment } | null>(null)
-  const notesTrigger = useRef<HTMLButtonElement | null>(null)
   const rounds = [...(sop.internalReviewRounds ?? [])].reverse()
-
-  function closeNotes() {
-    setViewing(null)
-    requestAnimationFrame(() => notesTrigger.current?.focus())
-  }
 
   function cells(round: InternalReviewRound, request: InternalReviewerAssignment) {
     const name = nameOf(request.userId)
     const department = departments.find((item) => item.id === getUser(request.userId)?.departmentId)
-    const notes = reviewNotes(sop, request)
     return {
       name,
       department: department?.name ?? text.none,
@@ -79,28 +59,23 @@ export function ReviewRequestsTable({ sop, canRemove, onRemove, authorActions, d
       status: <RequestStatusBadge sop={sop} request={request} />,
       response: <Timestamp value={requestResponseDate(request)} format={formatReviewDate} />,
       deadline: <Timestamp value={requestReviewDueDate(request)} format={formatDate} />,
-      preview: notes.length > 0 ? (
-        <IconButton label={text.viewNotes.replace('{name}', name)} icon={Eye}
-          onClick={(event: MouseEvent<HTMLButtonElement>) => { notesTrigger.current = event.currentTarget; setViewing({ name, notes, request }) }} />
-      ) : <Empty label={text.noNotes} />,
-      sendAgain: canResend(round, request) ? (
-        <IconButton label={internalReviewEn.panel.sendAgain.label.replace('{name}', name)} icon={RotateCw} disabledReason={resendBlocked(request)}
+      sendAgain: (
+        <IconButton label={internalReviewEn.panel.sendAgain.label.replace('{name}', name)} icon={RotateCw} disabledReason={resendBlocked(round, request)}
           onClick={(event: MouseEvent<HTMLButtonElement>) => onResend(round, request, event.currentTarget)} />
-      ) : <Empty />,
+      ),
       edit: (
         <IconButton label={(request.decision === 'pending' ? text.editDuration : text.editDeadline).replace('{name}', name)} icon={Pencil}
           disabledReason={deadlineBlocked(round, request)}
           onClick={(event: MouseEvent<HTMLButtonElement>) => onEditDeadline?.(round, request, event.currentTarget)} />
       ),
-      delete: canRemove(round, request) ? (
-        <IconButton label={internalReviewEn.panel.removeFor.replace('{name}', name)} icon={Trash2} danger
+      delete: (
+        <IconButton label={internalReviewEn.panel.removeFor.replace('{name}', name)} icon={Trash2} danger disabledReason={removeBlocked(round, request)}
           onClick={(event: MouseEvent<HTMLButtonElement>) => onRemove(round, request, event.currentTarget)} />
-      ) : <Empty />,
+      ),
     }
   }
-  // The action columns: Preview for everyone here; Send Again, Edit and Delete for the main author.
-  const actions: { key: 'preview' | 'sendAgain' | 'edit' | 'delete'; label: string }[] = [
-    { key: 'preview' as const, label: text.columns.preview },
+  // The action columns, for the main author only.
+  const actions: { key: 'sendAgain' | 'edit' | 'delete'; label: string }[] = [
     ...(authorActions ? [{ key: 'sendAgain' as const, label: text.columns.sendAgain }] : []),
     ...(authorActions && REVIEW_DEADLINE_EDITING_ACTIVE ? [{ key: 'edit' as const, label: text.columns.edit }] : []),
     ...(authorActions ? [{ key: 'delete' as const, label: text.columns.delete }] : []),
@@ -167,14 +142,14 @@ export function ReviewRequestsTable({ sop, canRemove, onRemove, authorActions, d
                     </div>
                   ))}
                 </dl>
-                <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2">
+                {actions.length > 0 && <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2">
                   {actions.map((action) => (
                     <div key={action.key} className="flex flex-col items-center gap-0.5">
                       <span aria-hidden="true" className="text-xs font-medium text-text-gray">{action.label}</span>
                       {row[action.key]}
                     </div>
                   ))}
-                </div>
+                </div>}
               </li>
             )
           })}
@@ -204,24 +179,7 @@ export function ReviewRequestsTable({ sop, canRemove, onRemove, authorActions, d
           </div>
         )
       })}
-      {viewing && (
-        <ReviewNotesDialog title={text.notesTitle.replace('{name}', viewing.name)} notes={viewing.notes}
-          labels={text.notes} closeLabel={text.close} onClose={closeNotes}
-          response={response && canRespondToRequest(sop, viewing.request) ? {
-            recipients: response.recipients(viewing.request),
-            onSend: (reply) => response.send(viewing.request, reply),
-          } : undefined} />
-      )}
     </div>
   )
 }
 
-/** An action cell with nothing to do: a dash, with its meaning for screen readers. */
-function Empty({ label = text.none }: { label?: string }) {
-  return (
-    <span className="inline-flex size-9 items-center justify-center text-text-gray">
-      <span aria-hidden="true">{text.none}</span>
-      <span className="sr-only">{label}</span>
-    </span>
-  )
-}

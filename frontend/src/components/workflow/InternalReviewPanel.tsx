@@ -3,8 +3,8 @@ import { flushSync } from 'react-dom'
 import { internalReviewEn as text } from '../../content/internalReview.en'
 import { sopWorkflowEn } from '../../content/workflow.en'
 import type { InternalReviewerAssignment, InternalReviewRound, Sop } from '../../data/mock/types'
-import { canResendRequest, deadlineEditBlocker, resendIsTooEarly, REVIEW_TEXT_MAX } from '../../lib/internalReview'
-import { isInactiveDecision, latestAssignmentOf, RequestNotResendableError, ReviewerOrderError } from '../../lib/internalReviewStatus'
+import { deadlineEditBlocker, removeBlocker, resendBlocker, REVIEW_TEXT_MAX } from '../../lib/internalReview'
+import { latestAssignmentOf, RequestNotResendableError, ReviewerOrderError } from '../../lib/internalReviewStatus'
 import { fixedResponseDueDate } from '../../lib/fixedResponseDeadline'
 import { formatDate } from '../../lib/format'
 import { useDepartments } from '../../state/departmentsContext'
@@ -15,7 +15,7 @@ import { Card } from '../ui/Card'
 import { FormDialog } from '../ui/FormDialog'
 import { TextAreaField } from '../ui/TextAreaField'
 import { RequestStatusBadge, ReviewRequestDetails } from './ReviewRequestDetails'
-import { ReviewRequestsTable, type ReviewRequestResponse } from './ReviewRequestsTable'
+import { ReviewRequestsTable } from './ReviewRequestsTable'
 import { DecisionBadge } from './DecisionBadge'
 import { ReviewDeadlineDialog } from './ReviewDeadlineDialog'
 import { ReviewerDeadline } from './ReviewerDeadline'
@@ -26,8 +26,6 @@ interface Props {
   inactive?: boolean
   /** Every request in a table per version (the author's SOP page), instead of the cards per reviewer. */
   table?: boolean
-  /** Responding from the table's comments dialog. */
-  response?: ReviewRequestResponse
   /** Keep the author's initial review controls available before there are requests. */
   showEmpty?: boolean
   /** Box heading (also the section's accessible name). */
@@ -43,7 +41,7 @@ const TITLE_ID = 'internal-review-title'
  * its version, its deadlines, and any reason or comments. The main author can remove a reviewer
  * from the current version's review.
  */
-export function InternalReviewPanel({ sop, canRemove, inactive = false, table = false, response, showEmpty = false, title = text.panel.title, actions, children }: Props) {
+export function InternalReviewPanel({ sop, canRemove, inactive = false, table = false, showEmpty = false, title = text.panel.title, actions, children }: Props) {
   const { nameOf, users } = useUsers()
   const { nameOf: departmentName } = useDepartments()
   const store = useSops()
@@ -113,13 +111,16 @@ export function InternalReviewPanel({ sop, canRemove, inactive = false, table = 
       <DecisionBadge decision={reviewer.decision} labels={sopWorkflowEn.people.decisions} />
       <ReviewerDeadline sop={sop} reviewer={reviewer} content={sopWorkflowEn.reviewerDeadline} showQueue inactive={inactive} />
     </li>)}</ul>}
-    {table && requests.length > 0 && <ReviewRequestsTable sop={sop} response={response} onRemove={askToRemove}
-      canRemove={(round, assignment) => removable && isLatestRequest(round, assignment) && (assignment.decision === 'expired' || !isInactiveDecision(assignment.decision))}
+    {table && requests.length > 0 && <ReviewRequestsTable sop={sop} onRemove={askToRemove}
+      removeBlocked={(round, assignment) => { const blocker = inactive ? 'closed' : removeBlocker(sop, round, assignment); return blocker && text.panel.table.removeBlocked[blocker] }}
       authorActions={canRemove}
       deadlineBlocked={(round, assignment) => { const blocker = inactive ? 'closed' : deadlineEditBlocker(sop, round, assignment); return blocker && text.panel.table.editBlocked[blocker] }}
       onEditDeadline={(round, assignment, trigger) => { triggerRef.current = trigger; setEditing({ roundId: round.id, assignment }) }}
-      canResend={(round, assignment) => !inactive && canRemove && canResendRequest(sop, round, assignment)}
-      resendBlocked={(assignment) => resendIsTooEarly(sop, assignment, users) ? mustFinish() : undefined}
+      resendBlocked={(round, assignment) => {
+        const blocker = inactive ? 'closed' : resendBlocker(sop, round, assignment, users)
+        const reasons = text.panel.table.sendAgainBlocked
+        return blocker === 'home-first' ? mustFinish() : blocker === 'not-expired' ? reasons.notExpired : blocker && reasons[blocker]
+      }}
       onResend={(_, assignment, trigger) => { triggerRef.current = trigger; setResendError(''); setResending(assignment) }} />}
     {!table && reviewerIds.length > 0 && <ul className="space-y-4">{reviewerIds.map((userId) => {
       const own = requestsOf(userId).reverse()

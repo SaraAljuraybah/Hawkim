@@ -200,6 +200,28 @@ export function addInternalReviewers(sop: Sop, actorId: string, options: Interna
     ...options.reviewerIds.map((userId) => ({ id: id('internal-task'), userId, decision: 'pending' as const, assignedAt: now, assignedDueDays: null, ...timing }))] }
   return settleRound(sop, updated, [event(round, 'submitted', actorId, { createdAt: now, recipientIds: options.reviewerIds, ...(options.note?.trim() ? { note: options.note.trim() } : {}) })])
 }
+/** Why Send Again doesn't apply to a request: the review isn't open to it, it didn't expire, it was sent again, or the department rule. */
+export type ResendBlocker = 'closed' | 'not-expired' | 'replaced' | 'home-first'
+/** Why this request can't be sent again now (canResendRequest, then the department rule), or undefined when it can. */
+export function resendBlocker(sop: Sop, round: InternalReviewRound, request: InternalReviewerAssignment, users: ReviewEnvironment['users']): ResendBlocker | undefined {
+  if (!canAddReviewers(sop) || round !== currentInternalRound(sop)) return 'closed'
+  if (request.decision !== 'expired') return 'not-expired'
+  if (latestAssignmentOf(round, request.userId) !== request) return 'replaced'
+  return resendIsTooEarly(sop, request, users) ? 'home-first' : undefined
+}
+/** Why a reviewer can't be removed on this request: the review isn't open to it, a newer request replaced it, or it already ended. */
+export type RemoveBlocker = 'closed' | 'replaced' | 'removed' | 'declined' | 'withdrawn'
+/**
+ * Why the main author can't remove this request's reviewer now, or undefined when they can: the
+ * reviewer's latest request in the current version's review of an SOP In Review, unless it was
+ * removed, declined or withdrawn (an expired one can be removed).
+ */
+export function removeBlocker(sop: Sop, round: InternalReviewRound, request: InternalReviewerAssignment): RemoveBlocker | undefined {
+  const current = currentInternalRound(sop)
+  if (sop.status !== 'in-review' || current?.version !== sop.version || round !== current) return 'closed'
+  if (latestAssignmentOf(round, request.userId) !== request) return 'replaced'
+  return request.decision === 'removed' || request.decision === 'declined' || request.decision === 'withdrawn' ? request.decision : undefined
+}
 /** Whether the main author can send this expired request again: the reviewer's latest, in the current version's review. */
 export function canResendRequest(sop: Sop, round: InternalReviewRound, request: InternalReviewerAssignment): boolean {
   return canAddReviewers(sop) && round === currentInternalRound(sop) && request.decision === 'expired' && latestAssignmentOf(round, request.userId) === request

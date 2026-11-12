@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { sopWorkflowEn } from '../../content/workflow.en'
 import type { Sop, TimelineEvent } from '../../data/mock/types'
 import { visibleTimelineEvents } from '../../lib/releaseScope'
-import { timelineReason } from '../../lib/reviewRequestRows'
+import { timelineNote } from '../../lib/reviewRequestRows'
 import { ReviewNotesDialog } from './ReviewNotesDialog'
 import { ReviewTimelineTable } from './ReviewTimelineTable'
 
@@ -15,7 +15,7 @@ const removed: TimelineEvent = { id: 'removed', type: 'reviewer-removed', actorI
 const declined: TimelineEvent = { id: 'declined', type: 'review-declined', actorId: 'beta', recipientIds: ['author'], version: '1', createdAt: '2026-10-04T08:00:00Z', note: 'On leave' }
 const submitted: TimelineEvent = { id: 'submitted', type: 'submitted', actorId: 'author', recipientIds: ['alpha', 'beta'], version: '1', createdAt: '2026-10-03T08:00:00Z', note: 'Please review' }
 const sop = { id: 'sop', authorId: 'author', coAuthorIds: [], reviewers: [], approvers: [], comments: [], internalReviewRounds: [], timeline: [submitted, declined, removed] } as unknown as Sop
-const author = () => renderToStaticMarkup(<ReviewTimelineTable sop={sop} content={sopWorkflowEn} mainAuthorOnly releaseScoped reasonPreview />)
+const author = () => renderToStaticMarkup(<ReviewTimelineTable sop={sop} content={sopWorkflowEn} mainAuthorOnly releaseScoped notePreview />)
 const table = (html: string) => html.slice(html.indexOf('<table'), html.indexOf('</table>'))
 const row = (html: string, action: string) => table(html).match(new RegExp(`<tr[^>]*><th scope="row"[^>]*>${action}.*?</tr>`))![0]
 
@@ -53,12 +53,12 @@ describe('removal and decline reasons in the author\'s Review Timeline', () => {
   })
 
   it('opens the same dialog as before, with only the reason and its date', () => {
-    expect(timelineReason(removed)).toEqual({ type: 'reviewer-removed', reviewerId: 'alpha', note: { kind: 'removal', text: 'Not needed any more', date: '2026-10-05T08:00:00Z' } })
-    expect(timelineReason(declined)).toEqual({ type: 'review-declined', reviewerId: 'beta', note: { kind: 'decline', text: 'On leave', date: '2026-10-04T08:00:00Z' } })
-    expect(timelineReason(submitted)).toBeUndefined()
-    expect(timelineReason({ ...removed, note: undefined })).toBeUndefined()
-    const reason = timelineReason(removed)!
-    const dialog = renderToStaticMarkup(<ReviewNotesDialog title={sopWorkflowEn.timeline.reason.title[reason.type].replace('{name}', 'Reviewer Alpha')}
+    expect(timelineNote(sop, removed)).toEqual({ type: 'reviewer-removed', reviewerId: 'alpha', note: { kind: 'removal', text: 'Not needed any more', date: '2026-10-05T08:00:00Z' } })
+    expect(timelineNote(sop, declined)).toEqual({ type: 'review-declined', reviewerId: 'beta', note: { kind: 'decline', text: 'On leave', date: '2026-10-04T08:00:00Z' } })
+    expect(timelineNote(sop, submitted)).toBeUndefined()
+    expect(timelineNote(sop, { ...removed, note: undefined })).toBeUndefined()
+    const reason = timelineNote(sop, removed)!
+    const dialog = renderToStaticMarkup(<ReviewNotesDialog title={sopWorkflowEn.timeline.notePreview.title[reason.type].replace('{name}', 'Reviewer Alpha')}
       notes={[reason.note]} labels={{ comment: 'Comments', decline: 'Reason for Declining', removal: 'Reason for Removing' }} closeLabel="Close" onClose={() => {}} />)
     for (const text of ['Reason for Removing Reviewer Alpha', '>Reason for Removing<', 'Not needed any more', 'Oct 5, 2026', '>Close<']) expect(dialog).toContain(text)
     expect(dialog).not.toContain('>Comments<')
@@ -69,5 +69,41 @@ describe('removal and decline reasons in the author\'s Review Timeline', () => {
     expect(table(html)).not.toContain('>Preview<')
     expect(table(html)).toContain('Not needed any more')
     expect(table(html)).toContain('On leave')
+  })
+})
+
+describe('review comments in the author\'s Review Timeline', () => {
+  const returned = { id: 'req-alpha', userId: 'alpha', decision: 'returned', assignedAt: '2026-10-03T08:00:00Z', commentId: 'c-alpha' }
+  const completed = { id: 'req-beta', userId: 'beta', decision: 'completed', assignedAt: '2026-10-03T08:00:00Z' }
+  const commented = { ...sop, status: 'in-review', comments: [{ id: 'c-alpha', version: '1', authorId: 'alpha', authorUserId: 'alpha', role: 'reviewer', text: 'Please revise section 2', createdAt: '2026-10-06T08:00:00Z' }],
+    internalReviewRounds: [{ id: 'round', scope: 'internal', version: '1', status: 'changes-requested', assignments: [returned, completed] }],
+    timeline: [submitted,
+      { id: 'ret', type: 'review-changes-requested', actorId: 'alpha', recipientIds: ['author'], version: '1', createdAt: '2026-10-06T08:00:00Z', commentId: 'c-alpha', reviewAssignmentId: 'req-alpha' },
+      { id: 'done', type: 'review-completed', actorId: 'beta', recipientIds: ['author'], version: '1', createdAt: '2026-10-07T08:00:00Z', reviewAssignmentId: 'req-beta' }] } as unknown as Sop
+  const html = () => renderToStaticMarkup(<ReviewTimelineTable sop={commented} content={sopWorkflowEn} mainAuthorOnly releaseScoped notePreview />)
+
+  it('lists completed and returned reviews, with the comments behind an eye and — in Comment', () => {
+    expect(row(html(), 'Returned with comments')).toContain('aria-label="View Comments from Reviewer Alpha"')
+    expect(table(html())).not.toContain('Please revise section 2')
+    expect(row(html(), 'Returned with comments')).toMatch(/<td class="py-3 pr-4"><span aria-hidden="true" class="text-text-gray">—<\/span>/)
+  })
+
+  it('shows — in Preview when a review was completed without comments', () => {
+    expect(row(html(), 'Review completed')).not.toContain('lucide-eye')
+  })
+
+  it('opens the comment with its date and offers Response for that reviewer, as the Reviewers table did', () => {
+    const note = timelineNote(commented, commented.timeline[1])!
+    expect(note).toMatchObject({ reviewerId: 'alpha', note: { kind: 'comment', text: 'Please revise section 2', date: '2026-10-06T08:00:00Z' }, request: { id: 'req-alpha' } })
+    const dialog = renderToStaticMarkup(<ReviewNotesDialog title={sopWorkflowEn.timeline.notePreview.title[note.type].replace('{name}', 'Reviewer Alpha')} notes={[note.note]}
+      labels={{ comment: 'Comments', decline: 'Reason for Declining', removal: 'Reason for Removing' }} closeLabel="Close" onClose={() => {}}
+      response={{ recipients: 'Reviewer Alpha (Reviewer)', onSend: async () => {} }} />)
+    for (const text of ['Comments from Reviewer Alpha', '>Comments<', 'Please revise section 2', 'Oct 6, 2026', '>Response<']) expect(dialog).toContain(text)
+  })
+
+  it('keeps comments inline on the review page, as before', () => {
+    const review = renderToStaticMarkup(<ReviewTimelineTable sop={commented} content={sopWorkflowEn} />)
+    expect(table(review)).toContain('Please revise section 2')
+    expect(table(review)).not.toContain('>Preview<')
   })
 })

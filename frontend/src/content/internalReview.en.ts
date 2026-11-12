@@ -112,12 +112,25 @@ export const internalReviewEn = {
     /** The Reviewers table on the author's SOP page. */
     table: {
       version: 'Version {version}', versionCurrent: 'Version {version} (Current)', caption: 'Review requests for version {version}',
-      columns: { reviewer: 'Reviewer', department: 'Department', division: 'Division', sent: 'Request Sent', status: 'Status', response: 'Response Date', deadline: 'Review Deadline', preview: 'Preview', sendAgain: 'Send Again', edit: 'Edit', delete: 'Delete' },
-      none: '—', noNotes: 'No Comments',
-      viewNotes: 'View Comments from {name}', notesTitle: 'Comments from {name}', close: 'Close',
+      columns: { reviewer: 'Reviewer', department: 'Department', division: 'Division', sent: 'Request Sent', status: 'Status', response: 'Response Date', deadline: 'Review Deadline', sendAgain: 'Send Again', edit: 'Edit', delete: 'Delete' },
+      none: '—', close: 'Close',
       notes: { comment: 'Comments', decline: 'Reason for Declining', removal: 'Reason for Removing' },
       editDeadline: 'Edit Review Deadline for {name}',
       editDuration: 'Edit Review Duration for {name}',
+      /** Why Send Again is disabled for a request (the department rule uses submit.mustFinish). */
+      sendAgainBlocked: {
+        closed: 'This review is no longer open.',
+        notExpired: 'Only an expired request can be sent again.',
+        replaced: 'This request was already sent again.',
+      },
+      /** Why Delete is disabled for a request. */
+      removeBlocked: {
+        closed: 'This review is no longer open.',
+        replaced: 'This reviewer was asked again. Use their newer request.',
+        removed: 'Already removed.',
+        declined: 'This reviewer declined the request.',
+        withdrawn: 'This request was withdrawn.',
+      },
       /** Why Edit is disabled for a request. */
       editBlocked: {
         closed: 'This review is no longer open.',

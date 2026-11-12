@@ -61,7 +61,7 @@ describe('the Edit dialog for a pending request', () => {
 
 describe('a changed review duration in the timeline and notifications', () => {
   it('shows a Review duration changed row with the old and new durations on the author\'s page', () => {
-    const html = renderToStaticMarkup(<ReviewTimelineTable sop={changed()} content={sopWorkflowEn} mainAuthorOnly releaseScoped reasonPreview />)
+    const html = renderToStaticMarkup(<ReviewTimelineTable sop={changed()} content={sopWorkflowEn} mainAuthorOnly releaseScoped notePreview />)
     expect(html).toContain('>Review duration changed<')
     expect(html).toContain('From 3 working days to 7 working days')
     const none = { ...changed(), timeline: changed().timeline.map((event) => event.type === 'review-duration-changed' ? { ...event, previousReviewDurationDays: undefined, newReviewDurationDays: 1 } : event) }

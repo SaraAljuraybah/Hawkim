@@ -912,10 +912,10 @@ export interface SopWorkflowContent {
     columns: { action: string; by: string; to: string; date: string; version: string; comment: string; preview: string }
     /** Screen-reader text of an empty cell. */
     none: string
-    /** A removal's or decline's reason, behind the Preview eye on the author's page; `{name}` is the reviewer. */
-    reason: {
-      view: { 'reviewer-removed': string; 'review-declined': string }
-      title: { 'reviewer-removed': string; 'review-declined': string }
+    /** A removal's or decline's reason, or a review's comments, behind the Preview eye on the author's page; `{name}` is the reviewer. */
+    notePreview: {
+      view: Record<'reviewer-removed' | 'review-declined' | 'review-completed' | 'review-changes-requested', string>
+      title: Record<'reviewer-removed' | 'review-declined' | 'review-completed' | 'review-changes-requested', string>
     }
     viewMore: string
     viewLess: string

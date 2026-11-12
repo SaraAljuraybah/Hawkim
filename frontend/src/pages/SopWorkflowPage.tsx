@@ -412,13 +412,6 @@ export function SopWorkflowPage() {
         sop={sop}
         canRemove={isMainAuthor}
         table
-        response={{
-          recipients: (request) => requestResponseRecipients(sop, request).map((id) => personWithRole(sop, id, content.roles, nameOf)).join(', '),
-          send: async (request, text) => {
-            await store.addResponse(sop.id, text, request.id)
-            announce(content.messages.responseSent)
-          },
-        }}
         showEmpty
         title={internalReviewEn.panel.authorPageTitle}
         actions={
@@ -471,7 +464,14 @@ export function SopWorkflowPage() {
 
       {/* The timeline contains historical events only. */}
       <Section id="timeline-title" title={content.timeline.title} className="mt-6">
-        <ReviewTimelineTable sop={sop} content={content} mainAuthorOnly releaseScoped reasonPreview />
+        <ReviewTimelineTable sop={sop} content={content} mainAuthorOnly releaseScoped notePreview
+          response={{
+            recipients: (request) => requestResponseRecipients(sop, request).map((id) => personWithRole(sop, id, content.roles, nameOf)).join(', '),
+            send: async (request, text) => {
+              await store.addResponse(sop.id, text, request.id)
+              announce(content.messages.responseSent)
+            },
+          }} />
       </Section>
 
 

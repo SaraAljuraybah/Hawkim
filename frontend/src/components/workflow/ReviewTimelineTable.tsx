@@ -3,10 +3,10 @@ import { Eye } from 'lucide-react'
 import { internalReviewEn } from '../../content/internalReview.en'
 import { reviewFlowEn } from '../../content/reviewFlow.en'
 import type { SopWorkflowContent } from '../../content/types'
-import type { Sop, TimelineEvent } from '../../data/mock/types'
+import type { InternalReviewerAssignment, Sop, TimelineEvent } from '../../data/mock/types'
 import { formatReviewDate, formatReviewDateTime as formatDateTime, formatReviewDateTimeNoZone } from '../../lib/format'
 import { visibleTimelineEvents } from '../../lib/releaseScope'
-import { REASON_EVENTS, timelineReason } from '../../lib/reviewRequestRows'
+import { canRespondToRequest, NOTE_EVENTS, timelineNote, type TimelineNote } from '../../lib/reviewRequestRows'
 import { commentForEvent, timelineRecipients } from '../../lib/workflow'
 import { useDepartments } from '../../state/departmentsContext'
 import { useUsers } from '../../state/usersContext'
@@ -22,10 +22,19 @@ interface ReviewTimelineTableProps {
   /** The author's page: only the actions in the current release's scope (see lib/releaseScope). */
   releaseScoped?: boolean
   /**
-   * The author's page: a Preview column. A removal's or decline's reason opens from its eye there,
-   * instead of showing in Comment.
+   * The author's page: a Preview column. A removal's or decline's reason, and a completed or returned
+   * review's comments, open from its eye there instead of showing in Comment.
    */
-  reasonPreview?: boolean
+  notePreview?: boolean
+  /** The author's page: responding to a review comment from its Preview dialog. */
+  response?: ReviewNoteResponse
+}
+
+export interface ReviewNoteResponse {
+  /** Who a response to this request goes to, as shown in the dialog. */
+  recipients: (request: InternalReviewerAssignment) => string
+  /** Saves the response; if it throws, the dialog stays open and says so. */
+  send: (request: InternalReviewerAssignment, text: string) => Promise<void>
 }
 
 
@@ -79,7 +88,7 @@ function Comment({ text, content }: { text: string | undefined; content: SopWork
  * note or a response). Stacked cards on phones. Used on the author's workflow page
  * (where a return's "To" shows only the main author) and on the review page.
  */
-export function ReviewTimelineTable({ sop, content, mainAuthorOnly = false, releaseScoped = false, reasonPreview = false }: ReviewTimelineTableProps) {
+export function ReviewTimelineTable({ sop, content, mainAuthorOnly = false, releaseScoped = false, notePreview = false, response }: ReviewTimelineTableProps) {
   const { timeline, versionTemplate, roles } = content
   const { nameOf } = useUsers()
   const { nameOf: departmentName } = useDepartments()
@@ -97,20 +106,20 @@ export function ReviewTimelineTable({ sop, content, mainAuthorOnly = false, rele
     .replace('{new}', event.newReviewDueAt ? formatReviewDate(event.newReviewDueAt) : timeline.noDeadline)
   const days = (count: number | undefined) => count === undefined ? timeline.noDuration : count === 1 ? timeline.durationDay : timeline.durationDays.replace('{count}', String(count))
   const durationChange = (event: TimelineEvent) => timeline.durationChange.replace('{old}', days(event.previousReviewDurationDays)).replace('{new}', days(event.newReviewDurationDays))
-  const comment = (event: TimelineEvent) => reasonPreview && event.type in REASON_EVENTS ? undefined
+  const comment = (event: TimelineEvent) => notePreview && event.type in NOTE_EVENTS ? undefined
     : event.type === 'review-deadline-changed' ? deadlineChange(event)
       : event.type === 'review-duration-changed' ? durationChange(event) : event.note ?? commentForEvent(sop, event)?.text
-  const [viewing, setViewing] = useState<NonNullable<ReturnType<typeof timelineReason>> | null>(null)
+  const [viewing, setViewing] = useState<TimelineNote | null>(null)
   const trigger = useRef<HTMLButtonElement | null>(null)
   function closeReason() {
     setViewing(null)
     requestAnimationFrame(() => trigger.current?.focus())
   }
   function preview(event: TimelineEvent) {
-    const reason = timelineReason(event)
-    if (!reason) return <span className="inline-flex size-9 items-center justify-center text-text-gray">{empty}</span>
-    return <IconButton label={timeline.reason.view[reason.type].replace('{name}', nameOf(reason.reviewerId))} icon={Eye}
-      onClick={(click: MouseEvent<HTMLButtonElement>) => { trigger.current = click.currentTarget; setViewing(reason) }} />
+    const note = timelineNote(sop, event)
+    if (!note) return <span className="inline-flex size-9 items-center justify-center text-text-gray">{empty}</span>
+    return <IconButton label={timeline.notePreview.view[note.type].replace('{name}', nameOf(note.reviewerId))} icon={Eye}
+      onClick={(click: MouseEvent<HTMLButtonElement>) => { trigger.current = click.currentTarget; setViewing(note) }} />
   }
   const version = (event: TimelineEvent) => versionTemplate.replace('{version}', event.version)
   const date = (event: TimelineEvent) => <time dateTime={event.createdAt}>{formatReviewDateTimeNoZone(event.createdAt)}</time>
@@ -161,7 +170,7 @@ export function ReviewTimelineTable({ sop, content, mainAuthorOnly = false, rele
           <col className="w-[13%]" />
           <col className="w-20" />
           <col />
-          {reasonPreview && <col className="w-20" />}
+          {notePreview && <col className="w-20" />}
         </colgroup>
         <thead>
           <tr className="border-b border-beige text-text-gray">
@@ -172,7 +181,7 @@ export function ReviewTimelineTable({ sop, content, mainAuthorOnly = false, rele
               timeline.columns.date,
               timeline.columns.version,
               timeline.columns.comment,
-              ...(reasonPreview ? [timeline.columns.preview] : []),
+              ...(notePreview ? [timeline.columns.preview] : []),
             ].map((column) => (
               <th key={column} scope="col" className="py-2 pr-4 align-bottom font-medium last:pr-0">
                 {column}
@@ -191,10 +200,10 @@ export function ReviewTimelineTable({ sop, content, mainAuthorOnly = false, rele
               <td className="py-3 pr-4 break-words text-text-gray">{to(event) || empty}</td>
               <td className="py-3 pr-4 text-text-gray">{date(event)}</td>
               <td className="py-3 pr-4 text-text-gray">{version(event)}</td>
-              <td className={reasonPreview ? 'py-3 pr-4' : 'py-3'}>
+              <td className={notePreview ? 'py-3 pr-4' : 'py-3'}>
                 <Comment text={comment(event)} content={timeline} />
               </td>
-              {reasonPreview && <td className="py-1.5 text-center">{preview(event)}</td>}
+              {notePreview && <td className="py-1.5 text-center">{preview(event)}</td>}
             </tr>
           ))}
         </tbody>
@@ -225,7 +234,7 @@ export function ReviewTimelineTable({ sop, content, mainAuthorOnly = false, rele
                 <Comment text={comment(event)} content={timeline} />
               </div>
             )}
-            {reasonPreview && timelineReason(event) && (
+            {notePreview && timelineNote(sop, event) && (
               <div className="mt-2 flex items-center justify-between gap-3">
                 <span className="text-text-gray">{timeline.columns.preview}</span>
                 {preview(event)}
@@ -236,9 +245,13 @@ export function ReviewTimelineTable({ sop, content, mainAuthorOnly = false, rele
       </ul>
 
       {viewing && (
-        <ReviewNotesDialog title={timeline.reason.title[viewing.type].replace('{name}', nameOf(viewing.reviewerId))}
+        <ReviewNotesDialog title={timeline.notePreview.title[viewing.type].replace('{name}', nameOf(viewing.reviewerId))}
           notes={[viewing.note]}
-          labels={internalReviewEn.panel.table.notes} closeLabel={internalReviewEn.panel.table.close} onClose={closeReason} />
+          labels={internalReviewEn.panel.table.notes} closeLabel={internalReviewEn.panel.table.close} onClose={closeReason}
+          response={response && viewing.note.kind === 'comment' && viewing.request && canRespondToRequest(sop, viewing.request) ? {
+            recipients: response.recipients(viewing.request),
+            onSend: (reply) => response.send(viewing.request!, reply),
+          } : undefined} />
       )}
     </>
   )
