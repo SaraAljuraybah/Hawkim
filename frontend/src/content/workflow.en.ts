@@ -181,15 +181,9 @@ export const sopWorkflowEn: SopWorkflowContent = {
     title: 'Review Timeline',
     columns: { action: 'Action', by: 'By', to: 'To', date: 'Date', version: 'Version', comment: 'Comment', preview: 'Preview' },
     none: 'None',
-    notePreview: {
-      view: {
-        'reviewer-removed': 'View the Reason for Removing {name}', 'review-declined': 'View the Reason {name} Declined',
-        'review-completed': 'View Comments from {name}', 'review-changes-requested': 'View Comments from {name}',
-      },
-      title: {
-        'reviewer-removed': 'Reason for Removing {name}', 'review-declined': 'Reason {name} Declined',
-        'review-completed': 'Comments from {name}', 'review-changes-requested': 'Comments from {name}',
-      },
+    reason: {
+      view: { 'reviewer-removed': 'View the Reason for Removing {name}', 'review-declined': 'View the Reason {name} Declined' },
+      title: { 'reviewer-removed': 'Reason for Removing {name}', 'review-declined': 'Reason {name} Declined' },
     },
     viewMore: 'View More',
     viewLess: 'View Less',

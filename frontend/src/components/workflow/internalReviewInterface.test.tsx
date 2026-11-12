@@ -123,7 +123,7 @@ describe('internal parallel review across transitions and detail views', () => {
     fixture.userId = 'reviewer-b'
     expect(render(<ReviewPage />)).toContain(heading('Reviewer Alpha'))
   })
-  it('keeps decision comments behind the Preview eye of the author page timeline, not in the Reviewers table', () => {
+  it('keeps decision comments out of the Reviewers table, and in the author page timeline', () => {
     fixture.sop = decide(decide(start(), 'reviewer-a', 'completed', 'All sections are clear'), 'reviewer-b', 'returned', 'Revise the safety section')
     const author = render(<SopWorkflowPage />)
     const panel = author.slice(author.indexOf('id="internal-review-title"'), author.indexOf(sopWorkflowEn.timeline.title))
@@ -131,10 +131,7 @@ describe('internal parallel review across transitions and detail views', () => {
     for (const text of ['Request sent ', 'Decision submitted ', 'All sections are clear', 'Revise the safety section']) expect(panel).not.toContain(text)
     const events = sopWorkflowEn.timeline.events
     for (const label of [events.submitted, events['review-accepted'], events['review-completed'], events['review-changes-requested']]) expect(author).toContain('>' + label + '<')
-    // Behind the eye (its dialog opens on click), not printed in the page.
-    for (const comment of ['All sections are clear', 'Revise the safety section']) expect(author).not.toContain(comment)
-    for (const name of ['Reviewer Alpha', 'Reviewer Beta']) expect(author).toContain(`aria-label="View Comments from ${name}"`)
-    expect(panel).not.toContain('View Comments')
+    for (const comment of ['All sections are clear', 'Revise the safety section']) expect(author).toContain(comment)
   })
   it('leaves Response out of the Reviewers header when the comments are on reviewer rows', () => {
     fixture.sop = decide(start(), 'reviewer-a', 'returned', 'Revise the safety section')
@@ -216,9 +213,8 @@ describe('internal parallel review across transitions and detail views', () => {
     fixture.sop = sendNewVersionForReview(revised, 'author', '4.0', { reviewerIds: ['reviewer-a', 'reviewer-b'] }, environment())
     expect(JSON.stringify(fixture.sop.internalReviewRounds?.slice(0, -1))).toBe(history)
     const html = render(<SopWorkflowPage />)
-    // The v1 comments stay available behind the Timeline's Preview eye.
-    expect(html).toContain('aria-label="View Comments from Reviewer Alpha"')
-    expect(html).toContain('aria-label="View Comments from Reviewer Beta"')
+    expect(html).toContain('Checked version one')
+    expect(html).toContain('Revise the safety section')
     expect(html).toContain('v1')
     expect(html).toContain('v2')
     expect(fixture.sop.description).toBe('Description retained')

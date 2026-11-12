@@ -29,7 +29,7 @@ import type { SopVersion } from '../data/mock/types'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { canReplaceSampleResult, checkRequired, checkStartFailure, currentCheck, hasCurrentCheck, isCheckRunning } from '../lib/compliance'
 import { approvalButtonBlocker } from '../lib/approval'
-import { hasResponseOutsideReviewers, requestResponseRecipients } from '../lib/reviewRequestRows'
+import { hasResponseOutsideReviewers } from '../lib/reviewRequestRows'
 import { canAddReviewers, canSendNewVersion } from '../lib/internalReview'
 import { reviewAllowsNewVersion } from '../lib/internalReviewStatus'
 import { formatDate } from '../lib/format'
@@ -464,14 +464,7 @@ export function SopWorkflowPage() {
 
       {/* The timeline contains historical events only. */}
       <Section id="timeline-title" title={content.timeline.title} className="mt-6">
-        <ReviewTimelineTable sop={sop} content={content} mainAuthorOnly releaseScoped notePreview
-          response={{
-            recipients: (request) => requestResponseRecipients(sop, request).map((id) => personWithRole(sop, id, content.roles, nameOf)).join(', '),
-            send: async (request, text) => {
-              await store.addResponse(sop.id, text, request.id)
-              announce(content.messages.responseSent)
-            },
-          }} />
+        <ReviewTimelineTable sop={sop} content={content} mainAuthorOnly releaseScoped reasonPreview />
       </Section>
 
 

@@ -1,6 +1,6 @@
 import type { InternalReviewerAssignment, InternalReviewRound, Sop, TimelineEvent } from '../data/mock/types'
 import { latestAssignmentOf, PER_REVIEWER_RESPONSE_ACTIVE } from './internalReviewStatus'
-import { commentForEvent, responseRecipients } from './workflow'
+import { responseRecipients } from './workflow'
 
 /** The database refused a response to this request: another tab removed the reviewer, say (this tab didn't know yet). */
 export class ResponseNotAvailableError extends Error {}
@@ -17,40 +17,19 @@ export interface ReviewNote {
   date?: string
 }
 
-/**
- * The Review Timeline actions whose note opens from the author page's Preview eye: a removal's or
- * decline's reason, and a completed or returned review's comments.
- */
-export const NOTE_EVENTS = {
-  'reviewer-removed': 'removal', 'review-declined': 'decline', 'review-completed': 'comment', 'review-changes-requested': 'comment',
-} as const
-export type NoteEventType = keyof typeof NOTE_EVENTS
-
-export interface TimelineNote {
-  type: NoteEventType
-  /** Whose it is: the reviewer removed, or the one who declined, completed or returned it. */
-  reviewerId: string
-  note: ReviewNote
-  /** The review request it belongs to, when the event names one (for Response). */
-  request?: InternalReviewerAssignment
-}
+/** The Review Timeline actions whose note is a reviewer's reason (behind the author page's Preview eye). */
+export const REASON_EVENTS = { 'reviewer-removed': 'removal', 'review-declined': 'decline' } as const
+export type ReasonEventType = keyof typeof REASON_EVENTS
 
 /**
- * The note an action's Preview dialog shows. Undefined for any other action, or one with nothing
- * to show (a removal or decline saved without a reason, a review completed without comments).
+ * A removal's or decline's reason as the Preview dialog shows it, with whose it is (the reviewer
+ * removed, or the one who declined). Undefined for any other action, or one saved without a note.
  */
-export function timelineNote(sop: Pick<Sop, 'comments' | 'internalReviewRounds'>, event: TimelineEvent): TimelineNote | undefined {
-  if (!(event.type in NOTE_EVENTS)) return undefined
-  const type = event.type as NoteEventType
-  const kind = NOTE_EVENTS[type]
-  const comment = kind === 'comment' ? commentForEvent(sop as Sop, event) : undefined
-  const text = kind === 'comment' ? comment?.text : event.note
-  if (!text) return undefined
+export function timelineReason(event: TimelineEvent): { type: ReasonEventType; reviewerId: string; note: ReviewNote } | undefined {
+  if (!(event.type in REASON_EVENTS) || !event.note) return undefined
+  const type = event.type as ReasonEventType
   const reviewerId = (type === 'reviewer-removed' ? event.recipientIds?.[0] : event.actorId) ?? ''
-  const request = event.reviewAssignmentId
-    ? sop.internalReviewRounds?.flatMap((round) => round.assignments).find((item) => item.id === event.reviewAssignmentId)
-    : undefined
-  return { type, reviewerId, note: { kind, text, date: comment?.createdAt ?? event.createdAt }, ...(request ? { request } : {}) }
+  return { type, reviewerId, note: { kind: REASON_EVENTS[type], text: event.note, date: event.createdAt } }
 }
 
 /**
@@ -72,6 +51,13 @@ export function requestReviewDueDate(request: InternalReviewerAssignment): strin
   return request.acceptedAt ? request.reviewDueDate : undefined
 }
 
+/** The reviewer's review comments for this request (the Reviewers table eye). */
+export function reviewNotes(sop: Pick<Sop, 'comments'>, request: InternalReviewerAssignment): ReviewNote[] {
+  const comment = sop.comments.find((item) => item.id === request.commentId)
+  // Decline and removal reasons open from the Review Timeline's Preview column instead.
+  return comment ? [{ kind: 'comment' as const, text: comment.text, date: comment.createdAt }] : []
+}
+
 /**
  * Who a response from this request's comments dialog goes to: only its reviewer. With
  * PER_REVIEWER_RESPONSE_ACTIVE off, everyone respond_to_comments reaches without a request.
@@ -81,7 +67,7 @@ export function requestResponseRecipients(sop: Sop, request: InternalReviewerAss
 }
 
 /**
- * Whether a review comment's dialog (the Review Timeline's Preview) offers Response: its reviewer wrote a comment (returned,
+ * Whether this request's comments dialog offers Response: its reviewer wrote a comment (returned,
  * or completed with one) and wasn't removed, the SOP isn't published, and the reviewer would
  * receive the response. Only the author and co-authors reach this dialog.
  */
