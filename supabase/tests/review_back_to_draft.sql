@@ -195,6 +195,24 @@ begin
   perform public.expire_due_requests(sop);
   assert pg_temp.sop_status(sop) = 'draft' and pg_temp.events(sop) = before, 'A closed round is left alone';
 
+  -- ---------- 3b. The last pending requests expire during Submit for Review ----------
+  -- Both deadlines have passed but nothing has applied the expiry yet: the SOP still reads In Review.
+  -- submit_for_review expires them first (withdraw_due), so the SOP is a Draft by the time it decides
+  -- what kind of send this is: it reopens the round instead of refusing with "Upload a new version".
+  file := file + 1;
+  sop := public.create_sop('Expires during submit', 'Description', 'btd-home', author || '/b7100000-0000-4000-8000-' || lpad(file::text, 12, '0') || '.pdf', 'Procedure.pdf');
+  round1 := public.submit_for_review(sop, array[home1, home2], null, null, null);
+  reset role;
+  update public.review_requests set response_due_at = now() - interval '1 minute' where round_id = round1;
+  set local role authenticated;
+  assert pg_temp.sop_status(sop) = 'in-review' and pg_temp.requests(sop) = array['pending', 'pending'], 'Not expired yet';
+  before := pg_temp.events(sop);
+  assert public.submit_for_review(sop, array[home3], null, null, null) = round1, 'Submit for Review succeeds and reopens the round';
+  assert pg_temp.sop_status(sop) = 'in-review' and pg_temp.round_status(round1) = 'open', 'In Review again, the round open';
+  assert pg_temp.rounds(sop) = 1, 'Still one round for the version';
+  assert pg_temp.requests(sop) = array['expired', 'expired', 'pending'], 'Both expired during the call; the new request after them';
+  assert pg_temp.events(sop) = pg_temp.plus(before, 'review-expired', 'review-expired', 'submitted'), 'The two expiries, then a submitted event';
+
   -- ---------- 4. A withdrawn (legacy) request and a removal ----------
   file := file + 1;
   sop := public.create_sop('Withdrawn and removed', 'Description', 'btd-home', author || '/b7100000-0000-4000-8000-' || lpad(file::text, 12, '0') || '.pdf', 'Procedure.pdf');

@@ -13,7 +13,8 @@
 -- event). A round is one per version (unique (sop_id, version)), so when the current version's round
 -- is the closed one, it reopens that round ('open', closed_at cleared) and adds the new requests
 -- after the old ones, instead of inserting a round. A version uploaded while Draft gets a new round,
--- as before. add_reviewers and resend_review_request need In Review, so they refuse a Draft.
+-- as before. add_reviewers and resend_review_request need In Review, so they refuse a Draft. It reads
+-- the SOP again after withdraw_due: requests expiring during the call can leave it a Draft.
 --
 -- SOPs already In Review with nobody taking part are not changed here.
 -- supabase/scripts/rollback_review_back_to_draft.sql undoes it.
@@ -86,6 +87,8 @@ begin
   select * into sop from public.sops s where s.id = p_sop_id for update;
   perform public.assert_main_author(sop);
   perform public.withdraw_due(p_sop_id);
+  -- Read it again: if the last pending requests just expired, the SOP is a Draft now.
+  select * into sop from public.sops s where s.id = p_sop_id;
   latest := public.latest_round(p_sop_id);
   is_first := sop.status = 'draft';
   if is_first and exists (select 1 from public.review_rounds r where r.sop_id = p_sop_id and r.status = 'open') then
