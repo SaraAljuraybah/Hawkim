@@ -26,7 +26,7 @@ export const adminEn: AdminContent = {
           { label: 'Admins', href: '/admin/admins', icon: 'admins', matchSubpaths: true },
         ],
       },
-      { label: 'SFDA Regulatory Requirements', href: '/admin/regulations', icon: 'regulatory', matchSubpaths: true },
+      { label: 'Regulatory Requirements', href: '/admin/regulations', icon: 'regulatory', matchSubpaths: true },
       { label: 'SOP Directory', href: '/admin/sops', icon: 'sops', matchSubpaths: true },
       { label: 'Requests', href: '/admin/requests', icon: 'requests', matchSubpaths: true },
     ],
@@ -394,7 +394,7 @@ export const adminEn: AdminContent = {
   },
 
   regulations: {
-    title: 'SFDA Regulatory Requirements',
+    title: 'Regulatory Requirements',
     subtitle: 'Manage the SFDA GVP versions used for compliance checks.',
     addVersion: { label: 'Add New Version', href: '/admin/regulations/new' },
     // Add New Version while another version is waiting for or being processed (one at a time).
@@ -460,7 +460,7 @@ export const adminEn: AdminContent = {
     editTitle: 'Edit GVP Version',
     save: 'Save',
     subtitle: 'Add a new version of the SFDA GVP guideline.',
-    back: { label: 'Back to SFDA Regulatory Requirements', href: '/admin/regulations' },
+    back: { label: 'Back to Regulatory Requirements', href: '/admin/regulations' },
     titleField: { label: 'Title' },
     version: { label: 'Version', hint: 'For example 4.1 or 5.0.' },
     issuedDate: { label: 'Issued by SFDA On' },
@@ -509,7 +509,7 @@ export const adminEn: AdminContent = {
   },
 
   regulationDetails: {
-    back: { label: 'Back to SFDA Regulatory Requirements', href: '/admin/regulations' },
+    back: { label: 'Back to Regulatory Requirements', href: '/admin/regulations' },
     details: { title: 'Details' },
     file: {
       title: 'File',

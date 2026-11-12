@@ -46,9 +46,9 @@ beforeEach(() => {
 })
 
 describe('the SOP Directory in the admin portal', () => {
-  it('is a tab between SFDA Regulatory Requirements and Requests', () => {
+  it('is a tab between Regulatory Requirements and Requests', () => {
     const labels = navLinks(adminEn.shell.nav).map((item) => item.label)
-    expect(labels.indexOf('SOP Directory')).toBe(labels.indexOf('SFDA Regulatory Requirements') + 1)
+    expect(labels.indexOf('SOP Directory')).toBe(labels.indexOf('Regulatory Requirements') + 1)
     expect(labels.indexOf('Requests')).toBe(labels.indexOf('SOP Directory') + 1)
   })
 

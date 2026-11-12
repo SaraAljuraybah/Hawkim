@@ -32,7 +32,7 @@ describe('the admin portal sidebar', () => {
       ['Organization Profile', '/admin/organization-profile', 'organization'],
       ['Organizational Structure', '/admin/organizational-structure', 'hierarchy'],
       ['Manage Organization', [['Divisions and Departments', '/admin/departments'], ['Staff', '/admin/users'], ['Admins', '/admin/admins']]],
-      ['SFDA Regulatory Requirements', '/admin/regulations', 'regulatory'],
+      ['Regulatory Requirements', '/admin/regulations', 'regulatory'],
       ['SOP Directory', '/admin/sops', 'sops'],
       ['Requests', '/admin/requests', 'requests'],
     ])

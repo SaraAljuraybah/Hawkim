@@ -47,15 +47,15 @@ const table = (html: string) => {
 const currentCard = (html: string) => html.slice(html.indexOf('id="current-title"'), html.indexOf('id="history-title"'))
 const fields = ['Title', 'Version', 'Source', 'Issued by SFDA On', 'Added to Hawkim On', 'Added By', 'File', 'Requirements']
 
-describe('SFDA Regulatory Requirements page', () => {
-  it('is called SFDA Regulatory Requirements in the h1, the browser tab, the sidebar and the back links', () => {
+describe('Regulatory Requirements page', () => {
+  it('is called Regulatory Requirements in the h1, the browser tab, the sidebar and the back links', () => {
     fixture.titles.length = 0
     const html = render()
-    expect(html).toContain('>SFDA Regulatory Requirements</h1>')
-    expect(fixture.titles.at(-1)).toBe(adminEn.pageTitle.replace('{page}', 'SFDA Regulatory Requirements'))
-    expect(navLinks(adminEn.shell.nav).find((item) => item.href === '/admin/regulations')?.label).toBe('SFDA Regulatory Requirements')
-    expect(adminEn.regulationForm.back.label).toBe('Back to SFDA Regulatory Requirements')
-    expect(adminEn.regulationDetails.back.label).toBe('Back to SFDA Regulatory Requirements')
+    expect(html).toContain('>Regulatory Requirements</h1>')
+    expect(fixture.titles.at(-1)).toBe(adminEn.pageTitle.replace('{page}', 'Regulatory Requirements'))
+    expect(navLinks(adminEn.shell.nav).find((item) => item.href === '/admin/regulations')?.label).toBe('Regulatory Requirements')
+    expect(adminEn.regulationForm.back.label).toBe('Back to Regulatory Requirements')
+    expect(adminEn.regulationDetails.back.label).toBe('Back to Regulatory Requirements')
   })
 
   it('keeps the Current Version card with its fields but no File or Requirements row and no View Requirements link, and Source as a new-tab link', () => {

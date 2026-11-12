@@ -39,7 +39,7 @@ const details = (id: string) => {
   )
 }
 
-describe('"Current" on the SFDA Regulatory Requirements tab', () => {
+describe('"Current" on the Regulatory Requirements tab', () => {
   it('stays on the published current version (4.0) until an added version is made current (GVP phase 2)', () => {
     const html = renderToStaticMarkup(<MemoryRouter><AdminRegulationsPage /></MemoryRouter>)
     const card = html.slice(html.indexOf('id="current-title"'), html.indexOf('id="history-title"'))
