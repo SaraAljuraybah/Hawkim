@@ -397,12 +397,14 @@ export function SopWorkflowPage() {
         />
       </Section>
 
-      {/* 4. Compliance overview: the GVP version checks use, a divider, then the results (or that the current version hasn't been checked yet).
-          This page is only for the SOP's author and co-authors, so only they see the GVP version here. */}
+      {/* 4. Compliance overview: the GVP version checks use, then the results (or that the current version hasn't been
+          checked yet), each in the same bordered box. This page is only for the SOP's author and co-authors, so only they
+          see the GVP version here. */}
       {needsCheck && <Section id="compliance-title" title={complianceEn.card.title} className="mt-6">
         <ComplianceGuideline sopId={sop.id} />
-        <hr className="my-5 border-beige" />
-        <ComplianceCard sop={sop} content={complianceEn} />
+        <div className="mt-4">
+          <ComplianceCard sop={sop} content={complianceEn} />
+        </div>
       </Section>}
 
       {/* Review actions stay with the reviewers, including before the first request. */}

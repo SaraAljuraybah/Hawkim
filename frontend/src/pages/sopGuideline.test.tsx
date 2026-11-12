@@ -54,8 +54,10 @@ describe('the GVP version on the author\'s Compliance Overview', () => {
   it('comes before the card\'s text: one row, the version compliance checks use, with the Current badge', () => {
     const html = overview(workflow())
     expect(html).not.toContain('<table')
-    expect(html.indexOf('SFDA GVP')).toBeLessThan(html.indexOf('<hr'))
-    expect(html.indexOf('<hr')).toBeLessThan(html.indexOf('v1 hasn’t been checked yet.'))
+    expect(html.indexOf('SFDA GVP')).toBeLessThan(html.indexOf('v1 hasn’t been checked yet.'))
+    // Two matching bordered boxes, no divider between them.
+    expect(html).not.toContain('<hr')
+    expect(html.match(/rounded-lg border border-beige bg-white p-4/g)).toHaveLength(2)
     expect(html).toMatch(/<span class="min-w-0">SFDA GVP<\/span><span class="[^"]*">v4\.0<\/span><span class="[^"]*">Current<\/span>/)
     expect(html).toMatch(/Issued by SFDA on <time dateTime="2015-05-27">[^<]+<\/time> · Added to Hawkim on <time dateTime="2026-10-26">[^<]+<\/time>/)
   })
