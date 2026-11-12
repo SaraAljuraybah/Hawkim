@@ -48,7 +48,7 @@ export function RequestHawkimPage() {
   const refs = useRef<Partial<Record<RequestField, HTMLInputElement | HTMLTextAreaElement | null>>>({})
   const titleRef = useRef<HTMLHeadingElement>(null)
 
-  useEffect(() => refs.current.organization?.focus(), [])
+  useEffect(() => refs.current.contactName?.focus(), [])
   useEffect(() => {
     if (sent) titleRef.current?.focus()
   }, [sent])
@@ -148,7 +148,7 @@ export function RequestHawkimPage() {
       <MessageScreen title={content.title} text={content.text} logoAlt={content.logoAlt}>
       <form noValidate onSubmit={submit} className={`${FORM_CARD} w-[min(30rem,calc(100vw-2rem))] space-y-5 text-left`}>
         {failure && <p role="alert" className="text-sm text-status-rejected-fg">{failure}</p>}
-        {field('organization', { autoComplete: 'organization', maxLength: 200 })}
+        {/* The contact person first, then the organization. */}
         {field('contactName', { autoComplete: 'name', maxLength: 100 })}
         {field('email', { type: 'email', autoComplete: 'email', autoCapitalize: 'none', spellCheck: false })}
         {/* "+9665" before the field and the 8 digits in it; values.phone keeps "+9665" and the digits */}
@@ -165,6 +165,7 @@ export function RequestHawkimPage() {
           error={errors.phone}
           onChange={(phone) => set('phone')({ target: { value: phone } })}
         />
+        {field('organization', { autoComplete: 'organization', maxLength: 200 })}
         {/* The organization's details, with the Organization Profile's rules. */}
         {field('organizationEmail', {
           type: 'email', autoCapitalize: 'none', spellCheck: false, maxLength: ORGANIZATION_DETAIL_MAX.email,

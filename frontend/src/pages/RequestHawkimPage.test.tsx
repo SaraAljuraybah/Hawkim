@@ -43,9 +43,9 @@ describe('Request Hawkim page', () => {
     expect(html).not.toContain('organization-title')
   })
 
-  it('asks for the organization’s details after Phone, in this order, before the number of users and the message', () => {
+  it('asks for the contact person first, then the organization and its details, then the number of users and the message', () => {
     expect([...html.matchAll(/<(?:input|textarea)[^>]*name="([^"]+)"/g)].map((match) => match[1])).toEqual([
-      'organization', 'contactName', 'email', 'phone', 'organizationEmail', 'organizationAddress', 'organizationMapsUrl',
+      'contactName', 'email', 'phone', 'organization', 'organizationEmail', 'organizationAddress', 'organizationMapsUrl',
       'organizationWebsite', 'organizationDescription', 'approxUsers', 'message', 'website',
     ])
     expect(html).toContain('>Contact person email<')

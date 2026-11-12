@@ -86,9 +86,9 @@ describe('Request Hawkim: the organization’s details, with the Organization Pr
     expect(requestProblems({ ...valid, organizationWebsite: `https://${'w'.repeat(2037)}.com` })).toEqual({ organizationWebsite: 'tooLong' })
   })
 
-  it('puts the Address group before its two boxes, after the organization email (focus goes to the first problem)', () => {
+  it('checks the contact person first, then the organization, the Address group before its two boxes (focus goes to the first problem)', () => {
     expect(REQUEST_ERROR_ORDER).toEqual([
-      'organization', 'contactName', 'email', 'phone', 'organizationEmail', 'addressGroup', 'organizationAddress', 'organizationMapsUrl',
+      'contactName', 'email', 'phone', 'organization', 'organizationEmail', 'addressGroup', 'organizationAddress', 'organizationMapsUrl',
       'organizationWebsite', 'organizationDescription', 'approxUsers', 'message',
     ])
   })
@@ -113,7 +113,7 @@ describe('a request on the review page', () => {
 
   it('lists no Position for a request without one', () => {
     expect(labels(reviewDetails(request))).toEqual([
-      'Organization', 'Contact person', 'Contact person email', 'Phone', 'Organization email', 'Address', 'Google Maps link', 'Website',
+      'Contact person', 'Contact person email', 'Phone', 'Organization', 'Organization email', 'Address', 'Google Maps link', 'Website',
       'Description', 'Approximate number of users', 'Message', 'Received',
     ])
     expect(labels(reviewDetails({ ...request, jobTitle: null }))).not.toContain('Position')
@@ -122,7 +122,8 @@ describe('a request on the review page', () => {
 
   it('still lists the Position of a request sent before it was removed, after Contact person', () => {
     const details = reviewDetails({ ...request, jobTitle: 'QPPV' })
-    expect(details[2]).toEqual(['Position', 'QPPV'])
+    expect(details[0][0]).toBe('Contact person')
+    expect(details[1]).toEqual(['Position', 'QPPV'])
   })
 
   it('lists the organization’s details of a new request', () => {

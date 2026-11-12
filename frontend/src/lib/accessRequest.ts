@@ -21,8 +21,8 @@ export type FieldProblem = 'required' | 'email' | 'phone' | 'approxUsers' | 'url
 
 /** The problems in the form's order (focus goes to the first); the Address group comes before its two fields. */
 export const REQUEST_ERROR_ORDER: readonly RequestErrorKey[] = [
-  'organization', 'contactName', 'email', 'phone',
-  'organizationEmail', 'addressGroup', 'organizationAddress', 'organizationMapsUrl', 'organizationWebsite', 'organizationDescription',
+  'contactName', 'email', 'phone',
+  'organization', 'organizationEmail', 'addressGroup', 'organizationAddress', 'organizationMapsUrl', 'organizationWebsite', 'organizationDescription',
   'approxUsers', 'message',
 ]
 
@@ -96,12 +96,13 @@ export function failureField(reason: string): { field: RequestField; error: 'org
 export function reviewDetails(request: AccessRequestView): [string, string][] {
   const labels = reviewRequestEn.labels
   const given = (value: string | null | undefined) => value || reviewRequestEn.notProvided
+  // The contact person first, then the organization (as on the form).
   return [
-    [labels.organization, request.organization],
     [labels.contactName, request.contactName],
     ...(request.jobTitle ? [[labels.jobTitle, request.jobTitle] as [string, string]] : []),
     [labels.email, request.email],
     [labels.phone, request.phone],
+    [labels.organization, request.organization],
     [labels.organizationEmail, given(request.organizationEmail)],
     [labels.organizationAddress, given(request.organizationAddress)],
     [labels.organizationMapsUrl, given(request.organizationMapsUrl)],
