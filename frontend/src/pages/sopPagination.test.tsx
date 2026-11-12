@@ -103,7 +103,8 @@ describe.each([
   it('keeps the existing result count for the whole list, and no "Showing" text', () => {
     fixture.sops = sops(30, status)
     const html = render(page, `${path}?page=2`)
-    expect(html).toContain('30 SOPs found')
+    // My SOPs: "30 SOPs found" under the search; the SOP Directory: "30 SOPs" in the tabs row.
+    expect(html).toContain(path === '/sops' ? '>30 SOPs<' : '30 SOPs found')
     expect(html).not.toContain('Showing')
   })
 
@@ -111,7 +112,7 @@ describe.each([
     fixture.sops = [...sops(20, status), ...sops(20, status, (n) => ({ id: `other-${n}`, code: `X-${n}`, title: `Checklist ${n}` }))]
     const html = render(page, `${path}?q=procedure&sort=oldest&page=2`)
     expect(shown(html)).toEqual(['Procedure 13', 'Procedure 14', 'Procedure 15', 'Procedure 16', 'Procedure 17', 'Procedure 18', 'Procedure 19', 'Procedure 20'])
-    expect(html).toContain('20 SOPs found')
+    expect(html).toContain(path === '/sops' ? '>20 SOPs<' : '20 SOPs found')
     expect(html).toMatch(/<input[^>]*value="procedure"/)
     expect(selected(html, path === '/sops' ? 'sopSort' : 'mySopSort')).toBe('oldest')
   })
@@ -164,7 +165,7 @@ describe('the SOP Directory tabs and filters in the URL', () => {
     const html = render(<SopsPage />, '/sops?tab=recent&sort=oldest&page=2')
     expect(html).toContain('aria-labelledby="sops-tab-recent"')
     expect(selected(html, 'sopSort')).toBe('oldest')
-    expect(html).toContain('40 SOPs found')
+    expect(html).toContain('>40 SOPs<')
     expect(currentPage(html)).toBe('2')
   })
 
@@ -173,7 +174,7 @@ describe('the SOP Directory tabs and filters in the URL', () => {
       const html = render(<SopsPage />, url)
       expect(html).not.toContain('name="documentType"')
       expect(html).not.toContain('Document Type')
-      expect(html).toContain('40 SOPs found')
+      expect(html).toContain('>40 SOPs<')
       expect(html).not.toContain('Clear Filters')
     }
     // Search and Sort stay.
@@ -187,7 +188,7 @@ describe('the SOP Directory tabs and filters in the URL', () => {
       const html = render(<SopsPage />, url)
       expect(html).toContain('aria-labelledby="sops-tab-all"')
       expect(selected(html, 'sopSort')).toBe('newest')
-      expect(html).toContain('40 SOPs found')
+      expect(html).toContain('>40 SOPs<')
     }
   })
 })

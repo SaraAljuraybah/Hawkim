@@ -107,12 +107,33 @@ describe('directory selection never changes authoring or membership context', ()
       expect(render(<SopsPage />)).toContain('foreign-reviewed')
     }
   })
-  it('keeps the non-admin toolbar as it was: no Filter panel, and Clear Filters while searching', () => {
-    const html = render(<SopsPage />, '/test?q=nothing-matches')
-    expect(html).not.toContain('>Filter</label>')
-    expect(html).not.toContain('>Clear all</button>')
-    expect(html).toContain('>Clear Filters<')
-    expect(render(<SopsPage />)).not.toContain('>Clear Filters<')
+  it('has Search | Filter | Sort By like the admin directory, and Clear Filters for a search or a filter', () => {
+    const html = render(<SopsPage />)
+    expect(html).toContain('>Filter</label>')
+    expect(html.indexOf('Search SOPs')).toBeLessThan(html.indexOf('>Filter</label>'))
+    expect(html.indexOf('>Filter</label>')).toBeLessThan(html.indexOf('Sort By'))
+    expect(html).not.toContain('>Clear Filters<')
+    expect(render(<SopsPage />, '/test?q=nothing-matches')).toContain('>Clear Filters<')
+    expect(render(<SopsPage />, '/test?dept=other')).toContain('>Clear Filters<')
+    // Under the toolbar, on the right.
+    expect(render(<SopsPage />, '/test?q=x')).toMatch(/<div class="mt-3 flex justify-end"><button[^>]*>Clear Filters<\/button><\/div><\/div>/)
+  })
+
+  it('offers only the departments, and so divisions, with SOPs in their directory, and filters by them', () => {
+    fixture.home = { ...fixture.home, divisionId: 'home-division', divisionName: 'Home Division' }
+    fixture.sops = [...fixture.sops, sop('home-published', 'home', 'published')]
+    const html = render(<SopsPage />)
+    // foreign-reviewed (Foreign Directory) and home-published (Home Department) are listed.
+    expect(html).toContain('Foreign Directory')
+    expect(html).toContain('Home Division')
+    const departmentOnly = render(<SopsPage />, '/test?dept=home')
+    expect(departmentOnly).toContain('home-published')
+    expect(departmentOnly).not.toContain('foreign-reviewed')
+    expect(departmentOnly).toContain('>1 SOP<')
+    // A department without SOPs in their directory isn't offered.
+    fixture.sops = [{ ...sop('foreign-reviewed', 'other', 'published'), reviewers: [{ userId: 'visitor', decision: 'completed' }] }]
+    expect(render(<SopsPage />)).not.toContain('Home Division')
+    fixture.home = { ...fixture.home, divisionId: undefined, divisionName: undefined }
   })
   it('offers Sort By next to the search, Newest to Oldest by default, and stacks on small screens', () => {
     fixture.sops = [{ ...sop('older-sop', 'other', 'published', 'visitor'), lastUpdated: '2026-01-01' }, { ...sop('newer-sop', 'other', 'published', 'visitor'), lastUpdated: '2026-10-01' }]
@@ -181,12 +202,24 @@ describe('the SOP Directory texts for everyone but the System Admin', () => {
     expect(render(<SopsPage />)).toContain('No published SOPs yet.')
   })
 
-  it('explains Recently Published under the result count on that tab only', () => {
+  it('explains Recently Published under the tabs on both tabs, with the info icon', () => {
     const note = 'Recently Published shows SOPs published in the last 3 months.'
-    const recent = render(<SopsPage />, '/test?tab=recent')
-    expect(recent).toContain(note)
-    expect(recent.indexOf('SOPs found')).toBeLessThan(recent.indexOf(note))
-    expect(render(<SopsPage />)).not.toContain(note)
+    for (const url of ['/test', '/test?tab=recent']) {
+      const html = render(<SopsPage />, url)
+      expect(html).toMatch(new RegExp(`<p class="mt-3 flex items-center gap-1.5 text-sm text-text-gray"><svg[^>]*lucide-info[^>]*>.*?</svg>${note}</p>`))
+      expect(html.indexOf('role="tablist"')).toBeLessThan(html.indexOf(note))
+      expect(html.indexOf(note)).toBeLessThan(html.indexOf('role="tabpanel"'))
+    }
+  })
+
+  it('shows the short result count in the tabs row, next to the view toggle, announced, with no line under the search', () => {
+    const html = render(<SopsPage />)
+    const count = html.match(/<p role="status" aria-live="polite" aria-atomic="true" class="text-sm text-text-gray">([^<]+)<\/p>/)!
+    expect(count[1]).toBe('1 SOP')
+    expect(html.indexOf('role="tablist"')).toBeLessThan(html.indexOf(count[0]))
+    expect(html.indexOf(count[0])).toBeLessThan(html.indexOf('aria-label="View"'))
+    expect(html).not.toContain('SOPs found')
+    expect(html).not.toContain('SOP found')
   })
 })
 

@@ -81,7 +81,7 @@ describe('the SOP Directory in the admin portal', () => {
     expect(html).toContain('>Procedure 1<')
     expect(html).toContain('>Procedure 9<')
     expect(html).not.toContain('Procedure 8')
-    expect(html).toContain('>2 SOPs found<')
+    expect(html).toContain('>2 SOPs<')
   })
 
   it('replaces the dropdowns with the Filter panel: Division and Department chips, no Role card, and no Clear Filters by default', () => {
@@ -110,7 +110,7 @@ describe('the SOP Directory in the admin portal', () => {
     const byDivision = directory('?division=med,gone')
     expect(byDivision).toContain('>Procedure 9<')
     expect(byDivision).not.toContain('Procedure 1<')
-    expect(byDivision).toContain('>1 SOP found<')
+    expect(byDivision).toContain('>1 SOP<')
     expect(byDivision).toContain('aria-label="Filter: 1 division"')
     expect(byDivision).toContain('>1 division</span>')
     expect(byDivision).toMatch(/aria-pressed="true"[^>]*>(?:<svg.*?<\/svg>)?<span class="min-w-0 break-words">Medical</)
@@ -132,16 +132,16 @@ describe('the SOP Directory in the admin portal', () => {
     expect(both).not.toContain('Procedure 1<')
     expect(both).toContain('aria-label="Filter: 1 division"')
     // Departments only: just those, in any division.
-    expect(directory('?dept=pv,it')).toContain('>2 SOPs found<')
-    expect(directory('?dept=pv')).toContain('>1 SOP found<')
+    expect(directory('?dept=pv,it')).toContain('>2 SOPs<')
+    expect(directory('?dept=pv')).toContain('>1 SOP<')
     // "No Division" (the removed chip) in an old link is ignored.
-    expect(directory('?division=__no-division__')).toContain('>2 SOPs found<')
+    expect(directory('?division=__no-division__')).toContain('>2 SOPs<')
   })
 
   it('shows the normal empty state, with Clear Filters, when nothing matches', () => {
     fixture.sops = [sop('9', 'pv')]
     const html = directory('?q=nothing')
-    expect(html).toContain('>0 SOPs found<')
+    expect(html).toContain('>0 SOPs<')
     expect(html).toContain(`>${sopsEn.filters.empty}<`)
     expect(html).toContain('>Clear Filters<')
   })

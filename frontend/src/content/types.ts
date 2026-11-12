@@ -438,8 +438,9 @@ export interface SopsContent {
     sortOldest: string
     clear: string
     empty: string
-    oneResult: string
-    results: string
+    /** The result count in the tabs row: one SOP, or `{count}` of them. */
+    countOne: string
+    count: string
   }
   viewToggle: { label: string; grid: string; list: string }
   /** Column headings for the list view. */

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { FileText, Search } from 'lucide-react'
+import { FileText, Info, Search } from 'lucide-react'
 import { Button } from '../components/ui/Button'
 import { Pagination } from '../components/ui/Pagination'
 import { FilterPopover } from '../components/ui/FilterPopover'
@@ -74,19 +74,9 @@ function SopDirectory({ activeDepartment, admin = false }: { activeDepartment: D
   // The tab, search, sort and page are kept in the URL, so a refresh or Back restores them.
   const [params, setParams] = useSearchParams()
   const { tab, query, sort, divisions: urlDivisions, departments: urlDepartments, page: urlPage } = useMemo(() => readDirectoryUrl(params), [params])
-  // The admin's Filter (Division and Department chips, as on Organizational Structure), from the active
-  // departments; other roles have no filter. Choices that no longer exist (an old link) are dropped.
-  const filterData = useMemo(() => filterDepartmentsFrom(admin ? departments : []), [admin, departments])
-  // The Department chips follow the selected divisions; a selected department no longer offered is dropped.
-  const { divisionChoices, divisions: filterDivisions, groups: departmentGroups, departments: filterDepartments } = useMemo(
-    () => filterSelection(filterData, urlDivisions, urlDepartments), [filterData, urlDivisions, urlDepartments])
   const searchRef = useRef<HTMLInputElement>(null)
   // The page each other tab was left on, for this department only: switching department starts every tab on page 1.
   const [memory, setMemory] = useState<RememberedPages<SopTabKey>>({ department: '', pages: {} })
-  // The sort order isn't a filter: it doesn't show Clear Filters and isn't reset by it.
-  const hasFilters = query.length > 0 || filterDivisions.length > 0 || filterDepartments.length > 0
-  // Clear Filters: everyone else's shows for the search; the admin's also for the filters and a sort other than the default.
-  const showClear = hasFilters || (admin && sort !== DIRECTORY_URL_DEFAULTS.sort)
   const [view, setView] = useState<ViewMode>(readStoredView)
 
   useEffect(() => {
@@ -107,6 +97,19 @@ function SopDirectory({ activeDepartment, admin = false }: { activeDepartment: D
   // department's plus those they worked on, in any department (Others included). The active department
   // doesn't narrow it.
   const authorized = useMemo(() => directorySopsFor(listSops, user), [listSops, user])
+  // The Filter (Division and Department chips, as on Organizational Structure), from the active departments:
+  // every one for the admin; for everyone else only those with SOPs in their directory (so only their divisions).
+  // Choices that no longer exist (an old link) are dropped.
+  const filterData = useMemo(() => filterDepartmentsFrom(admin
+    ? departments
+    : departments.filter((department) => authorized.some((sop) => sop.departmentId === department.id))), [admin, departments, authorized])
+  // The Department chips follow the selected divisions; a selected department no longer offered is dropped.
+  const { divisionChoices, divisions: filterDivisions, groups: departmentGroups, departments: filterDepartments } = useMemo(
+    () => filterSelection(filterData, urlDivisions, urlDepartments), [filterData, urlDivisions, urlDepartments])
+  // The sort order isn't a filter: it doesn't show Clear Filters and isn't reset by it.
+  const hasFilters = query.length > 0 || filterDivisions.length > 0 || filterDepartments.length > 0
+  // Clear Filters: for the search and the filters; the admin's also for a sort other than the default.
+  const showClear = hasFilters || (admin && sort !== DIRECTORY_URL_DEFAULTS.sort)
   const tabKeys: SopTabKey[] = ['all', 'recent']
   const tabItems: TabItem<SopTabKey>[] = tabKeys.map((key) => ({
     key,
@@ -176,7 +179,7 @@ function SopDirectory({ activeDepartment, admin = false }: { activeDepartment: D
       <h1 className="text-2xl tracking-tight sm:text-3xl">{content.title}</h1>
       <p className="mt-2 text-text-gray">{admin ? content.adminSubtitle : content.subtitle.replace('{department}', getDepartment(user.departmentId)?.name ?? user.departmentId)}</p>
 
-      {/* On the page background, like Staff: Search | Filter (admin) | Sort, the same row as on every list page. */}
+      {/* On the page background, like Staff: Search | Filter | Sort, the same row as on every list page. */}
       <div role="search" aria-label={content.filters.label} className="mt-6">
         <div className={LIST_TOOLBAR}>
           <TextField
@@ -189,9 +192,8 @@ function SopDirectory({ activeDepartment, admin = false }: { activeDepartment: D
             onChange={(event) => setQuery(event.target.value)}
             endAdornment={<Search aria-hidden="true" className="mr-2 size-4 text-text-gray" />}
           />
-          {admin && (
-            // The Filter field of every list page; its panel lines up with this row's right edge (from lg).
-            <FilterPopover className="relative min-w-0 lg:static" label={filtersEn.label} allLabel={filtersEn.all}
+          {/* The Filter field of every list page; its panel lines up with this row's right edge (from lg). */}
+          <FilterPopover className="relative min-w-0 lg:static" label={filtersEn.label} allLabel={filtersEn.all}
               title={filtersEn.title} clearLabel={filtersEn.clearAll} onClear={clearDivisionsAndDepartments}
               sections={[
                 { id: 'division', legend: filtersEn.division.legend, options: divisionChoices, value: filterDivisions, onChange: setDivisions,
@@ -200,7 +202,6 @@ function SopDirectory({ activeDepartment, admin = false }: { activeDepartment: D
                   emptyText: filtersEn.department.empty, summary: filtersEn.department.count, scrollable: true,
                   groups: departmentGroups.map((group) => ({ id: group.id, label: group.unassigned ? filtersEn.department.unassigned : group.label, options: group.options })) },
               ]} />
-          )}
           <SelectField
             name="sopSort"
             label={content.filters.sortLabel}
@@ -209,19 +210,15 @@ function SopDirectory({ activeDepartment, admin = false }: { activeDepartment: D
             options={[{ value: 'newest', label: content.filters.sortNewest }, { value: 'oldest', label: content.filters.sortOldest }]}
           />
         </div>
-        <div className="mt-3 flex min-h-8 flex-wrap items-center justify-between gap-2">
-          <div>
-            <p role="status" aria-live="polite" aria-atomic="true" className="text-sm text-text-gray">
-              {visibleSops.length === 1 ? content.filters.oneResult : content.filters.results.replace('{count}', String(visibleSops.length))}
-            </p>
-            {/* What Recently Published means, on that tab only */}
-            {selectedTab === 'recent' && <p className="mt-0.5 text-sm text-text-gray">{content.recentNote.replace('{count}', String(RECENT_MONTHS))}</p>}
+        {/* Under the toolbar, on the right, while there is something to clear */}
+        {showClear && (
+          <div className="mt-3 flex justify-end">
+            <Button size="sm" variant="secondary" onClick={clearFilters}>{content.filters.clear}</Button>
           </div>
-          {showClear && <Button size="sm" variant="secondary" onClick={clearFilters}>{content.filters.clear}</Button>}
-        </div>
+        )}
       </div>
 
-      {/* Tabs with the view toggle on the right (on its own line on narrow phones) */}
+      {/* Tabs with the result count and the view toggle on the right (on their own line on narrow phones) */}
       <div className="mt-8 flex flex-wrap items-end justify-between gap-x-6 gap-y-3 border-b border-beige">
         <Tabs
           items={tabItems}
@@ -230,12 +227,21 @@ function SopDirectory({ activeDepartment, admin = false }: { activeDepartment: D
           label={content.tabsLabel}
           idPrefix={TAB_ID_PREFIX}
         />
-        <div className="order-first flex w-full justify-end pb-2 sm:order-none sm:w-auto">
+        <div className="order-first flex w-full items-center justify-end gap-4 pb-2 sm:order-none sm:w-auto">
+          {/* Announced when the results change */}
+          <p role="status" aria-live="polite" aria-atomic="true" className="text-sm text-text-gray">
+            {visibleSops.length === 1 ? content.filters.countOne : content.filters.count.replace('{count}', String(visibleSops.length))}
+          </p>
           <ViewToggle value={view} onChange={setView} labels={content.viewToggle} />
         </div>
       </div>
+      {/* What Recently Published means, on both tabs */}
+      <p className="mt-3 flex items-center gap-1.5 text-sm text-text-gray">
+        <Info aria-hidden="true" className="size-4 shrink-0" strokeWidth={2} />
+        {content.recentNote.replace('{count}', String(RECENT_MONTHS))}
+      </p>
 
-      <div role="tabpanel" id={ids.panel} aria-labelledby={ids.tab} tabIndex={0} className="mt-6 rounded-xl">
+      <div role="tabpanel" id={ids.panel} aria-labelledby={ids.tab} tabIndex={0} className="mt-4 rounded-xl">
         {visibleSops.length === 0 ? (
           <div className="flex flex-col items-center rounded-xl border border-dashed border-beige bg-white px-6 py-14 text-center">
             <span
