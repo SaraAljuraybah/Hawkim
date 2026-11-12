@@ -4,7 +4,7 @@ export const organizationEn: OrganizationContent = {
   pageTitle: (heading) => `${heading} | Hawkim`,
   title: 'Organizational Structure',
   titleFor: (organization) => `${organization} Structure`,
-  subtitle: "Browse the organization's divisions, departments and staff, and find their contact emails.",
+  subtitle: "Browse the organization's divisions, departments and staff, and view their information.",
   retry: 'Retry',
   loading: 'Loading organizational structure…',
   error: 'The organizational structure could not be loaded. Please try again.',

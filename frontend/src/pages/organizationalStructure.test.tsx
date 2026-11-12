@@ -44,7 +44,7 @@ describe('Organizational Structure', () => {
   it('has one h1, then the short description, and no tree', () => {
     const html = renderToStaticMarkup(<OrganizationalStructurePage />)
     expect(html.match(/<h1/g)).toHaveLength(1)
-    expect(html).toContain('Organizational Structure</h1><p class="mt-2 text-text-gray">Browse the organization&#x27;s divisions, departments and staff, and find their contact emails.</p>')
+    expect(html).toContain('Organizational Structure</h1><p class="mt-2 text-text-gray">Browse the organization&#x27;s divisions, departments and staff, and view their information.</p>')
     for (const removed of ['org-root', 'org-branches', '<details', '>Organization<']) expect(page()).not.toContain(removed)
   })
   it('names the heading and the tab title after the organization, e.g. "Sitco Structure"', () => {
