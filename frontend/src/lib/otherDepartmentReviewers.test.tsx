@@ -96,6 +96,19 @@ describe('who can be picked', () => {
     expect(hasHomeFinished(decide(gone, 'o1'), env().users)).toBe(false)
   })
 
+  it.each(['pending', 'accepted', 'declined', 'withdrawn', 'expired', 'removed'] as const)('does not count a same-department request that is %s', (decision) => {
+    const sop = start(['h1', 'h2'])
+    const round = currentInternalRound(sop)!
+    const changed = { ...sop, internalReviewRounds: [{ ...round, assignments: round.assignments.map((item) => item.userId === 'h1' ? { ...item, decision } : item) }] }
+    expect(hasHomeFinished(changed, env().users)).toBe(false)
+  })
+
+  it('stops counting a same-department reviewer who finished and was then removed', () => {
+    const sop = addInternalReviewers(finished(), 'author', { reviewerIds: ['h2'] }, env())
+    const removed = removeInternalReviewer(sop, 'author', currentInternalRound(sop)!.id, request(sop, 'h1').id, 'Not needed', env())
+    expect(hasHomeFinished(removed, env().users)).toBe(false)
+  })
+
   it('lets an other-department reviewer accept and finish', () => {
     const added = addInternalReviewers(finished(), 'author', { reviewerIds: ['o1'] }, env())
     expect(request(decide(accept(added, 'o1'), 'o1'), 'o1').decision).toBe('completed')
@@ -217,5 +230,39 @@ describe('the Submit for Review dialog', () => {
     expect(html).toContain('>Home Department</span>')
     expect(html).not.toContain('Name o1')
     expect(html).not.toContain('has finished this version')
+  })
+
+  const lockedFields = (html: string) => (html.match(/\[&amp;_input\]:bg-beige\/50/g) ?? []).length
+
+  it('makes Division and Department look read-only on a first review, while both lists still open', () => {
+    const html = render(draft())
+    expect(lockedFields(html)).toBe(2)
+    for (const name of ['reviewDivision', 'reviewDepartment']) {
+      const input = html.match(new RegExp(`<input[^>]*name="${name}"[^>]*>`))![0]
+      expect(input).toContain('role="combobox"')
+      expect(input).not.toContain(' disabled=""')
+      expect(input).not.toContain('readOnly')
+    }
+    expect(departmentOptions(html)).toEqual(['Home Department', 'Other Department'])
+  })
+
+  it('locks Add Reviewers while no same-department reviewer has finished, even after one was removed', () => {
+    expect(lockedFields(render(start(), 'add'))).toBe(2)
+    const sop = start(['h1', 'h2'])
+    const removed = removeInternalReviewer(sop, 'author', currentInternalRound(sop)!.id, request(sop, 'h1').id, 'Not needed', env())
+    expect(lockedFields(render(removed, 'add'))).toBe(2)
+    expect(lockedFields(render(accept(removed, 'h2'), 'add'))).toBe(2)
+  })
+
+  it.each(['completed', 'returned'] as const)('unlocks Add Reviewers once a same-department reviewer %s it', (decision) => {
+    const html = render(decide(accept(start(['h1', 'h2']), 'h1'), 'h1', decision), 'add')
+    expect(lockedFields(html)).toBe(0)
+    expect(html).not.toContain('[&amp;_input]:border-beige')
+  })
+
+  it('locks Add Reviewers again when the only same-department reviewer who finished is removed', () => {
+    const sop = addInternalReviewers(finished(), 'author', { reviewerIds: ['h2'] }, env())
+    const removed = removeInternalReviewer(sop, 'author', currentInternalRound(sop)!.id, request(sop, 'h1').id, 'Not needed', env())
+    expect(lockedFields(render(removed, 'add'))).toBe(2)
   })
 })

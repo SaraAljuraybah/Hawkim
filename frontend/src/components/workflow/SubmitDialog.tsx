@@ -9,7 +9,7 @@ import { addableReviewers, hasHomeFinished, homeReviewers } from '../../lib/inte
 import { WORKING_DAY_DEADLINES_ACTIVE } from '../../lib/deadlinePolicy'
 import { REVIEW_DURATION_CONFIRM_ABOVE, REVIEW_DURATION_MAX, REVIEW_DURATION_MIN, ReviewerOrderError } from '../../lib/internalReviewStatus'
 import { reviewDueDateIfAcceptedNow } from '../../lib/reviewDeadline'
-import { refusesChoice, reviewDepartmentLock, type SubmitMode } from '../../lib/reviewDepartment'
+import { lockedFieldClass, refusesChoice, reviewDepartmentLock, type SubmitMode } from '../../lib/reviewDepartment'
 import { REVIEW_NOTE_EDITOR_MAX, prepareReviewSubmission } from '../../lib/reviewSubmission'
 import { departmentsInDivision, divisionNameIn, divisionOptions, NO_DIVISION } from '../../lib/userAdmin'
 import { useDepartments } from '../../state/departmentsContext'
@@ -34,8 +34,10 @@ interface SubmitDialogProps {
 /**
  * Sends eligible reviewers of the chosen department the same optional review duration, in working days
  * (lib/deadlinePolicy.ts), and shows the date it would end if accepted today. There's no response date
- * to choose: the server sets it for each request. Division and Department start on the SOP's own; the
- * SOP's first review and a new version's first send stay there (lib/reviewDepartment.ts).
+ * to choose: the server sets it for each request. Division and Department start on the SOP's own. The
+ * SOP's first review, a new version's first send, and adding reviewers before one from the SOP's
+ * department has finished stay there (lib/reviewDepartment.ts): the lists still open, another choice
+ * shows why, and both fields look read-only.
  */
 export function SubmitDialog({ sop, content, onSubmit, onClose, mode = 'submit' }: SubmitDialogProps) {
   const text = internalReviewEn.submit
@@ -50,8 +52,8 @@ export function SubmitDialog({ sop, content, onSubmit, onClose, mode = 'submit' 
   // once a reviewer from the SOP's department has finished this version.
   const options = mode === 'add' ? addableReviewers(sop, environment) : homeReviewers(sop, environment)
   const anyDepartment = mode === 'add' && hasHomeFinished(sop, activeUsers)
-  const lock = reviewDepartmentLock(mode)
-  const lockMessage = (lock === 'first-review' ? text.firstReviewHome : text.firstSendHome).replace('{department}', departmentName)
+  const lock = reviewDepartmentLock(mode, anyDepartment)
+  const lockMessage = (lock === 'first-review' ? text.firstReviewHome : lock === 'first-send' ? text.firstSendHome : text.homeFirst).replace('{department}', departmentName)
   // Departments that still exist, and the SOP's own in any case.
   const choosable = departments.filter((item) => !item.removedAt || item.id === sop.departmentId)
   const ownDivision = department?.divisionId || NO_DIVISION
@@ -133,13 +135,13 @@ export function SubmitDialog({ sop, content, onSubmit, onClose, mode = 'submit' 
       <SelectCombobox name="reviewDivision" label={text.division} placeholder={text.divisionPicker.placeholder}
         options={divisionOptions(choosable).map((item) => ({ value: item, label: item === NO_DIVISION ? text.noDivision : divisionNameIn(choosable, item) }))}
         value={division} error={divisionError || undefined} toggleLabel={text.divisionPicker.toggle} noMatchesText={text.divisionPicker.noMatches}
-        required requiredMark onChange={chooseDivision} />
+        className={lockedFieldClass(!!lock, !!divisionError)} required requiredMark onChange={chooseDivision} />
       <SelectCombobox
         // A fresh list (and no leftover typed text) for each division.
         key={division} name="reviewDepartment" label={text.department} placeholder={text.departmentPicker.placeholder}
         options={departmentsInDivision(choosable, division).map((item) => ({ value: item.id, label: item.name }))}
         value={departmentId} error={departmentError || undefined} toggleLabel={text.departmentPicker.toggle} noMatchesText={text.departmentPicker.noMatches}
-        required requiredMark onChange={chooseDepartment} />
+        className={lockedFieldClass(!!lock, !!departmentError)} required requiredMark onChange={chooseDepartment} />
       <PeoplePicker inputRef={firstRef} label={text.reviewers} text={text.reviewerSearch}
         options={shown.map((user) => ({ id: user.id, name: user.name, ...(anyDepartment ? { description: departments.find((item) => item.id === user.departmentId)?.name } : {}) }))} value={reviewerIds}
         error={error || undefined} hint={reviewerHint} required requiredMark
