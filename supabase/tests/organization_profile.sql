@@ -1,5 +1,6 @@
 -- Tests for 20261113150000_organization_profile.sql: who can read and save the Organization Profile, the
 -- checks on its six values, and that each value is saved on its own (a new name changes nothing else).
+-- The checks are as changed by 20261115120000_request_organization_details.sql.
 -- Every call is made as the API would make it (role anon or authenticated, with the caller's id in the JWT
 -- claims). Only for a disposable LOCAL database with every migration applied; never the shared project.
 -- Everything is rolled back.
@@ -95,15 +96,21 @@ begin
   perform pg_temp.act_as(staff);
   perform pg_temp.expect_error(pg_temp.save_with(0, ''), '42501', 'super-admin-required');
 
-  -- ---------- Every value is required and checked ----------
+  -- ---------- Name, email and description are required; every value is checked ----------
+  -- (Since 20261115120000_request_organization_details.sql: Website is optional, one of Address or Google
+  -- Maps link is enough, and links start with https://.)
   perform pg_temp.act_as(super);
-  for i in 1..6 loop
+  for i in 1..3 loop
     perform pg_temp.expect_error(pg_temp.save_with(i, '   '), '22023');
   end loop;
+  perform pg_temp.expect_error(format('select public.save_organization_profile(%L, %L, %L, %L, %L, %L)',
+    'Riyadh Pharma', 'info@riyadh-pharma.test', 'Makes medicines.', '  ', '  ', 'https://riyadh-pharma.test'), '22023', 'address-or-maps-url');
   perform pg_temp.expect_error(pg_temp.save_with(2, 'not-an-email'), '22023', 'email');
   perform pg_temp.expect_error(pg_temp.save_with(5, 'maps.google.com'), '22023', 'maps-url');
   perform pg_temp.expect_error(pg_temp.save_with(5, 'https://maps google.com'), '22023', 'maps-url');
+  perform pg_temp.expect_error(pg_temp.save_with(5, 'http://maps.google.com/?q=riyadh'), '22023', 'maps-url');
   perform pg_temp.expect_error(pg_temp.save_with(6, 'ftp://example.test'), '22023', 'website');
+  perform pg_temp.expect_error(pg_temp.save_with(6, 'http://riyadh-pharma.test'), '22023', 'website');
   perform pg_temp.expect_error(pg_temp.save_with(1, repeat('n', 201)), '22023', 'name');
   perform pg_temp.expect_error(pg_temp.save_with(3, repeat('d', 1001)), '22023', 'description');
   perform pg_temp.expect_error(pg_temp.save_with(4, 'Line one' || chr(10) || 'line two'), '22023', 'address');
@@ -132,6 +139,16 @@ begin
   -- A regular Admin reads what was saved.
   perform pg_temp.act_as(admin);
   assert public.get_organization_profile()->>'address' = 'King Fahd Road, Riyadh';
+
+  -- ---------- Optional values: an empty Website, Address or Google Maps link is stored as null ----------
+  perform pg_temp.act_as(super);
+  v_profile := public.save_organization_profile('Riyadh Pharma Group', 'info@riyadh-pharma.test', 'Makes medicines.',
+    '  ', 'https://maps.google.com/?q=riyadh', '  ');
+  assert v_profile->'address' = 'null'::jsonb and v_profile->'website' = 'null'::jsonb
+    and v_profile->>'mapsUrl' = 'https://maps.google.com/?q=riyadh', 'Only the Google Maps link';
+  v_profile := public.save_organization_profile('Riyadh Pharma Group', 'info@riyadh-pharma.test', 'Makes medicines.',
+    'King Fahd Road, Riyadh', '', '');
+  assert v_profile->>'address' = 'King Fahd Road, Riyadh' and v_profile->'mapsUrl' = 'null'::jsonb, 'Only the address';
 end;
 $$;
 

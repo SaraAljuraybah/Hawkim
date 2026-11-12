@@ -33,7 +33,7 @@ begin
   assert (select job_title is null from public.access_requests where email = 'aw-kept@test.invalid'), 'kept as it is';
   assert (select not convalidated from pg_constraint where conname = 'access_requests_job_title_check'), 'the rule applies to new rows';
   begin
-    perform public.submit_access_request('AW After Pharma', 'After Applicant', null, 'aw-after@test.invalid', '+966500000006', 5, null, repeat('8', 64));
+    perform public.submit_access_request('AW After Pharma', 'After Applicant', null, 'aw-after@test.invalid', '+966500000006', 5, null, repeat('8', 64), 'info@organization.test', 'King Fahd Road, Riyadh', null, null, 'A test organization.');
   exception when check_violation then
     get stacked diagnostics v_constraint = constraint_name;
     rejected := v_constraint = 'access_requests_job_title_check';

@@ -229,7 +229,7 @@ begin
 
   -- ---------- develop's Request Hawkim still creates an Admin, now with a position ----------
   perform pg_temp.act_as(null, 'service_role');
-  perform public.submit_access_request('OM Org', 'Request Person', 'Quality Lead', 'request@test.invalid', '+966500000000', 10, null, repeat('a', 64));
+  perform public.submit_access_request('OM Org', 'Request Person', 'Quality Lead', 'request@test.invalid', '+966500000000', 10, null, repeat('a', 64), 'info@organization.test', 'King Fahd Road, Riyadh', null, null, 'A test organization.');
   perform pg_temp.as_owner();
   insert into auth.users(id) values ('94000000-0000-4000-8000-000000000099');
   -- One organization per deployment (20261111120000_super_admin.sql): refused while this one has Admins…

@@ -18,7 +18,7 @@ end;
 $$;
 -- A request through the function, as the access-requests Edge Function sends it (token hash 'a'…).
 create function pg_temp.submit(p_organization text, p_email text) returns uuid language sql as $$
-  select public.submit_access_request(p_organization, 'Request Person', 'Quality Lead', p_email, '+966500000000', 10, null, repeat('a', 64));
+  select public.submit_access_request(p_organization, 'Request Person', 'Quality Lead', p_email, '+966500000000', 10, null, repeat('a', 64), 'info@organization.test', 'King Fahd Road, Riyadh', null, null, 'A test organization.');
 $$;
 create function pg_temp.taken(p_organization text, p_email text) returns void language plpgsql as $$
 begin
@@ -85,12 +85,13 @@ begin
   perform pg_temp.submit('UO Limit C', 'limit@test.invalid');
   perform pg_temp.expect_error($q$select pg_temp.submit('UO Limit D', 'limit@test.invalid')$q$, 'P0001', 'too_many_requests');
 
-  -- Definitions: unchanged signature, owner, grants, SECURITY DEFINER and search_path.
+  -- Definitions: owner, grants, SECURITY DEFINER and search_path (13 parameters since
+  -- 20261115120000_request_organization_details.sql).
   assert (select p.prosecdef and p.proconfig = array['search_path=""'] and p.proowner = 'postgres'::regrole
-          from pg_proc p where p.oid = 'public.submit_access_request(text, text, text, text, text, integer, text, text)'::regprocedure), 'definition';
-  assert has_function_privilege('service_role', 'public.submit_access_request(text, text, text, text, text, integer, text, text)', 'execute'), 'service_role';
-  assert not has_function_privilege('authenticated', 'public.submit_access_request(text, text, text, text, text, integer, text, text)', 'execute'), 'authenticated';
-  assert not has_function_privilege('anon', 'public.submit_access_request(text, text, text, text, text, integer, text, text)', 'execute'), 'anon';
+          from pg_proc p where p.oid = 'public.submit_access_request(text, text, text, text, text, integer, text, text, text, text, text, text, text)'::regprocedure), 'definition';
+  assert has_function_privilege('service_role', 'public.submit_access_request(text, text, text, text, text, integer, text, text, text, text, text, text, text)', 'execute'), 'service_role';
+  assert not has_function_privilege('authenticated', 'public.submit_access_request(text, text, text, text, text, integer, text, text, text, text, text, text, text)', 'execute'), 'authenticated';
+  assert not has_function_privilege('anon', 'public.submit_access_request(text, text, text, text, text, integer, text, text, text, text, text, text, text)', 'execute'), 'anon';
   -- The index: unique and partial, from this migration's time on.
   assert (select i.indisunique and pg_get_expr(i.indpred, i.indrelid) like '%created_at >= ''2026-11-10 15:00:00+00''%'
           from pg_index i where i.indexrelid = 'public.access_requests_organization_unique'::regclass), 'index';

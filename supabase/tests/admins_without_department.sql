@@ -119,15 +119,15 @@ begin
 
   -- ---------- Request Hawkim: no position needed; an old request keeps its own ----------
   assert (select job_title = 'QPPV' from public.access_requests where email = 'aw-old@test.invalid'), 'existing rows unchanged';
-  v_request := public.submit_access_request('AW New Pharma', 'New Applicant', null, 'aw-new@test.invalid', '+966500000001', 5, null, repeat('d', 64));
+  v_request := public.submit_access_request('AW New Pharma', 'New Applicant', null, 'aw-new@test.invalid', '+966500000001', 5, null, repeat('d', 64), 'info@organization.test', 'King Fahd Road, Riyadh', null, null, 'A test organization.');
   assert (select job_title is null from public.access_requests where id = v_request), 'no position: null';
-  v_request := public.submit_access_request('AW Blank Pharma', 'Blank Applicant', '   ', 'aw-blank@test.invalid', '+966500000002', 5, null, repeat('e', 64));
+  v_request := public.submit_access_request('AW Blank Pharma', 'Blank Applicant', '   ', 'aw-blank@test.invalid', '+966500000002', 5, null, repeat('e', 64), 'info@organization.test', 'King Fahd Road, Riyadh', null, null, 'A test organization.');
   assert (select job_title is null from public.access_requests where id = v_request), 'a blank position: null';
-  v_request := public.submit_access_request('AW Titled Pharma', 'Titled Applicant', ' QPPV ', 'aw-titled@test.invalid', '+966500000003', 5, null, repeat('f', 64));
+  v_request := public.submit_access_request('AW Titled Pharma', 'Titled Applicant', ' QPPV ', 'aw-titled@test.invalid', '+966500000003', 5, null, repeat('f', 64), 'info@organization.test', 'King Fahd Road, Riyadh', null, null, 'A test organization.');
   assert (select job_title = 'QPPV' from public.access_requests where id = v_request), 'a position sent by an older form: trimmed and kept';
   -- Too long: refused by the position rule itself (the token hash is valid).
   begin
-    perform public.submit_access_request('AW Long Pharma', 'Long', repeat('x', 101), 'aw-long@test.invalid', '+966500000004', 5, null, repeat('b', 64));
+    perform public.submit_access_request('AW Long Pharma', 'Long', repeat('x', 101), 'aw-long@test.invalid', '+966500000004', 5, null, repeat('b', 64), 'info@organization.test', 'King Fahd Road, Riyadh', null, null, 'A test organization.');
     assert false, 'a 101-character position is refused';
   exception when check_violation then
     get stacked diagnostics v_constraint = constraint_name;
