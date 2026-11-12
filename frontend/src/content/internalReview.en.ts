@@ -104,7 +104,7 @@ export const internalReviewEn = {
     /** The Reviewers table on the author's SOP page. */
     table: {
       version: 'Version {version}', versionCurrent: 'Version {version} (Current)', caption: 'Review requests for version {version}',
-      columns: { reviewer: 'Reviewer', department: 'Department', division: 'Division', sent: 'Request Sent', status: 'Status', decision: 'Decision Date', deadline: 'Review Deadline', actions: 'Actions' },
+      columns: { reviewer: 'Reviewer', department: 'Department', division: 'Division', sent: 'Request Sent', status: 'Status', response: 'Response Date', deadline: 'Review Deadline', actions: 'Actions' },
       none: '—', noNotes: 'No Comments',
       viewNotes: 'View Comments from {name}', notesTitle: 'Comments from {name}', close: 'Close',
       notes: { comment: 'Comments', decline: 'Reason for Declining', removal: 'Reason for Removing' },

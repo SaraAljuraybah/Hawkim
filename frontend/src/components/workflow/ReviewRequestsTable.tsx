@@ -4,7 +4,7 @@ import { internalReviewEn } from '../../content/internalReview.en'
 import type { InternalReviewerAssignment, InternalReviewRound, Sop } from '../../data/mock/types'
 import { formatDate, formatReviewDate } from '../../lib/format'
 import { isInactiveDecision, REVIEW_DEADLINE_EDITING_ACTIVE } from '../../lib/internalReviewStatus'
-import { canRespondToRequest, requestDecisionDate, requestReviewDueDate, reviewNotes, visibleReviewRequests, type ReviewNote } from '../../lib/reviewRequestRows'
+import { canRespondToRequest, requestResponseDate, requestReviewDueDate, reviewNotes, visibleReviewRequests, type ReviewNote } from '../../lib/reviewRequestRows'
 import { useDepartments } from '../../state/departmentsContext'
 import { useUsers } from '../../state/usersContext'
 import { IconButton } from '../ui/IconButton'
@@ -37,7 +37,7 @@ export interface ReviewRequestResponse {
 }
 
 const text = internalReviewEn.panel.table
-const columns = [text.columns.reviewer, text.columns.division, text.columns.department, text.columns.sent, text.columns.status, text.columns.decision, text.columns.deadline]
+const columns = [text.columns.reviewer, text.columns.division, text.columns.department, text.columns.sent, text.columns.status, text.columns.response, text.columns.deadline]
 
 function Timestamp({ value, format }: { value?: string; format: (value: string) => string }) {
   return value ? <time dateTime={value}>{format(value)}</time> : <>{text.none}</>
@@ -73,7 +73,7 @@ export function ReviewRequestsTable({ sop, canRemove, onRemove, canEditDeadline,
       division: divisionLabel(department) || text.none,
       sent: <Timestamp value={request.assignedAt} format={formatReviewDate} />,
       status: <RequestStatusBadge sop={sop} request={request} />,
-      decision: <Timestamp value={requestDecisionDate(request)} format={formatReviewDate} />,
+      response: <Timestamp value={requestResponseDate(request)} format={formatReviewDate} />,
       deadline: <Timestamp value={requestReviewDueDate(request)} format={formatDate} />,
       actions: (
         // Three fixed places, so the icons line up from row to row.
@@ -133,7 +133,7 @@ export function ReviewRequestsTable({ sop, canRemove, onRemove, canEditDeadline,
                   <td className="py-3 pr-4">{row.department}</td>
                   <td className="py-3 pr-4 whitespace-nowrap">{row.sent}</td>
                   <td className="py-3 pr-4">{row.status}</td>
-                  <td className="py-3 pr-4 whitespace-nowrap">{row.decision}</td>
+                  <td className="py-3 pr-4 whitespace-nowrap">{row.response}</td>
                   <td className="py-3 pr-4 whitespace-nowrap">{row.deadline}</td>
                   <td className="py-3">{row.actions}</td>
                 </tr>
@@ -158,7 +158,7 @@ export function ReviewRequestsTable({ sop, canRemove, onRemove, canEditDeadline,
                     [text.columns.division, row.division],
                     [text.columns.department, row.department],
                     [text.columns.sent, row.sent],
-                    [text.columns.decision, row.decision],
+                    [text.columns.response, row.response],
                     [text.columns.deadline, row.deadline],
                   ].map(([label, value], index) => (
                     <div key={index} className="col-span-2 grid grid-cols-subgrid">

@@ -39,8 +39,11 @@ afterEach(() => vi.useRealTimers())
 describe('Reviewers table on the author SOP page', () => {
   it('has the agreed columns, row headers and a stacked card for each request', () => {
     const html = render(started())
-    expect([...table(html).matchAll(/<th scope="col"[^>]*>([^<]+)</g)].map((match) => match[1])).toEqual(['Reviewer', 'Division', 'Department', 'Request Sent', 'Status', 'Decision Date', 'Review Deadline', 'Actions'])
+    expect([...table(html).matchAll(/<th scope="col"[^>]*>([^<]+)</g)].map((match) => match[1])).toEqual(['Reviewer', 'Division', 'Department', 'Request Sent', 'Status', 'Response Date', 'Review Deadline', 'Actions'])
     expect(table(html).match(/<th scope="row"/g)).toHaveLength(3)
+    // The cards use the same label; the old one is gone.
+    expect(html.slice(html.indexOf('</table>')).match(/>Response Date</g)).toHaveLength(3)
+    expect(html).not.toContain('Decision Date')
     expect(row(html, 'Reviewer Alpha')).toContain('Home Department')
     expect(row(html, 'Reviewer Alpha')).toContain('<td class="py-3 pr-4">—</td>')
     expect(row(html, 'Reviewer Alpha')).toContain('Oct 23, 2026')

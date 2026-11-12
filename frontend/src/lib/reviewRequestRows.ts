@@ -26,8 +26,8 @@ export function visibleReviewRequests(round: InternalReviewRound): InternalRevie
   return round.assignments.filter((request) => request.decision !== 'expired' || latestAssignmentOf(round, request.userId) === request)
 }
 
-/** The Decision Date column: when the reviewer accepted or declined the request. */
-export function requestDecisionDate(request: InternalReviewerAssignment): string | undefined {
+/** The Response Date column: when the reviewer accepted or declined the request. */
+export function requestResponseDate(request: InternalReviewerAssignment): string | undefined {
   return request.acceptedAt ?? (request.declineReason ? request.decidedAt : undefined)
 }
 
