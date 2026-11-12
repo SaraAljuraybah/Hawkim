@@ -119,21 +119,31 @@ describe('directory selection never changes authoring or membership context', ()
     expect(render(<SopsPage />, '/test?q=x')).toMatch(/<div class="mt-3 flex justify-end"><button[^>]*>Clear Filters<\/button><\/div><\/div>/)
   })
 
-  it('offers only the departments, and so divisions, with SOPs in their directory, and filters by them', () => {
+  it('offers every division and department, even without SOPs in their directory, and filters by them', () => {
     fixture.home = { ...fixture.home, divisionId: 'home-division', divisionName: 'Home Division' }
     fixture.sops = [...fixture.sops, sop('home-published', 'home', 'published')]
     const html = render(<SopsPage />)
-    // foreign-reviewed (Foreign Directory) and home-published (Home Department) are listed.
     expect(html).toContain('Foreign Directory')
     expect(html).toContain('Home Division')
     const departmentOnly = render(<SopsPage />, '/test?dept=home')
     expect(departmentOnly).toContain('home-published')
     expect(departmentOnly).not.toContain('foreign-reviewed')
     expect(departmentOnly).toContain('>1 SOP<')
-    // A department without SOPs in their directory isn't offered.
+    // Home Department has no SOP in their directory now: still offered.
     fixture.sops = [{ ...sop('foreign-reviewed', 'other', 'published'), reviewers: [{ userId: 'visitor', decision: 'completed' }] }]
-    expect(render(<SopsPage />)).not.toContain('Home Division')
+    const without = render(<SopsPage />)
+    expect(without).toContain('Home Division')
+    expect(without).toContain('Home Department')
     fixture.home = { ...fixture.home, divisionId: undefined, divisionName: undefined }
+  })
+
+  it('shows the empty state directly on the page background: icon and text centered, no box', () => {
+    fixture.sops = []
+    const html = render(<SopsPage />)
+    const empty = html.match(/<div class="([^"]*)"><span aria-hidden="true" class="inline-flex size-12[^"]*">/)!
+    expect(empty[1]).toBe('flex flex-col items-center px-6 py-14 text-center')
+    expect(empty[1]).not.toMatch(/border|bg-white|rounded/)
+    expect(html).toContain('No published SOPs yet.')
   })
   it('offers Sort By next to the search, Newest to Oldest by default, and stacks on small screens', () => {
     fixture.sops = [{ ...sop('older-sop', 'other', 'published', 'visitor'), lastUpdated: '2026-01-01' }, { ...sop('newer-sop', 'other', 'published', 'visitor'), lastUpdated: '2026-10-01' }]

@@ -97,12 +97,9 @@ function SopDirectory({ activeDepartment, admin = false }: { activeDepartment: D
   // department's plus those they worked on, in any department (Others included). The active department
   // doesn't narrow it.
   const authorized = useMemo(() => directorySopsFor(listSops, user), [listSops, user])
-  // The Filter (Division and Department chips, as on Organizational Structure), from the active departments:
-  // every one for the admin; for everyone else only those with SOPs in their directory (so only their divisions).
-  // Choices that no longer exist (an old link) are dropped.
-  const filterData = useMemo(() => filterDepartmentsFrom(admin
-    ? departments
-    : departments.filter((department) => authorized.some((sop) => sop.departmentId === department.id))), [admin, departments, authorized])
+  // The Filter (Division and Department chips, as on Organizational Structure): every active division and
+  // department, for every role. Choices that no longer exist (an old link) are dropped.
+  const filterData = useMemo(() => filterDepartmentsFrom(departments), [departments])
   // The Department chips follow the selected divisions; a selected department no longer offered is dropped.
   const { divisionChoices, divisions: filterDivisions, groups: departmentGroups, departments: filterDepartments } = useMemo(
     () => filterSelection(filterData, urlDivisions, urlDepartments), [filterData, urlDivisions, urlDepartments])
@@ -243,7 +240,8 @@ function SopDirectory({ activeDepartment, admin = false }: { activeDepartment: D
 
       <div role="tabpanel" id={ids.panel} aria-labelledby={ids.tab} tabIndex={0} className="mt-4 rounded-xl">
         {visibleSops.length === 0 ? (
-          <div className="flex flex-col items-center rounded-xl border border-dashed border-beige bg-white px-6 py-14 text-center">
+          // Directly on the page background, centered: no box.
+          <div className="flex flex-col items-center px-6 py-14 text-center">
             <span
               aria-hidden="true"
               className="inline-flex size-12 items-center justify-center rounded-lg bg-beige text-maroon"
