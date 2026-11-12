@@ -1,6 +1,7 @@
 import type { InternalReviewerAssignment } from '../data/mock/types'
-import { isValidReviewDuration, REVIEW_DURATION_CONFIRM_ABOVE, requestDeadline, reviewDueDateFrom } from './internalReviewStatus'
-import { endOfRiyadhDay, reviewWorkingDueDateFrom } from './riyadhWorkingDays'
+import { fixedResponseDueDate } from './fixedResponseDeadline'
+import { isValidReviewDuration, REVIEW_DURATION_CONFIRM_ABOVE, requestDeadline } from './internalReviewStatus'
+import { addRiyadhCalendarDays, addRiyadhWorkingDays, endOfRiyadhDay, reviewWorkingDueDateFrom } from './riyadhWorkingDays'
 
 /** The database refused a change of deadline: this tab was behind (the reviewer finished, say). */
 export class ReviewDeadlineUnavailableError extends Error {}
@@ -18,13 +19,17 @@ function durationDays(duration: string): number | undefined {
 }
 
 /**
- * Submit for Review's estimate: the last day of the review if the reviewer accepted the request now,
- * counted as accept_review will (working days from the Riyadh date of acceptance, that date not
- * counted; calendar days with the working-day policy off). Undefined while the duration is blank or invalid.
+ * Submit for Review's latest possible due date: the reviewer accepts on the last day of the fixed
+ * response window (lib/fixedResponseDeadline.ts), then has the duration, counted as accept_review
+ * will (working days from the Riyadh date of acceptance, that date not counted; calendar days with
+ * the working-day policy off). A reviewer can't accept later: the request expires. Undefined while
+ * the duration is blank or invalid.
  */
-export function reviewDueDateIfAcceptedNow(duration: string, now = new Date(), workingDays = true): string | undefined {
+export function latestReviewDueDate(duration: string, now = new Date(), workingDays = true): string | undefined {
   const days = durationDays(duration)
-  return days === undefined ? undefined : (workingDays ? reviewWorkingDueDateFrom : reviewDueDateFrom)(now.toISOString(), days)
+  if (days === undefined) return undefined
+  const lastDayToAccept = fixedResponseDueDate(now)
+  return workingDays ? addRiyadhWorkingDays(lastDayToAccept, days) : addRiyadhCalendarDays(lastDayToAccept, days)
 }
 
 export interface ReviewDeadlinePreview {

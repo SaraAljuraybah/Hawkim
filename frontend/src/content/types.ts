@@ -580,10 +580,11 @@ export interface InternalReviewSubmitContent {
   mustFinish: string
   noneEligible: string
   duration: string
+  /** `{count}` is replaced with the working days the reviewer has to accept. */
   durationHelp: string
   durationWorkingDays: string
   durationInvalid: string
-  /** The estimated last day of the review; `{date}` is replaced. */
+  /** The latest the review can be due (the reviewer accepts on the last day); `{date}` is replaced. */
   durationDueDate: string
   /** `{count}` is replaced. */
   durationLong: string

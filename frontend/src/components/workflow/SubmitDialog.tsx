@@ -8,7 +8,8 @@ import { formatDateWithWeekday } from '../../lib/format'
 import { addableReviewers, hasHomeFinished, homeReviewers } from '../../lib/internalReview'
 import { WORKING_DAY_DEADLINES_ACTIVE } from '../../lib/deadlinePolicy'
 import { REVIEW_DURATION_CONFIRM_ABOVE, REVIEW_DURATION_MAX, REVIEW_DURATION_MIN, ReviewerOrderError } from '../../lib/internalReviewStatus'
-import { reviewDueDateIfAcceptedNow } from '../../lib/reviewDeadline'
+import { RESPONSE_WORKING_DAYS } from '../../lib/fixedResponseDeadline'
+import { latestReviewDueDate } from '../../lib/reviewDeadline'
 import { lockedFieldClass, refusesChoice, reviewDepartmentLock, type SubmitMode } from '../../lib/reviewDepartment'
 import { REVIEW_NOTE_EDITOR_MAX, prepareReviewSubmission } from '../../lib/reviewSubmission'
 import { departmentsInDivision, divisionNameIn, divisionOptions, NO_DIVISION } from '../../lib/userAdmin'
@@ -33,11 +34,12 @@ interface SubmitDialogProps {
 
 /**
  * Sends eligible reviewers of the chosen department the same optional review duration, in working days
- * (lib/deadlinePolicy.ts), and shows the date it would end if accepted today. There's no response date
- * to choose: the server sets it for each request. Division and Department start on the SOP's own. The
- * SOP's first review, a new version's first send, and adding reviewers before one from the SOP's
- * department has finished stay there (lib/reviewDepartment.ts): the lists still open, another choice
- * shows why, and both fields look read-only.
+ * (lib/deadlinePolicy.ts), and shows the latest date it can end: the reviewer accepts on the last day
+ * of the response window. There's no response date to choose: the server sets it for each request.
+ * Division and Department start on the SOP's own. The SOP's first review, a new version's first send,
+ * and adding reviewers before one from the SOP's department has finished stay there
+ * (lib/reviewDepartment.ts): the lists still open, another choice shows why, and both fields look
+ * read-only.
  */
 export function SubmitDialog({ sop, content, onSubmit, onClose, mode = 'submit' }: SubmitDialogProps) {
   const text = internalReviewEn.submit
@@ -77,7 +79,7 @@ export function SubmitDialog({ sop, content, onSubmit, onClose, mode = 'submit' 
   const noteRef = useRef<HTMLTextAreaElement>(null)
   // "Today" moves on at midnight while the dialog is open.
   const now = useDeadlineClock(undefined, true)
-  const dueDate = reviewDueDateIfAcceptedNow(duration, new Date(now), WORKING_DAY_DEADLINES_ACTIVE)
+  const dueDate = latestReviewDueDate(duration, new Date(now), WORKING_DAY_DEADLINES_ACTIVE)
   const reviewerHint = !options.length ? text.noneEligible
     : !departmentId ? text.chooseDepartment
       : mode === 'add' && !anyDepartment ? text.homeFirst.replace('{department}', departmentName)
@@ -149,7 +151,7 @@ export function SubmitDialog({ sop, content, onSubmit, onClose, mode = 'submit' 
       <div>
         <TextField ref={durationRef} name="reviewDurationDays" type="number" inputMode="numeric" min={REVIEW_DURATION_MIN} max={REVIEW_DURATION_MAX} step={1}
           label={WORKING_DAY_DEADLINES_ACTIVE ? text.durationWorkingDays : text.duration}
-          hint={text.durationHelp} value={duration} error={durationError || undefined}
+          hint={text.durationHelp.replace('{count}', String(RESPONSE_WORKING_DAYS))} value={duration} error={durationError || undefined}
           onChange={(event) => { setDuration(event.target.value); setDurationError(''); setConfirmLong(false); setFailed(false) }} />
         {/* Stays mounted so each new date is announced */}
         <p aria-live="polite" className="mt-1 text-sm font-medium text-maroon">{dueDate ? text.durationDueDate.replace('{date}', formatDateWithWeekday(dueDate)) : ''}</p>

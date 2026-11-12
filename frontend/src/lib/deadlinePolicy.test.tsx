@@ -70,7 +70,7 @@ describe('working-day deadlines are active', () => {
     expect(html).not.toContain('name="reviewRequestDueDate"')
     expect(html).toContain(internalReviewEn.submit.durationWorkingDays)
     expect(html).not.toContain(internalReviewEn.submit.duration)
-    expect(html).toContain(internalReviewEn.submit.durationHelp)
+    expect(html).toContain(internalReviewEn.submit.durationHelp.replace('{count}', '2'))
     expect(html).not.toContain('Pending activation')
     expect(html).toContain('maxLength="500"')
   })

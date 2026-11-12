@@ -167,7 +167,7 @@ describe('internal parallel review across transitions and detail views', () => {
     expect(duration).toContain('max="3650"')
     expect(duration).toContain('aria-describedby=')
     expect(html).toContain('Review Duration in Working Days (Optional)')
-    expect(html).toContain(internalReviewEn.submit.durationHelp)
+    expect(html).toContain(internalReviewEn.submit.durationHelp.replace('{count}', '2'))
     expect(html).not.toContain('withdrawn automatically')
     expect(html).not.toContain('has to finish after they accept')
     expect(html).not.toContain('type="date"')
