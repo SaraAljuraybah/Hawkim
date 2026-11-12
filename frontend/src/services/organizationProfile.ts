@@ -1,4 +1,5 @@
 import type { OrganizationProfileField } from '../content/types'
+import { ORGANIZATION_DETAIL_MAX, organizationDetailProblem, type OrganizationDetailProblem } from '../lib/organizationDetails'
 import { notifyOrganizationName } from './organizationSettings'
 import { supabase } from './supabase'
 
@@ -8,32 +9,23 @@ export type OrganizationProfile = Record<OrganizationProfileField, string>
 export const ORGANIZATION_PROFILE_FIELDS: readonly OrganizationProfileField[] = ['name', 'email', 'description', 'address', 'mapsUrl', 'website']
 
 /** The most each value may have; the database allows the same (save_organization_profile). */
-export const ORGANIZATION_PROFILE_MAX: Record<OrganizationProfileField, number> = {
-  name: 200, email: 254, description: 1000, address: 300, mapsUrl: 2048, website: 2048,
-}
+export const ORGANIZATION_PROFILE_MAX = ORGANIZATION_DETAIL_MAX
 
 export const EMPTY_ORGANIZATION_PROFILE: OrganizationProfile = { name: '', email: '', description: '', address: '', mapsUrl: '', website: '' }
 
 /** What can be wrong with a value: missing, not an email, not a link, or too long. */
-export type OrganizationProfileProblem = 'required' | 'email' | 'url' | 'tooLong'
-
-const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-/** An http(s) link with a host that has a dot and no spaces (as the database checks). */
-const URL_PATTERN = /^https?:\/\/[^\s/?#]+\.[^\s]*$/i
+export type OrganizationProfileProblem = 'required' | OrganizationDetailProblem
 
 /**
  * Every value's problem (trimmed), as save_organization_profile checks them: all six are required; the email
- * must look like an address; the Google Maps link and the website must be http(s) links; none may be too long.
- * A name on one line and an address on one line, as the database requires.
+ * must look like an address; the Google Maps link and the website must be http(s) links; none may be too long
+ * (the shared rules in lib/organizationDetails.ts).
  */
 export function organizationProfileProblems(values: OrganizationProfile): Partial<Record<OrganizationProfileField, OrganizationProfileProblem>> {
   const problems: Partial<Record<OrganizationProfileField, OrganizationProfileProblem>> = {}
   for (const field of ORGANIZATION_PROFILE_FIELDS) {
-    const value = values[field].trim()
-    if (!value) problems[field] = 'required'
-    else if (value.length > ORGANIZATION_PROFILE_MAX[field]) problems[field] = 'tooLong'
-    else if (field === 'email' && !EMAIL.test(value)) problems[field] = 'email'
-    else if ((field === 'mapsUrl' || field === 'website') && !URL_PATTERN.test(value)) problems[field] = 'url'
+    const problem = values[field].trim() ? organizationDetailProblem(field, values[field]) : 'required'
+    if (problem) problems[field] = problem
   }
   return problems
 }
