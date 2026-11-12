@@ -1,10 +1,14 @@
 import { describe, expect, it } from 'vitest'
-import { failureField, liveProblem, normalizePhone, requestProblems, reviewDetails, type RequestValues } from './accessRequest'
+import { failureField, liveProblem, normalizePhone, REQUEST_ERROR_ORDER, requestProblems, reviewDetails, type RequestValues } from './accessRequest'
 import type { AccessRequestView } from '../services/accessRequests'
 
+const details = {
+  organizationEmail: 'info@riyadhpharma.example', organizationAddress: 'King Fahd Road, Riyadh', organizationMapsUrl: '',
+  organizationWebsite: '', organizationDescription: 'Makes medicines.',
+}
 const valid: RequestValues = {
   organization: 'Riyadh Pharma Co.', contactName: 'Lama Alotaibi', email: 'lama@riyadhpharma.example',
-  phone: '05 1234 5678', approxUsers: '25', message: '',
+  phone: '05 1234 5678', approxUsers: '25', message: '', ...details,
 }
 
 describe('Request Hawkim form checks', () => {
@@ -29,7 +33,7 @@ describe('Request Hawkim form checks', () => {
 })
 
 describe('Request Hawkim live checks (on leaving a field, and while its error shows)', () => {
-  const filled: RequestValues = { organization: 'Org', contactName: 'Sara', email: 'sara@org.sa', phone: '+966512345678', approxUsers: '20', message: '' }
+  const filled: RequestValues = { organization: 'Org', contactName: 'Sara', email: 'sara@org.sa', phone: '+966512345678', approxUsers: '20', message: '', ...details }
 
   it('shows a wrong email, phone or number of users at once', () => {
     expect(liveProblem('email', { ...filled, email: 'sara@' })).toBe('email')
@@ -45,10 +49,48 @@ describe('Request Hawkim live checks (on leaving a field, and while its error sh
   })
 
   it('leaves "required" to Send Request: an empty field shows nothing', () => {
-    for (const field of ['organization', 'contactName', 'email', 'phone', 'approxUsers'] as const) {
+    for (const field of ['organization', 'contactName', 'email', 'phone', 'organizationEmail', 'organizationDescription', 'approxUsers'] as const) {
       expect(requestProblems({ ...filled, [field]: '' })[field], field).toBe('required')
       expect(liveProblem(field, { ...filled, [field]: '' }), field).toBeUndefined()
     }
+  })
+
+  it('shows a wrong organization email, link or a value that is too long at once', () => {
+    expect(liveProblem('organizationEmail', { ...filled, organizationEmail: 'info@' })).toBe('email')
+    expect(liveProblem('organizationMapsUrl', { ...filled, organizationMapsUrl: 'maps.google.com' })).toBe('url')
+    expect(liveProblem('organizationWebsite', { ...filled, organizationWebsite: 'http://org.sa' })).toBe('url')
+    expect(liveProblem('organizationAddress', { ...filled, organizationAddress: 'a'.repeat(301) })).toBe('tooLong')
+    expect(liveProblem('organizationDescription', { ...filled, organizationDescription: 'd'.repeat(1001) })).toBe('tooLong')
+  })
+})
+
+describe('Request Hawkim: the organization’s details, with the Organization Profile’s rules', () => {
+  it('needs an address or a Google Maps link (one is enough), as one problem for the group', () => {
+    expect(requestProblems({ ...valid, organizationAddress: ' ', organizationMapsUrl: '' })).toEqual({ addressGroup: 'required' })
+    expect(requestProblems({ ...valid, organizationAddress: '', organizationMapsUrl: 'https://maps.google.com/?q=riyadh' })).toEqual({})
+    expect(requestProblems({ ...valid, organizationMapsUrl: 'https://maps.google.com/?q=riyadh' })).toEqual({})
+  })
+
+  it('leaves the website optional, and takes https:// links only', () => {
+    expect(requestProblems({ ...valid, organizationWebsite: '' })).toEqual({})
+    expect(requestProblems({ ...valid, organizationWebsite: 'https://riyadhpharma.example' })).toEqual({})
+    expect(requestProblems({ ...valid, organizationWebsite: 'http://riyadhpharma.example' })).toEqual({ organizationWebsite: 'url' })
+    expect(requestProblems({ ...valid, organizationMapsUrl: 'http://maps.google.com' })).toEqual({ organizationMapsUrl: 'url' })
+  })
+
+  it('has the same limits as the Organization Profile', () => {
+    expect(requestProblems({ ...valid, organizationEmail: `${'e'.repeat(250)}@x.io` })).toEqual({ organizationEmail: 'tooLong' })
+    expect(requestProblems({ ...valid, organizationAddress: 'a'.repeat(300) })).toEqual({})
+    expect(requestProblems({ ...valid, organizationDescription: 'd'.repeat(1000) })).toEqual({})
+    expect(requestProblems({ ...valid, organizationWebsite: `https://${'w'.repeat(2036)}.com` })).toEqual({})
+    expect(requestProblems({ ...valid, organizationWebsite: `https://${'w'.repeat(2037)}.com` })).toEqual({ organizationWebsite: 'tooLong' })
+  })
+
+  it('puts the Address group before its two boxes, after the organization email (focus goes to the first problem)', () => {
+    expect(REQUEST_ERROR_ORDER).toEqual([
+      'organization', 'contactName', 'email', 'phone', 'organizationEmail', 'addressGroup', 'organizationAddress', 'organizationMapsUrl',
+      'organizationWebsite', 'organizationDescription', 'approxUsers', 'message',
+    ])
   })
 })
 

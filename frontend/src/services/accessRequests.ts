@@ -51,6 +51,12 @@ export async function submitAccessRequest(values: RequestValues, website = ''): 
     phone: normalizePhone(values.phone) ?? values.phone.trim(),
     approxUsers: Number(values.approxUsers.trim()),
     message: values.message.trim(),
+    // The organization's details; the real Website is `organizationWebsite` (`website` is the field for bots).
+    organizationEmail: values.organizationEmail.trim(),
+    organizationAddress: values.organizationAddress.trim(),
+    organizationMapsUrl: values.organizationMapsUrl.trim(),
+    organizationWebsite: values.organizationWebsite.trim(),
+    organizationDescription: values.organizationDescription.trim(),
     website,
   })
   if (result.ok) return { ok: true }

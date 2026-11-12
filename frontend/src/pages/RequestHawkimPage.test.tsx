@@ -30,18 +30,49 @@ describe('Request Hawkim page', () => {
 
   it('marks the required fields like the other forms, and labels the message (Optional) with a counter', () => {
     const marks = html.match(/<span[^>]*text-status-rejected-fg[^>]*>\*<\/span>/g) ?? []
-    // Organization, Contact person, Email, Phone and Approximate number of users (no Position).
-    expect(marks).toHaveLength(5)
+    // Organization, Contact person, Contact person email, Phone, Organization email, the Address group's title,
+    // Description and Approximate number of users (no Position).
+    expect(marks).toHaveLength(8)
     expect(html).toContain('>Message (Optional)<')
     expect(html).not.toContain('>Optional.<')
     expect(html).toContain('0 / 2000')
   })
 
   it('has no Position field (the applicant becomes the Super Admin, and Admins have no position)', () => {
-    expect([...html.matchAll(/<(?:input|textarea)[^>]*name="([^"]+)"/g)].map((match) => match[1]))
-      .toEqual(['organization', 'contactName', 'email', 'phone', 'approxUsers', 'message', 'website'])
     expect(html).not.toContain('>Position')
     expect(html).not.toContain('organization-title')
+  })
+
+  it('asks for the organization’s details after Phone, in this order, before the number of users and the message', () => {
+    expect([...html.matchAll(/<(?:input|textarea)[^>]*name="([^"]+)"/g)].map((match) => match[1])).toEqual([
+      'organization', 'contactName', 'email', 'phone', 'organizationEmail', 'organizationAddress', 'organizationMapsUrl',
+      'organizationWebsite', 'organizationDescription', 'approxUsers', 'message', 'website',
+    ])
+    expect(html).toContain('>Contact person email<')
+    expect(html).toContain('>Website (Optional)<')
+    expect(html).toContain('0 / 1000')
+    // The organization email and the description are required; the website and the two Address boxes are not.
+    const control = (name: string) => html.match(new RegExp(`<(?:input|textarea)[^>]*name="${name}"[^>]*>`))![0]
+    for (const name of ['organizationEmail', 'organizationDescription']) expect(control(name)).toContain('required=""')
+    for (const name of ['organizationAddress', 'organizationMapsUrl', 'organizationWebsite']) expect(control(name)).not.toContain('required=""')
+    expect(control('organizationMapsUrl')).toContain('type="url"')
+    expect(control('organizationWebsite')).toContain('type="url"')
+  })
+
+  it('puts the address and the Google Maps link in one required Address group, "or" between them, the rule as a hint', () => {
+    const box = html.match(/<fieldset[^>]*>(.*?)<\/fieldset>/)![0]
+    expect(box).toMatch(/<legend[^>]*>Address<span aria-hidden="true"[^>]*>\*<\/span><\/legend>/)
+    const hintId = box.match(/<p id="([^"]+)"[^>]*>Enter an address, a Google Maps link, or both\.<\/p>/)![1]
+    expect(box).toMatch(new RegExp(`^<fieldset aria-describedby="${hintId}"`))
+    for (const name of ['organizationAddress', 'organizationMapsUrl']) {
+      expect(box).toMatch(new RegExp(`<input[^>]*aria-describedby="${hintId}[^"]*"[^>]*name="${name}"`))
+    }
+    expect(box).toMatch(/<span aria-hidden="true"[^>]*>or<\/span>/)
+  })
+
+  it('keeps the hidden field for bots apart from the real Website', () => {
+    expect(html.match(/name="website"/g)).toHaveLength(1)
+    expect(html).toMatch(/<input[^>]*name="organizationWebsite"[^>]*>/)
   })
 })
 

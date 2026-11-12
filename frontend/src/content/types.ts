@@ -1936,9 +1936,26 @@ export interface RequestHawkimContent {
   fields: {
     organization: string
     contactName: string
+    /** The contact person's email. */
     email: string
     phone: string
     phoneHint: string
+    organizationEmail: string
+    organizationEmailPlaceholder: string
+    /** The two boxes of the Address group (its title, hint and "or" are in `addressGroup`). */
+    organizationAddress: string
+    organizationAddressPlaceholder: string
+    organizationMapsUrl: string
+    organizationMapsUrlPlaceholder: string
+    /** Under the Google Maps link and the Website. */
+    linkHint: string
+    /** Labelled "(Optional)", like Message. */
+    organizationWebsite: string
+    organizationWebsitePlaceholder: string
+    organizationDescription: string
+    organizationDescriptionPlaceholder: string
+    /** `{count}` and `{max}` are replaced. */
+    organizationDescriptionCounter: string
     approxUsers: string
     /** Labelled "(Optional)", like the optional fields of the other forms. */
     message: string
@@ -1946,6 +1963,8 @@ export interface RequestHawkimContent {
     /** `{count}` and `{max}` are replaced. */
     messageCounter: string
   }
+  /** The box holding the address and the Google Maps link: one of the two is enough. */
+  addressGroup: { title: string; hint: string; or: string }
   submit: string
   backLink: LinkContent
   errors: {
@@ -1953,6 +1972,10 @@ export interface RequestHawkimContent {
     email: string
     phone: string
     approxUsers: string
+    /** A Google Maps link or website that isn't an https:// link. */
+    url: string
+    /** Both the address and the Google Maps link are empty (after Send Request). */
+    addressGroup: string
     tooLong: string
     tooManyRequests: string
     /** On the Organization field after Send Request: a pending or accepted request has this name. */
