@@ -30,7 +30,7 @@ describe('Request Hawkim page', () => {
 
   it('marks the required fields like the other forms, and labels the message (Optional) with a counter', () => {
     const marks = html.match(/<span[^>]*text-status-rejected-fg[^>]*>\*<\/span>/g) ?? []
-    // Organization, Contact person, Contact person email, Phone, Organization email, the Address group's title,
+    // Contact person name, Contact person email, Phone, Organization name, Organization email, the Address group's title,
     // Description and Approximate number of users (no Position).
     expect(marks).toHaveLength(8)
     expect(html).toContain('>Message (Optional)<')

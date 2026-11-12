@@ -113,16 +113,16 @@ describe('a request on the review page', () => {
 
   it('lists no Position for a request without one', () => {
     expect(labels(reviewDetails(request))).toEqual([
-      'Contact person', 'Contact person email', 'Phone', 'Organization', 'Organization email', 'Address', 'Google Maps link', 'Website',
+      'Contact person name', 'Contact person email', 'Phone', 'Organization name', 'Organization email', 'Address', 'Google Maps link', 'Website',
       'Description', 'Approximate number of users', 'Message', 'Received',
     ])
     expect(labels(reviewDetails({ ...request, jobTitle: null }))).not.toContain('Position')
     expect(labels(reviewDetails({ ...request, jobTitle: '' }))).not.toContain('Position')
   })
 
-  it('still lists the Position of a request sent before it was removed, after Contact person', () => {
+  it('still lists the Position of a request sent before it was removed, after Contact person name', () => {
     const details = reviewDetails({ ...request, jobTitle: 'QPPV' })
-    expect(details[0][0]).toBe('Contact person')
+    expect(details[0][0]).toBe('Contact person name')
     expect(details[1]).toEqual(['Position', 'QPPV'])
   })
 

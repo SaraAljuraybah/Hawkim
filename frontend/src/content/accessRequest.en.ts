@@ -6,8 +6,8 @@ export const requestHawkimEn: RequestHawkimContent = {
   title: 'Request Hawkim',
   text: 'Tell us about your organization. Our team will review your request and reply by email.',
   fields: {
-    organization: 'Organization',
-    contactName: 'Contact person',
+    organization: 'Organization name',
+    contactName: 'Contact person name',
     email: 'Contact person email',
     phone: 'Phone',
     phoneHint: 'Saudi mobile number: +9665XXXXXXXX',
@@ -58,8 +58,8 @@ export const reviewRequestEn: ReviewRequestContent = {
   title: 'Review request',
   text: 'Accepting creates the contact person’s account as the organization’s Super Admin and emails them a link to set their password.',
   labels: {
-    organization: 'Organization',
-    contactName: 'Contact person',
+    organization: 'Organization name',
+    contactName: 'Contact person name',
     jobTitle: 'Position',
     email: 'Contact person email',
     phone: 'Phone',
