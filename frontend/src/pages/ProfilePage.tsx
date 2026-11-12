@@ -2,6 +2,7 @@ import { useRef, useState } from 'react'
 import { CircleCheck } from 'lucide-react'
 import { EmailDetail } from '../components/admin/DetailsCard'
 import { ChangePasswordDialog } from '../components/profile/ChangePasswordDialog'
+import { PermissionBadges } from '../components/admin/UserBits'
 import { Card } from '../components/ui/Card'
 import { controlClasses } from '../components/ui/useFieldIds'
 import { emailCopyEn } from '../content/emailCopy.en'
@@ -27,7 +28,6 @@ export function ProfilePage({ admin = false }: { admin?: boolean }) {
   const changeRef = useRef<HTMLButtonElement>(null)
   // In the admin portal an administrator's role is "Super Admin" or "Admin" (who the Super Admin is now).
   const adminLabel = useAdminRoleLabel(user)
-  const roles = user.permissions.map((permission) => (permission === 'admin' && adminLabel ? adminLabel : content.roles[permission]))
   // An Admin manages the whole organization: no position, division or department (whatever the account
   // still holds), as everywhere else in the interface.
   const isAdmin = user.permissions.includes('admin')
@@ -37,7 +37,6 @@ export function ProfilePage({ admin = false }: { admin?: boolean }) {
     [content.fields.email, user.email],
     [content.fields.phone, user.phone],
     ...(isAdmin ? [] : [[content.fields.division, divisionLabel(department)], [content.fields.department, department?.name], [content.fields.position, user.position]]),
-    [content.fields.roles, roles.join(', ')],
   ].map(([label, value]) => [label, value?.trim() || content.none] as const)
 
   return (
@@ -66,6 +65,15 @@ export function ProfilePage({ admin = false }: { admin?: boolean }) {
               </dd>
             </div>
           ))}
+          {/* The permissions as the gold badges of the sidebar and the admin pages ("Super Admin" or "Admin" in the admin portal) */}
+          <div className="contents">
+            <dt className="font-bold text-maroon">{content.fields.roles}</dt>
+            <dd className="min-w-0 break-words text-maroon max-sm:mb-1">
+              {user.permissions.length
+                ? <PermissionBadges user={user} label={content.fields.roles} adminLabel={adminLabel ?? undefined} />
+                : content.none}
+            </dd>
+          </div>
           {/* Last row, under a divider: a field-style box with hidden dots and the Change action */}
           <div className="mt-1 grid gap-x-6 gap-y-3 border-t border-beige pt-4 sm:col-span-2 sm:grid-cols-subgrid sm:items-center">
             <dt className="font-bold text-maroon">{content.fields.password}</dt>

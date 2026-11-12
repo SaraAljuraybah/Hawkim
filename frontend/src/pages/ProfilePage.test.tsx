@@ -24,6 +24,8 @@ vi.mock('../components/layout/NotificationsBell', () => ({ NotificationsBell: ()
 vi.mock('../components/layout/DepartmentSwitcher', () => ({ DepartmentSwitcher: () => <button type="button">Department Switcher</button> }))
 
 const render = () => renderToStaticMarkup(<MemoryRouter><ProfilePage /></MemoryRouter>)
+/** The Permission row's badges. */
+const badges = (html: string) => [...(html.match(/<ul aria-label="Permission"[^>]*>(.*?)<\/ul>/)?.[1] ?? '').matchAll(/<li[^>]*>([^<]+)<\/li>/g)].map((match) => match[1])
 
 beforeEach(() => {
   fixture.home.divisionId = undefined
@@ -34,7 +36,11 @@ beforeEach(() => {
 describe('My Profile', () => {
   it('shows the user\'s own information from their home department, in one h1 page', () => {
     const html = render()
-    for (const text of ['Name', 'Sara Aljuraybah', 'Email', 'sara@example.test', 'Department', 'Pharmacovigilance', 'Division', 'Permission', 'Author, Reviewer']) expect(html).toContain(`>${text}<`)
+    for (const text of ['Name', 'Sara Aljuraybah', 'Email', 'sara@example.test', 'Department', 'Pharmacovigilance', 'Division', 'Permission']) expect(html).toContain(`>${text}<`)
+    // The permissions as the sidebar's and admin pages' gold badges, not plain text.
+    expect(badges(html)).toEqual(['Author', 'Reviewer'])
+    expect(html).toMatch(/<ul aria-label="Permission" class="flex flex-wrap gap-1.5 "><li class="inline-flex items-center rounded-md bg-gold-light\/60 text-xs px-1.5 py-0.5 font-semibold whitespace-nowrap text-maroon">Author<\/li>/)
+    expect(html).not.toContain('Author, Reviewer')
     expect(html).not.toContain('Your Information')
     expect(html).not.toContain('>Role<')
     expect(html).not.toContain('>Roles<')
@@ -189,7 +195,6 @@ describe('top bar links to My Profile', () => {
 describe('My Profile in the admin portal', () => {
   const admin = { ...fixture.user, name: 'Nouf Almutairi', initials: 'NA', permissions: ['admin'] } as User
   const page = () => renderToStaticMarkup(<MemoryRouter><ProfilePage admin /></MemoryRouter>)
-  const value = (html: string, label: string) => html.match(new RegExp(`<dt[^>]*>${label}</dt><dd[^>]*>([^<]*)<`))![1]
 
   beforeEach(() => { fixture.user = admin })
 
@@ -197,7 +202,7 @@ describe('My Profile in the admin portal', () => {
     fixture.user = { ...admin, position: 'IT Manager' }
     const html = page()
     expect([...html.matchAll(/<dt[^>]*>([^<]+)<\/dt>/g)].map((match) => match[1])).toEqual(['Name', 'Email', 'Phone Number', 'Permission', 'Password'])
-    expect(value(html, 'Permission')).toBe('Admin')
+    expect(badges(html)).toEqual(['Admin'])
     expect(html).not.toContain('IT Manager')
     expect(html).not.toContain('Pharmacovigilance')
     expect(html.match(/<h1/g)).toHaveLength(1)
@@ -238,8 +243,8 @@ describe('My Profile in the admin portal', () => {
 
   it('shows "Super Admin" for the current Super Admin, in the top bar and as the permission', () => {
     expect(inPortal(admin.id, topBar(admin))).toContain('<p class="truncate text-xs text-text-gray">Super Admin</p>')
-    expect(value(inPortal(admin.id, <ProfilePage admin />), 'Permission')).toBe('Super Admin')
-    expect(value(inPortal('someone-else', <ProfilePage admin />), 'Permission')).toBe('Admin')
+    expect(badges(inPortal(admin.id, <ProfilePage admin />))).toEqual(['Super Admin'])
+    expect(badges(inPortal('someone-else', <ProfilePage admin />))).toEqual(['Admin'])
   })
 
   it('shows no role under the name until it is known who the Super Admin is', () => {

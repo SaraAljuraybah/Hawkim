@@ -203,7 +203,6 @@ export interface ProfileContent {
   fields: { name: string; email: string; phone: string; position: string; division: string; department: string; roles: string; password: string }
   /** Shown when a value isn't set. */
   none: string
-  roles: { author: string; reviewer: string; approver: string; admin: string }
   password: {
     /** Visible text of the action in the Password row. */
     change: string
