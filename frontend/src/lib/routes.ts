@@ -89,8 +89,11 @@ export function profilePathFor(user: { permissions: string[] } | null | undefine
 /** The admin portal's departments list. */
 export const ADMIN_DEPARTMENTS_PATH = '/admin/departments'
 
+/** The admin portal's Organization Profile. */
+export const ADMIN_ORGANIZATION_PROFILE_PATH = '/admin/organization-profile'
+
 /** Where an admin lands: after signing in, on /admin, and from any employee page. */
-export const ADMIN_HOME_PATH = ADMIN_DEPARTMENTS_PATH
+export const ADMIN_HOME_PATH = ADMIN_ORGANIZATION_PROFILE_PATH
 
 /** Whether this is the Divisions and Departments page itself (not a department's page under it): the only place the organization name can be edited. */
 export function isOrganizationNameEditPage(pathname: string): boolean {

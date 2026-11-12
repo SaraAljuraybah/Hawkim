@@ -9,8 +9,8 @@ export const adminEn: AdminContent = {
   shell: {
     skipLink: 'Skip to main content',
     brandName: 'Hawkim',
-    homeHref: '/admin/departments',
-    homeLinkLabel: 'Hawkim Admin Portal, go to Divisions and Departments',
+    homeHref: '/admin/organization-profile',
+    homeLinkLabel: 'Hawkim Admin Portal, go to Organization Profile',
     navAriaLabel: 'Admin Portal',
     nav: [
       { label: 'Organization Profile', href: '/admin/organization-profile', icon: 'organization', matchSubpaths: true },

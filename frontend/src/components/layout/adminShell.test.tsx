@@ -59,10 +59,10 @@ describe('the admin portal sidebar', () => {
     expect(labels).toEqual(links.map((item) => item.label))
   })
 
-  it('takes the logo to Divisions and Departments, named for it', () => {
+  it('takes the logo to Organization Profile, named for it', () => {
     const html = renderToStaticMarkup(<MemoryRouter><Sidebar content={adminEn.shell} /></MemoryRouter>)
-    const logo = html.match(/<a[^>]*aria-label="Hawkim Admin Portal, go to Divisions and Departments"[^>]*>/)![0]
-    expect(logo).toContain('href="/admin/departments"')
+    const logo = html.match(/<a[^>]*aria-label="Hawkim Admin Portal, go to Organization Profile"[^>]*>/)![0]
+    expect(logo).toContain('href="/admin/organization-profile"')
   })
 })
 
@@ -175,8 +175,8 @@ describe('the signed-in user\'s role badges under the logo', () => {
 })
 
 describe('where an admin lands', () => {
-  it('is Divisions and Departments', () => {
-    expect(ADMIN_HOME_PATH).toBe('/admin/departments')
+  it('is Organization Profile', () => {
+    expect(ADMIN_HOME_PATH).toBe('/admin/organization-profile')
     expect(adminEn.shell.homeHref).toBe(ADMIN_HOME_PATH)
   })
 

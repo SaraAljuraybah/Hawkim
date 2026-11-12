@@ -60,8 +60,8 @@ describe('Organizational Structure for every signed-in user', () => {
     session.user!.permissions = ['admin']
     const result = EmployeeArea()
     expect(result.type).toBe(Navigate)
-    // Into the portal, on Divisions and Departments.
-    expect(result.props.to).toBe('/admin/departments')
+    // Into the portal, on Organization Profile.
+    expect(result.props.to).toBe('/admin/organization-profile')
     expect(navLinks(adminEn.shell.nav).map((entry) => entry.href)).toContain('/admin/organizational-structure')
   })
 })
