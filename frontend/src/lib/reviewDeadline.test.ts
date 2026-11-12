@@ -94,6 +94,6 @@ describe('the Submit for Review latest due date', () => {
     expect(internalReviewEn.submit.durationDueDate.replace('{date}', formatDateWithWeekday('2026-11-09')))
       .toBe('Latest due date: Mon, Nov 9, 2026 (if the reviewer accepts on the last day).')
     expect(internalReviewEn.submit.durationHelp.replace('{count}', String(RESPONSE_WORKING_DAYS)))
-      .toBe('The reviewer has 2 working days to accept. The review time starts when they accept (weekends excluded).')
+      .toBe('The reviewer has 2 working days to accept. The review duration starts when they accept (weekends excluded).')
   })
 })

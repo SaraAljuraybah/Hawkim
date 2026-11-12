@@ -24,7 +24,7 @@ export const internalReviewEn = {
     mustFinish: 'A reviewer from {department} must finish this version first.',
     noneEligible: 'No eligible reviewers are available.',
     duration: 'Review Duration in Days (Optional)',
-    durationHelp: 'The reviewer has {count} working days to accept. The review time starts when they accept (weekends excluded).',
+    durationHelp: 'The reviewer has {count} working days to accept. The review duration starts when they accept (weekends excluded).',
     durationWorkingDays: 'Review Duration in Working Days (Optional)',
     durationInvalid: 'Enter a whole number of days from 1 to 3,650, or leave it blank.',
     durationDueDate: 'Latest due date: {date} (if the reviewer accepts on the last day).',

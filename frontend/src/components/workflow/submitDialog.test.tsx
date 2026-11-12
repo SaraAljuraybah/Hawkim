@@ -113,7 +113,7 @@ describe('Submit for Review safe frontend presentation', () => {
     expect(html).not.toContain('name="reviewRequestDueDate"')
     expect(html).not.toContain('type="date"')
     expect(html).not.toContain('Friday and Saturday are excluded')
-    expect(html).toContain('The reviewer has 2 working days to accept. The review time starts when they accept (weekends excluded).')
+    expect(html).toContain('The reviewer has 2 working days to accept. The review duration starts when they accept (weekends excluded).')
     expect(html.match(/<input[^>]*name="reviewDurationDays"[^>]*>/)![0]).toContain('min="1" max="3650"')
     expect(html).not.toContain('The server sets the final date when you submit')
   })
