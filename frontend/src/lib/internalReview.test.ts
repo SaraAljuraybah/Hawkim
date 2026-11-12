@@ -323,14 +323,18 @@ describe('returns, removals, new versions and immutable history', () => {
     expect(() => cancel(cancelled, 'a')).toThrow()
     expect(() => decide(decide(sop, 'a'), 'a')).toThrow()
   })
-  it('stays In Review with an open round when every reviewer is removed, and the author adds reviewers to the same version', () => {
+  it('goes back to Draft when every reviewer is removed, and Submit for Review reopens the same round', () => {
     let sop = start(); const first = currentInternalRound(sop)!
     for (const user of ['a', 'b', 'c']) sop = cancel(sop, user)
-    expect(sop.status).toBe('in-review')
+    expect(sop.status).toBe('draft')
     expect(requiredReviewsComplete(sop)).toBe(false)
-    expect(currentInternalRound(sop)!.status).toBe('open')
+    expect(currentInternalRound(sop)!).toMatchObject({ id: first.id, status: 'closed' })
     expect(pendingPeople(sop)).toEqual([])
-    const added = addInternalReviewers(sop, 'author', { reviewerIds: ['b', 'c'], responseDueDate: '2026-10-26' }, env())
+    expect(() => addInternalReviewers(sop, 'author', { reviewerIds: ['b'] }, env())).toThrow(/current version/)
+    const added = startInternalReview(sop, 'author', '4.0', { reviewerIds: ['b', 'c'], responseDueDate: '2026-10-26' }, env())
+    expect(added.status).toBe('in-review')
+    expect(currentInternalRound(added)!.status).toBe('open')
+    expect(currentInternalRound(added)!.closedAt).toBeUndefined()
     expect(added.internalReviewRounds).toHaveLength(1)
     expect(currentInternalRound(added)!.id).toBe(first.id)
     expect(currentInternalRound(added)!.assignments.filter((person) => person.userId === 'b').map((person) => person.decision)).toEqual(['removed', 'pending'])
@@ -349,7 +353,9 @@ describe('returns, removals, new versions and immutable history', () => {
     for (const actor of ['coauthor', 'a', 'admin']) expect(() => addInternalReviewers(sop, actor, { reviewerIds: ['a'] }, env())).toThrow()
     expect(() => addInternalReviewers(sop, 'author', { reviewerIds: ['a'], reviewDurationDays: 3651 }, env())).toThrow(/duration/)
     expect(task(addInternalReviewers(sop, 'author', { reviewerIds: ['a'] }, env()), 'a').decision).toBe('pending')
-    const expired = expireUnanswered(start(), new Date(2026, 9, 28, 23, 59, 59, 999).getTime())
+    // b accepted, so the SOP stays In Review while a and c expire.
+    const expired = expireUnanswered(accept(start(), 'b'), new Date(2026, 9, 28, 23, 59, 59, 999).getTime())
+    expect(expired.status).toBe('in-review')
     expect(addableReviewers(expired, env())).toEqual([])
     expect(() => addInternalReviewers(expired, 'author', { reviewerIds: ['a'] }, env())).toThrow(/already have a request/)
   })
@@ -380,10 +386,11 @@ describe('returns, removals, new versions and immutable history', () => {
     const finished = decide(decline(sop, 'c'), 'a')
     expect(reviewAllowsNewVersion(finished)).toBe(true)
     expect(revise(finished).version).toBe('2')
-    // With nobody taking part, a new version is allowed too.
+    // With nobody taking part, the SOP is a Draft again, where a new version is allowed too.
     let nobody = start()
     for (const user of ['a', 'b', 'c']) nobody = cancel(nobody, user)
-    expect(reviewAllowsNewVersion(nobody)).toBe(true)
+    expect(nobody.status).toBe('draft')
+    expect(reviewAllowsNewVersion(nobody)).toBe(false)
     expect(revise(nobody).version).toBe('2')
   })
   it('sends the new version to the reviewers the author chooses, once checked, as a new round', () => {
@@ -513,7 +520,8 @@ describe('automatic expiry of unanswered requests', () => {
     expect(nextExpiryAt([later, blank])).toBeUndefined()
   })
   it('refuses accepting or declining once the response due date has ended, even before the rule has run', () => {
-    const sop = start()
+    // b accepted, so the SOP stays In Review once a and c expire.
+    const sop = accept(start(), 'b')
     vi.setSystemTime(endOfDay(26))
     expect(() => accept(sop, 'a')).toThrow(/expired/)
     expect(() => decline(sop, 'a')).toThrow(/expired/)
@@ -522,7 +530,8 @@ describe('automatic expiry of unanswered requests', () => {
     expect(() => decline(expired, 'a')).toThrow(/expired/)
   })
   it('sends an expired request again as a new request, with a new deadline and the same duration', () => {
-    const started = startInternalReview(draft(), 'author', '4.0', { reviewerIds: ['a', 'b'], reviewDurationDays: 7 }, env())
+    // b accepted, so the SOP stays In Review once a's request expires.
+    const started = accept(startInternalReview(draft(), 'author', '4.0', { reviewerIds: ['a', 'b'], reviewDurationDays: 7 }, env()), 'b')
     const expired = expireUnanswered(started, endOfDay(26))
     const old = task(expired, 'a')
     const round = currentInternalRound(expired)!

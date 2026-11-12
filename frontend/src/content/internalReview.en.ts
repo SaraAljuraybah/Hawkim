@@ -69,7 +69,7 @@ export const internalReviewEn = {
     declined: 'Declined {date}', declineReason: 'Reason: {reason}',
     withdrawn: 'Withdrawn automatically: no response by {date}',
     expired: 'Expired: no response by {date}',
-    states: { open: 'Reviews in Progress', completed: 'Awaiting Author', 'changes-requested': 'Changes Requested; Awaiting a New Version' },
+    states: { open: 'Reviews in Progress', completed: 'Awaiting Author', 'changes-requested': 'Changes Requested; Awaiting a New Version', closed: 'Closed: No Active Reviewers' },
     decisions: { pending: 'Pending', accepted: 'Accepted', declined: 'Declined', withdrawn: 'Withdrawn', removed: 'Removed', overdue: 'Overdue', expired: 'Expired', completed: 'Completed', returned: 'Returned with Comments' },
     remove: 'Remove Reviewer', removeFor: 'Remove {name} from this review', removeTitle: 'Remove {name} from This Review?',
     removeReason: 'Reason for Removing', removeRequired: 'Enter a reason for removing this reviewer.',

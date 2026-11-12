@@ -151,8 +151,10 @@ describe('ReviewNotesDialog', () => {
 })
 
 describe('an expired request in the table', () => {
+  // Gamma accepted, so the SOP stays In Review once alpha and beta expire.
   function expired() {
-    const sop = started(5)
+    const begun = started(5)
+    const sop = acceptInternalReview(begun, 'gamma', currentInternalRound(begun)!.id, request(begun, 'gamma').id, env())
     return expireUnanswered(sop, Date.parse(endOfRiyadhDay(sop.internalReviewRounds![0].assignments[0].responseDueDate!)))
   }
   it('shows the Expired label in lighter text, and the main author can remove the reviewer', () => {

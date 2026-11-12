@@ -112,16 +112,25 @@ function deadlines(options: InternalReviewOptions, now = new Date()): Pick<Inter
   return { responseDueDate, responseDueAt: endOfRiyadhDay(responseDueDate), deadlinePolicy: WORKING_DAY_POLICY,
     ...(options.reviewDurationDays !== undefined ? { reviewDurationDays: options.reviewDurationDays } : {}) }
 }
+/**
+ * A Draft sent again whose current version already has a round (closed when nobody was left) reopens
+ * that round, as submit_for_review does (one round per version): the new requests join the old ones,
+ * which stay as history. Otherwise a new round.
+ */
 function create(sop: Sop, actorId: string, options: InternalReviewOptions, kind: 'submitted' | 'resubmitted'): Sop {
   const requestedAt = new Date()
   const now = requestedAt.toISOString()
   const timing = deadlines(options, requestedAt)
+  const requests = options.reviewerIds.map((userId): InternalReviewerAssignment => ({ id: id('internal-task'), userId, decision: 'pending', assignedAt: now, assignedDueDays: null, ...timing }))
+  const closed = currentInternalRound(sop)
+  const reopen = closed?.status === 'closed' && closed.version === sop.version
   // Deadlines belong to each request; the round keeps no shared deadline.
-  const round: InternalReviewRound = { id: id('internal-round'), scope: 'internal', version: sop.version, status: 'open', requestedById: actorId, requestedAt: now, assignedDueDays: null,
-    assignments: options.reviewerIds.map((userId) => ({ id: id('internal-task'), userId, decision: 'pending', assignedAt: now, assignedDueDays: null, ...timing })) }
-  const recipientIds = round.assignments.map((person) => person.userId)
-  const events = [event(round, kind, actorId, { createdAt: now, recipientIds, ...(options.note?.trim() ? { note: options.note.trim() } : {}) })]
-  return { ...sop, status: 'in-review', reviewFlow: undefined, internalReviewRounds: [...(sop.internalReviewRounds ?? []), round], reviewers: projectReviewers(round), approvers: [],
+  const round: InternalReviewRound = reopen
+    ? { ...closed, status: 'open', closedAt: undefined, assignments: [...closed.assignments, ...requests] }
+    : { id: id('internal-round'), scope: 'internal', version: sop.version, status: 'open', requestedById: actorId, requestedAt: now, assignedDueDays: null, assignments: requests }
+  const rounds = sop.internalReviewRounds ?? []
+  const events = [event(round, kind, actorId, { createdAt: now, recipientIds: options.reviewerIds, ...(options.note?.trim() ? { note: options.note.trim() } : {}) })]
+  return { ...sop, status: 'in-review', reviewFlow: undefined, internalReviewRounds: reopen ? [...rounds.slice(0, -1), round] : [...rounds, round], reviewers: projectReviewers(round), approvers: [],
     reviewDueDays: undefined, reviewDueAt: undefined,
     approvalDueDays: undefined, approvalDueAt: undefined, lastUpdated: todayIsoDate(), timeline: [...sop.timeline, ...events] }
 }
@@ -244,13 +253,15 @@ export function declineInternalReview(sop: Sop, actorId: string, roundId: string
   return settleRound(sop, updated, [event(round, 'review-declined', actorId, { reviewAssignmentId: assignmentId, note: trimmed, recipientIds: [sop.authorId!, ...sop.coAuthorIds] })])
 }
 /**
- * Recalculates the round after any change: open while someone taking part hasn't finished (or nobody
- * is taking part); once they all have, completed, or changes-requested if anyone returned it.
+ * Recalculates the round after any change: open while someone taking part hasn't finished; once they
+ * all have, completed, or changes-requested if anyone returned it. With nobody taking part (no pending
+ * or accepted request, and nobody who completed or returned it), the round closes and the SOP goes back
+ * to Draft, as settle_review_round does; no event is added for it.
  */
 function settleRound(sop: Sop, round: InternalReviewRound, events: TimelineEvent[]): Sop {
   const taking = latestAssignments(round).filter((person) => !isInactiveDecision(person.decision))
-  // With nobody taking part, the round stays open (and the SOP In Review) until the author asks someone else.
-  if (!taking.length || taking.some((person) => isOpenDecision(person.decision))) return save(sop, { ...round, status: 'open', closedAt: undefined }, events)
+  if (!taking.length) return save(sop, { ...round, status: 'closed', closedAt: new Date().toISOString() }, events, { status: 'draft' })
+  if (taking.some((person) => isOpenDecision(person.decision))) return save(sop, { ...round, status: 'open', closedAt: undefined }, events)
   const status = taking.every((person) => person.decision === 'completed') ? 'completed' : 'changes-requested'
   if (round.status === status) return save(sop, round, events)
   if (status === 'completed') events.push(event(round, 'internal-review-completed', SYSTEM_ACTOR, { recipientIds: [sop.authorId!] }))

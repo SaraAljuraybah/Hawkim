@@ -123,8 +123,9 @@ describe('who can be picked', () => {
 
 describe('Send Again by department', () => {
   const end = Date.parse(endOfRiyadhDay('2026-10-30'))
+  // h2 accepted (not finished), so the SOP stays In Review once o1 expires, even after h1 is removed.
   function expiredOther() {
-    const added = addInternalReviewers(finished(), 'author', { reviewerIds: ['o1'] }, env())
+    const added = accept(addInternalReviewers(finished(), 'author', { reviewerIds: ['h2', 'o1'] }, env()), 'h2')
     return expireUnanswered(added, end)
   }
 

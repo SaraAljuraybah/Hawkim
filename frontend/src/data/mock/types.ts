@@ -258,8 +258,12 @@ export interface InternalReviewRound {
   id: string
   scope: 'internal'
   version: string
-  /** Open while anyone taking part hasn't finished (or nobody is); then completed, or changes-requested if anyone returned it. */
-  status: 'open' | 'completed' | 'changes-requested'
+  /**
+   * Open while anyone taking part hasn't finished; then completed, or changes-requested if anyone returned it.
+   * Closed when nobody is taking part and nobody finished: the SOP is back to Draft, and the next
+   * Submit for Review reopens this round.
+   */
+  status: 'open' | 'completed' | 'changes-requested' | 'closed'
   requestedById: string
   requestedAt: string
   /** Shared deadline for new requests; historical rounds may have distinct task dates. */

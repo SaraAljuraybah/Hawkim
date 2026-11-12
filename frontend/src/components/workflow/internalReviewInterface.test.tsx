@@ -219,13 +219,13 @@ describe('internal parallel review across transitions and detail views', () => {
     expect(html).toContain('v2')
     expect(fixture.sop.description).toBe('Description retained')
   })
-  it('removes actionable tasks after every reviewer is removed and stays In Review without counting reviews', () => {
+  it('removes actionable tasks after every reviewer is removed and goes back to Draft without counting reviews', () => {
     let sop = start()
     const round = currentInternalRound(sop)!
     for (const assignment of round.assignments) sop = removeInternalReviewer(sop, 'author', round.id, assignment.id, 'No longer needed', environment())
     fixture.sop = sop
-    expect(sop.status).toBe('in-review')
-    expect(currentInternalRound(sop)!.status).toBe('open')
+    expect(sop.status).toBe('draft')
+    expect(currentInternalRound(sop)!.status).toBe('closed')
     for (const userId of ['reviewer-a', 'reviewer-b']) {
       expect(reviewTasks(userId, [sop]).every((task) => task.group !== 'todo')).toBe(true)
       expect(deriveNotifications(userId, { sops: [sop], requests: [], now: Date.now() }).some((item) => item.type === 'due-soon' || item.type === 'overdue')).toBe(false)
