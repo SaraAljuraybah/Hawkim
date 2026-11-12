@@ -687,7 +687,11 @@ export interface UploadSopContent {
   subtitle: string
   fields: {
     title: { label: string; placeholder: string; hint: string; /** `{count}` and `{max}` are replaced. */ counter: string }
+    /** `none` is shown when the department has no division. */
+    division: { label: string; none: string }
     department: { label: string }
+    /** Today's date in Riyadh, shown only. */
+    addedOn: { label: string }
     file: {
       label: string
       /** Read by screen readers only (a red asterisk is shown). */

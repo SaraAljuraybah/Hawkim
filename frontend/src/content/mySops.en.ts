@@ -70,7 +70,9 @@ export const uploadSopEn: UploadSopContent = {
   subtitle: 'Add a new SOP to {department}. It will be saved as a draft.',
   fields: {
     title: { label: 'Title', placeholder: 'Enter the SOP title', hint: 'Up to 50 characters.', counter: '{count} / {max}' },
+    division: { label: 'Division', none: 'No Division' },
     department: { label: 'Department' },
+    addedOn: { label: 'Added to Hawkim On' },
     file: {
       label: 'SOP File',
       requiredTag: '(required)',

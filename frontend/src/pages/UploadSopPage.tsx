@@ -1,4 +1,4 @@
-import { useRef, useState, type FormEvent } from 'react'
+import { useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { flushSync } from 'react-dom'
 import { Link, useNavigate } from 'react-router-dom'
 import { ArrowLeft, LoaderCircle, Upload } from 'lucide-react'
@@ -8,9 +8,12 @@ import { TextAreaField } from '../components/ui/TextAreaField'
 import { TextField } from '../components/ui/TextField'
 import { uploadSopEn } from '../content/mySops.en'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
+import { formatDate } from '../lib/format'
 import { hasPermission } from '../lib/permissions'
+import { riyadhDate } from '../lib/riyadhWorkingDays'
 import { SOP_DESCRIPTION_MAX } from '../lib/sopDescription'
 import { SOP_TITLE_MAX, sopTitleProblem } from '../lib/sopTitle'
+import { divisionLabel } from '../lib/userAdmin'
 import { useActiveDepartment } from '../state/activeDepartmentContext'
 import { useCurrentUser } from '../state/sessionContext'
 import { useSops } from '../state/sopsContext'
@@ -32,6 +35,8 @@ export function UploadSopPage() {
   useDocumentTitle(isAuthor ? content.pageTitle : undefined)
 
   const { homeDepartment } = useActiveDepartment()
+  // Today in Riyadh, the day the SOP is added (the database records it as it saves the SOP).
+  const today = riyadhDate(new Date())
   const { addDraft } = useSops()
   const navigate = useNavigate()
 
@@ -128,13 +133,11 @@ export function UploadSopPage() {
             onBlur={() => submitAttempted && setErrors((prev) => ({ ...prev, title: validate('title') }))}
           />
 
-          {/* Read-only: new SOPs are added to the home department */}
-          <div>
-            <p className="mb-1.5 text-sm font-medium text-maroon">{content.fields.department.label}</p>
-            <p className="rounded-lg border border-beige bg-beige/50 px-3.5 py-2.5 text-[0.9375rem] text-maroon">
-              {homeDepartment.name}
-            </p>
-          </div>
+          {/* Read-only, shown only: new SOPs are added to the home department (and so its division), and the
+              database records the day it's added. None of these is sent with the form. */}
+          <ReadOnlyValue label={content.fields.division.label}>{divisionLabel(homeDepartment) || content.fields.division.none}</ReadOnlyValue>
+          <ReadOnlyValue label={content.fields.department.label}>{homeDepartment.name}</ReadOnlyValue>
+          <ReadOnlyValue label={content.fields.addedOn.label}><time dateTime={today}>{formatDate(today)}</time></ReadOnlyValue>
 
           <FileDropzone
             files={files}
@@ -181,5 +184,15 @@ export function UploadSopPage() {
         </form>
       </div>
     </>
+  )
+}
+
+/** A pre-filled value the form shows but doesn't send. */
+function ReadOnlyValue({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div>
+      <p className="mb-1.5 text-sm font-medium text-maroon">{label}</p>
+      <p className="rounded-lg border border-beige bg-beige/50 px-3.5 py-2.5 text-[0.9375rem] text-maroon">{children}</p>
+    </div>
   )
 }
