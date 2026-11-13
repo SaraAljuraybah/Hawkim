@@ -30,7 +30,7 @@ export const adminsEn: AdminsContent = {
     search: { label: 'Search Admins', placeholder: 'Search by admin name or email' },
     // The Filter (Permission) and Sort, as on the Staff page.
     role: { legend: 'Admin permission', count: { one: '{count} permission', other: '{count} permissions' } },
-    sort: { label: 'Sort', options: { default: 'Default order', 'name-asc': 'Name: A to Z', 'name-desc': 'Name: Z to A' } },
+    sort: { label: 'Sort', options: { default: 'Default order', 'name-asc': 'A to Z', 'name-desc': 'Z to A' }, groups: { name: 'Admin name' } },
     clearFilters: 'Clear Filters',
     count: { one: '{count} Admin', other: '{count} Admins' },
     tableLabel: 'Admins',

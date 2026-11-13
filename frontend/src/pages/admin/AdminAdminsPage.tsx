@@ -164,7 +164,7 @@ export function AdminAdminsPage() {
               value: roles, onChange: setRoles, emptyText: '', summary: content.role.count },
           ]} />
         <SelectField className="min-w-0" name="adminSort" label={content.sort.label} value={sort}
-          options={ADMIN_SORTS.map((value) => ({ value, label: content.sort.options[value] }))}
+          options={ADMIN_SORTS.map((value) => ({ value, label: content.sort.options[value], ...(value === 'default' ? {} : { group: content.sort.groups.name }) }))}
           onChange={(event) => setSort(event.target.value as AdminSort)} />
       </div>
 

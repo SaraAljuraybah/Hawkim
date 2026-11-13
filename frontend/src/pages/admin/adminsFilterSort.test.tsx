@@ -44,6 +44,16 @@ describe('the Admins Filter (Role) and Sort', () => {
     expect(html).not.toContain(adminsEn.list.clearFilters)
   })
 
+  it('lists Default order, then the Admin name group with A to Z and Z to A, as on the other list pages', () => {
+    const select = page().match(/<select[^>]*name="adminSort"[^>]*>([\s\S]*?)<\/select>/)![1]
+    expect(select).toMatch(/^<option value="default"[^>]*>Default order<\/option><optgroup/)
+    const groups = [...select.matchAll(/<optgroup label="([^"]+)">([\s\S]*?)<\/optgroup>/g)]
+      .map((group) => [group[1], [...group[2].matchAll(/value="([^"]+)"[^>]*>([^<]+)</g)].map((option) => [option[1], option[2]])])
+    expect(groups).toEqual([['Admin name', [['name-asc', 'A to Z'], ['name-desc', 'Z to A']]]])
+    // The values (and old links) are unchanged.
+    expect(page('?sort=name-desc')).toMatch(/<option value="name-desc"[^>]*selected="">Z to A</)
+  })
+
   it('reads the Role and Sort from the URL and offers Clear Filters', () => {
     const html = page('?role=admin&sort=name-desc')
     expect(html).toContain(adminsEn.list.clearFilters)
