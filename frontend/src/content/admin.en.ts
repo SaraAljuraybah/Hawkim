@@ -53,7 +53,7 @@ export const adminEn: AdminContent = {
         'division-asc': 'A to Z', 'division-desc': 'Z to A',
         'department-asc': 'A to Z', 'department-desc': 'Z to A',
       },
-      groups: { name: 'Name', division: 'Division', department: 'Department' },
+      groups: { name: 'Staff Name', division: 'Division', department: 'Department' },
     },
     clearFilters: 'Clear Filters',
     tabs: { label: 'Staff status', active: 'Active Staff', deactivated: 'Deactivated Staff' },

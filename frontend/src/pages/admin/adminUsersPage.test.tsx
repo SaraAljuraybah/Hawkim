@@ -306,7 +306,7 @@ describe('the Staff Sort', () => {
     // Default order on its own, then a group per column, each with A to Z and Z to A.
     expect([...select.matchAll(/<optgroup label="([^"]+)">((?:(?!<\/optgroup>)[\s\S])*)<\/optgroup>/g)].map((match) => [match[1], [...match[2].matchAll(/value="([^"]+)"/g)].map((value) => value[1])]))
       .toEqual([
-        ['Name', ['name-asc', 'name-desc']],
+        ['Staff Name', ['name-asc', 'name-desc']],
         ['Division', ['division-asc', 'division-desc']],
         ['Department', ['department-asc', 'department-desc']],
       ])
