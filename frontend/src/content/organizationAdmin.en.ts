@@ -22,11 +22,18 @@ export const organizationAdminEn = {
   divisionCount: { one: '{count} division', other: '{count} divisions' },
   sort: 'Sort', sortOptions: {
     default: 'Default order',
-    'division-name-asc': 'A to Z', 'division-name-desc': 'Z to A', 'division-staff-desc': 'Number of Staff', 'division-sops-desc': 'Number of SOPs',
-    'department-name-asc': 'A to Z', 'department-name-desc': 'Z to A', 'department-staff-desc': 'Number of Staff', 'department-sops-desc': 'Number of SOPs',
+    'division-name-asc': 'A to Z', 'division-name-desc': 'Z to A',
+    'division-staff-desc': 'High to low', 'division-staff-asc': 'Low to high',
+    'division-sops-desc': 'High to low', 'division-sops-asc': 'Low to high',
+    'department-name-asc': 'A to Z', 'department-name-desc': 'Z to A',
+    'department-staff-desc': 'High to low', 'department-staff-asc': 'Low to high',
+    'department-sops-desc': 'High to low', 'department-sops-asc': 'Low to high',
   },
-  /** Headings of the Sort menu's groups. */
-  sortGroups: { divisions: 'Divisions', departments: 'Departments' },
+  /** Headings of the Sort menu's groups (one level only, so each says what it sorts). */
+  sortGroups: {
+    'division-name': 'Division name', 'division-staff': 'Division staff', 'division-sops': 'Division SOPs',
+    'department-name': 'Department name', 'department-staff': 'Department staff', 'department-sops': 'Department SOPs',
+  },
   addDivision: 'Add Division', addDepartment: 'Add Department', departments: 'Departments',
   name: 'Name', users: 'Users', staff: 'Staff', sops: 'SOPs',
   /** Headings of the four action columns, above each row's buttons. */

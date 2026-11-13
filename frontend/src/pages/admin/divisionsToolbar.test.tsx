@@ -47,18 +47,20 @@ describe('the Divisions and Departments page', () => {
     expect(html).toContain('placeholder="Search divisions or departments..."')
   })
 
-  it('offers the default order, then the Divisions and Departments sorts under their headings', () => {
+  it('offers the default order, then each group (saying what it sorts) with its two directions', () => {
     management.value = { data: snapshot, refresh: vi.fn() }
     const select = page().match(/<select[^>]*name="divisionSort"[^>]*>([\s\S]*?)<\/select>/)![1]
-    expect(select.match(/>([^<]+)<\/option>/g)!.map((option) => option.slice(1, -9))).toEqual([
-      'Default order',
-      'A to Z', 'Z to A', 'Number of Staff', 'Number of SOPs',
-      'A to Z', 'Z to A', 'Number of Staff', 'Number of SOPs',
-    ])
     const groups = [...select.matchAll(/<optgroup label="([^"]+)">([\s\S]*?)<\/optgroup>/g)]
-    expect(groups.map((group) => group[1])).toEqual(['Divisions', 'Departments'])
-    expect(groups.map((group) => (group[2].match(/<option/g) ?? []).length)).toEqual([4, 4])
-    expect(select.indexOf('Default order')).toBeLessThan(select.indexOf('<optgroup'))
+      .map((group) => [group[1], [...group[2].matchAll(/>([^<]+)<\/option>/g)].map((option) => option[1])])
+    expect(groups).toEqual([
+      ['Division name', ['A to Z', 'Z to A']],
+      ['Division staff', ['High to low', 'Low to high']],
+      ['Division SOPs', ['High to low', 'Low to high']],
+      ['Department name', ['A to Z', 'Z to A']],
+      ['Department staff', ['High to low', 'Low to high']],
+      ['Department SOPs', ['High to low', 'Low to high']],
+    ])
+    expect(select).toMatch(/^<option value="default"[^>]*>Default order<\/option><optgroup/)
   })
 
   it('has the Filter field of every list page: Division, then Department grouped by division, by name', () => {

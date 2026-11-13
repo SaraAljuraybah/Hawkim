@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { ManagedDepartment, ManagementSnapshot } from '../services/organizationAdmin'
-import { DIVISION_SORTS, hierarchyRows, departmentDeleteBlocker, managementFilterData, unassignedRows } from './organizationAdmin'
+import { DIVISION_SORTS, hierarchyRows, departmentDeleteBlocker, managementFilterData, sortGroup, unassignedRows } from './organizationAdmin'
 
 const department = (id: string, name: string, division: string | null, employees = 0, sops = 0): ManagedDepartment =>
   ({ id, name, initials: 'XX', description: '', division_id: division, updated_at: 'r', employees, sops, status_counts: {}, people: [] })
@@ -33,15 +33,28 @@ describe('sorting division rows', () => {
     ['division-staff-desc', ['Quality and Compliance', 'Clinical Research and Development', 'administration', 'Beta']],
     // Most SOPs first; ties (administration and Quality both 4) fall back to the name.
     ['division-sops-desc', ['Clinical Research and Development', 'administration', 'Quality and Compliance', 'Beta']],
+    // Fewest staff first.
+    ['division-staff-asc', ['Beta', 'administration', 'Clinical Research and Development', 'Quality and Compliance']],
+    // Fewest SOPs first; the tie still goes by name A to Z (administration before Quality).
+    ['division-sops-asc', ['Beta', 'administration', 'Quality and Compliance', 'Clinical Research and Development']],
   ] as const)('%s', (sort, expected) => {
     expect(names(hierarchyRows(snapshot, '', { sort }))).toEqual(expected)
   })
 
-  it('offers the default order, then four division sorts and four department sorts', () => {
+  it('offers the default order, then name, staff and SOPs for divisions and for departments, each both ways', () => {
     expect(DIVISION_SORTS).toEqual([
       'default',
-      'division-name-asc', 'division-name-desc', 'division-staff-desc', 'division-sops-desc',
-      'department-name-asc', 'department-name-desc', 'department-staff-desc', 'department-sops-desc',
+      'division-name-asc', 'division-name-desc',
+      'division-staff-desc', 'division-staff-asc',
+      'division-sops-desc', 'division-sops-asc',
+      'department-name-asc', 'department-name-desc',
+      'department-staff-desc', 'department-staff-asc',
+      'department-sops-desc', 'department-sops-asc',
+    ])
+    expect(DIVISION_SORTS.map(sortGroup)).toEqual([
+      undefined,
+      'division-name', 'division-name', 'division-staff', 'division-staff', 'division-sops', 'division-sops',
+      'department-name', 'department-name', 'department-staff', 'department-staff', 'department-sops', 'department-sops',
     ])
   })
 
@@ -52,6 +65,18 @@ describe('sorting division rows', () => {
     expect(quality({ sort: 'department-name-desc' })).toEqual(['qc', 'qa'])
     expect(quality({ sort: 'department-staff-desc' })).toEqual(['qa', 'qc'])
     expect(quality({ sort: 'department-sops-desc' })).toEqual(['qa', 'qc'])
+    expect(quality({ sort: 'department-staff-asc' })).toEqual(['qc', 'qa'])
+    expect(quality({ sort: 'department-sops-asc' })).toEqual(['qc', 'qa'])
+  })
+
+  it('orders departments with the same number by name A to Z, high to low and low to high', () => {
+    const tied: ManagementSnapshot = {
+      divisions: [{ id: 'q', name: 'Quality', description: '', email: null, updated_at: null, department_count: 3, employees: 6, sops: 6 }],
+      departments: [department('z', 'Zeta', 'q', 2, 2), department('a', 'Alpha', 'q', 2, 2), department('m', 'Mu', 'q', 2, 2)],
+    }
+    for (const sort of ['department-staff-desc', 'department-staff-asc', 'department-sops-desc', 'department-sops-asc'] as const) {
+      expect(hierarchyRows(tied, '', { sort })[0].children.map((row) => row.name), sort).toEqual(['Alpha', 'Mu', 'Zeta'])
+    }
   })
 
   it('sorts by the server totals, not by the rows shown, and never changes them', () => {
