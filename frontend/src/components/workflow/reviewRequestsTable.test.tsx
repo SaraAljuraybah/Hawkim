@@ -33,7 +33,7 @@ const render = (sop: Sop, canRemove = true) => renderToStaticMarkup(<InternalRev
 const table = (html: string) => html.slice(html.indexOf('<table'), html.indexOf('</table>'))
 /** A row's button by its accessible name. */
 const button = (html: string, name: string, label: string) => row(html, name).match(new RegExp(`<button[^>]*aria-label="${label}"[^>]*>`))?.[0] ?? ''
-const row = (html: string, name: string) => table(html).match(new RegExp(`<tr[^>]*><th scope="row"[^>]*>${name}.*?</tr>`))![0]
+const row = (html: string, name: string) => table(html).match(new RegExp(`<tr[^>]*><th scope="row"[^>]*>(?:<button[^>]*>)?${name}.*?</tr>`))![0]
 
 beforeEach(() => { vi.useFakeTimers({ now: new Date('2026-10-23T12:00:00+03:00') }) })
 afterEach(() => vi.useRealTimers())
@@ -62,8 +62,8 @@ describe('Reviewers table on the author SOP page', () => {
     const html = render(sop)
     for (const label of ['Accepted', 'Declined', 'Removed']) expect(table(html)).toContain(`</span>${label}</span>`)
     expect(row(html, 'Reviewer Alpha')).toContain('text-maroon')
-    expect(table(html)).toMatch(/<tr class="text-text-gray"><th scope="row"[^>]*>Reviewer Beta/)
-    expect(table(html)).toMatch(/<tr class="text-text-gray"><th scope="row"[^>]*>Reviewer Gamma/)
+    expect(table(html)).toMatch(/<tr class="text-text-gray"><th scope="row"[^>]*>(?:<button[^>]*>)?Reviewer Beta/)
+    expect(table(html)).toMatch(/<tr class="text-text-gray"><th scope="row"[^>]*>(?:<button[^>]*>)?Reviewer Gamma/)
   })
 
   it('keeps every row of a declined reviewer asked again; the decline reason is in the Review Timeline', () => {
@@ -71,7 +71,7 @@ describe('Reviewers table on the author SOP page', () => {
     sop = declineInternalReview(sop, 'alpha', currentInternalRound(sop)!.id, request(sop, 'alpha').id, 'On leave', env())
     sop = addInternalReviewers(sop, 'author', { reviewerIds: ['alpha'] }, env())
     const html = render(sop)
-    expect(table(html).match(/<th scope="row"[^>]*>Reviewer Alpha/g)).toHaveLength(2)
+    expect(table(html).match(/<th scope="row"[^>]*>(?:<button[^>]*>)?Reviewer Alpha/g)).toHaveLength(2)
     expect(table(html)).toContain('</span>Declined</span>')
     expect(table(html)).toContain('</span>Pending</span>')
     expect(html).not.toContain('aria-label="View Comments from Reviewer Alpha"')
@@ -82,7 +82,7 @@ describe('Reviewers table on the author SOP page', () => {
     let sop = started()
     sop = removeInternalReviewer(sop, 'author', currentInternalRound(sop)!.id, request(sop, 'alpha').id, 'Not needed', env())
     sop = addInternalReviewers(sop, 'author', { reviewerIds: ['alpha'] }, env())
-    expect(table(render(sop)).match(/<th scope="row"[^>]*>Reviewer Alpha/g)).toHaveLength(2)
+    expect(table(render(sop)).match(/<th scope="row"[^>]*>(?:<button[^>]*>)?Reviewer Alpha/g)).toHaveLength(2)
     expect(table(render(sop))).toContain('</span>Removed</span>')
   })
 
@@ -231,7 +231,7 @@ describe('an expired request in the table', () => {
   it('shows the Expired label in lighter text, and the main author can remove the reviewer', () => {
     const html = render(expired())
     expect(table(html)).toContain('</span>Expired</span>')
-    expect(table(html)).toMatch(/<tr class="text-text-gray"><th scope="row"[^>]*>Reviewer Alpha/)
+    expect(table(html)).toMatch(/<tr class="text-text-gray"><th scope="row"[^>]*>(?:<button[^>]*>)?Reviewer Alpha/)
     expect(row(html, 'Reviewer Alpha')).toContain('aria-label="Remove Reviewer Alpha from this review"')
     expect(render(expired(), false)).not.toContain('from this review')
   })
@@ -241,7 +241,7 @@ describe('an expired request in the table', () => {
     expect(render(expired(), false)).not.toContain('Send Again')
     const sop = expired()
     const sent = resendInternalReview(sop, 'author', request(sop, 'alpha').id, env())
-    const rows = table(render(sent)).match(/<tr[^>]*><th scope="row"[^>]*>Reviewer Alpha.*?<\/tr>/g)!
+    const rows = table(render(sent)).match(/<tr[^>]*><th scope="row"[^>]*>(?:<button[^>]*>)?Reviewer Alpha.*?<\/tr>/g)!
     expect(rows).toHaveLength(1)
     // The new request is pending: Send Again stays visible, disabled.
     expect(rows[0].match(/<button[^>]*aria-label="Send Again to Reviewer Alpha"[^>]*>/)![0]).toContain('aria-disabled="true"')
@@ -256,7 +256,7 @@ describe('an expired request in the table', () => {
     const sent = resendInternalReview(sop, 'author', request(sop, 'alpha').id, env())
     const declined = declineInternalReview(sent, 'alpha', currentInternalRound(sent)!.id, request(sent, 'alpha').id, 'On leave', env())
     const html = render(declined)
-    expect(table(html).match(/<th scope="row"[^>]*>Reviewer Alpha/g)).toHaveLength(1)
+    expect(table(html).match(/<th scope="row"[^>]*>(?:<button[^>]*>)?Reviewer Alpha/g)).toHaveLength(1)
     expect(row(html, 'Reviewer Alpha')).toContain('</span>Declined</span>')
   })
   it('keeps the latest row of a reviewer who was not asked again', () => {
@@ -273,7 +273,7 @@ describe('an expired request in the table', () => {
     const sop = started()
     const first = currentInternalRound(sop)!
     const two: Sop = { ...sop, version: '2', internalReviewRounds: [first, { ...first, id: 'second', version: '2' }] }
-    expect(render(two).match(/<th scope="row"[^>]*>Reviewer Alpha/g)).toHaveLength(2)
+    expect(render(two).match(/<th scope="row"[^>]*>(?:<button[^>]*>)?Reviewer Alpha/g)).toHaveLength(2)
   })
   it('disables the trash icon on declined rows', () => {
     const sop = started(5)
@@ -305,5 +305,60 @@ describe('Remove Reviewer dialog', () => {
     expect(html.match(/<button/g)).toHaveLength(2)
     expect(html).not.toContain('Keep Reviewer')
     expect(html).not.toContain('aria-describedby')
+  })
+})
+
+describe('reviewer names open their Profile Preview', () => {
+  const nameButton = (html: string, name: string) =>
+    html.match(new RegExp(`<button type="button" aria-haspopup="dialog" aria-label="View ${name}’s profile" class="([^"]*)">${name}</button>`, 'g')) ?? []
+
+  it('makes each name a real button that opens a dialog and looks like a link, in the table and in the cards', () => {
+    const html = render(started())
+    for (const name of ['Reviewer Alpha', 'Reviewer Beta', 'Reviewer Gamma']) {
+      // Once in the table (from xl) and once in its card (below xl).
+      const buttons = nameButton(html, name)
+      expect(buttons).toHaveLength(2)
+      const classes = buttons[0]!.match(/class="([^"]*)"/)![1].split(' ')
+      expect(classes).toEqual(expect.arrayContaining(['cursor-pointer', 'rounded-sm', 'underline', 'underline-offset-2']))
+    }
+    expect(table(html)).toMatch(/<th scope="row" class="py-3 pr-4 font-medium"><button type="button" aria-haspopup="dialog" aria-label="View Reviewer Alpha’s profile"/)
+    // No pop-up until a name is pressed.
+    expect(html).not.toContain('<dialog')
+  })
+
+  it('works for every status and in older versions, keeping the lighter text of inactive rows', () => {
+    const begun = started()
+    const round = currentInternalRound(begun)!
+    let sop = removeInternalReviewer(begun, 'author', round.id, request(begun, 'alpha').id, 'Not needed', env())
+    sop = declineInternalReview(sop, 'beta', round.id, request(sop, 'beta').id, 'On leave', env())
+    const html = render(sop)
+    // Removed and Declined rows: still a button, in the row's lighter text (the button inherits it).
+    for (const name of ['Reviewer Alpha', 'Reviewer Beta']) {
+      expect(table(html)).toMatch(new RegExp(`<tr class="text-text-gray"><th scope="row"[^>]*><button type="button" aria-haspopup="dialog" aria-label="View ${name}’s profile"`))
+    }
+    const expired = expireUnanswered(acceptInternalReview(begun, 'gamma', round.id, request(begun, 'gamma').id, env()), Date.parse(endOfRiyadhDay(request(begun, 'alpha').responseDueDate!)))
+    expect(nameButton(render(expired), 'Reviewer Alpha')).toHaveLength(2)
+    const older: Sop = { ...begun, version: '2', internalReviewRounds: [round, { ...round, id: 'second', version: '2', assignments: [] }] }
+    const olderTable = render(older).slice(render(older).indexOf(`id="review-requests-${round.id}"`))
+    expect(nameButton(olderTable, 'Reviewer Alpha')).toHaveLength(2)
+  })
+
+  it('keeps the action buttons as they were', () => {
+    const html = render(started())
+    expect(button(html, 'Reviewer Alpha', 'Send Again to Reviewer Alpha')).not.toBe('')
+    expect(button(html, 'Reviewer Alpha', 'Remove Reviewer Alpha from this review')).not.toBe('')
+  })
+
+  it('shows a name as plain text when the reviewer’s profile isn’t loaded', () => {
+    const sop = started()
+    const saved = fixture.users
+    fixture.users = saved.filter((user) => user.id !== 'gamma')
+    try {
+      const html = render(sop)
+      expect(nameButton(html, 'gamma')).toHaveLength(0)
+      expect(table(html)).toMatch(/<th scope="row" class="py-3 pr-4 font-medium">gamma<\/th>/)
+    } finally {
+      fixture.users = saved
+    }
   })
 })

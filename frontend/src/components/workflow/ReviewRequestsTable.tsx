@@ -1,6 +1,7 @@
-import { useState, type MouseEvent, type ReactNode } from 'react'
+import { useRef, useState, type MouseEvent, type ReactNode } from 'react'
 import { ChevronDown, Pencil, RotateCw, Trash2 } from 'lucide-react'
 import { internalReviewEn } from '../../content/internalReview.en'
+import { organizationEn } from '../../content/organization.en'
 import type { InternalReviewerAssignment, InternalReviewRound, Sop } from '../../data/mock/types'
 import { formatDate, formatReviewDate } from '../../lib/format'
 import { isInactiveDecision, REVIEW_DEADLINE_EDITING_ACTIVE } from '../../lib/internalReviewStatus'
@@ -8,6 +9,8 @@ import { requestResponseDate, requestReviewDueDate, visibleReviewRequests } from
 import { useDepartments } from '../../state/departmentsContext'
 import { useUsers } from '../../state/usersContext'
 import { IconButton } from '../ui/IconButton'
+import { PREVIEW_NAME_CLASS } from '../ui/previewName'
+import { StaffProfilePreview, type StaffProfilePreviewPerson } from '../layout/StaffProfilePreview'
 import { RequestStatusBadge } from './ReviewRequestDetails'
 import { divisionLabel } from '../../lib/userAdmin'
 
@@ -40,19 +43,48 @@ function Timestamp({ value, format }: { value?: string; format: (value: string) 
  * part use lighter text. For the main author, each action has its own column: Send Again, Edit and
  * Delete, shown on every row and disabled, with the reason as their tooltip, when they don't apply.
  * Review comments and reasons open from the Review Timeline's Preview column. A table from xl up
- * (the columns don't fit beside the sidebar earlier); stacked cards below.
+ * (the columns don't fit beside the sidebar earlier); stacked cards below. Each reviewer's name opens their
+ * Profile Preview (StaffProfilePreview, as on Organizational Structure), from what every signed-in user already
+ * loads (the users and departments stores); closing it returns focus to the name.
  */
 export function ReviewRequestsTable({ sop, removeBlocked, onRemove, authorActions, deadlineBlocked, onEditDeadline, resendBlocked, onResend }: ReviewRequestsTableProps) {
   const { nameOf, getUser } = useUsers()
   const { departments } = useDepartments()
   const [toggled, setToggled] = useState<Record<string, boolean>>({})
+  const [preview, setPreview] = useState<StaffProfilePreviewPerson>()
+  const previewOpener = useRef<HTMLButtonElement | null>(null)
   const rounds = [...(sop.internalReviewRounds ?? [])].reverse()
+
+  function closePreview() {
+    setPreview(undefined)
+    previewOpener.current?.focus()
+  }
+
+  /** The reviewer's name as a button that opens their Profile Preview; plain text if their profile isn't loaded. */
+  function reviewerName(userId: string, name: string): ReactNode {
+    const person = getUser(userId)
+    if (!person) return name
+    const department = departments.find((item) => item.id === person.departmentId)
+    return (
+      <button type="button" aria-haspopup="dialog" aria-label={organizationEn.profilePreview.open(name)} className={PREVIEW_NAME_CLASS}
+        onClick={(event) => {
+          previewOpener.current = event.currentTarget
+          setPreview({
+            person: { id: person.id, name: person.name, initials: person.initials, email: person.email, permissions: person.permissions, position: person.position },
+            departmentName: department?.name ?? '',
+            divisionName: department?.divisionName,
+          })
+        }}>
+        {name}
+      </button>
+    )
+  }
 
   function cells(round: InternalReviewRound, request: InternalReviewerAssignment) {
     const name = nameOf(request.userId)
     const department = departments.find((item) => item.id === getUser(request.userId)?.departmentId)
     return {
-      name,
+      name: reviewerName(request.userId, name),
       department: department?.name ?? text.none,
       division: divisionLabel(department) || text.none,
       sent: <Timestamp value={request.assignedAt} format={formatReviewDate} />,
@@ -179,6 +211,7 @@ export function ReviewRequestsTable({ sop, removeBlocked, onRemove, authorAction
           </div>
         )
       })}
+      {preview && <StaffProfilePreview preview={preview} onClose={closePreview} />}
     </div>
   )
 }

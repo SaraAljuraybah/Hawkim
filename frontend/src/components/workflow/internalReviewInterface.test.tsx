@@ -117,7 +117,7 @@ describe('internal parallel review across transitions and detail views', () => {
     const heading = (name: string) => `<h3 class="text-base font-semibold text-maroon">${name}</h3>`
     const author = render(<SopWorkflowPage />)
     const panel = author.slice(author.indexOf('id="internal-review-title"'), author.indexOf(sopWorkflowEn.timeline.title))
-    for (const name of ['Reviewer Alpha', 'Reviewer Beta']) expect(panel).toMatch(new RegExp(`<th scope="row"[^>]*>${name}<`))
+    for (const name of ['Reviewer Alpha', 'Reviewer Beta']) expect(panel).toMatch(new RegExp(`<th scope="row"[^>]*>(?:<button[^>]*>)?${name}<`))
     expect(panel).toContain('</span>Declined</span>')
     expect(author).toContain('>' + sopWorkflowEn.timeline.events['review-declined'] + '<')
     fixture.userId = 'reviewer-b'

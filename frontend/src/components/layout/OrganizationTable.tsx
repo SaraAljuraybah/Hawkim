@@ -5,6 +5,7 @@ import { usersEn } from '../../content/users.en'
 import { overflows, type DivisionRow } from '../../lib/organization'
 import { DepartmentBadge } from '../admin/DepartmentBadge'
 import { CopyButton } from '../ui/CopyButton'
+import { PREVIEW_NAME_CLASS } from '../ui/previewName'
 import { tableStyles } from '../ui/tableStyles'
 import { UserAvatar } from '../ui/UserAvatar'
 import { DepartmentDetailsPreview, type DepartmentDetailsPreviewDepartment } from './DepartmentDetailsPreview'
@@ -72,7 +73,7 @@ function StaffTable({ label, children }: { label: string; children: ReactNode })
 }
 
 /** A name that opens a pop-up (a staff member's or a department's): it looks like a link, as on every list. */
-const PREVIEW_NAME = 'block cursor-pointer rounded-sm text-left break-words text-maroon underline underline-offset-2'
+const PREVIEW_NAME = `${PREVIEW_NAME_CLASS} text-maroon`
 
 function Chevron({ open }: { open: boolean }) {
   return (
