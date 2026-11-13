@@ -80,14 +80,18 @@ describe('Edit Staff', () => {
     expect(html).not.toContain('value="admin"')
   })
 
-  it('has the User Details header above the form: large avatar, name, Delete beside it and the saved badges', () => {
+  it('has the User Details header above the form: large avatar, name and Delete beside it, without permission badges', () => {
     const html = render()
     const header = html.slice(0, html.indexOf('<form'))
     expect(header).toContain('class="inline-flex size-9 shrink-0 items-center justify-center rounded-full bg-beige text-xs font-semibold text-maroon size-10 text-sm sm:size-14 sm:text-base">RS</span>')
     // Delete beside the name, below the "Edit Staff" line; no Edit Staff button here.
     expect(header).toMatch(/Rana Saleh<\/h1><div class="flex shrink-0 items-center gap-2 mt-5"><span class="relative inline-flex"><button type="button" aria-label="Delete Rana Saleh"/)
     expect(header).not.toContain('>Edit Staff</a>')
-    expect([...header.matchAll(/<li class="inline-flex[^"]*">([^<]+)<\/li>/g)].map((match) => match[1])).toEqual(['Author', 'Reviewer'])
+    // No permission badges in the header (Rana is an Author and a Reviewer); the form's Permission checkboxes show them.
+    expect(header).not.toMatch(/<li class="inline-flex[^"]*">/)
+    for (const permission of ['Author', 'Reviewer']) expect(header).not.toContain(`>${permission}<`)
+    expect(header).toMatch(/Rana Saleh<\/h1>.*<\/div><\/div><p class="mt-2 text-text-gray">/)
+    expect(html.slice(html.indexOf('<form')).match(/name="permissions"/g)!.length).toBeGreaterThan(0)
     expect(html.match(/aria-label="Delete Rana Saleh"/g)).toHaveLength(1)
   })
 

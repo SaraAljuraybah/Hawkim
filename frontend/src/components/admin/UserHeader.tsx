@@ -2,20 +2,14 @@ import type { ReactNode } from 'react'
 import type { User } from '../../data/mock/types'
 import { DeleteUserButton } from './DeleteUserButton'
 import { ReactivateUserButton } from './ReactivateUserButton'
-import { StaffPermissionBadges } from './DetailsCard'
-import { usersEn } from '../../content/users.en'
 import { UserAvatar } from './UserBits'
 
 /**
  * The header of Edit Staff (a staff member's page uses DetailsHeader): large avatar, the name as the page's h1 with
- * Delete right beside it (Reactivate for a deactivated staff member; after any `actions`, e.g. Edit Staff), and the saved permissions as badges
- * under it (none without one). `label` (e.g. "Edit Staff") is a small line above the name, inside the
- * h1 so the heading says the page's purpose too. `description` is one short line under the badges.
+ * Delete right beside it (Reactivate for a deactivated staff member; after any `actions`, e.g. Edit Staff). No
+ * permission badges: the form's Permission checkboxes show them. `label` (e.g. "Edit Staff") is a small line above
+ * the name, inside the h1 so the heading says the page's purpose too. `description` is one short line under the name.
  * The name wraps on narrow screens; the buttons stay beside its first line.
- *
- * The badges here use Hawkim's solid light gold with maroon text (8.84:1, as in the sidebar's
- * count badges), so the permissions read clearly on a staff member's own page. The Staff list keeps
- * the lighter shared PermissionBadges.
  */
 export function UserHeader({
   user,
@@ -28,7 +22,7 @@ export function UserHeader({
 }: {
   user: User
   label?: string
-  /** One short line under the name and badges. */
+  /** One short line under the name. */
   description?: string
   /** Buttons before Delete, beside the name. */
   actions?: ReactNode
@@ -57,7 +51,6 @@ export function UserHeader({
               : <DeleteUserButton user={user} onDeleted={onDeleted} onRefused={onRefused} />}
           </div>
         </div>
-        <StaffPermissionBadges labels={user.permissions.map((permission) => usersEn.permissions[permission])} className="mt-2" />
         {description && <p className="mt-2 text-text-gray">{description}</p>}
       </div>
     </div>
