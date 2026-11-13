@@ -94,6 +94,27 @@ class Supabase:
                 raise RuntimeError(f"Could not upload {path}: HTTP {r.status_code} {r.text[:200]}")
             return
 
+    def remove_objects(self, bucket: str, paths: list[str]):
+        """Deletes these objects (one that is already gone is no error)."""
+        if not paths:
+            return
+        r = requests.delete(f"{self.url}/storage/v1/object/{bucket}", json={"prefixes": paths}, headers=self.headers,
+                            timeout=60)
+        if r.status_code >= 300:
+            raise RuntimeError(f"Could not delete from {bucket}: HTTP {r.status_code} {r.text[:200]}")
+
+    def remove_folder(self, bucket: str, folder: str):
+        """Deletes every object directly in `folder` (an index folder has no subfolders)."""
+        while True:
+            r = requests.post(f"{self.url}/storage/v1/object/list/{bucket}", json={"prefix": folder, "limit": 1000},
+                              headers=self.headers, timeout=60)
+            if r.status_code >= 300:
+                raise RuntimeError(f"Could not list {bucket}/{folder}: HTTP {r.status_code} {r.text[:200]}")
+            names = [item["name"] for item in r.json() if item.get("id")]   # folders have no id
+            if not names:
+                return
+            self.remove_objects(bucket, [f"{folder}/{name}" for name in names])
+
 
 # GVP versions added on the website: their PDFs and their indexes.
 GUIDELINE_FILES_BUCKET = "guideline-files"
@@ -106,18 +127,29 @@ INDEX_CACHE = HERE / "index"      # a version's index is kept in index/versions/
 INDEX_PART_BYTES = 512 * 1024
 
 
-def upload_index_file(sb: "Supabase", index_path: str, file: Path):
-    """Uploads one index file; a large one as '<name>.part0000', … then '<name>.parts' (the list, last)."""
+def index_uploads(file: Path) -> int:
+    """How many objects upload_index_file stores for this file."""
+    size = file.stat().st_size
+    return 1 if size <= INDEX_PART_BYTES else -(-size // INDEX_PART_BYTES) + 1
+
+
+def upload_index_file(sb: "Supabase", index_path: str, file: Path, before_upload=None):
+    """Uploads one index file; a large one as '<name>.part0000', … then '<name>.parts' (the list, last).
+    `before_upload()`: optional, called before each object is uploaded."""
+    before = before_upload or (lambda: None)
     data = file.read_bytes()
     if len(data) <= INDEX_PART_BYTES:
+        before()
         sb.upload_object(GUIDELINE_INDEX_BUCKET, f"{index_path}/{file.name}", data)
         return
     parts = [data[start:start + INDEX_PART_BYTES] for start in range(0, len(data), INDEX_PART_BYTES)]
     for number, part in enumerate(parts):
+        before()
         sb.upload_object(GUIDELINE_INDEX_BUCKET, f"{index_path}/{file.name}.part{number:04d}", part,
                          attempts=5, timeout=(30, 120))
         print(f"[worker] saved {file.name}: part {number + 1} of {len(parts)}")
     manifest = {"parts": len(parts), "size": len(data), "sha256": hashlib.sha256(data).hexdigest()}
+    before()
     sb.upload_object(GUIDELINE_INDEX_BUCKET, f"{index_path}/{file.name}.parts", json.dumps(manifest).encode(),
                      content_type="application/json", attempts=5, timeout=(30, 120))
 
@@ -171,27 +203,116 @@ UPLOAD_MESSAGE = ("The requirements were prepared, but saving them to Hawkim tim
                   "Try again: they won't be prepared again, only saved.")
 
 
+class GuidelineCancelled(BaseException):
+    """An admin deleted the version while it was being processed. A BaseException, like
+    KeyboardInterrupt, so the `except Exception` fallbacks on the way (e.g. pdfplumber's) let it through."""
+
+    def __init__(self, missing: bool):
+        super().__init__("missing" if missing else "cancelled")
+        self.missing = missing   # the row is gone already (deleted with its file)
+
+
+class GuidelineProgress:
+    """The heartbeat of a version being processed: every `seconds` a background thread saves the
+    latest overall percent (report_guideline_progress, which also sets last_progress_at) and learns
+    whether the version was cancelled. check(), run after every page, before each new group of
+    embedding batches and before each upload, then stops the work. The percent never goes down."""
+
+    def __init__(self, sb: "Supabase", draft_id: str, seconds: float = 2.0):
+        from hawkim.guidelines import STAGE_READING
+        self.sb, self.draft_id, self.seconds = sb, draft_id, seconds
+        self.percent, self.stage, self.detail = 0, STAGE_READING, None
+        self.lock = threading.Lock()
+        self.state = "continue"                   # or 'cancelled' / 'missing'
+        self.stopped = threading.Event()
+        self.thread = threading.Thread(target=self._run, daemon=True)
+
+    def start(self):
+        self.thread.start()   # first, so stop() always has the thread to stop
+        self.sync()
+        self.check()
+
+    def stop(self):
+        self.stopped.set()
+        if self.thread.is_alive():
+            self.thread.join(timeout=self.seconds + 60)
+
+    def update(self, percent: int, stage: str, detail: str | None):
+        with self.lock:
+            self.percent = max(self.percent, min(100, int(percent)))
+            self.stage, self.detail = stage, detail
+        self.check()
+
+    def check(self):
+        if self.state != "continue":
+            raise GuidelineCancelled(missing=self.state == "missing")
+
+    def sync(self) -> str:
+        """Saves the progress now and returns the version's state (a failed report is only logged)."""
+        with self.lock:
+            params = {"p_id": self.draft_id, "p_percent": self.percent, "p_stage": self.stage, "p_detail": self.detail}
+        try:
+            state = self.sb.rpc("report_guideline_progress", params)
+        except Exception as e:
+            print(f"[worker] progress report failed: {e}")
+            return self.state
+        if state in ("cancelled", "missing"):
+            self.state = state
+        return self.state
+
+    def _run(self):
+        while not self.stopped.wait(self.seconds):
+            self.sync()
+
+
+def cancel_guideline(job: dict, sb: "Supabase", missing: bool):
+    """Removes everything processing wrote for a cancelled version, its PDF, then its row (one transaction).
+    If a step fails the row stays (cancelled, hidden from the website) and the next claim finishes it."""
+    draft_id = job["id"]
+    index_path = f"versions/{draft_id}"
+    shutil.rmtree(INDEX_CACHE / index_path, ignore_errors=True)          # the requirement units and embeddings
+    sb.remove_folder(GUIDELINE_INDEX_BUCKET, index_path)                  # any already uploaded
+    if not missing:   # a missing row was deleted with its file
+        sb.remove_objects(GUIDELINE_FILES_BUCKET, [job["storage_path"]])
+        sb.rpc("finish_guideline_cancellation", {"p_id": draft_id})
+    print(f"[worker] GVP {job['version']}: cancelled; its requirements, file and version were deleted")
+
+
 def process_guideline(job: dict, svc: ComplianceService, sb: "Supabase"):
+    """Processes a GVP version an admin added (build_guideline), or stops and deletes it when an admin
+    deleted it meanwhile. A cancelled version is never completed: complete_guideline_processing refuses
+    it too."""
+    print(f"[worker] GVP {job['version']}: processing {job['file_name']}")
+    tracker = GuidelineProgress(sb, job["id"])
+    try:
+        try:
+            tracker.start()
+            build_guideline(job, svc, sb, tracker)
+            return
+        except GuidelineCancelled as e:
+            missing = e.missing
+        except Exception:
+            # Cancelled just as something failed (or as it completed): clean up instead of failing.
+            state = tracker.sync()
+            if state == "continue":
+                raise
+            missing = state == "missing"
+        # The heartbeat goes on while cleaning up, so the version isn't taken for stuck meanwhile.
+        cancel_guideline(job, sb, missing)
+    finally:
+        # Every path (completed, failed, cancelled, interrupted) stops the heartbeat thread.
+        tracker.stop()
+
+
+def build_guideline(job: dict, svc: ComplianceService, sb: "Supabase", tracker: GuidelineProgress):
     """Builds the index of a GVP version an admin added, uploads it and completes the version (which
     makes it current). The index is kept in index/versions/<id>/ before uploading, so a retry after a
     failed upload only uploads it again."""
-    from hawkim.guidelines import build_index
+    from hawkim.guidelines import EMBEDDING_PERCENT, STAGE_SAVING, build_index, stage_percent
     draft_id = job["id"]
     index_path = f"versions/{draft_id}"
     local = INDEX_CACHE / index_path
-    print(f"[worker] GVP {job['version']}: processing {job['file_name']}")
-    last = [0.0]
-
-    def progress(stage: str, done: int, total: int):
-        # At most every 3 seconds (and always at the end of a stage); a failed report is only logged.
-        now = time.time()
-        if stage == "embedding" and done < total and now - last[0] < 3:
-            return
-        last[0] = now
-        try:
-            sb.rpc("report_guideline_progress", {"p_id": draft_id, "p_stage": stage, "p_done": done, "p_total": total})
-        except Exception as e:
-            print(f"[worker] progress report failed: {e}")
+    progress = tracker.update
 
     t0 = time.time()
     report_file = local / "report.json"
@@ -220,13 +341,24 @@ def process_guideline(job: dict, svc: ComplianceService, sb: "Supabase"):
         finally:
             shutil.rmtree(work, ignore_errors=True)
 
-    progress("saving", 0, 0)
+    files = [f for f in sorted(local.iterdir()) if f.is_file() and f.name != "report.json"]
+    total = sum(index_uploads(f) for f in files)
+    saved = [0]
+    saving = (EMBEDDING_PERCENT[1], 100)
+
+    def before_upload():
+        progress(stage_percent(saving, saved[0], total), STAGE_SAVING, f"part {saved[0] + 1} of {total}")
+        saved[0] += 1
+
     try:
-        for f in sorted(local.iterdir()):
-            if f.is_file() and f.name != "report.json":
-                upload_index_file(sb, index_path, f)
+        for f in files:
+            upload_index_file(sb, index_path, f, before_upload)
     except requests.RequestException as e:
         raise GuidelineProcessingError(UPLOAD_MESSAGE) from e
+    progress(100, STAGE_SAVING, f"part {total} of {total}")
+    # The last word on cancelling before completing (complete_guideline_processing also refuses it).
+    tracker.sync()
+    tracker.check()
     report["seconds"] = round(time.time() - t0, 1)
     sb.rpc("complete_guideline_processing", {"p_id": draft_id, "p_index_path": index_path, "p_report": report})
     print(f"[worker] GVP {job['version']}: done and current, {report['requirements']} requirements "

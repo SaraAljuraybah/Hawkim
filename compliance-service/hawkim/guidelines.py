@@ -23,29 +23,47 @@ def _sha1(path: Path) -> str:
     return h.hexdigest()
 
 
+# The stages of building an index, as the version's page shows them, and the part of the overall
+# percent each one covers (saving the index, 95-100%, is the worker's).
+STAGE_READING, STAGE_SPLITTING, STAGE_EMBEDDING, STAGE_SAVING = (
+    "Reading the PDF", "Splitting into requirements", "Preparing requirements", "Saving the requirements")
+READING_PERCENT, SPLITTING_PERCENT, EMBEDDING_PERCENT = (0, 10), (10, 15), (15, 95)
+
+
+def stage_percent(span: tuple[int, int], done: int, total: int) -> int:
+    """The overall percent `done` of `total` steps into a stage."""
+    start, end = span
+    return start + (end - start) * min(done, total) // total if total > 0 else start
+
+
 def build_index(cfg: dict, gvp_path: str | Path, folder: str | Path, embedder: Embedder,
                 log=print, progress=None) -> tuple[VectorIndex, list, dict]:
     """Extracts the guideline, splits it into requirement units, embeds them and saves the index in
     `folder`. Returns the index, the units and a report for the admin. Raises ValueError when no
-    requirement could be found (e.g. a scanned PDF). `progress(stage, done, total)`: optional, called
-    while reading ('reading') and embedding ('embedding', in batches)."""
+    requirement could be found (e.g. a scanned PDF). `progress(percent, stage, detail)`: optional,
+    called after each page read, when splitting starts and ends, and after each group of embedding
+    batches (Embedder.fit_encode_documents encodes 4 at a time), so before the next group starts."""
     gvp_path, folder = Path(gvp_path), Path(folder)
-    report_progress = progress or (lambda stage, done, total: None)
-    report_progress("reading", 0, 0)
+    report_progress = progress or (lambda percent, stage, detail: None)
+    report_progress(READING_PERCENT[0], STAGE_READING, None)
     ex = cfg["extraction"]
-    doc = extract_document(gvp_path, ex["header_footer_min_page_ratio"], ex["min_chars_per_page_warning"])
+    doc = extract_document(gvp_path, ex["header_footer_min_page_ratio"], ex["min_chars_per_page_warning"],
+                           on_page=lambda done, total: report_progress(
+                               stage_percent(READING_PERCENT, done, total), STAGE_READING, f"page {done} of {total}"))
     for w in doc.warnings:
         log(f"  [warn] {w}")
+    report_progress(SPLITTING_PERCENT[0], STAGE_SPLITTING, None)
     gc = cfg["gvp_chunking"]
     units = chunk_gvp(doc, gc["obligation_keywords"], gc["obligation_only"], gc["max_unit_chars"])
     if not units:
         raise ValueError("No GVP requirements were found in this PDF. Is it a scanned document?")
     sections = {u.section for u in units}
     log(f"  {doc.n_pages} pages -> {len(units)} requirement units in {len(sections)} sections")
+    report_progress(SPLITTING_PERCENT[1], STAGE_SPLITTING, f"{len(units)} requirement units")
     t0 = time.time()
     def on_batches(done: int, total: int):
         log(f"  embedding {done}/{total} batches")
-        report_progress("embedding", done, total)
+        report_progress(stage_percent(EMBEDDING_PERCENT, done, total), STAGE_EMBEDDING, f"batch {done} of {total}")
     vectors = embedder.fit_encode_documents([u.embed_text() for u in units],
                                             on_progress=on_batches if embedder.backend != "tfidf" else None)
     meta = {"backend": embedder.backend, "model": embedder.model_name, "gvp_file": str(gvp_path),
