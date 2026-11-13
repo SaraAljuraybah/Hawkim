@@ -45,7 +45,7 @@ const table = (html: string) => {
   return html.slice(start, html.indexOf('</table>', start))
 }
 const currentCard = (html: string) => html.slice(html.indexOf('id="current-title"'), html.indexOf('id="history-title"'))
-const fields = ['Title', 'Version', 'Source', 'Issued by SFDA On', 'Added to Hawkim On', 'Added By', 'File', 'Requirements']
+const fields = ['Title', 'Version', 'Source', 'Issued by SFDA On', 'Added to Hawkim On', 'Added By', 'File', 'Requirement Passages']
 
 describe('Regulatory Requirements page', () => {
   it('is called Regulatory Requirements in the h1, the browser tab, the sidebar and the back links', () => {
@@ -64,9 +64,9 @@ describe('Regulatory Requirements page', () => {
     const html = render()
     fixture.addedStatus = 'ready'
     const card = currentCard(html)
-    expect([...card.matchAll(/<dt[^>]*>([^<]+)<\/dt>/g)].map((match) => match[1])).toEqual(fields.filter((field) => field !== 'File' && field !== 'Requirements'))
+    expect([...card.matchAll(/<dt[^>]*>([^<]+)<\/dt>/g)].map((match) => match[1])).toEqual(fields.filter((field) => field !== 'File' && field !== 'Requirement Passages'))
     expect(card).not.toContain('View Requirements')
-    expect(card).not.toContain('1 Requirement')
+    expect(card).not.toContain('1 Requirement Passage')
     expect(card).not.toContain('Drug-GVP4_1.pdf')
     // Added just after midnight in Riyadh: the Riyadh date.
     expect(card).toContain('<time dateTime="2026-11-06">Nov 6, 2026</time>')
@@ -89,7 +89,7 @@ describe('Regulatory Requirements page', () => {
       expect(html).toMatch(new RegExp(`<th scope="col" class="[^"]*whitespace-nowrap[^"]*">${header}</th>`))
     }
     expect(html).toContain('<thead class="text-offwhite [&amp;_th]:bg-maroon">')
-    for (const removed of ['Added By', 'Source', 'File', 'Requirements', 'View Requirements']) expect(html).not.toContain(`>${removed}<`)
+    for (const removed of ['Added By', 'Source', 'File', 'Requirement Passages', 'View Requirements']) expect(html).not.toContain(`>${removed}<`)
   })
 
   it('puts each action in its own centred cell, in the order Preview, Edit, Delete (a disabled Delete keeps its cell)', () => {
@@ -121,7 +121,7 @@ describe('Regulatory Requirements page', () => {
     const card = currentCard(render())
     expect(card).toMatch(/GVP Version 4\.1<span class="[^"]*">Current<\/span>/)
     expect(card).not.toContain('5.0')
-    expect(card).not.toContain('Requirements')
+    expect(card).not.toContain('Requirement Passages')
     expect(card).not.toContain('<table')
   })
 

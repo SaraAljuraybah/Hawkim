@@ -29,7 +29,8 @@ const linkButton = 'inline-flex items-center gap-1 rounded-sm text-left font-med
 
 /** The requirements count; on a version's own page, a disclosure for the Requirements section. */
 function requirementsCell(version: GuidelineVersion, actions: GuidelineVersionActions): ReactNode {
-  const count = formatCount(version.requirements.length, text.requirementsCount)
+  // A published version from the database knows its count; its passages are read on its page only.
+  const count = formatCount(version.requirementCount ?? version.requirements.length, text.requirementsCount)
   const disclosure = actions.requirements
   if (!disclosure) return count
   const Chevron = disclosure.expanded ? ChevronUp : ChevronDown

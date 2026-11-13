@@ -508,6 +508,11 @@ export interface GuidelineVersion {
   addedAt?: string
   /** The requirements SOPs are checked against (none yet for a version an admin added). */
   requirements: Requirement[]
+  /**
+   * How many requirement passages a published version from the database has. Its passages aren't
+   * loaded with it (there can be about 1,500): its own page reads them (useGuidelineRequirements).
+   */
+  requirementCount?: number
   /** Added by an admin and never current: it can be deleted, and its version number changed. */
   neverCurrent?: boolean
   /** A published version that was added on the website: the id it had while it was being processed. */

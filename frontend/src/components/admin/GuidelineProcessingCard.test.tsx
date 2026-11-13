@@ -32,7 +32,7 @@ describe('GVP version processing', () => {
 
   it('shows the report, the warnings and Make Current when ready', () => {
     const html = render({ status: 'ready', report: { requirements: 1510, sections: 368, pages: 369, warnings: [], missingExcludedSections: ['III.B.4.1'] } })
-    expect(html).toContain('1,510 requirements from 368 sections · 369 pages')
+    expect(html).toContain('1,510 requirement passages from 368 sections · 369 pages')
     expect(html).toContain('III.B.4.1')
     expect(html).toContain(`>${text.makeCurrent}<`)
   })

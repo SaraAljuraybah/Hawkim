@@ -1588,6 +1588,10 @@ export interface AdminRegulationDetailsContent {
   requirements: {
     title: string
     tableLabel: string
+    /** While a published version's passages are read on its page; `failed` and `retry` when they couldn't be. */
+    loading: string
+    failed: string
+    retry: string
     columns: { id: string; module: string; section: string; title: string; page: string; summary: string }
     /** `{page}` is replaced. */
     page: string

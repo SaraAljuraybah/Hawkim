@@ -1,3 +1,4 @@
+import { Button } from '../ui/Button'
 import { tableStyles } from '../ui/tableStyles'
 import { adminEn } from '../../content/admin.en'
 import type { GuidelineVersion } from '../../data/mock/types'
@@ -15,6 +16,7 @@ export function GuidelineRequirements({
   heading: Heading,
   hidden,
   className = '',
+  loading,
 }: {
   version: GuidelineVersion
   id: string
@@ -22,9 +24,28 @@ export function GuidelineRequirements({
   heading: 'h2' | 'h3'
   hidden: boolean
   className?: string
+  /** A published version's passages, read on its page: still being read, or they couldn't be read. */
+  loading?: { state: 'loading' | 'failed'; onRetry: () => void }
 }) {
   const text = adminEn.regulationDetails.requirements
   const columns = text.columns
+  if (loading) {
+    return (
+      <section id={id} aria-labelledby={titleId} hidden={hidden} className={className}>
+        <Heading id={titleId} className={Heading === 'h2' ? 'text-lg' : 'text-base'}>
+          {text.title}
+        </Heading>
+        {loading.state === 'loading' ? (
+          <p role="status" className="mt-3 text-sm text-text-gray">{text.loading}</p>
+        ) : (
+          <div role="alert" className="mt-3 flex flex-wrap items-center gap-3">
+            <p className="text-sm text-status-rejected-fg">{text.failed}</p>
+            <Button variant="secondary" size="sm" onClick={loading.onRetry}>{text.retry}</Button>
+          </div>
+        )}
+      </section>
+    )
+  }
   return (
     <section id={id} aria-labelledby={titleId} hidden={hidden} className={className}>
       <Heading id={titleId} className={Heading === 'h2' ? 'text-lg' : 'text-base'}>
