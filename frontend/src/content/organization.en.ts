@@ -51,4 +51,13 @@ export const organizationEn: OrganizationContent = {
     permission: 'Permission',
     notSet: 'Not set',
   },
+  departmentPreview: {
+    open: (name) => `View ${name} details`,
+    toggle: (name) => `Show staff in ${name}`,
+    close: 'Close',
+    division: 'Division',
+    description: 'Description',
+    email: 'Email',
+    notSet: 'Not set',
+  },
 }

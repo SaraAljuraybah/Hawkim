@@ -14,6 +14,10 @@ const headingFixture = vi.hoisted(() => ({ name: { status: 'ready', name: null }
 vi.mock('../hooks/useDocumentTitle', () => ({ useDocumentTitle: (title?: string) => { if (title) headingFixture.titles.push(title) } }))
 // The organization's name, as the top bar reads it (get_organization_name).
 vi.mock('../hooks/useOrganizationName', () => ({ useOrganizationName: () => ({ ...headingFixture.name, set: () => {} }) }))
+// The departments every signed-in user loads: the description for a department's details pop-up.
+vi.mock('../state/departmentsContext', () => ({
+  useDepartments: () => ({ getDepartment: (id: string) => (id === 'department-1' ? { id, description: 'Keeps quality high.' } : undefined) }),
+}))
 const hierarchy: OrganizationHierarchy = {
   organization: null,
   divisions: [{ id: 'division-1', name: 'Operations', email: 'ops@test.invalid' }, { id: 'division-2', name: 'R and D Division', email: null }],
@@ -102,6 +106,22 @@ describe('Organizational Structure', () => {
     expect(html).toMatch(/<tbody id="org-children-division-1" hidden="">/)
     expect(html).toContain('aria-controls="org-staff-department-1"')
     expect(html).toMatch(/<tr id="org-staff-department-1" hidden=""/)
+  })
+  it('gives each department two buttons: the arrow shows its staff, the name opens its details', () => {
+    const html = page()
+    // The arrow: the only toggle on the row, named for what it does.
+    const arrow = html.match(/<button type="button" aria-expanded="false" aria-controls="org-staff-department-1"[^>]*>/)![0]
+    expect(arrow).toContain('aria-label="Show staff in Quality"')
+    // The name: a separate button that opens a dialog, looking like a link (as staff names do).
+    const name = html.match(/<button type="button" aria-haspopup="dialog" aria-label="View Quality details" class="([^"]*)"[^>]*>Quality<\/button>/)!
+    expect(name[0]).not.toContain('aria-expanded')
+    expect(name[1].split(' ')).toEqual(expect.arrayContaining(['cursor-pointer', 'rounded-sm', 'text-maroon', 'underline', 'underline-offset-2']))
+    expect(html).toContain('aria-label="View Empty Department details"')
+    // The staff count stays as text, outside both buttons.
+    expect(html).toMatch(/>Quality<\/button><span class="mt-1 block text-xs font-normal text-text-gray">Staff \(2\)<\/span>/)
+    // Divisions keep one open/close button, with no pop-up.
+    expect(html).toMatch(/<button type="button" aria-expanded="false" aria-controls="org-children-division-1" class="group flex items-start gap-3 rounded text-left">/)
+    expect(html).not.toContain('aria-label="View Operations details"')
   })
   it('shows departments with their staff count and email, and "No staff in this department"', () => {
     const html = page()

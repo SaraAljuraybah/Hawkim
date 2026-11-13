@@ -13,6 +13,7 @@ import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { useOrganizationName } from '../hooks/useOrganizationName'
 import { departmentFilterGroups, isFiltering, ORGANIZATION_SORTS, organizationRows, organizationSortGroup, OTHERS_FILTER, ROLE_FILTERS, type OrganizationSort, type RoleFilter } from '../lib/organization'
 import { fetchOrganization, type OrganizationHierarchy } from '../services/organization'
+import { useDepartments } from '../state/departmentsContext'
 import { useCurrentUser } from '../state/sessionContext'
 
 /** The page's heading: "{name} Structure", or "Organizational Structure" without a (non-blank) name. */
@@ -32,6 +33,8 @@ export function OrganizationStructure({ hierarchy }: { hierarchy: OrganizationHi
   const [departmentFilter, setDepartmentFilter] = useState<string[]>([])
   const [roles, setRoles] = useState<RoleFilter[]>([])
   const [sort, setSort] = useState<OrganizationSort>('default')
+  // A department's description for its details pop-up (loaded for every signed-in user).
+  const { getDepartment } = useDepartments()
   // Options come from the loaded divisions, A to Z. A selected division that no longer exists is dropped.
   const divisionOptions = useMemo(() => [...hierarchy.divisions]
     .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }) || a.id.localeCompare(b.id))
@@ -71,7 +74,8 @@ export function OrganizationStructure({ hierarchy }: { hierarchy: OrganizationHi
           })}
           onChange={(event) => setSort(event.target.value as OrganizationSort)} />
       </div>
-      <OrganizationTable rows={rows} filtering={filtering} filterKey={JSON.stringify([query.trim().toLowerCase(), [...divisions].sort(), [...departments].sort(), [...roles].sort()])} />
+      <OrganizationTable rows={rows} filtering={filtering} filterKey={JSON.stringify([query.trim().toLowerCase(), [...divisions].sort(), [...departments].sort(), [...roles].sort()])}
+        departmentDescription={(id) => getDepartment(id)?.description} />
     </>
   )
 }

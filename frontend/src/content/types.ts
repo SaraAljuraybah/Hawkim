@@ -2225,6 +2225,20 @@ export interface OrganizationContent {
     permission: string
     notSet: string
   }
+  /**
+   * A department's read-only details pop-up, opened from its name (the same fields as the admin preview:
+   * division, description, email). `open` names the name's button; `toggle` names the arrow that shows or
+   * hides its staff; `notSet` is an empty value.
+   */
+  departmentPreview: {
+    open: (name: string) => string
+    toggle: (name: string) => string
+    close: string
+    division: string
+    description: string
+    email: string
+    notSet: string
+  }
 }
 
 /** A field of the Organization Profile, in the order shown. */

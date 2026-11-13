@@ -7,6 +7,7 @@ import { DepartmentBadge } from '../admin/DepartmentBadge'
 import { CopyButton } from '../ui/CopyButton'
 import { tableStyles } from '../ui/tableStyles'
 import { UserAvatar } from '../ui/UserAvatar'
+import { DepartmentDetailsPreview, type DepartmentDetailsPreviewDepartment } from './DepartmentDetailsPreview'
 import { StaffProfilePreview, type StaffProfilePreviewPerson } from './StaffProfilePreview'
 
 const NO_TOGGLES: ReadonlySet<string> = new Set()
@@ -70,6 +71,9 @@ function StaffTable({ label, children }: { label: string; children: ReactNode })
   )
 }
 
+/** A name that opens a pop-up (a staff member's or a department's): it looks like a link, as on every list. */
+const PREVIEW_NAME = 'block cursor-pointer rounded-sm text-left break-words text-maroon underline underline-offset-2'
+
 function Chevron({ open }: { open: boolean }) {
   return (
     <span aria-hidden="true" className="mt-0.5 shrink-0 rounded p-1 text-maroon group-hover:bg-beige">
@@ -83,18 +87,24 @@ function Chevron({ open }: { open: boolean }) {
  * opened with its chevron button. `filterKey` identifies the current search and filters: while
  * filtering, rows open automatically to show the results and can still be closed or opened by hand;
  * any change to the search or filters (including clearing them) starts again from those defaults.
- * Each staff member's name is a button that opens their Profile Preview (StaffProfilePreview); closing it
- * returns focus to the name.
+ * Each staff member's name is a button that opens their Profile Preview (StaffProfilePreview). A department's
+ * arrow opens and closes its staff; its name is a separate button that opens its details (DepartmentDetailsPreview,
+ * read-only). Closing a pop-up returns focus to the name. `departmentDescription` gives a department's description
+ * (from the departments every signed-in user loads).
  */
-export function OrganizationTable({ rows, filtering, filterKey }: { rows: DivisionRow[]; filtering: boolean; filterKey: string }) {
+export function OrganizationTable({ rows, filtering, filterKey, departmentDescription }: {
+  rows: DivisionRow[]; filtering: boolean; filterKey: string; departmentDescription?: (id: string) => string | undefined
+}) {
   // The rows toggled by hand, from the default (closed, or opened automatically while filtering).
   const [toggles, setToggles] = useState<{ key: string; ids: ReadonlySet<string> }>({ key: filterKey, ids: NO_TOGGLES })
   const toggled = toggles.key === filterKey ? toggles.ids : NO_TOGGLES
   const isOpen = (id: string, autoOpen: boolean) => (filtering && autoOpen) !== toggled.has(id)
   const [preview, setPreview] = useState<StaffProfilePreviewPerson>()
+  const [departmentPreview, setDepartmentPreview] = useState<DepartmentDetailsPreviewDepartment>()
   const previewOpener = useRef<HTMLButtonElement | null>(null)
   function closePreview() {
     setPreview(undefined)
+    setDepartmentPreview(undefined)
     previewOpener.current?.focus()
   }
   const toggle = (id: string) => {
@@ -149,14 +159,27 @@ export function OrganizationTable({ rows, filtering, filterKey }: { rows: Divisi
                     <Fragment key={departmentKey}>
                       <tr className="border-t border-beige hover:bg-beige/20">
                         <th scope="row" className="py-3 pr-4 pl-12 font-medium">
-                          <span className="flex border-l border-beige pl-5">
-                            <button type="button" aria-expanded={open} aria-controls={staffId}
-                              className="group flex min-w-0 items-start gap-3 rounded text-left" onClick={() => toggle(departmentKey)}>
+                          <span className="flex min-w-0 items-start gap-3 border-l border-beige pl-5">
+                            {/* Two buttons: the arrow shows or hides the staff; the name opens the department's details. */}
+                            <button type="button" aria-expanded={open} aria-controls={staffId} aria-label={content.departmentPreview.toggle(department.name)}
+                              className="group -m-0.5 shrink-0 rounded p-0.5" onClick={() => toggle(departmentKey)}>
                               <Chevron open={open} />
-                              <DepartmentBadge department={department} />
-                              <span className="min-w-0"><span className="block break-words text-maroon">{department.name}</span>
-                                <span className="mt-1 block text-xs font-normal text-text-gray">{content.staffCount(department.employees.length)}</span></span>
                             </button>
+                            <DepartmentBadge department={department} />
+                            <span className="min-w-0">
+                              <button type="button" aria-haspopup="dialog" aria-label={content.departmentPreview.open(department.name)}
+                                className={PREVIEW_NAME}
+                                onClick={(event) => {
+                                  previewOpener.current = event.currentTarget
+                                  setDepartmentPreview({
+                                    name: department.name, divisionName: division.unassigned ? undefined : division.name,
+                                    description: departmentDescription?.(department.id), email: department.email,
+                                  })
+                                }}>
+                                {department.name}
+                              </button>
+                              <span className="mt-1 block text-xs font-normal text-text-gray">{content.staffCount(department.employees.length)}</span>
+                            </span>
                           </span>
                         </th>
                         <EmailCell email={department.email} name={department.name} />
@@ -177,7 +200,7 @@ export function OrganizationTable({ rows, filtering, filterKey }: { rows: Divisi
                                           <UserAvatar user={person} />
                                           <span className="min-w-0">
                                             <button type="button" aria-haspopup="dialog" aria-label={content.profilePreview.open(person.name)}
-                                              className="block cursor-pointer rounded-sm text-left font-medium break-words text-maroon underline underline-offset-2"
+                                              className={`${PREVIEW_NAME} font-medium`}
                                               onClick={(event) => {
                                                 previewOpener.current = event.currentTarget
                                                 setPreview({ person, departmentName: department.name, divisionName: division.unassigned ? undefined : division.name })
@@ -213,6 +236,7 @@ export function OrganizationTable({ rows, filtering, filterKey }: { rows: Divisi
         )}
       </table>
       {preview && <StaffProfilePreview preview={preview} onClose={closePreview} />}
+      {departmentPreview && <DepartmentDetailsPreview department={departmentPreview} onClose={closePreview} />}
     </div>
   )
 }
