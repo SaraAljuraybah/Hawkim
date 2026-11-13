@@ -17,18 +17,22 @@ const FILTER_ROLES: Permission[] = ['author', 'reviewer', 'approver']
 /**
  * The Sort options; 'default' keeps the loaded order. 'division-…' orders the division rows;
  * 'department-…' orders the departments inside each division (the divisions keep their order, the
- * staff inside a department keep theirs). Counts go from most to fewest; ties go by name, then id.
+ * staff inside a department keep theirs). Names A to Z or Z to A; counts high to low ('-desc') or low to
+ * high ('-asc'); ties go by name A to Z, then id.
  */
 export const ORGANIZATION_SORTS = [
   'default',
-  'division-name-asc', 'division-name-desc', 'division-departments-desc',
-  'department-name-asc', 'department-name-desc', 'department-staff-desc',
+  'division-name-asc', 'division-name-desc',
+  'division-departments-desc', 'division-departments-asc',
+  'department-name-asc', 'department-name-desc',
+  'department-staff-desc', 'department-staff-asc',
 ] as const
 export type OrganizationSort = (typeof ORGANIZATION_SORTS)[number]
-export type OrganizationSortGroup = 'divisions' | 'departments'
+/** The Sort menu's groups: what each sort orders by (e.g. 'division-departments': a division's departments). */
+export type OrganizationSortGroup = 'division-name' | 'division-departments' | 'department-name' | 'department-staff'
 /** The group each sort is listed under in the Sort menu ('default' has none). */
 export const organizationSortGroup = (sort: OrganizationSort): OrganizationSortGroup | undefined =>
-  sort.startsWith('division-') ? 'divisions' : sort.startsWith('department-') ? 'departments' : undefined
+  sort === 'default' ? undefined : (sort.slice(0, sort.lastIndexOf('-')) as OrganizationSortGroup)
 
 /** The group of departments without a (shown) division: always last, never a Division filter choice. */
 export const UNASSIGNED_GROUP_ID = 'unassigned'
@@ -102,11 +106,13 @@ const DIVISION_COMPARE: Record<Extract<OrganizationSort, `division-${string}`>, 
   'division-name-asc': byName,
   'division-name-desc': (a, b) => -byName(a, b),
   'division-departments-desc': (a, b) => b.departmentCount - a.departmentCount || byName(a, b),
+  'division-departments-asc': (a, b) => a.departmentCount - b.departmentCount || byName(a, b),
 }
 const DEPARTMENT_COMPARE: Record<Extract<OrganizationSort, `department-${string}`>, DepartmentCompare> = {
   'department-name-asc': (a, b) => byName(a.department, b.department),
   'department-name-desc': (a, b) => -byName(a.department, b.department),
   'department-staff-desc': (a, b) => b.department.employees.length - a.department.employees.length || byName(a.department, b.department),
+  'department-staff-asc': (a, b) => a.department.employees.length - b.department.employees.length || byName(a.department, b.department),
 }
 
 /** The assigned divisions reordered (division sorts), or each group's departments reordered (department sorts). */
@@ -169,7 +175,7 @@ export function organizationRows(hierarchy: OrganizationHierarchy, filters: Orga
   // The unassigned group stays last whatever the sort; a department sort orders its departments too.
   const assigned = rows.filter((row) => !row.unassigned)
   const unassignedRows = rows.filter((row) => row.unassigned)
-  return [...sortRows(assigned, sort), ...(organizationSortGroup(sort) === 'departments' ? sortRows(unassignedRows, sort) : unassignedRows)]
+  return [...sortRows(assigned, sort), ...(sort.startsWith('department-') ? sortRows(unassignedRows, sort) : unassignedRows)]
 }
 
 export interface DepartmentFilterGroup {

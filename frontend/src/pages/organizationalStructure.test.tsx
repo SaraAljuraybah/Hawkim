@@ -176,18 +176,17 @@ describe('Organizational Structure', () => {
     expect(html).toMatch(/aria-pressed="false" class="inline-flex [^"]*text-left/)
     expect(html).toContain('>Clear all</button>')
   })
-  it('offers the default order, then the Divisions and Departments sorts under their headings', () => {
+  it('offers the default order, then each group (saying what it sorts) with its two directions', () => {
     const select = page().match(/<select[^>]*name="organizationSort"[^>]*>([\s\S]*?)<\/select>/)![1]
-    expect([...select.matchAll(/<option value="[^"]+"[^>]*>([^<]+)<\/option>/g)].map((match) => match[1])).toEqual([
-      'Default order',
-      'A to Z', 'Z to A', 'Number of Departments',
-      'A to Z', 'Z to A', 'Number of Staff',
-    ])
     const groups = [...select.matchAll(/<optgroup label="([^"]+)">([\s\S]*?)<\/optgroup>/g)]
-    expect(groups.map((group) => group[1])).toEqual(['Divisions', 'Departments'])
-    expect(groups.map((group) => (group[2].match(/<option/g) ?? []).length)).toEqual([3, 3])
-    expect(select.indexOf('Default order')).toBeLessThan(select.indexOf('<optgroup'))
-    expect(select).not.toContain('High to Low')
+      .map((group) => [group[1], [...group[2].matchAll(/>([^<]+)<\/option>/g)].map((option) => option[1])])
+    expect(groups).toEqual([
+      ['Division name', ['A to Z', 'Z to A']],
+      ['Division departments', ['High to low', 'Low to high']],
+      ['Department name', ['A to Z', 'Z to A']],
+      ['Department staff', ['High to low', 'Low to high']],
+    ])
+    expect(select).toMatch(/^<option value="default"[^>]*>Default order<\/option><optgroup/)
   })
   it('lists unassigned departments under their own subheading in the Department filter', () => {
     const data = structuredClone(hierarchy)

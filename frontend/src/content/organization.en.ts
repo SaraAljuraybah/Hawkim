@@ -31,10 +31,16 @@ export const organizationEn: OrganizationContent = {
   sort: 'Sort',
   sortOptions: {
     default: 'Default order',
-    'division-name-asc': 'A to Z', 'division-name-desc': 'Z to A', 'division-departments-desc': 'Number of Departments',
-    'department-name-asc': 'A to Z', 'department-name-desc': 'Z to A', 'department-staff-desc': 'Number of Staff',
+    'division-name-asc': 'A to Z', 'division-name-desc': 'Z to A',
+    'division-departments-desc': 'High to low', 'division-departments-asc': 'Low to high',
+    'department-name-asc': 'A to Z', 'department-name-desc': 'Z to A',
+    'department-staff-desc': 'High to low', 'department-staff-asc': 'Low to high',
   },
-  sortGroups: { divisions: 'Divisions', departments: 'Departments' },
+  /** One level of groups only, so each says what it sorts. */
+  sortGroups: {
+    'division-name': 'Division name', 'division-departments': 'Division departments',
+    'department-name': 'Department name', 'department-staff': 'Department staff',
+  },
   profilePreview: {
     open: (name) => `View ${name}’s profile`,
     close: 'Close',

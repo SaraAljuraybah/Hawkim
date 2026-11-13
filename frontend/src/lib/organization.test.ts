@@ -147,14 +147,17 @@ describe('sort', () => {
   const departmentOrder = (sort: OrganizationSort, divisionId: string) =>
     sorted(sort).find((row) => row.id === divisionId)!.departments.map((row) => row.department.id)
 
-  it('lists Default order, then three division sorts and three department sorts, each in its group', () => {
+  it('lists Default order, then division name and departments, department name and staff, each both ways in its group', () => {
     expect(ORGANIZATION_SORTS).toEqual([
       'default',
-      'division-name-asc', 'division-name-desc', 'division-departments-desc',
-      'department-name-asc', 'department-name-desc', 'department-staff-desc',
+      'division-name-asc', 'division-name-desc',
+      'division-departments-desc', 'division-departments-asc',
+      'department-name-asc', 'department-name-desc',
+      'department-staff-desc', 'department-staff-asc',
     ])
     expect(ORGANIZATION_SORTS.map(organizationSortGroup)).toEqual([
-      undefined, 'divisions', 'divisions', 'divisions', 'departments', 'departments', 'departments',
+      undefined, 'division-name', 'division-name', 'division-departments', 'division-departments',
+      'department-name', 'department-name', 'department-staff', 'department-staff',
     ])
   })
   it('keeps the loaded order by default', () => {
@@ -171,6 +174,10 @@ describe('sort', () => {
     // Beta and Gamma both have one department: Beta first, although Gamma comes first by default.
     expect(divisionOrder('division-departments-desc')).toEqual(['a', 'b', 'g', UNASSIGNED_GROUP_ID])
   })
+  it('orders the divisions by number of departments, fewest first, ties still by name A to Z', () => {
+    // Beta and Gamma (one each) before Alpha (three); Beta before Gamma by name. The unassigned group stays last.
+    expect(divisionOrder('division-departments-asc')).toEqual(['b', 'g', 'a', UNASSIGNED_GROUP_ID])
+  })
   it('orders the departments inside each division by name, the divisions keeping their order', () => {
     expect(divisionOrder('department-name-asc')).toEqual(['g', 'a', 'b', UNASSIGNED_GROUP_ID])
     expect(departmentOrder('department-name-asc', 'a')).toEqual(['eta', 'mu', 'zeta'])
@@ -183,6 +190,12 @@ describe('sort', () => {
     // Mu and Zeta both have one person: Mu first, although Zeta comes first by default.
     expect(departmentOrder('department-staff-desc', 'a')).toEqual(['eta', 'mu', 'zeta'])
     expect(departmentOrder('department-staff-desc', UNASSIGNED_GROUP_ID)).toEqual(['beta-unit', 'omega'])
+  })
+  it('orders the departments inside each division by number of staff, fewest first, ties still by name A to Z', () => {
+    expect(divisionOrder('department-staff-asc')).toEqual(['g', 'a', 'b', UNASSIGNED_GROUP_ID])
+    // Mu and Zeta (one each) before Eta (two); Mu before Zeta by name.
+    expect(departmentOrder('department-staff-asc', 'a')).toEqual(['mu', 'zeta', 'eta'])
+    expect(departmentOrder('department-staff-asc', UNASSIGNED_GROUP_ID)).toEqual(['omega', 'beta-unit'])
   })
   it('keeps the staff inside a department in their order', () => {
     for (const sort of ORGANIZATION_SORTS) {
