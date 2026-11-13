@@ -32,7 +32,7 @@ import requests
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 
-from hawkim.aggregate import findings_for_database  # noqa: E402
+from hawkim.aggregate import findings_for_database, requirement_passage  # noqa: E402
 from hawkim.service import ComplianceService  # noqa: E402
 
 BUCKET = "sop-files"
@@ -62,6 +62,12 @@ class Supabase:
         if r.status_code >= 300:
             raise RuntimeError(f"{name} failed: HTTP {r.status_code} {r.text[:400]}")
         return r.json() if r.text else None
+
+    def select(self, table: str, query: str) -> list:
+        r = requests.get(f"{self.url}/rest/v1/{table}?{query}", headers=self.headers, timeout=60)
+        if r.status_code >= 300:
+            raise RuntimeError(f"Reading {table} failed: HTTP {r.status_code} {r.text[:400]}")
+        return r.json()
 
     def download(self, storage_path: str, dest: Path):
         self.download_object(BUCKET, storage_path, dest, what="the SOP file")
@@ -191,6 +197,41 @@ def local_index(sb: "Supabase", index_path: str) -> Path:
         shutil.rmtree(folder, ignore_errors=True)
         tmp.rename(folder)
     return folder
+
+
+# Requirement passages sent per call (about 0.5 KB each).
+PASSAGES_PER_CALL = 200
+
+
+def read_passages(index_folder: Path) -> list[dict]:
+    """The requirement passages of an index folder (units.jsonl), as guideline_requirements rows."""
+    lines = (index_folder / "units.jsonl").read_text(encoding="utf-8").splitlines()
+    return [requirement_passage(json.loads(line)) for line in lines if line.strip()]
+
+
+def backfill_requirements(sb: "Supabase", cfg: dict, scfg: dict):
+    """One time: gives every published GVP version all its requirement passages in guideline_requirements,
+    from its index files (until now only the passages that findings referred to were there). Versions
+    with no index here (e.g. sample data) are skipped. Safe to run again: it upserts."""
+    from hawkim.engine import index_folder
+    for version in sb.select("guideline_versions", "select=id,name,version,index_path&order=added_at"):
+        name = f"{version['name']} {version['version']}"
+        if version.get("index_path"):
+            folder = local_index(sb, version["index_path"])
+        elif str(version["version"]) == str(scfg.get("guideline_version")):
+            folder = index_folder(cfg)
+            folder = folder if folder.is_absolute() else HERE / folder
+        else:
+            print(f"[backfill] {name}: skipped (no index for this version here)")
+            continue
+        if not (folder / "units.jsonl").exists():
+            print(f"[backfill] {name}: skipped (no units.jsonl in {folder})")
+            continue
+        passages = read_passages(folder)
+        for start in range(0, len(passages), PASSAGES_PER_CALL):
+            sb.rpc("backfill_guideline_requirements",
+                   {"p_version_id": version["id"], "p_passages": passages[start:start + PASSAGES_PER_CALL]})
+        print(f"[backfill] {name}: {len(passages)} requirement passages saved")
 
 
 class GuidelineProcessingError(RuntimeError):
@@ -355,7 +396,13 @@ def build_guideline(job: dict, svc: ComplianceService, sb: "Supabase", tracker: 
             upload_index_file(sb, index_path, f, before_upload)
     except requests.RequestException as e:
         raise GuidelineProcessingError(UPLOAD_MESSAGE) from e
-    progress(100, STAGE_SAVING, f"part {total} of {total}")
+    # Its requirement passages, which publishing copies into guideline_requirements.
+    passages = read_passages(local)
+    for start in range(0, len(passages), PASSAGES_PER_CALL):
+        tracker.check()
+        sb.rpc("save_guideline_passages", {"p_id": draft_id, "p_passages": passages[start:start + PASSAGES_PER_CALL],
+                                           "p_first": start == 0})
+    progress(100, STAGE_SAVING, f"{len(passages)} requirement passages")
     # The last word on cancelling before completing (complete_guideline_processing also refuses it).
     tracker.sync()
     tracker.check()
@@ -413,12 +460,20 @@ def main():
     ap = argparse.ArgumentParser(description="Hawkim compliance worker")
     ap.add_argument("--config", default=str(HERE / "config.yaml"))
     ap.add_argument("--once", action="store_true", help="process at most one check, then exit")
+    ap.add_argument("--backfill-requirements", action="store_true",
+                    help="one time: save every requirement passage of the published GVP versions, then exit")
     args = ap.parse_args()
 
     load_env(HERE / ".env")
     url, key = os.environ.get("SUPABASE_URL"), os.environ.get("SUPABASE_SECRET_KEY")
     if not url or not key:
         raise SystemExit("Set SUPABASE_URL and SUPABASE_SECRET_KEY in compliance-service/.env (see .env.example)")
+
+    if args.backfill_requirements:   # reads index files only: no model is loaded
+        from hawkim.pipeline import load_config
+        cfg = load_config(args.config)
+        backfill_requirements(Supabase(url, key), cfg, cfg.get("service", {}))
+        return
 
     svc = ComplianceService(args.config)
     scfg = svc.cfg.get("service", {})
