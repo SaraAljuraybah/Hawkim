@@ -177,7 +177,7 @@ export function OrganizationTable({ rows, filtering, filterKey }: { rows: Divisi
                                           <UserAvatar user={person} />
                                           <span className="min-w-0">
                                             <button type="button" aria-haspopup="dialog" aria-label={content.profilePreview.open(person.name)}
-                                              className="block rounded-sm text-left font-medium break-words text-maroon underline-offset-2 hover:underline focus-visible:underline"
+                                              className="block cursor-pointer rounded-sm text-left font-medium break-words text-maroon underline underline-offset-2"
                                               onClick={(event) => {
                                                 previewOpener.current = event.currentTarget
                                                 setPreview({ person, departmentName: department.name, divisionName: division.unassigned ? undefined : division.name })

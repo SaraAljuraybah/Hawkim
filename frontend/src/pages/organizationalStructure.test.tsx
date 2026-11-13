@@ -117,8 +117,13 @@ describe('Organizational Structure', () => {
     expect(html).toMatch(/<tr id="org-staff-department-1" class=/)
     const row = html.match(/<tr class="border-t border-beige first:border-t-0">(?:(?!<\/tr>).)*Dana Fahad.*?<\/tr>/)![0]
     expect(row).toContain('>DF</span>')
-    // The name opens their Profile Preview: a real button, named for what it does, underlined on hover and focus.
-    expect(row).toMatch(/<button type="button" aria-haspopup="dialog" aria-label="View Dana Fahad’s profile" class="[^"]*text-maroon underline-offset-2 hover:underline focus-visible:underline"[^>]*>Dana Fahad<\/button>/)
+    // The name opens their Profile Preview: a real button, named for what it does, that looks clickable (always
+    // underlined, pointer cursor; the app's focus outline applies to every focusable element).
+    const name = row.match(/<button type="button" aria-haspopup="dialog" aria-label="View Dana Fahad’s profile" class="([^"]*)"[^>]*>Dana Fahad<\/button>/)!
+    expect(name[1].split(' ')).toEqual(expect.arrayContaining(['cursor-pointer', 'rounded-sm', 'text-maroon', 'underline', 'underline-offset-2']))
+    expect(name[1]).not.toContain('hover:underline')
+    // Only staff names: the division and department buttons (they open and close) aren't underlined.
+    for (const toggle of html.match(/<button type="button" aria-expanded="[^"]+"[^>]*>/g)!) expect(toggle).not.toContain('underline')
     expect(row).toContain('Permissions: </span>Author, Reviewer</span>')
     // The copy button right after the email (which truncates, never pushing the button out of view).
     expect(row).toContain('<span title="dana@test.invalid" class="min-w-0 truncate">dana@test.invalid</span><span class="contents">')
