@@ -120,6 +120,33 @@ describe('the Admins list', () => {
     expect(html).toContain('>+966512345678<')
   })
 
+  it('explains the Super Admin badge in a tooltip it is described by, reachable with the keyboard', () => {
+    const text = adminsEn.superAdminTooltip
+    expect(text).toBe("The organization's main admin, first given to the person who requested Hawkim. Only they can edit the organization profile, delete admins and pass this role to another admin.")
+    const html = at('/admin/admins')
+    // In the table and in the cards (phones): the badge is focusable and linked to the tooltip by aria-describedby.
+    for (const part of [row(html, 'Amal Fahad'), html.slice(html.indexOf('<ul aria-label='))]) {
+      const badge = part.match(/<span class="[^"]*bg-maroon text-offwhite[^"]*" tabindex="0" aria-describedby="([^"]+)">/)!
+      expect(part).toContain(`<span id="${badge[1]}" role="tooltip" hidden=""`)
+      expect(part).toContain(`>${text.replace(/'/g, '&#x27;')}</span>`)
+    }
+    // Once in the table and once in the cards: only the Super Admin's badge has it.
+    expect(html.split(text.replace(/'/g, '&#x27;')).length - 1).toBe(2)
+  })
+
+  it('gives the Admin badge no tooltip, and leaves it out of the Tab order', () => {
+    const nouf = row(at('/admin/admins'), 'Nouf Saleh')
+    expect(nouf).not.toContain('main admin')
+    expect(nouf).toMatch(/<span class="[^"]*bg-gold-light\/60 text-maroon[^"]*">Admin<\/span>/)
+    expect(nouf).not.toMatch(/<span class="[^"]*bg-gold-light\/60[^"]*" tabindex/)
+  })
+
+  it('keeps the other Super Admin badges as they were (no tooltip, not focusable)', () => {
+    const details = at(`/admin/admins/${SUPER}`)
+    expect(details).not.toContain('main admin')
+    expect(details).not.toMatch(/tabindex="0"[^>]*>(?:<svg.*?<\/svg>)?Super Admin/)
+  })
+
   it('gives the Super Admin View, Edit and Delete on regular Admins, and no Delete on themselves', () => {
     const html = at('/admin/admins')
     expect(labels(row(html, 'Nouf Saleh'))).toEqual(expect.arrayContaining(['View Nouf Saleh', 'Edit Nouf Saleh', 'Delete Nouf Saleh']))

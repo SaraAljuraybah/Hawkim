@@ -2060,6 +2060,8 @@ export interface AdminsContent {
   /** Browser tab title; `{page}` is replaced. */
   pageTitle: string
   roles: Record<AdminRoleKey, string>
+  /** What the Super Admin is: the tooltip of the Super Admin badge in the Admins table. */
+  superAdminTooltip: string
   list: {
     title: string
     description: string

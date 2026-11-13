@@ -12,10 +12,12 @@ import { FilterPopover } from '../../components/ui/FilterPopover'
 import { IconButton } from '../../components/ui/IconButton'
 import { SelectField } from '../../components/ui/SelectField'
 import { TextField } from '../../components/ui/TextField'
+import { Tooltip } from '../../components/ui/Tooltip'
 import { LIST_TOOLBAR } from '../../components/ui/toolbar'
 import { tableStyles } from '../../components/ui/tableStyles'
 import { adminsEn } from '../../content/admins.en'
 import { filtersEn } from '../../content/filters.en'
+import type { AdminRoleKey } from '../../content/types'
 import type { User } from '../../data/mock/types'
 import { useDocumentTitle } from '../../hooks/useDocumentTitle'
 import { useSuperAdmin } from '../../hooks/useSuperAdmin'
@@ -28,6 +30,19 @@ import { useUsers } from '../../state/usersContext'
 /** Set after deleting an administrator or transferring the role, to say so on the list. */
 export interface AdminAdminsLocationState {
   notice?: string
+}
+
+/**
+ * An administrator's permission badge in the list. The Super Admin's explains the role in a tooltip, on hover,
+ * keyboard focus (the badge is focusable and described by it) or a tap; Escape closes it.
+ */
+function RoleBadge({ role }: { role: AdminRoleKey }) {
+  if (role !== 'superAdmin') return <AdminRoleBadge role={role} />
+  return (
+    <Tooltip wide openOnTap text={adminsEn.superAdminTooltip}>
+      {(tooltipId) => <AdminRoleBadge role={role} describedBy={tooltipId} />}
+    </Tooltip>
+  )
 }
 
 /**
@@ -216,7 +231,7 @@ export function AdminAdminsPage() {
                         </td>
                         <td className={`${tableStyles.cell} whitespace-nowrap text-text-gray`}>{admin.phone ?? content.none}</td>
                         <td className={tableStyles.cell}>
-                          <AdminRoleBadge role={adminRole(admin.id, superAdminId)} />
+                          <RoleBadge role={adminRole(admin.id, superAdminId)} />
                         </td>
                         {/* An action the viewer can't take (e.g. Delete on the Super Admin) leaves its cell empty, so the columns stay aligned. */}
                         {actionKeys.map((action) => (
@@ -243,7 +258,7 @@ export function AdminAdminsPage() {
                         <dt className="text-text-gray">{content.columns.phone}</dt>
                         <dd className="text-maroon">{admin.phone ?? content.none}</dd>
                       </dl>
-                      <AdminRoleBadge role={adminRole(admin.id, superAdminId)} className="mt-2" />
+                      <div className="mt-2"><RoleBadge role={adminRole(admin.id, superAdminId)} /></div>
                       <div className="mt-3 flex justify-end">{actions(admin)}</div>
                     </div>
                   </li>

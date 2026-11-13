@@ -20,6 +20,8 @@ const failures: Record<AdminActionFailure, string> = {
 export const adminsEn: AdminsContent = {
   pageTitle: '{page} · Admin Portal | Hawkim',
   roles: { superAdmin: 'Super Admin', admin: 'Admin' },
+  superAdminTooltip:
+    "The organization's main admin, first given to the person who requested Hawkim. Only they can edit the organization profile, delete admins and pass this role to another admin.",
 
   list: {
     title: 'Admins',
