@@ -68,6 +68,13 @@ describe('the Admins list', () => {
     expect(html).toContain('<div class="mt-8 relative grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)] lg:items-end">')
   })
 
+  it('names its Filter section Admin permission, with the Super Admin and Admin options', () => {
+    const html = at('/admin/admins')
+    expect([...html.matchAll(/<legend[^>]*>([^<]+)<\/legend>/g)].map((match) => match[1])).toEqual(['Admin permission'])
+    const chips = [...html.matchAll(/aria-pressed="false"[^>]*><span class="min-w-0 break-words">([^<]+)<\/span>/g)].map((match) => match[1])
+    expect(chips).toEqual(['Super Admin', 'Admin'])
+  })
+
   it('has the columns Name, Email, Phone Number, Role, then Preview, Edit and Delete with visible headings', () => {
     const html = at('/admin/admins')
     const columns = [...html.matchAll(/<th scope="col"[^>]*>([^<]+)<\/th>/g)].map((match) => match[1])

@@ -29,7 +29,7 @@ export const adminsEn: AdminsContent = {
     add: { label: 'Add Admin', href: '/admin/admins/new' },
     search: { label: 'Search Admins', placeholder: 'Search by admin name or email' },
     // The Filter (Permission) and Sort, as on the Staff page.
-    role: { legend: 'Permission', count: { one: '{count} permission', other: '{count} permissions' } },
+    role: { legend: 'Admin permission', count: { one: '{count} permission', other: '{count} permissions' } },
     sort: { label: 'Sort', options: { default: 'Default order', 'name-asc': 'Name: A to Z', 'name-desc': 'Name: Z to A' } },
     clearFilters: 'Clear Filters',
     count: { one: '{count} Admin', other: '{count} Admins' },
