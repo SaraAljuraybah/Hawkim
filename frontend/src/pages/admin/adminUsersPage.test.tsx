@@ -298,8 +298,9 @@ describe('the Staff Sort', () => {
       ['name-asc', 'A to Z'], ['name-desc', 'Z to A'],
       ['division-asc', 'A to Z'], ['division-desc', 'Z to A'],
       ['department-asc', 'A to Z'], ['department-desc', 'Z to A'],
-      ['permission-asc', 'A to Z'], ['permission-desc', 'Z to A'],
     ])
+    // No Permission sort (the Permission column and the Filter's Permission stay).
+    expect(select).not.toContain('permission')
     // Closed, nothing chosen: Default order.
     expect(select).toMatch(/<option value="default"[^>]*selected="">Default order</)
     // Default order on its own, then a group per column, each with A to Z and Z to A.
@@ -308,7 +309,6 @@ describe('the Staff Sort', () => {
         ['Name', ['name-asc', 'name-desc']],
         ['Division', ['division-asc', 'division-desc']],
         ['Department', ['department-asc', 'department-desc']],
-        ['Permission', ['permission-asc', 'permission-desc']],
       ])
     expect(select.indexOf('value="default"')).toBeLessThan(select.indexOf('<optgroup'))
   })
@@ -322,17 +322,21 @@ describe('the Staff Sort', () => {
     expect(sorted('name-desc', '', [], ['qa'])).toEqual(['reem', 'admin'])
   })
 
-  it('orders by division, department or permission as shown, A to Z or Z to A; staff without one last, ties by name', () => {
+  it('orders by division or department as shown, A to Z or Z to A; staff without one last, ties by name', () => {
     // Nouf and Reem are in Quality Assurance, which has no division; Sara is in Pharmacovigilance.
     expect(sorted('division-asc')).toEqual(['sara', 'admin', 'reem'])
     expect(sorted('division-desc')).toEqual(['sara', 'admin', 'reem'])
     expect(sorted('department-asc')).toEqual(['sara', 'admin', 'reem'])
     expect(sorted('department-desc')).toEqual(['admin', 'reem', 'sara'])
-    // Admin, Approver, "Author, Reviewer".
-    expect(sorted('permission-asc')).toEqual(['admin', 'reem', 'sara'])
-    expect(sorted('permission-desc')).toEqual(['sara', 'reem', 'admin'])
     expect(rows(render('?sort=department-desc'))).toEqual(['Reem Alharbi', 'Sara Aljuraybah'])
-    expect(render('?sort=permission-desc')).toMatch(/<option value="permission-desc"[^>]*selected="">/)
+  })
+
+  it('opens an old link with the removed Permission sort in Default order, without an error', () => {
+    for (const old of ['permission-asc', 'permission-desc']) {
+      const html = render(`?sort=${old}`)
+      expect(rows(html)).toEqual(['Reem Alharbi', 'Sara Aljuraybah'])
+      expect(html).toMatch(/<option value="default"[^>]*selected="">/)
+    }
   })
 
   it('is read from the URL (?sort=name-asc or name-desc); none or an unknown value is Default order (A to Z)', () => {

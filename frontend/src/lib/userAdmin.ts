@@ -77,17 +77,16 @@ export function divisionNameIn(departments: Pick<Department, 'divisionId' | 'div
 
 /**
  * The Staff list's orders; the first is the default, which is by name, A to Z (the same as 'name-asc').
- * Each other one orders by one column (Name, Division, Department or Permission), A to Z or Z to A.
+ * Each other one orders by one column (Name, Division or Department), A to Z or Z to A.
  */
 export const STAFF_SORTS = [
   'default',
   'name-asc', 'name-desc',
   'division-asc', 'division-desc',
   'department-asc', 'department-desc',
-  'permission-asc', 'permission-desc',
 ] as const
 export type StaffSort = (typeof STAFF_SORTS)[number]
-export type StaffSortGroup = 'name' | 'division' | 'department' | 'permission'
+export type StaffSortGroup = 'name' | 'division' | 'department'
 /** The group each sort is listed under in the Sort menu ('default' has none). */
 export const staffSortGroup = (sort: StaffSort): StaffSortGroup | undefined =>
   sort === 'default' ? undefined : (sort.slice(0, sort.lastIndexOf('-')) as StaffSortGroup)
@@ -125,8 +124,8 @@ export interface UserFilter {
  * those departments; a selected division without any keeps all its departments; departments without a
  * division match only when selected. With permissions selected, the user must also have one of them
  * (any, AND with the divisions and departments). Ordered by the sort (see STAFF_SORTS): by the column's text as
- * shown, staff without one (no division, department or permission) last either way, ties by name A to Z.
- * `permissionLabels`: the names shown.
+ * shown, staff without one (no division or department) last either way, ties by name A to Z.
+ * `permissionLabels`: the permission names shown (searched).
  */
 export function filterUsers(users: User[], getDepartment: (id: string) => Department | undefined, filter: UserFilter, permissionLabels: Record<Permission, string>): User[] {
   const text = filter.query.trim().toLowerCase()
@@ -138,10 +137,10 @@ export function filterUsers(users: User[], getDepartment: (id: string) => Depart
         matchesDivisionDepartmentFilter(user.departmentId, filter.divisions, filter.departmentIds, (id) => getDepartment(id)?.divisionId || UNASSIGNED_GROUP_ID) &&
         (!filter.permissions?.length || filter.permissions.some((permission) => user.permissions.includes(permission)))
     })
-    .sort(staffCompare(filter.sort ?? 'default', getDepartment, permissionLabels))
+    .sort(staffCompare(filter.sort ?? 'default', getDepartment))
 }
 
-function staffCompare(sort: StaffSort, getDepartment: (id: string) => Department | undefined, permissionLabels: Record<Permission, string>): (a: User, b: User) => number {
+function staffCompare(sort: StaffSort, getDepartment: (id: string) => Department | undefined): (a: User, b: User) => number {
   const byName = (a: User, b: User) => a.name.localeCompare(b.name)
   const group = staffSortGroup(sort)
   const direction = sort.endsWith('-desc') ? -1 : 1
@@ -149,7 +148,6 @@ function staffCompare(sort: StaffSort, getDepartment: (id: string) => Department
   const text: Record<Exclude<StaffSortGroup, 'name'>, (user: User) => string> = {
     division: (user) => divisionLabel(getDepartment(user.departmentId)),
     department: (user) => getDepartment(user.departmentId)?.name ?? '',
-    permission: (user) => user.permissions.map((permission) => permissionLabels[permission]).join(', '),
   }
   const value = text[group]
   return (a, b) => {
