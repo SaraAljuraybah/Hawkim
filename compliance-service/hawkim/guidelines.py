@@ -26,7 +26,7 @@ def _sha1(path: Path) -> str:
 # The stages of building an index, as the version's page shows them, and the part of the overall
 # percent each one covers (saving the index, 95-100%, is the worker's).
 STAGE_READING, STAGE_SPLITTING, STAGE_EMBEDDING, STAGE_SAVING = (
-    "Reading the PDF", "Splitting into requirements", "Preparing requirements", "Saving the requirements")
+    "Reading the regulatory requirements file", "Splitting into requirements", "Preparing requirements", "Saving the requirements")
 READING_PERCENT, SPLITTING_PERCENT, EMBEDDING_PERCENT = (0, 10), (10, 15), (15, 95)
 
 

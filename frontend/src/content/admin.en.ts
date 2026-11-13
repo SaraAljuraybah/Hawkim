@@ -543,7 +543,7 @@ export const adminEn: AdminContent = {
       progress: {
         withDetail: '{stage}: {detail} ({percent}%)',
         withoutDetail: '{stage} ({percent}%)',
-        starting: 'Reading the PDF',
+        starting: 'Reading the regulatory requirements file',
         label: 'Processing progress',
       },
       report: '{requirements} requirement passages from {sections} sections',
