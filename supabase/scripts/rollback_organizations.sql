@@ -1,0 +1,48 @@
+-- Undoes supabase/migrations/20261116120000_organizations.sql. Run as the owner (postgres).
+-- Only while MedCare is the only organization: with a second organization its data would lose the
+-- organization it belongs to, so the script refuses. organization_settings, super_admin and
+-- sop_code_counter still hold their values after that migration, so nothing else needs restoring.
+begin;
+
+do $$
+begin
+  if (select count(*) from public.organizations) > 1 then
+    raise exception 'More than one organization exists; this rollback would mix their data';
+  end if;
+end;
+$$;
+
+do $$
+declare t text;
+begin
+  foreach t in array array[
+    'departments', 'divisions', 'profiles', 'user_roles', 'employee_positions', 'user_invitations',
+    'admin_profile_backup', 'sops', 'sop_versions', 'sop_co_authors', 'timeline_events', 'review_rounds',
+    'review_requests', 'sop_comments', 'compliance_checks', 'compliance_findings', 'guideline_versions',
+    'guideline_requirements', 'sample_findings', 'guideline_version_drafts', 'guideline_draft_requirements',
+    'organization_management_audit', 'department_file_deletions', 'department_file_deletion_items',
+    'ampersand_name_changes'
+  ] loop
+    execute format('drop trigger if exists a0_organization on public.%I', t);
+  end loop;
+  -- Dropping the column also drops the composite keys and foreign keys built on it.
+  foreach t in array array[
+    'departments', 'divisions', 'profiles', 'user_roles', 'employee_positions', 'user_invitations',
+    'admin_profile_backup', 'sops', 'sop_versions', 'sop_co_authors', 'timeline_events', 'review_rounds',
+    'review_requests', 'sop_comments', 'compliance_checks', 'compliance_findings', 'guideline_versions',
+    'guideline_requirements', 'sample_findings', 'guideline_version_drafts', 'guideline_draft_requirements',
+    'organization_management_audit', 'department_file_deletions', 'department_file_deletion_items',
+    'ampersand_name_changes', 'access_requests'
+  ] loop
+    execute format('alter table public.%I drop column if exists organization_id cascade', t);
+  end loop;
+end;
+$$;
+
+drop table public.organizations;
+drop function public.set_row_organization();
+drop function public.only_organization_id();
+drop function public.current_organization_id();
+
+notify pgrst, 'reload schema';
+commit;
