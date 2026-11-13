@@ -218,7 +218,7 @@ describe('the Delete Staff warning (it deactivates)', () => {
       'Their account status will change to Inactive.',
       'All of their staff information and historical records will be kept.',
       'They won’t be able to access Hawkim while their account is inactive.',
-      'You can reactivate their account later from the Deactive Staff tab.',
+      'You can reactivate their account later from the Deactivated Staff tab.',
     ]) expect(html).toContain(`<li>${line}</li>`)
     const cancel = html.match(/<button[^>]*>Cancel<\/button>/)![0]
     const remove = html.match(/<button[^>]*>Delete<\/button>/)![0]

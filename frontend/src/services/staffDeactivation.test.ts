@@ -70,7 +70,7 @@ describe('the Delete Staff wording says it makes the account inactive', () => {
       'Their account status will change to Inactive.',
       'All of their staff information and historical records will be kept.',
       'They won’t be able to access Hawkim while their account is inactive.',
-      'You can reactivate their account later from the Deactive Staff tab.',
+      'You can reactivate their account later from the Deactivated Staff tab.',
     ])
     expect(text.confirm).toBe('Delete')
     expect(text.cancel).toBe('Cancel')

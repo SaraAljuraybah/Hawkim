@@ -41,7 +41,7 @@ describe('the Active Staff and Deactive Staff tabs', () => {
   it('replace the staff count: two tabs, side by side, right under Search | Filter | Sort and right above the table', () => {
     const html = render()
     expect(html).not.toMatch(/\d+ staff members?</)
-    expect(tabs(html).map((tab) => tab.label)).toEqual(['Active Staff', 'Deactive Staff'])
+    expect(tabs(html).map((tab) => tab.label)).toEqual(['Active Staff', 'Deactivated Staff'])
     expect(html).toMatch(/<div role="tablist" aria-label="Staff status"/)
     const toolbar = html.indexOf('name="staffSort"'), tablist = html.indexOf('role="tablist"'), panel = html.indexOf('role="tabpanel"'), tableAt = html.indexOf('<table')
     expect(toolbar).toBeLessThan(tablist)

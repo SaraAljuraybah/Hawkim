@@ -56,7 +56,7 @@ export const adminEn: AdminContent = {
       groups: { name: 'Name', division: 'Division', department: 'Department' },
     },
     clearFilters: 'Clear Filters',
-    tabs: { label: 'Staff status', active: 'Active Staff', deactivated: 'Deactive Staff' },
+    tabs: { label: 'Staff status', active: 'Active Staff', deactivated: 'Deactivated Staff' },
     tableLabel: 'Staff',
     columns: {
       name: 'Name', division: 'Division', department: 'Department', permissions: 'Permission',
@@ -82,7 +82,7 @@ export const adminEn: AdminContent = {
       'Their account status will change to Inactive.',
       'All of their staff information and historical records will be kept.',
       'They won’t be able to access Hawkim while their account is inactive.',
-      'You can reactivate their account later from the Deactive Staff tab.',
+      'You can reactivate their account later from the Deactivated Staff tab.',
     ],
     cancel: 'Cancel',
     confirm: 'Delete',
