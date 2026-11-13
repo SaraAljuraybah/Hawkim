@@ -456,6 +456,30 @@ def process(job: dict, svc: ComplianceService, sb: Supabase, scfg: dict):
         shutil.rmtree(folder, ignore_errors=True)
 
 
+LOCK_FILE = HERE / "worker.lock"
+ALREADY_RUNNING = ("[worker] Another worker.py is already running on this machine. "
+                   "Stop it first (Ctrl+C in its window), then start this one again.")
+
+
+def single_instance():
+    """Holds an OS lock on worker.lock while this worker runs, so only one worker.py runs at a time on
+    this machine. The OS releases it when the process ends, also after a crash, so it never goes stale.
+    Returns the open lock file: keep it open until the worker stops."""
+    lock = open(LOCK_FILE, "a+")
+    try:
+        if os.name == "nt":
+            import msvcrt
+            lock.seek(0)
+            msvcrt.locking(lock.fileno(), msvcrt.LK_NBLCK, 1)
+        else:
+            import fcntl
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except OSError:
+        lock.close()
+        raise SystemExit(ALREADY_RUNNING)
+    return lock
+
+
 def main():
     ap = argparse.ArgumentParser(description="Hawkim compliance worker")
     ap.add_argument("--config", default=str(HERE / "config.yaml"))
@@ -463,6 +487,7 @@ def main():
     ap.add_argument("--backfill-requirements", action="store_true",
                     help="one time: save every requirement passage of the published GVP versions, then exit")
     args = ap.parse_args()
+    lock = single_instance()   # before loading the model: a second worker exits at once  # noqa: F841
 
     load_env(HERE / ".env")
     url, key = os.environ.get("SUPABASE_URL"), os.environ.get("SUPABASE_SECRET_KEY")

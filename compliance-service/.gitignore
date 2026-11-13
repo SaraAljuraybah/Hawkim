@@ -10,5 +10,6 @@ index/
 work/
 runs/
 reports/
+worker.lock
 __pycache__/
 *.pyc
