@@ -161,7 +161,7 @@ describe('Organizational Structure', () => {
     expect(button[3]).toContain('>All</span>')
     expect(button[3]).toContain('lucide-chevron-down')
     expect(button[3]).not.toContain('lucide-funnel')
-    expect([...html.matchAll(/<legend[^>]*>([^<]+)<\/legend>/g)].map((match) => match[1])).toEqual(['Division', 'Department', 'Permission'])
+    expect([...html.matchAll(/<legend[^>]*>([^<]+)<\/legend>/g)].map((match) => match[1])).toEqual(['Division', 'Department', 'Staff permission'])
     const chips = [...html.matchAll(/aria-pressed="false"[^>]*><span class="min-w-0 break-words">([^<]+)<\/span>/g)].map((match) => match[1])
     expect(chips).toEqual(['Operations', 'R and D Division', 'Empty Department', 'Quality', 'Author', 'Reviewer', 'Approver', 'Others'])
     // Departments under their division's subheading; Division and Department chips scroll inside their cards.

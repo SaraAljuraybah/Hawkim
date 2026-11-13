@@ -25,7 +25,7 @@ export const organizationEn: OrganizationContent = {
   copyFailed: "Couldn't copy. Please copy the email manually.",
   search: 'Search',
   searchPlaceholder: 'Search divisions, departments or staff by name or email',
-  roleFilter: 'Permission',
+  roleFilter: 'Staff permission',
   roleCount: { one: '{count} permission', other: '{count} permissions' },
   others: 'Others',
   sort: 'Sort',
