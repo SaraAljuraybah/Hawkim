@@ -474,8 +474,11 @@ export interface GuidelineProcessing {
   error?: string
   /** When processing finished (ISO date and time). */
   processedAt?: string
-  /** How far processing has got, while processing (reading the PDF, embedding in batches, saving). */
-  progress?: { stage: 'reading' | 'embedding' | 'saving'; done: number; total: number }
+  /**
+   * How far processing has got, while processing: one percent across all stages (0-100), the stage
+   * (e.g. "Reading the PDF") and its detail (e.g. "page 40 of 368"), as the compliance service words them.
+   */
+  progress?: { percent: number; stage?: string; detail?: string }
   /** What the service found in the PDF, once it is ready. */
   report?: { requirements: number; sections: number; pages?: number; warnings: string[]; missingExcludedSections: string[] }
 }

@@ -13,7 +13,7 @@ vi.mock('../../hooks/useDocumentTitle', () => ({ useDocumentTitle: () => {} }))
 vi.mock('../../state/sessionContext', () => ({ useSession: () => ({ user: { id: 'nouf' } }) }))
 vi.mock('../../state/usersContext', () => ({ useUsers: () => ({ nameOf: () => '' }) }))
 vi.mock('../../state/guidelinesContext', () => ({
-  useGuidelines: () => ({ current: published, allVersions: all, getVersion: (id: string) => all.find((item) => item.id === id), retryProcessing: vi.fn(), makeCurrent: vi.fn() }),
+  useGuidelines: () => ({ current: published, allVersions: all, getVersion: (id: string) => all.find((item) => item.id === id), retryProcessing: vi.fn(), makeCurrent: vi.fn(), deleteVersion: vi.fn() }),
 }))
 const render = (id: string) => renderToStaticMarkup(
   <MemoryRouter initialEntries={[`/admin/regulations/${id}`]}><Routes>
@@ -25,8 +25,13 @@ describe('an added version\'s page', () => {
   it('uses the same status label as the list as the heading of the status card ("Status: Waiting" when read aloud)', () => {
     const html = render('draft-42')
     expect(html).toMatch(/<h2 id="guideline-processing-title"[^>]*><span class="sr-only">Status: <\/span><span class="[^"]*bg-status-pending-bg[^"]*">Waiting<\/span><\/h2>/)
-    expect(html).toMatch(/>GVP Version 4\.2<\/h1><\/div>/)
+    expect(html).toMatch(/>GVP Version 4\.2<\/h1>(?!<span)/)
     expect(html).not.toContain('>Processing</h2>')
+  })
+
+  it('offers Delete on an added version only (deleting one being processed cancels it)', () => {
+    expect(render('draft-42')).toMatch(/<button[^>]*aria-label="Delete  ?v4\.2"[^>]*>[\s\S]*?Delete<\/button>/)
+    expect(render('gvp-4-0')).not.toMatch(/aria-label="Delete/)
   })
 
   it('moves to the published version once processing has made it current', () => {

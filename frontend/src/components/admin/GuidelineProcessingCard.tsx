@@ -58,7 +58,7 @@ export function GuidelineProcessingCard({ version, onRetry, onMakeCurrent }: Gui
           )}
           <span>{text.status[processing.status]}</span>
         </p>
-        {processing.status === 'processing' && processing.progress && <ProcessingProgress progress={processing.progress} />}
+        {processing.status === 'processing' && <ProcessingProgress progress={processing.progress} />}
         {(processing.status === 'waiting' || processing.status === 'processing') && (
           <p className="text-text-gray">{text.keepWorking}</p>
         )}
@@ -112,15 +112,15 @@ export function GuidelineProcessingCard({ version, onRetry, onMakeCurrent }: Gui
   )
 }
 
-/** The stage of processing; while embedding, a progress bar ("Preparing requirements: 45 of 93 (48%)"). */
-function ProcessingProgress({ progress }: { progress: NonNullable<NonNullable<GuidelineVersion['processing']>['progress']> }) {
-  if (progress.stage !== 'embedding' || progress.total === 0) {
-    return <p>{progress.stage === 'saving' ? text.progress.saving : text.progress.reading}</p>
-  }
-  const done = Math.min(progress.done, progress.total)
-  const percent = Math.round((done / progress.total) * 100)
-  const label = text.progress.embedding
-    .replace('{done}', String(done)).replace('{total}', String(progress.total)).replace('{percent}', String(percent))
+/**
+ * The overall progress of processing, across all its stages, as a bar and as text
+ * ("Preparing requirements: batch 32 of 186 (28%)"); 0% before the service reported any.
+ */
+function ProcessingProgress({ progress }: { progress: NonNullable<GuidelineVersion['processing']>['progress'] }) {
+  const percent = Math.min(Math.max(progress?.percent ?? 0, 0), 100)
+  const stage = progress?.stage ?? text.progress.starting
+  const label = (progress?.detail ? text.progress.withDetail : text.progress.withoutDetail)
+    .replace('{stage}', stage).replace('{detail}', progress?.detail ?? '').replace('{percent}', String(percent))
   return (
     <div>
       <p>{label}</p>
@@ -128,8 +128,8 @@ function ProcessingProgress({ progress }: { progress: NonNullable<NonNullable<Gu
         role="progressbar"
         aria-label={text.progress.label}
         aria-valuemin={0}
-        aria-valuemax={progress.total}
-        aria-valuenow={done}
+        aria-valuemax={100}
+        aria-valuenow={percent}
         aria-valuetext={label}
         className="mt-2 h-2 w-full overflow-hidden rounded-full bg-beige"
       >

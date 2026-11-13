@@ -20,6 +20,10 @@ import { useGuidelines } from '../../state/guidelinesContext'
 export interface AdminRegulationsLocationState {
   added?: string
   updated?: string
+  /** A version's page whose processing was cancelled (the version was deleted). */
+  cancelled?: boolean
+  /** Deleted on its own page: the notice. */
+  deleted?: string
 }
 
 /**
@@ -39,7 +43,8 @@ export function AdminRegulationsPage() {
   const history = [...allVersions].reverse()
   const shownCurrent = newestVersion(allVersions, current)
 
-  const [notice, setNotice] = useState(() => (arrived?.added ? text.added.replace('{version}', arrived.added) : arrived?.updated ?? ''))
+  const [notice, setNotice] = useState(() =>
+    arrived?.added ? text.added.replace('{version}', arrived.added) : arrived?.cancelled ? text.cancelled : arrived?.deleted ?? arrived?.updated ?? '')
   const [deleting, setDeleting] = useState<GuidelineVersion>()
   const [refusal, setRefusal] = useState('')
   // One version at a time: Add New Version explains why it has to wait while another is processing.
@@ -81,15 +86,16 @@ export function AdminRegulationsPage() {
     const version = deleting
     const name = label(version)
     setDeleting(undefined)
+    let outcome: 'deleted' | 'cancelled'
     try {
-      await deleteVersion(version.id)
+      outcome = await deleteVersion(version.id)
     } catch (error) {
       const permission = error instanceof GuidelineError && error.reason === 'permission'
       setRefusal(permission ? text.deleteDialog.permission : text.deleteDialog.failed)
       setDeleting(version)
       return
     }
-    flushSync(() => setNotice(text.deleted.replace('{name}', name)))
+    flushSync(() => setNotice(outcome === 'cancelled' ? text.cancelled : text.deleted.replace('{name}', name)))
     // The row is gone: focus the notice.
     noticeRef.current?.focus()
   }

@@ -1518,6 +1518,8 @@ export interface AdminRegulationsContent {
   deleteBlocked: { current: string; used: string }
   updated: string
   deleted: string
+  /** After deleting a version that was being processed: its processing stops, then it is deleted. */
+  cancelled: string
   /** `permission` and `failed`: why deleting didn't work, shown in the dialog. */
   deleteDialog: { title: string; description: string; cancel: string; confirm: string; permission: string; failed: string }
 }
@@ -1596,8 +1598,12 @@ export interface AdminRegulationDetailsContent {
     status: { waiting: string; processing: string; ready: string; failed: string }
     /** Shown while the version is waiting or being processed. */
     keepWorking: string
-    /** `{done}`, `{total}` and `{percent}` are replaced in `embedding`; `label` names the progress bar. */
-    progress: { reading: string; embedding: string; saving: string; label: string }
+    /**
+     * `{stage}`, `{detail}` and `{percent}` are replaced (the stage and detail come from the compliance
+     * service, e.g. "Preparing requirements" and "batch 32 of 186"); `withoutDetail` when there is no
+     * detail; `starting` is the stage before the service reported one; `label` names the progress bar.
+     */
+    progress: { withDetail: string; withoutDetail: string; starting: string; label: string }
     /** `{requirements}` and `{sections}` are replaced. */
     report: string
     /** `{pages}` is replaced. */

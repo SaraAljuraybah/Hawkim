@@ -75,18 +75,20 @@ export function GuidelinesProvider({ children }: { children: ReactNode }) {
   const addedRef = useRef(added)
   // The admin whose added versions are wanted now: a reply for anyone else is ignored.
   const addedKeyRef = useRef(addedKey)
-  const loadAdded = useCallback(async (key: string) => {
-    let next: Added
+  const readAdded = useCallback(async (key: string): Promise<Added> => {
     try {
-      next = { key, status: 'ready', versions: await fetchAddedGuidelineVersions() }
+      return { key, status: 'ready', versions: await fetchAddedGuidelineVersions() }
     } catch {
       // Keep any versions already shown for this admin, and say they couldn't be refreshed.
-      next = { key, status: 'error', versions: addedRef.current.key === key ? addedRef.current.versions : [] }
+      return { key, status: 'error', versions: addedRef.current.key === key ? addedRef.current.versions : [] }
     }
-    if (addedKeyRef.current !== key) return
+  }, [])
+  const commitAdded = useCallback((next: Added) => {
+    if (addedKeyRef.current !== next.key) return
     addedRef.current = next
     setAdded(next)
   }, [])
+  const loadAdded = useCallback(async (key: string) => commitAdded(await readAdded(key)), [commitAdded, readAdded])
   useEffect(() => {
     addedKeyRef.current = addedKey
     if (addedKey) void loadAdded(addedKey)
@@ -101,12 +103,21 @@ export function GuidelinesProvider({ children }: { children: ReactNode }) {
   const addedVersions = useMemo(() => (added.key === addedKey ? added.versions : []), [added, addedKey])
   const addedStatus: LoadStatus = !addedKey ? 'ready' : added.key === addedKey ? added.status : 'loading'
 
+  // The added versions are read before the published ones, and both are shown together: a version that
+  // left the added ones was published before the published ones were read, so a page never finds it in
+  // neither list (the version's page takes that as deleted).
   const reload = useCallback(async () => {
-    await Promise.all([
-      fetchGuidelineVersions().then(commitPublished, () => {}),
-      addedKeyRef.current ? loadAdded(addedKeyRef.current) : Promise.resolve(),
-    ])
-  }, [commitPublished, loadAdded])
+    const key = addedKeyRef.current
+    const nextAdded = key ? await readAdded(key) : undefined
+    let nextPublished: GuidelineVersion[] | undefined
+    try {
+      nextPublished = await fetchGuidelineVersions()
+    } catch {
+      // Keep the published versions shown; the added ones wait for the next read, unless they failed too.
+    }
+    if (nextPublished) commitPublished(nextPublished)
+    if (nextAdded && (nextPublished || nextAdded.status === 'error')) commitAdded(nextAdded)
+  }, [commitAdded, commitPublished, readAdded])
 
   const versions = published
   const current = currentVersion(versions)
@@ -145,10 +156,16 @@ export function GuidelinesProvider({ children }: { children: ReactNode }) {
     if (file && !version.storagePath) await withUploadedFile(file, (storagePath) => attachGuidelineFile(id, storagePath))
   }), [thenReload])
 
-  const deleteVersion = useCallback<GuidelinesStore['deleteVersion']>((id) => thenReload(async () => {
-    const storagePath = await deleteAddedGuidelineVersion(id)
-    if (storagePath) await removeGuidelineFile(storagePath)
-  }), [thenReload])
+  const deleteVersion = useCallback<GuidelinesStore['deleteVersion']>(async (id) => {
+    let outcome: 'deleted' | 'cancelled' = 'deleted'
+    await thenReload(async () => {
+      const result = await deleteAddedGuidelineVersion(id)
+      outcome = result.outcome
+      // A cancelled version's file is deleted by the compliance service, after it stops.
+      if (result.outcome === 'deleted' && result.storagePath) await removeGuidelineFile(result.storagePath)
+    })
+    return outcome
+  }, [thenReload])
 
   const retryProcessing = useCallback<GuidelinesStore['retryProcessing']>((id) => thenReload(() => retryGuidelineProcessing(id)), [thenReload])
 

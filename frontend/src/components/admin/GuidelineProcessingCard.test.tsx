@@ -45,23 +45,28 @@ describe('GVP version processing', () => {
   })
 
   it('reads the progress only while processing', () => {
-    expect(toGuidelineProcessing({ processing_status: 'processing', processing_progress: { stage: 'embedding', done: 45, total: 93 } }).progress)
-      .toEqual({ stage: 'embedding', done: 45, total: 93 })
-    expect(toGuidelineProcessing({ processing_status: 'ready', processing_progress: { stage: 'embedding', done: 93, total: 93 } }).progress).toBeUndefined()
-    expect(toGuidelineProcessing({ processing_status: 'processing', processing_progress: { stage: 'other' } }).progress).toBeUndefined()
+    expect(toGuidelineProcessing({ processing_status: 'processing', progress_percent: 28, stage: 'Preparing requirements', stage_detail: 'batch 32 of 186' }).progress)
+      .toEqual({ percent: 28, stage: 'Preparing requirements', detail: 'batch 32 of 186' })
+    expect(toGuidelineProcessing({ processing_status: 'processing', progress_percent: null, stage: 'Reading the PDF', stage_detail: null }).progress)
+      .toEqual({ percent: 0, stage: 'Reading the PDF' })
+    expect(toGuidelineProcessing({ processing_status: 'ready', progress_percent: 100, stage: 'Saving the requirements' }).progress).toBeUndefined()
   })
 
-  it('shows a labelled progress bar while embedding, and that the admin can keep working', () => {
-    const html = render({ status: 'processing', progress: { stage: 'embedding', done: 45, total: 93 } })
-    expect(html).toContain('Preparing requirements: 45 of 93 (48%)')
-    expect(html).toMatch(/role="progressbar" aria-label="Processing progress" aria-valuemin="0" aria-valuemax="93" aria-valuenow="45"/)
-    expect(html).toContain('width:48%')
+  it('shows one labelled progress bar across the stages, and that the admin can keep working', () => {
+    const html = render({ status: 'processing', progress: { percent: 28, stage: 'Preparing requirements', detail: 'batch 32 of 186' } })
+    expect(html).toContain('Preparing requirements: batch 32 of 186 (28%)')
+    expect(html).toMatch(/role="progressbar" aria-label="Processing progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="28"/)
+    expect(html).toContain('width:28%')
     expect(html).toContain(text.keepWorking)
+    expect(render({ status: 'processing', progress: { percent: 4, stage: 'Reading the PDF', detail: 'page 15 of 368' } }))
+      .toContain('Reading the PDF: page 15 of 368 (4%)')
   })
 
-  it('names the reading and saving stages, and says the admin can keep working while waiting', () => {
-    expect(render({ status: 'processing', progress: { stage: 'reading', done: 0, total: 0 } })).toContain(text.progress.reading)
-    expect(render({ status: 'processing', progress: { stage: 'saving', done: 0, total: 0 } })).toContain(text.progress.saving)
+  it('shows the bar at 0% while processing before any progress, and no bar while waiting', () => {
+    const html = render({ status: 'processing' })
+    expect(html).toContain(`${text.progress.starting} (0%)`)
+    expect(html).toContain('aria-valuenow="0"')
+    expect(render({ status: 'waiting' })).not.toContain('progressbar')
     expect(render({ status: 'waiting' })).toContain(text.keepWorking)
     expect(render({ status: 'ready', report: { requirements: 1, sections: 1, warnings: [], missingExcludedSections: [] } })).not.toContain(text.keepWorking)
   })

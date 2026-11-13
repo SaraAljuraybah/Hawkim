@@ -444,6 +444,7 @@ export const adminEn: AdminContent = {
     },
     updated: '{name} updated.',
     deleted: '{name} deleted.',
+    cancelled: 'Processing cancelled and version deleted.',
     deleteDialog: {
       title: 'Delete GVP Version?',
       description: "Are you sure you want to delete {name}? This can't be undone.",
@@ -537,9 +538,9 @@ export const adminEn: AdminContent = {
       },
       keepWorking: 'You can keep using Hawkim; this page updates by itself when processing is done.',
       progress: {
-        reading: 'Reading the PDF…',
-        embedding: 'Preparing requirements: {done} of {total} ({percent}%)',
-        saving: 'Saving the requirements…',
+        withDetail: '{stage}: {detail} ({percent}%)',
+        withoutDetail: '{stage} ({percent}%)',
+        starting: 'Reading the PDF',
         label: 'Processing progress',
       },
       report: '{requirements} requirements from {sections} sections',
