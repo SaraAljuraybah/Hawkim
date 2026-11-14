@@ -22,6 +22,7 @@ import { createRequire } from 'node:module'
 import { randomUUID } from 'node:crypto'
 import { spawn } from 'node:child_process'
 import { createServer } from 'node:http'
+import { localPeople, owner, lit } from './local_people.mjs'
 
 const require = createRequire(new URL('../../frontend/package.json', import.meta.url))
 const { createClient, FunctionsHttpError } = require('@supabase/supabase-js')
@@ -39,6 +40,8 @@ if (!/^http:\/\/(127\.0\.0\.1|localhost):\d+$/.test(url) || !anonKey || !service
 const options = { auth: { persistSession: false, autoRefreshToken: false } }
 const service = createClient(url, serviceKey, options)
 const run = randomUUID().slice(0, 8)
+const db = owner()
+const people = localPeople({ url, anonKey, service, options, run, prefix: 'e2e-deact' })
 const results = []
 let failed = 0
 async function check(name, fn) {
@@ -122,20 +125,16 @@ async function activeProfileOf(client, id) {
   return data && !data.deleted_at ? data : null
 }
 
+/** The same, read as the database owner (the service role has no direct table access). */
+async function activeProfileAsOwner(id) {
+  const rows = await db.rows(`select id, deleted_at from public.profiles where id = ${lit(id)}`)
+  return rows[0] && !rows[0].deleted_at ? rows[0] : null
+}
+
 // ---------- People ----------
 const HOME = 'regulatory-affairs'
-async function person(key, roles, department = HOME) {
-  const email = `e2e-deact-${key}-${run}@test.invalid`
-  const password = `E2e-${randomUUID()}`
-  const { user } = await ok(service.auth.admin.createUser({ email, password, email_confirm: true }), `create ${key}`)
-  // As the other local tests make them: a profile (with a department, which every profile needs before its roles), then roles.
-  await ok(service.from('profiles').insert({ id: user.id, full_name: `E2E ${key}`, email, initials: 'EE',
-    department_id: department, position: 'Specialist', phone: '+966500000000' }), `profile ${key}`)
-  if (roles.length) await ok(service.from('user_roles').insert(roles.map((role) => ({ user_id: user.id, role }))), `roles ${key}`)
-  const { client, error } = await signedIn(email, password)
-  if (error) throw new Error(`sign in ${key}: ${error.message}`)
-  return { id: user.id, email, password, client }
-}
+// Added through add_user by the first Admin, as Add Staff and Add Admin do (local_people.mjs).
+const person = (key, roles, department = HOME) => people.person(key, department, roles)
 
 const admin = await person('admin', ['admin'], 'quality-assurance')
 const peer = await person('peer', ['reviewer'])
@@ -198,7 +197,7 @@ await check('3. Staff can\'t deactivate anyone, and can\'t call add-user', async
   assert(anonymous.error, 'not signed in: refused')
   const added = await addStaff(peer.client, { ...details, email: `e2e-deact-nobody-${run}@test.invalid` })
   assert(added.status === 403, `add-user by staff: ${added.status}`)
-  assert(await activeProfileOf(service, staffId), 'still active')
+  assert(await activeProfileAsOwner(staffId), 'still active')
 })
 
 await check('4. An Admin can\'t deactivate themselves or another Admin through Delete Staff', async () => {
@@ -255,10 +254,11 @@ await check('7. A deactivated staff member can\'t start a usable session (the ap
 await check('8. Edit Staff can\'t bring them back', async () => {
   const saved = await admin.client.rpc('save_user', { p_user_id: staffId, p_full_name: details.name, p_phone: details.phone, p_position: 'Officer',
     p_department_id: HOME, p_roles: ['author'], p_expected_department_id: HOME, p_expected_roles: ['author', 'reviewer'] })
-  assert(saved.error?.code === 'P0002', `save_user: ${saved.error?.code}`)
-  const email = await admin.client.functions.invoke('update-user-email', { body: { userId: staffId, email: `e2e-deact-moved-${run}@test.invalid` } })
-  assert(email.error, 'update-user-email refused')
-  assert(!(await activeProfileOf(service, staffId)), 'still deactivated')
+  // Since 20261113130000_staff_reactivation.sql Edit Staff edits a deactivated staff member's details, and
+  // saving never reactivates them (Reactivate and Add Staff do). Their email isn't changed here: the
+  // checks below add them again by it.
+  assert(!saved.error, `save_user: ${saved.error?.code} ${saved.error?.message}`)
+  assert(!(await activeProfileAsOwner(staffId)), 'still deactivated')
 })
 
 await check('9. If the new invitation can\'t be sent, Add Staff fails and they stay deactivated (retry is safe)', async () => {
@@ -266,7 +266,7 @@ await check('9. If the new invitation can\'t be sent, Add Staff fails and they s
   const result = await addStaff(admin.client, { ...details, name: 'E2E Back Again' })
   emailMode = 'accept'
   assert(result.status === 502 && result.body.errorCode === 'invitation-failed', `status ${result.status} ${JSON.stringify(result.body)}`)
-  assert(!(await activeProfileOf(service, staffId)), 'not left active')
+  assert(!(await activeProfileAsOwner(staffId)), 'not left active')
   assert(await authAccounts() === 1 && await profiles() === 1, 'no second account or profile')
 })
 
@@ -282,11 +282,11 @@ await check('10. Add Staff with their email (any letter case) reactivates the sa
   const success = results.find((result) => result.status === 200).body
   assert(success.user.id === staffId && success.user.reactivated === true && success.emailSent === true, JSON.stringify(success))
   assert(success.user.id !== decoy.user.id, 'picked the look-alike account')
-  const decoyProfile = await service.from('profiles').select('id').eq('id', decoy.user.id).maybeSingle()
-  assert(!decoyProfile.data, 'the look-alike account got a profile')
+  // As the database owner: the API has no direct table access.
+  assert(!(await db.rows(`select id from public.profiles where id = ${lit(decoy.user.id)}`)).length, 'the look-alike account got a profile')
   assert(await authAccounts() === 1 && await profiles() === 1, 'no duplicate account or profile')
   assert(mailTo(staffEmail).length === before + 1, `${mailTo(staffEmail).length - before} invitations sent`)
-  const row = await ok(service.from('profiles').select('full_name, phone, position, department_id, deleted_at, user_roles(role)').eq('id', staffId).single(), 'read')
+  const row = await db.row(`select p.full_name, p.phone, p.position, p.department_id, p.deleted_at, (select coalesce(json_agg(json_build_object('role', r.role) order by r.role), '[]') from public.user_roles r where r.user_id = p.id) as user_roles from public.profiles p where p.id = ${lit(staffId)}`)
   assert(!row.deleted_at && row.full_name === newDetails.name && row.phone === newDetails.phone && row.position === newDetails.position
     && row.department_id === newDetails.departmentId, `details ${JSON.stringify(row)}`)
   assert(row.user_roles.map((role) => role.role).join() === 'reviewer', 'only the submitted permissions')
@@ -319,7 +319,7 @@ await check('13. Add Staff never reactivates a former Admin', async () => {
   assert(ended.code === 0, ended.stderr)
   const result = await addStaff(admin.client, { name: 'Former Admin', email: formerAdmin.email, phone: '+966512340003', position: 'Officer', departmentId: HOME, permissions: ['author'] })
   assert(result.status === 409 && result.body.errorCode === 'admin-managed-separately', `status ${result.status} ${JSON.stringify(result.body)}`)
-  const row = await ok(service.from('profiles').select('deleted_at, user_roles(role)').eq('id', formerAdmin.id).single(), 'read')
+  const row = await db.row(`select p.deleted_at, (select coalesce(json_agg(json_build_object('role', r.role) order by r.role), '[]') from public.user_roles r where r.user_id = p.id) as user_roles from public.profiles p where p.id = ${lit(formerAdmin.id)}`)
   assert(row.deleted_at && row.user_roles.map((role) => role.role).join() === 'admin', 'still a deactivated Admin')
 })
 

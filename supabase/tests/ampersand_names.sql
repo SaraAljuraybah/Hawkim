@@ -7,12 +7,13 @@
 begin;
 set local plpgsql.check_asserts = on;
 
--- The fixtures (any rows the migration itself recorded are kept apart by id).
+-- The fixtures (any rows the migration itself recorded are kept apart by id). Names are unique to this
+-- test: a fixture named like a seed department (e.g. "Finance and Administration") would be skipped as a clash.
 insert into public.divisions (id, name, description) values
   ('amp-rnd', 'Research & Development', ''), ('amp-qc', 'Quality&Compliance', ''),
   ('amp-clash', 'Legal & Governance', ''), ('amp-taken', 'Legal and Governance', '');
 insert into public.departments (id, name, initials, division_id) values
-  ('amp-fa', 'Finance & Administration', 'FA', 'amp-rnd'), ('amp-plain', 'Pharmacovigilance Amp', 'PA', 'amp-qc');
+  ('amp-fa', 'Amp Finance & Administration', 'FA', 'amp-rnd'), ('amp-plain', 'Pharmacovigilance Amp', 'PA', 'amp-qc');
 insert into auth.users (id) values ('9b000000-0000-4000-8000-000000000001');
 insert into public.profiles (id, full_name, email, initials, department_id, "position")
 values ('9b000000-0000-4000-8000-000000000001', 'Amp Person', 'amp@test.invalid', 'AP', 'amp-fa', 'Officer');
@@ -61,7 +62,7 @@ begin
   assert (select name from public.divisions where id = 'amp-rnd') = 'Research and Development';
   assert (select name from public.divisions where id = 'amp-qc') = 'Quality and Compliance', '"A&B" gets spaces too';
   assert (select name from public.divisions where id = 'amp-clash') = 'Legal & Governance', 'A clash is skipped, not merged';
-  assert (select name from public.departments where id = 'amp-fa') = 'Finance and Administration';
+  assert (select name from public.departments where id = 'amp-fa') = 'Amp Finance and Administration';
   assert (select name from public.organization_settings) = 'Riyadh Pharma and Co';
   -- Ids and links are untouched.
   assert (select division_id from public.departments where id = 'amp-fa') = 'amp-rnd';
@@ -81,7 +82,7 @@ where c.entity = 'organization' and o.singleton and o.name = c.new_name;
 do $$
 begin
   assert (select name from public.divisions where id = 'amp-rnd') = 'Research & Development';
-  assert (select name from public.departments where id = 'amp-fa') = 'Finance & Administration';
+  assert (select name from public.departments where id = 'amp-fa') = 'Amp Finance & Administration';
   assert (select name from public.organization_settings) = 'Riyadh Pharma & Co';
 end;
 $$;

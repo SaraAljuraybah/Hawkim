@@ -9,6 +9,7 @@
 // Uses @supabase/supabase-js from frontend/node_modules.
 import { createRequire } from 'node:module'
 import { randomUUID } from 'node:crypto'
+import { localPeople, owner, lit } from './local_people.mjs'
 
 const require = createRequire(new URL('../../frontend/package.json', import.meta.url))
 const { createClient } = require('@supabase/supabase-js')
@@ -24,6 +25,8 @@ if (!/^http:\/\/(127\.0\.0\.1|localhost):\d+$/.test(url) || !anonKey || !service
 const options = { auth: { persistSession: false, autoRefreshToken: false } }
 const service = createClient(url, serviceKey, options)
 const run = randomUUID().slice(0, 8)
+const db = owner()
+const people = localPeople({ url, anonKey, service, options, run, prefix: 'e2e' })
 const results = []
 let failed = 0
 async function check(name, fn) {
@@ -46,16 +49,8 @@ const initials = () => Array.from({ length: 3 }, () => String.fromCharCode(65 + 
 const pdf = () => new Blob([`%PDF-1.4\n% ${randomUUID()}\n%%EOF\n`], { type: 'application/pdf' })
 
 // ---------- disposable people ----------
-async function person(key, department, roles, position = 'Specialist') {
-  const email = `e2e-${key}-${run}@test.invalid`
-  const password = `E2e-${randomUUID()}`
-  const { user } = await ok(service.auth.admin.createUser({ email, password, email_confirm: true }), `create ${key}`)
-  await ok(service.from('profiles').insert({ id: user.id, full_name: `E2E ${key}`, email, initials: 'EE', department_id: department, position }), `profile ${key}`)
-  if (roles.length) await ok(service.from('user_roles').insert(roles.map((role) => ({ user_id: user.id, role }))), `roles ${key}`)
-  const client = createClient(url, anonKey, options)
-  await ok(client.auth.signInWithPassword({ email, password }), `sign in ${key}`)
-  return { id: user.id, email, client }
-}
+// Added through add_user by the first Admin, as Add Staff and Add Admin do (local_people.mjs).
+const person = (key, department, roles, position = 'Specialist') => people.person(key, department, roles, position)
 async function upload(user, sopId) {
   const path = `${user.id}/${randomUUID()}.pdf`
   await ok(user.client.storage.from('sop-files').upload(path, pdf(), { contentType: 'application/pdf', upsert: false }), 'upload file')
@@ -134,7 +129,7 @@ await check('8./9. Add and update employee positions', async () => {
   await ok(admin.client.rpc('set_employee_positions', { p_profile_id: author.id, p_titles: ['Trainer'] }), 'update positions')
   row = (await department(admin.client, 'regulatory-affairs')).people.find((p) => p.id === author.id)
   assert(JSON.stringify(row.positions) === '["Trainer"]', 'replaced')
-  const profile = await ok(service.from('profiles').select('position').eq('id', author.id).single(), 'profile')
+  const profile = await db.row(`select position from public.profiles where id = ${lit(author.id)}`)
   assert(profile.position === 'Trainer', 'primary position synced to profiles.position')
   await refused(admin.client.rpc('set_employee_positions', { p_profile_id: author.id, p_titles: [] }), '23514', 'no positions')
 })
@@ -158,7 +153,7 @@ await check('12./13./14. Create an SOP with an uploaded file, then delete it (de
   assert(await stored(sop.path), 'file stored')
   const { error } = await author.client.functions.invoke('delete-sop', { body: { action: 'delete-sop', sopId: sop.id, reason: 'E2E cleanup' } })
   assert(!error, `delete-sop: ${error?.message}`)
-  assert(!(await ok(service.from('sops').select('id').eq('id', sop.id), 'sop')).length, 'SOP rows deleted')
+  assert(!(await db.rows(`select id from public.sops where id = ${lit(sop.id)}`)).length, 'SOP rows deleted')
   assert(!(await stored(sop.path)), 'file removed')
 })
 await check('15.-18. A department with SOPs cannot be deleted with its SOPs (20261109120000): refused, files kept', async () => {
@@ -170,51 +165,55 @@ await check('15.-18. A department with SOPs cannot be deleted with its SOPs (202
   assert(blocked.error, 'employees still assigned: refused')
   // A fixture shortcut past the department transfer restriction (20261110120000), which refuses moving an
   // author with an unfinished SOP: the SOP counts as published only for the move, then is a draft again.
-  await ok(service.from('sops').update({ status: 'published' }).eq('id', first.id), 'publish for the move')
-  await ok(service.from('profiles').update({ department_id: home }).eq('id', temp.id), 'move employee out')
-  await ok(service.from('sops').update({ status: 'draft' }).eq('id', first.id), 'draft again')
+  // As the database owner: the API has no direct table access.
+  await db.run(`update public.sops set status = 'published' where id = ${lit(first.id)};`)
+  await db.run(`update public.profiles set department_id = ${lit(home)} where id = ${lit(temp.id)};`)
+  await db.run(`update public.sops set status = 'draft' where id = ${lit(first.id)};`)
   const row = await department(admin.client, doomed)
   const refusedDelete = await admin.client.functions.invoke('delete-department', { body: { departmentId: doomed, expectedUpdatedAt: row.updated_at, confirmDeleteSops: true } })
   assert(refusedDelete.error, 'SOPs still present: refused')
   await refused(admin.client.rpc('begin_department_file_deletion', { p_id: doomed, p_expected_updated_at: row.updated_at }), '23503', 'has SOPs (begin)')
   assert(await stored(first.path) && await stored(second), 'both files kept in Storage')
-  const kept = await ok(service.from('departments').select('removed_at, deletion_job_id').eq('id', doomed).single(), 'department')
+  const kept = await db.row(`select removed_at, deletion_job_id from public.departments where id = ${lit(doomed)}`)
   assert(!kept.removed_at && !kept.deletion_job_id, 'department kept, no cleanup job')
-  const sop = await ok(service.from('sops').select('deleted_at, title').eq('id', first.id).single(), 'SOP')
+  const sop = await db.row(`select deleted_at, title from public.sops where id = ${lit(first.id)}`)
   assert(!sop.deleted_at && sop.title === `E2E doomed ${run}`, 'SOP untouched')
 })
 await check('19./20. Move SOPs to Others is refused while the department has SOPs (20261109120000)', async () => {
   const closing = await ok(admin.client.rpc('save_department', { p_id: null, p_name: `E2E Closing ${run}`, p_initials: initials(), p_description: '', p_division_id: divisionB }), 'closing department')
   const writer = await person('others-author', closing, ['author'])
   const moved = await createSop(writer, closing, `E2E others ${run}`)
-  await ok(service.from('sops').update({ status: 'published' }).eq('id', moved.id), 'publish (fixture)')
-  await ok(service.from('profiles').update({ department_id: home }).eq('id', writer.id), 'move out')
+  await db.run(`update public.sops set status = 'published' where id = ${lit(moved.id)};`)
+  await db.run(`update public.profiles set department_id = ${lit(home)} where id = ${lit(writer.id)};`)
   const row = await department(admin.client, closing)
   await refused(admin.client.rpc('delete_department', { p_id: closing, p_sop_action: 'empty', p_expected_updated_at: row.updated_at }), '23503', 'has SOPs (empty)')
   await refused(admin.client.rpc('delete_department', { p_id: closing, p_sop_action: 'others', p_expected_updated_at: row.updated_at }), '23503', 'has SOPs (others)')
-  const own = await ok(service.from('sops').select('directory_group, deleted_at').eq('id', moved.id).single(), 'SOP')
+  const own = await db.row(`select directory_group, deleted_at from public.sops where id = ${lit(moved.id)}`)
   assert(own.directory_group === 'department' && !own.deleted_at, 'SOP stays in its department')
   assert(await stored(moved.path), 'file kept')
 })
-await check('21./22. Request Hawkim acceptance creates an Admin with their job title as position', async () => {
+await check('21./22. Request Hawkim: a deployment that already has its Admins accepts no other organization', async () => {
+  // One organization per deployment (20261111120000_super_admin.sql); this database has its first Admin.
   const hash = randomUUID().replace(/-/g, '') + randomUUID().replace(/-/g, '')
   const email = `e2e-request-${run}@test.invalid`
-  const id = await ok(service.rpc('submit_access_request', { p_organization: 'E2E Org', p_contact_name: 'Request Person', p_job_title: 'Quality Lead', p_email: email, p_phone: '+966500000000', p_approx_users: 5, p_message: null, p_token_hash: hash }), 'submit')
+  const id = await ok(service.rpc('submit_access_request', { p_organization: `E2E Org ${run}`, p_contact_name: 'Request Person', p_job_title: 'Quality Lead',
+    p_email: email, p_phone: '+966500000000', p_approx_users: 5, p_message: null, p_token_hash: hash,
+    p_organization_email: 'info@organization.test', p_organization_address: 'King Fahd Road, Riyadh', p_organization_maps_url: null,
+    p_organization_website: null, p_organization_description: 'A test organization.' }), 'submit')
   const { user } = await ok(service.auth.admin.createUser({ email, email_confirm: true }), 'auth user')
-  await ok(service.rpc('accept_access_request', { p_id: id, p_token_hash: hash, p_user_id: user.id, p_department: home }), 'accept')
-  const positions = await ok(service.from('employee_positions').select('title').eq('profile_id', user.id), 'positions')
-  assert(positions.length === 1 && positions[0].title === 'Quality Lead', 'position created')
-  const roles = await ok(service.from('user_roles').select('role').eq('user_id', user.id), 'roles')
-  assert(roles.map((r) => r.role).join() === 'admin', 'Admin role')
+  const accepted = await service.rpc('accept_access_request', { p_id: id, p_token_hash: hash, p_user_id: user.id, p_department: home })
+  assert(accepted.error?.message === 'deployment_onboarded', `accept: ${accepted.error?.message ?? 'went through'}`)
+  assert(!(await db.rows(`select id from public.profiles where id = ${lit(user.id)}`)).length, 'no profile')
+  assert((await db.row(`select status from public.access_requests where id = ${lit(id)}`)).status === 'pending', 'still pending')
 })
 await check('23./24. Review routing and the SOP workflow are unchanged', async () => {
   const review = await createSop(author, 'regulatory-affairs', `E2E review ${run}`)
   await refused(author.client.rpc('submit_for_review', { p_sop_id: review.id, p_reviewer_ids: [otherReviewer.id], p_response_due_date: null, p_review_duration_days: null, p_note: null }), null, 'first send to another department')
   await ok(author.client.rpc('submit_for_review', { p_sop_id: review.id, p_reviewer_ids: [reviewer.id], p_response_due_date: null, p_review_duration_days: null, p_note: null }), 'submit to home reviewer')
-  const request = await ok(service.from('review_requests').select('id').eq('sop_id', review.id).eq('reviewer_id', reviewer.id).single(), 'request')
+  const request = await db.row(`select id from public.review_requests where sop_id = ${lit(review.id)} and reviewer_id = ${lit(reviewer.id)}`)
   await ok(reviewer.client.rpc('accept_review', { p_request_id: request.id }), 'accept review')
   await ok(reviewer.client.rpc('decide_review', { p_request_id: request.id, p_decision: 'completed', p_text: null }), 'decide review')
-  const status = await ok(service.from('review_requests').select('status').eq('id', request.id).single(), 'status')
+  const status = await db.row(`select status from public.review_requests where id = ${lit(request.id)}`)
   assert(status.status === 'completed', `request ${status.status}`)
   await ok(author.client.rpc('add_reviewers', { p_sop_id: review.id, p_reviewer_ids: [otherReviewer.id], p_response_due_date: null, p_review_duration_days: null, p_note: null }), 'other department after home finished')
 })

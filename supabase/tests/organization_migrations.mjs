@@ -27,6 +27,9 @@ const catalogSnapshot = `select row_to_json(state) from (select
 ) state;`
 const migration = read('supabase/migrations/20261104130000_reconcile_organizational_structure.sql')
 const forAllUsers = read('supabase/migrations/20261105120000_organizational_structure_for_all_users.sql')
+// organizational_structure.sql as it was with 20261105120000 (commit 576491f), before later migrations changed it.
+const structureTestForTheseMigrations = execFileSync('git', ['show', '576491f:supabase/tests/organizational_structure.sql'],
+  { cwd: root, encoding: 'utf8' })
 const prerequisites = `
 create schema auth;
 create table auth.users(id uuid primary key, banned_until timestamptz, deleted_at timestamptz);
@@ -155,8 +158,9 @@ try {
     script(scenario, forAllUsers)
     script(scenario, forAllUsers) // Replay must leave the same two policies.
     sql(scenario, forAllUsersChecks)
-    // Native tests manage their own transaction and roll fixtures back.
-    docker(['exec', '-i', name, 'psql', '-X', '-U', 'postgres', '-d', scenario, '-v', 'ON_ERROR_STOP=1'], read('supabase/tests/organizational_structure.sql'))
+    // Native tests manage their own transaction and roll fixtures back. The version that goes with these two
+    // migrations: today's organizational_structure.sql also tests later ones (e.g. division emails).
+    docker(['exec', '-i', name, 'psql', '-X', '-U', 'postgres', '-d', scenario, '-v', 'ON_ERROR_STOP=1'], structureTestForTheseMigrations)
     if (scenario === 'legacy') sql(scenario, "insert into public.divisions(id, name) values ('underscore_id', 'Compatible ID');")
     console.log(`PASS ${scenario}: reconciliation, replay, constraints, authorization and hierarchy`)
   }

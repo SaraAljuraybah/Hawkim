@@ -227,7 +227,7 @@ begin
   assert public.can_view_sop(v_kept), 'Its author still sees an SOP moved to Others';
   perform pg_temp.as_owner();
 
-  -- ---------- develop's Request Hawkim still creates an Admin, now with a position ----------
+  -- ---------- develop's Request Hawkim still creates an Admin (without a department or position) ----------
   perform pg_temp.act_as(null, 'service_role');
   perform public.submit_access_request('OM Org', 'Request Person', 'Quality Lead', 'request@test.invalid', '+966500000000', 10, null, repeat('a', 64), 'info@organization.test', 'King Fahd Road, Riyadh', null, null, 'A test organization.');
   perform pg_temp.as_owner();
@@ -248,9 +248,13 @@ begin
     '94000000-0000-4000-8000-000000000099', 'om-home');
   perform pg_temp.as_owner();
   assert public.super_admin_id() = '94000000-0000-4000-8000-000000000099', 'The accepted requester is the Super Admin';
-  set constraints all immediate; -- run the commit-time position check now
-  assert (select title = 'Quality Lead' from public.employee_positions where profile_id = '94000000-0000-4000-8000-000000000099'),
-    'The accepted requester holds their job title as a position';
+  set constraints all immediate; -- run the commit-time department and position checks now
+  -- An Admin has no department and no position (20261112140000_admins_without_department.sql), so the
+  -- request's job title isn't made a position.
+  assert (select department_id is null and "position" is null from public.profiles where id = '94000000-0000-4000-8000-000000000099'),
+    'The accepted requester has no department and no position';
+  assert not exists (select 1 from public.employee_positions where profile_id = '94000000-0000-4000-8000-000000000099'),
+    'The accepted requester holds no position row';
 
   -- ---------- legacy rows (only when the README fixtures were committed first) ----------
   if exists (select 1 from public.profiles where id = 'b7100000-0000-4000-8000-000000000001') then

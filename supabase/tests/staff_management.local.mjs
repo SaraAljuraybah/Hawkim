@@ -14,6 +14,7 @@
 import { createRequire } from 'node:module'
 import { randomUUID } from 'node:crypto'
 import { spawn } from 'node:child_process'
+import { localPeople, owner, lit } from './local_people.mjs'
 
 const require = createRequire(new URL('../../frontend/package.json', import.meta.url))
 const { createClient } = require('@supabase/supabase-js')
@@ -30,6 +31,8 @@ if (!/^http:\/\/(127\.0\.0\.1|localhost):\d+$/.test(url) || !anonKey || !service
 const options = { auth: { persistSession: false, autoRefreshToken: false } }
 const service = createClient(url, serviceKey, options)
 const run = randomUUID().slice(0, 8)
+const db = owner(container)
+const people = localPeople({ url, anonKey, service, options, run, prefix: 'e2e-staff' })
 const results = []
 let failed = 0
 class Skip extends Error {}
@@ -67,23 +70,16 @@ function psql(sql) {
 }
 
 // ---------- disposable people ----------
-async function person(key, department, roles, position = 'Specialist') {
-  const email = `e2e-staff-${key}-${run}@test.invalid`
-  const password = `E2e-${randomUUID()}`
-  const { user } = await ok(service.auth.admin.createUser({ email, password, email_confirm: true }), `create ${key}`)
-  await ok(service.from('profiles').insert({ id: user.id, full_name: `E2E ${key}`, email, initials: 'EE', department_id: department, position, phone: '+966500000000' }), `profile ${key}`)
-  if (roles.length) await ok(service.from('user_roles').insert(roles.map((role) => ({ user_id: user.id, role }))), `roles ${key}`)
-  const client = createClient(url, anonKey, options)
-  await ok(client.auth.signInWithPassword({ email, password }), `sign in ${key}`)
-  return { id: user.id, email, client, department, roles }
-}
+// Added through add_user by the first Admin, as Add Staff and Add Admin do (local_people.mjs).
+const person = (key, department, roles, position = 'Specialist') => people.person(key, department, roles, position)
 const pdf = () => new Blob([`%PDF-1.4\n% ${randomUUID()}\n%%EOF\n`], { type: 'application/pdf' })
 async function createSop(user, title) {
   const path = `${user.id}/${randomUUID()}.pdf`
   await ok(user.client.storage.from('sop-files').upload(path, pdf(), { contentType: 'application/pdf', upsert: false }), 'upload file')
   return ok(user.client.rpc('create_sop', { p_title: title, p_description: '', p_department_id: user.department, p_storage_path: path, p_file_name: 'Procedure.pdf' }), 'create_sop')
 }
-const setStatus = (sopId, status) => ok(service.from('sops').update({ status }).eq('id', sopId), `set ${status}`)
+// A fixture shortcut, as the database owner (the API has no direct table access).
+const setStatus = (sopId, status) => db.run(`update public.sops set status = ${lit(status)} where id = ${lit(sopId)};`)
 
 /** save_user as `actor`, keeping everything about `target` but the department. */
 function transfer(actor, target, departmentId) {
@@ -93,7 +89,7 @@ function transfer(actor, target, departmentId) {
   })
 }
 async function departmentOf(id) {
-  return (await ok(service.from('profiles').select('department_id').eq('id', id).single(), 'read profile')).department_id
+  return (await db.row(`select department_id from public.profiles where id = ${lit(id)}`)).department_id
 }
 async function blocked(actor, target, total) {
   const error = await refusedWith(transfer(actor, target, 'research-development'), { code: '23514', hint: 'department-transfer-blocked' }, 'transfer')
@@ -120,7 +116,7 @@ await check('1. A System Admin is created without a department or position', asy
   const saved = await ok(admin.client.rpc('add_user', { p_user_id: user.id, p_email: email, p_full_name: 'E2E System Admin', p_phone: '+966511111111',
     p_position: null, p_department_id: null, p_roles: ['admin'] }), 'add_user')
   assert(saved.departmentId === null && saved.position === null, `saved ${JSON.stringify(saved)}`)
-  const row = await ok(service.from('profiles').select('department_id, position').eq('id', user.id).single(), 'read')
+  const row = await db.row(`select department_id, position from public.profiles where id = ${lit(user.id)}`)
   assert(row.department_id === null && row.position === null, 'stored with organizational fields')
   // Editing them keeps it that way, whatever department or position is sent.
   const edited = await ok(admin.client.rpc('save_user', { p_user_id: user.id, p_full_name: 'E2E System Admin Two', p_phone: '+966522222222', p_position: 'Ignored',
@@ -200,7 +196,7 @@ await check('10. No assigned SOPs: the transfer is allowed', async () => {
 
 await check('11. Finishing the work allows the transfer (nothing is completed automatically)', async () => {
   // The blocked transfers above changed nothing in the SOPs.
-  const sop = await ok(service.from('sops').select('status').eq('id', draftSop).single(), 'read sop')
+  const sop = await db.row(`select status from public.sops where id = ${lit(draftSop)}`)
   assert(sop.status === 'draft', `SOP status changed to ${sop.status}`)
   await setStatus(draftSop, 'published')
   await ok(transfer(admin, author, 'research-development'), 'author transfer after publishing')
@@ -220,8 +216,9 @@ await check('12. Non-admins can\'t save staff, move themselves, or call the inte
 })
 
 await check('13. Even a direct database update (service role / SQL) can\'t move staff with SOP work', async () => {
+  // The service role has no direct table access at all; the owner's update is refused by the transfer guard.
   const viaService = await service.from('profiles').update({ department_id: 'research-development' }).eq('id', reviewer.id)
-  assert(viaService.error?.hint === 'department-transfer-blocked', `service update: ${viaService.error?.message}`)
+  assert(viaService.error?.hint === 'department-transfer-blocked' || viaService.error?.code === '42501', `service update: ${viaService.error?.message ?? 'went through'}`)
   const viaSql = await psql(`update public.profiles set department_id = 'research-development' where id = '${reviewer.id}';`)
   assert(viaSql.code !== 0 && /Department transfer not allowed/.test(viaSql.stderr), `SQL update: ${viaSql.stderr}`)
   assert(await departmentOf(reviewer.id) === RA, 'moved')
@@ -272,7 +269,7 @@ await check('15. A transfer first: a new assignment waits for it, then sees the 
   const department = await departmentOf(target.id)
   assert(department === 'research-development', `department ${department}`)
   assert(added.error?.message === "A co-author must be from the SOP's department", `co-author added from another department: ${added.error?.message ?? 'no error'}`)
-  const rows = await ok(service.from('sop_co_authors').select('user_id').eq('sop_id', sop).eq('user_id', target.id), 'read co-authors')
+  const rows = await db.rows(`select user_id from public.sop_co_authors where sop_id = ${lit(sop)} and user_id = ${lit(target.id)}`)
   assert(rows.length === 0, 'a co-author from another department was stored')
 })
 
@@ -287,7 +284,7 @@ await check('16. set_user_email: admin only, unique, and only once the sign-in a
   await refusedWith(admin.client.rpc('set_user_email', { p_user_id: target.id, p_email: next, p_apply: true }), { hint: 'invalid' }, 'apply before the account changed')
   await ok(service.auth.admin.updateUserById(target.id, { email: next, email_confirm: true }), 'account email')
   await ok(admin.client.rpc('set_user_email', { p_user_id: target.id, p_email: next, p_apply: true }), 'apply')
-  const row = await ok(service.from('profiles').select('email').eq('id', target.id).single(), 'read')
+  const row = await db.row(`select email from public.profiles where id = ${lit(target.id)}`)
   assert(row.email === next, `profile email ${row.email}`)
 })
 
@@ -302,7 +299,7 @@ await check('17. update-user-email changes the sign-in account and the profile t
   assert(data.email === next, `returned ${JSON.stringify(data)}`)
   const account = await ok(service.auth.admin.getUserById(target.id), 'read account')
   assert(account.user.email === next, `account email ${account.user.email}`)
-  const row = await ok(service.from('profiles').select('email').eq('id', target.id).single(), 'read profile')
+  const row = await db.row(`select email from public.profiles where id = ${lit(target.id)}`)
   assert(row.email === next, `profile email ${row.email}`)
   // They sign in with the new email, not the old one.
   const fresh = createClient(url, anonKey, options)
