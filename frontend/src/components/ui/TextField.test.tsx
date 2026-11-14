@@ -9,9 +9,13 @@ describe('TextField', () => {
     expect(html).toContain('required=""')
   })
 
-  it('shows no asterisk by default, even on a required field', () => {
+  it('shows the red asterisk on a required field by itself, and none on an optional one', () => {
     const html = renderToStaticMarkup(<TextField label="Title" required />)
-    expect(html).not.toContain('*')
+    expect(html).toContain('Title<span aria-hidden="true" class="ml-0.5 text-status-rejected-fg">*</span></label>')
+    expect(html.match(/\*/g)).toHaveLength(1)
+    expect(renderToStaticMarkup(<TextField label="Title" />)).not.toContain('*')
+    // Never beside a screen-reader-only label.
+    expect(renderToStaticMarkup(<TextField label="Title" required labelHidden />)).not.toContain('*')
   })
 
   it('shows the counter and links it to the input', () => {

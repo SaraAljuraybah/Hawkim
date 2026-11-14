@@ -11,6 +11,9 @@ import { formatDateTime } from '../../lib/format'
 import { complianceReportPath } from '../../lib/routes'
 import { Button } from '../ui/Button'
 
+/** The same bordered box as the GVP version row above it (ComplianceGuideline). */
+const BOX = 'rounded-lg border border-beige bg-white p-4'
+
 interface ComplianceCardProps {
   sop: Sop
   content: ComplianceContent
@@ -18,9 +21,10 @@ interface ComplianceCardProps {
 
 /**
  * The compliance check of the current version (PBI 4, 5): running, completed
- * (date, version, guideline and counts per result, with a link to the full
- * report) or failed, or a "not checked yet" line before the version has a check. Checks
- * run only from SOP history's button. The results are sample results for now.
+ * (date, SOP version and counts per result, with a link to the full report) or
+ * failed, or a "not checked yet" line before the version has a check, in a bordered box like the
+ * GVP version row above it. Checks run only from SOP history's button. The results are sample
+ * results for now.
  */
 export function ComplianceCard({ sop, content }: ComplianceCardProps) {
   const text = content.card
@@ -40,14 +44,14 @@ export function ComplianceCard({ sop, content }: ComplianceCardProps) {
   }
 
   // The current version hasn't been checked yet (checks only run from the button).
-  if (!check) return <p className="text-sm text-text-gray">{text.notChecked.replace('{version}', sop.version)}</p>
+  if (!check) return <div className={BOX}><p className="text-sm text-text-gray">{text.notChecked.replace('{version}', sop.version)}</p></div>
 
   return (
-    <div>
+    <div className={`${BOX} space-y-4`}>
       {isSampleCheck(check) && <SampleBanner text={content.sampleBanner} />}
 
       {recheck && !running && (
-        <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
           <RecheckBadge label={text.recheck.badge} />
           <p className="text-sm text-maroon">
             {text.recheck.note
@@ -57,20 +61,9 @@ export function ComplianceCard({ sop, content }: ComplianceCardProps) {
         </div>
       )}
 
-      <div role="status" className="mt-4">
-        {running ? (
-          <p className="flex items-center gap-2.5 text-sm font-medium text-maroon">
-            <LoaderCircle aria-hidden="true" className="size-5 shrink-0 motion-safe:animate-spin" strokeWidth={2} />
-            {text.running.replace('{version}', check.guideline.version)}
-          </p>
-        ) : (
-          <span className="sr-only">{ended}</span>
-        )}
-      </div>
-
-      {check?.status === 'completed' && (
-        <>
-          <dl className="grid gap-x-12 gap-y-3 text-sm sm:grid-cols-[auto_auto_1fr]">
+      {check.status === 'completed' && (
+        <div>
+          <dl className="grid gap-x-12 gap-y-3 text-sm sm:grid-cols-[auto_1fr]">
             <div>
               <dt className="text-text-gray">{content.details.checked}</dt>
               <dd className="mt-0.5 font-medium text-maroon">
@@ -80,12 +73,6 @@ export function ComplianceCard({ sop, content }: ComplianceCardProps) {
             <div>
               <dt className="text-text-gray">{content.details.version}</dt>
               <dd className="mt-0.5 font-medium text-maroon">{content.versionLabel.replace('{version}', check.version)}</dd>
-            </div>
-            <div className="min-w-0">
-              <dt className="text-text-gray">{content.details.guideline}</dt>
-              <dd className="mt-0.5 font-medium text-maroon">
-                {content.guideline.replace('{name}', check.guideline.name).replace('{version}', check.guideline.version)}
-              </dd>
             </div>
           </dl>
           <div className="mt-5">
@@ -97,16 +84,26 @@ export function ComplianceCard({ sop, content }: ComplianceCardProps) {
               <ArrowRight aria-hidden="true" className="size-4" strokeWidth={2} />
             </Button>
           </div>
-        </>
+        </div>
       )}
 
-      {check?.status === 'failed' && (
+      {check.status === 'failed' && (
         <div className="rounded-lg border border-status-rejected-fg/25 bg-status-rejected-bg/50 p-4">
           <p role="alert" className="text-sm font-medium text-status-rejected-fg">
             {text.failed}
           </p>
         </div>
       )}
+
+      {/* Stays mounted so the end of a check is announced; only visible while it runs. */}
+      <div role="status" className={running ? undefined : 'sr-only'}>
+        {running ? (
+          <p className="flex items-center gap-2.5 text-sm font-medium text-maroon">
+            <LoaderCircle aria-hidden="true" className="size-5 shrink-0 motion-safe:animate-spin" strokeWidth={2} />
+            {text.running.replace('{version}', check.guideline.version)}
+          </p>
+        ) : ended}
+      </div>
     </div>
   )
 }

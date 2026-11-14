@@ -18,4 +18,11 @@ export const tableStyles = {
   /** The first cell of each row (`<th scope="row">`). */
   rowHeader: 'px-5 py-3.5 font-medium text-maroon',
   cell: 'px-5 py-3.5',
+  /**
+   * One column per action (Preview, Edit, Delete), as on Divisions and Departments: each 6rem wide
+   * (`actionCol`, on a <col>), its heading centred above its button, so they line up vertically.
+   */
+  actionCol: 'w-24',
+  actionHead: 'px-2 py-3 text-center font-semibold last:rounded-tr-xl',
+  actionCell: 'px-2 py-3.5 text-center [&>*]:mx-auto',
 }

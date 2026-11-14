@@ -25,17 +25,45 @@ export interface UsersStore {
   /**
    * Adds a user for real (required fields, unique email): a sign-in account, their profile and permissions,
    * and an invitation email. Rejects with an AddUserError and adds nothing to the list. `emailSent` is false
-   * when only the invitation failed: the user was added.
+   * when only the invitation failed: the user was added. `reactivated`: the email was a deactivated staff
+   * member's, who is active again (the same person, with these details) with a new invitation.
    */
-  addUser: (user: NewUser) => Promise<{ user: User; emailSent: boolean }>
+  addUser: (user: NewUser) => Promise<{ user: User; emailSent: boolean; reactivated: boolean }>
   /**
    * Changes a user's details and permissions (the same checks as adding, and permissions in use can't
    * be removed). Everything but the email is saved to the database first, all or nothing: if that fails
-   * it rejects with a SaveUserError and nothing changes. The email only changes this tab's copy.
+   * it rejects with a SaveUserError and nothing changes. Then the email, with their sign-in account.
+   * A deactivated staff member can be edited too, and stays deactivated.
    */
   updateUser: (userId: string, user: NewUser, context: AdminActionContext) => Promise<void>
-  /** Deletes a user: they can no longer sign in, and their name stays on SOP history. */
-  deleteUser: (userId: string, context: AdminActionContext) => void
+  /**
+   * Delete Staff: deactivates a staff member in the database (deactivate_staff). They can no longer use
+   * Hawkim, nothing is removed and their name stays on SOP history. The list changes only once the server
+   * has done it; rejects with a DeactivateStaffError (nothing changes).
+   */
+  deleteUser: (userId: string, context: AdminActionContext) => Promise<void>
+  /**
+   * Reactivate (Deactive Staff tab): makes a deactivated staff member active again in the database
+   * (reactivate_staff), with the permissions and history they had. The list changes only once the server
+   * has done it; rejects with a ReactivateStaffError (nothing changes).
+   */
+  reactivateUser: (userId: string) => Promise<void>
+
+  // Manage Organization → Admins. The server checks who may do each (services/admins.ts).
+  /**
+   * Saves an administrator's name and phone, then their email (which changes their sign-in account).
+   * Rejects with an AdminActionError (nothing saved) or a ChangeEmailError (the rest was saved).
+   */
+  updateAdmin: (userId: string, details: AdminDetails) => Promise<void>
+  /** Deletes a regular Admin (Super Admin only). Rejects with an AdminActionError. */
+  deleteAdmin: (userId: string) => Promise<void>
+}
+
+/** What Edit Admin saves; `phone` as typed (+9665XXXXXXXX). */
+export interface AdminDetails {
+  name: string
+  email: string
+  phone: string
 }
 
 export const UsersContext = createContext<UsersStore | null>(null)

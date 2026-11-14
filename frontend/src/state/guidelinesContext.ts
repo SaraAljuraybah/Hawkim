@@ -39,8 +39,11 @@ export interface GuidelinesStore {
    * current; with `file`, then adds that PDF to a published version that has none. Throws a GuidelineError.
    */
   updateVersion: (id: string, input: GuidelineEditInput, file?: File) => Promise<void>
-  /** Deletes a version that was never current, and its file. Throws a GuidelineError. */
-  deleteVersion: (id: string) => Promise<void>
+  /**
+   * Deletes a version that was never current, and its file: 'deleted', or 'cancelled' when it was
+   * being processed (the compliance service stops and deletes it). Throws a GuidelineError.
+   */
+  deleteVersion: (id: string) => Promise<'deleted' | 'cancelled'>
   /** Processes an added version again after processing failed. Throws a GuidelineError. */
   retryProcessing: (id: string) => Promise<void>
   /** Makes a processed added version current; returns its new id. Throws a GuidelineError. */

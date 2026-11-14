@@ -67,9 +67,12 @@ describe('saving versions', () => {
     expect(rpc).toHaveBeenLastCalledWith('update_guideline_version', { p_id: 'uuid-40', p_name: 'SFDA GVP', p_issued_date: '2026-10-01', p_source: 'https://www.sfda.gov.sa/gvp' })
     await attachGuidelineFile('uuid-40', 'files/b.pdf')
     expect(rpc).toHaveBeenLastCalledWith('attach_guideline_file', { p_id: 'uuid-40', p_storage_path: 'files/b.pdf' })
-    rpc.mockResolvedValue({ data: 'files/a.pdf', error: null })
-    expect(await deleteAddedGuidelineVersion('uuid-new')).toBe('files/a.pdf')
+    rpc.mockResolvedValue({ data: { outcome: 'deleted', storage_path: 'files/a.pdf' }, error: null })
+    expect(await deleteAddedGuidelineVersion('uuid-new')).toEqual({ outcome: 'deleted', storagePath: 'files/a.pdf' })
     expect(rpc).toHaveBeenLastCalledWith('delete_guideline_draft', { p_id: 'uuid-new' })
+    // Being processed: the compliance service stops, then deletes it with its file.
+    rpc.mockResolvedValue({ data: { outcome: 'cancel-requested' }, error: null })
+    expect(await deleteAddedGuidelineVersion('uuid-new')).toEqual({ outcome: 'cancelled' })
   })
 
   it('turns a refusal into its reason: the hint, no permission, or anything else', async () => {

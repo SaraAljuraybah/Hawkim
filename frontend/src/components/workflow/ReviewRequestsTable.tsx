@@ -1,43 +1,36 @@
 import { useRef, useState, type MouseEvent, type ReactNode } from 'react'
-import { ChevronDown, Eye, Pencil, RotateCw, Trash2 } from 'lucide-react'
+import { ChevronDown, Pencil, RotateCw, Trash2 } from 'lucide-react'
 import { internalReviewEn } from '../../content/internalReview.en'
+import { organizationEn } from '../../content/organization.en'
 import type { InternalReviewerAssignment, InternalReviewRound, Sop } from '../../data/mock/types'
 import { formatDate, formatReviewDate } from '../../lib/format'
 import { isInactiveDecision, REVIEW_DEADLINE_EDITING_ACTIVE } from '../../lib/internalReviewStatus'
-import { canRespondToRequest, requestDecisionDate, requestReviewDueDate, reviewNotes, visibleReviewRequests, type ReviewNote } from '../../lib/reviewRequestRows'
+import { requestResponseDate, requestReviewDueDate, visibleReviewRequests } from '../../lib/reviewRequestRows'
 import { useDepartments } from '../../state/departmentsContext'
 import { useUsers } from '../../state/usersContext'
 import { IconButton } from '../ui/IconButton'
+import { PREVIEW_NAME_CLASS } from '../ui/previewName'
+import { StaffProfilePreview, type StaffProfilePreviewPerson } from '../layout/StaffProfilePreview'
 import { RequestStatusBadge } from './ReviewRequestDetails'
-import { ReviewNotesDialog } from './ReviewNotesDialog'
 import { divisionLabel } from '../../lib/userAdmin'
 
 interface ReviewRequestsTableProps {
   sop: Sop
-  /** Whether this request's reviewer can be removed now. */
-  canRemove: (round: InternalReviewRound, request: InternalReviewerAssignment) => boolean
+  /** Why this request's reviewer can't be removed now (Delete's tooltip), or undefined when they can. */
+  removeBlocked: (round: InternalReviewRound, request: InternalReviewerAssignment) => string | undefined
   onRemove: (round: InternalReviewRound, request: InternalReviewerAssignment, trigger: HTMLButtonElement) => void
-  /** Whether this request shows the Edit Review Deadline action. */
-  canEditDeadline: (round: InternalReviewRound, request: InternalReviewerAssignment) => boolean
+  /** The main author: the Send Again, Edit and Delete columns. */
+  authorActions: boolean
+  /** Why Edit is disabled for this request (its tooltip), or undefined when the review time can change. */
+  deadlineBlocked: (round: InternalReviewRound, request: InternalReviewerAssignment) => string | undefined
   onEditDeadline?: (round: InternalReviewRound, request: InternalReviewerAssignment, trigger: HTMLButtonElement) => void
-  /** Whether this expired request can be sent again (it shares the deadline action's place: a row never has both). */
-  canResend: (round: InternalReviewRound, request: InternalReviewerAssignment) => boolean
-  /** Why it can't be sent again yet: the action stays visible, disabled, with this tooltip. */
-  resendBlocked: (request: InternalReviewerAssignment) => string | undefined
+  /** Why this request can't be sent again now (Send Again's tooltip), or undefined when it can. */
+  resendBlocked: (round: InternalReviewRound, request: InternalReviewerAssignment) => string | undefined
   onResend: (round: InternalReviewRound, request: InternalReviewerAssignment, trigger: HTMLButtonElement) => void
-  /** Responding from the comments dialog (the author's SOP page). */
-  response?: ReviewRequestResponse
-}
-
-export interface ReviewRequestResponse {
-  /** Who a response to this request goes to, as shown in the dialog. */
-  recipients: (request: InternalReviewerAssignment) => string
-  /** Saves the response; if it throws, the dialog stays open and says so. */
-  send: (request: InternalReviewerAssignment, text: string) => Promise<void>
 }
 
 const text = internalReviewEn.panel.table
-const columns = [text.columns.reviewer, text.columns.division, text.columns.department, text.columns.sent, text.columns.status, text.columns.decision, text.columns.deadline]
+const columns = [text.columns.reviewer, text.columns.division, text.columns.department, text.columns.sent, text.columns.status, text.columns.response, text.columns.deadline]
 
 function Timestamp({ value, format }: { value?: string; format: (value: string) => string }) {
   return value ? <time dateTime={value}>{format(value)}</time> : <>{text.none}</>
@@ -47,66 +40,78 @@ function Timestamp({ value, format }: { value?: string; format: (value: string) 
  * The review requests of the SOP, one table per version, newest first (the author's SOP page). An
  * expired request that was sent again is left out (see visibleReviewRequests); every other request
  * shows. The newest version starts expanded and the older ones collapsed. Requests no longer taking
- * part use lighter text. A table from xl up (eight columns don't fit beside the sidebar
- * earlier); stacked cards below.
+ * part use lighter text. For the main author, each action has its own column: Send Again, Edit and
+ * Delete, shown on every row and disabled, with the reason as their tooltip, when they don't apply.
+ * Review comments and reasons open from the Review Timeline's Preview column. A table from xl up
+ * (the columns don't fit beside the sidebar earlier); stacked cards below. Each reviewer's name opens their
+ * Profile Preview (StaffProfilePreview, as on Organizational Structure), from what every signed-in user already
+ * loads (the users and departments stores); closing it returns focus to the name.
  */
-export function ReviewRequestsTable({ sop, canRemove, onRemove, canEditDeadline, onEditDeadline, canResend, resendBlocked, onResend, response }: ReviewRequestsTableProps) {
+export function ReviewRequestsTable({ sop, removeBlocked, onRemove, authorActions, deadlineBlocked, onEditDeadline, resendBlocked, onResend }: ReviewRequestsTableProps) {
   const { nameOf, getUser } = useUsers()
   const { departments } = useDepartments()
   const [toggled, setToggled] = useState<Record<string, boolean>>({})
-  const [viewing, setViewing] = useState<{ name: string; notes: ReviewNote[]; request: InternalReviewerAssignment } | null>(null)
-  const notesTrigger = useRef<HTMLButtonElement | null>(null)
+  const [preview, setPreview] = useState<StaffProfilePreviewPerson>()
+  const previewOpener = useRef<HTMLButtonElement | null>(null)
   const rounds = [...(sop.internalReviewRounds ?? [])].reverse()
 
-  function closeNotes() {
-    setViewing(null)
-    requestAnimationFrame(() => notesTrigger.current?.focus())
+  function closePreview() {
+    setPreview(undefined)
+    previewOpener.current?.focus()
+  }
+
+  /** The reviewer's name as a button that opens their Profile Preview; plain text if their profile isn't loaded. */
+  function reviewerName(userId: string, name: string): ReactNode {
+    const person = getUser(userId)
+    if (!person) return name
+    const department = departments.find((item) => item.id === person.departmentId)
+    return (
+      <button type="button" aria-haspopup="dialog" aria-label={organizationEn.profilePreview.open(name)} className={PREVIEW_NAME_CLASS}
+        onClick={(event) => {
+          previewOpener.current = event.currentTarget
+          setPreview({
+            person: { id: person.id, name: person.name, initials: person.initials, email: person.email, permissions: person.permissions, position: person.position },
+            departmentName: department?.name ?? '',
+            divisionName: department?.divisionName,
+          })
+        }}>
+        {name}
+      </button>
+    )
   }
 
   function cells(round: InternalReviewRound, request: InternalReviewerAssignment) {
     const name = nameOf(request.userId)
     const department = departments.find((item) => item.id === getUser(request.userId)?.departmentId)
-    const notes = reviewNotes(sop, request)
     return {
-      name,
+      name: reviewerName(request.userId, name),
       department: department?.name ?? text.none,
       division: divisionLabel(department) || text.none,
       sent: <Timestamp value={request.assignedAt} format={formatReviewDate} />,
       status: <RequestStatusBadge sop={sop} request={request} />,
-      decision: <Timestamp value={requestDecisionDate(request)} format={formatReviewDate} />,
+      response: <Timestamp value={requestResponseDate(request)} format={formatReviewDate} />,
       deadline: <Timestamp value={requestReviewDueDate(request)} format={formatDate} />,
-      actions: (
-        // Three fixed places, so the icons line up from row to row.
-        <div className="grid grid-cols-[repeat(3,2.25rem)] justify-end gap-1">
-          {notes.length > 0 ? (
-            <IconButton label={text.viewNotes.replace('{name}', name)} icon={Eye}
-              onClick={(event: MouseEvent<HTMLButtonElement>) => { notesTrigger.current = event.currentTarget; setViewing({ name, notes, request }) }} />
-          ) : (
-            <span className="inline-flex size-9 items-center justify-center text-text-gray">
-              <span aria-hidden="true">{text.none}</span>
-              <span className="sr-only">{text.noNotes}</span>
-            </span>
-          )}
-          <span>
-            {canResend(round, request) && (
-              <IconButton label={internalReviewEn.panel.sendAgain.label.replace('{name}', name)} icon={RotateCw} disabledReason={resendBlocked(request)}
-                onClick={(event: MouseEvent<HTMLButtonElement>) => onResend(round, request, event.currentTarget)} />
-            )}
-            {REVIEW_DEADLINE_EDITING_ACTIVE && canEditDeadline(round, request) && (
-              <IconButton label={text.editDeadline.replace('{name}', name)} icon={Pencil}
-                onClick={(event: MouseEvent<HTMLButtonElement>) => onEditDeadline?.(round, request, event.currentTarget)} />
-            )}
-          </span>
-          <span>
-            {canRemove(round, request) && (
-              <IconButton label={internalReviewEn.panel.removeFor.replace('{name}', name)} icon={Trash2} danger
-                onClick={(event: MouseEvent<HTMLButtonElement>) => onRemove(round, request, event.currentTarget)} />
-            )}
-          </span>
-        </div>
+      sendAgain: (
+        <IconButton label={internalReviewEn.panel.sendAgain.label.replace('{name}', name)} icon={RotateCw} disabledReason={resendBlocked(round, request)}
+          onClick={(event: MouseEvent<HTMLButtonElement>) => onResend(round, request, event.currentTarget)} />
+      ),
+      edit: (
+        <IconButton label={(request.decision === 'pending' ? text.editDuration : text.editDeadline).replace('{name}', name)} icon={Pencil}
+          disabledReason={deadlineBlocked(round, request)}
+          onClick={(event: MouseEvent<HTMLButtonElement>) => onEditDeadline?.(round, request, event.currentTarget)} />
+      ),
+      delete: (
+        <IconButton label={internalReviewEn.panel.removeFor.replace('{name}', name)} icon={Trash2} danger disabledReason={removeBlocked(round, request)}
+          onClick={(event: MouseEvent<HTMLButtonElement>) => onRemove(round, request, event.currentTarget)} />
       ),
     }
   }
+  // The action columns, for the main author only.
+  const actions: { key: 'sendAgain' | 'edit' | 'delete'; label: string }[] = [
+    ...(authorActions ? [{ key: 'sendAgain' as const, label: text.columns.sendAgain }] : []),
+    ...(authorActions && REVIEW_DEADLINE_EDITING_ACTIVE ? [{ key: 'edit' as const, label: text.columns.edit }] : []),
+    ...(authorActions ? [{ key: 'delete' as const, label: text.columns.delete }] : []),
+  ]
 
   function requestTable(round: InternalReviewRound): ReactNode {
     const requests = visibleReviewRequests(round)
@@ -119,7 +124,9 @@ export function ReviewRequestsTable({ sop, canRemove, onRemove, canEditDeadline,
               {columns.map((column) => (
                 <th key={column} scope="col" className="py-2 pr-4 font-medium">{column}</th>
               ))}
-              <th scope="col" className="py-2 text-right font-medium">{text.columns.actions}</th>
+              {actions.map((action) => (
+                <th key={action.key} scope="col" className="w-20 py-2 text-center font-medium">{action.label}</th>
+              ))}
             </tr>
           </thead>
           <tbody className="divide-y divide-beige">
@@ -133,9 +140,9 @@ export function ReviewRequestsTable({ sop, canRemove, onRemove, canEditDeadline,
                   <td className="py-3 pr-4">{row.department}</td>
                   <td className="py-3 pr-4 whitespace-nowrap">{row.sent}</td>
                   <td className="py-3 pr-4">{row.status}</td>
-                  <td className="py-3 pr-4 whitespace-nowrap">{row.decision}</td>
+                  <td className="py-3 pr-4 whitespace-nowrap">{row.response}</td>
                   <td className="py-3 pr-4 whitespace-nowrap">{row.deadline}</td>
-                  <td className="py-3">{row.actions}</td>
+                  {actions.map((action) => <td key={action.key} className="py-1.5 text-center">{row[action.key]}</td>)}
                 </tr>
               )
             })}
@@ -158,7 +165,7 @@ export function ReviewRequestsTable({ sop, canRemove, onRemove, canEditDeadline,
                     [text.columns.division, row.division],
                     [text.columns.department, row.department],
                     [text.columns.sent, row.sent],
-                    [text.columns.decision, row.decision],
+                    [text.columns.response, row.response],
                     [text.columns.deadline, row.deadline],
                   ].map(([label, value], index) => (
                     <div key={index} className="col-span-2 grid grid-cols-subgrid">
@@ -167,7 +174,14 @@ export function ReviewRequestsTable({ sop, canRemove, onRemove, canEditDeadline,
                     </div>
                   ))}
                 </dl>
-                <div className="mt-3">{row.actions}</div>
+                {actions.length > 0 && <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2">
+                  {actions.map((action) => (
+                    <div key={action.key} className="flex flex-col items-center gap-0.5">
+                      <span aria-hidden="true" className="text-xs font-medium text-text-gray">{action.label}</span>
+                      {row[action.key]}
+                    </div>
+                  ))}
+                </div>}
               </li>
             )
           })}
@@ -197,14 +211,8 @@ export function ReviewRequestsTable({ sop, canRemove, onRemove, canEditDeadline,
           </div>
         )
       })}
-      {viewing && (
-        <ReviewNotesDialog title={text.notesTitle.replace('{name}', viewing.name)} notes={viewing.notes}
-          labels={text.notes} closeLabel={text.close} onClose={closeNotes}
-          response={response && canRespondToRequest(sop, viewing.request) ? {
-            recipients: response.recipients(viewing.request),
-            onSend: (reply) => response.send(viewing.request, reply),
-          } : undefined} />
-      )}
+      {preview && <StaffProfilePreview preview={preview} onClose={closePreview} />}
     </div>
   )
 }
+

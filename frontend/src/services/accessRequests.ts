@@ -12,11 +12,18 @@ export type AccessRequestStatus = 'pending' | 'accepted' | 'rejected'
 export interface AccessRequestView {
   organization: string
   contactName: string
-  jobTitle: string
+  /** Only on requests sent before Position was removed from the form. */
+  jobTitle?: string | null
   email: string
   phone: string
   approxUsers: number
   message: string
+  /** The organization's details: null (or missing) on requests sent before the form asked for them. */
+  organizationEmail?: string | null
+  organizationAddress?: string | null
+  organizationMapsUrl?: string | null
+  organizationWebsite?: string | null
+  organizationDescription?: string | null
   status: AccessRequestStatus
   createdAt: string
   decidedAt: string | null
@@ -37,7 +44,8 @@ async function call<T>(body: Record<string, unknown>): Promise<Result<T>> {
   return { ok: false, status: 0, error: error instanceof FunctionsFetchError ? 'not-connected' : 'failed' }
 }
 
-export type SubmitFailure = 'invalid' | 'too-many-requests' | 'not-connected' | 'failed'
+/** `organization-taken`: a pending or accepted request already has this organization name. */
+export type SubmitFailure = 'invalid' | 'too-many-requests' | 'organization-taken' | 'not-connected' | 'failed'
 
 /** Sends the Request Hawkim form. `website` is a hidden field that only bots fill in. */
 export async function submitAccessRequest(values: RequestValues, website = ''): Promise<{ ok: true } | { ok: false; reason: SubmitFailure }> {
@@ -45,16 +53,22 @@ export async function submitAccessRequest(values: RequestValues, website = ''): 
     action: 'submit',
     organization: values.organization.trim(),
     contactName: values.contactName.trim(),
-    jobTitle: values.jobTitle.trim(),
     email: values.email.trim(),
     phone: normalizePhone(values.phone) ?? values.phone.trim(),
     approxUsers: Number(values.approxUsers.trim()),
     message: values.message.trim(),
+    // The organization's details; the real Website is `organizationWebsite` (`website` is the field for bots).
+    organizationEmail: values.organizationEmail.trim(),
+    organizationAddress: values.organizationAddress.trim(),
+    organizationMapsUrl: values.organizationMapsUrl.trim(),
+    organizationWebsite: values.organizationWebsite.trim(),
+    organizationDescription: values.organizationDescription.trim(),
     website,
   })
   if (result.ok) return { ok: true }
   if (result.error === 'invalid') return { ok: false, reason: 'invalid' }
   if (result.error === 'too_many_requests') return { ok: false, reason: 'too-many-requests' }
+  if (result.error === 'organization_taken') return { ok: false, reason: 'organization-taken' }
   return { ok: false, reason: result.error === 'not-connected' ? 'not-connected' : 'failed' }
 }
 
@@ -67,7 +81,7 @@ export async function viewAccessRequest(id: string, token: string): Promise<{ ok
   return { ok: false, reason: result.error === 'not-connected' ? 'not-connected' : 'failed' }
 }
 
-export type DecideFailure = 'not-found' | 'already-decided' | 'expired' | 'email-in-use' | 'account-failed' | 'not-connected' | 'failed'
+export type DecideFailure = 'not-found' | 'already-decided' | 'expired' | 'email-in-use' | 'deployment-onboarded' | 'account-failed' | 'not-connected' | 'failed'
 
 /** Accepts or rejects a request. After accepting, `emailSent` says whether the welcome email went out. */
 export async function decideAccessRequest(id: string, token: string, decision: 'accept' | 'reject'): Promise<{ ok: true; emailSent: boolean } | { ok: false; reason: DecideFailure }> {
@@ -75,7 +89,7 @@ export async function decideAccessRequest(id: string, token: string, decision: '
   if (result.ok) return { ok: true, emailSent: result.data.emailSent ?? true }
   const reasons: Record<string, DecideFailure> = {
     not_found: 'not-found', already_decided: 'already-decided', expired: 'expired',
-    email_in_use: 'email-in-use', account_failed: 'account-failed', 'not-connected': 'not-connected',
+    email_in_use: 'email-in-use', deployment_onboarded: 'deployment-onboarded', account_failed: 'account-failed', 'not-connected': 'not-connected',
   }
   return { ok: false, reason: reasons[result.error] ?? 'failed' }
 }

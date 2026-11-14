@@ -1,5 +1,7 @@
+import { updateParams } from './pagination'
 import type { Department, DepartmentId, Permission, Sop, User } from '../data/mock/types'
 import type { SopStatus } from '../types/status'
+import { matchesDivisionDepartmentFilter, UNASSIGNED_GROUP_ID } from './organization'
 
 /*
  * Admin rules for users (PBI 15, 18, 19): adding users, changing permissions and
@@ -10,6 +12,12 @@ import type { SopStatus } from '../types/status'
 
 /** Every permission, in display order. */
 export const PERMISSIONS: Permission[] = ['author', 'reviewer', 'approver', 'admin']
+
+/**
+ * The permissions Staff Management gives. Admin isn't one of them: administrators are added and
+ * managed on Manage Organization → Admins (the database refuses Admin changes from Staff too).
+ */
+export const STAFF_PERMISSIONS: Permission[] = PERMISSIONS.filter((permission) => permission !== 'admin')
 
 /** Simple format check: something@something.something, with no spaces. */
 export const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -67,19 +75,58 @@ export function divisionNameIn(departments: Pick<Department, 'divisionId' | 'div
   return divisionLabel(departments.find((department) => department.divisionId === division)) || division
 }
 
-/** "All" in the Users list's Division and Department filters. */
-export const ALL_FILTER = 'all'
+/**
+ * The Staff list's orders; the first is the default, which is by name, A to Z (the same as 'name-asc').
+ * Each other one orders by one column (Name, Division or Department), A to Z or Z to A.
+ */
+export const STAFF_SORTS = [
+  'default',
+  'name-asc', 'name-desc',
+  'division-asc', 'division-desc',
+  'department-asc', 'department-desc',
+] as const
+export type StaffSort = (typeof STAFF_SORTS)[number]
+export type StaffSortGroup = 'name' | 'division' | 'department'
+/** The group each sort is listed under in the Sort menu ('default' has none). */
+export const staffSortGroup = (sort: StaffSort): StaffSortGroup | undefined =>
+  sort === 'default' ? undefined : (sort.slice(0, sort.lastIndexOf('-')) as StaffSortGroup)
+
+/** The Staff page's tabs (`?status=`): Active Staff (the default) and Deactive Staff. */
+export const STAFF_STATUSES = ['active', 'deactivated'] as const
+export type StaffStatus = (typeof STAFF_STATUSES)[number]
+
+/** The staff on a Staff tab: never Admins (they are on the Admins page); active or deactivated only. */
+export function staffWithStatus(users: User[], status: StaffStatus): User[] {
+  return users.filter((user) => !isSystemAdmin(user) && (status === 'deactivated' ? !!user.deletedAt : !user.deletedAt))
+}
+
+/** Clear Filters: the URL without the Filter and the sort (other parameters, like the tab, stay). */
+export function clearedStaffParams(current: URLSearchParams): URLSearchParams {
+  return updateParams(current, { division: undefined, dept: undefined, permission: undefined, sort: undefined }, {})
+}
 
 export interface UserFilter {
   /** Searched in name, email, division, department and permission names, ignoring case. */
   query: string
-  /** A division, NO_DIVISION, or ALL_FILTER. */
-  division: string
-  /** A department id, or ALL_FILTER. */
-  departmentId: string
+  /** Selected divisions; none (and no departments) means everyone. */
+  divisions: string[]
+  /** Selected department ids. */
+  departmentIds: string[]
+  /** Selected permissions: a user matches with any of them; none means everyone. */
+  permissions?: Permission[]
+  /** The order; by name, A to Z, when missing or 'default'. */
+  sort?: StaffSort
 }
 
-/** The Users list's users matching the search and both filters, by name. `permissionLabels`: the names shown. */
+/**
+ * The Staff list's users matching the search and the Filter, by name. The Filter is the linked rule of
+ * every list page (matchesDivisionDepartmentFilter): in a division with departments selected, only
+ * those departments; a selected division without any keeps all its departments; departments without a
+ * division match only when selected. With permissions selected, the user must also have one of them
+ * (any, AND with the divisions and departments). Ordered by the sort (see STAFF_SORTS): by the column's text as
+ * shown, staff without one (no division or department) last either way, ties by name A to Z.
+ * `permissionLabels`: the permission names shown (searched).
+ */
 export function filterUsers(users: User[], getDepartment: (id: string) => Department | undefined, filter: UserFilter, permissionLabels: Record<Permission, string>): User[] {
   const text = filter.query.trim().toLowerCase()
   return users
@@ -87,10 +134,27 @@ export function filterUsers(users: User[], getDepartment: (id: string) => Depart
       const department = getDepartment(user.departmentId)
       const searched = [user.name, user.email, divisionLabel(department), department?.name ?? '', ...user.permissions.map((permission) => permissionLabels[permission])]
       return (!text || searched.some((value) => value.toLowerCase().includes(text))) &&
-        (filter.division === ALL_FILTER || (!!department && departmentsInDivision([department], filter.division).length > 0)) &&
-        (filter.departmentId === ALL_FILTER || user.departmentId === filter.departmentId)
+        matchesDivisionDepartmentFilter(user.departmentId, filter.divisions, filter.departmentIds, (id) => getDepartment(id)?.divisionId || UNASSIGNED_GROUP_ID) &&
+        (!filter.permissions?.length || filter.permissions.some((permission) => user.permissions.includes(permission)))
     })
-    .sort((a, b) => a.name.localeCompare(b.name))
+    .sort(staffCompare(filter.sort ?? 'default', getDepartment))
+}
+
+function staffCompare(sort: StaffSort, getDepartment: (id: string) => Department | undefined): (a: User, b: User) => number {
+  const byName = (a: User, b: User) => a.name.localeCompare(b.name)
+  const group = staffSortGroup(sort)
+  const direction = sort.endsWith('-desc') ? -1 : 1
+  if (!group || group === 'name') return (a, b) => direction * byName(a, b)
+  const text: Record<Exclude<StaffSortGroup, 'name'>, (user: User) => string> = {
+    division: (user) => divisionLabel(getDepartment(user.departmentId)),
+    department: (user) => getDepartment(user.departmentId)?.name ?? '',
+  }
+  const value = text[group]
+  return (a, b) => {
+    const first = value(a), second = value(b)
+    if (!first || !second) return Number(!first) - Number(!second) || byName(a, b)
+    return direction * first.localeCompare(second) || byName(a, b)
+  }
 }
 
 /** The Division choice for departments that have none. */
@@ -155,6 +219,7 @@ export function userFormValues(user: User, activeDepartments: Pick<Department, '
   return {
     name: user.name,
     email: user.email,
+    // As stored ("+9665XXXXXXXX"); the phone field shows its 8 digits after the fixed "+9665".
     phone: user.phone ?? '',
     position: user.position ?? '',
     departmentId: department?.id ?? '',
@@ -187,21 +252,6 @@ export function changesPermissions(user: Pick<User, 'permissions'>, permissions:
 /* ---------- What a user is doing on SOPs ---------- */
 
 export type SopRole = 'author' | 'co-author' | 'reviewer' | 'approver'
-
-/** Every SOP the user is on, with their role(s) on it, by code. */
-export function involvement(userId: string, sops: Sop[]): { sop: Sop; roles: SopRole[] }[] {
-  return sops
-    .map((sop) => {
-      const roles: SopRole[] = []
-      if (sop.authorId === userId) roles.push('author')
-      if (sop.coAuthorIds.includes(userId)) roles.push('co-author')
-      if (sop.reviewers.some((person) => person.userId === userId)) roles.push('reviewer')
-      if (sop.approvers.some((person) => person.userId === userId)) roles.push('approver')
-      return { sop, roles }
-    })
-    .filter((item) => item.roles.length > 0)
-    .sort((a, b) => a.sop.code.localeCompare(b.sop.code, 'en', { numeric: true }))
-}
 
 /**
  * Statuses where the assigned reviewers and approvers are still part of the workflow:

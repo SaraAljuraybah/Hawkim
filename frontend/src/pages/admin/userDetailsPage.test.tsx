@@ -7,7 +7,7 @@ import { UserDetailsPage } from './UserDetailsPage'
 
 const fixture = vi.hoisted(() => ({ user: null as User | null, department: null as Department | null }))
 vi.mock('../../hooks/useDocumentTitle', () => ({ useDocumentTitle: () => {} }))
-vi.mock('../../state/usersContext', () => ({ useUsers: () => ({ activeUsers: [fixture.user], deleteUser: vi.fn() }) }))
+vi.mock('../../state/usersContext', () => ({ useUsers: () => ({ users: [fixture.user], activeUsers: [fixture.user], deleteUser: vi.fn(), reactivateUser: vi.fn() }) }))
 vi.mock('../../state/sessionContext', () => ({ useCurrentUser: () => ({ id: 'admin' }) }))
 vi.mock('../../state/sopsContext', () => ({ useSops: () => ({ sops: [] }) }))
 vi.mock('../../state/departmentsContext', () => ({ useDepartments: () => ({ getDepartment: (id: string) => (fixture.department?.id === id ? fixture.department : undefined) }) }))
@@ -21,21 +21,57 @@ beforeEach(() => {
 })
 
 describe('a user\'s details page', () => {
-  it('lists Name, Email, Phone Number, Division, Department, Position and Permission, like My Profile', () => {
+  it('lists Full Name, Email, Phone Number, Division, Department, Position and Permission, like My Profile', () => {
     const html = render()
     const labels = [...html.matchAll(/<dt[^>]*>([^<]+)<\/dt>/g)].map((match) => match[1])
-    expect(labels).toEqual(['Name', 'Email', 'Phone Number', 'Division', 'Department', 'Position', 'Permission'])
-    for (const dt of html.match(/<dt[^>]*>/g)!) expect(dt).toContain('font-bold text-maroon')
-    expect(detail(html, 'Name')).toBe('Rana')
+    expect(labels).toEqual(['Full Name', 'Email', 'Phone Number', 'Division', 'Department', 'Position', 'Permission'])
+    // As on an Admin's page: labels 14px bold maroon, values 16px regular maroon.
+    for (const dt of html.match(/<dt[^>]*>/g)!) expect(dt).toContain('text-sm font-bold text-maroon')
+    for (const dd of html.match(/<dd[^>]*>/g)!) {
+      expect(dd).toContain('text-base')
+      expect(dd).toContain('text-maroon')
+      expect(dd).not.toMatch(/font-(semibold|bold)|text-text-gray/)
+    }
+    expect(detail(html, 'Full Name')).toBe('Rana')
     expect(detail(html, 'Department')).toBe('Home')
-    expect(detail(html, 'Permission')).toBe('Author, Reviewer')
     expect(html).not.toContain('Directory Access')
+  })
+
+  it('shows the permissions once, as solid light-gold badges in Details, with no description', () => {
+    const html = render()
+    expect(html).not.toContain('contact details, placement and permissions')
+    expect(html).not.toContain('<p class="mt-2 text-text-gray">')
+    const badges = [...html.matchAll(/<li class="([^"]*)">([^<]+)<\/li>/g)]
+    // Only as the Permission value: no duplicate badges under the name.
+    expect(badges.map((match) => match[2])).toEqual(['Author', 'Reviewer'])
+    for (const [, className] of badges) {
+      expect(className.split(' ')).toContain('bg-gold-light')
+      expect(className).toContain('text-maroon')
+    }
+    const permission = html.slice(html.indexOf('>Permission</dt>'))
+    expect(permission).toMatch(/^>Permission<\/dt><dd[^>]*><ul class="flex flex-wrap gap-1\.5 "><li[^>]*>Author<\/li><li[^>]*>Reviewer<\/li><\/ul>/)
+  })
+
+  it('copies the email from a copy icon right after the address', () => {
+    const html = render()
+    const email = html.slice(html.indexOf('>Email</dt>'), html.indexOf('>Phone Number</dt>'))
+    expect(email).toContain('<span class="min-w-0 break-all">rana@example.test</span>')
+    expect(email).toContain(`aria-label="${adminEn.userDetails.copyEmail.replace('{name}', 'Rana')}"`)
+    expect(email).toContain('aria-live="polite"')
+  })
+
+  it('shows only the Details card, with no "Involved in" section', () => {
+    const html = render()
+    expect(html).toContain('id="details-title"')
+    expect(html.match(/<h2[^>]*>/g)).toHaveLength(1)
+    for (const removed of ['Involved in', 'Not involved in any SOP.', 'involvement-title', 'SOPs this staff member is involved in']) expect(html).not.toContain(removed)
   })
 
   it('shows — for every empty value, read-only', () => {
     fixture.user = { ...fixture.user!, permissions: [] }
     const html = render()
     for (const label of ['Phone Number', 'Division', 'Position', 'Permission']) expect(detail(html, label)).toBe('—')
+    expect(html).not.toContain('<li')
     for (const name of ['phone', 'position', 'division']) expect(html).not.toContain(`name="${name}"`)
     fixture.user = { ...fixture.user!, phone: '+966512345678', position: 'Regulatory Specialist' }
     expect(detail(render(), 'Phone Number')).toBe('+966512345678')
@@ -47,11 +83,22 @@ describe('a user\'s details page', () => {
     expect(detail(render(), 'Division')).toBe('Medical Division')
   })
 
-  it('has one Delete user: the Trash button in the header, and no Delete User section', () => {
+  it("has the Admin page's header: avatar, the name as the h1 (no badges under it), and Edit Staff and Delete Staff at the top right", () => {
+    const html = render()
+    expect(html).toContain('<span aria-hidden="true" class="inline-flex size-9 shrink-0 items-center justify-center rounded-full bg-beige text-xs font-semibold text-maroon size-10 text-sm sm:size-14 sm:text-base">RA</span>')
+    // The name block, then the actions (Edit Staff before Delete Staff) in their own group after it.
+    expect(html).toMatch(/<h1 class="text-xl break-words tracking-tight sm:text-3xl">Rana<\/h1><\/div><\/div><div class="flex flex-wrap items-center gap-2"><a [^>]*href="\/admin\/users\/[^"]+\/edit"[^>]*>.*?Edit Staff<\/a><button type="button"[^>]*>.*?Delete Staff<\/button>/)
+    expect(html.match(/<h1/g)).toHaveLength(1)
+  })
+
+  it('has one Delete Staff: a labelled maroon filled button with the Trash icon, and no Delete User section', () => {
     const html = render()
     const header = html.slice(html.indexOf('<h1'), html.indexOf('details-title'))
-    expect(header).toMatch(/<button type="button" aria-label="Delete Rana"[^>]*text-status-rejected-fg/)
-    expect(html.match(/aria-label="Delete Rana"/g)).toHaveLength(1)
+    const button = header.match(/<button type="button"[^>]*>.*?<\/button>/)![0]
+    expect(button).toMatch(/lucide-trash/)
+    expect(button).toContain('>Delete Staff</button>')
+    expect(button).toContain('border border-maroon bg-maroon text-offwhite')
+    expect(html.match(/>Delete Staff</g)).toHaveLength(1)
     expect(html).not.toContain('>Delete User<')
     expect(html).not.toContain('delete-title')
   })
@@ -95,5 +142,22 @@ describe('after Add User', () => {
     const html = opened(null)
     expect(html).not.toContain('Staff member added')
     expect(html).toContain('<div role="status"></div>')
+  })
+})
+
+describe("a deactivated staff member's page (Preview on the Deactive Staff tab)", () => {
+  it('opens, with Edit Staff and Reactivate Staff in place of Delete, and Back to the Deactive Staff tab', () => {
+    fixture.user = { ...fixture.user!, deletedAt: '2026-11-01T09:00:00Z' }
+    const html = render()
+    expect(html).toContain('>Rana</h1>')
+    expect(html).toContain('>Edit Staff</a>')
+    expect(html).toMatch(/<button type="button"[^>]*>(?:(?!<\/button>).)*lucide-rotate-ccw(?:(?!<\/button>).)*Reactivate Staff<\/button>/)
+    expect(html).not.toContain('>Delete Staff<')
+    expect(html).toMatch(/<a[^>]*href="\/admin\/users\?status=deactivated"[^>]*>(?:(?!<\/a>).)*Back to Staff<\/a>/)
+  })
+
+  it('still shows Not Found for a deactivated Admin (Admins are on the Admins page)', () => {
+    fixture.user = { ...fixture.user!, permissions: ['admin'], deletedAt: '2026-11-01T09:00:00Z' }
+    expect(render()).not.toContain('>Rana</h1>')
   })
 })

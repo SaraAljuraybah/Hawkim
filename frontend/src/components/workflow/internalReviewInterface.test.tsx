@@ -30,7 +30,7 @@ const fixture = vi.hoisted(() => ({ sop: null as Sop | null, userId: 'author', u
 ] as User[], departments: [{ id: 'home', name: 'Home', initials: 'HM', description: '', requiresComplianceCheck: true }] }))
 vi.mock('../../state/sessionContext', () => ({ useCurrentUser: () => fixture.users.find((user) => user.id === fixture.userId), useSession: () => ({ status: 'signed-in', user: fixture.users.find((user) => user.id === fixture.userId) }) }))
 vi.mock('../../state/usersContext', () => ({ useUsers: () => ({ users: fixture.users, activeUsers: fixture.users, nameOf: (id: string) => fixture.users.find((user) => user.id === id)?.name ?? id ?? '', getUser: (id: string) => fixture.users.find((user) => user.id === id) }) }))
-vi.mock('../../state/departmentsContext', () => ({ useDepartments: () => ({ departments: fixture.departments, nameOf: (id: string) => id }) }))
+vi.mock('../../state/departmentsContext', () => ({ useDepartments: () => ({ departments: fixture.departments, nameOf: (id: string) => id, getDepartment: () => undefined }) }))
 vi.mock('../../state/guidelinesContext', () => ({ useGuidelines: () => ({ current: { version: '4.0' } }) }))
 vi.mock('../../state/sopsContext', () => ({ useSops: () => ({ sops: [fixture.sop], removeInternalReviewer: vi.fn(), acceptInternalReview: vi.fn(), declineInternalReview: vi.fn(), decideInternalReview: vi.fn() }) }))
 const environment = () => ({ users: fixture.users, departments: fixture.departments })
@@ -117,13 +117,13 @@ describe('internal parallel review across transitions and detail views', () => {
     const heading = (name: string) => `<h3 class="text-base font-semibold text-maroon">${name}</h3>`
     const author = render(<SopWorkflowPage />)
     const panel = author.slice(author.indexOf('id="internal-review-title"'), author.indexOf(sopWorkflowEn.timeline.title))
-    for (const name of ['Reviewer Alpha', 'Reviewer Beta']) expect(panel).toMatch(new RegExp(`<th scope="row"[^>]*>${name}<`))
+    for (const name of ['Reviewer Alpha', 'Reviewer Beta']) expect(panel).toMatch(new RegExp(`<th scope="row"[^>]*>(?:<button[^>]*>)?${name}<`))
     expect(panel).toContain('</span>Declined</span>')
     expect(author).toContain('>' + sopWorkflowEn.timeline.events['review-declined'] + '<')
     fixture.userId = 'reviewer-b'
     expect(render(<ReviewPage />)).toContain(heading('Reviewer Alpha'))
   })
-  it('keeps decision comments behind the table actions and in the author page timeline', () => {
+  it('keeps decision comments out of the Reviewers table, and in the author page timeline', () => {
     fixture.sop = decide(decide(start(), 'reviewer-a', 'completed', 'All sections are clear'), 'reviewer-b', 'returned', 'Revise the safety section')
     const author = render(<SopWorkflowPage />)
     const panel = author.slice(author.indexOf('id="internal-review-title"'), author.indexOf(sopWorkflowEn.timeline.title))
@@ -167,7 +167,7 @@ describe('internal parallel review across transitions and detail views', () => {
     expect(duration).toContain('max="3650"')
     expect(duration).toContain('aria-describedby=')
     expect(html).toContain('Review Duration in Working Days (Optional)')
-    expect(html).toContain(internalReviewEn.submit.durationHelp)
+    expect(html).toContain(internalReviewEn.submit.durationHelp.replace('{count}', '2'))
     expect(html).not.toContain('withdrawn automatically')
     expect(html).not.toContain('has to finish after they accept')
     expect(html).not.toContain('type="date"')
@@ -219,13 +219,13 @@ describe('internal parallel review across transitions and detail views', () => {
     expect(html).toContain('v2')
     expect(fixture.sop.description).toBe('Description retained')
   })
-  it('removes actionable tasks after every reviewer is removed and stays In Review without counting reviews', () => {
+  it('removes actionable tasks after every reviewer is removed and goes back to Draft without counting reviews', () => {
     let sop = start()
     const round = currentInternalRound(sop)!
     for (const assignment of round.assignments) sop = removeInternalReviewer(sop, 'author', round.id, assignment.id, 'No longer needed', environment())
     fixture.sop = sop
-    expect(sop.status).toBe('in-review')
-    expect(currentInternalRound(sop)!.status).toBe('open')
+    expect(sop.status).toBe('draft')
+    expect(currentInternalRound(sop)!.status).toBe('closed')
     for (const userId of ['reviewer-a', 'reviewer-b']) {
       expect(reviewTasks(userId, [sop]).every((task) => task.group !== 'todo')).toBe(true)
       expect(deriveNotifications(userId, { sops: [sop], requests: [], now: Date.now() }).some((item) => item.type === 'due-soon' || item.type === 'overdue')).toBe(false)

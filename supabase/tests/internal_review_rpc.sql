@@ -168,7 +168,9 @@ begin
   set local role authenticated;
   perform set_config('request.jwt.claim.sub', author::text, true);
   assert public.upload_sop_version(sop, author || '/91000000-0000-4000-8000-000000000002.pdf', 'Revised procedure.pdf') = 2, 'The existing upload workflow must remain usable';
-  round2 := public.submit_for_review(sop, array[reviewer, reviewer2], null, 5, repeat('r', 500));
+  -- reviewer3 accepts below, so the SOP stays In Review when the other two expire (with nobody left
+  -- it would go back to Draft, 20261114120100_review_back_to_draft.sql).
+  round2 := public.submit_for_review(sop, array[reviewer, reviewer2, reviewer3], null, 5, repeat('r', 500));
   assert round2 <> round1, 'Resubmission must create a distinct version-scoped round';
   reset role;
   assert (select newer.requested_at > older.requested_at
@@ -179,10 +181,12 @@ begin
   assert (select r.version = 2 from public.review_rounds r where r.id = round2), 'The resubmitted round must target the new version';
   assert (select q.status = 'completed' and q.decided_at = old_decision_at and q.comment_id = old_comment_id from public.review_requests q where q.id = request1.id), 'Resubmission must preserve historical decisions';
   assert (select c.version = 1 and c.text = 'Version one feedback' from public.sop_comments c where c.id = old_comment_id), 'Historical feedback must stay linked to v1';
-  assert (select count(*) = 2 and bool_and(q.status = 'pending' and q.review_duration_days = 5 and q.review_due_at is null and q.deadline_policy = 'riyadh-working-days-v1') from public.review_requests q where q.round_id = round2), 'The new review round must use a fresh shared allocation without resetting history';
+  assert (select count(*) = 3 and bool_and(q.status = 'pending' and q.review_duration_days = 5 and q.review_due_at is null and q.deadline_policy = 'riyadh-working-days-v1') from public.review_requests q where q.round_id = round2), 'The new review round must use a fresh shared allocation without resetting history';
   assert exists (select 1 from public.timeline_events e where e.review_round_id = round2 and e.type = 'resubmitted' and e.note = repeat('r', 500)), '500-character resubmission comments must persist';
   perform set_config('request.jwt.claim.sub', reviewer::text, true);
   perform pg_temp.expect_error(format('select public.decide_review(%L, %L, null)', request1.id, 'completed'), '23514');
+  perform set_config('request.jwt.claim.sub', reviewer3::text, true);
+  perform public.accept_review((select q.id from public.review_requests q where q.round_id = round2 and q.reviewer_id = reviewer3));
 
   -- Boundary lengths all save unchanged through the real submit RPC. Invalid
   -- 501-character input was already proved to make no partial submission.
@@ -220,7 +224,8 @@ begin
   set local role authenticated;
   perform set_config('request.jwt.claim.sub', author::text, true);
   perform public.expire_due_requests(sop);
-  assert (select bool_and(q.status = 'expired' and q.expired_at = q.response_due_at and q.withdrawn_at is null) from public.review_requests q where q.round_id = round2), 'Unanswered requests must expire at their response deadline, not be withdrawn';
+  assert (select bool_and(q.status = 'expired' and q.expired_at = q.response_due_at and q.withdrawn_at is null) from public.review_requests q where q.round_id = round2 and q.reviewer_id <> reviewer3), 'Unanswered requests must expire at their response deadline, not be withdrawn';
+  assert (select q.status = 'accepted' from public.review_requests q where q.round_id = round2 and q.reviewer_id = reviewer3), 'An accepted request never expires';
   assert (select count(*) from public.timeline_events e where e.sop_id = sop and e.type = 'review-expired' and e.actor_id is null and e.recipient_ids = array[author, reviewer2]) = 1, 'The expiry event must go to the main author and the reviewer only';
   select * into request2 from public.review_requests q where q.round_id = round2 and q.reviewer_id = reviewer2;
   perform set_config('request.jwt.claim.sub', reviewer2::text, true);
@@ -256,6 +261,8 @@ begin
   select * into request2 from public.review_requests q where q.round_id = round2 and q.reviewer_id = reviewer2 and q.status = 'pending';
   perform public.accept_review(request2.id);
   perform public.decide_review(request2.id, 'completed', null);
+  perform set_config('request.jwt.claim.sub', reviewer3::text, true);
+  perform public.decide_review((select q.id from public.review_requests q where q.round_id = round2 and q.reviewer_id = reviewer3), 'completed', null);
   assert (select r.status from public.review_rounds r where r.id = round2) = 'completed', 'A round must complete without its expired reviewers';
   perform set_config('request.jwt.claim.sub', author::text, true);
   perform public.resend_review_request((select q.id from public.review_requests q where q.round_id = round2 and q.reviewer_id = reviewer and q.status = 'expired' order by q.seq desc limit 1));

@@ -4,6 +4,7 @@ import type { Sop } from '../../data/mock/types'
 import { formatDate } from '../../lib/format'
 import { sopPath } from '../../lib/routes'
 import { useDepartments } from '../../state/departmentsContext'
+import { tableStyles } from '../ui/tableStyles'
 
 interface SopListProps {
   sops: Sop[]
@@ -22,36 +23,37 @@ const focusRing =
  * List view of SOPs; every row links to the SOP detail page.
  * From md up: a table with columns. Below md: compact stacked blocks, so the
  * page never scrolls sideways. Only one of the two is ever displayed.
+ * The same look as the other tables (tableStyles): white rounded frame, maroon heading with light text.
  */
 export function SopList({ sops, content, sopHref = sopPath }: SopListProps) {
   const { columns } = content
   const { nameOf: departmentName } = useDepartments()
 
   return (
-    <div className="overflow-hidden rounded-xl border border-beige bg-white">
+    <div className={tableStyles.frame}>
       {/* Table — md and up. If it is ever wider than the space, it scrolls inside
           its own box instead of being cut off (the page itself never scrolls sideways). */}
-      <div className="hidden overflow-x-auto md:block">
-        <table className="w-full text-left text-sm">
-          <thead className="bg-beige/60 text-maroon">
+      <div className={`${tableStyles.wide} overflow-x-auto rounded-xl`}>
+        <table className={tableStyles.table}>
+          <thead className={tableStyles.head}>
             <tr>
-              <th scope="col" className="px-5 py-3 font-semibold">{columns.title}</th>
-              <th scope="col" className="px-5 py-3 font-semibold">{columns.department}</th>
-              <th scope="col" className="px-5 py-3 font-semibold">{columns.version}</th>
-              <th scope="col" className="px-5 py-3 font-semibold whitespace-nowrap">{columns.lastUpdated}</th>
+              <th scope="col" className={tableStyles.headCell}>{columns.title}</th>
+              <th scope="col" className={tableStyles.headCell}>{columns.department}</th>
+              <th scope="col" className={tableStyles.headCell}>{columns.version}</th>
+              <th scope="col" className={`${tableStyles.headCell} whitespace-nowrap`}>{columns.lastUpdated}</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-beige">
+          <tbody className={tableStyles.body}>
             {sops.map((sop) => (
               <tr key={sop.id} className={`relative transition-colors hover:bg-beige/40 ${focusRing}`}>
-                <th scope="row" className="px-5 py-4 font-medium text-maroon">
+                <th scope="row" className={tableStyles.rowHeader}>
                   <Link to={sopHref(sop.id)} className={stretchedLink}>
                     {sop.title}
                   </Link>
                 </th>
-                <td className="px-5 py-4 text-text-gray">{departmentName(sop.departmentId)}</td>
-                <td className="px-5 py-4 text-text-gray">{content.versionTemplate.replace('{version}', sop.version)}</td>
-                <td className="px-5 py-4 whitespace-nowrap text-text-gray">
+                <td className={`${tableStyles.cell} text-text-gray`}>{departmentName(sop.departmentId)}</td>
+                <td className={`${tableStyles.cell} text-text-gray`}>{content.versionTemplate.replace('{version}', sop.version)}</td>
+                <td className={`${tableStyles.cell} whitespace-nowrap text-text-gray`}>
                   <time dateTime={sop.lastUpdated}>{formatDate(sop.lastUpdated)}</time>
                 </td>
               </tr>
@@ -61,7 +63,7 @@ export function SopList({ sops, content, sopHref = sopPath }: SopListProps) {
       </div>
 
       {/* Stacked blocks — below md */}
-      <ul className="divide-y divide-beige md:hidden">
+      <ul className={tableStyles.cards}>
         {sops.map((sop) => (
           <li key={sop.id} className={`relative p-4 ${focusRing}`}>
             <div className="flex items-baseline justify-between gap-3">

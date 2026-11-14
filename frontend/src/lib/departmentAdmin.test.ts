@@ -73,6 +73,11 @@ describe('members and users with access', () => {
     expect(members('it', users).map((member) => member.id)).toEqual(['sara', 'reem'])
   })
 
+  it('never counts an Admin, whose account may still hold a department', () => {
+    const users = [user('sara', 'it'), { ...user('nouf', 'it'), permissions: ['admin' as const] }]
+    expect(members('it', users).map((member) => member.id)).toEqual(['sara'])
+  })
+
   it('counts users from other departments with an approved access request, once each', () => {
     const users = [user('sara', 'it'), user('faisal', 'quality'), user('omar', 'pv'), user('gone', 'pv', true)]
     const requests = [

@@ -2,10 +2,12 @@ import { useId, useRef, useState, type ReactNode } from 'react'
 import { flushSync } from 'react-dom'
 import { Link, useParams } from 'react-router-dom'
 import { ArrowLeft, ArrowRight, Check, CircleCheck, X } from 'lucide-react'
+import { EmailDetail } from '../../components/admin/DetailsCard'
 import { Button } from '../../components/ui/Button'
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
 import { StatusBadge } from '../../components/ui/StatusBadge'
 import { adminEn } from '../../content/admin.en'
+import { emailCopyEn } from '../../content/emailCopy.en'
 import { requestsEn } from '../../content/requests.en'
 import type { UserRequest } from '../../data/mock/types'
 import { useDocumentTitle } from '../../hooks/useDocumentTitle'
@@ -183,7 +185,10 @@ function RequestPanels({ request }: { request: UserRequest }) {
           <Details
             items={[
               { label: text.requester.name, value: nameOf(request.requesterId) },
-              { label: text.requester.email, value: <span className="break-all">{requester?.email}</span> },
+              { label: text.requester.email, value: requester?.email
+                ? <EmailDetail email={requester.email} copyLabel={emailCopyEn.copyNamed.replace('{name}', nameOf(request.requesterId))}
+                    copiedText={emailCopyEn.copied} failedText={emailCopyEn.failed} />
+                : <span className="break-all">{requester?.email}</span> },
               { label: text.requester.homeDepartment, value: departmentName(requester?.departmentId) },
             ]}
           />

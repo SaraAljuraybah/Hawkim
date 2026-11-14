@@ -1,5 +1,5 @@
 /*
- * Client-side pagination of lists already loaded in the browser (My SOPs, the SOP Directory),
+ * Client-side pagination of lists already loaded in the browser (My SOPs, the SOP Directory, My Reviews),
  * and the list state kept in the URL: default values add nothing, invalid values mean the default.
  */
 
@@ -63,12 +63,16 @@ export function resultsParams(
   return updateParams(current, { ...changes, page: undefined }, defaults)
 }
 
-/** Switching tabs: the next tab and the page it was left on in the URL, and the pages remembered. */
+/**
+ * Switching tabs: the next tab and the page it was left on in the URL, and the pages remembered.
+ * `names`: the URL parameters of the tab and the page (`tab` and `page` unless a page has two lists).
+ */
 export function tabSwitch<T extends string>(
   current: URLSearchParams, pages: Partial<Record<T, number>>, from: T, fromPage: number, to: T, defaults: Record<string, string>,
+  names: { tab: string; page: string } = { tab: 'tab', page: 'page' },
 ) {
   const switched = switchTabPage(pages, from, fromPage, to)
-  return { params: updateParams(current, { tab: to, page: switched.page }, defaults), pages: switched.pages }
+  return { params: updateParams(current, { [names.tab]: to, [names.page]: switched.page }, defaults), pages: switched.pages }
 }
 
 /** After removing one item from a list of `remaining` + 1: the page to show (the previous page when this one is now empty). */
@@ -106,6 +110,16 @@ export function updateParams(
     else next.set(name, text)
   }
   return next
+}
+
+/** A list in the URL (e.g. `dept=a,b`): its values, each once, blanks ignored. */
+export function readList(params: URLSearchParams, name: string): string[] {
+  return [...new Set((params.get(name) ?? '').split(',').map((value) => value.trim()).filter(Boolean))]
+}
+
+/** A list for the URL: values separated by commas, each once; nothing when empty (the parameter is removed). */
+export function listParam(values: string[]): string | undefined {
+  return values.length ? [...new Set(values)].join(',') : undefined
 }
 
 /** The same URL query without its page (for example after switching department), or '' when nothing is left. */

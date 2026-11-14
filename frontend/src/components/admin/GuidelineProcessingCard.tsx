@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { CircleAlert, CircleCheck, LoaderCircle } from 'lucide-react'
 import { Button } from '../ui/Button'
-import { Card } from '../ui/Card'
+import { ProcessingStatusBadge } from '../ui/ProcessingStatusBadge'
 import { adminEn } from '../../content/admin.en'
 import type { GuidelineVersion } from '../../data/mock/types'
 
@@ -43,7 +43,12 @@ export function GuidelineProcessingCard({ version, onRetry, onMakeCurrent }: Gui
   const report = processing.report
 
   return (
-    <Card title={text.title} titleId="guideline-processing-title" className="mt-6">
+    <section aria-labelledby="guideline-processing-title" className="mt-6 rounded-xl border border-beige bg-white p-5 sm:p-6">
+      {/* The status label is the heading, as in the versions list; screen readers hear "Status: Waiting". */}
+      <h2 id="guideline-processing-title" className="mb-4">
+        <span className="sr-only">{text.title}: </span>
+        <ProcessingStatusBadge status={processing.status} size="lg" />
+      </h2>
       <div role="status" className="space-y-3 text-sm text-maroon">
         <p className="flex items-start gap-2">
           {processing.status === 'ready' && <CircleCheck aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-status-approved-fg" strokeWidth={2} />}
@@ -53,7 +58,7 @@ export function GuidelineProcessingCard({ version, onRetry, onMakeCurrent }: Gui
           )}
           <span>{text.status[processing.status]}</span>
         </p>
-        {processing.status === 'processing' && processing.progress && <ProcessingProgress progress={processing.progress} />}
+        {processing.status === 'processing' && <ProcessingProgress progress={processing.progress} />}
         {(processing.status === 'waiting' || processing.status === 'processing') && (
           <p className="text-text-gray">{text.keepWorking}</p>
         )}
@@ -103,19 +108,19 @@ export function GuidelineProcessingCard({ version, onRetry, onMakeCurrent }: Gui
           </div>
         </div>
       )}
-    </Card>
+    </section>
   )
 }
 
-/** The stage of processing; while embedding, a progress bar ("Preparing requirements: 45 of 93 (48%)"). */
-function ProcessingProgress({ progress }: { progress: NonNullable<NonNullable<GuidelineVersion['processing']>['progress']> }) {
-  if (progress.stage !== 'embedding' || progress.total === 0) {
-    return <p>{progress.stage === 'saving' ? text.progress.saving : text.progress.reading}</p>
-  }
-  const done = Math.min(progress.done, progress.total)
-  const percent = Math.round((done / progress.total) * 100)
-  const label = text.progress.embedding
-    .replace('{done}', String(done)).replace('{total}', String(progress.total)).replace('{percent}', String(percent))
+/**
+ * The overall progress of processing, across all its stages, as a bar and as text
+ * ("Preparing requirements: batch 32 of 186 (28%)"); 0% before the service reported any.
+ */
+function ProcessingProgress({ progress }: { progress: NonNullable<GuidelineVersion['processing']>['progress'] }) {
+  const percent = Math.min(Math.max(progress?.percent ?? 0, 0), 100)
+  const stage = progress?.stage ?? text.progress.starting
+  const label = (progress?.detail ? text.progress.withDetail : text.progress.withoutDetail)
+    .replace('{stage}', stage).replace('{detail}', progress?.detail ?? '').replace('{percent}', String(percent))
   return (
     <div>
       <p>{label}</p>
@@ -123,8 +128,8 @@ function ProcessingProgress({ progress }: { progress: NonNullable<NonNullable<Gu
         role="progressbar"
         aria-label={text.progress.label}
         aria-valuemin={0}
-        aria-valuemax={progress.total}
-        aria-valuenow={done}
+        aria-valuemax={100}
+        aria-valuenow={percent}
         aria-valuetext={label}
         className="mt-2 h-2 w-full overflow-hidden rounded-full bg-beige"
       >

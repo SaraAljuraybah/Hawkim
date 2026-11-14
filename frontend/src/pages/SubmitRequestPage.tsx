@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { flushSync } from 'react-dom'
-import { useSearchParams } from 'react-router-dom'
-import { CircleCheck, LoaderCircle } from 'lucide-react'
+import { Link, useSearchParams } from 'react-router-dom'
+import { ArrowLeft, CircleCheck, LoaderCircle } from 'lucide-react'
 import { Button } from '../components/ui/Button'
 import { FileDropzone } from '../components/ui/FileDropzone'
 import { SelectField } from '../components/ui/SelectField'
@@ -174,7 +174,14 @@ export function SubmitRequestPage() {
 
   return (
     <>
-      <h1 className="text-2xl tracking-tight sm:text-3xl">{content.title}</h1>
+      <Link
+        to={content.back.href}
+        className="inline-flex items-center gap-1.5 rounded-sm text-sm font-medium text-text-gray transition-colors hover:text-maroon"
+      >
+        <ArrowLeft aria-hidden="true" className="size-4" strokeWidth={1.75} />
+        {content.back.label}
+      </Link>
+      <h1 className="mt-5 text-2xl tracking-tight sm:text-3xl">{content.title}</h1>
       <p className="mt-2 text-text-gray">{content.subtitle}</p>
 
       <div className="mt-8 max-w-[45rem] rounded-xl border border-beige bg-white p-5 sm:p-8">
@@ -206,6 +213,7 @@ export function SubmitRequestPage() {
             <SelectField
               ref={typeRef}
               name="type"
+              required
               label={content.fields.type.label}
               placeholder={content.fields.type.placeholder}
               options={typeOptions}
@@ -219,6 +227,7 @@ export function SubmitRequestPage() {
               <SelectField
                 ref={departmentRef}
                 name="department"
+                required
                 label={content.fields.department.label}
                 placeholder={content.fields.department.placeholder}
                 options={departmentOptions}
@@ -232,6 +241,7 @@ export function SubmitRequestPage() {
             <TextField
               ref={titleRef}
               name="title"
+              required
               label={content.fields.title.label}
               placeholder={content.fields.title.placeholder}
               maxLength={TITLE_MAX}
@@ -244,6 +254,7 @@ export function SubmitRequestPage() {
             <TextAreaField
               ref={descriptionRef}
               name="description"
+              required
               label={content.fields.description.label}
               placeholder={content.fields.description.placeholder}
               maxLength={DESCRIPTION_MAX}

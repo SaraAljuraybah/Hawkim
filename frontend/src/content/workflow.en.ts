@@ -20,6 +20,28 @@ export const sopWorkflowEn: SopWorkflowContent = {
     cancel: 'Cancel',
     failed: "The description couldn't be saved. Try again.",
   },
+  details: {
+    title: 'SOP Details',
+    edit: 'Edit',
+    fields: { title: 'Title', description: 'Description', division: 'Division', department: 'Department', dateAdded: 'Date Added' },
+    notProvided: 'Not provided',
+    dialog: {
+      title: 'Edit SOP Details',
+      description: 'Change the title and description. The workflow status, reviewers and SOP file stay as they are.',
+      counter: '{count} / {max}',
+      titleHint: 'Up to 50 characters.',
+      save: 'Save Changes',
+      saving: 'Saving…',
+      cancel: 'Cancel',
+      errors: {
+        titleRequired: 'Enter a title.',
+        titleTooLong: 'Enter a title of up to 50 characters.',
+        descriptionTooLong: 'Enter a description of up to 1,000 characters.',
+      },
+      failed: "The SOP details couldn't be saved. Your changes are still here: try again.",
+    },
+    saved: 'SOP details updated.',
+  },
   roles: { reviewer: 'Reviewer', approver: 'Approver', author: 'Author', coAuthor: 'Co-author', system: 'System' },
 
   reviewerDeadline: {
@@ -97,7 +119,7 @@ export const sopWorkflowEn: SopWorkflowContent = {
 
   history: {
     title: 'SOP History',
-    columns: { version: 'Version', author: 'Author', date: 'Date', preview: 'Preview', download: 'Download', delete: 'Delete' },
+    columns: { version: 'Version', author: 'Author', date: 'Added Date', preview: 'Preview', download: 'Download', delete: 'Delete' },
     current: 'Current',
     you: 'You',
     previewLabel: 'Preview v{version}',
@@ -128,6 +150,8 @@ export const sopWorkflowEn: SopWorkflowContent = {
     },
     checkCompleted: 'Add a new version to run another check.',
     previewTitle: '{title} · v{version}',
+    previewMeta: '{file} · Added on {date} · by {name}',
+    previewMetaNoUploader: '{file} · Added on {date}',
     viewerTitle: '{title}, v{version} (PDF)',
     docxViewerTitle: '{title}, v{version} (Word document preview)',
     close: 'Close preview',
@@ -157,15 +181,24 @@ export const sopWorkflowEn: SopWorkflowContent = {
 
   timeline: {
     title: 'Review Timeline',
-    columns: { action: 'Action', by: 'By', to: 'To', date: 'Date', version: 'Version', comment: 'Comment' },
+    columns: { action: 'Action', by: 'By', to: 'To', date: 'Date', version: 'Version', comment: 'Comment', preview: 'Preview' },
     none: 'None',
+    reason: {
+      view: { 'reviewer-removed': 'View the Reason for Removing {name}', 'review-declined': 'View the Reason {name} Declined' },
+      title: { 'reviewer-removed': 'Reason for Removing {name}', 'review-declined': 'Reason {name} Declined' },
+    },
     viewMore: 'View More',
     viewLess: 'View Less',
     deadlineChange: 'From {old} to {new}',
     noDeadline: 'no deadline',
+    durationChange: 'From {old} to {new}',
+    durationDays: '{count} working days',
+    durationDay: '1 working day',
+    noDuration: 'no duration',
     events: {
       'review-accepted': 'Review accepted',
       'review-deadline-changed': 'Review deadline changed',
+      'review-duration-changed': 'Review duration changed',
       'review-declined': 'Review declined',
       'review-withdrawn': 'Review request withdrawn (no response)',
       'review-expired': 'Review request expired',

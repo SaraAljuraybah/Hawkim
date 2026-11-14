@@ -270,7 +270,9 @@ begin
   perform pg_temp.act_as(admin1);
   assert (select count(*) from storage.objects o where o.bucket_id = 'guideline-files') > 0, 'Admins read guideline files';
   perform pg_temp.act_as(author);
-  assert (select count(*) from storage.objects o where o.bucket_id = 'guideline-files') = 0, 'Others read none';
+  -- Since 20261108140000 active users may read the PDFs of published versions, and nothing else.
+  assert not exists (select 1 from storage.objects o where o.bucket_id = 'guideline-files' and not public.is_published_guideline_path(o.name)),
+    'Others read no unpublished guideline file';
   perform pg_temp.expect_error(format('insert into storage.objects (bucket_id, name, owner_id) values (''guideline-files'', %L, %L)', 'files/' || gen_random_uuid() || '.pdf', author), '42501');
   perform pg_temp.act_as(admin1);
   insert into storage.objects (bucket_id, name, owner_id) values ('guideline-files', 'files/' || gen_random_uuid() || '.pdf', admin1::text);

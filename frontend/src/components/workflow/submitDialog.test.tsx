@@ -94,7 +94,7 @@ describe('Submit for Review safe frontend presentation', () => {
   it('keeps the due date preview empty, in a polite live region, until a valid duration is typed', () => {
     const html = render()
     expect(html).toMatch(/<p aria-live="polite" class="[^"]*"><\/p>/)
-    expect(html).not.toContain('If accepted today')
+    expect(html).not.toContain('Latest due date')
   })
 
   it('exposes only eligible reviewer options in an accessible searchable picker', () => {
@@ -113,7 +113,7 @@ describe('Submit for Review safe frontend presentation', () => {
     expect(html).not.toContain('name="reviewRequestDueDate"')
     expect(html).not.toContain('type="date"')
     expect(html).not.toContain('Friday and Saturday are excluded')
-    expect(html).toContain('Counted from when the reviewer accepts the request, excluding weekends.')
+    expect(html).toContain('The reviewer has 2 working days to accept. The review duration starts when they accept (weekends excluded).')
     expect(html.match(/<input[^>]*name="reviewDurationDays"[^>]*>/)![0]).toContain('min="1" max="3650"')
     expect(html).not.toContain('The server sets the final date when you submit')
   })

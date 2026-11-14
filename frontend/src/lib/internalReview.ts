@@ -3,7 +3,7 @@ import { checkRequired, hasCurrentCheck } from './compliance'
 import { fixedResponseDueDate } from './fixedResponseDeadline'
 import { todayIsoDate } from './format'
 import { isInactiveDecision, isOpenDecision, isUnsentVersion, isValidReviewDuration, isExpiryDue, latestAssignmentOf, latestAssignments, projectReviewers, requestDeadline, reviewDueDateFrom, expiryDueAt } from './internalReviewStatus'
-import { previewReviewDeadline } from './reviewDeadline'
+import { previewPendingDuration, previewReviewDeadline } from './reviewDeadline'
 import { assignableReviewers, eligibleReviewers, type ReviewEnvironment } from './reviewFlow'
 import { WORKING_DAY_DEADLINES_ACTIVE } from './deadlinePolicy'
 import { parseResponseDueDate } from './responseTime'
@@ -112,16 +112,25 @@ function deadlines(options: InternalReviewOptions, now = new Date()): Pick<Inter
   return { responseDueDate, responseDueAt: endOfRiyadhDay(responseDueDate), deadlinePolicy: WORKING_DAY_POLICY,
     ...(options.reviewDurationDays !== undefined ? { reviewDurationDays: options.reviewDurationDays } : {}) }
 }
+/**
+ * A Draft sent again whose current version already has a round (closed when nobody was left) reopens
+ * that round, as submit_for_review does (one round per version): the new requests join the old ones,
+ * which stay as history. Otherwise a new round.
+ */
 function create(sop: Sop, actorId: string, options: InternalReviewOptions, kind: 'submitted' | 'resubmitted'): Sop {
   const requestedAt = new Date()
   const now = requestedAt.toISOString()
   const timing = deadlines(options, requestedAt)
+  const requests = options.reviewerIds.map((userId): InternalReviewerAssignment => ({ id: id('internal-task'), userId, decision: 'pending', assignedAt: now, assignedDueDays: null, ...timing }))
+  const closed = currentInternalRound(sop)
+  const reopen = closed?.status === 'closed' && closed.version === sop.version
   // Deadlines belong to each request; the round keeps no shared deadline.
-  const round: InternalReviewRound = { id: id('internal-round'), scope: 'internal', version: sop.version, status: 'open', requestedById: actorId, requestedAt: now, assignedDueDays: null,
-    assignments: options.reviewerIds.map((userId) => ({ id: id('internal-task'), userId, decision: 'pending', assignedAt: now, assignedDueDays: null, ...timing })) }
-  const recipientIds = round.assignments.map((person) => person.userId)
-  const events = [event(round, kind, actorId, { createdAt: now, recipientIds, ...(options.note?.trim() ? { note: options.note.trim() } : {}) })]
-  return { ...sop, status: 'in-review', reviewFlow: undefined, internalReviewRounds: [...(sop.internalReviewRounds ?? []), round], reviewers: projectReviewers(round), approvers: [],
+  const round: InternalReviewRound = reopen
+    ? { ...closed, status: 'open', closedAt: undefined, assignments: [...closed.assignments, ...requests] }
+    : { id: id('internal-round'), scope: 'internal', version: sop.version, status: 'open', requestedById: actorId, requestedAt: now, assignedDueDays: null, assignments: requests }
+  const rounds = sop.internalReviewRounds ?? []
+  const events = [event(round, kind, actorId, { createdAt: now, recipientIds: options.reviewerIds, ...(options.note?.trim() ? { note: options.note.trim() } : {}) })]
+  return { ...sop, status: 'in-review', reviewFlow: undefined, internalReviewRounds: reopen ? [...rounds.slice(0, -1), round] : [...rounds, round], reviewers: projectReviewers(round), approvers: [],
     reviewDueDays: undefined, reviewDueAt: undefined,
     approvalDueDays: undefined, approvalDueAt: undefined, lastUpdated: todayIsoDate(), timeline: [...sop.timeline, ...events] }
 }
@@ -191,6 +200,28 @@ export function addInternalReviewers(sop: Sop, actorId: string, options: Interna
     ...options.reviewerIds.map((userId) => ({ id: id('internal-task'), userId, decision: 'pending' as const, assignedAt: now, assignedDueDays: null, ...timing }))] }
   return settleRound(sop, updated, [event(round, 'submitted', actorId, { createdAt: now, recipientIds: options.reviewerIds, ...(options.note?.trim() ? { note: options.note.trim() } : {}) })])
 }
+/** Why Send Again doesn't apply to a request: the review isn't open to it, it didn't expire, it was sent again, or the department rule. */
+export type ResendBlocker = 'closed' | 'not-expired' | 'replaced' | 'home-first'
+/** Why this request can't be sent again now (canResendRequest, then the department rule), or undefined when it can. */
+export function resendBlocker(sop: Sop, round: InternalReviewRound, request: InternalReviewerAssignment, users: ReviewEnvironment['users']): ResendBlocker | undefined {
+  if (!canAddReviewers(sop) || round !== currentInternalRound(sop)) return 'closed'
+  if (request.decision !== 'expired') return 'not-expired'
+  if (latestAssignmentOf(round, request.userId) !== request) return 'replaced'
+  return resendIsTooEarly(sop, request, users) ? 'home-first' : undefined
+}
+/** Why a reviewer can't be removed on this request: the review isn't open to it, a newer request replaced it, or it already ended. */
+export type RemoveBlocker = 'closed' | 'replaced' | 'removed' | 'declined' | 'withdrawn'
+/**
+ * Why the main author can't remove this request's reviewer now, or undefined when they can: the
+ * reviewer's latest request in the current version's review of an SOP In Review, unless it was
+ * removed, declined or withdrawn (an expired one can be removed).
+ */
+export function removeBlocker(sop: Sop, round: InternalReviewRound, request: InternalReviewerAssignment): RemoveBlocker | undefined {
+  const current = currentInternalRound(sop)
+  if (sop.status !== 'in-review' || current?.version !== sop.version || round !== current) return 'closed'
+  if (latestAssignmentOf(round, request.userId) !== request) return 'replaced'
+  return request.decision === 'removed' || request.decision === 'declined' || request.decision === 'withdrawn' ? request.decision : undefined
+}
 /** Whether the main author can send this expired request again: the reviewer's latest, in the current version's review. */
 export function canResendRequest(sop: Sop, round: InternalReviewRound, request: InternalReviewerAssignment): boolean {
   return canAddReviewers(sop) && round === currentInternalRound(sop) && request.decision === 'expired' && latestAssignmentOf(round, request.userId) === request
@@ -244,13 +275,15 @@ export function declineInternalReview(sop: Sop, actorId: string, roundId: string
   return settleRound(sop, updated, [event(round, 'review-declined', actorId, { reviewAssignmentId: assignmentId, note: trimmed, recipientIds: [sop.authorId!, ...sop.coAuthorIds] })])
 }
 /**
- * Recalculates the round after any change: open while someone taking part hasn't finished (or nobody
- * is taking part); once they all have, completed, or changes-requested if anyone returned it.
+ * Recalculates the round after any change: open while someone taking part hasn't finished; once they
+ * all have, completed, or changes-requested if anyone returned it. With nobody taking part (no pending
+ * or accepted request, and nobody who completed or returned it), the round closes and the SOP goes back
+ * to Draft, as settle_review_round does; no event is added for it.
  */
 function settleRound(sop: Sop, round: InternalReviewRound, events: TimelineEvent[]): Sop {
   const taking = latestAssignments(round).filter((person) => !isInactiveDecision(person.decision))
-  // With nobody taking part, the round stays open (and the SOP In Review) until the author asks someone else.
-  if (!taking.length || taking.some((person) => isOpenDecision(person.decision))) return save(sop, { ...round, status: 'open', closedAt: undefined }, events)
+  if (!taking.length) return save(sop, { ...round, status: 'closed', closedAt: new Date().toISOString() }, events, { status: 'draft' })
+  if (taking.some((person) => isOpenDecision(person.decision))) return save(sop, { ...round, status: 'open', closedAt: undefined }, events)
   const status = taking.every((person) => person.decision === 'completed') ? 'completed' : 'changes-requested'
   if (round.status === status) return save(sop, round, events)
   if (status === 'completed') events.push(event(round, 'internal-review-completed', SYSTEM_ACTOR, { recipientIds: [sop.authorId!] }))
@@ -290,20 +323,42 @@ export function removeInternalReviewer(sop: Sop, actorId: string, roundId: strin
   const updated = update(round, assignmentId, { decision: 'removed', removedAt: now, removedById: actorId, removalReason: trimmed })
   return settleRound(sop, updated, [event(round, 'reviewer-removed', actorId, { reviewAssignmentId: assignmentId, note: trimmed, recipientIds: [assignment.userId] })])
 }
-/** The reviewer is reviewing the current version (accepted, on their latest request, in an open round), so their deadline can change. */
+/** Why a request's review deadline or duration can't be changed: the review is over for it, or the request has ended. */
+export type DeadlineEditBlocker = 'closed' | 'removed' | 'declined' | 'withdrawn' | 'expired' | 'completed' | 'returned'
+
+/**
+ * Whether the main author can change this request's review time, as change_review_deadline allows:
+ * the reviewer's latest request, pending (its review duration, before it starts) or accepted (its
+ * review deadline), in the open round of the current version of an SOP In Review.
+ */
+export function deadlineEditBlocker(sop: Sop, round: InternalReviewRound, assignment: InternalReviewerAssignment): DeadlineEditBlocker | undefined {
+  if (sop.status !== 'in-review' || round !== currentInternalRound(sop) || round.version !== sop.version || round.status !== 'open') return 'closed'
+  if (assignment.decision === 'pending' || assignment.decision === 'accepted') return latestAssignmentOf(round, assignment.userId) === assignment ? undefined : 'closed'
+  return assignment.decision
+}
+/** The reviewer's latest request is pending or accepted in the current version's open round, so its review time can change. */
 export function canChangeReviewDeadline(sop: Sop, round: InternalReviewRound, assignment: InternalReviewerAssignment): boolean {
-  return sop.status === 'in-review' && round === currentInternalRound(sop) && round.version === sop.version && round.status === 'open' &&
-    assignment.decision === 'accepted' && latestAssignmentOf(round, assignment.userId) === assignment
+  return !deadlineEditBlocker(sop, round, assignment)
 }
 /**
- * The main author changes a reviewer's review deadline, or sets one: a number of working days from
- * acceptance. The request then follows the working-day policy, whichever one it was sent under.
+ * The main author changes a reviewer's review time: for an accepted request its review deadline (or
+ * sets one), a number of working days from acceptance; for a pending one the review duration it will
+ * start with once they accept. The request then follows the working-day policy, whichever one it was
+ * sent under. The response deadline never changes.
  */
 export function changeInternalReviewDeadline(sop: Sop, actorId: string, roundId: string, assignmentId: string, days: number, env: ReviewEnvironment): Sop {
   author(sop, actorId, env)
   const round = currentInternalRound(sop)
   const assignment = round?.assignments.find((person) => person.id === assignmentId)
   assert(round?.id === roundId && assignment && canChangeReviewDeadline(sop, round, assignment), "This reviewer isn't reviewing this version any more")
+  if (assignment.decision === 'pending') {
+    const planned = previewPendingDuration(assignment, String(days))
+    assert(planned.problem !== 'invalid', 'Choose a review duration of 1 to 3,650 working days')
+    assert(planned.problem !== 'unchanged', 'That is already the review duration')
+    const updated = update(round, assignmentId, { reviewDurationDays: days, deadlinePolicy: WORKING_DAY_POLICY })
+    return save(sop, updated, [event(round, 'review-duration-changed', actorId, { reviewAssignmentId: assignmentId, recipientIds: [assignment.userId],
+      ...(assignment.reviewDurationDays !== undefined ? { previousReviewDurationDays: assignment.reviewDurationDays } : {}), newReviewDurationDays: days })])
+  }
   const preview = previewReviewDeadline(assignment, String(days))
   assert(preview.problem !== 'invalid', 'Choose a review duration of 1 to 3,650 working days')
   assert(preview.problem !== 'past', 'That deadline has already passed')

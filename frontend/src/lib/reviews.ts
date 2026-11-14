@@ -1,6 +1,8 @@
 import type { InternalReviewerAssignment, ReviewerAssignment, Sop } from '../data/mock/types'
 import { isOpenDecision, isExpiryDue, latestAssignmentOf } from './internalReviewStatus'
 import { reviewSopForUser } from './reviewAccess'
+import type { ReviewTabKey } from '../content/types'
+import { parsePage, readChoice } from './pagination'
 import { activeApprovalSubmission, currentDueAt, currentReviewer, isOverdue, reviewerDueAt } from './workflow'
 
 /*
@@ -128,4 +130,24 @@ export function sortTodo(tasks: ReviewTask[], now = Date.now()): ReviewTask[] {
 /** Waiting and Done: most recently updated first. */
 export function sortRecent(tasks: ReviewTask[]): ReviewTask[] {
   return [...tasks].sort((a, b) => b.sop.lastUpdated.localeCompare(a.sop.lastUpdated))
+}
+
+/* ---------- My Reviews: the tab and page of each list in the URL ---------- */
+
+export const REVIEWER_TABS = ['incoming', 'active', 'completed'] as const satisfies readonly ReviewerTaskSection[]
+export const APPROVAL_TABS = ['todo', 'waiting', 'done'] as const satisfies readonly ReviewTabKey[]
+
+/** Default values add nothing to the URL. The approvals list has its own tab and page parameters. */
+export const REVIEWS_URL_DEFAULTS = { tab: 'incoming', page: '1', approvals: 'todo', approvalsPage: '1' }
+/** The URL parameters of the Approvals list. */
+export const APPROVALS_URL_NAMES = { tab: 'approvals', page: 'approvalsPage' }
+
+/** Reads My Reviews from the URL; an invalid value means its default. */
+export function readReviewsUrl(params: URLSearchParams) {
+  return {
+    tab: readChoice(params, 'tab', REVIEWER_TABS, 'incoming'),
+    page: parsePage(params.get('page')),
+    approvalTab: readChoice(params, 'approvals', APPROVAL_TABS, 'todo'),
+    approvalPage: parsePage(params.get('approvalsPage')),
+  }
 }

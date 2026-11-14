@@ -70,18 +70,10 @@ function ScoreRing({ score, label, caption }: { score: number; label: string; ca
 
 /**
  * The Summary: what the score means (full width), then the score ring with a 2×2 square of tiles,
- * one per result, beside it (stacked on phones; one tile per row when even two don't fit). Each
- * tile (0 too) goes to that result's findings (`onSelectResult`).
+ * one per result, beside it (stacked on phones; one tile per row when even two don't fit). The
+ * tiles only show the counts (0 too); they aren't links or buttons.
  */
-export function ExecutiveSummary({
-  check,
-  content,
-  onSelectResult,
-}: {
-  check: ComplianceCheck
-  content: ComplianceContent
-  onSelectResult: (result: ComplianceResult) => void
-}) {
+export function ExecutiveSummary({ check, content }: { check: ComplianceCheck; content: ComplianceContent }) {
   const text = content.report.summary
   const counts = countResults(check)
   const total = check.findings.length
@@ -109,11 +101,7 @@ export function ExecutiveSummary({
               const muted = counts[result] === 0
               return (
                 <li key={result} className="flex">
-                  <button
-                    type="button"
-                    onClick={() => onSelectResult(result)}
-                    className="w-full rounded-lg border border-beige p-3 text-left transition-colors hover:border-maroon/40 hover:bg-beige/40"
-                  >
+                  <div className="w-full rounded-lg border border-beige p-3">
                     <span
                       aria-hidden="true"
                       data-print-color
@@ -123,8 +111,7 @@ export function ExecutiveSummary({
                       {counts[result]}
                     </span>
                     <span className={`mt-1 block text-sm ${muted ? 'text-text-gray' : 'text-maroon'}`}>{content.results[result]}</span>
-                    <span className="sr-only"> {text.goToFindings.replace('{category}', content.results[result])}</span>
-                  </button>
+                  </div>
                 </li>
               )
             })}
@@ -331,7 +318,7 @@ export function FindingCard({ finding, content }: { finding: NumberedFinding; co
   )
 }
 
-/** A titled group of finding cards (h3 over the h4 findings). The heading takes focus when a Summary tile leads here. */
+/** A titled group of finding cards (h3 over the h4 findings). */
 export function FindingGroup({
   id,
   title,
@@ -345,7 +332,7 @@ export function FindingGroup({
 }) {
   return (
     <section aria-labelledby={id} className="mt-6 first:mt-0">
-      <h3 id={id} tabIndex={-1} className="scroll-mt-24 rounded-sm text-base font-semibold text-maroon">
+      <h3 id={id} className="text-base font-semibold text-maroon">
         {title} <span className="font-normal text-text-gray">({findings.length})</span>
       </h3>
       {findings.length === 0 ? (

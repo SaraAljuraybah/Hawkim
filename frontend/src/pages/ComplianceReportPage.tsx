@@ -141,12 +141,6 @@ function Report({ sop, backPath }: { sop: Sop; backPath: string }) {
     scrollAndFocus(document.getElementById(`finding-${number}`))
   }
 
-  /** Summary tiles: show that result's findings tab (its heading, and "No findings…" when there are none) and focus the heading. */
-  function showResult(result: ComplianceResult) {
-    flushSync(() => setTab(result))
-    scrollAndFocus(document.getElementById(`${result}-title`))
-  }
-
   const tabItems: TabItem<TabKey>[] = (['all', ...RESULT_ORDER] as const).map((key) => ({ key, label: text.findings.tabs[key] }))
   const ids = tabIds(TAB_ID_PREFIX, tab)
   const author = nameOf(sop.authorId)
@@ -262,7 +256,7 @@ function Report({ sop, backPath }: { sop: Sop; backPath: string }) {
         >
           {/* b) Summary */}
           <ReportSection id="summary-title" title={text.summary.title}>
-            <ExecutiveSummary check={report} content={content} onSelectResult={showResult} />
+            <ExecutiveSummary check={report} content={content} />
           </ReportSection>
 
           {/* c) Requirements overview */}

@@ -5,10 +5,12 @@ import { AdminTopBar } from '../components/layout/AdminTopBar'
 import { TopBar } from '../components/layout/TopBar'
 import { adminEn } from '../content/admin.en'
 import { appShellEn } from '../content/app.en'
+import type { ReactNode } from 'react'
 import type { Department, User } from '../data/mock/types'
 import { isPathAllowed } from '../lib/departmentNavigation'
 import { ADMIN_PROFILE_PATH, PROFILE_PATH, profilePathFor } from '../lib/routes'
 import { ProfilePage } from './ProfilePage'
+import { SuperAdminContext } from '../state/superAdminContext'
 
 const fixture = vi.hoisted(() => ({
   user: { id: 'me', name: 'Sara Aljuraybah', initials: 'SA', email: 'sara@example.test', departmentId: 'home', permissions: ['author', 'reviewer'] } as User,
@@ -18,10 +20,12 @@ const fixture = vi.hoisted(() => ({
 vi.mock('../hooks/useDocumentTitle', () => ({ useDocumentTitle: (title: string) => { fixture.titles.push(title) } }))
 vi.mock('../state/sessionContext', () => ({ useCurrentUser: () => fixture.user }))
 vi.mock('../state/departmentsContext', () => ({ useDepartments: () => ({ getDepartment: (id: string) => (id === fixture.home.id ? fixture.home : undefined) }) }))
-vi.mock('../components/layout/NotificationsBell', () => ({ NotificationsBell: () => null }))
+vi.mock('../components/layout/NotificationsBell', () => ({ NotificationsBell: () => null, AdminNotificationsBell: () => <button type="button">Notifications</button> }))
 vi.mock('../components/layout/DepartmentSwitcher', () => ({ DepartmentSwitcher: () => <button type="button">Department Switcher</button> }))
 
 const render = () => renderToStaticMarkup(<MemoryRouter><ProfilePage /></MemoryRouter>)
+/** The Permission row's badges. */
+const badges = (html: string) => [...(html.match(/<ul aria-label="Permission"[^>]*>(.*?)<\/ul>/)?.[1] ?? '').matchAll(/<li[^>]*>([^<]+)<\/li>/g)].map((match) => match[1])
 
 beforeEach(() => {
   fixture.home.divisionId = undefined
@@ -32,7 +36,11 @@ beforeEach(() => {
 describe('My Profile', () => {
   it('shows the user\'s own information from their home department, in one h1 page', () => {
     const html = render()
-    for (const text of ['Name', 'Sara Aljuraybah', 'Email', 'sara@example.test', 'Department', 'Pharmacovigilance', 'Division', 'Permission', 'Author, Reviewer']) expect(html).toContain(`>${text}<`)
+    for (const text of ['Name', 'Sara Aljuraybah', 'Email', 'sara@example.test', 'Department', 'Pharmacovigilance', 'Division', 'Permission']) expect(html).toContain(`>${text}<`)
+    // The permissions as the sidebar's and admin pages' gold badges, not plain text.
+    expect(badges(html)).toEqual(['Author', 'Reviewer'])
+    expect(html).toMatch(/<ul aria-label="Permission" class="flex flex-wrap gap-1.5 "><li class="inline-flex items-center rounded-md bg-gold-light\/60 text-xs px-1.5 py-0.5 font-semibold whitespace-nowrap text-maroon">Author<\/li>/)
+    expect(html).not.toContain('Author, Reviewer')
     expect(html).not.toContain('Your Information')
     expect(html).not.toContain('>Role<')
     expect(html).not.toContain('>Roles<')
@@ -74,9 +82,9 @@ describe('My Profile', () => {
   it('shows — without a division, and the division\'s name when configured, never its id', () => {
     expect(render()).toContain('>—<')
     fixture.home.divisionId = 'regulatory_drug_safety'
-    fixture.home.divisionName = 'Regulatory & Drug Safety'
+    fixture.home.divisionName = 'Regulatory and Drug Safety'
     const html = render()
-    expect(html).toContain('>Regulatory &amp; Drug Safety<')
+    expect(html).toContain('>Regulatory and Drug Safety<')
     expect(html).not.toContain('regulatory_drug_safety')
   })
 
@@ -137,11 +145,11 @@ describe('top bar links to My Profile', () => {
     expect(links()[1]).toContain('>Sara Aljuraybah<')
   })
 
-  it('shows "Position | Department" under the name, the separator hidden from screen readers', () => {
+  it('shows "Department | Position" under the name, the separator hidden from screen readers', () => {
     fixture.user = { ...fixture.user, position: 'Pharmacovigilance Specialist' }
     const markup = html()
     const line = markup.match(/<div class="hidden items-center[^"]*sm:flex">(.*?)<\/div>/)![1]
-    expect(line).toBe('<span class="min-w-0 break-words">Pharmacovigilance Specialist</span><span aria-hidden="true" class="shrink-0 text-text-gray/60">|</span><span class="shrink-0"><button type="button">Department Switcher</button></span>')
+    expect(line).toBe('<span class="shrink-0"><button type="button">Department Switcher</button></span><span aria-hidden="true" class="shrink-0 text-text-gray/60">|</span><span class="min-w-0 break-words">Pharmacovigilance Specialist</span>')
     expect(markup.indexOf('Sara Aljuraybah<')).toBeLessThan(markup.indexOf('Pharmacovigilance Specialist'))
   })
 
@@ -187,16 +195,15 @@ describe('top bar links to My Profile', () => {
 describe('My Profile in the admin portal', () => {
   const admin = { ...fixture.user, name: 'Nouf Almutairi', initials: 'NA', permissions: ['admin'] } as User
   const page = () => renderToStaticMarkup(<MemoryRouter><ProfilePage admin /></MemoryRouter>)
-  const value = (html: string, label: string) => html.match(new RegExp(`<dt[^>]*>${label}</dt><dd[^>]*>([^<]*)<`))![1]
 
   beforeEach(() => { fixture.user = admin })
 
-  it('shows the position without the division and department, in one h1 page, with Admin as the permission', () => {
+  it('shows no position, division or department (even if the account still holds them), in one h1 page, with Admin as the permission', () => {
     fixture.user = { ...admin, position: 'IT Manager' }
     const html = page()
-    expect([...html.matchAll(/<dt[^>]*>([^<]+)<\/dt>/g)].map((match) => match[1])).toEqual(['Name', 'Email', 'Phone Number', 'Position', 'Permission', 'Password'])
-    expect(value(html, 'Permission')).toBe('Admin')
-    expect(value(html, 'Position')).toBe('IT Manager')
+    expect([...html.matchAll(/<dt[^>]*>([^<]+)<\/dt>/g)].map((match) => match[1])).toEqual(['Name', 'Email', 'Phone Number', 'Permission', 'Password'])
+    expect(badges(html)).toEqual(['Admin'])
+    expect(html).not.toContain('IT Manager')
     expect(html).not.toContain('Pharmacovigilance')
     expect(html.match(/<h1/g)).toHaveLength(1)
     expect(html).toContain('aria-label="Change Password"')
@@ -220,14 +227,32 @@ describe('My Profile in the admin portal', () => {
     expect(links[1]).toContain('tabindex="-1"')
     expect(links[1]).toContain('aria-hidden="true"')
     expect(links[1]).toContain('>Nouf Almutairi<')
-    // Still shows the role, as plain text.
-    expect(html).toContain('>Administrator</p>')
+    // The role under the name (Super Admin or Admin) needs the portal's shared state: see below.
   })
 
-  it('shows only the role under the admin\'s name: a System Admin has no position or department', () => {
-    const html = renderToStaticMarkup(<MemoryRouter><AdminTopBar content={adminEn.shell} user={{ ...admin, position: 'IT Manager' }} menuOpen={false} onOpenMenu={() => {}} menuButtonRef={{ current: null }} /></MemoryRouter>)
-    expect(html).toContain('<p class="text-xs text-text-gray">Administrator</p>')
+  const inPortal = (superAdminId: string | null, node: ReactNode, status: 'ready' | 'loading' | 'error' = 'ready') => renderToStaticMarkup(
+    <SuperAdminContext.Provider value={{ status, superAdminId, reload: () => {}, set: () => {} }}><MemoryRouter>{node}</MemoryRouter></SuperAdminContext.Provider>,
+  )
+  const topBar = (user: User) => <AdminTopBar content={adminEn.shell} user={user} menuOpen={false} onOpenMenu={() => {}} menuButtonRef={{ current: null }} />
+
+  it('shows only the role under the admin\'s name: an administrator has no position or department', () => {
+    const html = inPortal('someone-else', topBar({ ...admin, position: 'IT Manager' }))
+    expect(html).toContain('<p class="truncate text-xs text-text-gray">Admin</p>')
     expect(html).not.toContain('IT Manager')
+  })
+
+  it('shows "Super Admin" for the current Super Admin, in the top bar and as the permission', () => {
+    expect(inPortal(admin.id, topBar(admin))).toContain('<p class="truncate text-xs text-text-gray">Super Admin</p>')
+    expect(badges(inPortal(admin.id, <ProfilePage admin />))).toEqual(['Super Admin'])
+    expect(badges(inPortal('someone-else', <ProfilePage admin />))).toEqual(['Admin'])
+  })
+
+  it('shows no role under the name until it is known who the Super Admin is', () => {
+    for (const status of ['loading', 'error'] as const) {
+      const html = inPortal(null, topBar(admin), status)
+      expect(html).not.toContain('Super Admin')
+      expect(html).not.toContain('<p class="truncate text-xs text-text-gray">')
+    }
   })
 
   it('knows where each person\'s profile is', () => {
@@ -236,5 +261,13 @@ describe('My Profile in the admin portal', () => {
     expect(profilePathFor({ permissions: ['author'] })).toBe(PROFILE_PATH)
     expect(profilePathFor({ permissions: [] })).toBe(PROFILE_PATH)
     expect(profilePathFor(null)).toBe(PROFILE_PATH)
+  })
+})
+
+describe('the email on My Profile', () => {
+  it('has the copy button right after it', () => {
+    const html = render()
+    expect(html).toContain('<span class="min-w-0 break-all">sara@example.test</span>')
+    expect(html).toContain('aria-label="Copy your email"')
   })
 })

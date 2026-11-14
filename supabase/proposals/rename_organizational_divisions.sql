@@ -6,8 +6,8 @@ do $$
 declare requested record; current_name text;
 begin
   for requested in select * from (values
-    ('rnd', 'R&D Division', 'Clinical Research & Development'),
-    ('governance_quality_compliance', 'Governance, Quality & Compliance', 'Quality & Compliance')
+    ('rnd', 'R&D Division', 'Clinical Research and Development'),
+    ('governance_quality_compliance', 'Governance, Quality & Compliance', 'Quality and Compliance')
   ) changes(id, old_name, new_name) order by id
   loop
     select name into current_name from public.divisions where id = requested.id for update;

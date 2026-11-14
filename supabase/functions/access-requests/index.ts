@@ -2,7 +2,7 @@
 // 20261106130000_access_requests.sql). Called by the website with a JSON body { action, ... }:
 //   submit  the public form: stores the request, emails the team a review link, confirms to the requester
 //   view    the review page: the request, when the review link's id and token match
-//   accept  creates the requester's account as Admin and emails them a link to set their password
+//   accept  creates the requester's account as the organization's Super Admin and emails them a link to set their password
 //   reject  marks the request rejected and tells the requester
 //
 // Secrets (Dashboard → Edge Functions → Secrets):
@@ -16,6 +16,9 @@
 //   supabase functions deploy access-requests --no-verify-jwt
 
 import { renderEmail } from "../send-email/templates.ts"
+import { detailsTable, esc, normalizePhone, type RequestForm, validateForm } from "./form.ts"
+
+export { detailsTable, normalizePhone, validateForm, type RequestForm }
 
 const env = (name: string, fallback = "") => Deno.env.get(name) ?? fallback
 const CORS = {
@@ -27,44 +30,11 @@ const json = (status: number, body: unknown) =>
   new Response(JSON.stringify(body), { status, headers: { ...CORS, "Content-Type": "application/json" } })
 const fail = (status: number, error: string, extra: Record<string, unknown> = {}) => json(status, { error, ...extra })
 
-const esc = (s: string) =>
-  s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;")
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const TOKEN = /^[A-Za-z0-9_-]{43}$/
-const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 // ---------- Validation ----------
 
-/** A Saudi mobile number as +9665XXXXXXXX (the profiles.phone format), or undefined. */
-export function normalizePhone(input: string): string | undefined {
-  const digits = input.replace(/[\s\-().]/g, "")
-  const m = digits.match(/^(?:\+966|00966|966|0)?(5\d{8})$/)
-  return m ? `+966${m[1]}` : undefined
-}
-
-export type RequestForm = {
-  organization: string; contactName: string; jobTitle: string; email: string; phone: string
-  approxUsers: number; message: string
-}
-
-/** The cleaned form, or the names of the fields that are not valid. */
-export function validateForm(input: Record<string, unknown>): { form: RequestForm } | { invalid: string[] } {
-  const text = (k: string) => (typeof input[k] === "string" ? (input[k] as string).trim() : "")
-  const invalid: string[] = []
-  const organization = text("organization"), contactName = text("contactName"), jobTitle = text("jobTitle")
-  const email = text("email").toLowerCase(), message = text("message")
-  const phone = normalizePhone(text("phone"))
-  const approxUsers = Number(input.approxUsers)
-  if (!organization || organization.length > 200) invalid.push("organization")
-  if (!contactName || contactName.length > 100) invalid.push("contactName")
-  if (!jobTitle || jobTitle.length > 100) invalid.push("jobTitle")
-  if (!EMAIL.test(email) || email.length > 254) invalid.push("email")
-  if (!phone) invalid.push("phone")
-  if (!Number.isInteger(approxUsers) || approxUsers < 1 || approxUsers > 100000) invalid.push("approxUsers")
-  if (message.length > 2000) invalid.push("message")
-  if (invalid.length) return { invalid }
-  return { form: { organization, contactName, jobTitle, email, phone: phone!, approxUsers, message } }
-}
 
 // ---------- Review link token ----------
 
@@ -120,21 +90,16 @@ async function sendEmail(to: string, subject: string, html: string): Promise<voi
   if (!res.ok) throw new Error(`SNDR ${res.status}: ${(await res.text()).slice(0, 200)}`)
 }
 
-function detailsTable(f: RequestForm): string {
-  const row = (label: string, value: string) =>
-    `<tr><td style="padding:6px 12px 6px 0;color:#6D5D62;white-space:nowrap;vertical-align:top;">${label}</td><td style="padding:6px 0;color:#2A1B20;">${value}</td></tr>`
-  return `<table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:12px 0 4px 0;font-size:15px;line-height:22px;">
-    ${row("Organization", esc(f.organization))}${row("Contact person", esc(f.contactName))}${row("Position", esc(f.jobTitle))}
-    ${row("Email", esc(f.email))}${row("Phone", esc(f.phone))}${row("Approximate number of users", String(f.approxUsers))}
-    ${row("Message", f.message ? esc(f.message).replace(/\n/g, "<br>") : "—")}</table>`
-}
 
 // ---------- Actions ----------
 
 type StoredRequest = {
-  id: string; organization: string; contact_name: string; job_title: string; email: string; phone: string
+  id: string; organization: string; contact_name: string; job_title: string | null; email: string; phone: string
   approx_users: number; message: string; status: "pending" | "accepted" | "rejected"; created_at: string
   decided_at: string | null; expired: boolean; account_exists: boolean
+  /** null on requests sent before the form asked for them. */
+  organization_email: string | null; organization_address: string | null; organization_maps_url: string | null
+  organization_website: string | null; organization_description: string | null
 }
 
 async function submit(input: Record<string, unknown>): Promise<Response> {
@@ -149,9 +114,15 @@ async function submit(input: Record<string, unknown>): Promise<Response> {
     id = await rpc<string>("submit_access_request", {
       p_organization: f.organization, p_contact_name: f.contactName, p_job_title: f.jobTitle, p_email: f.email,
       p_phone: f.phone, p_approx_users: f.approxUsers, p_message: f.message, p_token_hash: await sha256Hex(token),
+      p_organization_email: f.organizationEmail, p_organization_address: f.organizationAddress,
+      p_organization_maps_url: f.organizationMapsUrl, p_organization_website: f.organizationWebsite,
+      p_organization_description: f.organizationDescription,
     })
   } catch (e) {
     if (e instanceof DbError && e.message === "too_many_requests") return fail(429, "too_many_requests")
+    if (e instanceof DbError && e.message === "organization_taken") return fail(409, "organization_taken")
+    // The database checks the organization's details again (validateForm checked them first).
+    if (e instanceof DbError && e.message === "invalid_organization_details") return fail(400, "invalid")
     console.error("access-requests: submit failed:", e instanceof Error ? e.message : e)
     return fail(500, "failed")
   }
@@ -163,7 +134,7 @@ async function submit(input: Record<string, unknown>): Promise<Response> {
       heading: "New request for Hawkim",
       intro: `Hello Hawkim team,<br><br>We would like to request Hawkim for our organization.${detailsTable(f)}`,
       button: "Review request",
-      note: "Accepting creates the contact person’s account as the organization’s Admin and emails them a link to set their password. The review link works for 14 days.",
+      note: "Accepting creates the contact person’s account as the organization’s Super Admin and emails them a link to set their password. The review link works for 14 days.",
     }, reviewUrl))
   } catch (e) {
     console.error(`access-requests: team email for ${id} failed:`, e instanceof Error ? e.message : e)
@@ -197,6 +168,9 @@ function publicView(r: StoredRequest) {
     organization: r.organization, contactName: r.contact_name, jobTitle: r.job_title, email: r.email, phone: r.phone,
     approxUsers: r.approx_users, message: r.message, status: r.status, createdAt: r.created_at, decidedAt: r.decided_at,
     expired: r.expired, accountExists: r.account_exists,
+    organizationEmail: r.organization_email, organizationAddress: r.organization_address,
+    organizationMapsUrl: r.organization_maps_url, organizationWebsite: r.organization_website,
+    organizationDescription: r.organization_description,
   }
 }
 
@@ -219,6 +193,14 @@ async function accept(input: Record<string, unknown>): Promise<Response> {
   const blocked = undecidable(r)
   if (blocked) return blocked
   if (r.account_exists) return fail(409, "email_in_use")
+  // One organization per deployment: once it has an Admin (its Super Admin), no other request is
+  // accepted here. Checked before any account is created; accept_access_request checks it again.
+  try {
+    if (await rpc<boolean>("deployment_onboarded", {}) === true) return fail(409, "deployment_onboarded")
+  } catch (e) {
+    console.error(`access-requests: onboarding check for ${r.id} failed:`, e instanceof Error ? e.message : e)
+    return fail(500, "failed")
+  }
 
   const site = env("SITE_URL", "https://www.tryhawkim.com").replace(/\/$/, "")
   let link: LinkResult
@@ -234,6 +216,7 @@ async function accept(input: Record<string, unknown>): Promise<Response> {
     const code = e instanceof DbError ? e.message : "failed"
     console.error(`access-requests: accept ${r.id} failed:`, code)
     if (code === "email_in_use") return fail(409, "email_in_use")
+    if (code === "deployment_onboarded") return fail(409, "deployment_onboarded")
     if (code === "request_already_decided") return fail(409, "already_decided")
     if (code === "review_link_expired") return fail(410, "expired")
     return fail(500, "failed")
@@ -243,7 +226,7 @@ async function accept(input: Record<string, unknown>): Promise<Response> {
     await sendEmail(r.email, "Your Hawkim account is ready", renderEmail({
       subject: "Your Hawkim account is ready",
       heading: "Welcome to Hawkim",
-      intro: `Hello ${esc(r.contact_name)},<br><br>Your request to use Hawkim for <strong>${esc(r.organization)}</strong> was accepted. You are the organization’s <strong>Admin</strong>: set your password to sign in, then invite your colleagues.`,
+      intro: `Hello ${esc(r.contact_name)},<br><br>Your request to use Hawkim for <strong>${esc(r.organization)}</strong> was accepted. You are the organization’s <strong>Super Admin</strong>: set your password to sign in, then invite your colleagues.`,
       button: "Set your password",
       note: `Sign in with this email address (${esc(r.email)}). If the link has expired, use “Forgot password?” on the sign-in page.`,
     }, link.action_link))

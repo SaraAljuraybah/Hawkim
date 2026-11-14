@@ -36,7 +36,7 @@ import {
   routeToReviewer,
   submitForReview,
   timelineRecipients,
-  updateDescription,
+  updateDetails,
   uploadVersion,
 } from './workflow'
 
@@ -679,27 +679,45 @@ describe('managing co-authors (Add co-authors, Remove)', () => {
   })
 })
 
-describe('SOP description', () => {
-  it('lets the main author change it, trimmed, without a timeline event', () => {
-    const before = draft({ description: 'Old text', lastUpdated: '2026-01-01' })
-    const changed = updateDescription(before, SARA, '  New scope and purpose.  ')
+describe('SOP details (title and description)', () => {
+  const details = (title: string, description: string) => ({ title, description })
+
+  it('lets the main author change both, trimmed, without a timeline event', () => {
+    const before = draft({ title: 'Old title', description: 'Old text', lastUpdated: '2026-01-01' })
+    const changed = updateDetails(before, SARA, details('  New title  ', '  New scope and purpose.  '))
+    expect(changed.title).toBe('New title')
     expect(changed.description).toBe('New scope and purpose.')
     expect(changed.lastUpdated).not.toBe('2026-01-01')
     expect(changed.timeline).toEqual(before.timeline)
-    expect(updateDescription(before, SARA, '   ').description).toBe('')
+    expect(updateDetails(before, SARA, details('Old title', '   ')).description).toBe('')
+  })
+
+  it('changes only the title and description: status, reviewers, versions and files stay as they are', () => {
+    for (const before of [inReview(), inApproval()]) {
+      const changed = updateDetails(before, SARA, details('Renamed during review', 'New text'))
+      const { title: _title, description: _description, lastUpdated: _lastUpdated, ...rest } = changed
+      const { title: _t, description: _d, lastUpdated: _l, ...kept } = before
+      expect(rest).toEqual(kept)
+      expect(changed.status).toBe(before.status)
+      expect(changed.versions).toEqual(before.versions)
+      expect(changed.fileName).toBe(before.fileName)
+    }
   })
 
   it('is editable at any status before publishing', () => {
-    expect(updateDescription(inReview(), SARA, 'During review').description).toBe('During review')
-    expect(updateDescription(inApproval(), SARA, 'During approval').description).toBe('During approval')
-    expect(() => updateDescription(draft({ status: 'published' }), SARA, 'Too late')).toThrow(/published/)
+    expect(updateDetails(inReview(), SARA, details('T', 'During review')).description).toBe('During review')
+    expect(updateDetails(inApproval(), SARA, details('T', 'During approval')).description).toBe('During approval')
+    expect(() => updateDetails(draft({ status: 'published' }), SARA, details('T', 'Too late'))).toThrow(/published/)
   })
 
-  it('is only for the main author, within 1000 characters', () => {
-    expect(() => updateDescription(draft(), REEM, 'Co-author edit')).toThrow(/Only the main author/)
-    expect(() => updateDescription(draft(), NOURA, 'Reviewer edit')).toThrow(/Only the main author/)
-    expect(updateDescription(draft(), SARA, 'a'.repeat(1000)).description).toHaveLength(1000)
-    expect(() => updateDescription(draft(), SARA, 'a'.repeat(1001))).toThrow(/1000 characters/)
+  it('is only for the main author, with a required title of up to 50 characters and up to 1000 for the description', () => {
+    expect(() => updateDetails(draft(), REEM, details('T', 'Co-author edit'))).toThrow(/Only the main author/)
+    expect(() => updateDetails(draft(), NOURA, details('T', 'Reviewer edit'))).toThrow(/Only the main author/)
+    expect(() => updateDetails(draft(), SARA, details('   ', 'x'))).toThrow(/title is required/)
+    expect(updateDetails(draft(), SARA, details('a'.repeat(50), '')).title).toHaveLength(50)
+    expect(() => updateDetails(draft(), SARA, details('a'.repeat(51), ''))).toThrow(/50 characters/)
+    expect(updateDetails(draft(), SARA, details('T', 'a'.repeat(1000))).description).toHaveLength(1000)
+    expect(() => updateDetails(draft(), SARA, details('T', 'a'.repeat(1001)))).toThrow(/1000 characters/)
   })
 })
 

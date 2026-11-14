@@ -9,15 +9,24 @@ export const adminEn: AdminContent = {
   shell: {
     skipLink: 'Skip to main content',
     brandName: 'Hawkim',
-    homeHref: '/admin/departments',
-    portalLabel: 'Admin',
-    homeLinkLabel: 'Hawkim admin, go to Divisions & Departments',
-    navAriaLabel: 'Admin',
+    homeHref: '/admin/organization-profile',
+    homeLinkLabel: 'Hawkim Admin Portal, go to Organization Profile',
+    navAriaLabel: 'Admin Portal',
     nav: [
-      { label: 'Divisions & Departments', href: '/admin/departments', icon: 'departments', matchSubpaths: true },
-      { label: 'Staff', href: '/admin/users', icon: 'employees', matchSubpaths: true },
-      { label: 'SFDA Regulatory Requirements', href: '/admin/regulations', icon: 'regulatory', matchSubpaths: true },
+      { label: 'Organization Profile', href: '/admin/organization-profile', icon: 'organization', matchSubpaths: true },
       { label: 'Organizational Structure', href: '/admin/organizational-structure', icon: 'hierarchy', matchSubpaths: true },
+      // A collapsible group, not a page: it opens by itself on any of its pages.
+      {
+        id: 'manage-organization',
+        label: 'Manage Organization',
+        icon: 'organization',
+        children: [
+          { label: 'Divisions and Departments', href: '/admin/departments', icon: 'departments', matchSubpaths: true },
+          { label: 'Staff', href: '/admin/users', icon: 'employees', matchSubpaths: true },
+          { label: 'Admins', href: '/admin/admins', icon: 'admins', matchSubpaths: true },
+        ],
+      },
+      { label: 'Regulatory Requirements', href: '/admin/regulations', icon: 'regulatory', matchSubpaths: true },
       { label: 'SOP Directory', href: '/admin/sops', icon: 'sops', matchSubpaths: true },
       { label: 'Requests', href: '/admin/requests', icon: 'requests', matchSubpaths: true },
     ],
@@ -25,55 +34,111 @@ export const adminEn: AdminContent = {
     openMenu: 'Open menu',
     closeMenu: 'Close menu',
     drawerLabel: 'Navigation',
-    roleLabel: 'Administrator',
-    positionSeparator: '|',
+    rolesLabel: 'Your permissions',
     profileLink: { label: 'My Profile, {name}', href: '/admin/profile' },
     pendingLabel: '{count} pending',
   },
-  pageTitle: '{page} · Admin | Hawkim',
+  pageTitle: '{page} · Admin Portal | Hawkim',
 
   usersList: {
     title: 'Staff',
+    subtitle: "View and manage your organization's staff and their permissions.",
     addUser: { label: 'Add Staff', href: '/admin/users/new' },
     search: { label: 'Search Staff', placeholder: 'Search by staff name, email, division, department' },
-    divisionFilter: { label: 'Division', all: 'All Divisions', noDivision: 'No Division' },
-    departmentFilter: { label: 'Department', all: 'All Departments' },
-    count: { one: '{count} staff member', other: '{count} staff members' },
+    sort: {
+      label: 'Sort',
+      options: {
+        default: 'Default order',
+        'name-asc': 'A to Z', 'name-desc': 'Z to A',
+        'division-asc': 'A to Z', 'division-desc': 'Z to A',
+        'department-asc': 'A to Z', 'department-desc': 'Z to A',
+      },
+      groups: { name: 'Staff name', division: 'Division name', department: 'Department name' },
+    },
+    clearFilters: 'Clear Filters',
+    tabs: { label: 'Staff status', active: 'Active Staff', deactivated: 'Deactivated Staff' },
     tableLabel: 'Staff',
-    columns: { name: 'Name', division: 'Division', department: 'Department', permissions: 'Permission', actions: 'Actions' },
+    columns: {
+      name: 'Name', division: 'Division', department: 'Department', permissions: 'Permission',
+      preview: 'Preview', edit: 'Edit', delete: 'Delete', reactivate: 'Reactivate',
+    },
     none: '—',
     actions: { view: 'View {name}', edit: 'Edit {name}' },
     empty: 'No staff found.',
+    emptyDeactivated: 'No deactivated staff members found.',
   },
 
-  /** Delete Staff, the same on the Staff list and a staff member's page. */
+  /**
+   * Delete Staff, the same everywhere (Active Staff tab, a staff member's page, Edit Staff): it makes their
+   * account inactive (they lose access, and their account and history are kept). Reactivate brings them back.
+   */
   deleteUser: {
     /** Accessible name and tooltip of the Trash button; `{name}` is replaced. */
     button: 'Delete {name}',
-    title: 'Delete Staff?',
-    description: "Are you sure you want to delete {name}? This can't be undone.",
+    busy: 'Deleting {name}…',
+    title: 'Delete {name}?',
+    description: 'Deleting a staff member makes their account inactive. Nothing is permanently deleted.',
+    consequences: [
+      'Their account status will change to Inactive.',
+      'All of their staff information and historical records will be kept.',
+      'They won’t be able to access Hawkim while their account is inactive.',
+      'You can reactivate their account later from the Deactivated Staff tab.',
+    ],
     cancel: 'Cancel',
     confirm: 'Delete',
     /** Above the reasons when deleting is refused; `{name}` is replaced. */
-    refused: "{name} can't be deleted:",
-    /** Shown on the Staff list afterwards; `{name}` is replaced. */
-    done: '{name} deleted.',
+    refused: "{name} wasn't deleted:",
+    /** Shown afterwards; `{name}` is replaced. */
+    done: '{name} was deleted. Their account is now inactive.',
+    failures: {
+      forbidden: "You don't have permission to delete staff. Sign in again and retry.",
+      'not-found': 'This staff member no longer exists. Reload the page.',
+      'self-delete': "You can't delete your own account.",
+      'admin-managed-separately': 'Admins are managed on the Admins page.',
+      failed: 'Check your connection and try again.',
+    },
+    inProgress: {
+      one: '{name} has {count} SOP in progress. All assigned SOP work must be completed before they can be deleted.',
+      other: '{name} has {count} SOPs in progress. All assigned SOP work must be completed before they can be deleted.',
+    },
+  },
+
+  /** Reactivate, for a deactivated staff member (Deactive Staff tab, their page, Edit Staff). */
+  reactivateUser: {
+    button: 'Reactivate {name}',
+    label: 'Reactivate Staff',
+    busy: 'Reactivating {name}…',
+    title: 'Reactivate {name}?',
+    description: 'Their account will be active again, with the same permissions, division and department as before. They can sign in to Hawkim with their existing password.',
+    cancel: 'Cancel',
+    confirm: 'Reactivate',
+    refused: "{name} wasn't reactivated:",
+    done: '{name} was reactivated. Their account is active again.',
+    failures: {
+      forbidden: "You don't have permission to reactivate staff. Sign in again and retry.",
+      'not-found': 'This staff member no longer exists. Reload the page.',
+      'admin-managed-separately': 'Admins are managed on the Admins page.',
+      'email-taken': 'Another active account now uses this email. Change their email in Edit Staff, then reactivate them.',
+      'account-unavailable': "Their sign-in account is no longer available, so they can't be reactivated.",
+      'department-unavailable': 'Their department is no longer available. Choose another department in Edit Staff, then reactivate them.',
+      failed: 'Check your connection and try again.',
+    },
   },
 
   permissionDescriptions: {
     author: 'Adds SOPs, works on them with co-authors and submits them for review.',
     reviewer: 'Reviews submitted SOPs and returns them with comments when needed.',
     approver: 'Approves reviewed SOPs and publishes them.',
-    admin: 'Manages staff and permissions in the admin portal.',
+    admin: 'Manages the organization in the Admin Portal.',
   },
 
   addUser: {
     title: 'Add Staff',
-    subtitle: 'Add someone who should be able to use Hawkim.',
+    subtitle: 'Add a staff member who should be able to use Hawkim, with their placement and permissions.',
     back: { label: 'Back to Staff', href: '/admin/users' },
     name: { label: 'Full Name' },
-    email: { label: 'Email', hint: 'They sign in with this email.' },
-    phone: { label: 'Phone Number', hint: 'Saudi mobile number in the format +9665XXXXXXXX.', placeholder: '+966512345678' },
+    email: { label: 'Email' },
+    phone: { label: 'Phone Number', hint: 'Saudi mobile number: +9665XXXXXXXX' },
     division: {
       label: 'Division',
       placeholder: 'Select or type a division',
@@ -103,6 +168,8 @@ export const adminEn: AdminContent = {
       'department-unavailable': 'This department is no longer available. Choose another.',
       'account-failed': "The account couldn't be created. Try again in a few minutes.",
       'account-blocked': "This person's account is blocked. Ask the project owner to unblock it.",
+      'admin-managed-separately': 'This email belongs to a former Admin. Admins are managed on the Admins page.',
+      'invitation-failed': "This email belongs to a deactivated staff member, but their new invitation couldn't be sent, so they stay deactivated. Try again in a few minutes.",
       failed: 'Check your connection and try again.',
     },
     errors: {
@@ -110,7 +177,7 @@ export const adminEn: AdminContent = {
       emailInvalid: 'Enter a valid email address, e.g. name@example.com.',
       emailTaken: 'A staff member with this email already exists.',
       phoneRequired: 'Enter a phone number.',
-      phoneInvalid: 'Enter a Saudi mobile number as +9665 followed by 8 digits, e.g. +966512345678.',
+      phoneInvalid: 'Enter the 8 digits after +9665.',
       divisionRequired: 'Select a division from the list.',
       departmentRequired: 'Select a department from the list.',
       positionRequired: "Enter the staff member's position.",
@@ -121,7 +188,7 @@ export const adminEn: AdminContent = {
 
   editUser: {
     title: 'Edit Staff',
-    subtitle: "Update this staff member's details and permissions.",
+    subtitle: "Update this staff member's details, placement and permissions.",
     submit: 'Save Changes',
     saving: 'Saving…',
     saved: 'Changes saved.',
@@ -133,7 +200,7 @@ export const adminEn: AdminContent = {
       conflict: 'Someone else changed this staff member. Reload the page and try again.',
       invalid: 'Check the name, phone number and position, then try again.',
       'self-admin': "You can't remove your own Admin permission.",
-      'last-admin': 'Hawkim must always have at least one admin.',
+      'last-admin': 'Hawkim must always have at least one Admin.',
       'admin-exclusive': "An Admin can't have any other permission.",
       'approver-quality': 'Approver is only allowed in the Quality department.',
       'department-unavailable': 'This department is no longer available. Choose another.',
@@ -170,11 +237,18 @@ export const adminEn: AdminContent = {
   userDetails: {
     back: { label: 'Back to Staff', href: '/admin/users' },
     edit: 'Edit Staff',
+    delete: 'Delete Staff',
+    deleting: 'Deleting…',
+    copyEmail: 'Copy {name}’s email',
+    copied: 'Email copied',
+    copyFailed: 'Could not copy email. Select and copy the address.',
     added: "Staff member added. We've emailed them an invitation to set their password.",
     addedInvitationFailed: "Staff member added, but the invitation email couldn't be sent. Ask them to use Forgot Password on the sign-in page.",
+    reactivated: 'Staff member reactivated. A new invitation has been sent.',
+    reactivatedInvitationFailed: "Staff member reactivated, but the invitation email couldn't be sent. Ask them to use Forgot Password on the sign-in page.",
     details: {
       title: 'Details',
-      name: 'Name',
+      name: 'Full Name',
       email: 'Email',
       phone: 'Phone Number',
       division: 'Division',
@@ -183,17 +257,10 @@ export const adminEn: AdminContent = {
       permission: 'Permission',
       notSet: '—',
     },
-    involvement: {
-      title: 'Involved in',
-      empty: 'Not involved in any SOP.',
-      label: 'SOPs this staff member is involved in',
-      roles: { author: 'Author', 'co-author': 'Co-author', reviewer: 'Reviewer', approver: 'Approver' },
-      rolesLabel: 'Role:',
-    },
     blockers: {
-      selfDelete: "You can't delete your own account.",
+      selfDelete: "You can't deactivate your own account.",
       selfAdmin: "You can't remove your own Admin permission.",
-      lastAdmin: 'Hawkim must always have at least one admin, and {name} is the only one.',
+      lastAdmin: 'Hawkim must always have at least one Admin, and {name} is the only one.',
       inUse: {
         author: '{name} authors or co-authors {sops} (not published yet).',
         reviewer: '{name} is assigned as a reviewer on {sops}.',
@@ -231,7 +298,7 @@ export const adminEn: AdminContent = {
       subtitle: 'Change the division, name or description of {name}.',
       submit: 'Save Changes',
     },
-    backToList: { label: 'Back to Divisions & Departments', href: '/admin/departments' },
+    backToList: { label: 'Back to Divisions and Departments', href: '/admin/departments' },
     backToDepartment: 'Back to {name}',
     name: { label: 'Name' },
     description: { label: 'Description', hint: 'One line about what the department does (up to 200 characters).', counter: '{count} / {max}' },
@@ -276,7 +343,7 @@ export const adminEn: AdminContent = {
   },
 
   requestDetails: {
-    pageTitle: '{title} · Requests · Admin | Hawkim',
+    pageTitle: '{title} · Requests · Admin Portal | Hawkim',
     back: { label: 'Back to Requests', href: '/admin/requests' },
     requester: {
       title: 'Requester',
@@ -326,9 +393,16 @@ export const adminEn: AdminContent = {
   },
 
   regulations: {
-    title: 'SFDA Regulatory Requirements',
+    title: 'Regulatory Requirements',
     subtitle: 'Manage the SFDA GVP versions used for compliance checks.',
     addVersion: { label: 'Add New Version', href: '/admin/regulations/new' },
+    // Add New Version while another version is waiting for or being processed (one at a time).
+    inProgress: {
+      title: 'A Version Is Being Processed',
+      text: 'GVP {version} is still being processed. You can add a new version when its processing finishes.',
+      view: 'View GVP {version}',
+      close: 'Close',
+    },
     versionName: 'GVP Version {version}',
     added: 'GVP version {version} added.',
     current: { title: 'Current Version', badge: 'Current' },
@@ -342,7 +416,7 @@ export const adminEn: AdminContent = {
       addedBy: 'Added By',
       source: 'Source',
       file: 'File',
-      requirements: 'Requirements',
+      requirements: 'Requirement Passages',
     },
     none: '—',
     // TEMPORARY placeholder: v4.0 was added by a setup script, so it has no recorded uploader.
@@ -350,7 +424,7 @@ export const adminEn: AdminContent = {
     addedByFallback: 'Nouf Almutairi',
     /** After the Source link, for screen readers. */
     newTab: '(opens in a new tab)',
-    requirementsCount: { one: '{count} Requirement', other: '{count} Requirements' },
+    requirementsCount: { one: '{count} Requirement Passage', other: '{count} Requirement Passages' },
     addedLoadFailed: {
       text: "Some versions couldn't be loaded. Check your connection and try again.",
       retry: 'Retry',
@@ -358,7 +432,7 @@ export const adminEn: AdminContent = {
     history: {
       title: 'Version History',
       tableLabel: 'GVP versions, newest first',
-      columns: { title: 'Title', version: 'Version', issued: 'Issued by SFDA On', added: 'Added to Hawkim On', actions: 'Actions' },
+      columns: { title: 'Title', version: 'Version', issued: 'Issued by SFDA On', added: 'Added to Hawkim On', preview: 'Preview', edit: 'Edit', delete: 'Delete' },
     },
     /** "{title} v{version}", e.g. in button names and notices. */
     versionLabel: '{title} v{version}',
@@ -370,6 +444,7 @@ export const adminEn: AdminContent = {
     },
     updated: '{name} updated.',
     deleted: '{name} deleted.',
+    cancelled: 'Processing cancelled and version deleted.',
     deleteDialog: {
       title: 'Delete GVP Version?',
       description: "Are you sure you want to delete {name}? This can't be undone.",
@@ -385,7 +460,7 @@ export const adminEn: AdminContent = {
     editTitle: 'Edit GVP Version',
     save: 'Save',
     subtitle: 'Add a new version of the SFDA GVP guideline.',
-    back: { label: 'Back to SFDA Regulatory Requirements', href: '/admin/regulations' },
+    back: { label: 'Back to Regulatory Requirements', href: '/admin/regulations' },
     titleField: { label: 'Title' },
     version: { label: 'Version', hint: 'For example 4.1 or 5.0.' },
     issuedDate: { label: 'Issued by SFDA On' },
@@ -410,6 +485,7 @@ export const adminEn: AdminContent = {
       versionInvalid: 'Enter a version number like 4.1.',
       versionExists: 'Version {version} already exists. Enter a new version number.',
       versionNotHigher: 'The new version must be higher than {current}.',
+      versionProcessing: 'GVP {version} is still being processed. Add the new version when its processing finishes.',
       addedRequired: 'The date it is added to Hawkim is missing. Reload the page.',
       issuedRequired: 'Enter the date SFDA issued this version.',
       issuedAfterAdded: "The issue date can't be after the date it's added to Hawkim.",
@@ -433,7 +509,7 @@ export const adminEn: AdminContent = {
   },
 
   regulationDetails: {
-    back: { label: 'Back to SFDA Regulatory Requirements', href: '/admin/regulations' },
+    back: { label: 'Back to Regulatory Requirements', href: '/admin/regulations' },
     details: { title: 'Details' },
     file: {
       title: 'File',
@@ -447,13 +523,16 @@ export const adminEn: AdminContent = {
       },
     },
     requirements: {
-      title: 'Requirements',
-      tableLabel: 'Requirements',
+      title: 'Requirement Passages',
+      tableLabel: 'Requirement passages',
+      loading: 'Loading requirement passages…',
+      failed: "The requirement passages couldn't be loaded. Check your connection and try again.",
+      retry: 'Try Again',
       columns: { id: 'ID', module: 'Module', section: 'Section', title: 'Title', page: 'Page', summary: 'Summary' },
       page: 'p. {page}',
     },
     processing: {
-      title: 'Processing',
+      title: 'Status',
       status: {
         waiting: 'Waiting for the compliance service to process this version.',
         processing: 'The compliance service is reading this version and preparing its requirements. This can take several minutes.',
@@ -462,12 +541,12 @@ export const adminEn: AdminContent = {
       },
       keepWorking: 'You can keep using Hawkim; this page updates by itself when processing is done.',
       progress: {
-        reading: 'Reading the PDF…',
-        embedding: 'Preparing requirements: {done} of {total} ({percent}%)',
-        saving: 'Saving the requirements…',
+        withDetail: '{stage}: {detail} ({percent}%)',
+        withoutDetail: '{stage} ({percent}%)',
+        starting: 'Reading the regulatory requirements file',
         label: 'Processing progress',
       },
-      report: '{requirements} requirements from {sections} sections',
+      report: '{requirements} requirement passages from {sections} sections',
       pages: '{pages} pages',
       warningsTitle: 'Warnings',
       missingExcluded: 'These excluded SFDA sections are not in this version: {sections}. Check the compliance service settings.',
@@ -482,7 +561,7 @@ export const adminEn: AdminContent = {
   },
 
   departmentDetails: {
-    back: { label: 'Back to Divisions & Departments', href: '/admin/departments' },
+    back: { label: 'Back to Divisions and Departments', href: '/admin/departments' },
     added: 'Department added.',
     updated: 'Department updated.',
     titleWithCount: '{title} ({count})',

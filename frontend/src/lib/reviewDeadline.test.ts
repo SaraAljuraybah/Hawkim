@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { sopWorkflowEn } from '../content/workflow.en'
 import { internalReviewEn } from '../content/internalReview.en'
-import { previewReviewDeadline, ReviewDeadlineUnavailableError, reviewDeadlineFailure, reviewDueDateIfAcceptedNow } from './reviewDeadline'
+import { fixedResponseDueDate, RESPONSE_WORKING_DAYS } from './fixedResponseDeadline'
+import { latestReviewDueDate, previewReviewDeadline, ReviewDeadlineUnavailableError, reviewDeadlineFailure } from './reviewDeadline'
 import { formatDateWithWeekday } from './format'
 import { endOfRiyadhDay } from './riyadhWorkingDays'
 
@@ -58,35 +59,41 @@ describe('the messages', () => {
   })
 })
 
-describe('the Submit for Review estimate', () => {
-  // Tuesday 3 November 2026, 10 PM in Riyadh (still Tuesday there, already Wednesday in UTC+4 and beyond).
+describe('the Submit for Review latest due date', () => {
+  // Sent Tuesday 3 November 2026, 10 PM in Riyadh (still Tuesday there, already Wednesday in UTC+4 and beyond):
+  // the reviewer can accept until the end of Thursday 5 November, two working days later.
   const tuesday = new Date('2026-11-03T22:00:00+03:00')
 
-  it('counts working days from the Riyadh date, skipping Friday and Saturday', () => {
-    expect(reviewDueDateIfAcceptedNow('2', tuesday)).toBe('2026-11-05')
-    expect(reviewDueDateIfAcceptedNow('3', tuesday)).toBe('2026-11-08')
-    expect(reviewDueDateIfAcceptedNow(' 5 ', tuesday)).toBe('2026-11-10')
-    // Thursday + 1 working day is Sunday.
-    expect(reviewDueDateIfAcceptedNow('1', new Date('2026-11-05T09:00:00+03:00'))).toBe('2026-11-08')
+  it('adds the duration to the last day to accept, in working days, skipping Friday and Saturday', () => {
+    expect(fixedResponseDueDate(tuesday)).toBe('2026-11-05')
+    expect(latestReviewDueDate('2', tuesday)).toBe('2026-11-09')
+    expect(latestReviewDueDate('3', tuesday)).toBe('2026-11-10')
+    expect(latestReviewDueDate(' 5 ', tuesday)).toBe('2026-11-12')
+    // Sent on a Thursday: the last day to accept is Monday, and one working day later is Tuesday.
+    expect(latestReviewDueDate('1', new Date('2026-11-05T09:00:00+03:00'))).toBe('2026-11-10')
   })
 
-  it('matches what acceptance saves for the same moment', () => {
-    for (const days of ['1', '4', '60', '3650']) {
-      const thursday = new Date(request.acceptedAt)
-      expect(reviewDueDateIfAcceptedNow(days, thursday)).toBe(previewReviewDeadline(request, days, thursday).dueDate)
+  it('matches what acceptance on the last day saves', () => {
+    for (const sent of [tuesday, new Date('2026-11-05T09:00:00+03:00'), new Date('2026-11-06T12:00:00+03:00')]) {
+      const lastDay = { acceptedAt: endOfRiyadhDay(fixedResponseDueDate(sent)) }
+      for (const days of ['1', '4', '60', '3650']) {
+        expect(latestReviewDueDate(days, sent)).toBe(previewReviewDeadline(lastDay, days, sent).dueDate)
+      }
     }
   })
 
-  it('counts calendar days with the working-day policy off', () => {
-    expect(reviewDueDateIfAcceptedNow('3', tuesday, false)).toBe('2026-11-06')
+  it('counts calendar days after the last day to accept with the working-day policy off', () => {
+    expect(latestReviewDueDate('3', tuesday, false)).toBe('2026-11-08')
   })
 
   it('gives nothing while the duration is blank or invalid', () => {
-    for (const duration of ['', '  ', '0', '3651', '2.5', '-1', '1e2', 'abc']) expect(reviewDueDateIfAcceptedNow(duration, tuesday)).toBeUndefined()
+    for (const duration of ['', '  ', '0', '3651', '2.5', '-1', '1e2', 'abc']) expect(latestReviewDueDate(duration, tuesday)).toBeUndefined()
   })
 
   it('reads with its weekday', () => {
     expect(internalReviewEn.submit.durationDueDate.replace('{date}', formatDateWithWeekday('2026-11-09')))
-      .toBe('If accepted today, the review is due on Mon, Nov 9, 2026.')
+      .toBe('Latest due date: Mon, Nov 9, 2026 (if the reviewer accepts on the last day).')
+    expect(internalReviewEn.submit.durationHelp.replace('{count}', String(RESPONSE_WORKING_DAYS)))
+      .toBe('The reviewer has 2 working days to accept. The review duration starts when they accept (weekends excluded).')
   })
 })

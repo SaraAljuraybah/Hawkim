@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { deriveNotifications, isRead } from '../lib/notifications'
+import { fetchMyExpiredInvitations, type ExpiredInvitation } from '../services/invitations'
 import { NotificationsContext, type NotificationsStore } from './notificationsContext'
 import { useRequests } from './requestsContext'
 import { useSession } from './sessionContext'
@@ -15,6 +16,7 @@ const TICK_MS = 60 * 1000
  * the app loaded counts as read, except due-soon and overdue notifications.
  * TODO: Email notifications will be sent by the backend for the same events (it
  * needs the users' email settings and a mail service); nothing is emailed from here.
+ * Admins also get their expired invitations (services/invitations.ts), read from the database.
  * Must be inside <SessionProvider>, <RequestsProvider> and <SopsProvider>.
  */
 export function NotificationsProvider({ children }: { children: ReactNode }) {
@@ -24,6 +26,24 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
   const [sessionStartedAt] = useState(() => Date.now())
   const [now, setNow] = useState(() => Date.now())
   const [readByUser, setReadByUser] = useState<Record<string, string[]>>({})
+  // Admins: their expired invitations, read from the database when the portal loads (no background job),
+  // again when the bell opens and after a resend. A failed read shows none (nothing else is affected).
+  const [invitations, setInvitations] = useState<{ userId: string; list: ExpiredInvitation[] }>()
+  const adminId = user?.permissions.includes('admin') ? user.id : undefined
+  const refreshInvitations = useCallback(async () => {
+    if (!adminId) return
+    try {
+      const list = await fetchMyExpiredInvitations()
+      setInvitations({ userId: adminId, list })
+    } catch {
+      setInvitations({ userId: adminId, list: [] })
+    }
+  }, [adminId])
+  useEffect(() => {
+    // After render (a timer callback), like the clock below.
+    const load = window.setTimeout(() => void refreshInvitations(), 0)
+    return () => window.clearTimeout(load)
+  }, [refreshInvitations])
 
   // Recalculate due-soon and overdue every minute, and right away whenever SOPs or
   // requests change (e.g. a new due date, or the demo panel's clock control).
@@ -39,14 +59,16 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
   }, [sops, requests])
 
   const userId = user?.id
+  // Only this user's (never another account's, after signing out and in).
+  const myInvitations = invitations && invitations.userId === userId ? invitations.list : undefined
   const notifications = useMemo(() => {
     if (!userId) return []
     const readIds = new Set(readByUser[userId] ?? [])
-    return deriveNotifications(userId, { sops, requests, now, closedRequests }).map((notification) => ({
+    return deriveNotifications(userId, { sops, requests, now, closedRequests, invitations: myInvitations }).map((notification) => ({
       ...notification,
       read: isRead(notification, readIds, sessionStartedAt),
     }))
-  }, [userId, sops, requests, closedRequests, now, readByUser, sessionStartedAt])
+  }, [userId, sops, requests, closedRequests, myInvitations, now, readByUser, sessionStartedAt])
 
   const markIds = useCallback(
     (ids: string[]) => {
@@ -68,8 +90,9 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
       now,
       markRead,
       markAllRead,
+      refreshInvitations,
     }),
-    [notifications, now, markRead, markAllRead],
+    [notifications, now, markRead, markAllRead, refreshInvitations],
   )
 
   return <NotificationsContext.Provider value={store}>{children}</NotificationsContext.Provider>

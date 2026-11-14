@@ -11,7 +11,7 @@ const medicalToo: Department = { ...medical, id: 'affairs', name: 'Medical Affai
 const other: Department = { ...medical, id: 'it', name: 'Information Technology', divisionId: 'tech', divisionName: 'Technology Division' }
 const fixture = vi.hoisted(() => ({ users: [] as User[], titles: [] as string[] }))
 vi.mock('../../hooks/useDocumentTitle', () => ({ useDocumentTitle: (title?: string) => { if (title) fixture.titles.push(title) } }))
-vi.mock('../../state/usersContext', () => ({ useUsers: () => ({ activeUsers: fixture.users, updateUser: vi.fn(), deleteUser: vi.fn() }) }))
+vi.mock('../../state/usersContext', () => ({ useUsers: () => ({ users: fixture.users, activeUsers: fixture.users, updateUser: vi.fn(), deleteUser: vi.fn(), reactivateUser: vi.fn() }) }))
 vi.mock('../../state/sessionContext', () => ({ useCurrentUser: () => ({ id: 'admin' }) }))
 vi.mock('../../state/sopsContext', () => ({ useSops: () => ({ sops: [] }) }))
 vi.mock('../../state/departmentsContext', () => ({ useDepartments: () => ({ activeDepartments: [medical, medicalToo, other] }) }))
@@ -32,12 +32,12 @@ beforeEach(() => {
 })
 
 describe('Edit Staff', () => {
-  it('has one h1, Edit Staff, with its subtitle and browser tab title', () => {
+  it('has one h1: "Edit Staff" as a small line above the name, no subtitle, with the browser tab title', () => {
     fixture.titles.length = 0
     const html = render()
     expect(html.match(/<h1/g)).toHaveLength(1)
-    expect(html).toContain('>Edit Staff</h1>')
-    expect(html).toContain('Update this staff member&#x27;s details and permissions.')
+    expect(html).toContain('<h1 class="min-w-0 text-xl break-words tracking-tight sm:text-3xl"><span class="block text-sm font-medium tracking-normal text-text-gray">Edit Staff</span> Rana Saleh</h1>')
+    expect(html).not.toContain('Update this staff member&#x27;s details and permissions.')
     expect(fixture.titles.at(-1)).toBe(adminEn.pageTitle.replace('{page}', 'Edit Staff'))
   })
 
@@ -45,7 +45,9 @@ describe('Edit Staff', () => {
     const html = render()
     expect(control(html, 'name')).toContain('value="Rana Saleh"')
     expect(control(html, 'email')).toContain('value="rana@example.test"')
-    expect(control(html, 'phone')).toContain('value="+966512345678"')
+    // The 8 digits after the fixed "+9665"; saved as +9665XXXXXXXX.
+    expect(control(html, 'phone')).toContain('value="12345678"')
+    expect(html).toMatch(/<span id="[^"]+">\+9665<\/span>/)
     expect(control(html, 'division')).toContain('value="Medical Division"')
     expect(control(html, 'department')).toContain('value="Drug Safety"')
     expect(control(html, 'position')).toContain('value="Specialist"')
@@ -57,7 +59,7 @@ describe('Edit Staff', () => {
 
   it('keeps Add User\'s helper texts and required marks', () => {
     const html = render()
-    expect(html).toContain(adminEn.addUser.email.hint)
+    expect(html).not.toContain('They sign in with this email.')
     expect(html).toContain(adminEn.addUser.phone.hint)
     expect(html.match(/>\*</g)).toHaveLength(6)
   })
@@ -74,15 +76,22 @@ describe('Edit Staff', () => {
     expect(checkbox(html, 'author')).toContain('checked=""')
     expect(checkbox(html, 'reviewer')).toContain('checked=""')
     expect(checkbox(html, 'approver')).not.toContain('checked=""')
-    expect(checkbox(html, 'admin')).not.toContain('checked=""')
+    // Admin isn't a Staff permission (Manage Organization → Admins).
+    expect(html).not.toContain('value="admin"')
   })
 
-  it('shows the avatar, name and Delete in a row above the form, with one Delete', () => {
+  it('has the User Details header above the form: large avatar, name and Delete beside it, without permission badges', () => {
     const html = render()
-    const row = html.slice(html.indexOf('</h1>'), html.indexOf('<form'))
-    expect(row).toContain('>RS</span>')
-    expect(row).toMatch(/<p[^>]*>Rana Saleh<\/p>/)
-    expect(row.indexOf('>Rana Saleh<')).toBeLessThan(row.indexOf('aria-label="Delete Rana Saleh"'))
+    const header = html.slice(0, html.indexOf('<form'))
+    expect(header).toContain('class="inline-flex size-9 shrink-0 items-center justify-center rounded-full bg-beige text-xs font-semibold text-maroon size-10 text-sm sm:size-14 sm:text-base">RS</span>')
+    // Delete beside the name, below the "Edit Staff" line; no Edit Staff button here.
+    expect(header).toMatch(/Rana Saleh<\/h1><div class="flex shrink-0 items-center gap-2 mt-5"><span class="relative inline-flex"><button type="button" aria-label="Delete Rana Saleh"/)
+    expect(header).not.toContain('>Edit Staff</a>')
+    // No permission badges in the header (Rana is an Author and a Reviewer); the form's Permission checkboxes show them.
+    expect(header).not.toMatch(/<li class="inline-flex[^"]*">/)
+    for (const permission of ['Author', 'Reviewer']) expect(header).not.toContain(`>${permission}<`)
+    expect(header).toMatch(/Rana Saleh<\/h1>.*<\/div><\/div><p class="mt-2 text-text-gray">/)
+    expect(html.slice(html.indexOf('<form')).match(/name="permissions"/g)!.length).toBeGreaterThan(0)
     expect(html.match(/aria-label="Delete Rana Saleh"/g)).toHaveLength(1)
   })
 
@@ -104,5 +113,24 @@ describe('Edit Staff', () => {
 
   it('shows Not Found for an unknown user', () => {
     expect(render('nobody')).not.toContain('<form')
+  })
+})
+
+describe('Edit Staff for a deactivated staff member', () => {
+  it('opens with their details, Reactivate in place of Delete, and Back and Cancel to the Deactive Staff tab', () => {
+    fixture.users = [{ ...fixture.users[0], deletedAt: '2026-11-01T09:00:00Z' }]
+    const html = render()
+    expect(html).toContain('Rana Saleh</h1>')
+    expect(control(html, 'name')).toContain('value="Rana Saleh"')
+    expect(html).toContain('aria-label="Reactivate Rana Saleh"')
+    expect(html).not.toContain('aria-label="Delete Rana Saleh"')
+    expect(html).toMatch(/<a[^>]*href="\/admin\/users\?status=deactivated"[^>]*>(?:(?!<\/a>).)*Back to Staff<\/a>/)
+    expect(html).toMatch(/<a[^>]*href="\/admin\/users\?status=deactivated"[^>]*>Cancel<\/a>/)
+  })
+
+  it('keeps Back and Cancel on the Active Staff list for an active staff member', () => {
+    const html = render()
+    expect(html).toMatch(/<a[^>]*href="\/admin\/users"[^>]*>Cancel<\/a>/)
+    expect(html).not.toContain('status=deactivated')
   })
 })

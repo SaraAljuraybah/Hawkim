@@ -124,14 +124,18 @@ begin
   perform pg_temp.expect_error(format('update public.profiles set department_id = ''su-other'' where id = %L', plain), '42501');
 
   -- ---------- What it refuses ----------
-  perform pg_temp.expect_error(pg_temp.call(gone, 'su-home', '{}', 'su-home', '{}'), 'P0002');
+  -- A deactivated staff member is found (Edit Staff on the Deactive Staff tab) and stays deactivated.
+  execute pg_temp.call(gone, 'su-home', '{}', 'su-home', '{}');
+  assert (select deleted_at is not null from public.profiles where id = gone), 'Saving never reactivates';
   perform pg_temp.expect_error(pg_temp.call(gen_random_uuid(), 'su-home', '{}', 'su-home', '{}'), 'P0002');
   perform pg_temp.expect_error(pg_temp.call(plain, 'su-home', '{owner}', 'su-home', '{}'), '23514', 'invalid');
   perform pg_temp.expect_error(pg_temp.call(plain, 'su-home', null, 'su-home', '{}'), '23514', 'invalid');
   perform pg_temp.expect_error(pg_temp.call(plain, null, '{}', 'su-home', '{}'), '23514', 'invalid');
   -- Someone else changed the department or roles since the form loaded.
-  perform pg_temp.expect_error(pg_temp.call(plain, 'su-home', '{author}', 'su-other', '{}'), '40001');
-  perform pg_temp.expect_error(pg_temp.call(plain, 'su-home', '{author}', 'su-home', '{reviewer}'), '40001');
+  -- A stale save: hint 'conflict' (P0001), never 40001, which PostgREST 14 retries until it times out
+  -- (20261112120000_staff_deactivation.sql).
+  perform pg_temp.expect_error(pg_temp.call(plain, 'su-home', '{author}', 'su-other', '{}'), 'P0001', 'conflict');
+  perform pg_temp.expect_error(pg_temp.call(plain, 'su-home', '{author}', 'su-home', '{reviewer}'), 'P0001', 'conflict');
   -- Own Admin, and Admin combined with other roles.
   perform pg_temp.expect_error(pg_temp.call(admin1, 'su-home', '{}', 'su-home', '{admin}'), '23514', 'self-admin');
   perform pg_temp.expect_error(pg_temp.call(admin1, 'su-home', '{author}', 'su-home', '{admin}'), '23514', 'self-admin');
@@ -174,26 +178,18 @@ begin
   perform public.save_user(plain, 'Rana Saleh', '+966598765432', 'New Title', 'su-home', '{reviewer,author}', 'su-home', '{}');
   perform public.save_user(plain, 'Rana Saleh', '+966598765432', 'New Title', 'su-home', '{}', 'su-home', '{reviewer,author}');
 
-  -- Another admin's Admin can be removed, and given back.
-  perform public.save_user(admin2, 'SU Person', '+966512345678', 'Title', 'su-home', '{}', 'su-home', '{admin}');
+  -- Admins are managed on Manage Organization → Admins (20261111120000_super_admin.sql): Staff can't
+  -- remove another admin's Admin, or give the Admin permission to staff.
+  perform pg_temp.expect_error(pg_temp.call(admin2, 'su-home', '{}', 'su-home', '{admin}'), '23514', 'admin-managed-separately');
   perform pg_temp.as_owner();
-  assert pg_temp.roles(admin2) = '{}';
-  -- That admin's next call is refused, whatever their browser still thinks.
-  perform pg_temp.act_as(admin2);
-  perform pg_temp.expect_error(pg_temp.call(admin1, 'su-home', '{}', 'su-home', '{admin}'), '42501');
-  perform pg_temp.act_as(admin1);
-  perform public.save_user(admin2, 'SU Person', '+966512345678', 'Title', 'su-home', '{admin}', 'su-home', '{}');
-  perform pg_temp.as_owner();
-  assert pg_temp.roles(admin2) = '{admin}';
-  -- A promotion replaces the other roles in one save, and a demotion gives them back.
+  assert pg_temp.roles(admin2) = '{admin}', 'A refused save changed the roles';
   perform pg_temp.act_as(admin1);
   perform public.save_user(plain, 'Rana Saleh', '+966598765432', 'New Title', 'su-home', '{author,reviewer}', 'su-home', '{}');
-  perform public.save_user(plain, 'Rana Saleh', '+966598765432', 'New Title', 'su-home', '{admin}', 'su-home', '{author,reviewer}');
+  perform pg_temp.expect_error(pg_temp.call(plain, 'su-home', '{admin}', 'su-home', '{author,reviewer}'), '23514', 'admin-managed-separately');
   perform pg_temp.as_owner();
-  assert pg_temp.roles(plain) = '{admin}', 'Roles removed before Admin was added';
+  assert pg_temp.roles(plain) = '{author,reviewer}', 'A refused promotion kept the other roles';
   perform pg_temp.act_as(admin1);
-  perform public.save_user(plain, 'Rana Saleh', '+966598765432', 'New Title', 'su-home', '{author}', 'su-home', '{admin}');
-  perform public.save_user(plain, 'Rana Saleh', '+966598765432', 'New Title', 'su-home', '{}', 'su-home', '{author}');
+  perform public.save_user(plain, 'Rana Saleh', '+966598765432', 'New Title', 'su-home', '{}', 'su-home', '{author,reviewer}');
 
   -- ---------- Approver and Quality, in one save ----------
   perform public.save_user(plain, 'Rana Saleh', '+966598765432', 'New Title', quality, '{approver}', 'su-home', '{}');

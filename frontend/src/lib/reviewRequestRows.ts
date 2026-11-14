@@ -1,4 +1,4 @@
-import type { InternalReviewerAssignment, InternalReviewRound, Sop } from '../data/mock/types'
+import type { InternalReviewerAssignment, InternalReviewRound, Sop, TimelineEvent } from '../data/mock/types'
 import { latestAssignmentOf, PER_REVIEWER_RESPONSE_ACTIVE } from './internalReviewStatus'
 import { responseRecipients } from './workflow'
 
@@ -17,6 +17,21 @@ export interface ReviewNote {
   date?: string
 }
 
+/** The Review Timeline actions whose note is a reviewer's reason (behind the author page's Preview eye). */
+export const REASON_EVENTS = { 'reviewer-removed': 'removal', 'review-declined': 'decline' } as const
+export type ReasonEventType = keyof typeof REASON_EVENTS
+
+/**
+ * A removal's or decline's reason as the Preview dialog shows it, with whose it is (the reviewer
+ * removed, or the one who declined). Undefined for any other action, or one saved without a note.
+ */
+export function timelineReason(event: TimelineEvent): { type: ReasonEventType; reviewerId: string; note: ReviewNote } | undefined {
+  if (!(event.type in REASON_EVENTS) || !event.note) return undefined
+  const type = event.type as ReasonEventType
+  const reviewerId = (type === 'reviewer-removed' ? event.recipientIds?.[0] : event.actorId) ?? ''
+  return { type, reviewerId, note: { kind: REASON_EVENTS[type], text: event.note, date: event.createdAt } }
+}
+
 /**
  * The rows of a version's table: every request, except an expired one the reviewer has a newer
  * request after (Send Again). Declined and removed rows stay, for their reasons and comments.
@@ -26,8 +41,8 @@ export function visibleReviewRequests(round: InternalReviewRound): InternalRevie
   return round.assignments.filter((request) => request.decision !== 'expired' || latestAssignmentOf(round, request.userId) === request)
 }
 
-/** The Decision Date column: when the reviewer accepted or declined the request. */
-export function requestDecisionDate(request: InternalReviewerAssignment): string | undefined {
+/** The Response Date column: when the reviewer accepted or declined the request. */
+export function requestResponseDate(request: InternalReviewerAssignment): string | undefined {
   return request.acceptedAt ?? (request.declineReason ? request.decidedAt : undefined)
 }
 
@@ -36,14 +51,11 @@ export function requestReviewDueDate(request: InternalReviewerAssignment): strin
   return request.acceptedAt ? request.reviewDueDate : undefined
 }
 
-/** The request's comments, decline reason and removal reason, oldest first. */
+/** The reviewer's review comments for this request (the Reviewers table eye). */
 export function reviewNotes(sop: Pick<Sop, 'comments'>, request: InternalReviewerAssignment): ReviewNote[] {
   const comment = sop.comments.find((item) => item.id === request.commentId)
-  return [
-    ...(request.declineReason ? [{ kind: 'decline' as const, text: request.declineReason, date: request.decidedAt }] : []),
-    ...(comment ? [{ kind: 'comment' as const, text: comment.text, date: comment.createdAt }] : []),
-    ...(request.removalReason ? [{ kind: 'removal' as const, text: request.removalReason, date: request.removedAt }] : []),
-  ]
+  // Decline and removal reasons open from the Review Timeline's Preview column instead.
+  return comment ? [{ kind: 'comment' as const, text: comment.text, date: comment.createdAt }] : []
 }
 
 /**

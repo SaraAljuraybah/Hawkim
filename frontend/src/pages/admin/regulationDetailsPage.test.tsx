@@ -11,13 +11,18 @@ const requirement = { id: 'R1', module: 'Module I', section: 'I.B.10', sectionTi
 const v40: GuidelineVersion = { id: 'gvp-4-0', title: 'SFDA GVP', version: '4.0', effectiveDate: '2015-09-01', fileName: 'Drug-GVP4_0.pdf', requirements: [requirement, { ...requirement, id: 'R2' }] }
 const v41: GuidelineVersion = { ...v40, id: 'gvp-4-1', version: '4.1', fileName: 'Drug-GVP4_1.pdf', fileUrl: 'blob:http://localhost/abc' }
 const v50: GuidelineVersion = { ...v40, id: 'uuid-50', version: '5.0', fileName: 'Drug-GVP5_0.pdf', storagePath: 'files/50.pdf', requirements: [], neverCurrent: true }
+// 3.9: published from the database, so the list only knows how many passages it has.
+const v39: GuidelineVersion = { ...v40, id: 'uuid-39', version: '3.9', requirements: [], requirementCount: 1483 }
+const all = [v39, v40, v41, v50]
 vi.mock('../../hooks/useDocumentTitle', () => ({ useDocumentTitle: () => {} }))
 vi.mock('../../state/sessionContext', () => ({ useSession: () => ({ user: { id: 'nouf' } }) }))
 vi.mock('../../state/usersContext', () => ({ useUsers: () => ({ nameOf: () => '' }) }))
 vi.mock('../../state/guidelinesContext', () => ({
   // 4.1 is current in the database; 5.0, added later, is the newest.
-  useGuidelines: () => ({ current: v41, allVersions: [v40, v41, v50], getVersion: (id: string) => [v40, v41, v50].find((item) => item.id === id) }),
+  useGuidelines: () => ({ current: v41, allVersions: all, getVersion: (id: string) => all.find((item) => item.id === id) }),
 }))
+const fetchGuidelineRequirements = vi.fn(async (_id: string) => [])
+vi.mock('../../services/compliance', () => ({ fetchGuidelineRequirements: (id: string) => fetchGuidelineRequirements(id) }))
 
 const render = (id: string) => renderToStaticMarkup(
   <MemoryRouter initialEntries={[`/admin/regulations/${id}`]}><Routes><Route path="/admin/regulations/:id" element={<RegulationDetailsPage />} /></Routes></MemoryRouter>,
@@ -27,9 +32,9 @@ const detail = (html: string, label: string) => html.match(new RegExp(`<dt[^>]*>
 describe('a GVP version\'s requirements', () => {
   it('opens from the requirements count: a link-style button with aria-expanded, aria-controls and a down chevron', () => {
     const html = render('gvp-4-0')
-    const button = detail(html, 'Requirements')
+    const button = detail(html, 'Requirement Passages')
     expect(button).toMatch(/^<button type="button" aria-expanded="false" aria-controls="guideline-requirements" class="[^"]*text-maroon[^"]*hover:underline/)
-    expect(button).toContain('>2 Requirements<')
+    expect(button).toContain('>2 Requirement Passages<')
     expect(button).toContain('lucide-chevron-down')
     expect(button).not.toContain('lucide-chevron-up')
   })
@@ -52,8 +57,18 @@ describe('a GVP version\'s requirements', () => {
 
   it('stays plain text where there is no table (the Current Version card)', () => {
     const html = renderToStaticMarkup(<GuidelineVersionDetails version={v40} />)
-    expect(detail(html, 'Requirements')).toBe('2 Requirements')
+    expect(detail(html, 'Requirement Passages')).toBe('2 Requirement Passages')
     expect(detail(html, 'File')).toBe('<span class="break-all">Drug-GVP4_0.pdf</span>')
+  })
+})
+
+describe("a published version's passages", () => {
+  it('shows their count from the list and reads them on the page, not with the list', () => {
+    const html = render('uuid-39')
+    expect(detail(html, 'Requirement Passages')).toContain('>1483 Requirement Passages<')
+    // Static rendering shows the state before they arrive.
+    expect(html).toContain('<p role="status" class="mt-3 text-sm text-text-gray">Loading requirement passages…</p>')
+    expect(html).not.toContain('aria-label="Requirement passages"')
   })
 })
 
@@ -61,7 +76,7 @@ describe('the Requirements table', () => {
   it('has the same style as the admin Users and Version History tables, with its columns and content', () => {
     const html = render('gvp-4-0')
     const table = html.slice(html.indexOf('<table'), html.indexOf('</table>'))
-    expect(table).toContain(`<table aria-label="Requirements" class="${tableStyles.table}">`)
+    expect(table).toContain(`<table aria-label="Requirement passages" class="${tableStyles.table}">`)
     expect(table).toContain(`<thead class="${tableStyles.head.replace('&', '&amp;')}">`)
     const headers = [...table.matchAll(/<th scope="col" class="([^"]*)">([^<]+)<\/th>/g)]
     expect(headers.map((match) => match[2])).toEqual(['ID', 'Module', 'Section', 'Title', 'Page', 'Summary'])
@@ -70,7 +85,7 @@ describe('the Requirements table', () => {
     expect(table).toContain('Keep records.')
     // The same frame, and stacked cards below md like the other tables.
     expect(html).toContain(`<div class="mt-3 ${tableStyles.frame}"><div class="${tableStyles.wide} overflow-x-auto">`)
-    expect(html).toContain(`<ul aria-label="Requirements" class="${tableStyles.cards}">`)
+    expect(html).toContain(`<ul aria-label="Requirement passages" class="${tableStyles.cards}">`)
     expect(html).not.toContain('bg-beige/60')
   })
 })
@@ -120,7 +135,7 @@ describe('a GVP version\'s File card', () => {
     const html = render('uuid-50')
     expect(html).toMatch(/>GVP Version 5\.0<\/h1>/)
     expect(html).not.toContain('>Current<')
-    expect(detail(html, 'Requirements')).toContain('>0 Requirements<')
+    expect(detail(html, 'Requirement Passages')).toContain('>0 Requirement Passages<')
   })
 
   it('shows the Current badge on the database\'s current version only', () => {

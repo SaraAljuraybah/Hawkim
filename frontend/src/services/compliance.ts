@@ -1,22 +1,26 @@
 /*
  * The GVP guideline and compliance checks in the database (see supabase/migrations/).
- * Checks are read with each SOP (services/sops.ts); here are the guideline versions with
- * their requirements, and the two functions that run a check.
+ * Checks are read with each SOP (services/sops.ts); here are the guideline versions (with how many
+ * requirement passages each has), a version's passages (read on its own page only: a version can
+ * have about 1,500), and the two functions that run a check.
  *
  * SAMPLE ENGINE: the real compliance service (BGE-M3 + Llama 3.1 8B) isn't connected
  * yet. A check is started in the database and finished by the browser a few seconds
  * later with the sample findings. TODO: The service will finish its own checks.
  */
 
-import type { GuidelineVersion } from '../data/mock/types'
+import type { GuidelineVersion, Requirement } from '../data/mock/types'
 import { CheckAlreadyCompletedError } from '../lib/compliance'
 import { supabase } from './supabase'
 
 /** The hint start_compliance_check raises when this version already has a completed check. */
 export const CHECK_ALREADY_COMPLETED_HINT = 'check-already-completed'
 
-const GUIDELINE_COLUMNS = `id, name, version, issued_date, effective_date, file_name, added_by, added_at, source, storage_path, file_size,
-  guideline_requirements!guideline_requirements_guideline_version_id_fkey (code, module, section, section_title, short_title, page, summary)`
+const GUIDELINE_COLUMNS = `id, name, version, issued_date, effective_date, file_name, added_by, added_at, source, storage_path, file_size, draft_id,
+  guideline_requirements!guideline_requirements_guideline_version_id_fkey (count)`
+
+/** A version's passages are read in pages of this many (the API returns at most 1,000 rows at a time). */
+const PASSAGES_PAGE = 1000
 
 export interface GuidelineVersionRow {
   id: string
@@ -30,23 +34,30 @@ export interface GuidelineVersionRow {
   source: string | null
   storage_path: string | null
   file_size: number | null
-  guideline_requirements: {
-    code: string
-    module: string
-    section: string
-    section_title: string
-    short_title: string
-    page: number
-    summary: string
-  }[]
+  /** How many requirement passages it has: [{ count }]. */
+  guideline_requirements: { count: number }[]
+  /** The added version this one was published from (GVP phase 2); null for the others. */
+  draft_id?: string | null
 }
 
-/** A guideline row as a GuidelineVersion; requirements in code order (R1, R2… R10). */
+/** One of a version's requirement passages, as guideline_requirements stores it. */
+interface GuidelineRequirementRow {
+  code: string
+  module: string
+  section: string
+  section_title: string
+  short_title: string
+  page: number
+  summary: string
+}
+
+/** A guideline row as a GuidelineVersion: its passages aren't loaded, only how many there are. */
 export function toGuidelineVersion(row: GuidelineVersionRow): GuidelineVersion {
   return {
     id: row.id,
     title: row.name,
     version: row.version,
+    ...(row.draft_id ? { fromDraftId: row.draft_id } : {}),
     ...(row.issued_date ? { issuedDate: row.issued_date } : {}),
     effectiveDate: row.effective_date,
     fileName: row.file_name,
@@ -55,18 +66,36 @@ export function toGuidelineVersion(row: GuidelineVersionRow): GuidelineVersion {
     ...(row.source ? { source: row.source } : {}),
     ...(row.storage_path ? { storagePath: row.storage_path } : {}),
     ...(row.file_size ? { fileSize: row.file_size } : {}),
-    requirements: [...row.guideline_requirements]
-      .sort((a, b) => a.code.localeCompare(b.code, 'en', { numeric: true }))
-      .map((item) => ({
-        id: item.code,
-        module: item.module,
-        section: item.section,
-        sectionTitle: item.section_title,
-        shortTitle: item.short_title,
-        page: item.page,
-        summary: item.summary,
-      })),
+    requirements: [],
+    requirementCount: row.guideline_requirements?.[0]?.count ?? 0,
   }
+}
+
+/** A version's requirement passages in code order (R1, R2… R10; I.B.7#2 before I.B.7#10), read in pages. */
+export async function fetchGuidelineRequirements(versionId: string): Promise<Requirement[]> {
+  const rows: GuidelineRequirementRow[] = []
+  for (let from = 0; ; from += PASSAGES_PAGE) {
+    const { data, error } = await supabase()
+      .from('guideline_requirements')
+      .select('code, module, section, section_title, short_title, page, summary')
+      .eq('guideline_version_id', versionId)
+      .order('code')
+      .range(from, from + PASSAGES_PAGE - 1)
+    if (error) throw new Error(error.message)
+    rows.push(...(data as GuidelineRequirementRow[]))
+    if (data.length < PASSAGES_PAGE) break
+  }
+  return rows
+    .sort((a, b) => a.code.localeCompare(b.code, 'en', { numeric: true }))
+    .map((item) => ({
+      id: item.code,
+      module: item.module,
+      section: item.section,
+      sectionTitle: item.section_title,
+      shortTitle: item.short_title,
+      page: item.page,
+      summary: item.summary,
+    }))
 }
 
 /** Every published guideline version, oldest first (the last one added is current). */

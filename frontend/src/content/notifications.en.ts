@@ -1,5 +1,5 @@
 /*
- * English content for the notifications bell (employee top bar).
+ * English content for the notifications bell (the top bar of both portals).
  * Same pattern as the other content files: no hard-coded text in components.
  */
 
@@ -41,6 +41,7 @@ export const notificationsEn: NotificationsContent = {
     published: '{title} · v{version} was published',
     response: '{name} responded to the comments on {title} · v{version}',
     reviewDeadlineChanged: '{name} changed your review deadline for {title} · v{version} to {date}',
+    reviewDurationChanged: '{name} changed the review duration of your request for {title} · v{version} to {days}',
     dueSoon: {
       review: '{title} is due for your review {day}',
       response: '{title}: accept or decline the review request {day}, or it will expire',
@@ -58,6 +59,23 @@ export const notificationsEn: NotificationsContent = {
     request: {
       approved: 'Your request “{title}” was approved',
       rejected: 'Your request “{title}” was rejected',
+    },
+  },
+  invitations: {
+    expired: 'Invitation expired. The activation link for {name} ({email}) expired on {date}. Resend the invitation so they can set their password.',
+    resend: 'Resend invitation',
+    resendLabel: 'Resend invitation to {name}',
+    sending: 'Sending…',
+    sent: 'Invitation sent to {email}. The new link expires in 24 hours.',
+    failures: {
+      'already-activated': '{name} has already activated their account, so no invitation was sent.',
+      'still-valid': 'A new invitation was already sent to {name}, and its link is still valid.',
+      'not-found': '{name} no longer has a Hawkim account, so no invitation was sent.',
+      'no-invitation': 'There is no invitation to resend for {name}.',
+      'account-blocked': '{name}’s account is blocked, so no invitation was sent.',
+      forbidden: 'You don’t have permission to resend this invitation. Refresh the page.',
+      'email-failed': 'The invitation email couldn’t be sent. Try again in a few minutes.',
+      failed: 'The invitation couldn’t be resent. Check your connection and try again.',
     },
   },
 }

@@ -1,16 +1,20 @@
-import { useRef, useState, type FormEvent } from 'react'
+import { useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { flushSync } from 'react-dom'
-import { useNavigate } from 'react-router-dom'
-import { LoaderCircle, Upload } from 'lucide-react'
+import { Link, useNavigate } from 'react-router-dom'
+import { ArrowLeft, LoaderCircle, Upload } from 'lucide-react'
 import { Button } from '../components/ui/Button'
+import { RequiredMark } from '../components/ui/FieldShell'
 import { FileDropzone } from '../components/ui/FileDropzone'
 import { TextAreaField } from '../components/ui/TextAreaField'
 import { TextField } from '../components/ui/TextField'
 import { uploadSopEn } from '../content/mySops.en'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
+import { formatDate } from '../lib/format'
 import { hasPermission } from '../lib/permissions'
+import { riyadhDate } from '../lib/riyadhWorkingDays'
 import { SOP_DESCRIPTION_MAX } from '../lib/sopDescription'
 import { SOP_TITLE_MAX, sopTitleProblem } from '../lib/sopTitle'
+import { divisionLabel } from '../lib/userAdmin'
 import { useActiveDepartment } from '../state/activeDepartmentContext'
 import { useCurrentUser } from '../state/sessionContext'
 import { useSops } from '../state/sopsContext'
@@ -32,6 +36,8 @@ export function UploadSopPage() {
   useDocumentTitle(isAuthor ? content.pageTitle : undefined)
 
   const { homeDepartment } = useActiveDepartment()
+  // Today in Riyadh, the day the SOP is added (the database records it as it saves the SOP).
+  const today = riyadhDate(new Date())
   const { addDraft } = useSops()
   const navigate = useNavigate()
 
@@ -100,7 +106,14 @@ export function UploadSopPage() {
 
   return (
     <>
-      <h1 className="text-2xl tracking-tight sm:text-3xl">{content.title}</h1>
+      <Link
+        to={content.back.href}
+        className="inline-flex items-center gap-1.5 rounded-sm text-sm font-medium text-text-gray transition-colors hover:text-maroon"
+      >
+        <ArrowLeft aria-hidden="true" className="size-4" strokeWidth={1.75} />
+        {content.back.label}
+      </Link>
+      <h1 className="mt-5 text-2xl tracking-tight sm:text-3xl">{content.title}</h1>
       <p className="mt-2 text-text-gray">{content.subtitle.replace('{department}', homeDepartment.name)}</p>
 
       <div className="mt-8 max-w-[45rem] rounded-xl border border-beige bg-white p-5 sm:p-8">
@@ -121,13 +134,11 @@ export function UploadSopPage() {
             onBlur={() => submitAttempted && setErrors((prev) => ({ ...prev, title: validate('title') }))}
           />
 
-          {/* Read-only: new SOPs are added to the home department */}
-          <div>
-            <p className="mb-1.5 text-sm font-medium text-maroon">{content.fields.department.label}</p>
-            <p className="rounded-lg border border-beige bg-beige/50 px-3.5 py-2.5 text-[0.9375rem] text-maroon">
-              {homeDepartment.name}
-            </p>
-          </div>
+          {/* Read-only, shown only: new SOPs are added to the home department (and so its division), and the
+              database records the day it's added. None of these is sent with the form. */}
+          <ReadOnlyValue label={content.fields.division.label}>{divisionLabel(homeDepartment) || content.fields.division.none}</ReadOnlyValue>
+          <ReadOnlyValue label={content.fields.department.label}>{homeDepartment.name}</ReadOnlyValue>
+          <ReadOnlyValue label={content.fields.addedOn.label}><time dateTime={today}>{formatDate(today)}</time></ReadOnlyValue>
 
           <FileDropzone
             files={files}
@@ -174,5 +185,18 @@ export function UploadSopPage() {
         </form>
       </div>
     </>
+  )
+}
+
+/**
+ * A pre-filled value the form shows but doesn't send. It carries the red asterisk of the required
+ * fields, for the eye only: it isn't an input, so nothing tells screen readers to fill it in.
+ */
+function ReadOnlyValue({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div>
+      <p className="mb-1.5 text-sm font-medium text-maroon">{label}<RequiredMark /></p>
+      <p className="rounded-lg border border-beige bg-beige/50 px-3.5 py-2.5 text-[0.9375rem] text-maroon">{children}</p>
+    </div>
   )
 }

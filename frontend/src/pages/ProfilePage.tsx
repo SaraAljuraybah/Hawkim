@@ -1,13 +1,17 @@
 import { useRef, useState } from 'react'
 import { CircleCheck } from 'lucide-react'
+import { EmailDetail } from '../components/admin/DetailsCard'
 import { ChangePasswordDialog } from '../components/profile/ChangePasswordDialog'
+import { PermissionBadges } from '../components/admin/UserBits'
 import { Card } from '../components/ui/Card'
 import { controlClasses } from '../components/ui/useFieldIds'
+import { emailCopyEn } from '../content/emailCopy.en'
 import { profileEn } from '../content/profile.en'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { divisionLabel } from '../lib/userAdmin'
 import { useDepartments } from '../state/departmentsContext'
 import { useCurrentUser } from '../state/sessionContext'
+import { useAdminRoleLabel } from '../state/superAdminContext'
 
 /**
  * My Profile: the signed-in person's own information, read-only, and Change Password (a dialog). The same
@@ -22,23 +26,23 @@ export function ProfilePage({ admin = false }: { admin?: boolean }) {
   const [changing, setChanging] = useState(false)
   const [changed, setChanged] = useState(false)
   const changeRef = useRef<HTMLButtonElement>(null)
-  const roles = user.permissions.map((permission) => content.roles[permission])
-  // An Admin manages the whole organization: their home department is only the account's technical
-  // default, so the position is shown without the division and department.
+  // In the admin portal an administrator's role is "Super Admin" or "Admin" (who the Super Admin is now).
+  const adminLabel = useAdminRoleLabel(user)
+  // An Admin manages the whole organization: no position, division or department (whatever the account
+  // still holds), as everywhere else in the interface.
   const isAdmin = user.permissions.includes('admin')
   // Same order as Add User. A value that is missing or blank shows content.none, the same way for every field.
   const details = [
     [content.fields.name, user.name],
     [content.fields.email, user.email],
     [content.fields.phone, user.phone],
-    ...(isAdmin ? [] : [[content.fields.division, divisionLabel(department)], [content.fields.department, department?.name]]),
-    [content.fields.position, user.position],
-    [content.fields.roles, roles.join(', ')],
+    ...(isAdmin ? [] : [[content.fields.division, divisionLabel(department)], [content.fields.department, department?.name], [content.fields.position, user.position]]),
   ].map(([label, value]) => [label, value?.trim() || content.none] as const)
 
   return (
     <>
       <h1 className="text-2xl tracking-tight sm:text-3xl">{content.title}</h1>
+      <p className="mt-2 text-text-gray">{content.subtitle}</p>
       {/* After changing the password (live region stays mounted) */}
       <div role="status">
         {changed && (
@@ -53,9 +57,23 @@ export function ProfilePage({ admin = false }: { admin?: boolean }) {
           {details.map(([label, value]) => (
             <div key={label} className="contents">
               <dt className="font-bold text-maroon">{label}</dt>
-              <dd className="min-w-0 break-words text-maroon max-sm:mb-1">{value}</dd>
+              <dd className="min-w-0 break-words text-maroon max-sm:mb-1">
+                {/* The email with its copy button */}
+                {label === content.fields.email && value !== content.none
+                  ? <EmailDetail email={value} copyLabel={emailCopyEn.copyOwn} copiedText={emailCopyEn.copied} failedText={emailCopyEn.failed} />
+                  : value}
+              </dd>
             </div>
           ))}
+          {/* The permissions as the gold badges of the sidebar and the admin pages ("Super Admin" or "Admin" in the admin portal) */}
+          <div className="contents">
+            <dt className="font-bold text-maroon">{content.fields.roles}</dt>
+            <dd className="min-w-0 break-words text-maroon max-sm:mb-1">
+              {user.permissions.length
+                ? <PermissionBadges user={user} label={content.fields.roles} adminLabel={adminLabel ?? undefined} />
+                : content.none}
+            </dd>
+          </div>
           {/* Last row, under a divider: a field-style box with hidden dots and the Change action */}
           <div className="mt-1 grid gap-x-6 gap-y-3 border-t border-beige pt-4 sm:col-span-2 sm:grid-cols-subgrid sm:items-center">
             <dt className="font-bold text-maroon">{content.fields.password}</dt>

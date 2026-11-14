@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import type { Sop } from '../data/mock/types'
+import type { Department, Sop } from '../data/mock/types'
 import { sops } from '../data/mock/sops'
-import { filterDirectorySops } from './sopDirectory'
+import { ALL_DEPARTMENTS, filterDirectorySops, recentSince } from './sopDirectory'
+import { NO_DIVISION } from './userAdmin'
 
 const base = sops[0]
 const items: Sop[] = [
@@ -46,5 +47,52 @@ describe('SOP directory search and filters', () => {
     const sameDate = [{ ...items[1], lastUpdated: '2026-10-01' }, items[0]]
     expect(ids(filterDirectorySops(sameDate, 'information-technology', '', 'newest'))).toEqual(['one', 'two'])
     expect(ids(filterDirectorySops(sameDate, 'information-technology', '', 'oldest'))).toEqual(['one', 'two'])
+  })
+})
+
+describe('the System Admin directory: every department, Filter by Division and Filter by Department', () => {
+  const others = { ...items[4], id: 'others', directoryGroup: 'others' as const }
+
+  it('shows every department\'s published SOPs, never Others or unpublished ones', () => {
+    expect(ids(filterDirectorySops([...items, others], ALL_DEPARTMENTS)).sort()).toEqual(['one', 'other', 'two'])
+  })
+
+  it('keeps only the checked departments, with search and sort; none checked means every department', () => {
+    expect(ids(filterDirectorySops(items, ALL_DEPARTMENTS, '', 'newest', { departments: ['quality-assurance'] }))).toEqual(['other'])
+    expect(ids(filterDirectorySops(items, ALL_DEPARTMENTS, 'access', 'newest', { departments: ['information-technology', 'quality-assurance'] }))).toEqual(['two'])
+    expect(filterDirectorySops(items, ALL_DEPARTMENTS, '', 'newest', { departments: [] })).toHaveLength(3)
+  })
+
+  // IT is in the Technology division; Quality Assurance has none.
+  const departments: Record<string, Pick<Department, 'divisionId'>> = { 'information-technology': { divisionId: 'technology' }, 'quality-assurance': {} }
+  const getDepartment = (id: string) => departments[id]
+
+  it('keeps only the selected divisions; departments without one are never a division; none selected means every division', () => {
+    expect(ids(filterDirectorySops(items, ALL_DEPARTMENTS, '', 'newest', { divisions: ['technology'], getDepartment }))).toEqual(['two', 'one'])
+    // The removed "No Division" choice matches nothing (the page drops it from old links).
+    expect(filterDirectorySops(items, ALL_DEPARTMENTS, '', 'newest', { divisions: [NO_DIVISION], getDepartment })).toEqual([])
+    expect(filterDirectorySops(items, ALL_DEPARTMENTS, '', 'newest', { divisions: [], getDepartment })).toHaveLength(3)
+  })
+
+  it('combines divisions and departments with Rule 1: selected departments narrow only their own division', () => {
+    // A department selected in the division: only it.
+    expect(ids(filterDirectorySops(items, ALL_DEPARTMENTS, '', 'newest', { divisions: ['technology'], getDepartment, departments: ['information-technology'] }))).toEqual(['two', 'one'])
+    // An unassigned department selected: it shows, and the selected division keeps all its departments.
+    expect(ids(filterDirectorySops(items, ALL_DEPARTMENTS, '', 'newest', { divisions: ['technology'], getDepartment, departments: ['quality-assurance'] })).sort()).toEqual(['one', 'other', 'two'])
+    // Departments only: just those.
+    expect(ids(filterDirectorySops(items, ALL_DEPARTMENTS, '', 'newest', { getDepartment, departments: ['quality-assurance'] }))).toEqual(['other'])
+  })
+})
+
+describe('Recently Published', () => {
+  it('keeps SOPs dated on or after the date three months ago', () => {
+    expect(ids(filterDirectorySops(items, 'information-technology', '', 'newest', { since: '2026-10-02' }))).toEqual(['two'])
+    expect(ids(filterDirectorySops(items, 'information-technology', '', 'newest', { since: '2026-10-01' }))).toEqual(['two', 'one'])
+  })
+
+  it('starts three months before today, on the last day of a shorter month', () => {
+    expect(recentSince(new Date(2026, 10, 9))).toBe('2026-08-09')
+    expect(recentSince(new Date(2026, 0, 15))).toBe('2025-10-15')
+    expect(recentSince(new Date(2026, 4, 31))).toBe('2026-02-28')
   })
 })

@@ -4,6 +4,7 @@ import { Menu } from 'lucide-react'
 import type { AppShellContent } from '../../content/types'
 import type { User } from '../../data/mock/types'
 import { isSystemAdmin } from '../../lib/userAdmin'
+import { OrganizationName } from '../admin/OrganizationBanner'
 import { DepartmentSwitcher } from './DepartmentSwitcher'
 import { NotificationsBell } from './NotificationsBell'
 
@@ -19,12 +20,12 @@ interface TopBarProps {
 const iconButton =
   'inline-flex size-10 items-center justify-center rounded-lg border border-beige text-maroon transition-colors hover:bg-beige'
 
-/** Top bar of the signed-in app: menu button (small screens), notifications and user. */
+/** Top bar of the signed-in app: menu button (small screens), the organization's name, notifications and user. */
 export function TopBar({ content, user, menuOpen, onOpenMenu, menuButtonRef }: TopBarProps) {
   return (
     <header className="sticky top-0 z-30 border-b border-beige bg-white/90 backdrop-blur-md print:hidden">
       {/* At least 64px; taller only when the user's details wrap on a narrow window */}
-      <div className="flex min-h-16 items-center justify-between gap-4 px-4 py-2 sm:px-6 lg:px-8">
+      <div className="flex min-h-16 items-center gap-3 px-4 py-2 sm:gap-4 sm:px-6 lg:px-8">
         <button
           ref={menuButtonRef}
           type="button"
@@ -32,12 +33,18 @@ export function TopBar({ content, user, menuOpen, onOpenMenu, menuButtonRef }: T
           aria-label={content.openMenu}
           aria-expanded={menuOpen}
           aria-haspopup="dialog"
-          className={`${iconButton} lg:hidden`}
+          className={`${iconButton} shrink-0 lg:hidden`}
         >
           <Menu aria-hidden="true" className="size-5" strokeWidth={1.75} />
         </button>
 
-        <div className="ml-auto flex min-w-0 items-center gap-3 sm:gap-4">
+        {/* The organization's name (read-only here), in the space left over: it is cut with "…" before it
+            could reach the notifications, the department switcher or the profile. */}
+        <div className="flex min-w-0 flex-1 items-center">
+          <OrganizationName user={user} />
+        </div>
+
+        <div className="flex min-w-0 items-center gap-3 sm:gap-4">
           {/* Notifications (PBI 31): unread count and a panel with the newest ones */}
           <NotificationsBell />
 
@@ -66,20 +73,21 @@ export function TopBar({ content, user, menuOpen, onOpenMenu, menuButtonRef }: T
               >
                 {user.name}
               </Link>
-              {/* "Position | Department" side by side on one line, never stacked: only a very long position
-                  wraps within its own column. The position is plain text; the department stays the
-                  switcher. A System Admin has neither, so the line isn't shown for them. */}
+              {/* "Department | Position" side by side on one line, never stacked: only a very long position
+                  wraps within its own column. The department stays the switcher; the position is plain
+                  text. An administrator has neither (and uses the admin portal's top bar, with only "Super
+                  Admin" or "Admin"), so the line isn't shown for them. */}
               {!isSystemAdmin(user) && (
                 <div className="hidden items-center gap-x-1.5 text-xs text-text-gray sm:flex">
-                  {user.position && (
-                    <>
-                      <span className="min-w-0 break-words">{user.position}</span>
-                      <span aria-hidden="true" className="shrink-0 text-text-gray/60">{content.positionSeparator}</span>
-                    </>
-                  )}
                   <span className="shrink-0">
                     <DepartmentSwitcher content={content.departmentSwitcher} variant="topbar" />
                   </span>
+                  {user.position && (
+                    <>
+                      <span aria-hidden="true" className="shrink-0 text-text-gray/60">{content.positionSeparator}</span>
+                      <span className="min-w-0 break-words">{user.position}</span>
+                    </>
+                  )}
                 </div>
               )}
             </div>

@@ -7,12 +7,17 @@ The public **Request Hawkim** form (`/request-hawkim`) and the Hawkim team's **r
 1. A visitor sends the form → the request is stored; `requests@tryhawkim.com` gets an email with a
    **Review request** button; the requester gets a confirmation.
 2. The team opens the review page → **Accept** creates the account (Supabase Auth) with an active
-   profile in `ADMIN_DEPARTMENT` and the **Admin** role, and emails a **Set your password** link
-   (to `/reset-password`); **Reject** tells the requester.
+   profile in `ADMIN_DEPARTMENT`, the Admin permission and the **Super Admin** designation (the
+   organization's initial Super Admin), and emails a **Set your password** link (to `/reset-password`);
+   **Reject** tells the requester. A deployment that already has an Admin refuses with
+   `409 deployment_onboarded` before any account is created: each organization has its own deployment
+   (see `docs/admins.md`).
 
 ## Setup (once)
 
-1. Apply the migration (the database owner).
+1. Apply the migration (the database owner). Since `20261115120000_request_organization_details.sql`
+   the function sends the organization's details to the 13-parameter `submit_access_request`: apply that
+   migration first, then deploy this function straight away (new requests fail in between).
 2. Deploy with JWT verification off: `npx supabase functions deploy access-requests --no-verify-jwt`
    (or Dashboard → Edge Functions → Deploy a new function → Via editor, name `access-requests`,
    paste `access-requests-single-file.ts`, then turn JWT verification off in its settings).

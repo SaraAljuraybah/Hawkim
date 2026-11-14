@@ -75,6 +75,8 @@ export function requestDepartmentAccessPath(departmentId: DepartmentId): string 
 
 /** The admin portal's home (its users list); admins opening an employee screen go here. */
 export const ADMIN_USERS_PATH = '/admin/users'
+/** The Staff page's Deactive Staff tab. */
+export const ADMIN_DEACTIVATED_USERS_PATH = `${ADMIN_USERS_PATH}?status=deactivated`
 
 /** My Profile in the admin portal: admins only use the portal. */
 export const ADMIN_PROFILE_PATH = '/admin/profile'
@@ -87,8 +89,16 @@ export function profilePathFor(user: { permissions: string[] } | null | undefine
 /** The admin portal's departments list. */
 export const ADMIN_DEPARTMENTS_PATH = '/admin/departments'
 
+/** The admin portal's Organization Profile. */
+export const ADMIN_ORGANIZATION_PROFILE_PATH = '/admin/organization-profile'
+
 /** Where an admin lands: after signing in, on /admin, and from any employee page. */
-export const ADMIN_HOME_PATH = ADMIN_DEPARTMENTS_PATH
+export const ADMIN_HOME_PATH = ADMIN_ORGANIZATION_PROFILE_PATH
+
+/** Whether this is the Divisions and Departments page itself (not a department's page under it): the only place the organization name can be edited. */
+export function isOrganizationNameEditPage(pathname: string): boolean {
+  return pathname.replace(/\/+$/, '') === ADMIN_DEPARTMENTS_PATH
+}
 
 /** A department's page in the admin portal, e.g. /admin/departments/quality-assurance */
 export function adminDepartmentPath(departmentId: string): string {
@@ -138,4 +148,20 @@ export function adminUserPath(userId: string): string {
 /** Edit User in the admin portal, e.g. /admin/users/user-sara/edit */
 export function adminUserEditPath(userId: string): string {
   return `${adminUserPath(userId)}/edit`
+}
+
+/** Manage Organization → Admins: the administrators list. */
+export const ADMIN_ADMINS_PATH = '/admin/admins'
+
+/** Add Admin. */
+export const ADMIN_NEW_ADMIN_PATH = `${ADMIN_ADMINS_PATH}/new`
+
+/** An administrator's page, e.g. /admin/admins/0b6e… */
+export function adminAdminPath(userId: string): string {
+  return `${ADMIN_ADMINS_PATH}/${encodeURIComponent(userId)}`
+}
+
+/** Edit Admin, e.g. /admin/admins/0b6e…/edit */
+export function adminAdminEditPath(userId: string): string {
+  return `${adminAdminPath(userId)}/edit`
 }

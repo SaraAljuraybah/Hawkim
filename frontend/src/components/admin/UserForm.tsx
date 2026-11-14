@@ -2,6 +2,7 @@ import { useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { flushSync } from 'react-dom'
 import { LoaderCircle } from 'lucide-react'
 import { adminEn } from '../../content/admin.en'
+import type { UserFormText } from '../../content/types'
 import { usersEn } from '../../content/users.en'
 import type { Permission, User } from '../../data/mock/types'
 import {
@@ -9,8 +10,8 @@ import {
   departmentsInDivision,
   hasUnsavedChanges,
   isSystemAdmin,
-  PERMISSIONS,
   POSITION_MAX,
+  STAFF_PERMISSIONS,
   validateNewUser,
   type NewUser,
   type NewUserField,
@@ -19,6 +20,7 @@ import {
 import { useDepartments } from '../../state/departmentsContext'
 import { Button } from '../ui/Button'
 import { CheckboxGroup } from '../ui/CheckboxGroup'
+import { PhoneField } from '../ui/PhoneField'
 import { SelectCombobox } from '../ui/SelectCombobox'
 import { TextField } from '../ui/TextField'
 import { UnsavedChangesGuard, type UnsavedChangesText } from '../ui/UnsavedChangesGuard'
@@ -47,17 +49,23 @@ interface UserFormProps {
    * (a new key) after saving, so saved values are never asked about.
    */
   unsavedChanges?: UnsavedChangesText
+  /** The labels, hints and messages of name, email and phone, and where Cancel goes. Default: Staff's. */
+  text?: UserFormText
+  /** The permissions offered; none hides the choice (Admins: always the Admin permission). Default: Staff's. */
+  permissionOptions?: Permission[]
 }
 
 /**
- * The form of Add Staff and Edit Staff: full name, email (valid and unique) and phone number
- * (+9665XXXXXXXX) are required; staff also need a division, a department (one of that division's)
- * and a position. A System Admin (the Admin permission) has none of those, so they are hidden while
- * Admin is chosen. Permissions are optional. Division comes first: the department list waits for it,
- * and when "No Division" is the only choice it is chosen from the start.
+ * The form of Add/Edit Staff and Add/Edit Admin: full name, email (valid and unique) and phone number
+ * (+9665XXXXXXXX: the 8 digits typed after a fixed "+9665") are required; staff also need a division,
+ * a department (one of that division's) and a position. An administrator (the Admin permission, set by
+ * the Admins pages, which offer no permissions) has none of those, so they are hidden. Staff permissions
+ * are optional. Division comes first: the department list waits for it, and when "No Division" is the
+ * only choice it is chosen from the start.
  */
-export function UserForm({ initial, otherUsers, submitLabel, busyLabel, notice, onEdit, onSubmit, unsavedChanges }: UserFormProps) {
+export function UserForm({ initial, otherUsers, submitLabel, busyLabel, notice, onEdit, onSubmit, unsavedChanges, text, permissionOptions = STAFF_PERMISSIONS }: UserFormProps) {
   const content = adminEn.addUser
+  const fieldText = text ?? content
   const { activeDepartments } = useDepartments()
 
   const [values, setValues] = useState<NewUser>(initial)
@@ -75,15 +83,16 @@ export function UserForm({ initial, otherUsers, submitLabel, busyLabel, notice, 
   const division = values.divisionId ?? defaultDivision(activeDepartments)
   const user: NewUser = { ...values, divisionId: division }
   const systemAdmin = isSystemAdmin(values)
+  // The phone is compared as stored ("+9665" and the digits), so an untouched number is no change.
   const dirty = hasUnsavedChanges({ ...initial, divisionId: initial.divisionId ?? defaultDivision(activeDepartments) }, user)
   const departmentOptions = departmentsInDivision(activeDepartments, division).map((department) => ({ value: department.id, label: department.name }))
 
   const messages: Record<NewUserProblem, string> = {
-    'name-required': content.errors.nameRequired,
-    'email-invalid': content.errors.emailInvalid,
-    'email-taken': content.errors.emailTaken,
-    'phone-required': content.errors.phoneRequired,
-    'phone-invalid': content.errors.phoneInvalid,
+    'name-required': fieldText.errors.nameRequired,
+    'email-invalid': fieldText.errors.emailInvalid,
+    'email-taken': fieldText.errors.emailTaken,
+    'phone-required': fieldText.errors.phoneRequired,
+    'phone-invalid': fieldText.errors.phoneInvalid,
     'division-required': content.errors.divisionRequired,
     'department-required': content.errors.departmentRequired,
     'position-required': content.errors.positionRequired,
@@ -140,7 +149,7 @@ export function UserForm({ initial, otherUsers, submitLabel, busyLabel, notice, 
         ref={nameRef}
         name="name"
         autoComplete="off"
-        label={content.name.label}
+        label={fieldText.name.label}
         required
         requiredMark
         value={values.name}
@@ -155,30 +164,27 @@ export function UserForm({ initial, otherUsers, submitLabel, busyLabel, notice, 
         autoComplete="off"
         autoCapitalize="none"
         spellCheck={false}
-        label={content.email.label}
+        label={fieldText.email.label}
         required
         requiredMark
-        hint={content.email.hint}
         value={values.email}
         error={errors.email}
         onChange={(event) => change({ ...values, email: event.target.value })}
         onBlur={() => blur('email')}
         className="mt-5"
       />
-      <TextField
+      {/* "+9665" before the field and the 8 digits in it; values.phone keeps "+9665" and the digits */}
+      <PhoneField
         ref={phoneRef}
         name="phone"
-        type="tel"
-        inputMode="tel"
-        autoComplete="off"
-        label={content.phone.label}
+        label={fieldText.phone.label}
         required
         requiredMark
-        hint={content.phone.hint}
-        placeholder={content.phone.placeholder}
+        hint={fieldText.phone.hint}
+        invalidMessage={fieldText.errors.phoneInvalid}
         value={values.phone}
         error={errors.phone}
-        onChange={(event) => change({ ...values, phone: event.target.value })}
+        onChange={(phone) => change({ ...values, phone })}
         onBlur={() => blur('phone')}
         className="mt-5"
       />
@@ -232,12 +238,12 @@ export function UserForm({ initial, otherUsers, submitLabel, busyLabel, notice, 
         className="mt-5"
       />
       </>)}
-      <CheckboxGroup
+      {permissionOptions.length > 0 && <CheckboxGroup
         name="permissions"
         legend={content.permissions.legend}
         error={errors.permissions}
         firstRef={permissionsRef}
-        options={PERMISSIONS.map((permission) => ({
+        options={permissionOptions.map((permission) => ({
           value: permission,
           label: usersEn.permissions[permission],
           description: adminEn.permissionDescriptions[permission],
@@ -245,13 +251,13 @@ export function UserForm({ initial, otherUsers, submitLabel, busyLabel, notice, 
         value={values.permissions}
         onChange={(next) => change({ ...values, permissions: next as Permission[] })}
         className="mt-6"
-      />
+      />}
       {notice}
       {unsavedChanges && <UnsavedChangesGuard when={dirty && !busy} text={unsavedChanges} />}
 
       <div className="mt-8 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-        <Button variant="secondary" to={content.back.href}>
-          {content.cancel}
+        <Button variant="secondary" to={fieldText.back.href}>
+          {fieldText.cancel}
         </Button>
         <Button type="submit" aria-disabled={busy || undefined}>
           {busy && <LoaderCircle aria-hidden="true" className="size-4 motion-safe:animate-spin" strokeWidth={1.75} />}

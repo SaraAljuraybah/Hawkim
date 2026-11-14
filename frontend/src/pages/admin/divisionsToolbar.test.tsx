@@ -11,8 +11,8 @@ vi.mock('../../hooks/useOrganizationManagement', () => ({ useOrganizationManagem
 
 const snapshot: ManagementSnapshot = {
   divisions: [
-    { id: 'q', name: 'Quality & Compliance', description: '', email: null, updated_at: null, department_count: 1, employees: 3, sops: 2 },
-    { id: 'c', name: 'Clinical Research & Development', description: '', email: null, updated_at: null, department_count: 1, employees: 5, sops: 7 },
+    { id: 'q', name: 'Quality and Compliance', description: '', email: null, updated_at: null, department_count: 1, employees: 3, sops: 2 },
+    { id: 'c', name: 'Clinical Research and Development', description: '', email: null, updated_at: null, department_count: 1, employees: 5, sops: 7 },
   ],
   departments: [
     { id: 'qa', name: 'Quality Assurance', initials: 'QA', description: '', division_id: 'q', updated_at: 'r', employees: 3, sops: 2, status_counts: {} },
@@ -25,48 +25,71 @@ const table = (props: Partial<Parameters<typeof HierarchyTable>[0]> = {}) => ren
   <HierarchyTable snapshot={snapshot} onEdit={vi.fn()} onPreview={vi.fn()} onViewDepartment={vi.fn()} onAddDepartment={vi.fn()} onEditDepartment={vi.fn()} onDeleteDivision={vi.fn()} onDeleteDepartment={vi.fn()} {...props} />
 </MemoryRouter>)
 
-describe('the Divisions & Departments page', () => {
-  it('has only the heading (no subtitle) and Add Division', () => {
+describe('the Divisions and Departments page', () => {
+  it('has the heading, its description under it, and Add Division', () => {
     management.value = { data: snapshot, refresh: vi.fn() }
     const html = page()
-    expect(html.match(/<h1[^>]*>([^<]*)<\/h1>/)![1]).toBe('Divisions &amp; Departments')
-    expect(html).not.toContain('Manage divisions and their departments.')
+    expect(html.match(/<h1[^>]*>([^<]*)<\/h1>/)![1]).toBe('Divisions and Departments')
+    expect(html).toContain('</h1>\n      <p class="mt-2 max-w-2xl text-text-gray">View and manage the divisions and departments within your organization.</p>'.replace('\n      ', ''))
     expect(html).toContain('Add Division')
   })
 
-  it('has a full-width toolbar: Search, Filter by Division and Sort, in that order, above the table', () => {
+  it('has the toolbar of every list page: Search, Filter and Sort, in that order, above the table', () => {
     management.value = { data: snapshot, refresh: vi.fn() }
     const html = page()
-    // One column on small screens; on large screens about 60% / 20% / 20% (3fr : 1fr : 1fr).
-    const toolbar = html.match(/<div class="mt-6 grid gap-4 lg:grid-cols-\[minmax\(0,3fr\)_minmax\(0,1fr\)_minmax\(0,1fr\)\] lg:items-end">/)
+    // One column on small screens; on large screens 2fr : 1fr : 1fr, as on every list page.
+    const toolbar = html.match(/<div class="mt-6 relative grid gap-4 lg:grid-cols-\[minmax\(0,2fr\)_minmax\(0,1fr\)_minmax\(0,1fr\)\] lg:items-end">/)
     expect(toolbar).not.toBeNull()
     expect(toolbar![0]).not.toMatch(/(?<!lg:)grid-cols/)
     expect(html).not.toContain('max-w-md')
-    const order = ['name="organizationSearch"', '>Filter by Division<', 'name="divisionSort"', '<table']
+    const order = ['name="organizationSearch"', '>Filter</label>', 'name="divisionSort"', '<table']
     expect(order.map((text) => html.indexOf(text))).toEqual([...order.map((text) => html.indexOf(text))].sort((a, b) => a - b))
     expect(html).toContain('placeholder="Search divisions or departments..."')
   })
 
-  it('offers exactly the default order and the six sort options', () => {
+  it('offers the default order, then each group (saying what it sorts) with its two directions', () => {
     management.value = { data: snapshot, refresh: vi.fn() }
     const select = page().match(/<select[^>]*name="divisionSort"[^>]*>([\s\S]*?)<\/select>/)![1]
-    expect(select.match(/>([^<]+)<\/option>/g)!.map((option) => option.slice(1, -9))).toEqual([
-      'Default order', 'Name: A to Z', 'Name: Z to A', 'Departments: High to Low', 'Departments: Low to High', 'SOPs: High to Low', 'SOPs: Low to High',
+    const groups = [...select.matchAll(/<optgroup label="([^"]+)">([\s\S]*?)<\/optgroup>/g)]
+      .map((group) => [group[1], [...group[2].matchAll(/>([^<]+)<\/option>/g)].map((option) => option[1])])
+    expect(groups).toEqual([
+      ['Division name', ['A to Z', 'Z to A']],
+      ['Division staff', ['High to low', 'Low to high']],
+      ['Division SOPs', ['High to low', 'Low to high']],
+      ['Department name', ['A to Z', 'Z to A']],
+      ['Department staff', ['High to low', 'Low to high']],
+      ['Department SOPs', ['High to low', 'Low to high']],
     ])
+    expect(select).toMatch(/^<option value="default"[^>]*>Default order<\/option><optgroup/)
   })
 
-  it('lists the loaded divisions as checkboxes in the filter, by name', () => {
+  it('has the Filter field of every list page: Division, then Department grouped by division, by name', () => {
     management.value = { data: snapshot, refresh: vi.fn() }
     const html = page()
-    const boxes = [...html.matchAll(/<input type="checkbox"[^>]*name="divisionFilter" value="([^"]+)"/g)].map((match) => match[1])
-    expect(boxes).toEqual(['c', 'q'])
-    expect(html).toContain('aria-label="Filter by Division"')
-    expect(html).toContain('All divisions')
+    expect([...html.matchAll(/<legend[^>]*>([^<]+)<\/legend>/g)].map((match) => match[1])).toEqual(['Division', 'Department'])
+    const section = (legend: string) => html.slice(html.indexOf(`>${legend}</legend>`), html.indexOf('</fieldset>', html.indexOf(`>${legend}</legend>`)))
+    const chips = (legend: string) => [...section(legend).matchAll(/aria-pressed="false"[^>]*><span class="min-w-0 break-words">([^<]+)<\/span>/g)].map((match) => match[1])
+    expect(chips('Division')).toEqual(['Clinical Research and Development', 'Quality and Compliance'])
+    // Under their divisions (A to Z), then the departments without one.
+    expect(chips('Department')).toEqual(['Clinical Operations', 'Quality Assurance', 'Legacy'])
+    const headings = [...section('Department').matchAll(/<p[^>]*>([^<]+)<\/p>/g)].map((match) => match[1])
+    expect(headings).toEqual(['Clinical Research and Development', 'Quality and Compliance', 'Unassigned departments'])
+    expect(html).toMatch(/>Filter<\/label><button id="[^"]+" type="button" aria-label="Filter"[^>]*><span class="truncate text-text-gray">All<\/span>/)
+    expect(html).not.toContain('All divisions')
   })
 
-  it('keeps the Users column label, loading state and Retry', () => {
+  it('shows the number of divisions above the table, like Staff and Admins (the unassigned group isn\'t a division)', () => {
     management.value = { data: snapshot, refresh: vi.fn() }
-    expect(page()).toContain('>Users</th>')
+    const html = page()
+    expect(html).toMatch(/<p role="status" class="mt-6 text-sm font-medium text-text-gray">2 divisions<\/p>/)
+    expect(html.indexOf('2 divisions')).toBeLessThan(html.indexOf('<table'))
+    management.value = { data: { ...snapshot, divisions: snapshot.divisions.slice(0, 1) }, refresh: vi.fn() }
+    expect(page()).toContain('>1 division<')
+  })
+
+  it('keeps the Staff column label, loading state and Retry', () => {
+    management.value = { data: snapshot, refresh: vi.fn() }
+    expect(page()).toContain('>Staff</th>')
     management.value = { refresh: vi.fn() }
     expect(page()).not.toContain('<table')
     management.value = { error: 'boom', refresh: vi.fn() }
@@ -79,7 +102,7 @@ describe('the Divisions & Departments page', () => {
 describe('the division filter on the table', () => {
   it('shows only the selected divisions, with their server totals, and hides unassigned departments', () => {
     const html = table({ divisions: ['q'] })
-    expect(html).toContain('Quality &amp; Compliance')
+    expect(html).toContain('Quality and Compliance')
     expect(html).not.toContain('Clinical Research')
     expect(html).not.toContain('Unassigned departments')
     expect(html).toMatch(/>3<\/td><td[^>]*>2<\/td>/)
@@ -87,25 +110,44 @@ describe('the division filter on the table', () => {
 
   it('shows several selected divisions (OR)', () => {
     const html = table({ divisions: ['q', 'c'] })
-    expect(html).toContain('Quality &amp; Compliance')
-    expect(html).toContain('Clinical Research &amp; Development')
+    expect(html).toContain('Quality and Compliance')
+    expect(html).toContain('Clinical Research and Development')
   })
 
   it('combines with search and sort, and says when nothing matches', () => {
-    const sorted = table({ divisions: ['q', 'c'], sort: 'sops-desc' })
-    expect(sorted.indexOf('Clinical Research')).toBeLessThan(sorted.indexOf('Quality &amp; Compliance'))
+    const sorted = table({ divisions: ['q', 'c'], sort: 'division-sops-desc' })
+    expect(sorted.indexOf('Clinical Research')).toBeLessThan(sorted.indexOf('Quality and Compliance'))
     const searched = table({ divisions: ['q', 'c'], query: 'operations' })
     expect(searched).toContain('>Clinical Operations</span>')
-    expect(searched).not.toContain('Quality &amp; Compliance')
+    expect(searched).not.toContain('Quality and Compliance')
     expect(table({ divisions: ['q'], query: 'operations' })).toContain('No divisions or departments match your search and filters.')
   })
 
-  it('uses the same centred alignment for the Users and SOPs values of divisions and departments', () => {
+  it('with departments chosen: only their divisions, opened, listing only those departments, counts per row', () => {
+    const many: ManagementSnapshot = { ...snapshot, departments: [...snapshot.departments,
+      { id: 'qc', name: 'Quality Control', initials: 'QC', description: '', division_id: 'q', updated_at: 'r', employees: 1, sops: 4, status_counts: {} }] }
+    const html = table({ snapshot: many, departments: ['qc'] })
+    expect(html).toContain('aria-expanded="true" aria-controls="children-q"')
+    expect(html).toContain('>Quality Control</span>')
+    expect(html).not.toContain('>Quality Assurance</span>')
+    expect(html).not.toContain('Clinical Research')
+    expect(html).not.toContain('Unassigned departments')
+    // The division keeps its own totals (3 staff, 2 SOPs) and department count.
+    expect(html).toMatch(/>Departments \(1\)<\/span><\/span><\/button><\/th><td[^>]*>3<\/td><td[^>]*>2<\/td>/)
+    // A chosen department without a division: under Unassigned departments only.
+    const legacy = table({ departments: ['old'] })
+    expect(legacy).toContain('Unassigned departments')
+    expect(legacy).toContain('>Legacy</span>')
+    expect(legacy).not.toContain('aria-controls="children-')
+    expect(table({ departments: ['qa'], query: 'clinical' })).toContain('No divisions or departments match your search and filters.')
+  })
+
+  it('uses the same centred alignment for the Staff and SOPs values of divisions and departments', () => {
     const html = table({ query: 'quality' })
     const cells = html.match(/<td class="[^"]*">\d+<\/td>/g)!
     expect(cells.length).toBe(4)
     expect(new Set(cells.map((cell) => cell.match(/class="([^"]*)"/)![1]))).toEqual(new Set(['px-3 py-4 text-center tabular-nums']))
-    expect(html).toMatch(/<th scope="col" class="px-3 py-4 text-center">Users<\/th><th scope="col" class="px-3 py-4 text-center">SOPs<\/th>/)
+    expect(html).toMatch(/<th scope="col" class="px-3 py-4 text-center">Staff<\/th><th scope="col" class="px-3 py-4 text-center">SOPs<\/th>/)
   })
 
   it('shows generated abbreviations in the department badges', () => {
@@ -118,21 +160,23 @@ type Element = ReactElement<Record<string, unknown>>
 const flatten = (node: ReactNode): Element[] => Array.isArray(node) ? node.flatMap(flatten)
   : isValidElement<Record<string, unknown>>(node) ? [node, ...flatten(node.props.children as ReactNode)] : []
 
-describe('the selected divisions', () => {
-  const options = [{ value: 'c', label: 'Clinical Research & Development' }, { value: 'q', label: 'Quality & Compliance' }]
-
+describe('the selected divisions and departments', () => {
   it('are listed by name, each removable, with Clear Filters', () => {
-    const onChange = vi.fn()
-    const nodes = flatten(ActiveFilters({ options, selected: ['q', 'c'], onChange }))
+    const removeClinical = vi.fn()
+    const onClear = vi.fn()
+    const nodes = flatten(ActiveFilters({ onClear, items: [
+      { id: 'division-c', label: 'Clinical Research and Development', onRemove: removeClinical },
+      { id: 'department-qa', label: 'Quality Assurance', onRemove: vi.fn() },
+    ] }))
     const remove = nodes.filter((node) => String(node.props['aria-label'] ?? '').startsWith('Remove '))
     expect(remove.map((node) => node.props['aria-label'])).toEqual([
-      'Remove Clinical Research & Development from the filter', 'Remove Quality & Compliance from the filter',
+      'Remove Clinical Research and Development from the filter', 'Remove Quality Assurance from the filter',
     ])
     ;(remove[0].props.onClick as () => void)()
-    expect(onChange).toHaveBeenLastCalledWith(['q'])
+    expect(removeClinical).toHaveBeenCalledOnce()
     const clear = nodes.find((node) => node.props.children === 'Clear Filters')!
     ;(clear.props.onClick as () => void)()
-    expect(onChange).toHaveBeenLastCalledWith([])
+    expect(onClear).toHaveBeenCalledOnce()
   })
 })
 
@@ -140,7 +184,7 @@ describe('names in the table', () => {
   it('shows division and department names as plain text: no links and no underline', () => {
     const html = table({ query: 'quality' })
     // Division name: inside the expand toggle, which still toggles (aria-expanded).
-    expect(html).toMatch(/<button type="button" aria-expanded="true"[\s\S]*?<span class="block font-semibold text-maroon">Quality &amp; Compliance<\/span>/)
+    expect(html).toMatch(/<button type="button" aria-expanded="true"[\s\S]*?<span class="block font-semibold text-maroon">Quality and Compliance<\/span>/)
     // Department name: plain text, no longer a link to its page.
     expect(html).toMatch(/<span class="min-w-0 break-words">Quality Assurance<\/span>/)
     expect(html).not.toContain('href="/admin/departments/qa"')
@@ -161,7 +205,7 @@ describe('department row actions', () => {
   })
   it('shows "Preview {name}" as the tooltip of both eye buttons, the same as the accessible name', () => {
     const html = table({ query: 'quality' })
-    for (const name of ['Quality &amp; Compliance', 'Quality Assurance']) {
+    for (const name of ['Quality and Compliance', 'Quality Assurance']) {
       // The tooltip that follows this button.
       const after = html.slice(html.indexOf(`aria-label="Preview ${name}"`))
       expect(after.match(/role="tooltip"[^>]*><span[^>]*>([^<]*)</)![1]).toBe(`Preview ${name}`)
@@ -194,5 +238,15 @@ describe('department row actions', () => {
     const html = table({ snapshot: pending, query: 'quality' })
     const button = html.match(/<button[^>]*aria-label="Retry file cleanup Quality Assurance"[^>]*>/)![0]
     expect(button).not.toContain('aria-disabled="true"')
+  })
+})
+
+describe('the organization name', () => {
+  it('is in the admin top bar, not in the page body', () => {
+    management.value = { data: snapshot, refresh: vi.fn() }
+    const html = page()
+    expect(html).not.toContain('lucide-pill')
+    expect(html).not.toContain('Organization name')
+    expect(html).toMatch(/^<div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"><div><h1/)
   })
 })

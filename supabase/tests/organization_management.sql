@@ -229,13 +229,25 @@ begin
 
   -- ---------- develop's Request Hawkim still creates an Admin, now with a position ----------
   perform pg_temp.act_as(null, 'service_role');
-  perform public.submit_access_request('OM Org', 'Request Person', 'Quality Lead', 'request@test.invalid', '+966500000000', 10, null, repeat('a', 64));
+  perform public.submit_access_request('OM Org', 'Request Person', 'Quality Lead', 'request@test.invalid', '+966500000000', 10, null, repeat('a', 64), 'info@organization.test', 'King Fahd Road, Riyadh', null, null, 'A test organization.');
   perform pg_temp.as_owner();
   insert into auth.users(id) values ('94000000-0000-4000-8000-000000000099');
+  -- One organization per deployment (20261111120000_super_admin.sql): refused while this one has Admins…
+  perform pg_temp.act_as(null, 'service_role');
+  perform pg_temp.expect_error(format('select public.accept_access_request(%L, %L, %L, %L)',
+    (select id from public.access_requests where email = 'request@test.invalid'), repeat('a', 64), '94000000-0000-4000-8000-000000000099', 'om-home'), 'P0001');
+  -- …so it is accepted as on a new deployment (rolled back): no Super Admin and no active Admin.
+  perform pg_temp.as_owner();
+  alter table public.super_admin disable trigger user;
+  delete from public.super_admin;
+  alter table public.super_admin enable trigger user;
+  update public.profiles p set deleted_at = now()
+  where p.deleted_at is null and exists (select 1 from public.user_roles r where r.user_id = p.id and r.role = 'admin');
   perform pg_temp.act_as(null, 'service_role');
   perform public.accept_access_request((select id from public.access_requests where email = 'request@test.invalid'), repeat('a', 64),
     '94000000-0000-4000-8000-000000000099', 'om-home');
   perform pg_temp.as_owner();
+  assert public.super_admin_id() = '94000000-0000-4000-8000-000000000099', 'The accepted requester is the Super Admin';
   set constraints all immediate; -- run the commit-time position check now
   assert (select title = 'Quality Lead' from public.employee_positions where profile_id = '94000000-0000-4000-8000-000000000099'),
     'The accepted requester holds their job title as a position';

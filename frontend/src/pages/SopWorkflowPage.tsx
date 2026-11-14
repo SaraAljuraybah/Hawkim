@@ -12,10 +12,11 @@ import { InternalReviewPanel } from '../components/workflow/InternalReviewPanel'
 import { PeopleList } from '../components/workflow/PeopleList'
 import { personWithRole } from '../components/workflow/people'
 import { PreviewDialog } from '../components/workflow/PreviewDialog'
+import { MetaLine } from '../components/ui/MetaLine'
 import { ResponseDialog } from '../components/workflow/ResponseDialog'
 import { ResubmitDialog } from '../components/workflow/ResubmitDialog'
 import { ReviewTimelineTable } from '../components/workflow/ReviewTimelineTable'
-import { SopDescription } from '../components/workflow/SopDescription'
+import { SopDetailsCard } from '../components/workflow/SopDetailsCard'
 import { StatusTracker } from '../components/workflow/StatusTracker'
 import { SubmitDialog } from '../components/workflow/SubmitDialog'
 import { SubmitForApprovalDialog } from '../components/workflow/SubmitForApprovalDialog'
@@ -29,12 +30,13 @@ import type { SopVersion } from '../data/mock/types'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { canReplaceSampleResult, checkRequired, checkStartFailure, currentCheck, hasCurrentCheck, isCheckRunning } from '../lib/compliance'
 import { approvalButtonBlocker } from '../lib/approval'
-import { hasResponseOutsideReviewers, requestResponseRecipients } from '../lib/reviewRequestRows'
+import { hasResponseOutsideReviewers } from '../lib/reviewRequestRows'
 import { canAddReviewers, canSendNewVersion } from '../lib/internalReview'
 import { reviewAllowsNewVersion } from '../lib/internalReviewStatus'
-import { formatDate } from '../lib/format'
+import { formatDate, formatReviewDate } from '../lib/format'
 import { hasPermission } from '../lib/permissions'
 import { sopPath } from '../lib/routes'
+import { divisionLabel } from '../lib/userAdmin'
 import {
   activeVersions,
   canResubmit,
@@ -246,14 +248,9 @@ export function SopWorkflowPage() {
 
       {/* Header (no status badge: the Workflow status steps show the status) */}
       <div className="mt-5">
-        <h1 className="mt-1 text-2xl leading-tight tracking-tight sm:text-3xl">{sop.title}</h1>
-        <SopDescription
-          description={sop.description}
-          content={content.description}
-          onSave={isMainAuthor && sop.status !== 'published' ? (text) => store.updateDescription(sop.id, text) : undefined}
-          onSaved={() => announce(content.messages.descriptionUpdated)}
-        />
-        <div className={`${sop.description?.trim() ? 'mt-4' : 'mt-3'} flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-text-gray`}>
+        <h1 className="mt-1 text-2xl leading-tight break-words tracking-tight sm:text-3xl">{sop.title}</h1>
+        {/* The description is in SOP Details, under Workflow status. */}
+        <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-text-gray">
           <span>{content.versionTemplate.replace('{version}', sop.version)}</span>
           <span aria-hidden="true">·</span>
           <span>
@@ -284,6 +281,15 @@ export function SopWorkflowPage() {
         {/* Only the steps: who returned it and why, and who's next, are in the Review timeline and the Reviewers box. */}
         <StatusTracker sop={sop} content={content.tracker} stepsOnly statusColours />
       </Section>
+
+      {/* SOP Details: Title and Description (editable by the main author until published), Division, Department, Date Added */}
+      <SopDetailsCard
+        sop={sop}
+        divisionName={divisionLabel(departments.getDepartment(sop.departmentId))}
+        departmentName={departmentName}
+        onSave={isMainAuthor && sop.status !== 'published' ? (details) => store.updateDetails(sop.id, details) : undefined}
+        onSaved={() => announce(content.details.saved)}
+      />
 
       {/* 2. Authors */}
       <Section
@@ -392,11 +398,14 @@ export function SopWorkflowPage() {
         />
       </Section>
 
-      {/* 4. Compliance overview: the GVP version checks use, then the results (or that the current version hasn't been checked yet).
-          This page is only for the SOP's author and co-authors, so only they see the GVP version here. */}
+      {/* 4. Compliance overview: the GVP version checks use, then the results (or that the current version hasn't been
+          checked yet), each in the same bordered box. This page is only for the SOP's author and co-authors, so only they
+          see the GVP version here. */}
       {needsCheck && <Section id="compliance-title" title={complianceEn.card.title} className="mt-6">
         <ComplianceGuideline sopId={sop.id} />
-        <ComplianceCard sop={sop} content={complianceEn} />
+        <div className="mt-4">
+          <ComplianceCard sop={sop} content={complianceEn} />
+        </div>
       </Section>}
 
       {/* Review actions stay with the reviewers, including before the first request. */}
@@ -404,13 +413,6 @@ export function SopWorkflowPage() {
         sop={sop}
         canRemove={isMainAuthor}
         table
-        response={{
-          recipients: (request) => requestResponseRecipients(sop, request).map((id) => personWithRole(sop, id, content.roles, nameOf)).join(', '),
-          send: async (request, text) => {
-            await store.addResponse(sop.id, text, request.id)
-            announce(content.messages.responseSent)
-          },
-        }}
         showEmpty
         title={internalReviewEn.panel.authorPageTitle}
         actions={
@@ -463,7 +465,7 @@ export function SopWorkflowPage() {
 
       {/* The timeline contains historical events only. */}
       <Section id="timeline-title" title={content.timeline.title} className="mt-6">
-        <ReviewTimelineTable sop={sop} content={content} mainAuthorOnly releaseScoped />
+        <ReviewTimelineTable sop={sop} content={content} mainAuthorOnly releaseScoped reasonPreview />
       </Section>
 
 
@@ -596,6 +598,12 @@ export function SopWorkflowPage() {
       {previewing && (
         <PreviewDialog
           title={content.history.previewTitle.replace('{title}', sop.title).replace('{version}', previewing.version.version)}
+          // "<file name> · Added on <date> · by <name>": the file's original name, the day in Riyadh the version was added, and who added it.
+          meta={<MetaLine template={previewing.version.uploadedById ? content.history.previewMeta : content.history.previewMetaNoUploader} values={{
+            file: previewing.version.fileName,
+            date: <time dateTime={previewing.version.uploadedAt}>{formatReviewDate(previewing.version.uploadedAt)}</time>,
+            name: previewing.version.uploadedById ? nameOf(previewing.version.uploadedById) : '',
+          }} />}
           url={previewing.url}
           viewerTitle={(previewing.version.fileType === 'docx' ? content.history.docxViewerTitle : content.history.viewerTitle)
             .replace('{title}', sop.title)

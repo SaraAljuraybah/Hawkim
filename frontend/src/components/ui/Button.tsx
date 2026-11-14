@@ -1,9 +1,9 @@
-import type { AnchorHTMLAttributes, ButtonHTMLAttributes, ReactNode } from 'react'
+import type { AnchorHTMLAttributes, ButtonHTMLAttributes, ReactNode, Ref } from 'react'
 import { ArrowRight } from 'lucide-react'
 import { Link, type LinkProps } from 'react-router-dom'
 
 /**
- * - primary:   maroon filled (main call to action on light backgrounds)
+ * - primary:   maroon filled (main call to action on light backgrounds; also the actions on the Staff and Admin details pages)
  * - secondary: maroon outline (supporting action on light backgrounds)
  * - accent:    gold filled with maroon text (call to action on maroon backgrounds)
  * - danger:    red outline (a destructive action, e.g. Delete user; always confirmed)
@@ -32,7 +32,12 @@ type AnchorButtonProps = CommonProps &
   Omit<AnchorHTMLAttributes<HTMLAnchorElement>, keyof CommonProps> & { href: string; to?: undefined }
 /** Neither → a native `<button>`. */
 type NativeButtonProps = CommonProps &
-  Omit<ButtonHTMLAttributes<HTMLButtonElement>, keyof CommonProps> & { href?: undefined; to?: undefined }
+  Omit<ButtonHTMLAttributes<HTMLButtonElement>, keyof CommonProps> & {
+    href?: undefined
+    to?: undefined
+    /** The button element, e.g. to move focus back to it. */
+    ref?: Ref<HTMLButtonElement>
+  }
 
 export type ButtonProps = RouteButtonProps | AnchorButtonProps | NativeButtonProps
 

@@ -7,6 +7,7 @@ import { GuidelineVersionDetails } from '../../components/admin/GuidelineVersion
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
 import { AdminRegulationsPage } from './AdminRegulationsPage'
 import { RegulationDetailsPage } from './RegulationDetailsPage'
+import { navLinks } from '../../lib/sidebarNav'
 
 const requirement = { id: 'R1', module: 'Module I', section: 'I.B.10', sectionTitle: 'Record management', shortTitle: 'Access', page: 22, summary: '' }
 const fixture = vi.hoisted(() => ({ titles: [] as string[], addedStatus: 'ready' as 'ready' | 'loading' | 'error' }))
@@ -44,17 +45,17 @@ const table = (html: string) => {
   return html.slice(start, html.indexOf('</table>', start))
 }
 const currentCard = (html: string) => html.slice(html.indexOf('id="current-title"'), html.indexOf('id="history-title"'))
-const fields = ['Title', 'Version', 'Issued by SFDA On', 'Added to Hawkim On', 'Added By', 'Source', 'File', 'Requirements']
+const fields = ['Title', 'Version', 'Source', 'Issued by SFDA On', 'Added to Hawkim On', 'Added By', 'File', 'Requirement Passages']
 
-describe('SFDA Regulatory Requirements page', () => {
-  it('is called SFDA Regulatory Requirements in the h1, the browser tab, the sidebar and the back links', () => {
+describe('Regulatory Requirements page', () => {
+  it('is called Regulatory Requirements in the h1, the browser tab, the sidebar and the back links', () => {
     fixture.titles.length = 0
     const html = render()
-    expect(html).toContain('>SFDA Regulatory Requirements</h1>')
-    expect(fixture.titles.at(-1)).toBe(adminEn.pageTitle.replace('{page}', 'SFDA Regulatory Requirements'))
-    expect(adminEn.shell.nav.find((item) => item.href === '/admin/regulations')?.label).toBe('SFDA Regulatory Requirements')
-    expect(adminEn.regulationForm.back.label).toBe('Back to SFDA Regulatory Requirements')
-    expect(adminEn.regulationDetails.back.label).toBe('Back to SFDA Regulatory Requirements')
+    expect(html).toContain('>Regulatory Requirements</h1>')
+    expect(fixture.titles.at(-1)).toBe(adminEn.pageTitle.replace('{page}', 'Regulatory Requirements'))
+    expect(navLinks(adminEn.shell.nav).find((item) => item.href === '/admin/regulations')?.label).toBe('Regulatory Requirements')
+    expect(adminEn.regulationForm.back.label).toBe('Back to Regulatory Requirements')
+    expect(adminEn.regulationDetails.back.label).toBe('Back to Regulatory Requirements')
   })
 
   it('keeps the Current Version card with its fields but no File or Requirements row and no View Requirements link, and Source as a new-tab link', () => {
@@ -63,9 +64,9 @@ describe('SFDA Regulatory Requirements page', () => {
     const html = render()
     fixture.addedStatus = 'ready'
     const card = currentCard(html)
-    expect([...card.matchAll(/<dt[^>]*>([^<]+)<\/dt>/g)].map((match) => match[1])).toEqual(fields.filter((field) => field !== 'File' && field !== 'Requirements'))
+    expect([...card.matchAll(/<dt[^>]*>([^<]+)<\/dt>/g)].map((match) => match[1])).toEqual(fields.filter((field) => field !== 'File' && field !== 'Requirement Passages'))
     expect(card).not.toContain('View Requirements')
-    expect(card).not.toContain('1 Requirement')
+    expect(card).not.toContain('1 Requirement Passage')
     expect(card).not.toContain('Drug-GVP4_1.pdf')
     // Added just after midnight in Riyadh: the Riyadh date.
     expect(card).toContain('<time dateTime="2026-11-06">Nov 6, 2026</time>')
@@ -74,16 +75,31 @@ describe('SFDA Regulatory Requirements page', () => {
     expect(card).toContain('<span class="sr-only"> (opens in a new tab)</span>')
   })
 
-  it('lists only Title, Version, Issued by SFDA On and Added to Hawkim On, with a hidden Actions header that does not wrap', () => {
+  it('lists Title, Version, Issued by SFDA On and Added to Hawkim On, then Preview, Edit and Delete with visible headings', () => {
     const html = table(render())
-    const columns = [...html.matchAll(/<th scope="col"[^>]*>(?:<span class="sr-only">)?([^<]+)/g)].map((match) => match[1])
-    expect(columns).toEqual(['Title', 'Version', 'Issued by SFDA On', 'Added to Hawkim On', 'Actions'])
-    expect(html).toContain('<span class="sr-only">Actions</span>')
+    const columns = [...html.matchAll(/<th scope="col"[^>]*>([^<]+)<\/th>/g)].map((match) => match[1])
+    expect(columns).toEqual(['Title', 'Version', 'Issued by SFDA On', 'Added to Hawkim On', 'Preview', 'Edit', 'Delete'])
+    expect(html).not.toContain('sr-only">Actions')
+    // As on Divisions and Departments: 6rem per action column, each heading centred above its button.
+    expect(html).toContain('<colgroup><col/><col/><col/><col/><col class="w-24"/><col class="w-24"/><col class="w-24"/></colgroup>')
+    for (const heading of ['Preview', 'Edit', 'Delete']) {
+      expect(html).toContain(`<th scope="col" class="px-2 py-3 text-center font-semibold last:rounded-tr-xl">${heading}</th>`)
+    }
     for (const header of ['Version', 'Issued by SFDA On', 'Added to Hawkim On']) {
       expect(html).toMatch(new RegExp(`<th scope="col" class="[^"]*whitespace-nowrap[^"]*">${header}</th>`))
     }
     expect(html).toContain('<thead class="text-offwhite [&amp;_th]:bg-maroon">')
-    for (const removed of ['Added By', 'Source', 'File', 'Requirements', 'View Requirements']) expect(html).not.toContain(`>${removed}<`)
+    for (const removed of ['Added By', 'Source', 'File', 'Requirement Passages', 'View Requirements']) expect(html).not.toContain(`>${removed}<`)
+  })
+
+  it('puts each action in its own centred cell, in the order Preview, Edit, Delete (a disabled Delete keeps its cell)', () => {
+    const html = table(render())
+    const rows = html.split('<tr>').slice(2)
+    expect(rows.length).toBeGreaterThan(0)
+    for (const row of rows) {
+      const cells = [...row.matchAll(/<td class="px-2 py-3\.5 text-center \[&amp;&gt;\*\]:mx-auto">(.*?)<\/td>/g)].map((match) => match[1])
+      expect(cells.map((cell) => cell.match(/aria-label="(\w+) /)?.[1])).toEqual(['View', 'Edit', 'Delete'])
+    }
   })
 
   it('lists every version together, newest first by when it was added, with the Current badge only on the current one', () => {
@@ -105,7 +121,7 @@ describe('SFDA Regulatory Requirements page', () => {
     const card = currentCard(render())
     expect(card).toMatch(/GVP Version 4\.1<span class="[^"]*">Current<\/span>/)
     expect(card).not.toContain('5.0')
-    expect(card).not.toContain('Requirements')
+    expect(card).not.toContain('Requirement Passages')
     expect(card).not.toContain('<table')
   })
 

@@ -26,13 +26,15 @@ export type GuidelineFailure =
   | 'file-missing'
   | 'file-in-use'
   | 'file-exists'
+  /** Another added version is still waiting for or being processed (one at a time). */
+  | 'version-processing'
   | 'upload'
   | 'permission'
   | 'other'
 
 const HINTS: GuidelineFailure[] = [
   'title-invalid', 'version-invalid', 'version-exists', 'version-not-higher', 'issued-required', 'issued-after-added',
-  'source-invalid', 'file-not-pdf', 'file-too-large', 'file-missing', 'file-in-use', 'file-exists',
+  'source-invalid', 'file-not-pdf', 'file-too-large', 'file-missing', 'file-in-use', 'file-exists', 'version-processing',
 ]
 
 export class GuidelineError extends Error {
@@ -74,23 +76,27 @@ interface AddedVersionRow {
   processing_error?: string | null
   processing_report?: Record<string, unknown> | null
   processed_at?: string | null
-  processing_progress?: Record<string, unknown> | null
+  progress_percent?: number | null
+  stage?: string | null
+  stage_detail?: string | null
 }
 
 const PROCESSING_STATUSES: GuidelineProcessing['status'][] = ['waiting', 'processing', 'ready', 'failed']
 
 /** The processing state of an added version, read defensively from its row. */
-export function toGuidelineProcessing(row: Pick<AddedVersionRow, 'processing_status' | 'processing_error' | 'processing_report' | 'processed_at' | 'processing_progress'>): GuidelineProcessing {
+export function toGuidelineProcessing(row: Pick<AddedVersionRow, 'processing_status' | 'processing_error' | 'processing_report' | 'processed_at' | 'progress_percent' | 'stage' | 'stage_detail'>): GuidelineProcessing {
   const status = PROCESSING_STATUSES.includes(row.processing_status as GuidelineProcessing['status']) ? row.processing_status! : 'waiting'
   const raw = row.processing_report
   const count = (value: unknown) => (typeof value === 'number' && Number.isInteger(value) && value >= 0 ? value : undefined)
   const texts = (value: unknown) => (Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string' && item.trim() !== '') : [])
   const requirements = count(raw?.requirements)
   const sections = count(raw?.sections)
-  const progressRaw = row.processing_progress
-  const stage = progressRaw?.stage
-  const progress = status === 'processing' && (stage === 'reading' || stage === 'embedding' || stage === 'saving')
-    ? { stage: stage as NonNullable<GuidelineProcessing['progress']>['stage'], done: count(progressRaw?.done) ?? 0, total: count(progressRaw?.total) ?? 0 }
+  const label = (value: unknown) => (typeof value === 'string' && value.trim() !== '' ? value.trim() : undefined)
+  const percent = count(row.progress_percent)
+  const stage = label(row.stage)
+  const detail = label(row.stage_detail)
+  const progress = status === 'processing' && (percent !== undefined || stage)
+    ? { percent: Math.min(percent ?? 0, 100), ...(stage ? { stage } : {}), ...(stage && detail ? { detail } : {}) }
     : undefined
   return {
     status,
@@ -123,11 +129,15 @@ export function toAddedGuidelineVersion(row: AddedVersionRow): GuidelineVersion 
   }
 }
 
-/** The versions admins added (only admins can read them), oldest first. */
+/**
+ * The versions admins added (only admins can read them), oldest first. One deleted while it was being
+ * processed is left out: the compliance service is stopping and deleting it.
+ */
 export async function fetchAddedGuidelineVersions(): Promise<GuidelineVersion[]> {
   const { data, error } = await supabase()
     .from('guideline_version_drafts')
-    .select('id, name, version, issued_date, source, file_name, storage_path, file_size, created_by, created_at, processing_status, processing_error, processing_report, processed_at, processing_progress')
+    .select('id, name, version, issued_date, source, file_name, storage_path, file_size, created_by, created_at, processing_status, processing_error, processing_report, processed_at, progress_percent, stage, stage_detail')
+    .eq('cancel_requested', false)
     .order('created_at')
   if (error) throw new Error(error.message)
   return (data as AddedVersionRow[]).map(toAddedGuidelineVersion)
@@ -184,9 +194,15 @@ export async function attachGuidelineFile(id: string, storagePath: string): Prom
   await call('attach_guideline_file', { p_id: id, p_storage_path: storagePath })
 }
 
-/** Deletes a version that was never current; returns its file's path. */
-export function deleteAddedGuidelineVersion(id: string): Promise<string> {
-  return call<string>('delete_guideline_draft', { p_id: id })
+/**
+ * Deletes a version that was never current. 'deleted' with its file's path (for the browser to
+ * remove), or 'cancelled' for a version being processed: the compliance service stops processing it
+ * and deletes it with its files.
+ */
+export async function deleteAddedGuidelineVersion(id: string): Promise<{ outcome: 'deleted'; storagePath?: string } | { outcome: 'cancelled' }> {
+  const result = await call<{ outcome?: string; storage_path?: string | null } | null>('delete_guideline_draft', { p_id: id })
+  if (result?.outcome === 'cancel-requested') return { outcome: 'cancelled' }
+  return { outcome: 'deleted', ...(result?.storage_path ? { storagePath: result.storage_path } : {}) }
 }
 
 /** A link to a version's PDF that works for 10 minutes. */

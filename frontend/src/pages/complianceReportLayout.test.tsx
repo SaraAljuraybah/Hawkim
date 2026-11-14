@@ -18,7 +18,7 @@ const fixture = vi.hoisted(() => ({ sop: null as Sop | null, userId: 'author', u
 vi.mock('../hooks/useDocumentTitle', () => ({ useDocumentTitle: () => {} }))
 vi.mock('../state/sessionContext', () => ({ useCurrentUser: () => fixture.users.find((user) => user.id === fixture.userId), useSession: () => ({ status: 'signed-in', user: fixture.users.find((user) => user.id === fixture.userId) }) }))
 vi.mock('../state/usersContext', () => ({ useUsers: () => ({ users: fixture.users, activeUsers: fixture.users, nameOf: (id: string) => fixture.users.find((user) => user.id === id)?.name ?? id ?? '', getUser: (id: string) => fixture.users.find((user) => user.id === id) }) }))
-vi.mock('../state/departmentsContext', () => ({ useDepartments: () => ({ departments: [{ id: 'home', name: 'Home', initials: 'HM', description: '', requiresComplianceCheck: true }], nameOf: () => 'Home' }) }))
+vi.mock('../state/departmentsContext', () => ({ useDepartments: () => ({ departments: [{ id: 'home', name: 'Home', initials: 'HM', description: '', requiresComplianceCheck: true }], nameOf: () => 'Home', getDepartment: () => undefined }) }))
 vi.mock('../state/guidelinesContext', () => ({ useGuidelines: () => ({ current: { version: '4.0' }, getRequirement: () => undefined }) }))
 vi.mock('../state/sopsContext', () => ({ useSops: () => ({ sops: [fixture.sop] }) }))
 vi.mock('../state/requestsContext', () => ({ useMyRequests: () => [] }))
@@ -96,7 +96,7 @@ describe('the compliance report layout', () => {
     const summary = section(render(<ComplianceReportPage />), 'summary-title')
     expect(summary).toContain('class="relative size-44 shrink-0 print:size-40"')
     expect(summary).toContain('<span class="text-4xl leading-none font-semibold tracking-tight text-maroon">0%</span>')
-    expect(summary).toContain('class="w-full rounded-lg border border-beige p-3 text-left')
+    expect(summary).toContain('class="w-full rounded-lg border border-beige p-3"')
     expect(summary).toContain('class="block h-1.5 w-6 rounded-full')
     expect(summary).toContain('class="mt-2 block text-xl leading-none font-semibold tabular-nums')
     // The tile labels keep their size.
@@ -104,22 +104,17 @@ describe('the compliance report layout', () => {
     for (const old of ['size-36', 'text-3xl', 'p-3.5', 'w-8', 'text-2xl']) expect(summary, old).not.toContain(old)
   })
 
-  it('makes each tile, 0 included, a button that goes to that result\'s findings', () => {
+  it('shows each tile, 0 included, as a plain box: not a button or link, no hover and no focus', () => {
     const summary = section(render(<ComplianceReportPage />), 'summary-title')
-    const tiles = [...summary.matchAll(/<button type="button"[^>]*>(.*?)<\/button>/g)].map((match) => match[1].replace(/<[^>]+>/g, ''))
-    expect(tiles).toEqual([
-      '0Conflict Go to Conflict findings',
-      '2Requires Human Review Go to Requires Human Review findings',
-      '1Partially Compliant Go to Partially Compliant findings',
-      '0Compliant Go to Compliant findings',
-    ])
-    expect(summary).toContain('<span class="sr-only"> Go to Conflict findings</span>')
+    const tiles = [...summary.matchAll(/<li class="flex"><div class="w-full rounded-lg border border-beige p-3">(.*?)<\/div><\/li>/g)].map((match) => match[1].replace(/<[^>]+>/g, ''))
+    expect(tiles).toEqual(['0Conflict', '2Requires Human Review', '1Partially Compliant', '0Compliant'])
     expect(summary).toContain('<ul aria-label="Results by label"')
+    for (const removed of ['<button', '<a ', 'tabindex', 'role="button"', 'hover:', 'sr-only']) expect(summary, removed).not.toContain(removed)
   })
 
-  it('lets a findings heading take focus, below the top bar', () => {
+  it('leaves the findings headings out of the focus order', () => {
     const findings = section(render(<ComplianceReportPage />), 'findings-title')
-    expect(findings).toMatch(/<h3 id="needs-attention-title" tabindex="-1" class="scroll-mt-24[^"]*"/)
+    expect(findings).toContain('<h3 id="needs-attention-title" class="text-base font-semibold text-maroon">')
   })
 
   it('looks the same for reviewers', () => {
@@ -130,7 +125,7 @@ describe('the compliance report layout', () => {
     expect(html).not.toContain('Hawkim uses AI to check')
     expect(html).toContain('size-44')
     expect(html).not.toContain('Method and Limitations')
-    expect(html).toContain('Go to Conflict findings')
+    expect(html).toContain('<ul aria-label="Results by label"')
   })
 })
 
@@ -150,10 +145,10 @@ describe('the Requirements Overview', () => {
   }
   const overview = (html: string) => section(html, 'overview-title')
 
-  it('has the columns Finding ID, Requirement Title, Requirement Reference and Result, as column headers', () => {
+  it('has the columns Finding ID, GVP Requirement Title, GVP Requirement Reference and Result, as column headers', () => {
     fixture.sop = { ...fixture.sop!, complianceChecks: [serviceCheck(7)] }
     const table = overview(render(<ComplianceReportPage />))
-    expect([...table.matchAll(/<th scope="col"[^>]*>([^<]+)<\/th>/g)].map((match) => match[1])).toEqual(['Finding ID', 'Requirement Title', 'Requirement Reference', 'Result'])
+    expect([...table.matchAll(/<th scope="col"[^>]*>([^<]+)<\/th>/g)].map((match) => match[1])).toEqual(['Finding ID', 'GVP Requirement Title', 'GVP Requirement Reference', 'Result'])
   })
 
   it('shows the title without the code and the reference without the "#" part; the links keep the finding ids', () => {
@@ -173,10 +168,10 @@ describe('the Requirements Overview', () => {
     expect(html).toContain('id="finding-F-01"')
   })
 
-  it('shows the title and "Requirement Reference: …" in the phone list', () => {
+  it('shows the title and "GVP Requirement Reference: …" in the phone list', () => {
     fixture.sop = { ...fixture.sop!, complianceChecks: [serviceCheck(7)] }
     const list = overview(render(<ComplianceReportPage />))
-    expect(list).toContain('<p class="mt-1 text-sm text-maroon">Responsibilities for risk management within an organization</p><p class="mt-0.5 text-sm text-text-gray">Requirement Reference: V.B.2</p>')
+    expect(list).toContain('<p class="mt-1 text-sm text-maroon">Responsibilities for risk management within an organization</p><p class="mt-0.5 text-sm text-text-gray">GVP Requirement Reference: V.B.2</p>')
   })
 
   it('falls back to "—" and the code before "#" for a requirement it can\'t find', () => {
@@ -204,7 +199,7 @@ describe('the Requirements Overview', () => {
     fixture.sop = { ...fixture.sop!, complianceChecks: [serviceCheck(7)], status: 'in-review', reviewers: [{ userId: 'reviewer', decision: 'pending' }], timeline: [{ id: 'sent', type: 'submitted', actorId: 'author', recipientIds: ['reviewer'], createdAt: '2026-10-29T08:00:00Z', version: '1' }] }
     fixture.userId = 'reviewer'
     const table = overview(render(<ComplianceReportPage audience="reviewer" />))
-    expect(table).toContain('>Requirement Reference</th>')
+    expect(table).toContain('>GVP Requirement Reference</th>')
     expect(table).toContain('AI checked each of the 7 procedures')
   })
 })
@@ -240,19 +235,18 @@ describe('the finding cards', () => {
     expect(text.heading).toBe('{number}')
   })
 
-  it('shows the blocks in order: Requirement Reference, Requirement Text, SOP Reference, SOP Text, Justification', () => {
+  it('shows the blocks in order: GVP Requirement Reference, GVP Requirement Text, SOP Reference, SOP Text, Justification', () => {
     expect(headings(card({ sopReference: 'Section 5-1-3', sopEvidence: [{ section: '5-1-3', page: 4, text: 'Quote.' }] })))
-      .toEqual(['Requirement Reference', 'Requirement Text', 'SOP Reference', 'SOP Text', 'Justification'])
-    expect(headings(card({}))).toEqual(['Requirement Reference', 'Requirement Text', 'SOP Reference', 'Justification'])
+      .toEqual(['GVP Requirement Reference', 'GVP Requirement Text', 'SOP Reference', 'SOP Text', 'Justification'])
+    expect(headings(card({}))).toEqual(['GVP Requirement Reference', 'GVP Requirement Text', 'SOP Reference', 'Justification'])
   })
 
-  it('shows Module, Section and Page on three maroon lines under "Requirement Reference", without "GVP"', () => {
+  it('shows Module, Section and Page on three maroon lines under "GVP Requirement Reference"', () => {
     const html = card({})
-    expect(html).toContain('<dt class="font-medium text-maroon">Requirement Reference</dt><dd class="mt-0.5"><dl class="space-y-0.5 text-maroon">'
+    expect(html).toContain('<dt class="font-medium text-maroon">GVP Requirement Reference</dt><dd class="mt-0.5"><dl class="space-y-0.5 text-maroon">'
       + '<div><dt class="inline">Module:</dt> <dd class="inline">V</dd></div>'
       + '<div><dt class="inline">Section:</dt> <dd class="inline">V.B.2 Responsibilities for risk management within an organization</dd></div>'
       + '<div><dt class="inline">Page:</dt> <dd class="inline">107</dd></div></dl>')
-    expect(html).not.toContain('GVP')
     expect(html).not.toContain('p. 107')
   })
 
@@ -268,9 +262,9 @@ describe('the finding cards', () => {
     expect(card({}, { module: '', section: '', sectionTitle: '', page: 0 })).toContain('<dt class="inline">Page:</dt> <dd class="inline">—</dd>')
   })
 
-  it('labels the requirement text "Requirement Text", quoted like the SOP text, and shows its "•" items as a real list', () => {
+  it('labels the requirement text "GVP Requirement Text", quoted like the SOP text, and shows its "•" items as a real list', () => {
     const html = card({})
-    expect(html).toContain('<dt class="font-medium text-maroon">Requirement Text</dt><dd class="mt-0.5">'
+    expect(html).toContain('<dt class="font-medium text-maroon">GVP Requirement Text</dt><dd class="mt-0.5">'
       + '<blockquote class="border-l-2 border-gold pl-3 break-inside-avoid"><div class="space-y-1.5 text-[0.9375rem] text-maroon">'
       + '<p>Marketing authorisation holders should have a system.</p>'
       + '<ul class="list-disc space-y-1 pl-5"><li>that records the risks</li><li>that is reviewed</li></ul></div></blockquote></dd>')
@@ -396,7 +390,7 @@ describe('the finding cards', () => {
     const html = render(<ComplianceReportPage audience="reviewer" />)
     expect(html).toContain('>F-01</h4>')
     expect(html).toContain('<dt class="inline">Module:</dt> <dd class="inline">V</dd>')
-    expect(html).toContain('<dt class="font-medium text-maroon">Requirement Text</dt>')
+    expect(html).toContain('<dt class="font-medium text-maroon">GVP Requirement Text</dt>')
     expect(html).toContain('<dt class="inline">Section:</dt> <dd class="inline">5-4-1</dd>')
     expect(html).not.toContain('Recommended Action')
   })

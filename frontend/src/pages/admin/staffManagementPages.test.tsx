@@ -13,7 +13,7 @@ import { UserDetailsPage } from './UserDetailsPage'
 const home: Department = { id: 'home', name: 'Home', initials: 'HM', description: '' }
 const fixture = vi.hoisted(() => ({ user: null as User | null }))
 vi.mock('../../hooks/useDocumentTitle', () => ({ useDocumentTitle: () => {} }))
-vi.mock('../../state/usersContext', () => ({ useUsers: () => ({ activeUsers: [fixture.user], deleteUser: vi.fn() }) }))
+vi.mock('../../state/usersContext', () => ({ useUsers: () => ({ users: [fixture.user], activeUsers: [fixture.user], deleteUser: vi.fn(), reactivateUser: vi.fn() }) }))
 vi.mock('../../state/sessionContext', () => ({ useCurrentUser: () => ({ id: 'admin' }) }))
 vi.mock('../../state/sopsContext', () => ({ useSops: () => ({ sops: [] }) }))
 vi.mock('../../state/departmentsContext', () => ({
@@ -28,19 +28,21 @@ const details = () => renderToStaticMarkup(<MemoryRouter initialEntries={['/admi
 const labels = (html: string) => [...html.matchAll(/<dt[^>]*>([^<]+)<\/dt>/g)].map((match) => match[1])
 
 describe('Staff Details', () => {
-  it('opens Edit Staff from the header, in the secondary button style', () => {
+  it('opens Edit Staff from the header, in the maroon filled button style of Add Admin', () => {
     const link = details().match(/<a[^>]*href="\/admin\/users\/rana\/edit"[^>]*>.*?<\/a>/)![0]
     expect(link).toContain('Edit Staff')
-    expect(link).toContain('border-maroon/40')
+    expect(link).toContain('border border-maroon bg-maroon text-offwhite')
   })
 
   it('lists the organizational fields for staff', () => {
-    expect(labels(details())).toEqual(['Name', 'Email', 'Phone Number', 'Division', 'Department', 'Position', 'Permission'])
+    expect(labels(details())).toEqual(['Full Name', 'Email', 'Phone Number', 'Division', 'Department', 'Position', 'Permission'])
   })
 
-  it("doesn't list division, department or position for a System Admin", () => {
+  it("sends an administrator's Staff page to their page under Manage Organization → Admins", () => {
     fixture.user = { ...fixture.user!, departmentId: '', position: undefined, permissions: ['admin'] }
-    expect(labels(details())).toEqual(['Name', 'Email', 'Phone Number', 'Permission'])
+    const html = details()
+    expect(labels(html)).toEqual([])
+    expect(html).not.toContain('Edit Staff')
   })
 
   it('says Staff, not Users', () => {
@@ -63,10 +65,12 @@ describe('the staff form', () => {
     }
   })
 
-  it('takes the phone number as +9665XXXXXXXX, with an example', () => {
-    const phone = form(staff).match(/<input[^>]*name="phone"[^>]*>/)![0]
-    expect(phone).toContain('placeholder="+966512345678"')
-    expect(form(staff)).toContain('Saudi mobile number in the format +9665XXXXXXXX.')
+  it('takes the phone number as +9665XXXXXXXX: the 8 digits after a fixed "+9665"', () => {
+    const html = form(staff)
+    const phone = html.match(/<input[^>]*name="phone"[^>]*>/)![0]
+    expect(phone).toContain('inputMode="numeric"')
+    expect(html).toMatch(/<span id="[^"]+">\+9665<\/span>/)
+    expect(html).toContain('Saudi mobile number: +9665XXXXXXXX')
   })
 
   it('hides division, department and position for a System Admin, keeping name, email and phone required', () => {

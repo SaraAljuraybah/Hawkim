@@ -28,6 +28,20 @@ def _module(section: str) -> str:
     return "Module " + (section or "").split(".")[0]
 
 
+def requirement_passage(unit: dict) -> dict:
+    """A GVP requirement unit (index units.jsonl) as a guideline_requirements row, the same way
+    complete_compliance_check saves the passage a finding refers to."""
+    return {
+        "code": unit["id"],
+        "module": _module(unit["section"]),
+        "section": unit["section"],
+        "section_title": (unit.get("section_title") or unit["section"])[:200],
+        "short_title": (unit.get("section_title") or unit["section"])[:120],
+        "page": max(1, int(unit.get("page") or 1)),
+        "summary": unit["text"],
+    }
+
+
 def _sort_key(ref: str):
     return [int(p) for p in re.split(r"[.\-]", ref) if p.isdigit()] or [0]
 
@@ -63,14 +77,15 @@ def findings_for_database(check: dict) -> tuple[list[dict], dict]:
                 a = (s.get("recommended_action") or "").strip()
                 if s["_result"] != "compliant" and a and a not in actions:
                     actions.append(a)
+        passage = requirement_passage(req)
         out.append({
             "requirement_code": code,
-            "module": _module(req["section"]),
-            "section": req["section"],
-            "section_title": (req.get("section_title") or req["section"])[:200],
-            "short_title": (req.get("section_title") or req["section"])[:120],
-            "page": max(1, int(req.get("page") or 1)),
-            "requirement_text": req["text"],
+            "module": passage["module"],
+            "section": passage["section"],
+            "section_title": passage["section_title"],
+            "short_title": passage["short_title"],
+            "page": passage["page"],
+            "requirement_text": passage["summary"],
             "result": result,
             "justification": justification[:4000] or "No justification was returned.",
             "sop_reference": reference,

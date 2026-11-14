@@ -31,7 +31,7 @@ const fixture = vi.hoisted(() => ({ sop: null as Sop | null, userId: 'author', t
 vi.mock('../hooks/useDocumentTitle', () => ({ useDocumentTitle: (title: string | undefined) => fixture.titles.push(title) }))
 vi.mock('../state/sessionContext', () => ({ useCurrentUser: () => fixture.users.find((user) => user.id === fixture.userId), useSession: () => ({ status: 'signed-in', user: fixture.users.find((user) => user.id === fixture.userId) }) }))
 vi.mock('../state/usersContext', () => ({ useUsers: () => ({ users: fixture.users, activeUsers: fixture.users, nameOf: (id: string) => fixture.users.find((user) => user.id === id)?.name ?? id ?? '', getUser: (id: string) => fixture.users.find((user) => user.id === id) }) }))
-vi.mock('../state/departmentsContext', () => ({ useDepartments: () => ({ departments: [{ id: 'home', name: 'Home', initials: 'HM', description: '', requiresComplianceCheck: true }], nameOf: () => 'Home' }) }))
+vi.mock('../state/departmentsContext', () => ({ useDepartments: () => ({ departments: [{ id: 'home', name: 'Home', initials: 'HM', description: '', requiresComplianceCheck: true }], nameOf: () => 'Home', getDepartment: () => undefined }) }))
 vi.mock('../state/guidelinesContext', () => ({ useGuidelines: () => ({ current: { version: '4.0' } }) }))
 vi.mock('../state/sopsContext', () => ({ useSops: () => ({ sops: [fixture.sop] }) }))
 vi.mock('../state/requestsContext', () => ({ useMyRequests: () => [] }))
@@ -145,9 +145,9 @@ describe('SOP title presentation without exposing generated serial numbers', () 
   })
 
   it('limits the timeline on the author page only, keeping hidden types on the review page', () => {
-    const declined = { id: 'declined', type: 'review-declined' as const, actorId: 'reviewer', version: '1', createdAt: '2026-10-29T08:30:00Z' }
-    fixture.sop = { ...reviewSop(), timeline: [...reviewSop().timeline, declined] }
-    const label = `>${sopWorkflowEn.timeline.events['review-declined']}<`
+    const accepted = { id: 'accepted', type: 'review-accepted' as const, actorId: 'reviewer', version: '1', createdAt: '2026-10-29T08:30:00Z' }
+    fixture.sop = { ...reviewSop(), timeline: [...reviewSop().timeline, accepted] }
+    const label = `>${sopWorkflowEn.timeline.events['review-accepted']}<`
     const submitted = `>${sopWorkflowEn.timeline.events.submitted}<`
     const author = render(<SopWorkflowPage />)
     expect(author).toContain(submitted)
@@ -193,6 +193,13 @@ describe('author workflow section layout', () => {
     expect(sopTitleProblem('x'.repeat(51))).toBe('too-long')
   })
 
+  it('names the SOP History date column Added Date', () => {
+    const html = render(<SopWorkflowPage />)
+    const history = html.slice(html.indexOf('id="history-title"'), html.indexOf('</section>', html.indexOf('id="history-title"')))
+    expect(history).toMatch(/<th scope="col"[^>]*>\s*Added Date\s*<\/th>/)
+    expect(history).not.toMatch(/<th scope="col"[^>]*>\s*Date\s*<\/th>/)
+  })
+
   it('keeps the initial Add Reviewers action in Reviewers, with the required section order and no actions in Timeline', () => {
     const html = render(<SopWorkflowPage />)
     const ids = ['authors-title', 'history-title', 'compliance-title', 'internal-review-title', 'timeline-title']
@@ -219,5 +226,32 @@ describe('author workflow section layout', () => {
     const panel = html.slice(start, html.indexOf('</section>', start))
     expect(panel).toContain('Current Reviewer')
     expect(panel).not.toContain(internalReviewEn.panel.noActive)
+  })
+})
+
+describe('Back to My SOPs on Add SOP', () => {
+  it('goes back to My SOPs (where Cancel goes), above the one h1, in the shared back-link style', () => {
+    const html = render(<UploadSopPage />)
+    const back = html.match(/<a[^>]*href="\/my-sops"[^>]*>(?:(?!<\/a>).)*Back to My SOPs<\/a>/)![0]
+    expect(back).toContain('inline-flex items-center gap-1.5 rounded-sm text-sm font-medium text-text-gray transition-colors hover:text-maroon')
+    expect(back).toMatch(/lucide-arrow-left/)
+    expect(html.indexOf('Back to My SOPs')).toBeLessThan(html.indexOf('<h1'))
+    expect(html.match(/<h1/g)).toHaveLength(1)
+  })
+})
+
+describe('SOP Details on the author page', () => {
+  it('comes right after Workflow status with Title, Description, Division, Department and Date Added', () => {
+    const html = render(<SopWorkflowPage />)
+    const positions = ['tracker-title', 'sop-details-title', 'authors-title'].map((id) => html.indexOf(`id="${id}"`))
+    expect(positions.every((position) => position >= 0)).toBe(true)
+    expect([...positions].sort((a, b) => a - b)).toEqual(positions)
+    const card = html.slice(html.indexOf('id="sop-details-title"'), html.indexOf('id="authors-title"'))
+    const labels = [...card.matchAll(/<dt class="text-sm font-bold text-maroon">([^<]+)<\/dt>/g)].map((match) => match[1])
+    expect(labels).toEqual(['Title', 'Description', 'Division', 'Department', 'Date Added'])
+    // The description is in its own white box, the full width of the card, and no longer under the title.
+    expect(card).toMatch(/<dd class="min-w-0 rounded-lg border border-beige bg-white px-4 py-3[^"]*whitespace-pre-line[^"]*">/)
+    const header = html.slice(html.indexOf('<h1'), html.indexOf('id="tracker-title"'))
+    expect(header).not.toContain('Edit Description')
   })
 })

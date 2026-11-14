@@ -17,6 +17,7 @@ import { hasCurrentCheck } from './compliance'
 import { fixedResponseDueDate } from './fixedResponseDeadline'
 import { todayIsoDate } from './format'
 import { SOP_DESCRIPTION_MAX } from './sopDescription'
+import { SOP_TITLE_MAX, sopTitleProblem } from './sopTitle'
 import { isInactiveDecision, isOpenDecision, isUnsentVersion, latestAssignments, projectReviewers, requestDeadline, reviewAllowsNewVersion } from './internalReviewStatus'
 import { endOfRiyadhDay, reviewWorkingDueDateFrom, riyadhDate, WORKING_DAY_POLICY } from './riyadhWorkingDays'
 
@@ -714,13 +715,19 @@ export function addResponse(sop: Sop, actorId: string, text: string, requestId?:
   }
 }
 
-/** Main author: change the description any time before the SOP is published. No timeline event. */
-export function updateDescription(sop: Sop, actorId: string, text: string): Sop {
-  assert(isAuthor(sop, actorId), 'Only the main author can change the description')
-  assert(sop.status !== 'published', "The description can't change once the SOP is published")
-  const description = text.trim()
+/**
+ * Main author: change the title and description (SOP Details) at any stage before the SOP is published,
+ * including during review or approval. No timeline event, and nothing else changes (status, reviewers,
+ * decisions, versions and files stay as they are).
+ */
+export function updateDetails(sop: Sop, actorId: string, details: { title: string; description: string }): Sop {
+  assert(isAuthor(sop, actorId), 'Only the main author can change the SOP details')
+  assert(sop.status !== 'published', "The SOP details can't change once the SOP is published")
+  const title = details.title.trim()
+  assert(!sopTitleProblem(title), `The title is required and must be at most ${SOP_TITLE_MAX} characters`)
+  const description = details.description.trim()
   assert(description.length <= SOP_DESCRIPTION_MAX, `The description must be at most ${SOP_DESCRIPTION_MAX} characters`)
-  return { ...sop, description, lastUpdated: todayIsoDate() }
+  return { ...sop, title, description, lastUpdated: todayIsoDate() }
 }
 
 /** Main author: add a co-author (PBI 2). Not when Published; never a reviewer or approver. */

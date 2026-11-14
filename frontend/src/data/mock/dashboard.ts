@@ -36,7 +36,7 @@ export const recentActivity: ActivityItem[] = [
   {
     id: 'activity-1',
     kind: 'accessRequest',
-    message: 'Your access request to Research & Development is under review',
+    message: 'Your access request to Research and Development is under review',
     timeAgo: '2 hours ago',
     status: 'pending',
   },

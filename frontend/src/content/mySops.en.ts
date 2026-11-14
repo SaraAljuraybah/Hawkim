@@ -16,6 +16,9 @@ export const mySopsEn: MySopsContent = {
   uploadedMessage: 'SOP added as a draft.',
   coAuthorLabel: 'Co-Author',
   mainAuthorLabel: 'Main Author',
+  // The table view's headings, as on the SOP Directory.
+  tableLabel: 'My SOPs',
+  columns: { title: 'Title', role: 'Permission', status: 'Status', version: 'Version', lastUpdated: 'Last Updated', delete: 'Delete' },
   tabsLabel: 'My SOP categories',
   tabs: { new: 'New SOPs', progress: 'In Progress', completed: 'Completed' },
   viewToggle: { label: 'My SOPs view', grid: 'Grid view', list: 'List view' },
@@ -25,11 +28,14 @@ export const mySopsEn: MySopsContent = {
     searchPlaceholder: 'Search by SOP title',
     showTitles: 'Show SOP Titles',
     noTitles: 'No matching SOPs',
-    sortLabel: 'Sort By',
-    sortNewest: 'Newest to Oldest',
-    sortOldest: 'Oldest to Newest',
-    roleLabel: 'My Role',
-    allRoles: 'All roles',
+    // As on Staff: each order under its heading.
+    sort: {
+      label: 'Sort',
+      options: { newest: 'Newest to Oldest', oldest: 'Oldest to Newest', 'title-asc': 'A to Z', 'title-desc': 'Z to A' },
+      groups: { lastUpdated: 'Last Updated', title: 'Title' },
+    },
+    roleLabel: 'My Permission',
+    allRoles: 'All permissions',
     clear: 'Clear Filters',
     oneResult: '1 SOP found',
     results: '{count} SOPs found',
@@ -59,11 +65,14 @@ export const mySopsEn: MySopsContent = {
 
 export const uploadSopEn: UploadSopContent = {
   pageTitle: 'Add SOP | Hawkim',
+  back: { label: 'Back to My SOPs', href: '/my-sops' },
   title: 'Add SOP',
   subtitle: 'Add a new SOP to {department}. It will be saved as a draft.',
   fields: {
     title: { label: 'Title', placeholder: 'Enter the SOP title', hint: 'Up to 50 characters.', counter: '{count} / {max}' },
+    division: { label: 'Division', none: 'No Division' },
     department: { label: 'Department' },
+    addedOn: { label: 'Added to Hawkim On' },
     file: {
       label: 'SOP File',
       requiredTag: '(required)',

@@ -1,3 +1,5 @@
+import type { ReactivateStaffFailure } from '../services/people'
+import type { ResendFailureReason } from '../services/invitations'
 import type { FileDropzoneText } from '../components/ui/FileDropzone'
 import type {
   ComplianceResult,
@@ -8,6 +10,8 @@ import type {
   TimelineEventType,
 } from '../data/mock/types'
 import type { SopDeleteErrorCode } from '../lib/mySops'
+import type { OrganizationSort, OrganizationSortGroup } from '../lib/organization'
+import type { StaffSort, StaffSortGroup } from '../lib/userAdmin'
 import type { SopStatus } from '../types/status'
 
 /*
@@ -36,6 +40,7 @@ export type IconName =
   | 'mySops'
   | 'upload'
   | 'reviews'
+  | 'admins'
 
 export interface NavLink {
   label: string
@@ -192,11 +197,12 @@ export interface ProfileContent {
   /** Browser tab title in the admin portal. */
   adminPageTitle: string
   title: string
+  /** One line under the page heading. */
+  subtitle: string
   /** Row labels; `password` is the last row, with the Change Password action. */
   fields: { name: string; email: string; phone: string; position: string; division: string; department: string; roles: string; password: string }
   /** Shown when a value isn't set. */
   none: string
-  roles: { author: string; reviewer: string; approver: string; admin: string }
   password: {
     /** Visible text of the action in the Password row. */
     change: string
@@ -310,22 +316,39 @@ export interface AppNavItem {
   permission?: Permission | Permission[]
 }
 
+/**
+ * A collapsible group of sidebar links (e.g. Manage Organization in the admin portal). It is not a
+ * page: the header only opens and closes the list, which opens by itself on any of its pages.
+ */
+export interface AppNavGroup {
+  /** A stable key, also used for the ids that tie the header to its list. */
+  id: string
+  label: string
+  icon: IconName
+  children: AppNavItem[]
+}
+
+/** A sidebar entry: a link, or a group of links. */
+export type SidebarNavEntry = AppNavItem | AppNavGroup
+
 /** The sidebar's content (employee app and admin portal). */
 export interface SidebarContent {
   /** Product name shown as text next to the logo mark in the sidebar. */
   brandName: string
   homeHref: string
-  /** Small label after the product name, e.g. "Admin" (admin portal only). */
-  portalLabel?: string
   /** Accessible name of the sidebar logo link. */
   homeLinkLabel: string
   navAriaLabel: string
-  nav: AppNavItem[]
+  nav: SidebarNavEntry[]
   signOut: AppNavItem
   closeMenu: string
+  /** Accessible name of the signed-in user's role badges beside the product name. */
+  rolesLabel: string
 }
 
 export interface AppShellContent extends SidebarContent {
+  /** The employee app has no groups. */
+  nav: AppNavItem[]
   /** Visually hidden link that lets keyboard users jump past the navigation. */
   skipLink: string
   /** Accessible name of the sidebar logo link in a read-only department (it opens the SOP Directory). */
@@ -337,7 +360,7 @@ export interface AppShellContent extends SidebarContent {
   reviewsToDoLabel: string
   /** The avatar's link; `label` is its accessible name and `{name}` is the signed-in user. */
   profileLink: LinkContent
-  /** Between the user's position and department under their name in the top bar; hidden from screen readers. */
+  /** Between the user's department and position under their name in the top bar; hidden from screen readers. */
   positionSeparator: string
   departmentSwitcher: {
     /** Label before the department name (visible in the drawer, screen-reader only in the top bar). */
@@ -359,7 +382,29 @@ export interface DashboardContent {
   subtitle: string
   /** Label, sublabel and icon for each statistic (values come from the data). */
   stats: Record<DashboardStatKey, { label: string; sublabel: string; icon: IconName }>
-  recentActivity: { title: string }
+  recentActivity: {
+    title: string
+    /** No activity yet. */
+    empty: string
+    /** Under a minute ago. */
+    justNow: string
+    /** One line per kind of action; `{title}` (SOP or request title) and `{version}` are replaced. */
+    messages: {
+      sopAdded: string
+      versionUploaded: string
+      submitted: string
+      resubmitted: string
+      reviewCompleted: string
+      reviewAccepted: string
+      reviewDeclined: string
+      returned: string
+      approved: string
+      coAuthorAdded: string
+      requestSent: string
+      requestApproved: string
+      requestRejected: string
+    }
+  }
   quickActions: {
     title: string
     primary: AppNavItem
@@ -369,8 +414,7 @@ export interface DashboardContent {
 
 /* ---------- Signed-in app: SOPs list ---------- */
 
-/** 'others': SOPs of deleted departments (shown only to people who have some). */
-export type SopTabKey = 'all' | 'recent' | 'others'
+export type SopTabKey = 'all' | 'recent'
 
 export interface SopsContent {
   /** Browser tab title. */
@@ -378,7 +422,10 @@ export interface SopsContent {
   /** Browser tab title in the admin portal. */
   adminPageTitle: string
   title: string
+  /** Under the title, for everyone but the System Admin (their department's SOPs and those they worked on); `{department}` is their department. */
   subtitle: string
+  /** Under the title, for the System Admin (every published SOP). */
+  adminSubtitle: string
   /** Accessible name of the tab list. */
   tabsLabel: string
   tabs: Record<SopTabKey, string>
@@ -391,28 +438,33 @@ export interface SopsContent {
     sortOldest: string
     clear: string
     empty: string
-    oneResult: string
-    results: string
+    /** The result count in the tabs row: one SOP, or `{count}` of them. */
+    countOne: string
+    count: string
   }
   viewToggle: { label: string; grid: string; list: string }
   /** Column headings for the list view. */
   columns: { code: string; title: string; department: string; version: string; lastUpdated: string }
-  /** Screen-reader label before the active department's name, e.g. "Department: ". */
-  departmentLabel: string
-  /** Shown instead of the department name on the Others tab. */
-  othersSection: string
-  /** Empty Others tab. */
-  othersEmpty: string
   /** `{version}` is replaced with the version number, e.g. "v3". */
   versionTemplate: string
   /** Shown when the list is empty. */
   empty: string
+  /** An administrator's empty directory (every department). */
+  adminEmpty: string
+  /** An empty Recently Published tab. */
+  recentEmpty: string
+  /** Under the result count on the Recently Published tab; `{count}` is the number of months. */
+  recentNote: string
   /** SOP detail page ("/sops/:id"). */
   detail: SopDetailContent
 }
 
 export interface SopDetailContent {
   fileFailed: string
+  /** Under the title; `{division}`, `{department}` and `{date}` are replaced, " · " separates the parts. */
+  subtitle: string
+  /** The same for a department without a division. */
+  subtitleNoDivision: string
   /** `{title}` is replaced, e.g. "Data Integrity | Hawkim". */
   pageTitle: string
   /** The same in the admin portal. */
@@ -430,8 +482,8 @@ export interface SopDetailContent {
   noFile: string
   /** `{department}` is replaced with the department name. */
   /** `adminText`: the same in the admin portal, where there is no Request Access. */
-  noAccess: { title: string; text: string; adminText: string; requestAccess: string }
-  pendingAccess: { title: string; text: string }
+  /** An SOP the user may not open: `text` for everyone but the System Admin, `adminText` (`{department}`) for them. */
+  noAccess: { title: string; text: string; adminText: string }
 }
 
 /* ---------- Signed-in app: requests ---------- */
@@ -439,6 +491,8 @@ export interface SopDetailContent {
 export interface SubmitRequestContent {
   /** Browser tab title. */
   pageTitle: string
+  /** Back to My Requests, above the title. */
+  back: LinkContent
   title: string
   subtitle: string
   fields: {
@@ -528,10 +582,11 @@ export interface InternalReviewSubmitContent {
   mustFinish: string
   noneEligible: string
   duration: string
+  /** `{count}` is replaced with the working days the reviewer has to accept. */
   durationHelp: string
   durationWorkingDays: string
   durationInvalid: string
-  /** The estimated last day of the review; `{date}` is replaced. */
+  /** The latest the review can be due (the reviewer accepts on the last day); `{date}` is replaced. */
   durationDueDate: string
   /** `{count}` is replaced. */
   durationLong: string
@@ -576,6 +631,9 @@ export interface MySopsContent {
   /** Label on SOPs the user co-authors. */
   coAuthorLabel: string
   mainAuthorLabel: string
+  /** The table view: its accessible name and column headings. */
+  tableLabel: string
+  columns: { title: string; role: string; status: string; version: string; lastUpdated: string; delete: string }
   tabsLabel: string
   tabs: { new: string; progress: string; completed: string }
   viewToggle: { label: string; grid: string; list: string }
@@ -587,9 +645,12 @@ export interface MySopsContent {
     showTitles: string
     /** Shown in that list when no title matches the search. */
     noTitles: string
-    sortLabel: string
-    sortNewest: string
-    sortOldest: string
+    /** The Sort field: each order's label, listed under its group's heading. */
+    sort: {
+      label: string
+      options: { newest: string; oldest: string; 'title-asc': string; 'title-desc': string }
+      groups: { lastUpdated: string; title: string }
+    }
     roleLabel: string
     allRoles: string
     clear: string
@@ -621,12 +682,18 @@ export interface MySopsContent {
 export interface UploadSopContent {
   /** Browser tab title. */
   pageTitle: string
+  /** Back to My SOPs, above the title (goes where Cancel goes). */
+  back: LinkContent
   title: string
   /** `{department}` is replaced with the active department's name. */
   subtitle: string
   fields: {
     title: { label: string; placeholder: string; hint: string; /** `{count}` and `{max}` are replaced. */ counter: string }
+    /** `none` is shown when the department has no division. */
+    division: { label: string; none: string }
     department: { label: string }
+    /** Today's date in Riyadh, shown only. */
+    addedOn: { label: string }
     file: {
       label: string
       /** Read by screen readers only (a red asterisk is shown). */
@@ -685,6 +752,33 @@ export interface SopWorkflowContent {
     save: string
     cancel: string
     failed: string
+  }
+  /**
+   * The SOP Details card under Workflow status: Title, Description, Division, Department and Date Added. The main
+   * author edits Title and Description in a dialog until the SOP is published; the rest is read-only.
+   */
+  details: {
+    title: string
+    /** The Edit button (opens the dialog). */
+    edit: string
+    fields: { title: string; description: string; division: string; department: string; dateAdded: string }
+    /** An empty value (e.g. no description). */
+    notProvided: string
+    dialog: {
+      title: string
+      description: string
+      /** `{count}` and `{max}` are replaced. */
+      counter: string
+      titleHint: string
+      save: string
+      saving: string
+      cancel: string
+      errors: { titleRequired: string; titleTooLong: string; descriptionTooLong: string }
+      /** The save failed; what was typed stays in the dialog. */
+      failed: string
+    }
+    /** Announced after saving. */
+    saved: string
   }
   roles: { reviewer: string; approver: string; author: string; coAuthor: string; system: string }
   reviewerDeadline: {
@@ -787,6 +881,10 @@ export interface SopWorkflowContent {
     checkCompleted: string
     /** Preview dialog: `{title}` and `{version}` are replaced. */
     previewTitle: string
+    /** The preview dialog's header line: `{file}` (the file's original name), `{date}` (when the version was added) and `{name}` (who added it). */
+    previewMeta: string
+    /** The same when the uploader isn't known. */
+    previewMetaNoUploader: string
     /** Accessible name of the embedded viewer; `{title}` and `{version}` are replaced. */
     viewerTitle: string
     /** The same, for a Word file's preview. */
@@ -817,15 +915,26 @@ export interface SopWorkflowContent {
   }
   timeline: {
     title: string
-    columns: { action: string; by: string; to: string; date: string; version: string; comment: string }
+    columns: { action: string; by: string; to: string; date: string; version: string; comment: string; preview: string }
     /** Screen-reader text of an empty cell. */
     none: string
+    /** A removal's or decline's reason, behind the Preview eye on the author's page; `{name}` is the reviewer. */
+    reason: {
+      view: { 'reviewer-removed': string; 'review-declined': string }
+      title: { 'reviewer-removed': string; 'review-declined': string }
+    }
     viewMore: string
     viewLess: string
     events: Record<TimelineEventType, string>
     /** review-deadline-changed: `{old}` and `{new}` are the dates, or noDeadline. */
     deadlineChange: string
     noDeadline: string
+    /** review-duration-changed: `{old}` and `{new}` are durations (durationDays, durationDay) or noDuration. */
+    durationChange: string
+    /** `{count}` is replaced. */
+    durationDays: string
+    durationDay: string
+    noDuration: string
     /** Label for stage-due-date-set events, by stage. */
     stageDue: { review: string; approval: string }
     /** `{date}` is replaced. */
@@ -926,7 +1035,7 @@ export interface ComplianceContent {
   /** An SOP version as shown, e.g. "v3"; `{version}` is replaced. */
   versionLabel: string
   guideline: string
-  details: { checked: string; version: string; guideline: string }
+  details: { checked: string; version: string }
   card: {
     title: string
     /** `{version}` is the guideline version. */
@@ -939,8 +1048,13 @@ export interface ComplianceContent {
     viewReport: string
     /** The SOP's newest check used an older GVP version (PBI 29). `{checked}` and `{current}` are replaced. */
     recheck: { badge: string; note: string }
-    /** The GVP version compliance checks use, in a one-row table before the card's text (authors' view). */
-    guideline: { tableLabel: string }
+    /** The GVP version compliance checks use, in one row before the card's text (authors' view). */
+    guideline: {
+      /** Under its title; `{issued}` and `{added}` are the dates. */
+      dates: string
+      /** Above the View (eye) button, styled like the SOP History table's action headings. */
+      preview: string
+    }
   }
   /** The authors' read-only page of that GVP version, from the card's View button. */
   guidelinePage: {
@@ -990,8 +1104,6 @@ export interface ComplianceContent {
       verdicts: Record<'fully-compliant' | 'needs-improvement' | 'action-required', string>
       /** Accessible name of the metric tiles. */
       tilesLabel: string
-      /** Read by screen readers on each tile, which goes to that result's findings; `{category}` is replaced. */
-      goToFindings: string
     }
     overview: {
       title: string
@@ -1169,12 +1281,27 @@ export interface NotificationsContent {
     response: string
     /** `{date}` is the new deadline. */
     reviewDeadlineChanged: string
+    /** `{days}` is the new duration. */
+    reviewDurationChanged: string
     /** `response`: a reviewer's reminder to accept or decline before the request expires. */
     dueSoon: { review: string; response: string; approval: string }
     days: { today: string; tomorrow: string }
     overdue: { review: string; approval: string }
     accessRequest: { approved: string; rejected: string }
     request: { approved: string; rejected: string }
+  }
+  /**
+   * Admins' expired-invitation notifications and their Resend invitation button. `{name}`, `{email}` and
+   * `{date}` (when the link expired) are replaced; `failures` are the reasons Resend didn't send.
+   */
+  invitations: {
+    expired: string
+    resend: string
+    /** The button's accessible name. */
+    resendLabel: string
+    sending: string
+    sent: string
+    failures: Record<ResendFailureReason, string>
   }
 }
 
@@ -1197,6 +1324,9 @@ export interface ReviewsContent {
     approvalTabsLabel: string
     approvalListLabel: string
     reviewerListLabel: string
+    /** The two lists' page controls, named apart (both can be on the page). */
+    reviewerPaginationLabel: string
+    approvalPaginationLabel: string
     waiting: string
     closed: string
     decisions: Record<string, string>
@@ -1307,16 +1437,11 @@ export interface ReviewPageContent {
 /* ---------- Admin portal ---------- */
 
 export interface AdminShellContent extends SidebarContent {
-  portalLabel: string
   skipLink: string
   openMenu: string
   drawerLabel: string
   /** The admin's name and avatar in the top bar; `{name}` is replaced in the label. */
   profileLink: LinkContent
-  /** Shown under the admin's name in the top bar. */
-  roleLabel: string
-  /** Between the admin's position and the role label in the top bar (hidden from screen readers). */
-  positionSeparator: string
   /** Accessible text of the pending requests count in the sidebar; `{count}` is replaced. */
   pendingLabel: string
 }
@@ -1332,6 +1457,7 @@ export interface AdminContent {
   editUser: AdminEditUserContent
   userDetails: AdminUserDetailsContent
   deleteUser: AdminDeleteUserContent
+  reactivateUser: AdminReactivateUserContent
   departmentsList: AdminDepartmentsListContent
   departmentForm: AdminDepartmentFormContent
   departmentDetails: AdminDepartmentDetailsContent
@@ -1359,6 +1485,8 @@ export interface AdminRegulationsContent {
   title: string
   subtitle: string
   addVersion: LinkContent
+  /** Add New Version while another version is processing; `{version}` is replaced. */
+  inProgress: { title: string; text: string; view: string; close: string }
   /** "GVP version {version}" */
   versionName: string
   /** Shown after adding a version; `{version}` is replaced. */
@@ -1376,11 +1504,11 @@ export interface AdminRegulationsContent {
   requirementsCount: CountText
   /** The versions admins added couldn't be loaded (the published ones are still listed). */
   addedLoadFailed: { text: string; retry: string }
-  /** Every version, newest first; `columns.actions` is a visually hidden header. */
+  /** Every version, newest first; `preview`, `edit` and `delete` head the action columns. */
   history: {
     title: string
     tableLabel: string
-    columns: { title: string; version: string; issued: string; added: string; actions: string }
+    columns: { title: string; version: string; issued: string; added: string; preview: string; edit: string; delete: string }
   }
   /** `{title}` and `{version}` are replaced; the result is `{name}` below. */
   versionLabel: string
@@ -1390,6 +1518,8 @@ export interface AdminRegulationsContent {
   deleteBlocked: { current: string; used: string }
   updated: string
   deleted: string
+  /** After deleting a version that was being processed: its processing stops, then it is deleted. */
+  cancelled: string
   /** `permission` and `failed`: why deleting didn't work, shown in the dialog. */
   deleteDialog: { title: string; description: string; cancel: string; confirm: string; permission: string; failed: string }
 }
@@ -1421,6 +1551,8 @@ export interface AdminRegulationFormContent {
     versionExists: string
     /** `{current}` is replaced with the current version. */
     versionNotHigher: string
+    /** Another version is still being processed; `{version}` is replaced. */
+    versionProcessing: string
     addedRequired: string
     issuedRequired: string
     issuedAfterAdded: string
@@ -1456,6 +1588,10 @@ export interface AdminRegulationDetailsContent {
   requirements: {
     title: string
     tableLabel: string
+    /** While a published version's passages are read on its page; `failed` and `retry` when they couldn't be. */
+    loading: string
+    failed: string
+    retry: string
     columns: { id: string; module: string; section: string; title: string; page: string; summary: string }
     /** `{page}` is replaced. */
     page: string
@@ -1466,8 +1602,12 @@ export interface AdminRegulationDetailsContent {
     status: { waiting: string; processing: string; ready: string; failed: string }
     /** Shown while the version is waiting or being processed. */
     keepWorking: string
-    /** `{done}`, `{total}` and `{percent}` are replaced in `embedding`; `label` names the progress bar. */
-    progress: { reading: string; embedding: string; saving: string; label: string }
+    /**
+     * `{stage}`, `{detail}` and `{percent}` are replaced (the stage and detail come from the compliance
+     * service, e.g. "Preparing requirements" and "batch 32 of 186"); `withoutDetail` when there is no
+     * detail; `starting` is the stage before the service reported one; `label` names the progress bar.
+     */
+    progress: { withDetail: string; withoutDetail: string; starting: string; label: string }
     /** `{requirements}` and `{sections}` are replaced. */
     report: string
     /** `{pages}` is replaced. */
@@ -1554,7 +1694,7 @@ export interface AdminDepartmentFormContent {
   /** Optional. */
   email: { label: string; placeholder: string }
   cancel: string
-  /** The primary button of the Add and Edit Department dialogs on Divisions & Departments. */
+  /** The primary button of the Add and Edit Department dialogs on Divisions and Departments. */
   dialogSubmit: { add: string; edit: string }
   errors: {
     nameRequired: string
@@ -1595,9 +1735,8 @@ export interface AdminAddUserContent {
   subtitle: string
   back: LinkContent
   name: { label: string }
-  email: { label: string; hint: string }
-  /** `placeholder`: an example in the one accepted format. */
-  phone: { label: string; hint: string; placeholder: string }
+  email: { label: string }
+  phone: { label: string; hint: string }
   /** Searchable list of divisions; `noDivision` is the choice for departments without one. */
   division: { label: string; placeholder: string; noDivision: string; toggle: string; noMatches: string }
   /** Searchable list of the chosen division's departments. */
@@ -1610,7 +1749,11 @@ export interface AdminAddUserContent {
   cancel: string
   /** Above the reason when the server refused. */
   notAdded: string
-  failures: Record<'forbidden' | 'email-taken' | 'invalid' | 'admin-exclusive' | 'approver-quality' | 'department-unavailable' | 'account-failed' | 'account-blocked' | 'failed', string>
+  /**
+   * `admin-managed-separately`: the email is a deactivated Admin's; `invitation-failed`: a deactivated staff
+   * member's, who stays deactivated because their new invitation couldn't be sent.
+   */
+  failures: Record<'forbidden' | 'email-taken' | 'invalid' | 'admin-exclusive' | 'approver-quality' | 'department-unavailable' | 'account-failed' | 'account-blocked' | 'admin-managed-separately' | 'invitation-failed' | 'failed', string>
   errors: {
     nameRequired: string
     emailInvalid: string
@@ -1629,6 +1772,7 @@ export interface AdminAddUserContent {
 /** Edit User: its fields, Cancel and the back link are Add User's. */
 export interface AdminEditUserContent {
   title: string
+  /** One line under the staff member's name. */
   subtitle: string
   submit: string
   /** The submit button while saving. */
@@ -1655,10 +1799,22 @@ export interface AdminUserDetailsContent {
   back: LinkContent
   /** Opens Edit Staff. */
   edit: string
+  /** The labelled Delete button in the header; it deactivates the staff member. */
+  delete: string
+  /** Delete's label while the deactivation is being saved. */
+  deleting: string
+  /** The email's copy button; `{name}` is replaced. */
+  copyEmail: string
+  copied: string
+  copyFailed: string
   /** Shown after adding a user. */
   added: string
   /** Shown after adding a user whose invitation email couldn't be sent. */
   addedInvitationFailed: string
+  /** Shown after Add Staff reactivated a deactivated staff member and sent a new invitation. */
+  reactivated: string
+  /** Shown after a reactivation whose invitation couldn't be sent (and that couldn't be undone). */
+  reactivatedInvitationFailed: string
   /** The rows, in this order; `notSet` for an empty value. */
   details: {
     title: string
@@ -1670,15 +1826,6 @@ export interface AdminUserDetailsContent {
     position: string
     permission: string
     notSet: string
-  }
-  involvement: {
-    title: string
-    empty: string
-    /** Accessible name of the list. */
-    label: string
-    roles: Record<'author' | 'co-author' | 'reviewer' | 'approver', string>
-    /** Visually hidden before the roles. */
-    rolesLabel: string
   }
   /**
    * Why a change is refused. `{name}` (the user) and `{sops}` (SOP codes; with their
@@ -1702,34 +1849,92 @@ export interface CountText {
   other: string
 }
 
+/** The Filter control (FilterPopover) on every list page that filters by division and department. */
+export interface FiltersContent {
+  /** The field's visible label and accessible name. */
+  label: string
+  /** The field's text while nothing is chosen. */
+  all: string
+  /** The panel's heading. */
+  title: string
+  clearAll: string
+  /** `count`: in the field's summary, e.g. "2 divisions" (`{count}` is replaced). */
+  division: { legend: string; empty: string; count: CountText }
+  /** `unassigned`: the group of departments without a division. */
+  department: { legend: string; empty: string; count: CountText; unassigned: string }
+  /** Staff only: the permissions (their chip labels are usersEn.permissions, as on the badges). */
+  permission: { legend: string; count: CountText }
+}
+
 export interface AdminUsersListContent {
   title: string
+  /** One line under the page heading. */
+  subtitle: string
   addUser: LinkContent
   search: { label: string; placeholder: string }
-  /** `noDivision`: departments without a division. */
-  divisionFilter: { label: string; all: string; noDivision: string }
-  /** Lists the chosen division's departments. */
-  departmentFilter: { label: string; all: string }
-  count: CountText
+  /** The Sort dropdown: its label, one option per order (the first is the default) and the headings of its groups. */
+  sort: { label: string; options: Record<StaffSort, string>; groups: Record<StaffSortGroup, string> }
+  /** Clears the search, the Filter and the sort. */
+  clearFilters: string
+  /** The two tabs above the table: active staff (the default) and deactivated staff. `label` names the tab list. */
+  tabs: { label: string; active: string; deactivated: string }
   /** Accessible name of the table. */
   tableLabel: string
-  columns: { name: string; division: string; department: string; permissions: string; actions: string }
+  /**
+   * `preview`, `edit`, `delete` and `reactivate`: the action columns' headings, as on Divisions and Departments
+   * (Active Staff has Delete, Deactive Staff has Reactivate in that column).
+   */
+  columns: { name: string; division: string; department: string; permissions: string; preview: string; edit: string; delete: string; reactivate: string }
   /** An empty cell (e.g. no division). */
   none: string
   /** Accessible names and tooltips of the row's icon buttons; `{name}` is replaced. */
   actions: { view: string; edit: string }
+  /** No active staff (match the search and Filter). */
   empty: string
+  /** No deactivated staff (match the search and Filter). */
+  emptyDeactivated: string
 }
 
-/** Delete User, on the Users list and a user's page; `{name}` is replaced. */
+/**
+ * Delete on Staff (the Active Staff tab, a staff member's page and Edit Staff): deactivates the staff member
+ * (nothing is removed). `{name}` is replaced.
+ */
 export interface AdminDeleteUserContent {
   button: string
+  /** The button's label while the deactivation is being saved; `{name}` is replaced. */
+  busy: string
+  title: string
+  description: string
+  /** What deleting does, listed under the description. */
+  consequences: string[]
+  cancel: string
+  confirm: string
+  refused: string
+  done: string
+  /** Why the server refused; `responsibilities-in-progress` uses `inProgress`. */
+  failures: Record<'forbidden' | 'not-found' | 'self-delete' | 'admin-managed-separately' | 'failed', string>
+  /** SOP work in progress; `{name}` and `{count}` are replaced. */
+  inProgress: { one: string; other: string }
+}
+
+/**
+ * Reactivate on Staff (the Deactive Staff tab, a deactivated staff member's page and Edit Staff): makes them
+ * active again. `{name}` is replaced.
+ */
+export interface AdminReactivateUserContent {
+  /** Accessible name and tooltip of the icon button. */
+  button: string
+  /** The labelled button on a staff member's page and Edit Staff. */
+  label: string
+  /** While it is being saved. */
+  busy: string
   title: string
   description: string
   cancel: string
   confirm: string
   refused: string
   done: string
+  failures: Record<ReactivateStaffFailure, string>
 }
 
 /** The public Request Hawkim form (pages/RequestHawkimPage.tsx). */
@@ -1741,10 +1946,26 @@ export interface RequestHawkimContent {
   fields: {
     organization: string
     contactName: string
-    jobTitle: string
+    /** The contact person's email. */
     email: string
     phone: string
     phoneHint: string
+    organizationEmail: string
+    organizationEmailPlaceholder: string
+    /** The two boxes of the Address group (its title, hint and "or" are in `addressGroup`). */
+    organizationAddress: string
+    organizationAddressPlaceholder: string
+    organizationMapsUrl: string
+    organizationMapsUrlPlaceholder: string
+    /** Under the Google Maps link and the Website. */
+    linkHint: string
+    /** Labelled "(Optional)", like Message. */
+    organizationWebsite: string
+    organizationWebsitePlaceholder: string
+    organizationDescription: string
+    organizationDescriptionPlaceholder: string
+    /** `{count}` and `{max}` are replaced. */
+    organizationDescriptionCounter: string
     approxUsers: string
     /** Labelled "(Optional)", like the optional fields of the other forms. */
     message: string
@@ -1752,6 +1973,8 @@ export interface RequestHawkimContent {
     /** `{count}` and `{max}` are replaced. */
     messageCounter: string
   }
+  /** The box holding the address and the Google Maps link: one of the two is enough. */
+  addressGroup: { title: string; hint: string; or: string }
   submit: string
   backLink: LinkContent
   errors: {
@@ -1759,8 +1982,14 @@ export interface RequestHawkimContent {
     email: string
     phone: string
     approxUsers: string
+    /** A Google Maps link or website that isn't an https:// link. */
+    url: string
+    /** Both the address and the Google Maps link are empty (after Send Request). */
+    addressGroup: string
     tooLong: string
     tooManyRequests: string
+    /** On the Organization field after Send Request: a pending or accepted request has this name. */
+    organizationTaken: string
     notConnected: string
     failed: string
   }
@@ -1775,7 +2004,14 @@ export interface ReviewRequestContent {
   loading: string
   title: string
   text: string
-  labels: { organization: string; contactName: string; jobTitle: string; email: string; phone: string; approxUsers: string; message: string; received: string }
+  /** `jobTitle` (Position): only for requests sent before it was removed from the form. `email`: the contact person's. */
+  labels: {
+    organization: string; contactName: string; jobTitle: string; email: string; phone: string
+    organizationEmail: string; organizationAddress: string; organizationMapsUrl: string; organizationWebsite: string; organizationDescription: string
+    approxUsers: string; message: string; received: string
+  }
+  /** An organization detail the request doesn't have (sent before the form asked, or an optional one left empty). */
+  notProvided: string
   noMessage: string
   accountExists: string
   accept: string
@@ -1789,7 +2025,8 @@ export interface ReviewRequestContent {
   /** After the team's decision. `{email}` is the requester's address. */
   accepted: { title: string; text: string; emailFailed: string }
   rejected: { title: string; text: string }
-  errors: { emailInUse: string; accountFailed: string; notConnected: string; failed: string }
+  /** `deploymentOnboarded`: this deployment already has its organization (one organization per deployment). */
+  errors: { emailInUse: string; deploymentOnboarded: string; accountFailed: string; notConnected: string; failed: string }
 }
 
 /** The page controls under a long list. `{page}` is the page number. */
@@ -1807,4 +2044,271 @@ export interface PaginationContent {
 /** DEVELOPMENT ONLY: the sample SOPs for trying pagination. `{n}` is the sample number. */
 export interface DevSamplesContent {
   title: string
+}
+
+/* ---------- Admin portal: Manage Organization → Admins ---------- */
+
+/** What the Add/Edit form says about the fields every account has (Staff's form shows more). */
+export interface UserFormText {
+  back: LinkContent
+  name: { label: string }
+  email: { label: string }
+  phone: { label: string; hint: string }
+  cancel: string
+  errors: Pick<AdminAddUserContent['errors'], 'nameRequired' | 'emailInvalid' | 'emailTaken' | 'phoneRequired' | 'phoneInvalid'>
+}
+
+/** The two administrator levels, as shown. */
+export type AdminRoleKey = 'superAdmin' | 'admin'
+
+/** Why an Admins action was refused by the server. */
+export type AdminActionFailure =
+  | 'forbidden' | 'not-found' | 'invalid' | 'super-admin-required' | 'super-admin-protected'
+  | 'recipient-not-admin' | 'recipient-self' | 'failed'
+
+export interface AdminsContent {
+  /** Browser tab title; `{page}` is replaced. */
+  pageTitle: string
+  roles: Record<AdminRoleKey, string>
+  /** What the Super Admin is: the tooltip of the Super Admin badge in the Admins table. */
+  superAdminTooltip: string
+  list: {
+    title: string
+    description: string
+    add: LinkContent
+    search: { label: string; placeholder: string }
+    /** The Filter's Role section. */
+    role: { legend: string; count: CountText }
+    /** `groups.name`: the title the two name orders are listed under (Default order stands alone). */
+    sort: { label: string; options: Record<'default' | 'name-asc' | 'name-desc', string>; groups: { name: string } }
+    clearFilters: string
+    count: CountText
+    tableLabel: string
+    /** `preview`, `edit`, `delete`: the action columns' headings, as on Divisions and Departments. */
+    columns: { name: string; email: string; phone: string; role: string; preview: string; edit: string; delete: string }
+    none: string
+    /** `{name}` is replaced. */
+    actions: { view: string; edit: string }
+    empty: string
+    noMatches: string
+    loading: string
+    /** The administrators or the Super Admin couldn't be loaded. */
+    loadFailed: string
+    retry: string
+  }
+  add: {
+    title: string
+    subtitle: string
+    submit: string
+    adding: string
+    notAdded: string
+    failures: Record<'forbidden' | 'email-taken' | 'invalid' | 'account-failed' | 'account-blocked' | 'failed', string>
+  }
+  form: UserFormText
+  edit: {
+    title: string
+    subtitle: string
+    submit: string
+    saving: string
+    saved: string
+    notSaved: string
+    emailNotSaved: string
+    failures: Record<AdminActionFailure, string>
+    emailFailures: Record<'forbidden' | 'not-found' | 'email-taken' | 'invalid' | 'account-failed' | 'failed', string>
+    /** Shown instead of the form to a regular Admin who opens the Super Admin's Edit page. */
+    readOnly: string
+    discard: { title: string; description: string; keep: string; discard: string }
+  }
+  details: {
+    back: LinkContent
+    title: string
+    name: string
+    email: string
+    phone: string
+    role: string
+    notSet: string
+    edit: string
+    /** The copy icon beside the email: accessible name and tooltip (`{name}` is replaced), then its confirmations. */
+    copyEmail: string
+    copied: string
+    copyFailed: string
+    /** Shown to a regular Admin on the Super Admin's page. */
+    superAdminReadOnly: string
+    /** Shown to the Super Admin on their own page. */
+    ownSuperAdmin: string
+    added: string
+    addedInvitationFailed: string
+  }
+  delete: {
+    /** Accessible name of the Trash button; `{name}` is replaced. */
+    button: string
+    /** Visible label of the Delete button on an Admin's page. */
+    label: string
+    title: string
+    /** `{name}` and `{email}` are replaced. */
+    description: string
+    cancel: string
+    confirm: string
+    deleting: string
+    /** `{name}` is replaced. */
+    done: string
+    notDeleted: string
+  }
+  transfer: {
+    button: string
+    title: string
+    /** `{name}` is replaced in each. */
+    intro: string
+    /** Before the list of consequences. */
+    proceed: string
+    consequences: string[]
+    effect: string
+    cancel: string
+    confirm: string
+    transferring: string
+    /** `{name}` is replaced. */
+    done: string
+    notTransferred: string
+  }
+  failures: Record<AdminActionFailure, string>
+}
+
+/* ---------- Organizational Structure (every signed-in user; "Staff" wording on this page only) ---------- */
+
+export interface OrganizationContent {
+  /** The browser tab's title, from the heading, e.g. "Sitco Structure | Hawkim". */
+  pageTitle: (heading: string) => string
+  /** The heading without an organization name (missing, empty, or still loading). */
+  title: string
+  /** The heading with the organization's name, e.g. "Sitco Structure". */
+  titleFor: (organization: string) => string
+  /** The short description under the heading. */
+  subtitle: string
+  retry: string
+  loading: string
+  error: string
+  /** No divisions or departments at all. */
+  empty: string
+  /** Nothing matches the search and filters. */
+  noMatches: string
+  name: string
+  email: string
+  /** Read by screen readers instead of the "—" shown when there is no email. */
+  noEmail: string
+  /** "Departments (n)" under a division's name. */
+  departmentCount: (count: number) => string
+  /** "Staff (n)" under a department's name. */
+  staffCount: (count: number) => string
+  noStaff: string
+  /** A department's staff list (its table, and its scroll area when it scrolls), e.g. "Staff of Quality". */
+  staffListLabel: (department: string) => string
+  noDepartments: string
+  /** The group of departments without a division. */
+  unassigned: string
+  /** Screen-reader prefix of a person's permissions. */
+  rolesLabel: string
+  /** The copy button's accessible name, e.g. "Copy email for Dana Fahad". */
+  copyEmail: (name: string) => string
+  copied: string
+  copyFailed: string
+  search: string
+  searchPlaceholder: string
+  /** The Filter control's Permission section (the other texts are filtersEn's); `roleCount` is its summary. */
+  roleFilter: string
+  roleCount: CountText
+  /** The Permission filter's chip for staff without a permission. */
+  others: string
+  sort: string
+  sortOptions: Record<OrganizationSort, string>
+  /** Headings of the Sort menu's groups. */
+  sortGroups: Record<OrganizationSortGroup, string>
+  /**
+   * A staff member's Profile Preview, opened from their name: what this page already shows about them
+   * (no phone or other private details). `open` names the name's button; `notSet` is an empty value.
+   */
+  profilePreview: {
+    open: (name: string) => string
+    close: string
+    email: string
+    position: string
+    division: string
+    department: string
+    permission: string
+    notSet: string
+  }
+  /**
+   * A department's read-only details pop-up, opened from its name (the same fields as the admin preview:
+   * division, description, email). `open` names the name's button; `toggle` names the arrow that shows or
+   * hides its staff; `notSet` is an empty value.
+   */
+  departmentPreview: {
+    open: (name: string) => string
+    toggle: (name: string) => string
+    close: string
+    division: string
+    description: string
+    email: string
+    notSet: string
+  }
+}
+
+/** A field of the Organization Profile, in the order shown. */
+export type OrganizationProfileField = 'name' | 'email' | 'description' | 'address' | 'mapsUrl' | 'website'
+
+/**
+ * Organization Profile in the admin portal (pages/admin/OrganizationProfilePage.tsx): every active Admin sees the
+ * organization's details; the Super Admin edits them.
+ */
+export interface OrganizationProfileContent {
+  pageTitle: string
+  title: string
+  subtitle: string
+  /** The card's heading. */
+  detailsTitle: string
+  /** The shared box holding the address and the Google Maps link side by side. */
+  addressTitle: string
+  /** Under the Address title in the form: one of the two is enough. */
+  addressHint: string
+  /** Between the address and the Google Maps link in the form. */
+  or: string
+  /** `formLabel`: the label in the form when it differs, e.g. "(Optional)". */
+  fields: Record<OrganizationProfileField, { label: string; formLabel?: string; placeholder?: string; hint?: string }>
+  /** A value not saved yet. */
+  notSet: string
+  /** Opens a link (the Google Maps link, the website) in a new tab; `{label}` is replaced. */
+  opensInNewTab: string
+  edit: string
+  save: string
+  saving: string
+  cancel: string
+  /** Shown to Admins who aren't the Super Admin. */
+  readOnly: string
+  loading: string
+  loadFailed: string
+  retry: string
+  saved: string
+  /** Above the reasons when saving is refused; what was typed stays. */
+  notSaved: string
+  errors: {
+    /** `addressGroup`: both the address and the Google Maps link are empty. */
+    required: { name: string; email: string; description: string; addressGroup: string }
+    emailInvalid: string
+    urlInvalid: string
+    tooLong: string
+  }
+  failures: { forbidden: string; invalid: string; failed: string }
+  copyEmail: string
+  copied: string
+  copyFailed: string
+  discard: { title: string; description: string; keep: string; discard: string }
+}
+
+/** The copy button next to a displayed email address, where the page has no copy texts of its own. */
+export interface EmailCopyContent {
+  /** Accessible name and tooltip; `{name}` is the person's name. */
+  copyNamed: string
+  /** On My Profile (the signed-in person's own email). */
+  copyOwn: string
+  copied: string
+  failed: string
 }

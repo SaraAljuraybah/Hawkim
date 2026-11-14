@@ -31,7 +31,8 @@ describe('Change Password dialog', () => {
       expect(field).toContain('required=""')
       expect(field).not.toContain('pl-10')
       const id = field.match(/id="([^"]+)"/)![1]
-      expect(html).toContain(`<label for="${id}" class="mb-1.5 block text-sm font-medium text-maroon">${label}</label>`)
+      // Required: the red asterisk after the label.
+      expect(html).toContain(`<label for="${id}" class="mb-1.5 block text-sm font-medium text-maroon">${label}<span aria-hidden="true" class="ml-0.5 text-status-rejected-fg">*</span></label>`)
       expect(html).toContain(`aria-label="Show password" aria-controls="${id}"`)
     }
     expect(html).not.toContain('lucide-lock')

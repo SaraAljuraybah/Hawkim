@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { SYSTEM_ACTOR } from '../data/mock/types'
 import { SopDeleteError } from '../lib/mySops'
-import { addCoAuthors, createSop, deleteSop, deleteSopVersion, fetchSop, fetchSops, removeCoAuthor, toSop, toSopEvidence, uploadSopVersion, type SopRow } from './sops'
+import { addCoAuthors, createSop, deleteSop, deleteSopVersion, fetchSop, fetchSops, removeCoAuthor, toSop, toSopEvidence, updateSopDetails, uploadSopVersion, type SopRow } from './sops'
 
 const rpc = vi.fn()
 const invoke = vi.fn()
@@ -207,6 +207,14 @@ describe('a changed review deadline in the timeline', () => {
   })
 })
 
+describe('a changed review duration in the timeline', () => {
+  it('keeps the old and new durations of a pending request, and leaves out an old one that was empty', () => {
+    const event = (previous: number | null) => ({ ...row.timeline_events[0], type: 'review-duration-changed' as const, previous_review_duration_days: previous, new_review_duration_days: 7 })
+    expect(toSop({ ...row, timeline_events: [event(3)] }).timeline[0]).toMatchObject({ type: 'review-duration-changed', previousReviewDurationDays: 3, newReviewDurationDays: 7 })
+    expect(toSop({ ...row, timeline_events: [event(null)] }).timeline[0].previousReviewDurationDays).toBeUndefined()
+  })
+})
+
 describe('reading SOPs', () => {
   it('selects the saved deadlines and their policy, but no column outside the schema', async () => {
     await fetchSops()
@@ -345,5 +353,23 @@ describe('saving SOPs and versions', () => {
   it('throws the database message when it refuses a version delete', async () => {
     invoke.mockResolvedValue({ data: null, error: refused(409, { error: 'not-deletable', message: 'At least one version must remain' }) })
     await expect(deleteSopVersion('uuid-sop', '1')).rejects.toThrow('At least one version must remain')
+  })
+})
+
+describe('SOP Details', () => {
+  it('reads when the SOP was added (Date Added)', () => {
+    expect(toSop({ ...row, created_at: '2026-10-20T08:00:00Z' }).createdAt).toBe('2026-10-20T08:00:00Z')
+    expect(toSop({ ...row, created_at: undefined })).not.toHaveProperty('createdAt')
+  })
+
+  it('saves only the title and description, trimmed, through update_sop_details', async () => {
+    rpc.mockResolvedValue({ data: null, error: null })
+    await updateSopDetails('sop-1', { title: '  New title  ', description: '  New scope.  ' })
+    expect(rpc).toHaveBeenCalledExactlyOnceWith('update_sop_details', { p_sop_id: 'sop-1', p_title: 'New title', p_description: 'New scope.' })
+  })
+
+  it('fails when the database refuses (nothing changes)', async () => {
+    rpc.mockResolvedValue({ data: null, error: { message: 'Only the main author can change the SOP details' } })
+    await expect(updateSopDetails('sop-1', { title: 'T', description: '' })).rejects.toThrow(/main author/)
   })
 })

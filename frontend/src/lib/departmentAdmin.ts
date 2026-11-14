@@ -17,7 +17,8 @@ const INITIALS_PATTERN = /^[A-Za-z]{2,3}$/
 
 /** Members: active (not deleted) users whose home department it is. */
 export function members(departmentId: DepartmentId, users: User[]): User[] {
-  return users.filter((user) => !user.deletedAt && user.departmentId === departmentId)
+  // Admins belong to no department (whatever their account still holds), so they are never members.
+  return users.filter((user) => !user.deletedAt && user.departmentId === departmentId && !user.permissions.includes('admin'))
 }
 
 /**

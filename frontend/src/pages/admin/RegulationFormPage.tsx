@@ -15,12 +15,13 @@ import {
   TITLE_MAX,
   validateGuidelineEdit,
   validateGuidelineVersion,
+  versionInProgress,
   type GuidelineField,
   type GuidelineProblem,
   type GuidelineVersionInput,
 } from '../../lib/guidelines'
 import { riyadhDate } from '../../lib/riyadhWorkingDays'
-import { ADMIN_REGULATIONS_PATH } from '../../lib/routes'
+import { ADMIN_REGULATIONS_PATH, adminRegulationPath } from '../../lib/routes'
 import { GuidelineError, type GuidelineFailure } from '../../services/guidelines'
 import { useGuidelines } from '../../state/guidelinesContext'
 import { NotFoundPage } from '../NotFoundPage'
@@ -45,11 +46,39 @@ type FieldErrors = Partial<Record<GuidelineField, string>>
  */
 export function RegulationFormPage({ mode = 'add' }: { mode?: 'add' | 'edit' }) {
   const { id } = useParams()
-  const { getVersion } = useGuidelines()
-  if (mode === 'add') return <GuidelineVersionForm />
+  const { getVersion, allVersions } = useGuidelines()
+  if (mode === 'add') {
+    // One version at a time: while another is processing, say so instead of showing the form.
+    const inProgress = versionInProgress(allVersions)
+    return inProgress ? <AddingWaits version={inProgress} /> : <GuidelineVersionForm />
+  }
   const version = getVersion(id)
   // A different version starts fresh.
   return version ? <GuidelineVersionForm key={version.id} editing={version} /> : <NotFoundPage embedded />
+}
+
+/** Add New Version while another version is waiting for or being processed. */
+function AddingWaits({ version }: { version: GuidelineVersion }) {
+  const text = adminEn.regulationForm
+  const wait = adminEn.regulations.inProgress
+  useDocumentTitle(adminEn.pageTitle.replace('{page}', text.title))
+  return (
+    <>
+      <Link
+        to={text.back.href}
+        className="inline-flex items-center gap-1.5 rounded-sm text-sm font-medium text-text-gray transition-colors hover:text-maroon"
+      >
+        <ArrowLeft aria-hidden="true" className="size-4" strokeWidth={1.75} />
+        {text.back.label}
+      </Link>
+      <h1 className="mt-5 text-2xl tracking-tight sm:text-3xl">{text.title}</h1>
+      <div role="status" className="mt-8 max-w-2xl rounded-xl border border-beige bg-white p-5 sm:p-6">
+        <h2 className="text-lg">{wait.title}</h2>
+        <p className="mt-2 text-maroon">{wait.text.replace('{version}', version.version)}</p>
+        <Button to={adminRegulationPath(version.id)} variant="secondary" className="mt-4">{wait.view.replace('{version}', version.version)}</Button>
+      </div>
+    </>
+  )
 }
 
 function GuidelineVersionForm({ editing }: { editing?: GuidelineVersion }) {
@@ -135,6 +164,10 @@ function GuidelineVersionForm({ editing }: { editing?: GuidelineVersion }) {
       case 'file-in-use':
       case 'upload':
         return { field: 'fileName', message: text.errors.uploadFailed }
+      case 'version-processing': {
+        const inProgress = versionInProgress(allVersions)
+        return { message: text.errors.versionProcessing.replace('{version}', inProgress?.version ?? '') }
+      }
       case 'permission':
         return { message: text.errors.permission }
       default:

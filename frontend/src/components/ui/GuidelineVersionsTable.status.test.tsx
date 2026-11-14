@@ -8,7 +8,7 @@ const v40: GuidelineVersion = { id: 'gvp-4-0', version: '4.0', effectiveDate: '2
 const added = (status: NonNullable<GuidelineVersion['processing']>['status']): GuidelineVersion =>
   ({ id: `uuid-${status}`, version: '4.1', effectiveDate: '2026-11-09', fileName: 'b.pdf', requirements: [], neverCurrent: true, processing: { status } })
 const render = (versions: GuidelineVersion[]) =>
-  renderToStaticMarkup(<GuidelineVersionsTable versions={versions} currentId="gvp-4-0" label="Versions" actions={() => null} />)
+  renderToStaticMarkup(<GuidelineVersionsTable versions={versions} currentId="gvp-4-0" label="Versions" actions={() => ({ preview: null, edit: null, delete: null })} />)
 
 describe('the processing status in the versions list', () => {
   it('labels an added version with its processing status, next to its number', () => {

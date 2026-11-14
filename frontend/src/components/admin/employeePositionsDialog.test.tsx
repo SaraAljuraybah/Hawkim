@@ -29,7 +29,7 @@ it('requires at least one position before calling the server', async () => {
   expect(host.save).not.toHaveBeenCalled()
 })
 it('keeps the dialog open and shows a server refusal', async () => {
-  host.save.mockRejectedValue(new Error('Only an active administrator can manage divisions and departments.'))
+  host.save.mockRejectedValue(new Error('Only an active Admin can manage divisions and departments.'))
   await expect((render().props.onConfirm as () => Promise<unknown>)()).resolves.toBe(false)
   expect(elements(render()).some((node) => node.props.role === 'alert')).toBe(true)
 })

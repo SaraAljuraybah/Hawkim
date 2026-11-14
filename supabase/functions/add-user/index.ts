@@ -1,5 +1,7 @@
 // Add User in the admin portal: creates the sign-in account, saves the profile and permissions
 // through the database, and emails an invitation to set a password. The steps are in flow.ts.
+// Add Staff with a deactivated staff member's email reactivates them (the same account and profile)
+// with a new password-setup link; if that invitation can't be sent, they are deactivated again.
 //
 // Runs with JWT verification on, and checks in the database that the caller is an active Admin.
 //   supabase functions deploy add-user --use-api
@@ -51,6 +53,12 @@ Deno.serve(async (request) => {
     ...init,
     headers: { apikey: serverKey, Authorization: `Bearer ${serverKey}`, "Content-Type": "application/json" },
   })
+  // Auth's own links (invite for a new account, recovery for an existing one): they open Set New Password.
+  const site = env("SITE_URL", "https://www.tryhawkim.com").replace(/\/$/, "")
+  const generateLink = (type: string, email: string, extra: Record<string, unknown>) => authAdmin("generate_link", {
+    method: "POST",
+    body: JSON.stringify({ type, email, redirect_to: `${site}/reset-password`, ...extra }),
+  })
   const rpc = async <T>(name: string, args: Record<string, unknown>): Promise<T> => {
     const { data, error } = await caller.rpc(name, args)
     if (error) throw new DatabaseError(error)
@@ -77,17 +85,26 @@ Deno.serve(async (request) => {
         p_department_id: user.departmentId, p_roles: user.permissions,
       }),
       accountLink: async (email, name) => {
-        const site = env("SITE_URL", "https://www.tryhawkim.com").replace(/\/$/, "")
-        const generate = (type: string, extra: Record<string, unknown>) => authAdmin("generate_link", {
-          method: "POST",
-          body: JSON.stringify({ type, email, redirect_to: `${site}/reset-password`, ...extra }),
-        })
-        let response = await generate("invite", { data: { full_name: name } })
-        const existing = response.status === 422 // A sign-in account already exists.
-        if (existing) response = await generate("recovery", {})
+        const response = await generateLink("invite", email, { data: { full_name: name } })
+        if (response.status === 422) {
+          // A sign-in account already exists: only its id now, no link. Its link is made by freshLink once
+          // the profile is saved (a link made earlier would die when its password is replaced, and a
+          // request refused later must never make one).
+          // Auth's filter matches part of the email or name, so only an exact (case-insensitive) match counts,
+          // page after page; never a similar address.
+          for (let page = 1; page <= 20; page++) {
+            const found = await authAdmin(`users?filter=${encodeURIComponent(email)}&page=${page}&per_page=100`)
+            const list = await found.json().catch(() => null)
+            if (!found.ok || !Array.isArray(list?.users)) throw new Error(`find account ${found.status}`)
+            const account = list.users.find((user: { email?: string }) => user.email?.toLowerCase() === email)
+            if (account?.id) return { id: account.id as string, link: "", existing: true }
+            if (list.users.length < 100) break
+          }
+          throw new Error("find account: no exact match")
+        }
         const account = await response.json().catch(() => null)
         if (!response.ok || !account?.id || !account?.action_link) throw new Error(`generate_link ${response.status}`)
-        return { id: account.id, link: account.action_link, existing }
+        return { id: account.id, link: account.action_link, existing: false }
       },
       isBanned: async (id) => {
         const response = await authAdmin(`users/${id}`)
@@ -95,10 +112,11 @@ Deno.serve(async (request) => {
         if (!response.ok || !account?.id) throw new Error(`read account ${response.status}`)
         return !!account.banned_until && new Date(account.banned_until).getTime() > Date.now()
       },
-      hasActiveProfile: async (id) => {
-        const { data, error } = await caller.from("profiles").select("id").eq("id", id).is("deleted_at", null).maybeSingle()
+      profileState: async (id) => {
+        // An Admin reads every profile, deactivated ones included (their names stay on history).
+        const { data, error } = await caller.from("profiles").select("deleted_at").eq("id", id).maybeSingle()
         if (error) throw new Error(`read profile ${error.code}`)
-        return !!data
+        return !data ? "none" : data.deleted_at ? "deactivated" : "active"
       },
       setRandomPassword: async (id) => {
         const response = await authAdmin(`users/${id}`, { method: "PUT", body: JSON.stringify({ password: randomPassword() }) })
@@ -108,6 +126,13 @@ Deno.serve(async (request) => {
         p_user_id: id, p_email: user.email, p_full_name: user.name, p_phone: user.phone, p_position: user.position,
         p_department_id: user.departmentId, p_roles: user.permissions,
       }),
+      freshLink: async (email) => {
+        const response = await generateLink("recovery", email, {})
+        const account = await response.json().catch(() => null)
+        if (!response.ok || !account?.action_link) throw new Error(`generate_link ${response.status}`)
+        return account.action_link as string
+      },
+      deactivate: (id) => rpc<unknown>("deactivate_staff", { p_user_id: id }).then(() => undefined),
       sendEmail: async (to, subject, html) => {
         const response = await fetch(env("SNDR_API_URL", "https://api.sndr.sh/v1/send"), {
           method: "POST",
@@ -115,6 +140,9 @@ Deno.serve(async (request) => {
           body: JSON.stringify({ from: env("SNDR_FROM", "Hawkim <no-reply@mail.tryhawkim.com>"), to: [to], subject, html }),
         })
         if (!response.ok) throw new Error(`SNDR ${response.status}`)
+      },
+      recordInvitation: async (id) => {
+        await rpc("record_invitation_sent", { p_user_id: id })
       },
       log: (message) => console.log(`add-user: ${message}`),
     })

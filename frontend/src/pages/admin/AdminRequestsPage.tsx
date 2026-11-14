@@ -5,6 +5,7 @@ import { StatusBadge } from '../../components/ui/StatusBadge'
 import { Tabs, type TabItem } from '../../components/ui/Tabs'
 import { tabIds } from '../../components/ui/tabIds'
 import { TextField } from '../../components/ui/TextField'
+import { LIST_TOOLBAR } from '../../components/ui/toolbar'
 import { adminEn } from '../../content/admin.en'
 import { requestsEn } from '../../content/requests.en'
 import type { AdminRequestTabKey } from '../../content/types'
@@ -85,16 +86,19 @@ export function AdminRequestsPage() {
       </div>
 
       <div role="tabpanel" id={ids.panel} aria-labelledby={ids.tab} tabIndex={0} className="mt-6 rounded-xl">
-        <TextField
-          name="search"
-          type="search"
-          label={content.search.label}
-          placeholder={content.search.placeholder}
-          autoComplete="off"
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          className="max-w-md"
-        />
+        {/* The search in the same row as every list page's, so it's just as wide (no Filter or Sort here). */}
+        <div className={LIST_TOOLBAR}>
+          <TextField
+            name="search"
+            type="search"
+            label={content.search.label}
+            placeholder={content.search.placeholder}
+            autoComplete="off"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            className="min-w-0"
+          />
+        </div>
 
         {/* Announced as the results change */}
         <p role="status" className="mt-6 text-sm font-medium text-text-gray">

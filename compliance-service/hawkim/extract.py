@@ -37,16 +37,26 @@ class Document:
                 yield i, line
 
 
-def _pdf_pages(path: Path) -> list[str]:
+def _read_pages(pages, on_page) -> list[str]:
+    texts = []
+    for p in pages:
+        texts.append(p.extract_text() or "")
+        if on_page:
+            on_page(len(texts), len(pages))
+    return texts
+
+
+def _pdf_pages(path: Path, on_page=None) -> list[str]:
+    """`on_page(done, total)`: optional, called after each page is read."""
     try:
         import pdfplumber
         with pdfplumber.open(str(path)) as pdf:
-            return [(p.extract_text() or "") for p in pdf.pages]
+            return _read_pages(pdf.pages, on_page)
     except Exception as e:  # fall back to pypdf
         from pypdf import PdfReader
         reader = PdfReader(str(path))
         print(f"  [warn] pdfplumber failed on {path.name} ({e}); using pypdf")
-        return [(p.extract_text() or "") for p in reader.pages]
+        return _read_pages(reader.pages, on_page)
 
 
 def _docx_pages(path: Path) -> list[str]:
@@ -122,14 +132,15 @@ def _remove_headers_footers(pages: list[list[str]], min_ratio: float):
 
 
 def extract_document(path: str | Path, header_footer_min_page_ratio: float = 0.3,
-                     min_chars_per_page_warning: int = 50) -> Document:
+                     min_chars_per_page_warning: int = 50, on_page=None) -> Document:
+    """`on_page(done, total)`: optional, called after each page of a PDF is read."""
     path = Path(path)
     ext = path.suffix.lower()
     if ext not in SUPPORTED:
         raise ValueError(f"Unsupported file type: {path.name} (supported: {sorted(SUPPORTED)})")
 
     if ext == ".pdf":
-        raw_pages = _pdf_pages(path)
+        raw_pages = _pdf_pages(path, on_page)
     elif ext == ".docx":
         raw_pages = _docx_pages(path)
     else:

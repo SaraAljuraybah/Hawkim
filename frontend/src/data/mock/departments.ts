@@ -26,7 +26,7 @@ export const sampleDepartments: Department[] = [
   },
   {
     id: 'research-development',
-    name: 'Research & Development',
+    name: 'Research and Development',
     initials: 'RD',
     description: 'Drives innovation and product development.',
   },
@@ -44,7 +44,7 @@ export const sampleDepartments: Department[] = [
   },
   {
     id: 'finance-administration',
-    name: 'Finance & Administration',
+    name: 'Finance and Administration',
     initials: 'FA',
     description: 'Oversees financial and administrative operations.',
   },
@@ -56,7 +56,7 @@ export const sampleDepartments: Department[] = [
   },
   {
     id: 'legal-governance',
-    name: 'Legal & Governance',
+    name: 'Legal and Governance',
     initials: 'LG',
     description: 'Ensures legal compliance and governance.',
   },

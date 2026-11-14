@@ -19,7 +19,7 @@ vi.mock('../state/activeDepartmentContext', () => ({ useActiveDepartment: () => 
 vi.mock('../state/requestsContext', () => ({ useMyRequests: () => [], useRequests: () => ({ requests: [] }) }))
 vi.mock('../state/sopsContext', () => ({ useSops: () => ({ sops: fixture.sops, deleteSop: vi.fn() }) }))
 vi.mock('../state/guidelinesContext', () => ({ useGuidelines: () => ({ current: { version: '4.0' } }) }))
-vi.mock('../state/departmentsContext', () => ({ useDepartments: () => ({ departments: [fixture.home], activeDepartments: [fixture.home], nameOf: () => fixture.home.name }) }))
+vi.mock('../state/departmentsContext', () => ({ useDepartments: () => ({ departments: [fixture.home], activeDepartments: [fixture.home], nameOf: () => fixture.home.name, getDepartment: () => fixture.home }) }))
 
 /** `count` SOPs, "Procedure 01" the oldest; newest first is the highest number. */
 function sops(count: number, status: Sop['status'], extra: (n: number) => Partial<Sop> = () => ({})): Sop[] {
@@ -80,17 +80,31 @@ describe.each([
     for (const value of ['abc', '0', '-2', '1.5']) expect(shown(render(page, `${path}?page=${value}`))).toEqual(numbers(30, 19))
   })
 
-  it('hides the controls when everything fits on one page', () => {
-    fixture.sops = sops(12, status)
+  it.each([1, 12])('always shows the controls, "‹ Previous 1 Next ›" with both disabled, for one page (%i SOPs)', (count) => {
+    fixture.sops = sops(count, status)
     const html = render(page, path)
-    expect(shown(html)).toHaveLength(12)
+    expect(shown(html)).toHaveLength(count)
+    expect(html).toContain('aria-label="Pagination"')
+    expect(currentPage(html)).toBe('1')
+    expect(html).not.toContain('aria-label="Page 2"')
+    expect(html).toMatch(/<button[^>]*aria-disabled="true"[^>]*aria-label="Previous page"|<button[^>]*aria-label="Previous page"[^>]*aria-disabled="true"/)
+    expect(html).toMatch(/<button[^>]*aria-disabled="true"[^>]*aria-label="Next page"|<button[^>]*aria-label="Next page"[^>]*aria-disabled="true"/)
+  })
+
+  it('hides the controls when there are no results, keeping the empty message', () => {
+    fixture.sops = []
+    expect(render(page, path)).not.toContain('aria-label="Pagination"')
+    fixture.sops = sops(5, status)
+    const html = render(page, `${path}?q=nothing-matches`)
+    expect(shown(html)).toHaveLength(0)
     expect(html).not.toContain('aria-label="Pagination"')
   })
 
   it('keeps the existing result count for the whole list, and no "Showing" text', () => {
     fixture.sops = sops(30, status)
     const html = render(page, `${path}?page=2`)
-    expect(html).toContain('30 SOPs found')
+    // My SOPs: "30 SOPs found" under the search; the SOP Directory: "30 SOPs" in the tabs row.
+    expect(html).toContain(path === '/sops' ? '>30 SOPs<' : '30 SOPs found')
     expect(html).not.toContain('Showing')
   })
 
@@ -98,7 +112,7 @@ describe.each([
     fixture.sops = [...sops(20, status), ...sops(20, status, (n) => ({ id: `other-${n}`, code: `X-${n}`, title: `Checklist ${n}` }))]
     const html = render(page, `${path}?q=procedure&sort=oldest&page=2`)
     expect(shown(html)).toEqual(['Procedure 13', 'Procedure 14', 'Procedure 15', 'Procedure 16', 'Procedure 17', 'Procedure 18', 'Procedure 19', 'Procedure 20'])
-    expect(html).toContain('20 SOPs found')
+    expect(html).toContain(path === '/sops' ? '>20 SOPs<' : '20 SOPs found')
     expect(html).toMatch(/<input[^>]*value="procedure"/)
     expect(selected(html, path === '/sops' ? 'sopSort' : 'mySopSort')).toBe('oldest')
   })
@@ -151,7 +165,7 @@ describe('the SOP Directory tabs and filters in the URL', () => {
     const html = render(<SopsPage />, '/sops?tab=recent&sort=oldest&page=2')
     expect(html).toContain('aria-labelledby="sops-tab-recent"')
     expect(selected(html, 'sopSort')).toBe('oldest')
-    expect(html).toContain('40 SOPs found')
+    expect(html).toContain('>40 SOPs<')
     expect(currentPage(html)).toBe('2')
   })
 
@@ -160,7 +174,7 @@ describe('the SOP Directory tabs and filters in the URL', () => {
       const html = render(<SopsPage />, url)
       expect(html).not.toContain('name="documentType"')
       expect(html).not.toContain('Document Type')
-      expect(html).toContain('40 SOPs found')
+      expect(html).toContain('>40 SOPs<')
       expect(html).not.toContain('Clear Filters')
     }
     // Search and Sort stay.
@@ -174,7 +188,7 @@ describe('the SOP Directory tabs and filters in the URL', () => {
       const html = render(<SopsPage />, url)
       expect(html).toContain('aria-labelledby="sops-tab-all"')
       expect(selected(html, 'sopSort')).toBe('newest')
-      expect(html).toContain('40 SOPs found')
+      expect(html).toContain('>40 SOPs<')
     }
   })
 })

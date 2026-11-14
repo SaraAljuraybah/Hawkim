@@ -33,7 +33,7 @@ interface PeoplePickerProps {
    * are picked, so not the native attribute).
    */
   required?: boolean
-  /** Shows a red asterisk after the label (visual only; pass `required` too). */
+  /** Shows a red asterisk after the label. It is shown by itself for a `required` field (always matching what is checked); pass true to show it without `required`. */
   requiredMark?: boolean
   className?: string
 }
@@ -164,7 +164,7 @@ export function PeoplePicker({
       error={error}
       errorId={fieldIds.errorId}
       hideLabel={hideLabel}
-      requiredMark={requiredMark}
+      requiredMark={requiredMark || required}
       className={className}
     >
       {selected.length > 0 && (

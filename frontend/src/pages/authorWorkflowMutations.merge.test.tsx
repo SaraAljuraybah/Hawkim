@@ -4,6 +4,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { FormDialog } from '../components/ui/FormDialog'
 import { PeopleList } from '../components/workflow/PeopleList'
 import { SopDescription } from '../components/workflow/SopDescription'
+import { SopDetailsCard } from '../components/workflow/SopDetailsCard'
 import { VersionHistory } from '../components/workflow/VersionHistory'
 import { sopWorkflowEn } from '../content/workflow.en'
 import type { Sop, SopVersion, User } from '../data/mock/types'
@@ -20,7 +21,7 @@ const fixture = vi.hoisted(() => ({
   slots: [] as Slot[], index: 0, confirmations: [] as Confirmation[], sop: null as Sop | null,
   removeCoAuthor: vi.fn<(sopId: string, userId: string) => Promise<void>>(),
   deleteVersion: vi.fn<(sopId: string, version: string) => Promise<void>>(),
-  updateDescription: vi.fn<(sopId: string, text: string) => Promise<void>>(),
+  updateDetails: vi.fn<(sopId: string, details: { title: string; description: string }) => Promise<void>>(),
   users: [
     { id: 'author', name: 'Main Author', departmentId: 'home', permissions: ['author'] },
     { id: 'coauthor', name: 'Contributing Author', departmentId: 'home', permissions: ['author'] },
@@ -47,9 +48,9 @@ vi.mock('react-router-dom', async (original) => ({ ...await original<typeof impo
 vi.mock('../hooks/useDocumentTitle', () => ({ useDocumentTitle: () => {} }))
 vi.mock('../state/sessionContext', () => ({ useCurrentUser: () => fixture.users[0] }))
 vi.mock('../state/usersContext', () => ({ useUsers: () => ({ users: fixture.users, nameOf: (id?: string) => fixture.users.find((user) => user.id === id)?.name ?? '' }) }))
-vi.mock('../state/departmentsContext', () => ({ useDepartments: () => ({ departments: [{ id: 'home', name: 'Home', requiresComplianceCheck: false }], nameOf: () => 'Home' }) }))
+vi.mock('../state/departmentsContext', () => ({ useDepartments: () => ({ departments: [{ id: 'home', name: 'Home', requiresComplianceCheck: false }], nameOf: () => 'Home', getDepartment: () => undefined }) }))
 vi.mock('../state/guidelinesContext', () => ({ useGuidelines: () => ({ current: { version: '4.0' } }) }))
-vi.mock('../state/sopsContext', () => ({ useSops: () => ({ sops: [fixture.sop], removeCoAuthor: fixture.removeCoAuthor, deleteVersion: fixture.deleteVersion, updateDescription: fixture.updateDescription }) }))
+vi.mock('../state/sopsContext', () => ({ useSops: () => ({ sops: [fixture.sop], removeCoAuthor: fixture.removeCoAuthor, deleteVersion: fixture.deleteVersion, updateDetails: fixture.updateDetails }) }))
 vi.mock('../components/ui/FormDialog', () => ({ FormDialog: (props: Confirmation) => {
   fixture.confirmations.push(props)
   return props.open ? <section role="dialog" aria-label={props.title}>{props.children}</section> : null
@@ -104,7 +105,7 @@ beforeEach(() => {
   fixture.confirmations = []
   fixture.removeCoAuthor.mockReset()
   fixture.deleteVersion.mockReset()
-  fixture.updateDescription.mockReset()
+  fixture.updateDetails.mockReset()
   fixture.sop = {
     id: 'author-sop', code: 'SOP-001', title: 'Author mutations', departmentId: 'home', authorId: 'author', coAuthorIds: ['coauthor'],
     status: 'draft', version: '2', lastUpdated: '2026-10-29', fileName: 'current.pdf', fileType: 'pdf',
@@ -149,43 +150,51 @@ describe('author workflow confirmation mutations', () => {
   }
 })
 
-describe('SOP description on the author page', () => {
-  type DescriptionProps = { description?: string; onSave?: (text: string) => Promise<void>; onSaved?: () => void }
-  const description = () => element<DescriptionProps>(render().page, SopDescription).props
+describe('SOP Details on the author page', () => {
+  type DetailsProps = {
+    sop: Sop; divisionName: string; departmentName: string
+    onSave?: (details: { title: string; description: string }) => Promise<void>; onSaved?: () => void
+  }
+  const details = () => element<DetailsProps>(render().page, SopDetailsCard).props
 
-  it('lets the main author save it through the store and announces the change', async () => {
+  it('lets the main author save the title and description through the store and announces the change', async () => {
     fixture.sop!.description = 'Current scope'
-    fixture.updateDescription.mockResolvedValue()
-    const props = description()
-    expect(props.description).toBe('Current scope')
-    await props.onSave!('New scope')
-    expect(fixture.updateDescription).toHaveBeenCalledExactlyOnceWith('author-sop', 'New scope')
+    fixture.updateDetails.mockResolvedValue()
+    const props = details()
+    expect(props.sop.title).toBe('Author mutations')
+    expect(props.sop.description).toBe('Current scope')
+    expect(props.departmentName).toBe('Home')
+    await props.onSave!({ title: 'Renamed', description: 'New scope' })
+    expect(fixture.updateDetails).toHaveBeenCalledExactlyOnceWith('author-sop', { title: 'Renamed', description: 'New scope' })
     props.onSaved!()
     vi.runAllTimers()
     const status = elements(render().page).find((node) => (node.props as { role?: string }).role === 'status')!
-    expect(renderToStaticMarkup(status)).toContain(sopWorkflowEn.messages.descriptionUpdated)
+    expect(renderToStaticMarkup(status)).toContain(sopWorkflowEn.details.saved)
   })
 
-  it('sits between the title and the version, department and last updated line', () => {
+  it('comes right after Workflow status, and the description is no longer under the title', () => {
     fixture.sop!.description = 'Current scope'
     const nodes = elements(render().page)
-    const title = nodes.findIndex((node) => node.type === 'h1')
-    const block = nodes.findIndex((node) => node.type === SopDescription)
-    const meta = nodes.findIndex((node) => node.type === 'time')
-    expect(title).toBeGreaterThanOrEqual(0)
-    expect(title).toBeLessThan(block)
-    expect(block).toBeLessThan(meta)
+    const sections = nodes.map((node, index) => ({ id: (node.props as { id?: string }).id, index }))
+    const workflow = sections.find((item) => item.id === 'tracker-title')!.index
+    const authors = sections.find((item) => item.id === 'authors-title')!.index
+    const card = nodes.findIndex((node) => node.type === SopDetailsCard)
+    expect(workflow).toBeLessThan(card)
+    expect(card).toBeLessThan(authors)
+    expect(nodes.some((node) => node.type === SopDescription)).toBe(false)
   })
 
   it('is editable at any status before publishing, and read-only for co-authors and once published', () => {
-    fixture.sop!.status = 'in-review'
-    expect(description().onSave).toBeDefined()
+    for (const status of ['draft', 'in-review', 'in-approval', 'approved', 'returned'] as const) {
+      fixture.sop!.status = status
+      expect(details().onSave).toBeDefined()
+    }
     fixture.sop!.status = 'published'
-    expect(description().onSave).toBeUndefined()
+    expect(details().onSave).toBeUndefined()
     fixture.sop!.status = 'draft'
     fixture.users.reverse()
     try {
-      expect(description().onSave).toBeUndefined()
+      expect(details().onSave).toBeUndefined()
     } finally {
       fixture.users.reverse()
     }

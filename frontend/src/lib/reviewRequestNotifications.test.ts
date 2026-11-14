@@ -11,11 +11,13 @@ vi.mock('./deadlinePolicy', () => ({ WORKING_DAY_DEADLINES_ACTIVE: true }))
 function person(id: string, permissions: User['permissions']): User {
   return { id, name: id, email: id + '@example.test', initials: 'TT', permissions, departmentId: 'home' }
 }
-const env = () => ({ users: [person('author', ['author']), person('coauthor', ['author']), person('a', ['reviewer']), person('b', ['reviewer'])], departments: [{ id: 'home', name: 'Home', initials: 'HM', description: '' }] })
+const env = () => ({ users: [person('author', ['author']), person('coauthor', ['author']), person('a', ['reviewer']), person('b', ['reviewer']), person('c', ['reviewer'])], departments: [{ id: 'home', name: 'Home', initials: 'HM', description: '' }] })
 function draft(): Sop {
   return { id: 'test', code: 'TEST', title: 'Notifications', version: '1', departmentId: 'home', authorId: 'author', coAuthorIds: ['coauthor'], status: 'draft', lastUpdated: '2026-10-23', fileName: 'test.pdf', fileType: 'pdf', versions: [{ version: '1', fileName: 'test.pdf', fileType: 'pdf', uploadedAt: new Date().toISOString() }], reviewers: [], approvers: [], comments: [], timeline: [], complianceChecks: [{ id: 'check', sopId: 'test', version: '1', status: 'completed', startedAt: new Date().toISOString(), guideline: { name: 'GVP', version: '4.0' }, findings: [] }] }
 }
 const start = () => startInternalReview(draft(), 'author', '4.0', { reviewerIds: ['a', 'b'], reviewDurationDays: 2 }, env())
+// c accepted, so the SOP stays In Review once a and b expire.
+const startWithAccepted = () => accept(startInternalReview(draft(), 'author', '4.0', { reviewerIds: ['a', 'b', 'c'], reviewDurationDays: 2 }, env()), 'c')
 const id = (sop: Sop, userId: string) => latestAssignmentOf(currentInternalRound(sop), userId)!.id
 const accept = (sop: Sop, userId: string) => acceptInternalReview(sop, userId, currentInternalRound(sop)!.id, id(sop, userId), env())
 function of(userId: string, sop: Sop, type: AppNotification['type'], now = Date.now()) {
@@ -39,14 +41,14 @@ describe('internal review request notifications', () => {
     expect(of('b', sop, 'review-expired')).toEqual([expect.objectContaining({ actorId: 'b', forReviewer: true })])
   })
   it('tells only the reviewer when a request is sent again, and the first notification stops counting as unresolved', () => {
-    const sop = expireUnanswered(start(), Date.parse(endOfRiyadhDay('2026-10-26')))
+    const sop = expireUnanswered(startWithAccepted(), Date.parse(endOfRiyadhDay('2026-10-26')))
     const sent = resendInternalReview(sop, 'author', id(sop, 'a'), env())
     expect(of('a', sent, 'assigned-review').filter((item) => item.via === 'resent')).toEqual([expect.objectContaining({ link: '/reviews/test' })])
     for (const user of ['author', 'coauthor', 'b']) expect(of(user, sent, 'assigned-review').filter((item) => item.via === 'resent')).toEqual([])
     expect(isRead(of('a', sent, 'review-expired')[0], new Set(), Date.parse('2026-11-30T00:00:00Z'))).toBe(true)
   })
   it('keeps an expired request unread however old, until someone acts on it', () => {
-    const sop = expireUnanswered(start(), Date.parse(endOfRiyadhDay('2026-10-26')))
+    const sop = expireUnanswered(startWithAccepted(), Date.parse(endOfRiyadhDay('2026-10-26')))
     const later = Date.parse('2026-11-30T00:00:00Z')
     const [notification] = of('a', sop, 'review-expired')
     expect(isRead(notification, new Set(), later)).toBe(false)

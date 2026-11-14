@@ -21,6 +21,10 @@ const EMPTY_USER: NewUser = { name: '', email: '', phone: '', departmentId: '', 
  * and an invitation email to set their password; the admin never chooses one. Nothing is added while
  * any required information is missing (see UserForm), and the server refuses what the rules don't
  * allow. On success, the new user's page opens, saying whether the invitation went out.
+ *
+ * The email of a deactivated staff member brings them back (the only way to): the server reuses their
+ * account and profile with the details entered here, and sends a new invitation; their page then says
+ * they were reactivated. If that invitation can't be sent they stay deactivated, and this page says so.
  */
 export function AddUserPage() {
   const content = adminEn.addUser
@@ -43,7 +47,7 @@ export function AddUserPage() {
   async function add(user: NewUser) {
     try {
       const added = await addUser(user)
-      const state: UserDetailsLocationState = { added: true, invitationFailed: !added.emailSent }
+      const state: UserDetailsLocationState = { added: true, invitationFailed: !added.emailSent, reactivated: added.reactivated }
       navigate(adminUserPath(added.user.id), { state })
     } catch (error) {
       flushSync(() => setRefused(failureMessages(error)))
@@ -70,6 +74,8 @@ export function AddUserPage() {
         busyLabel={content.adding}
         notice={refused.length > 0 && <RefusedBox ref={refusedRef} title={content.notAdded} messages={refused} />}
         onSubmit={add}
+        // Leaving with anything typed asks first, as on Edit Staff (not while adding: the new page opens).
+        unsavedChanges={adminEn.editUser.discard}
       />
     </>
   )

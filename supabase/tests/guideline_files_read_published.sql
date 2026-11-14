@@ -54,11 +54,14 @@ insert into storage.objects (bucket_id, name, owner_id, metadata)
 select 'guideline-files', 'files/9a100000-0000-4000-8000-00000000000' || n || '.pdf', '9a000000-0000-4000-8000-000000000001',
        '{"mimetype": "application/pdf", "size": 2048}'
 from generate_series(1, 3) n;
--- The published file's path in another bucket (it has no policy for authors).
+-- The published file's path in another bucket (it has no policy for authors). The bucket is created
+-- here, inside the rolled-back transaction, as storage.objects references storage.buckets.
+insert into storage.buckets (id, name) values ('gf-other-bucket', 'gf-other-bucket') on conflict (id) do nothing;
 insert into storage.objects (bucket_id, name, owner_id, metadata)
 values ('gf-other-bucket', 'files/9a100000-0000-4000-8000-000000000001.pdf', '9a000000-0000-4000-8000-000000000001', '{}');
 
 do $$
+declare v_removed integer;
 begin
   -- An admin: every file, as before.
   perform pg_temp.act_as('9a000000-0000-4000-8000-000000000001');
@@ -72,7 +75,13 @@ begin
   -- Still can't upload or remove.
   perform pg_temp.expect_error($q$insert into storage.objects (bucket_id, name, owner_id, metadata)
     values ('guideline-files', 'files/9a100000-0000-4000-8000-000000000009.pdf', '9a000000-0000-4000-8000-000000000002', '{}')$q$, '42501');
-  delete from storage.objects where bucket_id = 'guideline-files' and name like 'files/9a100000-%';
+  -- Storage itself may refuse any direct SQL delete (storage.protect_delete); either way nothing goes.
+  begin
+    delete from storage.objects where bucket_id = 'guideline-files' and name like 'files/9a100000-%';
+    get diagnostics v_removed = row_count;
+    assert v_removed = 0, 'author removed ' || v_removed || ' guideline file(s)';
+  exception when insufficient_privilege then null;
+  end;
 
   -- Not active (ended profile): nothing.
   perform pg_temp.act_as('9a000000-0000-4000-8000-000000000003');

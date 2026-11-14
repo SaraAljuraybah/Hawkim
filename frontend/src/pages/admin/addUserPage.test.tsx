@@ -31,9 +31,15 @@ describe('Add User', () => {
     expect([...order].sort((a, b) => a - b)).toEqual(order)
   })
 
-  it('takes a phone number with a hint showing both formats', () => {
-    expect(control(html, 'phone')).toContain('type="tel"')
-    expect(html).toContain(adminEn.addUser.phone.hint)
+  it('takes the 8 digits after a fixed "+9665", with the number keyboard, read as one labelled control', () => {
+    const phone = control(html, 'phone')
+    expect(phone).toContain('inputMode="numeric"')
+    expect(phone).not.toContain('maxLength')
+    // The prefix is read first, then the hint.
+    const [prefixId, hintId] = phone.match(/aria-describedby="([^"]+)"/)![1].split(' ')
+    expect(html).toContain(`<span id="${prefixId}">+9665</span>`)
+    expect(html).toContain(`<p id="${hintId}" class="text-sm text-text-gray">Saudi mobile number: +9665XXXXXXXX</p>`)
+    expect(adminEn.addUser.errors.phoneInvalid).toBe('Enter the 8 digits after +9665.')
   })
 
   it('limits Position to 100 characters, without a counter or hint', () => {
@@ -66,9 +72,14 @@ describe('Add User', () => {
     expect(markup).not.toContain('>Plain Department<')
   })
 
-  it('calls the section Permission, optional, keeping each permission\'s description', () => {
+  it('calls the section Permission, optional, keeping each staff permission\'s description', () => {
     expect(html).toContain('>Permission<')
     expect(html).not.toContain('>Role<')
-    for (const description of Object.values(adminEn.permissionDescriptions)) expect(html).toContain(description.replace(/'/g, '&#x27;'))
+    for (const permission of ['author', 'reviewer', 'approver'] as const) expect(html).toContain(adminEn.permissionDescriptions[permission].replace(/'/g, '&#x27;'))
+  })
+
+  it("doesn't offer the Admin permission: administrators are added on Manage Organization → Admins", () => {
+    expect(html).not.toContain('value="admin"')
+    expect(html).not.toContain(adminEn.permissionDescriptions.admin)
   })
 })

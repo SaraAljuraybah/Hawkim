@@ -11,7 +11,7 @@ import { IconButton } from '../../components/ui/IconButton'
 import { adminEn } from '../../content/admin.en'
 import type { GuidelineVersion } from '../../data/mock/types'
 import { useDocumentTitle } from '../../hooks/useDocumentTitle'
-import { newestVersion } from '../../lib/guidelines'
+import { newestVersion, versionInProgress } from '../../lib/guidelines'
 import { adminRegulationEditPath, adminRegulationPath } from '../../lib/routes'
 import { GuidelineError } from '../../services/guidelines'
 import { useGuidelines } from '../../state/guidelinesContext'
@@ -20,6 +20,10 @@ import { useGuidelines } from '../../state/guidelinesContext'
 export interface AdminRegulationsLocationState {
   added?: string
   updated?: string
+  /** A version's page whose processing was cancelled (the version was deleted). */
+  cancelled?: boolean
+  /** Deleted on its own page: the notice. */
+  deleted?: string
 }
 
 /**
@@ -35,21 +39,26 @@ export function AdminRegulationsPage() {
   const arrived = useLocation().state as AdminRegulationsLocationState | null
   const navigate = useNavigate()
   const { allVersions, addedStatus, retryAdded, current, deleteVersion } = useGuidelines()
+  const inProgress = versionInProgress(allVersions)
   const history = [...allVersions].reverse()
   const shownCurrent = newestVersion(allVersions, current)
 
-  const [notice, setNotice] = useState(() => (arrived?.added ? text.added.replace('{version}', arrived.added) : arrived?.updated ?? ''))
+  const [notice, setNotice] = useState(() =>
+    arrived?.added ? text.added.replace('{version}', arrived.added) : arrived?.cancelled ? text.cancelled : arrived?.deleted ?? arrived?.updated ?? '')
   const [deleting, setDeleting] = useState<GuidelineVersion>()
   const [refusal, setRefusal] = useState('')
+  // One version at a time: Add New Version explains why it has to wait while another is processing.
+  const [explainingWait, setExplainingWait] = useState(false)
   const noticeRef = useRef<HTMLDivElement>(null)
   const deleteTrigger = useRef<HTMLButtonElement | null>(null)
 
   const label = (version: GuidelineVersion) => text.versionLabel.replace('{title}', version.title ?? '').replace('{version}', version.version)
-  const actions = (version: GuidelineVersion) => (
-    <div className="flex justify-end gap-1">
-      <IconButton label={text.actions.view.replace('{name}', label(version))} icon={Eye} onClick={() => navigate(adminRegulationPath(version.id))} />
-      <IconButton label={text.actions.edit.replace('{name}', label(version))} icon={Pencil} onClick={() => navigate(adminRegulationEditPath(version.id))} />
-      {/* Only a version that was never current can be deleted; on the others Delete is disabled, saying why. */}
+  // Each action on its own, for its column in the table (the cards show them together).
+  const actions = (version: GuidelineVersion) => ({
+    preview: <IconButton label={text.actions.view.replace('{name}', label(version))} icon={Eye} onClick={() => navigate(adminRegulationPath(version.id))} />,
+    edit: <IconButton label={text.actions.edit.replace('{name}', label(version))} icon={Pencil} onClick={() => navigate(adminRegulationEditPath(version.id))} />,
+    // Only a version that was never current can be deleted; on the others Delete is disabled, saying why.
+    delete: (
       <IconButton
         label={text.actions.delete.replace('{name}', label(version))}
         icon={Trash2}
@@ -62,8 +71,8 @@ export function AdminRegulationsPage() {
           setDeleting(version)
         }}
       />
-    </div>
-  )
+    ),
+  })
 
   /** Why a version can't be deleted: it is current in the database, or was current before (and so used for checks). */
   function deleteBlocked(version: GuidelineVersion): string | undefined {
@@ -77,15 +86,16 @@ export function AdminRegulationsPage() {
     const version = deleting
     const name = label(version)
     setDeleting(undefined)
+    let outcome: 'deleted' | 'cancelled'
     try {
-      await deleteVersion(version.id)
+      outcome = await deleteVersion(version.id)
     } catch (error) {
       const permission = error instanceof GuidelineError && error.reason === 'permission'
       setRefusal(permission ? text.deleteDialog.permission : text.deleteDialog.failed)
       setDeleting(version)
       return
     }
-    flushSync(() => setNotice(text.deleted.replace('{name}', name)))
+    flushSync(() => setNotice(outcome === 'cancelled' ? text.cancelled : text.deleted.replace('{name}', name)))
     // The row is gone: focus the notice.
     noticeRef.current?.focus()
   }
@@ -97,10 +107,17 @@ export function AdminRegulationsPage() {
           <h1 className="text-2xl tracking-tight sm:text-3xl">{text.title}</h1>
           <p className="mt-2 text-text-gray">{text.subtitle}</p>
         </div>
-        <Button to={text.addVersion.href} className="shrink-0 self-start sm:self-auto">
-          <Plus aria-hidden="true" className="size-4" strokeWidth={2} />
-          {text.addVersion.label}
-        </Button>
+        {inProgress ? (
+          <Button onClick={() => setExplainingWait(true)} className="shrink-0 self-start sm:self-auto">
+            <Plus aria-hidden="true" className="size-4" strokeWidth={2} />
+            {text.addVersion.label}
+          </Button>
+        ) : (
+          <Button to={text.addVersion.href} className="shrink-0 self-start sm:self-auto">
+            <Plus aria-hidden="true" className="size-4" strokeWidth={2} />
+            {text.addVersion.label}
+          </Button>
+        )}
       </div>
 
       <div role="status" ref={noticeRef} tabIndex={-1} className="rounded-lg focus:outline-none">
@@ -147,6 +164,18 @@ export function AdminRegulationsPage() {
         </section>
       </div>
 
+      <ConfirmDialog
+        open={explainingWait && !!inProgress}
+        title={text.inProgress.title}
+        description={inProgress ? text.inProgress.text.replace('{version}', inProgress.version) : ''}
+        cancelLabel={text.inProgress.close}
+        confirmLabel={inProgress ? text.inProgress.view.replace('{version}', inProgress.version) : ''}
+        onConfirm={() => {
+          setExplainingWait(false)
+          if (inProgress) navigate(adminRegulationPath(inProgress.id))
+        }}
+        onCancel={() => setExplainingWait(false)}
+      />
       <ConfirmDialog
         open={!!deleting}
         title={text.deleteDialog.title}

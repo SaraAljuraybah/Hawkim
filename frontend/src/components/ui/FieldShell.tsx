@@ -49,7 +49,8 @@ export function FieldShell({ label, inputId, hint, hintId, error, errorId, aside
     <div className={className}>
       <label htmlFor={inputId} className={hideLabel ? 'sr-only' : 'mb-1.5 block text-sm font-medium text-maroon'}>
         {label}
-        {requiredMark && <RequiredMark />}
+        {/* Only beside a visible label (a screen-reader-only label has `required` announced instead). */}
+        {requiredMark && !hideLabel && <RequiredMark />}
       </label>
       {children}
       {(message || aside) && (

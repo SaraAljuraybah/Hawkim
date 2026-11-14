@@ -6,6 +6,7 @@ import { contentFor, renderEmail } from "../send-email/templates.ts"
 export type AddUserFailure =
   | "unauthorized" | "forbidden" | "invalid" | "email-taken" | "admin-exclusive" | "approver-quality"
   | "department-unavailable" | "permission-in-use" | "account-failed" | "account-blocked" | "failed"
+  | "admin-managed-separately" | "invitation-failed"
 
 /** A System Admin (the Admin permission) has no department or position: both are null. */
 export type NewUserDetails = {
@@ -14,6 +15,8 @@ export type NewUserDetails = {
 
 export type SavedUser = {
   id: string; email: string; name: string; initials: string; phone: string; position: string | null; departmentId: string | null; permissions: string[]
+  /** add_user brought back a deactivated profile (the same account and profile ids). */
+  reactivated?: boolean
 }
 
 export class DatabaseError extends Error {
@@ -33,17 +36,33 @@ export interface AddUserSteps {
   caller(): Promise<"allowed" | "unauthorized" | "forbidden">
   /** check_new_user, as the caller. */
   checkNewUser(user: NewUserDetails): Promise<void>
-  /** Creates the account, or finds it; `existing` when it already had one. Service key. */
+  /**
+   * Creates the account with its invitation link, or finds it; `existing` when it already had one (then
+   * there is no link yet: see freshLink). Service key.
+   */
   accountLink(email: string, name: string): Promise<{ id: string; link: string; existing: boolean }>
   /** Whether Auth has the account banned. Service key. */
   isBanned(id: string): Promise<boolean>
-  /** Whether this account has a profile that isn't deleted, as the caller. */
-  hasActiveProfile(id: string): Promise<boolean>
-  /** Replaces the account's password with one nobody knows. Service key. */
+  /** This account's profile, as the caller: none, active, or deactivated (Delete Staff, Delete Admin). */
+  profileState(id: string): Promise<"none" | "active" | "deactivated">
+  /**
+   * Replaces the account's password with one nobody knows. Service key. Auth also ends all of the
+   * account's sessions and any link made before (measured on GoTrue v2.197, the hosted version).
+   */
   setRandomPassword(id: string): Promise<void>
   /** add_user, as the caller. */
   addUser(id: string, user: NewUserDetails): Promise<SavedUser>
+  /**
+   * A password-setup (recovery) link for an account that already existed, made after its password was
+   * replaced and its profile saved: Auth ends any link made before a password change, and only the
+   * request whose profile was saved makes one. Service key.
+   */
+  freshLink(email: string): Promise<string>
+  /** deactivate_staff, as the caller: undoes a reactivation whose invitation couldn't be sent. */
+  deactivate(id: string): Promise<void>
   sendEmail(to: string, subject: string, html: string): Promise<void>
+  /** record_invitation_sent, as the caller: when the link was sent and by whom (for expired-invitation notifications). */
+  recordInvitation(id: string): Promise<void>
   log(message: string): void
 }
 
@@ -71,7 +90,7 @@ export function validateDetails(input: unknown): NewUserDetails | undefined {
 export function invitationEmail(email: string, link: string): { subject: string; html: string } {
   const content = {
     ...contentFor("invite", email),
-    note: "This link expires in 1 hour and can be used once. If it has expired, use “Forgot password?” on the sign-in page. If you weren’t expecting this invitation, you can ignore this email.",
+    note: "This link expires in 24 hours and can be used once. If it has expired, use “Forgot password?” on the sign-in page. If you weren’t expecting this invitation, you can ignore this email.",
   }
   return { subject: content.subject, html: renderEmail(content, link) }
 }
@@ -79,7 +98,9 @@ export function invitationEmail(email: string, link: string): { subject: string;
 type Result = { status: number; body: Record<string, unknown> }
 const refused = (status: number, errorCode: AddUserFailure, extra: Record<string, unknown> = {}): Result => ({ status, body: { errorCode, ...extra } })
 
-const REFUSALS: AddUserFailure[] = ["invalid", "email-taken", "admin-exclusive", "approver-quality", "department-unavailable", "permission-in-use"]
+const REFUSALS: AddUserFailure[] = [
+  "invalid", "email-taken", "admin-exclusive", "approver-quality", "department-unavailable", "permission-in-use", "admin-managed-separately",
+]
 
 /** What the database refused, in the app's words. */
 function databaseRefusal(error: unknown): Result {
@@ -108,14 +129,19 @@ export async function addUserFlow(input: unknown, steps: AddUserSteps): Promise<
   }
 
   let account: { id: string; link: string; existing: boolean }
+  // Add Staff with a deactivated staff member's email (Add Admin keeps its own order below).
+  let staffReactivation = false
   try {
     account = await steps.accountLink(user.email, user.name)
     if (account.existing) {
       if (await steps.isBanned(account.id)) return refused(409, "account-blocked")
+      const state = await steps.profileState(account.id)
       // Its email may have changed since: never touch the password of someone already using Hawkim.
-      if (await steps.hasActiveProfile(account.id)) return refused(409, "email-taken")
+      if (state === "active") return refused(409, "email-taken")
+      staffReactivation = state === "deactivated" && !user.permissions.includes("admin")
       // Only the emailed link can open it: not an old password, nor one set by whoever made the account.
-      await steps.setRandomPassword(account.id)
+      // A staff reactivation does this after add_user instead: see below.
+      if (!staffReactivation) await steps.setRandomPassword(account.id)
     }
   } catch (error) {
     steps.log(`account failed: ${error instanceof Error ? error.message : "unknown"}`)
@@ -126,19 +152,48 @@ export async function addUserFlow(input: unknown, steps: AddUserSteps): Promise<
   try {
     saved = await steps.addUser(account.id, user)
   } catch (error) {
-    // The account stays without a profile: it can't reach anything, and a retry reuses it.
+    // The account stays without a profile (or deactivated): it can't reach anything, and a retry reuses it.
+    // A refused staff reactivation (e.g. a concurrent Add Staff got there first) touched nothing in Auth,
+    // so it can't spoil the other request's invitation.
     steps.log(`profile failed for ${account.id}: ${error instanceof DatabaseError ? error.code ?? "unknown" : "unknown"}`)
     return databaseRefusal(error)
   }
 
+  // emailSent means the email provider accepted the invitation for delivery (not that it reached the inbox).
   let emailSent = true
   try {
-    const email = invitationEmail(user.email, account.link)
+    // Only the request add_user let through gets here, so only it changes the account: the old password
+    // and every old session end now, and the link is made after that, so nothing ends it.
+    if (staffReactivation) await steps.setRandomPassword(account.id)
+    const link = account.existing ? await steps.freshLink(user.email) : account.link
+    const email = invitationEmail(user.email, link)
     await steps.sendEmail(user.email, email.subject, email.html)
   } catch (error) {
     emailSent = false
     steps.log(`invitation failed for ${account.id}: ${error instanceof Error ? error.message : "unknown"}`)
   }
-  steps.log(`added ${account.id}, readded or reused: ${account.existing}, email sent: ${emailSent}`)
+
+  // A deactivated staff member is only active again with a new invitation on its way: otherwise they
+  // go back to deactivated, and Add Staff can simply be tried again (the same account and profile).
+  if (!emailSent && saved.reactivated && !user.permissions.includes("admin")) {
+    try {
+      await steps.deactivate(account.id)
+      steps.log(`reactivation of ${account.id} undone: no invitation`)
+      return refused(502, "invitation-failed")
+    } catch (error) {
+      // Still active, without an invitation: said as for any other add (they can use Forgot password).
+      steps.log(`could not undo the reactivation of ${account.id}: ${error instanceof DatabaseError ? error.code ?? "unknown" : "unknown"}`)
+    }
+  }
+
+  // Only a link that was actually sent can expire unused. A failure here doesn't undo the user.
+  if (emailSent) {
+    try {
+      await steps.recordInvitation(account.id)
+    } catch (error) {
+      steps.log(`invitation not recorded for ${account.id}: ${error instanceof DatabaseError ? error.code ?? "unknown" : "unknown"}`)
+    }
+  }
+  steps.log(`added ${account.id}, readded or reused: ${account.existing}, reactivated: ${!!saved.reactivated}, email sent: ${emailSent}`)
   return { status: 200, body: { user: saved, emailSent } }
 }

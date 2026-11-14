@@ -74,8 +74,8 @@ describe('people from the database', () => {
 
 describe('departments from the database', () => {
   it('keeps when a department was removed', () => {
-    expect(toDepartment({ id: 'legal-governance', name: 'Legal & Governance', initials: 'LG', description: '', is_quality: false, removed_at: '2026-10-01T09:00:00Z', requires_compliance_check: false }))
-      .toEqual({ id: 'legal-governance', name: 'Legal & Governance', initials: 'LG', description: '', removedAt: '2026-10-01T09:00:00Z' })
+    expect(toDepartment({ id: 'legal-governance', name: 'Legal and Governance', initials: 'LG', description: '', is_quality: false, removed_at: '2026-10-01T09:00:00Z', requires_compliance_check: false }))
+      .toEqual({ id: 'legal-governance', name: 'Legal and Governance', initials: 'LG', description: '', removedAt: '2026-10-01T09:00:00Z' })
   })
 
   it('loads every department, by name', async () => {

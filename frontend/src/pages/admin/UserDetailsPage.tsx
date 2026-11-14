@@ -1,35 +1,38 @@
-import { useRef, useState, type ReactNode } from 'react'
+import { useRef, useState } from 'react'
 import { flushSync } from 'react-dom'
-import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
+import { Link, Navigate, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, CircleAlert, CircleCheck, Pencil } from 'lucide-react'
 import { DeleteUserButton } from '../../components/admin/DeleteUserButton'
+import { ReactivateUserButton } from '../../components/admin/ReactivateUserButton'
+import { DetailRow, DetailsCard, DetailsHeader, EmailDetail, StaffPermissionBadges } from '../../components/admin/DetailsCard'
 import { RefusedBox } from '../../components/admin/RefusedBox'
-import { PermissionBadges, UserAvatar } from '../../components/admin/UserBits'
 import { Button } from '../../components/ui/Button'
-import { StatusBadge } from '../../components/ui/StatusBadge'
 import { adminEn } from '../../content/admin.en'
 import { usersEn } from '../../content/users.en'
 import type { User } from '../../data/mock/types'
 import { useDocumentTitle } from '../../hooks/useDocumentTitle'
-import { ADMIN_USERS_PATH, adminUserEditPath } from '../../lib/routes'
-import { divisionLabel, involvement, isSystemAdmin } from '../../lib/userAdmin'
+import { ADMIN_DEACTIVATED_USERS_PATH, ADMIN_USERS_PATH, adminAdminPath, adminUserEditPath } from '../../lib/routes'
+import { divisionLabel, isSystemAdmin } from '../../lib/userAdmin'
 import { useDepartments } from '../../state/departmentsContext'
-import { useSops } from '../../state/sopsContext'
 import { useUsers } from '../../state/usersContext'
 import { NotFoundPage } from '../NotFoundPage'
 import type { AdminUsersLocationState } from './AdminUsersPage'
 
-/** Set by Add User, to say the user was added and whether their invitation went out. */
+/** Set by Add User, to say the user was added (or reactivated) and whether their invitation went out. */
 export interface UserDetailsLocationState {
   added?: boolean
   invitationFailed?: boolean
+  /** Add Staff brought back a deactivated staff member. */
+  reactivated?: boolean
 }
 
 /**
- * A staff member's page in the admin portal ("/admin/users/:id", PBI 17, 19): their details, the SOPs
- * they are involved in, and Edit Staff and Delete in the header. Edit Staff opens the edit form, which
- * saves to the database. A System Admin has no division, department or position, so those aren't
- * listed for them. Deleted and unknown staff show Not Found.
+ * A staff member's page in the admin portal ("/admin/users/:id", PBI 17, 19): their details, and
+ * Edit Staff and Delete Staff at the top right, laid out like an Admin's page. Edit Staff opens the edit form,
+ * which saves to the database. A deactivated staff member (the Deactive Staff tab's Preview) has Reactivate
+ * instead of Delete, and Back returns to the Deactive Staff tab. Their permissions are shown once, in the
+ * Details card. A System Admin has no division, department or position, so those aren't listed for them.
+ * Unknown people show Not Found.
  */
 export function UserDetailsPage() {
   const { id } = useParams()
@@ -39,16 +42,19 @@ export function UserDetailsPage() {
 
 function UserDetails({ id }: { id: string | undefined }) {
   const text = adminEn.userDetails
-  const { activeUsers } = useUsers()
-  const user = activeUsers.find((item) => item.id === id)
+  const { users } = useUsers()
+  // Active staff, and deactivated staff (Admins are never shown here).
+  const user = users.find((item) => item.id === id && (!item.deletedAt || !isSystemAdmin(item)))
   useDocumentTitle(user ? adminEn.pageTitle.replace('{page}', user.name) : undefined)
 
   if (!user) return <NotFoundPage embedded />
+  // Administrators are managed on Manage Organization → Admins.
+  if (isSystemAdmin(user)) return <Navigate to={adminAdminPath(user.id)} replace />
 
   return (
     <>
       <Link
-        to={text.back.href}
+        to={user.deletedAt ? ADMIN_DEACTIVATED_USERS_PATH : text.back.href}
         className="inline-flex items-center gap-1.5 rounded-sm text-sm font-medium text-text-gray transition-colors hover:text-maroon"
       >
         <ArrowLeft aria-hidden="true" className="size-4" strokeWidth={1.75} />
@@ -59,31 +65,20 @@ function UserDetails({ id }: { id: string | undefined }) {
   )
 }
 
-/** A white card with an h2. */
-function Panel({ id, title, children }: { id: string; title: string; children: ReactNode }) {
-  return (
-    <section aria-labelledby={id} className="rounded-xl border border-beige bg-white p-5 sm:p-6">
-      <h2 id={id} className="text-lg">
-        {title}
-      </h2>
-      <div className="mt-4">{children}</div>
-    </section>
-  )
-}
-
 function UserPanels({ user }: { user: User }) {
   const text = adminEn.userDetails
-  const { sops } = useSops()
   const { getDepartment } = useDepartments()
   const navigate = useNavigate()
   const location = useLocation()
 
   const [added, setAdded] = useState(() => !!(location.state as UserDetailsLocationState | null)?.added)
   const [invitationFailed] = useState(() => !!(location.state as UserDetailsLocationState | null)?.invitationFailed)
+  const [reactivated] = useState(() => !!(location.state as UserDetailsLocationState | null)?.reactivated)
   const [deleteRefused, setDeleteRefused] = useState<{ title: string; reasons: string[] }>()
   const deleteErrorRef = useRef<HTMLDivElement>(null)
+  const [reactivatedNotice, setReactivatedNotice] = useState('')
+  const reactivatedRef = useRef<HTMLDivElement>(null)
 
-  const involved = involvement(user.id, sops)
   const department = getDepartment(user.departmentId)
 
   function deleted(message: string) {
@@ -93,15 +88,21 @@ function UserPanels({ user }: { user: User }) {
 
   function refuseDelete(title: string, reasons: string[]) {
     setAdded(false)
+    setReactivatedNotice('')
     flushSync(() => setDeleteRefused({ title, reasons }))
     deleteErrorRef.current?.focus()
   }
 
-  // Same order and look as My Profile; an empty value shows notSet. A System Admin has no
+  function reactivatedHere(message: string) {
+    setAdded(false)
+    setDeleteRefused(undefined)
+    flushSync(() => setReactivatedNotice(message))
+    reactivatedRef.current?.focus()
+  }
+
+  // Same order as My Profile; an empty value shows notSet. A System Admin has no
   // organizational fields.
   const details: [string, string | undefined][] = [
-    [text.details.name, user.name],
-    [text.details.email, user.email],
     [text.details.phone, user.phone],
     ...(isSystemAdmin(user)
       ? []
@@ -110,79 +111,72 @@ function UserPanels({ user }: { user: User }) {
           [text.details.department, department?.name],
           [text.details.position, user.position],
         ] as [string, string | undefined][])),
-    [text.details.permission, user.permissions.map((permission) => usersEn.permissions[permission]).join(', ')],
   ]
+  const permissions = user.permissions.map((permission) => usersEn.permissions[permission])
+  const email = user.email.trim()
 
   return (
     <>
-      {/* Header, with Edit Staff and Delete at the top right */}
-      <div className="mt-5 flex items-start gap-4">
-        <UserAvatar user={user} className="size-14 text-base" />
-        <div className="min-w-0 flex-1">
-          <h1 className="text-2xl break-words tracking-tight sm:text-3xl">{user.name}</h1>
-          <PermissionBadges user={user} className="mt-2" />
-        </div>
-        <div className="flex shrink-0 items-center gap-2">
-          <Button variant="secondary" size="sm" to={adminUserEditPath(user.id)}>
-            <Pencil aria-hidden="true" className="size-4" strokeWidth={1.75} />
-            {text.edit}
-          </Button>
-          <DeleteUserButton user={user} onDeleted={deleted} onRefused={refuseDelete} />
-        </div>
-      </div>
+      {/* Header, with Edit Staff and Delete Staff (Reactivate Staff when deactivated) at the top right, as on an Admin's page */}
+      <DetailsHeader
+        user={user}
+        actions={
+          <>
+            <Button to={adminUserEditPath(user.id)}>
+              <Pencil aria-hidden="true" className="size-4" strokeWidth={1.75} />
+              {text.edit}
+            </Button>
+            {user.deletedAt
+              ? <ReactivateUserButton user={user} onReactivated={reactivatedHere} onRefused={refuseDelete} labeled />
+              : <DeleteUserButton user={user} onDeleted={deleted} onRefused={refuseDelete} label={text.delete} busyLabel={text.deleting} />}
+          </>
+        }
+      />
 
       {deleteRefused && <RefusedBox ref={deleteErrorRef} title={deleteRefused.title} messages={deleteRefused.reasons} />}
+
+      <div role="status" ref={reactivatedRef} tabIndex={-1} className="rounded-lg focus:outline-none">
+        {reactivatedNotice && (
+          <p className="mt-6 flex items-center gap-2 rounded-lg border border-status-approved-fg/25 bg-status-approved-bg px-4 py-3 text-sm font-medium text-status-approved-fg">
+            <CircleCheck aria-hidden="true" className="size-4 shrink-0" strokeWidth={2} />
+            {reactivatedNotice}
+          </p>
+        )}
+      </div>
 
       <div role="status">
         {added && invitationFailed && (
           <p className="mt-6 flex items-center gap-2 rounded-lg border border-status-pending-fg/25 bg-status-pending-bg px-4 py-3 text-sm font-medium text-status-pending-fg">
             <CircleAlert aria-hidden="true" className="size-4 shrink-0" strokeWidth={2} />
-            {text.addedInvitationFailed}
+            {reactivated ? text.reactivatedInvitationFailed : text.addedInvitationFailed}
           </p>
         )}
         {added && !invitationFailed && (
           <p className="mt-6 flex items-center gap-2 rounded-lg border border-status-approved-fg/25 bg-status-approved-bg px-4 py-3 text-sm font-medium text-status-approved-fg">
             <CircleCheck aria-hidden="true" className="size-4 shrink-0" strokeWidth={2} />
-            {text.added}
+            {reactivated ? text.reactivated : text.added}
           </p>
         )}
       </div>
 
-      <div className="mt-6 grid max-w-3xl gap-6">
-        <Panel id="details-title" title={text.details.title}>
-          <dl className="grid gap-x-6 gap-y-3 text-sm sm:grid-cols-[10rem_minmax(0,1fr)]">
-            {details.map(([label, value]) => (
-              <div key={label} className="contents">
-                <dt className="font-bold text-maroon">{label}</dt>
-                <dd className="min-w-0 break-words text-maroon max-sm:mb-1">{value?.trim() || text.details.notSet}</dd>
-              </div>
-            ))}
-          </dl>
-        </Panel>
-
-        <Panel id="involvement-title" title={text.involvement.title}>
-          {involved.length === 0 ? (
-            <p className="text-sm text-text-gray">{text.involvement.empty}</p>
+      <DetailsCard id="details-title" title={text.details.title}>
+        <DetailRow label={text.details.name}>{user.name.trim() || text.details.notSet}</DetailRow>
+        <DetailRow label={text.details.email}>
+          {email ? (
+            <EmailDetail email={email} copyLabel={text.copyEmail.replace('{name}', user.name)} copiedText={text.copied} failedText={text.copyFailed} />
           ) : (
-            <ul aria-label={text.involvement.label} className="divide-y divide-beige">
-              {involved.map(({ sop, roles }) => (
-                <li key={sop.id} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1.5 py-3 first:pt-0 last:pb-0">
-                  <div className="min-w-0 text-sm">
-                    <p className="font-medium text-maroon">
-                      {sop.title}
-                    </p>
-                    <p className="mt-0.5 text-text-gray">
-                      <span className="sr-only">{text.involvement.rolesLabel} </span>
-                      {roles.map((role) => text.involvement.roles[role]).join(', ')}
-                    </p>
-                  </div>
-                  <StatusBadge status={sop.status} />
-                </li>
-              ))}
-            </ul>
+            text.details.notSet
           )}
-        </Panel>
-      </div>
+        </DetailRow>
+        {details.map(([label, value]) => (
+          <DetailRow key={label} label={label}>
+            {value?.trim() || text.details.notSet}
+          </DetailRow>
+        ))}
+        <DetailRow label={text.details.permission}>
+          {permissions.length > 0 ? <StaffPermissionBadges labels={permissions} /> : text.details.notSet}
+        </DetailRow>
+      </DetailsCard>
     </>
   )
 }

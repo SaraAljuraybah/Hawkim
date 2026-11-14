@@ -1,12 +1,18 @@
 import type { MySopsContent } from '../content/types'
 import type { Sop } from '../data/mock/types'
 import type { SopStatus } from '../types/status'
-import { parsePage, readChoice } from './pagination'
+import { parsePage, readChoice, resultsParams } from './pagination'
 import { isAuthorOrCoAuthor } from './workflow'
 
 export type MySopCategory = 'new' | 'progress' | 'completed'
 export type MySopRole = 'all' | 'main' | 'coauthor'
-export type MySopSort = 'newest' | 'oldest'
+/** The Sort field's orders: Last Updated (newest or oldest first) and Title (A to Z or Z to A). */
+export const MY_SOP_SORTS = ['newest', 'oldest', 'title-asc', 'title-desc'] as const
+export type MySopSort = (typeof MY_SOP_SORTS)[number]
+export type MySopSortGroup = 'lastUpdated' | 'title'
+
+/** The heading the sort is listed under in the Sort field. */
+export const mySopSortGroup = (sort: MySopSort): MySopSortGroup => (sort.startsWith('title-') ? 'title' : 'lastUpdated')
 
 const categories: Record<MySopCategory, readonly SopStatus[]> = {
   new: ['draft'],
@@ -80,9 +86,15 @@ export function filterMySops(sops: Sop[], userId: string, filters: MySopFilters)
   )
 }
 
-/** Sorts by last updated date; `sops` are newest first (authoredSopsFor), so oldest first is the exact reverse. */
+/**
+ * Sorts by last updated date or by title. `sops` are newest first (authoredSopsFor), so oldest first is
+ * the exact reverse, and SOPs with the same title stay newest first (the sort is stable).
+ */
 export function sortMySops(sops: Sop[], sort: MySopSort): Sop[] {
-  return sort === 'oldest' ? [...sops].reverse() : sops
+  if (sort === 'newest') return sops
+  if (sort === 'oldest') return [...sops].reverse()
+  const direction = sort === 'title-desc' ? -1 : 1
+  return [...sops].sort((a, b) => direction * a.title.localeCompare(b.title))
 }
 
 /** The distinct SOP titles to suggest in the search, A to Z. */
@@ -101,12 +113,17 @@ export interface MySopsUrlState {
 
 export const MY_SOPS_URL_DEFAULTS = { tab: 'new', q: '', sort: 'newest', role: 'all', page: '1' }
 
+/** Clear Filters, as on Staff and Admins: the URL without the search, the role and the sort, back on page 1 (the tab stays). */
+export function clearedMySopsParams(current: URLSearchParams): URLSearchParams {
+  return resultsParams(current, { q: undefined, role: undefined, sort: undefined }, MY_SOPS_URL_DEFAULTS)
+}
+
 /** Reads My SOPs from the URL; an invalid value means its default. */
 export function readMySopsUrl(params: URLSearchParams): MySopsUrlState {
   return {
     category: readChoice(params, 'tab', ['new', 'progress', 'completed'] as const, 'new'),
     query: params.get('q') ?? '',
-    sort: readChoice(params, 'sort', ['newest', 'oldest'] as const, 'newest'),
+    sort: readChoice(params, 'sort', MY_SOP_SORTS, 'newest'),
     role: readChoice(params, 'role', ['all', 'main', 'coauthor'] as const, 'all'),
     page: parsePage(params.get('page')),
   }

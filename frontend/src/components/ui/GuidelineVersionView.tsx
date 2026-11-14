@@ -5,18 +5,21 @@ import { PdfViewer } from '../sops/PdfViewer'
 import { adminEn } from '../../content/admin.en'
 import type { GuidelineVersion } from '../../data/mock/types'
 import { useGuidelineFileUrl } from '../../hooks/useGuidelineFileUrl'
+import { useGuidelineRequirements } from '../../hooks/useGuidelineRequirements'
 
 /** The id of the Requirements section, which the requirements count in the details shows and hides. */
 const REQUIREMENTS_SECTION = 'guideline-requirements'
 
 /**
- * A GVP version, read-only: its details; its requirements, shown from the details' count; and its PDF
- * in a card of its own, through a signed link, when it has one. Below the page's h1: the admin's
+ * A GVP version, read-only: its details; its requirement passages, shown from the details' count (a
+ * published version's are read here, when the page opens); and its PDF in a card of its own, through
+ * a signed link, when it has one. Below the page's h1: the admin's
  * version page and the author's GVP page (from the Compliance Overview) both show it.
  */
 export function GuidelineVersionView({ version }: { version: GuidelineVersion }) {
   const text = adminEn.regulationDetails
   const file = useGuidelineFileUrl(version)
+  const passages = useGuidelineRequirements(version)
   const [showRequirements, setShowRequirements] = useState(false)
   const actions = {
     requirements: { expanded: showRequirements, controlsId: REQUIREMENTS_SECTION, onToggle: () => setShowRequirements((shown) => !shown) },
@@ -33,7 +36,15 @@ export function GuidelineVersionView({ version }: { version: GuidelineVersion })
       </section>
 
       {/* Hidden, heading included, until the requirements count is pressed */}
-      <GuidelineRequirements version={version} id={REQUIREMENTS_SECTION} titleId="requirements-title" heading="h2" hidden={!showRequirements} className="mt-8" />
+      <GuidelineRequirements
+        version={{ ...version, requirements: passages.requirements }}
+        id={REQUIREMENTS_SECTION}
+        titleId="requirements-title"
+        heading="h2"
+        hidden={!showRequirements}
+        className="mt-8"
+        loading={passages.state === 'ready' ? undefined : { state: passages.state, onRetry: passages.retry }}
+      />
 
       <section aria-labelledby="file-title" className="mt-8 rounded-xl border border-beige bg-white p-5 sm:p-6">
         <h2 id="file-title" className="text-lg">

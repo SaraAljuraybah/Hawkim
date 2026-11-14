@@ -15,6 +15,12 @@ interface TabsProps<K extends string> {
   /** Prefix for element ids; use the same prefix with `tabIds()` for the tab panel. */
   idPrefix: string
   className?: string
+  /**
+   * `underline` (default): text tabs with a maroon underline. `folder`: rectangular tabs side by side that sit
+   * on top of a table frame (the Staff page). The selected one is white with bold maroon text and joins the
+   * frame below it (no bottom border); the others are beige with regular grey text (6.5:1) and turn maroon on hover.
+   */
+  variant?: 'underline' | 'folder'
 }
 
 /**
@@ -23,7 +29,8 @@ interface TabsProps<K extends string> {
  * - Left/Right arrows move between tabs (wrapping); Home/End jump to the ends.
  * Render the panel yourself with role="tabpanel" and the ids from `tabIds()`.
  */
-export function Tabs<K extends string>({ items, selected, onSelect, label, idPrefix, className = '' }: TabsProps<K>) {
+export function Tabs<K extends string>({ items, selected, onSelect, label, idPrefix, className = '', variant = 'underline' }: TabsProps<K>) {
+  const folder = variant === 'folder'
   const tabRefs = useRef<Partial<Record<K, HTMLButtonElement | null>>>({})
 
   function handleKeyDown(event: KeyboardEvent<HTMLDivElement>) {
@@ -42,7 +49,7 @@ export function Tabs<K extends string>({ items, selected, onSelect, label, idPre
   }
 
   return (
-    <div role="tablist" aria-label={label} onKeyDown={handleKeyDown} className={`flex gap-6 ${className}`}>
+    <div role="tablist" aria-label={label} onKeyDown={handleKeyDown} className={`flex ${folder ? 'items-end' : 'gap-6'} ${className}`}>
       {items.map((item) => {
         const isSelected = item.key === selected
         const ids = tabIds(idPrefix, item.key)
@@ -59,13 +66,17 @@ export function Tabs<K extends string>({ items, selected, onSelect, label, idPre
             aria-controls={ids.panel}
             tabIndex={isSelected ? 0 : -1}
             onClick={() => onSelect(item.key)}
-            className={`relative rounded-sm pt-1 pb-3 text-sm font-medium whitespace-nowrap transition-colors ${
-              isSelected ? 'text-maroon' : 'text-text-gray hover:text-maroon'
-            }`}
+            className={folder
+              ? `relative -mb-px border border-beige px-5 py-2.5 text-sm whitespace-nowrap transition-colors first:rounded-tl-lg last:rounded-tr-lg not-first:-ml-px ${
+                  isSelected ? 'z-10 border-b-white bg-white font-semibold text-maroon' : 'bg-beige font-normal text-text-gray hover:bg-offwhite hover:text-maroon'
+                }`
+              : `relative rounded-sm pt-1 pb-3 text-sm font-medium whitespace-nowrap transition-colors ${
+                  isSelected ? 'text-maroon' : 'text-text-gray hover:text-maroon'
+                }`}
           >
             {item.label}
             {/* Maroon underline on the selected tab */}
-            {isSelected && <span aria-hidden="true" className="absolute inset-x-0 bottom-0 h-0.5 rounded-full bg-maroon" />}
+            {!folder && isSelected && <span aria-hidden="true" className="absolute inset-x-0 bottom-0 h-0.5 rounded-full bg-maroon" />}
           </button>
         )
       })}

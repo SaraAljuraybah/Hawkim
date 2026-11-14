@@ -38,7 +38,7 @@ const fixture = vi.hoisted(() => ({
 vi.mock('../../lib/releaseScope', () => ({ visibleTimelineEvents: (events: unknown[]) => events }))
 vi.mock('../../state/sessionContext', () => ({ useCurrentUser: () => fixture.users.find((user) => user.id === fixture.userId) }))
 vi.mock('../../state/usersContext', () => ({ useUsers: () => ({ users: fixture.users, activeUsers: fixture.users, nameOf: (id: string) => fixture.users.find((user) => user.id === id)?.name ?? id ?? '', getUser: (id: string) => fixture.users.find((user) => user.id === id) }) }))
-vi.mock('../../state/departmentsContext', () => ({ useDepartments: () => ({ departments: fixture.departments, nameOf: (id: string) => id }) }))
+vi.mock('../../state/departmentsContext', () => ({ useDepartments: () => ({ departments: fixture.departments, nameOf: (id: string) => id, getDepartment: () => undefined }) }))
 vi.mock('../../state/guidelinesContext', () => ({ useGuidelines: () => ({ current: { version: '4.0' } }) }))
 vi.mock('../../state/sopsContext', () => ({ useSops: () => ({ sops: [fixture.sop], submitForApproval: vi.fn(), removeInternalReviewer: vi.fn() }) }))
 
@@ -167,7 +167,7 @@ describe('main Author approval interface', () => {
     const html = renderPage()
     expect(approvalButton(html)).not.toContain('aria-disabled="true"')
     expect(html).not.toContain(approvalEn.blockers['no-approver'])
-    expect(approvalEn.blockers['no-approver']).toBe('No approver is available. Contact your admin.')
+    expect(approvalEn.blockers['no-approver']).toBe('No approver is available. Contact your Admin.')
   })
   it('never gives Co-Authors or Reviewers the approval submission control', () => {
     fixture.sop = finished()

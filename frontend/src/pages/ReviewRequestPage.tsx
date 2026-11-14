@@ -5,6 +5,7 @@ import { MessageScreen } from '../components/layout/MessageScreen'
 import { Button } from '../components/ui/Button'
 import { reviewRequestEn } from '../content/accessRequest.en'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
+import { reviewDetails } from '../lib/accessRequest'
 import { decideAccessRequest, viewAccessRequest, type AccessRequestView, type DecideFailure } from '../services/accessRequests'
 
 const content = reviewRequestEn
@@ -66,6 +67,7 @@ export function ReviewRequestPage() {
     }
     const messages: Partial<Record<DecideFailure, string>> = {
       'email-in-use': content.errors.emailInUse,
+      'deployment-onboarded': content.errors.deploymentOnboarded,
       'account-failed': content.errors.accountFailed,
       'not-connected': content.errors.notConnected,
     }
@@ -87,16 +89,8 @@ export function ReviewRequestPage() {
   }
 
   const { request } = stage
-  const rows: [string, string][] = [
-    [content.labels.organization, request.organization],
-    [content.labels.contactName, request.contactName],
-    [content.labels.jobTitle, request.jobTitle],
-    [content.labels.email, request.email],
-    [content.labels.phone, request.phone],
-    [content.labels.approxUsers, String(request.approxUsers)],
-    [content.labels.message, request.message || content.noMessage],
-    [content.labels.received, new Date(request.createdAt).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })],
-  ]
+  // Position only for requests that have one (sent before it was removed from the form).
+  const rows = reviewDetails(request)
   return (
     <MessageScreen title={content.title} text={content.text} logoAlt={content.logoAlt}>
       <div className="w-[min(30rem,calc(100vw-2rem))] space-y-5 text-left">

@@ -20,12 +20,12 @@ insert into public.departments (id, name, initials, description, is_quality, req
   ('quality-assurance', 'Quality Assurance', 'QA', 'Responsible for quality oversight and compliance.', true, false),
   ('regulatory-affairs', 'Regulatory Affairs', 'RA', 'Handles regulatory submissions and communications.', false, false),
   ('pharmacovigilance', 'Pharmacovigilance', 'PV', 'Monitors and evaluates product safety.', false, true),
-  ('research-development', 'Research & Development', 'RD', 'Drives innovation and product development.', false, false),
+  ('research-development', 'Research and Development', 'RD', 'Drives innovation and product development.', false, false),
   ('information-technology', 'Information Technology', 'IT', 'Supports the organization''s technology infrastructure.', false, false),
   ('human-resources', 'Human Resources', 'HR', 'Manages people, policies and culture.', false, false),
-  ('finance-administration', 'Finance & Administration', 'FA', 'Oversees financial and administrative operations.', false, false),
+  ('finance-administration', 'Finance and Administration', 'FA', 'Oversees financial and administrative operations.', false, false),
   ('clinical-operations', 'Clinical Operations', 'CL', 'Supports clinical studies and operations.', false, false),
-  ('legal-governance', 'Legal & Governance', 'LG', 'Ensures legal compliance and governance.', false, false)
+  ('legal-governance', 'Legal and Governance', 'LG', 'Ensures legal compliance and governance.', false, false)
 on conflict (id) do update set
   name = excluded.name,
   initials = excluded.initials,
@@ -107,10 +107,11 @@ create temporary table seed_people (
   email text primary key,
   full_name text not null,
   initials text not null,
-  department_id text not null,
+  -- Null for the Admin: Admins have no department or position.
+  department_id text,
   roles public.app_role[] not null,
   phone text not null,
-  "position" text not null
+  "position" text
 );
 
 insert into seed_people (email, full_name, initials, department_id, roles, phone, "position") values
@@ -121,8 +122,8 @@ insert into seed_people (email, full_name, initials, department_id, roles, phone
   ('lulwah.alrasheed@hawkim.test', 'Lulwah Alrasheed', 'LA', 'pharmacovigilance', '{reviewer}', '+966500000004', 'Pharmacovigilance Manager'),
   ('omar.alghamdi@hawkim.test', 'Omar Alghamdi', 'OA', 'pharmacovigilance', '{author}', '+966500000005', 'Signal Detection Analyst'),
   ('lama.alshehri@hawkim.test', 'Lama Alshehri', 'LA', 'pharmacovigilance', '{reviewer}', '+966500000006', 'Qualified Person for Pharmacovigilance'),
-  -- Information Technology
-  ('nouf.almutairi@hawkim.test', 'Nouf Almutairi', 'NA', 'information-technology', '{admin}', '+966500000007', 'Systems Administrator'),
+  -- The Admin: no department or position (20261112140000_admins_without_department.sql)
+  ('nouf.almutairi@hawkim.test', 'Nouf Almutairi', 'NA', null, '{admin}', '+966500000007', null),
   -- Quality Assurance (the only department with Approvers)
   ('faisal.alharbi@hawkim.test', 'Faisal Alharbi', 'FA', 'quality-assurance', '{reviewer}', '+966500000008', 'Quality Assurance Specialist'),
   ('abeer.alhamdan@hawkim.test', 'Abeer Alhamdan', 'AA', 'quality-assurance', '{author,reviewer}', '+966500000009', 'Quality Systems Specialist'),

@@ -89,6 +89,8 @@ export interface Sop {
   status: SopStatus
   /** ISO date, e.g. "2024-01-12" */
   lastUpdated: string
+  /** When the SOP was added (ISO timestamp from the database), when known: SOP Details' Date Added. */
+  createdAt?: string
   /** Id of the main author (User.id), when known. */
   authorId?: string
   /** Co-authors can replace a draft's file and upload new versions, but not submit. */
@@ -256,8 +258,12 @@ export interface InternalReviewRound {
   id: string
   scope: 'internal'
   version: string
-  /** Open while anyone taking part hasn't finished (or nobody is); then completed, or changes-requested if anyone returned it. */
-  status: 'open' | 'completed' | 'changes-requested'
+  /**
+   * Open while anyone taking part hasn't finished; then completed, or changes-requested if anyone returned it.
+   * Closed when nobody is taking part and nobody finished: the SOP is back to Draft, and the next
+   * Submit for Review reopens this round.
+   */
+  status: 'open' | 'completed' | 'changes-requested' | 'closed'
   requestedById: string
   requestedAt: string
   /** Shared deadline for new requests; historical rounds may have distinct task dates. */
@@ -341,6 +347,7 @@ export type TimelineEventType =
   | 'version-deleted'
   | 'response'
   | 'review-deadline-changed'
+  | 'review-duration-changed'
   | 'submitted'
   | 'resubmitted'
   | 'forwarded-to-approver'
@@ -389,6 +396,9 @@ export interface TimelineEvent {
   /** For review-deadline-changed: the deadline before (none if there wasn't one) and after. */
   previousReviewDueAt?: string
   newReviewDueAt?: string
+  /** For review-duration-changed (a pending request): the review duration before (none if there wasn't one) and after, in working days. */
+  previousReviewDurationDays?: number
+  newReviewDurationDays?: number
   /** For stage-due-date-set: which stage and its due date (ISO date and time). */
   stage?: 'review' | 'approval'
   dueAt?: string
@@ -464,8 +474,11 @@ export interface GuidelineProcessing {
   error?: string
   /** When processing finished (ISO date and time). */
   processedAt?: string
-  /** How far processing has got, while processing (reading the PDF, embedding in batches, saving). */
-  progress?: { stage: 'reading' | 'embedding' | 'saving'; done: number; total: number }
+  /**
+   * How far processing has got, while processing: one percent across all stages (0-100), the stage
+   * (e.g. "Reading the PDF") and its detail (e.g. "page 40 of 368"), as the compliance service words them.
+   */
+  progress?: { percent: number; stage?: string; detail?: string }
   /** What the service found in the PDF, once it is ready. */
   report?: { requirements: number; sections: number; pages?: number; warnings: string[]; missingExcludedSections: string[] }
 }
@@ -495,8 +508,15 @@ export interface GuidelineVersion {
   addedAt?: string
   /** The requirements SOPs are checked against (none yet for a version an admin added). */
   requirements: Requirement[]
+  /**
+   * How many requirement passages a published version from the database has. Its passages aren't
+   * loaded with it (there can be about 1,500): its own page reads them (useGuidelineRequirements).
+   */
+  requirementCount?: number
   /** Added by an admin and never current: it can be deleted, and its version number changed. */
   neverCurrent?: boolean
+  /** A published version that was added on the website: the id it had while it was being processed. */
+  fromDraftId?: string
   /** For an added version: processing by the compliance service before it can be made current. */
   processing?: GuidelineProcessing
 }
@@ -537,7 +557,7 @@ export interface DashboardStat {
 }
 
 /** What an activity item is about; decides its icon. */
-export type ActivityKind = 'accessRequest' | 'departmentMembership' | 'sopRequest'
+export type ActivityKind = 'accessRequest' | 'departmentMembership' | 'sopRequest' | 'sop' | 'review' | 'request'
 
 export interface ActivityItem {
   id: string

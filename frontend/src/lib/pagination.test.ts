@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  clampPage, PAGE_SIZE, pageAfterRemoval, pageCount, pageItems, pageSlice, parsePage, readChoice, rememberedPagesFor, resultsParams,
+  clampPage, listParam, PAGE_SIZE, pageAfterRemoval, pageCount, pageItems, pageSlice, parsePage, readChoice, readList, rememberedPagesFor, resultsParams,
   searchWithoutPage, switchTabPage, tabSwitch, updateParams,
 } from './pagination'
 import { MY_SOPS_URL_DEFAULTS, readMySopsUrl } from './mySops'
@@ -123,13 +123,25 @@ describe('list state in the URL', () => {
   })
 
   it('restores the directory from the URL, with defaults for missing or invalid values', () => {
+    // An old link to the removed Others tab opens All.
     expect(readDirectoryUrl(url('tab=others&q=gmp&sort=oldest&page=3')))
-      .toEqual({ tab: 'others', query: 'gmp', sort: 'oldest', page: 3 })
+      .toEqual({ tab: 'all', query: 'gmp', sort: 'oldest', divisions: [], departments: [], page: 3 })
     expect(readDirectoryUrl(url('tab=mine&sort=&page=-2')))
-      .toEqual({ tab: 'all', query: '', sort: 'newest', page: 1 })
+      .toEqual({ tab: 'all', query: '', sort: 'newest', divisions: [], departments: [], page: 1 })
     // An old link with the removed File Type filter: ignored.
-    expect(readDirectoryUrl(url('tab=others&q=gmp&sort=oldest&type=docx&page=3')))
-      .toEqual({ tab: 'others', query: 'gmp', sort: 'oldest', page: 3 })
-    expect(readDirectoryUrl(url('type=xls'))).toEqual({ tab: 'all', query: '', sort: 'newest', page: 1 })
+    expect(readDirectoryUrl(url('tab=recent&q=gmp&sort=oldest&type=docx&page=3')))
+      .toEqual({ tab: 'recent', query: 'gmp', sort: 'oldest', divisions: [], departments: [], page: 3 })
+    expect(readDirectoryUrl(url('type=xls'))).toEqual({ tab: 'all', query: '', sort: 'newest', divisions: [], departments: [], page: 1 })
+    // The System Admin's filters: ids separated by commas, each once, blanks ignored.
+    expect(readDirectoryUrl(url('tab=recent&division=med,,med&dept=pv,it,,pv'))).toMatchObject({ divisions: ['med'], departments: ['pv', 'it'] })
+  })
+})
+
+describe('lists in the URL', () => {
+  it('reads values separated by commas, each once, and writes them back the same way', () => {
+    expect(readList(url('dept=pv,it,,pv, qa '), 'dept')).toEqual(['pv', 'it', 'qa'])
+    expect(readList(url(''), 'dept')).toEqual([])
+    expect(listParam(['pv', 'it', 'pv'])).toBe('pv,it')
+    expect(listParam([])).toBeUndefined()
   })
 })

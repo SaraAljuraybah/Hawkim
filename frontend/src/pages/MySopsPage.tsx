@@ -7,6 +7,7 @@ import { DeleteSopDialog } from '../components/mySops/DeleteSopDialog'
 import { Button } from '../components/ui/Button'
 import { Pagination } from '../components/ui/Pagination'
 import { SearchCombobox } from '../components/ui/SearchCombobox'
+import { LIST_TOOLBAR } from '../components/ui/toolbar'
 import { SelectField } from '../components/ui/SelectField'
 import { Tabs } from '../components/ui/Tabs'
 import { tabIds } from '../components/ui/tabIds'
@@ -16,7 +17,7 @@ import { paginationEn } from '../content/pagination.en'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { devSampleCount, devSampleSops } from '../lib/devSampleSops'
 import { hasPermission } from '../lib/permissions'
-import { authoredSopsFor, filterMySops, MY_SOPS_URL_DEFAULTS, mySopTitles, readMySopsUrl, sortMySops, type MySopCategory, type MySopRole, type MySopSort } from '../lib/mySops'
+import { authoredSopsFor, clearedMySopsParams, filterMySops, MY_SOP_SORTS, MY_SOPS_URL_DEFAULTS, mySopSortGroup, mySopTitles, readMySopsUrl, sortMySops, type MySopCategory, type MySopRole, type MySopSort } from '../lib/mySops'
 import { clampPage, pageAfterRemoval, pageCount, pageSlice, resultsParams, tabSwitch, updateParams } from '../lib/pagination'
 import { useActiveDepartment } from '../state/activeDepartmentContext'
 import { useCurrentUser } from '../state/sessionContext'
@@ -102,8 +103,8 @@ export function MySopsPage() {
     () => mySopTitles(filterMySops(authoredSops, user.id, { category, role })),
     [authoredSops, user.id, category, role],
   )
-  // The sort order isn't a filter: it doesn't show Clear Filters and isn't reset by it.
-  const hasFilters = query.length > 0 || role !== 'all'
+  // As on Staff and Admins, a sort other than Newest to Oldest also shows Clear Filters, which resets it.
+  const hasFilters = query.length > 0 || role !== 'all' || sort !== 'newest'
   const ids = tabIds(TAB_ID_PREFIX, category)
   // A page that's too high (an old link, or after a delete) shows the last page.
   const pages = pageCount(visibleSops.length)
@@ -142,7 +143,8 @@ export function MySopsPage() {
   }
 
   function clearFilters() {
-    changeResults({ q: undefined, role: undefined })
+    setTabPages({})
+    setParams(clearedMySopsParams, { replace: true })
     searchRef.current?.focus()
   }
 
@@ -196,8 +198,9 @@ export function MySopsPage() {
         )}
       </div>
 
-      <div role="search" aria-label={content.filters.label} className="mt-6 rounded-xl border border-beige bg-white p-4 sm:p-5">
-        <div className="grid items-end gap-4 sm:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_13rem_11rem]">
+      {/* On the page background, like Staff: Search | My Permission | Sort, the same row as on every list page. */}
+      <div role="search" aria-label={content.filters.label} className="mt-6">
+        <div className={LIST_TOOLBAR}>
           <SearchCombobox
             inputRef={searchRef}
             name="mySopSearch"
@@ -208,14 +211,7 @@ export function MySopsPage() {
             options={titleOptions}
             noMatchesText={content.filters.noTitles}
             toggleLabel={content.filters.showTitles}
-            className="sm:col-span-2 xl:col-span-1"
-          />
-          <SelectField
-            name="mySopSort"
-            label={content.filters.sortLabel}
-            value={sort}
-            onChange={(event) => setSort(event.target.value as MySopSort)}
-            options={[{ value: 'newest', label: content.filters.sortNewest }, { value: 'oldest', label: content.filters.sortOldest }]}
+            className="min-w-0"
           />
           <SelectField
             name="mySopRole"
@@ -223,6 +219,15 @@ export function MySopsPage() {
             value={role}
             onChange={(event) => setRole(event.target.value as MySopRole)}
             options={[{ value: 'all', label: content.filters.allRoles }, { value: 'main', label: content.mainAuthorLabel }, { value: 'coauthor', label: content.coAuthorLabel }]}
+            className="min-w-0"
+          />
+          <SelectField
+            name="mySopSort"
+            label={content.filters.sort.label}
+            value={sort}
+            onChange={(event) => setSort(event.target.value as MySopSort)}
+            options={MY_SOP_SORTS.map((value) => ({ value, label: content.filters.sort.options[value], group: content.filters.sort.groups[mySopSortGroup(value)] }))}
+            className="min-w-0"
           />
         </div>
         <div className="mt-3 flex min-h-8 flex-wrap items-center justify-between gap-2">
@@ -257,7 +262,7 @@ export function MySopsPage() {
         )}
       </div>
 
-      <Pagination page={page} count={pages} onChange={goToPage} content={paginationEn} className="mt-8" />
+      <Pagination page={page} count={pages} total={visibleSops.length} onChange={goToPage} content={paginationEn} className="mt-8" />
 
       {deleting && (
         <DeleteSopDialog title={deleting.title} content={content.deleteSop} onConfirm={confirmDelete} onClose={closeDelete} />

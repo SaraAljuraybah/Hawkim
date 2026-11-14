@@ -1,11 +1,10 @@
 import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { ArrowLeft, Clock, Download, FileText, Lock } from 'lucide-react'
+import { ArrowLeft, Download, FileText, Lock } from 'lucide-react'
 import { DocxViewer } from '../components/sops/DocxViewer'
 import { AccessPanel, PdfViewer } from '../components/sops/PdfViewer'
 import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
-import { StatusBadge } from '../components/ui/StatusBadge'
 import { loadingEn } from '../content/loading.en'
 import { sopsEn } from '../content/sops.en'
 import type { Sop } from '../data/mock/types'
@@ -13,11 +12,11 @@ import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { currentVersionOf, useFileUrl } from '../hooks/useFileUrl'
 import { sopDownloadName } from '../lib/sopPresentation'
 import { formatDate } from '../lib/format'
-import { ADMIN_SOPS_PATH, requestDepartmentAccessPath } from '../lib/routes'
-import { getSopAccess } from '../lib/sopAccess'
+import { ADMIN_SOPS_PATH } from '../lib/routes'
+import { directoryAccess } from '../lib/sopAccess'
+import { divisionLabel } from '../lib/userAdmin'
 import { fileUrlOf } from '../services/files'
 import { useDepartments } from '../state/departmentsContext'
-import { useMyRequests } from '../state/requestsContext'
 import { useCurrentUser } from '../state/sessionContext'
 import { useSops } from '../state/sopsContext'
 import { NotFoundPage } from './NotFoundPage'
@@ -42,16 +41,18 @@ export function SopDetailPage({ admin = false }: { admin?: boolean }) {
   useDocumentTitle(sop ? (admin ? content.adminPageTitle : content.pageTitle).replace('{title}', sop.title) : undefined)
 
   const user = useCurrentUser()
-  const requests = useMyRequests()
   const departments = useDepartments()
-  const fileUrl = useFileUrl(sop && getSopAccess(sop, user, requests) === 'granted' ? sop : undefined)
+  const fileUrl = useFileUrl(sop && directoryAccess(sop, user) === 'granted' ? sop : undefined)
   const [fileError, setFileError] = useState('')
   const [downloading, setDownloading] = useState(false)
 
   if (!sop) return <NotFoundPage embedded />
 
-  const access = getSopAccess(sop, user, requests)
+  // As in the directory: a System Admin opens every department's; everyone else only SOPs they worked on.
+  const access = directoryAccess(sop, user)
   const departmentName = departments.nameOf(sop.departmentId)
+  // The department's division by name ('' without one: the subtitle then starts with the department).
+  const divisionName = divisionLabel(departments.getDepartment(sop.departmentId))
   const granted = access === 'granted'
 
   async function download() {
@@ -88,14 +89,16 @@ export function SopDetailPage({ admin = false }: { admin?: boolean }) {
       <div className="mt-5 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <h1 className="mt-1 text-2xl leading-tight tracking-tight sm:text-3xl">{sop.title}</h1>
+          {/* "<division> · <department> · Published on <date>" (no division: from the department): the date is
+              the one on the directory cards; screen readers hear a comma instead of each "·". */}
           <p className="mt-2 text-sm text-text-gray">
-            {departmentName}
-            <span aria-hidden="true"> · </span>
-            <span className="sr-only">, </span>
-            {sopsEn.versionTemplate.replace('{version}', sop.version)}
-            <span aria-hidden="true"> · </span>
-            <span className="sr-only">, </span>
-            <time dateTime={sop.lastUpdated}>{formatDate(sop.lastUpdated)}</time>
+            {(divisionName ? content.subtitle : content.subtitleNoDivision).split(/(\{division\}|\{department\}|\{date\}| · )/).filter(Boolean).map((part, index) =>
+              part === '{date}' ? <time key={index} dateTime={sop.lastUpdated}>{formatDate(sop.lastUpdated)}</time>
+                : part === '{division}' ? <span key={index}>{divisionName}</span>
+                  : part === '{department}' ? <span key={index}>{departmentName}</span>
+                    : part === ' · ' ? <span key={index}><span aria-hidden="true"> · </span><span className="sr-only">, </span></span>
+                      : <span key={index}>{part}</span>,
+            )}
           </p>
         </div>
         {exportButton && <div className="shrink-0">{exportButton}</div>}
@@ -113,20 +116,8 @@ export function SopDetailPage({ admin = false }: { admin?: boolean }) {
           <AccessPanel
             icon={<Lock className="size-6" strokeWidth={1.75} />}
             title={content.noAccess.title}
-            text={(admin ? content.noAccess.adminText : content.noAccess.text).replace('{department}', departmentName)}
-          >
-            {!admin && <Button to={requestDepartmentAccessPath(sop.departmentId)}>{content.noAccess.requestAccess}</Button>}
-          </AccessPanel>
-        )}
-
-        {access === 'requested' && (
-          <AccessPanel
-            icon={<Clock className="size-6" strokeWidth={1.75} />}
-            title={content.pendingAccess.title}
-            text={content.pendingAccess.text.replace('{department}', departmentName)}
-          >
-            <StatusBadge status="pending" />
-          </AccessPanel>
+            text={admin ? content.noAccess.adminText.replace('{department}', departmentName) : content.noAccess.text}
+          />
         )}
 
         {granted && !fileUrl && (
