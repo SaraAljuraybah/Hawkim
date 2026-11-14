@@ -3,7 +3,7 @@
 #   1. supabase db reset   (every migration + seed.sql: a clean database; SKIP_RESET=1 to skip)
 #   2. every supabase/tests/*.sql, each in its own psql session (each one rolls itself back)
 #   3. the *.local.mjs tests and organization_migrations.mjs (need `supabase functions serve`, see README)
-#   4. the frontend's calendar parity test and vitest
+#   4. the compliance service's unit tests (no model is loaded), the frontend's calendar parity test and vitest
 # Left out on purpose (README.md says how to run them): the migration-sequence tests (*_before.sql,
 # *_request.sql, admins_without_department.sql and every *_rolled_back.sql), the *.browser.local.mjs tests
 # (Chrome and the app), and organization_anonymous_readonly.mjs (it reads the hosted project).
@@ -53,6 +53,8 @@ for f in supabase/tests/*.local.mjs supabase/tests/organization_migrations.mjs; 
   else echo "FAIL $name :: $(printf '%s' "$out" | grep -E '^FAIL|Error' | head -5 | tr '\n' ' ' | cut -c1-500)"; fails+=("$name"); fi
 done
 
+out="$(cd compliance-service && python -m unittest test_organization_paths test_worker_organization 2>&1)"
+if [ $? -eq 0 ]; then echo "PASS compliance-service unittest"; else echo "FAIL compliance-service unittest :: $(printf '%s' "$out" | tail -5 | tr '\n' ' ')"; fails+=("compliance-service"); fi
 out="$(cd frontend && npm run -s test:calendar 2>&1)"
 if [ $? -eq 0 ]; then echo "PASS calendar_parity.test.mjs"; else echo "FAIL calendar_parity.test.mjs"; fails+=("calendar_parity.test.mjs"); fi
 out="$(cd frontend && npx vitest run 2>&1)"; rc=$?

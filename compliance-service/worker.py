@@ -33,6 +33,7 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 
 from hawkim.aggregate import findings_for_database, requirement_passage  # noqa: E402
+from hawkim.organization_paths import guideline_index_path, require_in_organization  # noqa: E402
 from hawkim.service import ComplianceService  # noqa: E402
 
 BUCKET = "sop-files"
@@ -125,7 +126,8 @@ class Supabase:
 # GVP versions added on the website: their PDFs and their indexes.
 GUIDELINE_FILES_BUCKET = "guideline-files"
 GUIDELINE_INDEX_BUCKET = "guideline-indexes"
-INDEX_CACHE = HERE / "index"      # a version's index is kept in index/versions/<id>/ after the first use
+INDEX_CACHE = HERE / "index"      # a version's index is kept in index/<its index_path>/ after the first use
+                                  # (<organization>/versions/<id>, or versions/<id> without organizations)
 
 
 # Large index files (embeddings.npy is about 6 MB) are stored in pieces of this size: an unstable connection
@@ -310,7 +312,8 @@ def cancel_guideline(job: dict, sb: "Supabase", missing: bool):
     """Removes everything processing wrote for a cancelled version, its PDF, then its row (one transaction).
     If a step fails the row stays (cancelled, hidden from the website) and the next claim finishes it."""
     draft_id = job["id"]
-    index_path = f"versions/{draft_id}"
+    index_path = guideline_index_path(job)
+    require_in_organization(job, index_path, job.get("storage_path"))   # never another organization's files
     shutil.rmtree(INDEX_CACHE / index_path, ignore_errors=True)          # the requirement units and embeddings
     sb.remove_folder(GUIDELINE_INDEX_BUCKET, index_path)                  # any already uploaded
     if not missing:   # a missing row was deleted with its file
@@ -347,11 +350,13 @@ def process_guideline(job: dict, svc: ComplianceService, sb: "Supabase"):
 
 def build_guideline(job: dict, svc: ComplianceService, sb: "Supabase", tracker: GuidelineProgress):
     """Builds the index of a GVP version an admin added, uploads it and completes the version (which
-    makes it current). The index is kept in index/versions/<id>/ before uploading, so a retry after a
+    makes it current). The index is kept in index/<index path>/ before uploading, so a retry after a
     failed upload only uploads it again."""
     from hawkim.guidelines import EMBEDDING_PERCENT, STAGE_SAVING, build_index, stage_percent
     draft_id = job["id"]
-    index_path = f"versions/{draft_id}"
+    # The version's own organization's folder (the database refuses any other in complete_guideline_processing).
+    index_path = guideline_index_path(job)
+    require_in_organization(job, index_path, job["storage_path"])
     local = INDEX_CACHE / index_path
     progress = tracker.update
 
@@ -415,6 +420,8 @@ def build_guideline(job: dict, svc: ComplianceService, sb: "Supabase", tracker: 
 def process(job: dict, svc: ComplianceService, sb: Supabase, scfg: dict):
     check_id = job["check_id"]
     print(f"[worker] check {check_id}: {job['file_name']} (SOP version {job['sop_version']})")
+    # The SOP file and the GVP index must be the check's own organization's.
+    require_in_organization(job, job["storage_path"], job.get("guideline_index_path"))
     # The check's GVP version: its own index (added on the website), or the local index (e.g. GVP 4.0).
     if job.get("guideline_index_path"):
         engine = svc.engine_for(local_index(sb, job["guideline_index_path"]))

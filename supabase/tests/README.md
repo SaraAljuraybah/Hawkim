@@ -26,7 +26,8 @@ SITE_URL=http://127.0.0.1:5179
 1. It resets the database (`supabase db reset`: every migration and `seed.sql`). Set `SKIP_RESET=1` to skip this.
 2. It runs every `*.sql` test in its own session.
 3. It runs the `*.local.mjs` tests and `organization_migrations.mjs`.
-4. It runs the frontend's calendar parity test and vitest.
+4. It runs the compliance service's unit tests (`compliance-service/test_*.py`, no model is loaded), the
+   frontend's calendar parity test and vitest.
 
 It exits with 1 if anything failed.
 

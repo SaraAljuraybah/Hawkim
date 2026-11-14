@@ -65,11 +65,16 @@ about 10–15 minutes per SOP; with a GPU that holds the whole model, about 1–
 When an admin adds a GVP version (SFDA Regulatory Requirements), the worker processes it when no check
 is waiting: it downloads the PDF from the `guideline-files` bucket, splits it into requirement units,
 embeds them with BGE-M3 and uploads the index to the private `guideline-indexes` bucket
-(`versions/<id>/`). The version's page then shows **Ready** with a short report (requirements, sections,
+(`<organization id>/versions/<id>/`; `versions/<id>/` on a database without organizations). The version's page then shows **Ready** with a short report (requirements, sections,
 pages, and any excluded section codes the new version no longer has), or **Failed** with the reason and
 **Try Again**. An admin then clicks **Make Current**; new checks use that version, earlier reports keep
-theirs. Each check uses its own version's index (downloaded once into `index/versions/<id>/`); GVP 4.0
-keeps using the local index. BGE-M3 is loaded once and shared by every version. Processing a 370-page
+theirs. Each check uses its own version's index (downloaded once into `index/<organization id>/versions/<id>/`);
+MedCare's GVP 4.0 keeps using the local index.
+
+One worker serves every organization, one job at a time: compliance checks first, then GVP versions, oldest
+first. A GVP version being processed therefore delays every organization's checks. The worker refuses a job
+whose files aren't in its organization's folder (`hawkim/organization_paths.py`; tests:
+`python -m unittest test_organization_paths test_worker_organization`, no model is loaded). BGE-M3 is loaded once and shared by every version. Processing a 370-page
 guideline takes about as long as building the index locally (minutes on a laptop CPU).
 
 ## Other commands
