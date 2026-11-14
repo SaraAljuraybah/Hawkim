@@ -161,7 +161,6 @@ function Report({ sop, backPath }: { sop: Sop; backPath: string }) {
           label: text.header.guideline,
           value: content.guideline.replace('{name}', report.guideline.name).replace('{version}', report.guideline.version),
         },
-        { label: text.header.checkedBy, value: text.header.checker },
         ...(report.triggeredById ? [{ label: text.header.runBy, value: nameOf(report.triggeredById) }] : []),
       ]
     : []

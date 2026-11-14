@@ -58,8 +58,6 @@ export const complianceEn: ComplianceContent = {
       department: 'Department',
       checked: 'Check Date',
       guideline: 'Guideline',
-      checkedBy: 'Checked By',
-      checker: 'Hawkim compliance checker',
       runBy: 'Run By',
     },
     summary: {
