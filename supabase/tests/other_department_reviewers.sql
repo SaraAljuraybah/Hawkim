@@ -3,6 +3,12 @@
 begin;
 set local plpgsql.check_asserts = on;
 
+-- The organization's folder, the first part of every stored file's path (20261116230000): MedCare's, the
+-- first organization (with the owner's rights, so it also works while acting as a signed-in user).
+create function pg_temp.org_folder() returns text
+language sql stable security definer as $$ select o.id::text from public.organizations o order by o.created_at, o.id limit 1 $$;
+grant execute on function pg_temp.org_folder() to public;
+
 create function pg_temp.expect_error(p_sql text, p_hint text) returns void
 language plpgsql as $$
 declare
@@ -35,7 +41,7 @@ insert into public.user_roles (user_id, role)
 select ('a0000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid, 'reviewer'::public.app_role from generate_series(2, 6) n;
 insert into public.user_roles (user_id, role) values ('a0000000-0000-4000-8000-000000000001', 'author');
 insert into storage.objects (bucket_id, name, owner_id, metadata)
-select 'sop-files', 'a0000000-0000-4000-8000-000000000001/b1000000-0000-4000-8000-' || lpad(n::text, 12, '0') || '.pdf',
+select 'sop-files', pg_temp.org_folder() || '/a0000000-0000-4000-8000-000000000001/b1000000-0000-4000-8000-' || lpad(n::text, 12, '0') || '.pdf',
        'a0000000-0000-4000-8000-000000000001', '{"mimetype":"application/pdf","size":123}'::jsonb
 from generate_series(1, 3) n;
 
@@ -56,7 +62,7 @@ declare
 begin
   set local role authenticated;
   perform set_config('request.jwt.claim.sub', author::text, true);
-  sop := public.create_sop('Other departments', 'Description', 'od-home', author || '/b1000000-0000-4000-8000-000000000001.pdf', 'Procedure.pdf');
+  sop := public.create_sop('Other departments', 'Description', 'od-home', pg_temp.org_folder() || '/' || author || '/b1000000-0000-4000-8000-000000000001.pdf', 'Procedure.pdf');
 
   -- The first send of a version: only the SOP's department, even in a mixed batch.
   perform pg_temp.expect_error(format('select public.submit_for_review(%L, array[%L]::uuid[], null, null, null)', sop, other1), 'home-reviewers-first');
@@ -133,7 +139,7 @@ begin
 
   -- The first send of the next version is same-department only again.
   perform set_config('request.jwt.claim.sub', author::text, true);
-  perform public.upload_sop_version(sop, author || '/b1000000-0000-4000-8000-000000000002.pdf', 'Procedure.pdf');
+  perform public.upload_sop_version(sop, pg_temp.org_folder() || '/' || author || '/b1000000-0000-4000-8000-000000000002.pdf', 'Procedure.pdf');
   perform pg_temp.expect_error(format('select public.submit_for_review(%L, array[%L,%L]::uuid[], null, null, null)', sop, home1, other1), 'home-reviewers-first');
   perform public.submit_for_review(sop, array[home1], null, null, null);
 

@@ -105,7 +105,7 @@ export function localPeople({ url, anonKey, service, options, run, prefix, conta
   }
 
   /**
-   * A person added through add_user: { id, email, password, client, department, roles }. Admins get no
+   * A person added through add_user: { id, email, password, client, department, roles, organizationId }. Admins get no
    * department or position (as Add Admin); staff get the department, position and roles.
    */
   async function person(key, department, roles, position = 'Specialist') {
@@ -118,7 +118,9 @@ export function localPeople({ url, anonKey, service, options, run, prefix, conta
       p_position: roles.includes('admin') ? null : position, p_department_id: roles.includes('admin') ? null : department,
       p_roles: roles,
     }), `add ${key}`)
-    return { id: user.id, email, password, client: await signIn(email, password, key), department, roles }
+    // Their organization: the first folder of the files they upload (20261116230000).
+    const organizationId = await ownerValue(container, `select organization_id from public.profiles where id = '${user.id}';`)
+    return { id: user.id, email, password, client: await signIn(email, password, key), department, roles, organizationId }
   }
 
   return { firstAdmin, person }

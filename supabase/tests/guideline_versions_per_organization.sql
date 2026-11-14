@@ -120,7 +120,8 @@ begin
   assert public.current_guideline_version(other) <> v_new, 'not Other''s';
   -- The compliance service finishing Other's 3.0.
   perform pg_temp.act_as(null, 'service_role');
-  perform public.complete_guideline_processing(other_draft, 'versions/' || other_draft, '{}'::jsonb);
+  -- The index is in the version's own folder (20261116230000).
+  perform public.complete_guideline_processing(other_draft, other || '/versions/' || other_draft, '{}'::jsonb);
   perform pg_temp.as_owner();
   select id into v_new from public.guideline_versions where draft_id = other_draft;
   assert (select organization_id from public.guideline_versions where id = v_new) = other, 'Other''s 3.0 is published in Other';

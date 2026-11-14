@@ -8,6 +8,12 @@
 begin;
 set local plpgsql.check_asserts = on;
 
+-- The organization's folder, the first part of every stored file's path (20261116230000): MedCare's, the
+-- first organization (with the owner's rights, so it also works while acting as a signed-in user).
+create function pg_temp.org_folder() returns text
+language sql stable security definer as $$ select o.id::text from public.organizations o order by o.created_at, o.id limit 1 $$;
+grant execute on function pg_temp.org_folder() to public;
+
 create function pg_temp.expect_error(p_sql text, p_hint text) returns void
 language plpgsql as $$
 declare
@@ -67,7 +73,7 @@ insert into public.user_roles (user_id, role) values ('b7000000-0000-4000-8000-0
 insert into public.user_roles (user_id, role)
 select ('b7000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid, 'reviewer'::public.app_role from generate_series(2, 5) n;
 insert into storage.objects (bucket_id, name, owner_id, metadata)
-select 'sop-files', 'b7000000-0000-4000-8000-000000000001/b7100000-0000-4000-8000-' || lpad(n::text, 12, '0') || '.pdf',
+select 'sop-files', pg_temp.org_folder() || '/b7000000-0000-4000-8000-000000000001/b7100000-0000-4000-8000-' || lpad(n::text, 12, '0') || '.pdf',
        'b7000000-0000-4000-8000-000000000001', '{"mimetype":"application/pdf","size":123}'::jsonb
 from generate_series(1, 12) n;
 
@@ -91,7 +97,7 @@ begin
   -- ---------- 1. Removing the only reviewer ----------
   perform set_config('request.jwt.claim.sub', author::text, true);
   file := file + 1;
-  sop := public.create_sop('Removed only', 'Description', 'btd-home', author || '/b7100000-0000-4000-8000-' || lpad(file::text, 12, '0') || '.pdf', 'Procedure.pdf');
+  sop := public.create_sop('Removed only', 'Description', 'btd-home', pg_temp.org_folder() || '/' || author || '/b7100000-0000-4000-8000-' || lpad(file::text, 12, '0') || '.pdf', 'Procedure.pdf');
   round1 := public.submit_for_review(sop, array[home1], null, null, null);
   before := pg_temp.events(sop);
   perform public.remove_reviewer(pg_temp.request_of(round1, home1), 'Not needed');
@@ -166,7 +172,7 @@ begin
 
   -- ---------- 2. The only reviewer declines ----------
   file := file + 1;
-  sop := public.create_sop('Declined only', 'Description', 'btd-home', author || '/b7100000-0000-4000-8000-' || lpad(file::text, 12, '0') || '.pdf', 'Procedure.pdf');
+  sop := public.create_sop('Declined only', 'Description', 'btd-home', pg_temp.org_folder() || '/' || author || '/b7100000-0000-4000-8000-' || lpad(file::text, 12, '0') || '.pdf', 'Procedure.pdf');
   round1 := public.submit_for_review(sop, array[home1], null, null, null);
   before := pg_temp.events(sop);
   perform set_config('request.jwt.claim.sub', home1::text, true);
@@ -178,7 +184,7 @@ begin
 
   -- ---------- 3. The only reviewer's request expires ----------
   file := file + 1;
-  sop := public.create_sop('Expired only', 'Description', 'btd-home', author || '/b7100000-0000-4000-8000-' || lpad(file::text, 12, '0') || '.pdf', 'Procedure.pdf');
+  sop := public.create_sop('Expired only', 'Description', 'btd-home', pg_temp.org_folder() || '/' || author || '/b7100000-0000-4000-8000-' || lpad(file::text, 12, '0') || '.pdf', 'Procedure.pdf');
   round1 := public.submit_for_review(sop, array[home1], null, null, null);
   reset role;
   update public.review_requests set response_due_at = now() - interval '1 minute' where round_id = round1;
@@ -200,7 +206,7 @@ begin
   -- submit_for_review expires them first (withdraw_due), so the SOP is a Draft by the time it decides
   -- what kind of send this is: it reopens the round instead of refusing with "Upload a new version".
   file := file + 1;
-  sop := public.create_sop('Expires during submit', 'Description', 'btd-home', author || '/b7100000-0000-4000-8000-' || lpad(file::text, 12, '0') || '.pdf', 'Procedure.pdf');
+  sop := public.create_sop('Expires during submit', 'Description', 'btd-home', pg_temp.org_folder() || '/' || author || '/b7100000-0000-4000-8000-' || lpad(file::text, 12, '0') || '.pdf', 'Procedure.pdf');
   round1 := public.submit_for_review(sop, array[home1, home2], null, null, null);
   reset role;
   update public.review_requests set response_due_at = now() - interval '1 minute' where round_id = round1;
@@ -215,7 +221,7 @@ begin
 
   -- ---------- 4. A withdrawn (legacy) request and a removal ----------
   file := file + 1;
-  sop := public.create_sop('Withdrawn and removed', 'Description', 'btd-home', author || '/b7100000-0000-4000-8000-' || lpad(file::text, 12, '0') || '.pdf', 'Procedure.pdf');
+  sop := public.create_sop('Withdrawn and removed', 'Description', 'btd-home', pg_temp.org_folder() || '/' || author || '/b7100000-0000-4000-8000-' || lpad(file::text, 12, '0') || '.pdf', 'Procedure.pdf');
   round1 := public.submit_for_review(sop, array[home1, home2], null, null, null);
   reset role;
   update public.review_requests set status = 'withdrawn' where round_id = round1 and reviewer_id = home1;
@@ -227,7 +233,7 @@ begin
   -- ---------- 5. Negative: someone is still reviewing, or finished ----------
   -- Pending and removed: still In Review, the round open.
   file := file + 1;
-  sop := public.create_sop('Still pending', 'Description', 'btd-home', author || '/b7100000-0000-4000-8000-' || lpad(file::text, 12, '0') || '.pdf', 'Procedure.pdf');
+  sop := public.create_sop('Still pending', 'Description', 'btd-home', pg_temp.org_folder() || '/' || author || '/b7100000-0000-4000-8000-' || lpad(file::text, 12, '0') || '.pdf', 'Procedure.pdf');
   round1 := public.submit_for_review(sop, array[home1, home2], null, null, null);
   perform public.remove_reviewer(pg_temp.request_of(round1, home2), 'Not needed');
   assert pg_temp.sop_status(sop) = 'in-review' and pg_temp.round_status(round1) = 'open', 'Someone pending: stays In Review';
@@ -244,7 +250,7 @@ begin
 
   -- Returned and declined: Changes Requested, In Review.
   file := file + 1;
-  sop := public.create_sop('Returned', 'Description', 'btd-home', author || '/b7100000-0000-4000-8000-' || lpad(file::text, 12, '0') || '.pdf', 'Procedure.pdf');
+  sop := public.create_sop('Returned', 'Description', 'btd-home', pg_temp.org_folder() || '/' || author || '/b7100000-0000-4000-8000-' || lpad(file::text, 12, '0') || '.pdf', 'Procedure.pdf');
   round1 := public.submit_for_review(sop, array[home1, home2], null, null, null);
   perform set_config('request.jwt.claim.sub', home2::text, true);
   perform public.decline_review(pg_temp.request_of(round1, home2), 'Busy');
@@ -256,7 +262,7 @@ begin
 
   -- ---------- 6. Finished, then removed, doesn't count as finished ----------
   file := file + 1;
-  sop := public.create_sop('Finished then removed', 'Description', 'btd-home', author || '/b7100000-0000-4000-8000-' || lpad(file::text, 12, '0') || '.pdf', 'Procedure.pdf');
+  sop := public.create_sop('Finished then removed', 'Description', 'btd-home', pg_temp.org_folder() || '/' || author || '/b7100000-0000-4000-8000-' || lpad(file::text, 12, '0') || '.pdf', 'Procedure.pdf');
   round1 := public.submit_for_review(sop, array[home1], null, null, null);
   perform set_config('request.jwt.claim.sub', home1::text, true);
   perform public.accept_review(pg_temp.request_of(round1, home1));
@@ -273,7 +279,7 @@ begin
 
   -- ---------- 7. Any version: the v2 round empties ----------
   file := file + 1;
-  sop := public.create_sop('Second version', 'Description', 'btd-home', author || '/b7100000-0000-4000-8000-' || lpad(file::text, 12, '0') || '.pdf', 'Procedure.pdf');
+  sop := public.create_sop('Second version', 'Description', 'btd-home', pg_temp.org_folder() || '/' || author || '/b7100000-0000-4000-8000-' || lpad(file::text, 12, '0') || '.pdf', 'Procedure.pdf');
   round1 := public.submit_for_review(sop, array[home1], null, null, null);
   perform set_config('request.jwt.claim.sub', home1::text, true);
   perform public.accept_review(pg_temp.request_of(round1, home1));
@@ -283,7 +289,7 @@ begin
   update public.review_rounds set requested_at = requested_at - interval '2 minutes' where sop_id = sop;
   set local role authenticated;
   file := file + 1;
-  perform public.upload_sop_version(sop, author || '/b7100000-0000-4000-8000-' || lpad(file::text, 12, '0') || '.pdf', 'Procedure v2.pdf');
+  perform public.upload_sop_version(sop, pg_temp.org_folder() || '/' || author || '/b7100000-0000-4000-8000-' || lpad(file::text, 12, '0') || '.pdf', 'Procedure v2.pdf');
   round2 := public.submit_for_review(sop, array[home3], null, null, null);
   before := pg_temp.events(sop);
   perform set_config('request.jwt.claim.sub', home3::text, true);
@@ -310,7 +316,7 @@ begin
 
   -- ---------- 7b. Back to Draft again, and reopened again ----------
   file := file + 1;
-  sop := public.create_sop('Twice', 'Description', 'btd-home', author || '/b7100000-0000-4000-8000-' || lpad(file::text, 12, '0') || '.pdf', 'Procedure.pdf');
+  sop := public.create_sop('Twice', 'Description', 'btd-home', pg_temp.org_folder() || '/' || author || '/b7100000-0000-4000-8000-' || lpad(file::text, 12, '0') || '.pdf', 'Procedure.pdf');
   round1 := public.submit_for_review(sop, array[home1], null, null, null);
   perform public.remove_reviewer(pg_temp.request_of(round1, home1), 'Not needed');
   assert public.submit_for_review(sop, array[home2], null, null, null) = round1, 'Reopened once';
@@ -322,7 +328,7 @@ begin
   -- ---------- 7c. A version uploaded while Draft gets its own round ----------
   perform public.remove_reviewer(pg_temp.request_of(round1, home1), 'Not needed');
   file := file + 1;
-  perform public.upload_sop_version(sop, author || '/b7100000-0000-4000-8000-' || lpad(file::text, 12, '0') || '.pdf', 'Procedure v2.pdf');
+  perform public.upload_sop_version(sop, pg_temp.org_folder() || '/' || author || '/b7100000-0000-4000-8000-' || lpad(file::text, 12, '0') || '.pdf', 'Procedure v2.pdf');
   reset role;
   update public.review_rounds set requested_at = requested_at - interval '1 minute' where id = round1;
   set local role authenticated;

@@ -9,6 +9,12 @@
 begin;
 set local plpgsql.check_asserts = on;
 
+-- The organization's folder, the first part of every stored file's path (20261116230000): MedCare's, the
+-- first organization (with the owner's rights, so it also works while acting as a signed-in user).
+create function pg_temp.org_folder() returns text
+language sql stable security definer as $$ select o.id::text from public.organizations o order by o.created_at, o.id limit 1 $$;
+grant execute on function pg_temp.org_folder() to public;
+
 create function pg_temp.expect_error(p_sql text, p_hint text) returns void
 language plpgsql as $$
 declare
@@ -37,7 +43,7 @@ select ('c4000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid, 'reviewer':
 insert into public.user_roles (user_id, role)
 select ('c4000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid, 'author'::public.app_role from unnest(array[1, 5, 6]) n;
 insert into storage.objects (bucket_id, name, owner_id, metadata)
-select 'sop-files', 'c4000000-0000-4000-8000-000000000001/c4100000-0000-4000-8000-' || lpad(n::text, 12, '0') || '.pdf',
+select 'sop-files', pg_temp.org_folder() || '/c4000000-0000-4000-8000-000000000001/c4100000-0000-4000-8000-' || lpad(n::text, 12, '0') || '.pdf',
        'c4000000-0000-4000-8000-000000000001', '{"mimetype":"application/pdf","size":123}'::jsonb
 from generate_series(1, 2) n;
 
@@ -59,7 +65,7 @@ declare
 begin
   set local role authenticated;
   perform set_config('request.jwt.claim.sub', author::text, true);
-  v_sop := public.create_sop('Changes Requested', 'Description', 'acr-home', author || '/c4100000-0000-4000-8000-000000000001.pdf', 'Procedure.pdf');
+  v_sop := public.create_sop('Changes Requested', 'Description', 'acr-home', pg_temp.org_folder() || '/' || author || '/c4100000-0000-4000-8000-000000000001.pdf', 'Procedure.pdf');
   perform public.add_co_authors(v_sop, array[co_author]);
   v_round := public.submit_for_review(v_sop, array[noura, omar], null, null, null);
 
@@ -119,7 +125,7 @@ begin
 
   -- While anyone is taking part, no new version.
   perform pg_temp.expect_error(format('select public.upload_sop_version(%L, %L, %L)', v_sop,
-    author || '/c4100000-0000-4000-8000-000000000002.pdf', 'Procedure.pdf'), '');
+    pg_temp.org_folder() || '/' || author || '/c4100000-0000-4000-8000-000000000002.pdf', 'Procedure.pdf'), '');
 
   -- Huda completes it; Omar is still taking part, so the round stays open and still no new version.
   perform set_config('request.jwt.claim.sub', huda::text, true);
@@ -128,7 +134,7 @@ begin
   perform set_config('request.jwt.claim.sub', author::text, true);
   assert (select r.status from public.review_rounds r where r.id = v_round) = 'open', 'Open while Omar takes part';
   perform pg_temp.expect_error(format('select public.upload_sop_version(%L, %L, %L)', v_sop,
-    author || '/c4100000-0000-4000-8000-000000000002.pdf', 'Procedure.pdf'), '');
+    pg_temp.org_folder() || '/' || author || '/c4100000-0000-4000-8000-000000000002.pdf', 'Procedure.pdf'), '');
 
   -- Omar completes it: everyone has finished, and Noura's return is still there.
   perform set_config('request.jwt.claim.sub', omar::text, true);
@@ -145,7 +151,7 @@ begin
     'Not completed: someone returned it';
 
   -- A new version can be uploaded now; the v1 round can't be added to or sent again any more.
-  assert public.upload_sop_version(v_sop, author || '/c4100000-0000-4000-8000-000000000002.pdf', 'Procedure.pdf') = 2, 'Version 2 uploaded';
+  assert public.upload_sop_version(v_sop, pg_temp.org_folder() || '/' || author || '/c4100000-0000-4000-8000-000000000002.pdf', 'Procedure.pdf') = 2, 'Version 2 uploaded';
   perform pg_temp.expect_error(format('select public.add_reviewers(%L, array[%L]::uuid[], null, null, null)', v_sop, huda), '');
 
   -- The same privileges as before.

@@ -5,6 +5,12 @@
 -- All fixtures and workflow changes are rolled back.
 begin;
 set local plpgsql.check_asserts = on;
+
+-- The organization's folder, the first part of every stored file's path (20261116230000): MedCare's, the
+-- first organization (with the owner's rights, so it also works while acting as a signed-in user).
+create function pg_temp.org_folder() returns text
+language sql stable security definer as $$ select o.id::text from public.organizations o order by o.created_at, o.id limit 1 $$;
+grant execute on function pg_temp.org_folder() to public;
 set local time zone 'Pacific/Auckland';
 
 -- The deadline helpers are internal (not executable by browser roles). This test calls them
@@ -47,7 +53,7 @@ from unnest(array[1, 4, 6]) n;
 -- Files still go through create_sop/check_sop_file; only the Storage objects are
 -- fixtures, as they would have been uploaded by the existing Storage service.
 insert into storage.objects (bucket_id, name, owner_id, metadata)
-select 'sop-files', '90000000-0000-4000-8000-000000000001/' ||
+select 'sop-files', pg_temp.org_folder() || '/90000000-0000-4000-8000-000000000001/' ||
        '91000000-0000-4000-8000-' || lpad(n::text, 12, '0') || '.pdf',
        '90000000-0000-4000-8000-000000000001',
        '{"mimetype":"application/pdf","size":123}'::jsonb
@@ -81,7 +87,7 @@ declare
 begin
   perform set_config('request.jwt.claim.sub', author::text, true);
   set local role authenticated;
-  sop := public.create_sop(repeat('t', 50), 'Existing description', 'rpc-test-home', author || '/91000000-0000-4000-8000-000000000001.pdf', 'Procedure.pdf');
+  sop := public.create_sop(repeat('t', 50), 'Existing description', 'rpc-test-home', pg_temp.org_folder() || '/' || author || '/91000000-0000-4000-8000-000000000001.pdf', 'Procedure.pdf');
   assert (select s.title = repeat('t', 50) from public.sops s where s.id = sop), '50-character title must save through the real RPC';
   perform pg_temp.expect_error(format('select public.create_sop(%L, null, %L, null, null)', 'Foreign attempt', 'rpc-test-foreign'), '23514');
   perform public.add_co_authors(sop, array[coauthor]);
@@ -167,7 +173,7 @@ begin
   where id = round1;
   set local role authenticated;
   perform set_config('request.jwt.claim.sub', author::text, true);
-  assert public.upload_sop_version(sop, author || '/91000000-0000-4000-8000-000000000002.pdf', 'Revised procedure.pdf') = 2, 'The existing upload workflow must remain usable';
+  assert public.upload_sop_version(sop, pg_temp.org_folder() || '/' || author || '/91000000-0000-4000-8000-000000000002.pdf', 'Revised procedure.pdf') = 2, 'The existing upload workflow must remain usable';
   -- reviewer3 accepts below, so the SOP stays In Review when the other two expire (with nobody left
   -- it would go back to Draft, 20261114120100_review_back_to_draft.sql).
   round2 := public.submit_for_review(sop, array[reviewer, reviewer2, reviewer3], null, 5, repeat('r', 500));
@@ -194,7 +200,7 @@ begin
   i := 2;
   foreach note_length in array array[1, 499, 500] loop
     i := i + 1;
-    another_sop := public.create_sop('Comment boundary ' || note_length, null, 'rpc-test-home', author || '/91000000-0000-4000-8000-' || lpad(i::text, 12, '0') || '.pdf', 'Procedure.pdf');
+    another_sop := public.create_sop('Comment boundary ' || note_length, null, 'rpc-test-home', pg_temp.org_folder() || '/' || author || '/91000000-0000-4000-8000-' || lpad(i::text, 12, '0') || '.pdf', 'Procedure.pdf');
     perform public.submit_for_review(another_sop, array[reviewer], null, null, repeat('x', note_length));
     assert exists (select 1 from public.timeline_events e where e.sop_id = another_sop and e.type = 'submitted' and e.note = repeat('x', note_length)), 'Submission comments must save at every supported boundary';
     assert (select q.review_duration_days is null and q.response_due_at is not null from public.review_requests q where q.sop_id = another_sop), 'Duration remains optional while response date is server controlled';
@@ -202,7 +208,7 @@ begin
 
   -- Existing calendar-policy requests are not silently rewritten. Simulate a
   -- pre-migration pending request under the owner, then use the real accept RPC.
-  legacy_sop := public.create_sop('Legacy pending request', null, 'rpc-test-home', author || '/91000000-0000-4000-8000-000000000006.pdf', 'Legacy.pdf');
+  legacy_sop := public.create_sop('Legacy pending request', null, 'rpc-test-home', pg_temp.org_folder() || '/' || author || '/91000000-0000-4000-8000-000000000006.pdf', 'Legacy.pdf');
   perform public.submit_for_review(legacy_sop, array[reviewer], null, 2, null);
   reset role;
   update public.review_requests set deadline_policy = 'calendar-v1' where sop_id = legacy_sop;

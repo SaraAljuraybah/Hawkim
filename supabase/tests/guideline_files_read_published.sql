@@ -4,6 +4,12 @@
 begin;
 set local plpgsql.check_asserts = on;
 
+-- The organization's folder, the first part of every stored file's path (20261116230000): MedCare's, the
+-- first organization (with the owner's rights, so it also works while acting as a signed-in user).
+create function pg_temp.org_folder() returns text
+language sql stable security definer as $$ select o.id::text from public.organizations o order by o.created_at, o.id limit 1 $$;
+grant execute on function pg_temp.org_folder() to public;
+
 create function pg_temp.expect_error(p_sql text, p_state text) returns void
 language plpgsql as $$
 declare v_rejected boolean := false;
@@ -31,7 +37,7 @@ $$;
 -- The test's guideline files this caller can see: '1.pdf' published, '2.pdf' an added version's, '3.pdf' unused.
 create function pg_temp.visible() returns text language sql as $$
   select coalesce(string_agg(right(o.name, 5), ',' order by o.name), '')
-  from storage.objects o where o.bucket_id = 'guideline-files' and o.name like 'files/9a100000-%';
+  from storage.objects o where o.bucket_id = 'guideline-files' and o.name like pg_temp.org_folder() || '/files/9a100000-%';
 $$;
 
 -- People: 1 admin, 2 author, 3 author whose profile has ended (not active).
@@ -46,19 +52,19 @@ insert into public.user_roles (user_id, role) values
   ('9a000000-0000-4000-8000-000000000003', 'author');
 
 insert into public.guideline_versions (name, version, issued_date, effective_date, file_name, storage_path, file_size)
-values ('GF GVP', '98.0', '2026-01-01', '2026-01-02', 'gf98.pdf', 'files/9a100000-0000-4000-8000-000000000001.pdf', 2048);
+values ('GF GVP', '98.0', '2026-01-01', '2026-01-02', 'gf98.pdf', pg_temp.org_folder() || '/files/9a100000-0000-4000-8000-000000000001.pdf', 2048);
 insert into public.guideline_version_drafts (name, version, issued_date, source, file_name, storage_path, file_size, created_by)
-values ('GF GVP', '99.0', '2026-01-01', 'https://www.sfda.gov.sa/gvp', 'gf99.pdf', 'files/9a100000-0000-4000-8000-000000000002.pdf', 2048,
+values ('GF GVP', '99.0', '2026-01-01', 'https://www.sfda.gov.sa/gvp', 'gf99.pdf', pg_temp.org_folder() || '/files/9a100000-0000-4000-8000-000000000002.pdf', 2048,
         '9a000000-0000-4000-8000-000000000001');
 insert into storage.objects (bucket_id, name, owner_id, metadata)
-select 'guideline-files', 'files/9a100000-0000-4000-8000-00000000000' || n || '.pdf', '9a000000-0000-4000-8000-000000000001',
+select 'guideline-files', pg_temp.org_folder() || '/files/9a100000-0000-4000-8000-00000000000' || n || '.pdf', '9a000000-0000-4000-8000-000000000001',
        '{"mimetype": "application/pdf", "size": 2048}'
 from generate_series(1, 3) n;
 -- The published file's path in another bucket (it has no policy for authors). The bucket is created
 -- here, inside the rolled-back transaction, as storage.objects references storage.buckets.
 insert into storage.buckets (id, name) values ('gf-other-bucket', 'gf-other-bucket') on conflict (id) do nothing;
 insert into storage.objects (bucket_id, name, owner_id, metadata)
-values ('gf-other-bucket', 'files/9a100000-0000-4000-8000-000000000001.pdf', '9a000000-0000-4000-8000-000000000001', '{}');
+values ('gf-other-bucket', pg_temp.org_folder() || '/files/9a100000-0000-4000-8000-000000000001.pdf', '9a000000-0000-4000-8000-000000000001', '{}');
 
 do $$
 declare v_removed integer;
@@ -74,10 +80,10 @@ begin
   assert not exists (select 1 from storage.objects where bucket_id = 'gf-other-bucket'), 'author: other bucket';
   -- Still can't upload or remove.
   perform pg_temp.expect_error($q$insert into storage.objects (bucket_id, name, owner_id, metadata)
-    values ('guideline-files', 'files/9a100000-0000-4000-8000-000000000009.pdf', '9a000000-0000-4000-8000-000000000002', '{}')$q$, '42501');
+    values ('guideline-files', pg_temp.org_folder() || '/files/9a100000-0000-4000-8000-000000000009.pdf', '9a000000-0000-4000-8000-000000000002', '{}')$q$, '42501');
   -- Storage itself may refuse any direct SQL delete (storage.protect_delete); either way nothing goes.
   begin
-    delete from storage.objects where bucket_id = 'guideline-files' and name like 'files/9a100000-%';
+    delete from storage.objects where bucket_id = 'guideline-files' and name like pg_temp.org_folder() || '/files/9a100000-%';
     get diagnostics v_removed = row_count;
     assert v_removed = 0, 'author removed ' || v_removed || ' guideline file(s)';
   exception when insufficient_privilege then null;
@@ -97,8 +103,8 @@ begin
   assert pg_temp.visible() = '1.pdf,2.pdf,3.pdf', 'files kept: ' || pg_temp.visible();
 
   -- Once an added version's file belongs to a published version, authors can read it too.
-  update public.guideline_version_drafts set storage_path = 'files/9a100000-0000-4000-8000-000000000004.pdf' where version = '99.0';
-  update public.guideline_versions set storage_path = 'files/9a100000-0000-4000-8000-000000000002.pdf', file_size = 2048 where version = '98.0';
+  update public.guideline_version_drafts set storage_path = pg_temp.org_folder() || '/files/9a100000-0000-4000-8000-000000000004.pdf' where version = '99.0';
+  update public.guideline_versions set storage_path = pg_temp.org_folder() || '/files/9a100000-0000-4000-8000-000000000002.pdf', file_size = 2048 where version = '98.0';
   perform pg_temp.act_as('9a000000-0000-4000-8000-000000000002');
   assert pg_temp.visible() = '2.pdf', 'author after publishing: ' || pg_temp.visible();
 

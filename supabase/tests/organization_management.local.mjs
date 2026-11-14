@@ -52,7 +52,8 @@ const pdf = () => new Blob([`%PDF-1.4\n% ${randomUUID()}\n%%EOF\n`], { type: 'ap
 // Added through add_user by the first Admin, as Add Staff and Add Admin do (local_people.mjs).
 const person = (key, department, roles, position = 'Specialist') => people.person(key, department, roles, position)
 async function upload(user, sopId) {
-  const path = `${user.id}/${randomUUID()}.pdf`
+  // In their organization's folder (20261116230000).
+  const path = `${user.organizationId}/${user.id}/${randomUUID()}.pdf`
   await ok(user.client.storage.from('sop-files').upload(path, pdf(), { contentType: 'application/pdf', upsert: false }), 'upload file')
   if (sopId) await ok(user.client.rpc('upload_sop_version', { p_sop_id: sopId, p_storage_path: path, p_file_name: 'Next.pdf' }), 'upload_sop_version')
   return path
@@ -63,7 +64,7 @@ async function createSop(user, department, title) {
   return { id, path }
 }
 async function stored(path) {
-  const folder = path.split('/')[0]
+  const folder = path.slice(0, path.lastIndexOf('/'))
   const files = await ok(service.storage.from('sop-files').list(folder, { limit: 1000 }), 'list files')
   return files.some((file) => `${folder}/${file.name}` === path)
 }

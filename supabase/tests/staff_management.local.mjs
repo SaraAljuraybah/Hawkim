@@ -74,7 +74,8 @@ function psql(sql) {
 const person = (key, department, roles, position = 'Specialist') => people.person(key, department, roles, position)
 const pdf = () => new Blob([`%PDF-1.4\n% ${randomUUID()}\n%%EOF\n`], { type: 'application/pdf' })
 async function createSop(user, title) {
-  const path = `${user.id}/${randomUUID()}.pdf`
+  // In their organization's folder (20261116230000).
+  const path = `${user.organizationId}/${user.id}/${randomUUID()}.pdf`
   await ok(user.client.storage.from('sop-files').upload(path, pdf(), { contentType: 'application/pdf', upsert: false }), 'upload file')
   return ok(user.client.rpc('create_sop', { p_title: title, p_description: '', p_department_id: user.department, p_storage_path: path, p_file_name: 'Procedure.pdf' }), 'create_sop')
 }

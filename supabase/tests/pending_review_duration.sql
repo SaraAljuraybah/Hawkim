@@ -8,6 +8,12 @@
 begin;
 set local plpgsql.check_asserts = on;
 
+-- The organization's folder, the first part of every stored file's path (20261116230000): MedCare's, the
+-- first organization (with the owner's rights, so it also works while acting as a signed-in user).
+create function pg_temp.org_folder() returns text
+language sql stable security definer as $$ select o.id::text from public.organizations o order by o.created_at, o.id limit 1 $$;
+grant execute on function pg_temp.org_folder() to public;
+
 create function pg_temp.expect_error(p_sql text, p_hint text) returns void
 language plpgsql as $$
 declare
@@ -48,7 +54,7 @@ insert into public.user_roles (user_id, role) values ('b8000000-0000-4000-8000-0
 insert into public.user_roles (user_id, role)
 select ('b8000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid, 'reviewer'::public.app_role from generate_series(3, 7) n;
 insert into storage.objects (bucket_id, name, owner_id, metadata)
-select 'sop-files', 'b8000000-0000-4000-8000-000000000001/b8100000-0000-4000-8000-' || lpad(n::text, 12, '0') || '.pdf',
+select 'sop-files', pg_temp.org_folder() || '/b8000000-0000-4000-8000-000000000001/b8100000-0000-4000-8000-' || lpad(n::text, 12, '0') || '.pdf',
        'b8000000-0000-4000-8000-000000000001', '{"mimetype":"application/pdf","size":123}'::jsonb
 from generate_series(1, 8) n;
 
@@ -69,7 +75,7 @@ begin
   set local role authenticated;
   perform set_config('request.jwt.claim.sub', author::text, true);
   file := file + 1;
-  sop := public.create_sop('Durations', 'Description', 'prd-home', author || '/b8100000-0000-4000-8000-' || lpad(file::text, 12, '0') || '.pdf', 'Procedure.pdf');
+  sop := public.create_sop('Durations', 'Description', 'prd-home', pg_temp.org_folder() || '/' || author || '/b8100000-0000-4000-8000-' || lpad(file::text, 12, '0') || '.pdf', 'Procedure.pdf');
   reset role;
   insert into public.sop_co_authors (sop_id, user_id, added_by) values (sop, coauthor, author);
   set local role authenticated;
@@ -184,13 +190,13 @@ begin
   update public.review_rounds set requested_at = requested_at - interval '1 minute' where id = round1;
   set local role authenticated;
   file := file + 1;
-  perform public.upload_sop_version(sop, author || '/b8100000-0000-4000-8000-' || lpad(file::text, 12, '0') || '.pdf', 'Procedure v2.pdf');
+  perform public.upload_sop_version(sop, pg_temp.org_folder() || '/' || author || '/b8100000-0000-4000-8000-' || lpad(file::text, 12, '0') || '.pdf', 'Procedure v2.pdf');
   perform public.submit_for_review(sop, array[r3], null, 3, null);
   perform pg_temp.expect_error(format('select public.change_review_deadline(%L, 6)', pg_temp.request_of(round1, r3)), 'review-deadline-unavailable');
 
   -- ---------- Refused: a Draft (nobody left, 20261114120100_review_back_to_draft.sql) ----------
   file := file + 1;
-  sop := public.create_sop('Draft again', 'Description', 'prd-home', author || '/b8100000-0000-4000-8000-' || lpad(file::text, 12, '0') || '.pdf', 'Procedure.pdf');
+  sop := public.create_sop('Draft again', 'Description', 'prd-home', pg_temp.org_folder() || '/' || author || '/b8100000-0000-4000-8000-' || lpad(file::text, 12, '0') || '.pdf', 'Procedure.pdf');
   round1 := public.submit_for_review(sop, array[r1], null, 3, null);
   perform public.remove_reviewer(pg_temp.request_of(round1, r1), 'Not needed');
   assert (select s.status from public.sops s where s.id = sop) = 'draft', 'Back to Draft';

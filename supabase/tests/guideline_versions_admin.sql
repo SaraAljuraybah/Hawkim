@@ -5,6 +5,12 @@
 begin;
 set local plpgsql.check_asserts = on;
 
+-- The organization's folder, the first part of every stored file's path (20261116230000): MedCare's, the
+-- first organization (with the owner's rights, so it also works while acting as a signed-in user).
+create function pg_temp.org_folder() returns text
+language sql stable security definer as $$ select o.id::text from public.organizations o order by o.created_at, o.id limit 1 $$;
+grant execute on function pg_temp.org_folder() to public;
+
 create function pg_temp.expect_error(p_sql text, p_state text, p_hint text default null) returns void
 language plpgsql as $$
 declare v_rejected boolean := false; v_hint text;
@@ -36,7 +42,7 @@ $$;
 -- A file "uploaded" by p_owner, as Storage records it. Returns its path.
 create function pg_temp.upload(p_owner uuid, p_type text default 'application/pdf', p_size bigint default 2048) returns text
 language plpgsql as $$
-declare v_path text := 'files/' || gen_random_uuid() || '.pdf';
+declare v_path text := pg_temp.org_folder() || '/files/' || gen_random_uuid() || '.pdf';
 begin
   insert into storage.objects (bucket_id, name, owner_id, metadata)
   values ('guideline-files', v_path, p_owner::text, jsonb_build_object('mimetype', p_type, 'size', p_size));
@@ -160,7 +166,7 @@ begin
   perform pg_temp.expect_error(format('select public.create_guideline_draft(''T'', ''902.0'', %L, %L, %L, ''a.pdf'')', today, 'https://www.sfda.gov.sa/' || repeat('x', 280), v_other_path), '23514', 'source-invalid');
   perform pg_temp.expect_error(format('select public.create_guideline_draft(''T'', ''902.0'', %L, null, %L, ''a.pdf'')', today, v_other_path), '23514', 'source-invalid');
   perform pg_temp.expect_error(format('select public.create_guideline_draft(''T'', ''902.0'', %L, %L, %L, ''a.docx'')', today, sfda, v_other_path), '23514', 'file-not-pdf');
-  perform pg_temp.expect_error(format('select public.create_guideline_draft(''T'', ''902.0'', %L, %L, %L, ''a.pdf'')', today, sfda, 'files/' || gen_random_uuid() || '.pdf'), 'P0002', 'file-missing');
+  perform pg_temp.expect_error(format('select public.create_guideline_draft(''T'', ''902.0'', %L, %L, %L, ''a.pdf'')', today, sfda, pg_temp.org_folder() || '/files/' || gen_random_uuid() || '.pdf'), 'P0002', 'file-missing');
   perform pg_temp.expect_error(format('select public.create_guideline_draft(''T'', ''902.0'', %L, %L, %L, ''a.pdf'')', today, sfda, 'other/' || gen_random_uuid() || '.pdf'), 'P0002', 'file-missing');
   -- A file outside files/, even one the admin owns.
   perform pg_temp.as_owner();
@@ -268,7 +274,7 @@ begin
   perform pg_temp.expect_error(format('select public.attach_guideline_file(%L, %L)', previous, v_other_path), '23505', 'file-exists');
   -- A file in use, missing, or not a PDF.
   perform pg_temp.expect_error(format('select public.attach_guideline_file(%L, %L)', current_id, v_path), '23505', 'file-in-use');
-  perform pg_temp.expect_error(format('select public.attach_guideline_file(%L, %L)', current_id, 'files/' || gen_random_uuid() || '.pdf'), 'P0002', 'file-missing');
+  perform pg_temp.expect_error(format('select public.attach_guideline_file(%L, %L)', current_id, pg_temp.org_folder() || '/files/' || gen_random_uuid() || '.pdf'), 'P0002', 'file-missing');
   perform pg_temp.expect_error(format('select public.attach_guideline_file(%L, %L)', v_draft, v_other_path), 'P0002');
   perform pg_temp.expect_error(format('select public.attach_guideline_file(%L, %L)', gen_random_uuid(), v_other_path), 'P0002');
   -- The current version too.
@@ -283,14 +289,14 @@ begin
   -- Since 20261108140000 active users may read the PDFs of published versions, and nothing else.
   assert not exists (select 1 from storage.objects o where o.bucket_id = 'guideline-files' and not public.is_published_guideline_path(o.name)),
     'Others read no unpublished guideline file';
-  perform pg_temp.expect_error(format('insert into storage.objects (bucket_id, name, owner_id) values (''guideline-files'', %L, %L)', 'files/' || gen_random_uuid() || '.pdf', author), '42501');
+  perform pg_temp.expect_error(format('insert into storage.objects (bucket_id, name, owner_id) values (''guideline-files'', %L, %L)', pg_temp.org_folder() || '/files/' || gen_random_uuid() || '.pdf', author), '42501');
   perform pg_temp.act_as(admin1);
-  insert into storage.objects (bucket_id, name, owner_id) values ('guideline-files', 'files/' || gen_random_uuid() || '.pdf', admin1::text);
+  insert into storage.objects (bucket_id, name, owner_id) values ('guideline-files', pg_temp.org_folder() || '/files/' || gen_random_uuid() || '.pdf', admin1::text);
   perform pg_temp.expect_error(format('insert into storage.objects (bucket_id, name, owner_id) values (''guideline-files'', %L, %L)', 'other/' || gen_random_uuid() || '.pdf', admin1), '42501');
-  perform pg_temp.expect_error(format('insert into storage.objects (bucket_id, name, owner_id) values (''guideline-files'', %L, %L)', 'files/x.docx', admin1), '42501');
+  perform pg_temp.expect_error(format('insert into storage.objects (bucket_id, name, owner_id) values (''guideline-files'', %L, %L)', pg_temp.org_folder() || '/files/x.docx', admin1), '42501');
   -- A path a version uses can't be uploaded again.
   perform pg_temp.expect_error(format('insert into storage.objects (bucket_id, name, owner_id) values (''guideline-files'', %L, %L)', v_path, admin1), '42501');
-  assert public.is_unused_guideline_path('files/' || gen_random_uuid() || '.pdf') and not public.is_unused_guideline_path(v_path), 'is_unused_guideline_path';
+  assert public.is_unused_guideline_path(pg_temp.org_folder() || '/files/' || gen_random_uuid() || '.pdf') and not public.is_unused_guideline_path(v_path), 'is_unused_guideline_path';
   -- Removing: only a file no version uses. (A local Supabase may refuse any SQL delete from storage.)
   begin
     delete from storage.objects o where o.bucket_id = 'guideline-files' and o.name = v_path;

@@ -4,6 +4,12 @@
 begin;
 set local plpgsql.check_asserts = on;
 
+-- The organization's folder, the first part of every stored file's path (20261116230000): MedCare's, the
+-- first organization (with the owner's rights, so it also works while acting as a signed-in user).
+create function pg_temp.org_folder() returns text
+language sql stable security definer as $$ select o.id::text from public.organizations o order by o.created_at, o.id limit 1 $$;
+grant execute on function pg_temp.org_folder() to public;
+
 create function pg_temp.expect_error(p_sql text, p_state text) returns void
 language plpgsql as $$
 declare v_rejected boolean := false;
@@ -41,7 +47,7 @@ $$;
 -- Their files, e.g. 'A3.pdf'.
 create function pg_temp.files() returns text language sql as $$
   select coalesce(string_agg(right(o.name, 6), ',' order by o.name), '')
-  from storage.objects o where o.bucket_id = 'sop-files' and o.name like '9b000000-0000-4000-8000-000000000002/%';
+  from storage.objects o where o.bucket_id = 'sop-files' and o.name like pg_temp.org_folder() || '/9b000000-0000-4000-8000-000000000002/%';
 $$;
 
 -- People: 1 admin (home department), 2 author in the other department (writes every test SOP),
@@ -67,21 +73,21 @@ from generate_series(1, 6) n;
 -- version 3 ('A3.pdf'). A1 is an older version of a published SOP: not deleted, but not the published one.
 insert into public.sop_versions (sop_id, version, file_name, file_type, storage_path, file_size, uploaded_by)
 select ('9b100000-0000-4000-8000-00000000000' || n)::uuid, 1, 'ar.pdf', 'pdf',
-       '9b000000-0000-4000-8000-000000000002/' || chr(64 + n) || '1.pdf', 2048, '9b000000-0000-4000-8000-000000000002'
+       pg_temp.org_folder() || '/9b000000-0000-4000-8000-000000000002/' || chr(64 + n) || '1.pdf', 2048, '9b000000-0000-4000-8000-000000000002'
 from generate_series(1, 6) n;
 insert into public.sop_versions (sop_id, version, file_name, file_type, storage_path, file_size, uploaded_by, deleted_at, deleted_by)
-values ('9b100000-0000-4000-8000-000000000001', 2, 'ar.pdf', 'pdf', '9b000000-0000-4000-8000-000000000002/A2.pdf', 2048,
+values ('9b100000-0000-4000-8000-000000000001', 2, 'ar.pdf', 'pdf', pg_temp.org_folder() || '/9b000000-0000-4000-8000-000000000002/A2.pdf', 2048,
         '9b000000-0000-4000-8000-000000000002', now(), '9b000000-0000-4000-8000-000000000002');
 insert into public.sop_versions (sop_id, version, file_name, file_type, storage_path, file_size, uploaded_by)
-values ('9b100000-0000-4000-8000-000000000001', 3, 'ar.pdf', 'pdf', '9b000000-0000-4000-8000-000000000002/A3.pdf', 2048,
+values ('9b100000-0000-4000-8000-000000000001', 3, 'ar.pdf', 'pdf', pg_temp.org_folder() || '/9b000000-0000-4000-8000-000000000002/A3.pdf', 2048,
         '9b000000-0000-4000-8000-000000000002');
 insert into storage.objects (bucket_id, name, owner_id, metadata)
 select 'sop-files', v.storage_path, '9b000000-0000-4000-8000-000000000002', '{"mimetype": "application/pdf", "size": 2048}'
-from public.sop_versions v where v.storage_path like '9b000000-0000-4000-8000-000000000002/%';
+from public.sop_versions v where v.storage_path like pg_temp.org_folder() || '/9b000000-0000-4000-8000-000000000002/%';
 -- A's published file's path in another bucket.
 insert into storage.buckets (id, name) values ('ar-other-bucket', 'ar-other-bucket') on conflict (id) do nothing;
 insert into storage.objects (bucket_id, name, owner_id, metadata)
-values ('ar-other-bucket', '9b000000-0000-4000-8000-000000000002/A3.pdf', '9b000000-0000-4000-8000-000000000002', '{}');
+values ('ar-other-bucket', pg_temp.org_folder() || '/9b000000-0000-4000-8000-000000000002/A3.pdf', '9b000000-0000-4000-8000-000000000002', '{}');
 -- What stays private to A's department and its people: the timeline, a co-author and a comment.
 insert into public.timeline_events (sop_id, type, actor_id, version)
 values ('9b100000-0000-4000-8000-000000000001', 'version-uploaded', '9b000000-0000-4000-8000-000000000002', 3);
@@ -110,7 +116,7 @@ begin
   perform pg_temp.expect_error($q$update public.sops set title = 'AR Z' where id = '9b100000-0000-4000-8000-000000000001'$q$, '42501');
   -- Storage itself may refuse any direct SQL delete (storage.protect_delete); either way nothing goes.
   begin
-    delete from storage.objects where bucket_id = 'sop-files' and name like '9b000000-0000-4000-8000-000000000002/%';
+    delete from storage.objects where bucket_id = 'sop-files' and name like pg_temp.org_folder() || '/9b000000-0000-4000-8000-000000000002/%';
     get diagnostics v_removed = row_count;
     assert v_removed = 0, 'admin removed ' || v_removed || ' SOP file(s)';
   exception when insufficient_privilege then null;
@@ -132,7 +138,7 @@ begin
   -- A published SOP keeps its published version: no new version can be added and none deleted, so
   -- its status stays 'published' and current_version stays 3.
   perform pg_temp.expect_error($q$select public.upload_sop_version('9b100000-0000-4000-8000-000000000001',
-    '9b000000-0000-4000-8000-000000000002/A4.pdf', 'ar.pdf')$q$, '23514');
+    pg_temp.org_folder() || '/9b000000-0000-4000-8000-000000000002/A4.pdf', 'ar.pdf')$q$, '23514');
   -- Deleting runs through the delete-sop-version Edge Function (service role), for the author.
   perform pg_temp.as_owner();
   perform pg_temp.expect_error($q$select public.delete_sop_version('9b000000-0000-4000-8000-000000000002',
