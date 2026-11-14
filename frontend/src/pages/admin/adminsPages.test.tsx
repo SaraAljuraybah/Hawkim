@@ -129,7 +129,7 @@ describe('the Admins list', () => {
 
   it('explains the Super Admin badge in a tooltip it is described by, reachable with the keyboard', () => {
     const text = adminsEn.superAdminTooltip
-    expect(text).toBe("The organization's main admin, first given to the person who requested Hawkim. Only they can edit the organization profile, delete admins and pass this role to another admin.")
+    expect(text).toBe("The organization's main admin, first given to the person who requested Hawkim. Only they can edit the organization profile, delete admins and hand over this permission to another admin.")
     const html = at('/admin/admins')
     // In the table and in the cards (phones): the badge is focusable and linked to the tooltip by aria-describedby.
     for (const part of [row(html, 'Amal Fahad'), html.slice(html.indexOf('<ul aria-label='))]) {
