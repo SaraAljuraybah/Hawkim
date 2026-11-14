@@ -11,6 +11,15 @@ export const tableStyles = {
   wide: 'hidden md:block',
   /** The stacked cards: below md. */
   cards: 'divide-y divide-beige md:hidden',
+  /** The compliance report's tables: the table from sm up and when printed, the cards below sm (not printed). */
+  wideFromSm: 'hidden sm:block print:block',
+  cardsBelowSm: 'divide-y divide-beige sm:hidden print:hidden',
+  /** The report table's scrolling: inside its frame on screen, never when printed (it wraps instead). */
+  wideScroll: 'overflow-x-auto print:overflow-visible',
+  /** Printed, the header loses its maroon (index.css): a rule under it keeps it apart from the rows. */
+  printHeadRow: 'print:border-b',
+  /** A printed row stays on one page. */
+  printRow: 'break-inside-avoid',
   table: 'w-full text-left text-sm',
   head: 'text-offwhite [&_th]:bg-maroon',
   headCell: 'px-5 py-3 font-semibold first:rounded-tl-xl last:rounded-tr-xl',
