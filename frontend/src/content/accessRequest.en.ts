@@ -7,8 +7,9 @@ export const requestHawkimEn: RequestHawkimContent = {
   text: 'Tell us about your organization. Our team will review your request and reply by email.',
   fields: {
     organization: 'Organization name',
-    contactName: 'Contact person name',
-    email: 'Contact person email',
+    // In the Contact person group, whose legend gives the context.
+    contactName: 'Name',
+    email: 'Email',
     phone: 'Phone',
     phoneHint: 'Saudi mobile number: +9665XXXXXXXX',
     organizationEmail: 'Organization email',
@@ -34,6 +35,12 @@ export const requestHawkimEn: RequestHawkimContent = {
   backLink: { label: 'Back to Home', href: '/' },
   errors: {
     required: 'This field is required.',
+    /** "Required" for the Contact person group's fields, which are labelled only Name, Email and Phone. */
+    contactRequired: {
+      contactName: "Enter the contact person's name.",
+      email: "Enter the contact person's email.",
+      phone: "Enter the contact person's phone number.",
+    },
     email: 'Enter a valid email address, like you@organization.com.',
     phone: 'Enter the 8 digits after +9665.',
     approxUsers: 'Enter a whole number from 1 to 100000.',

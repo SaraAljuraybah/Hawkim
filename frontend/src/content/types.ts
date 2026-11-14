@@ -1981,6 +1981,8 @@ export interface RequestHawkimContent {
   backLink: LinkContent
   errors: {
     required: string
+    /** "Required" for the Contact person group's fields (labelled only Name, Email and Phone). */
+    contactRequired: { contactName: string; email: string; phone: string }
     email: string
     phone: string
     approxUsers: string

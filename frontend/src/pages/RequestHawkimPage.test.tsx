@@ -30,8 +30,8 @@ describe('Request Hawkim page', () => {
 
   it('marks the required fields like the other forms, and labels the message (Optional) with a counter', () => {
     const marks = html.match(/<span[^>]*text-status-rejected-fg[^>]*>\*<\/span>/g) ?? []
-    // Contact person name, Contact person email, Phone, Organization name, Organization email, the Address group's title,
-    // Description and Approximate number of users (no Position).
+    // Organization name, Organization email, the Address group's title, Description, Approximate number of users,
+    // and the contact person's Name, Email and Phone (no Position).
     expect(marks).toHaveLength(8)
     expect(html).toContain('>Message (Optional)<')
     expect(html).not.toContain('>Optional.<')
@@ -48,7 +48,8 @@ describe('Request Hawkim page', () => {
       'organization', 'organizationEmail', 'organizationAddress', 'organizationMapsUrl',
       'organizationWebsite', 'organizationDescription', 'approxUsers', 'contactName', 'email', 'phone', 'message', 'website',
     ])
-    expect(html).toContain('>Contact person email<')
+    // The Contact person group's fields are just Name, Email and Phone: its legend gives the context.
+    expect(html).not.toContain('Contact person email')
     expect(html).toContain('>Website (Optional)<')
     expect(html).toContain('0 / 1000')
     // The organization email and the description are required; the website and the two Address boxes are not.
@@ -90,10 +91,27 @@ describe('Request Hawkim page', () => {
   })
 
   it('keeps the required asterisks', () => {
-    for (const label of ['Organization name', 'Organization email', 'Description', 'Approximate number of users', 'Contact person name', 'Contact person email', 'Phone']) {
+    for (const label of ['Organization name', 'Organization email', 'Description', 'Approximate number of users', 'Name', 'Email', 'Phone']) {
       expect(html).toContain(`>${label}<span aria-hidden="true" class="ml-0.5 text-status-rejected-fg">*</span>`)
     }
     expect(html).toMatch(/>Address<span aria-hidden="true" class="ml-0.5 text-status-rejected-fg">\*<\/span><\/legend>/)
+  })
+
+  it('labels the contact person\'s fields Name, Email and Phone inside the Contact person group, which names them for screen readers', () => {
+    // A <fieldset> with its <legend>: screen readers announce "Contact person" with each field in it.
+    const group = html.match(/<fieldset class="[^"]*"><legend class="[^"]*">Contact person<\/legend>(.*?)<\/fieldset>/)![1]
+    for (const [name, label] of [['contactName', 'Name'], ['email', 'Email'], ['phone', 'Phone']]) {
+      const id = group.match(new RegExp(`<input id="([^"]+)"[^>]*name="${name}"`))![1]
+      expect(group).toMatch(new RegExp(`<label for="${id}"[^>]*>${label}<span`))
+    }
+  })
+
+  it('names the contact person in the "required" errors of those fields', () => {
+    expect(requestHawkimEn.errors.contactRequired).toEqual({
+      contactName: "Enter the contact person's name.",
+      email: "Enter the contact person's email.",
+      phone: "Enter the contact person's phone number.",
+    })
   })
 
   it('keeps the hidden field for bots apart from the real Website', () => {

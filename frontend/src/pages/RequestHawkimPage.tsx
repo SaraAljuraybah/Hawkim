@@ -20,6 +20,7 @@ import {
   type RequestErrorKey,
   type RequestField,
   type RequestValues,
+  type FieldProblem,
 } from '../lib/accessRequest'
 import { missingAddressAndMapsUrl, ORGANIZATION_DETAIL_MAX } from '../lib/organizationDetails'
 import { submitAccessRequest, type SubmitFailure } from '../services/accessRequests'
@@ -33,6 +34,14 @@ const EMPTY: RequestValues = {
   approxUsers: '', message: '',
 }
 const IN_ADDRESS_GROUP: readonly RequestField[] = ['organizationAddress', 'organizationMapsUrl']
+/**
+ * A field's error. The Contact person group's fields are labelled only Name, Email and Phone, so their
+ * "required" names the contact person; every other message reads the same for any field.
+ */
+function errorText(field: RequestField, problem: FieldProblem): string {
+  if (problem === 'required' && (field === 'contactName' || field === 'email' || field === 'phone')) return content.errors.contactRequired[field]
+  return content.errors[problem]
+}
 
 /**
  * "/request-hawkim": the public Request Hawkim form. The access-requests Edge Function stores the
@@ -57,7 +66,7 @@ export function RequestHawkimPage() {
 
   const messageFor = (field: RequestField, next: RequestValues) => {
     const problem = liveProblem(field, next)
-    return problem && content.errors[problem]
+    return problem && errorText(field, problem)
   }
   // While a field's error shows, it's re-checked as they type: it clears once the value is valid (or empty:
   // "required" waits for Send Request). Otherwise typing shows nothing until they leave the field.
@@ -89,7 +98,7 @@ export function RequestHawkimPage() {
       // Render the messages before moving focus, so screen readers announce the first one. The Address group's
       // "required" has its own message, and focus goes to its first box.
       flushSync(() => setErrors(Object.fromEntries(REQUEST_ERROR_ORDER.map((key) => [
-        key, key === 'addressGroup' ? problems[key] && content.errors.addressGroup : problems[key] && content.errors[problems[key]],
+        key, key === 'addressGroup' ? problems[key] && content.errors.addressGroup : problems[key] && errorText(key, problems[key]),
       ]))))
       refs.current[first === 'addressGroup' ? 'organizationAddress' : first]?.focus()
       return
