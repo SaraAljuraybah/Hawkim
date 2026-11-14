@@ -51,7 +51,7 @@ const SOP_COLUMNS = `id, code, title, description, department_id, author_id, sta
       review_duration_days, accepted_at, review_due_date, review_due_at,${REQUEST_POLICY_COLUMN} decided_at, decline_reason, comment_id, withdrawn_at, expired_at,
       removed_at, removed_by, removal_reason, status_before_removal)),
   sop_comments!sop_comments_sop_id_fkey (id, version, author_id, role, text, review_round_id, review_request_id, created_at),
-  compliance_checks!compliance_checks_sop_id_fkey (id, sop_version, status, engine, triggered_by, started_at, completed_at, steps_checked:metadata->steps_checked,
+  compliance_checks!compliance_checks_sop_id_fkey (id, sop_version, status, engine, triggered_by, started_at, completed_at,
     guideline_versions!compliance_checks_guideline_version_id_fkey (name, version),
     compliance_findings!compliance_findings_check_id_fkey (id, result, justification, sop_reference, evidence, recommended_action, position,
       guideline_requirements!compliance_findings_requirement_id_fkey (code, module, section, section_title, short_title, page, summary)))`
@@ -138,8 +138,6 @@ export interface ComplianceCheckRow {
   triggered_by: string
   started_at: string
   completed_at: string | null
-  /** Only this value of the check's metadata (the rest is the service's audit copy): how many SOP procedures it checked. */
-  steps_checked?: unknown
   guideline_versions: { name: string; version: string }
   compliance_findings: {
     id: string
@@ -300,6 +298,20 @@ export function toSopEvidence(evidence: unknown): Finding['sopEvidence'] {
   return items.length ? items : undefined
 }
 
+/**
+ * The SOP procedures a finding's evidence is based on (`{ steps: [{ chunk_id, … }] }`), by chunk id, once
+ * each, in the steps' order; undefined when there are none (sample results) or the evidence is malformed.
+ */
+export function toProcedureIds(evidence: unknown): Finding['procedureIds'] {
+  const steps = evidence && typeof evidence === 'object' ? (evidence as { steps?: unknown }).steps : undefined
+  if (!Array.isArray(steps)) return undefined
+  const ids = steps.flatMap((step: unknown) => {
+    const id = step && typeof step === 'object' ? (step as { chunk_id?: unknown }).chunk_id : undefined
+    return typeof id === 'string' && id.trim() ? [id.trim()] : []
+  })
+  return ids.length ? [...new Set(ids)] : undefined
+}
+
 function toCheck(sopId: string, row: ComplianceCheckRow): ComplianceCheck {
   return {
     id: row.id,
@@ -309,16 +321,13 @@ function toCheck(sopId: string, row: ComplianceCheckRow): ComplianceCheck {
     engine: row.engine,
     startedAt: row.started_at,
     ...(row.completed_at ? { completedAt: row.completed_at } : {}),
-    // Recorded by the compliance service only; sample checks have none.
-    ...(typeof row.steps_checked === 'number' && Number.isInteger(row.steps_checked) && row.steps_checked > 0
-      ? { stepsChecked: row.steps_checked }
-      : {}),
     triggeredById: row.triggered_by,
     guideline: { name: row.guideline_versions.name, version: row.guideline_versions.version },
     findings: [...row.compliance_findings]
       .sort((a, b) => a.position - b.position)
       .map((item) => {
         const sopEvidence = toSopEvidence(item.evidence)
+        const procedureIds = toProcedureIds(item.evidence)
         return {
           id: item.id,
           // The report finds the requirement by its code (R1…) in the guideline version.
@@ -327,6 +336,7 @@ function toCheck(sopId: string, row: ComplianceCheckRow): ComplianceCheck {
           justification: item.justification,
           ...(item.sop_reference ? { sopReference: item.sop_reference } : {}),
           ...(sopEvidence ? { sopEvidence } : {}),
+          ...(procedureIds ? { procedureIds } : {}),
           ...(item.recommended_action ? { recommendedAction: item.recommended_action } : {}),
           requirement: {
             id: item.guideline_requirements.code,

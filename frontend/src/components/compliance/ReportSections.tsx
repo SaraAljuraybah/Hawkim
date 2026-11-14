@@ -1,11 +1,16 @@
-import type { CSSProperties, MouseEvent, ReactNode } from 'react'
+import { Fragment, useId, useState, type CSSProperties, type MouseEvent, type ReactNode } from 'react'
 import type { ComplianceContent } from '../../content/types'
-import type { ComplianceCheck, ComplianceResult } from '../../data/mock/types'
+import type { CheckProcedure, ComplianceCheck, ComplianceResult } from '../../data/mock/types'
+import type { CheckProceduresState } from '../../hooks/useCheckProcedures'
 import { complianceScore, countResults, RESULT_ORDER, type NumberedFinding } from '../../lib/compliance'
+import { Button } from '../ui/Button'
+import { RequirementsTable } from '../ui/RequirementsTable'
+import { tableStyles } from '../ui/tableStyles'
 import { ComplianceBadge } from './ComplianceBadge'
 import { FindingText } from './FindingText'
 import { requirementLines, sopReferenceLines, sopSectionLabel, withoutContextLabel } from './findingDetails'
 import { overviewCells } from './overviewCells'
+import { assessedRequirements, excerpt, findingsOfProcedure, findingsOfRequirement } from './reportTables'
 import { useReportRequirement } from './reportRequirements'
 
 /** Indicator colours per result (the darker status tokens, so they stand out on white). */
@@ -122,20 +127,217 @@ export function ExecutiveSummary({ check, content }: { check: ComplianceCheck; c
   )
 }
 
-// ---------- c) Requirements overview ----------
+// ---------- Links to findings (Requirements, Procedures, Findings Overview) ----------
 
-export function RequirementsOverview({
+/** Shows the finding (switching the filter to All if needed) and moves focus to it. */
+type JumpTo = (event: MouseEvent<HTMLAnchorElement>, number: string) => void
+
+const FINDING_LINK = 'rounded-sm font-semibold text-maroon underline underline-offset-2 hover:text-maroon-secondary'
+
+/** One finding's jump link: its number, going to its card further down. */
+function FindingLink({ finding, onJump }: { finding: NumberedFinding; onJump: JumpTo }) {
+  return (
+    <a href={`#finding-${finding.number}`} onClick={(event) => onJump(event, finding.number)} className={FINDING_LINK}>
+      {finding.number}
+    </a>
+  )
+}
+
+/** Findings' jump links, separated (e.g. "F-01, F-03"); `none` when there are none. */
+function FindingLinks({ findings, separator, none, onJump }: { findings: NumberedFinding[]; separator: string; none: string; onJump: JumpTo }) {
+  if (findings.length === 0) return <span className="text-text-gray">{none}</span>
+  return (
+    <>
+      {findings.map((finding, index) => (
+        <Fragment key={finding.id}>
+          {index > 0 && separator}
+          <FindingLink finding={finding} onJump={onJump} />
+        </Fragment>
+      ))}
+    </>
+  )
+}
+
+// ---------- c) Requirements ----------
+
+/**
+ * The GVP requirement passages the check assessed: each requirement with at least one finding, once
+ * (assessedRequirements), in the GVP version page's table (ID, Module, Section, Title, Page, Summary)
+ * with a Findings column of jump links.
+ */
+export function AssessedRequirements({
+  findings,
+  content,
+  onJump,
+}: {
+  findings: NumberedFinding[]
+  content: ComplianceContent
+  onJump: JumpTo
+}) {
+  const text = content.report.requirements
+  const getRequirement = useReportRequirement()
+  const requirements = assessedRequirements(findings, getRequirement).map((requirement) => ({
+    ...requirement,
+    // As on the finding cards: without the "[Context: …]" label.
+    summary: withoutContextLabel(requirement.summary),
+  }))
+  return (
+    <RequirementsTable
+      requirements={requirements}
+      labels={text}
+      layout="report"
+      extraColumn={{
+        header: text.findings,
+        cardLabel: text.findingsCard,
+        cell: (requirement) => (
+          <FindingLinks findings={findingsOfRequirement(findings, requirement.id)} separator={text.linkSeparator} none={text.none} onJump={onJump} />
+        ),
+      }}
+    />
+  )
+}
+
+// ---------- d) Procedures ----------
+
+/** A procedure's text: its excerpt with "Show more" when it's long (printed in full). */
+function ProcedureText({ procedure, number, content }: { procedure: CheckProcedure; number: number; content: ComplianceContent }) {
+  const text = content.report.procedures
+  const [open, setOpen] = useState(false)
+  const id = useId()
+  const short = excerpt(procedure.text)
+  if (!short.cut) return <FindingText text={procedure.text} className="text-maroon" />
+  return (
+    <div>
+      <div id={id}>
+        {open ? (
+          <FindingText text={procedure.text} className="text-maroon" />
+        ) : (
+          <>
+            <p className="text-maroon print:hidden">{short.text}</p>
+            {/* Printed in full */}
+            <FindingText text={procedure.text} className="hidden text-maroon print:block" />
+          </>
+        )}
+      </div>
+      <button
+        type="button"
+        aria-expanded={open}
+        aria-controls={id}
+        onClick={() => setOpen((value) => !value)}
+        className="mt-1 rounded-sm text-sm font-medium text-maroon underline underline-offset-2 hover:text-maroon-secondary print:hidden"
+      >
+        {open ? text.showLess : text.showMore}
+        <span className="sr-only"> {text.toggleLabel.replace('{number}', String(number))}</span>
+      </button>
+    </div>
+  )
+}
+
+/**
+ * The SOP procedures the compliance service extracted from the checked version's file, in document
+ * order: No., Section (its heading), Page, the text (an excerpt that opens) and the findings based on it
+ * (by chunk id). Instead of the table: a message for sample checks, while they load, when they couldn't
+ * be loaded (with Try Again) and when the check has none recorded.
+ */
+export function ProceduresTable({
+  procedures,
+  sample,
+  findings,
+  content,
+  onJump,
+}: {
+  procedures: CheckProceduresState
+  /** A sample check: no procedures, only a message. */
+  sample: boolean
+  findings: NumberedFinding[]
+  content: ComplianceContent
+  onJump: JumpTo
+}) {
+  const text = content.report.procedures
+  const columns = text.columns
+  if (sample) return <p className="text-sm text-text-gray">{text.sample}</p>
+  if (procedures.state === 'loading') return <p role="status" className="text-sm text-text-gray">{text.loading}</p>
+  if (procedures.state === 'failed') {
+    return (
+      <div role="alert" className="flex flex-wrap items-center gap-3">
+        <p className="text-sm text-status-rejected-fg">{text.failed}</p>
+        <Button variant="secondary" size="sm" className="print:hidden" onClick={procedures.retry}>
+          {text.retry}
+        </Button>
+      </div>
+    )
+  }
+  const rows = procedures.data.procedures
+  if (rows.length === 0) return <p className="text-sm text-text-gray">{text.unavailable}</p>
+  const page = (procedure: CheckProcedure, template: string) =>
+    procedure.page === undefined ? text.none : template.replace('{page}', String(procedure.page))
+  const links = (procedure: CheckProcedure) => (
+    <FindingLinks findings={findingsOfProcedure(findings, procedure)} separator={text.linkSeparator} none={text.none} onJump={onJump} />
+  )
+
+  return (
+    <div className={tableStyles.frame}>
+      <div className={`${tableStyles.wideFromSm} ${tableStyles.wideScroll}`}>
+        <table aria-label={text.tableLabel} className={tableStyles.table}>
+          <thead className={tableStyles.head}>
+            <tr className={tableStyles.printHeadRow}>
+              <th scope="col" className={tableStyles.headCell}>{columns.number}</th>
+              <th scope="col" className={tableStyles.headCell}>{columns.section}</th>
+              <th scope="col" className={tableStyles.headCell}>{columns.page}</th>
+              <th scope="col" className={tableStyles.headCell}>{columns.text}</th>
+              <th scope="col" className={tableStyles.headCell}>{columns.findings}</th>
+            </tr>
+          </thead>
+          <tbody className={`${tableStyles.body} align-top`}>
+            {rows.map((procedure, index) => (
+              <tr key={procedure.chunkId} className={tableStyles.printRow}>
+                <th scope="row" className={`${tableStyles.rowHeader} tabular-nums`}>{index + 1}</th>
+                <td className={`${tableStyles.cell} font-medium text-maroon`}>{procedure.heading ?? text.none}</td>
+                <td className={`${tableStyles.cell} whitespace-nowrap text-text-gray`}>{page(procedure, text.page)}</td>
+                <td className={`${tableStyles.cell} min-w-64`}>
+                  <ProcedureText procedure={procedure} number={index + 1} content={content} />
+                </td>
+                <td className={`${tableStyles.cell} whitespace-nowrap`}>{links(procedure)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Stacked cards below sm */}
+      <ul aria-label={text.tableLabel} className={tableStyles.cardsBelowSm}>
+        {rows.map((procedure, index) => (
+          <li key={procedure.chunkId} className="p-4 text-sm">
+            <p className="font-semibold text-maroon">
+              {index + 1} · {procedure.heading ?? text.none}
+            </p>
+            <p className="mt-0.5 text-text-gray">{page(procedure, text.pageCard)}</p>
+            <div className="mt-1.5">
+              <ProcedureText procedure={procedure} number={index + 1} content={content} />
+            </div>
+            <p className="mt-1.5 text-text-gray">
+              {text.findingsCard} {links(procedure)}
+            </p>
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
+// ---------- e) Findings Overview ----------
+
+export function FindingsOverview({
   findings,
   stepsChecked,
   content,
   onJump,
 }: {
   findings: NumberedFinding[]
-  /** How many SOP procedures the compliance service checked; undefined for sample results. */
+  /** How many SOP procedures the compliance service checked; undefined for sample results (and until known). */
   stepsChecked?: number
   content: ComplianceContent
-  /** Shows the finding (switching the filter to All if needed) and moves focus to it. */
-  onJump: (event: MouseEvent<HTMLAnchorElement>, number: string) => void
+  onJump: JumpTo
 }) {
   const text = content.report.overview
   const getRequirement = useReportRequirement()
@@ -143,77 +345,66 @@ export function RequirementsOverview({
     stepsChecked === undefined
       ? text.procedures.unknown
       : (stepsChecked === 1 ? text.procedures.one : text.procedures.other).replace('{count}', String(stepsChecked))
-  const link = (finding: NumberedFinding) => (
-    <a
-      href={`#finding-${finding.number}`}
-      onClick={(event) => onJump(event, finding.number)}
-      className="rounded-sm font-semibold text-maroon underline underline-offset-2 hover:text-maroon-secondary"
-    >
-      {finding.number}
-    </a>
-  )
 
   return (
     <>
       {/* Right under the section's title */}
       <p className="-mt-3 mb-4 text-sm text-maroon">{procedures}</p>
 
-      {/* Table from sm (and when printed) */}
-      <table className="hidden w-full text-left text-sm sm:table print:table">
-        <thead>
-          <tr className="border-b border-beige text-text-gray">
-            <th scope="col" className="py-2 pr-4 font-medium">
-              {text.findingId}
-            </th>
-            <th scope="col" className="py-2 pr-4 font-medium">
-              {text.requirementTitle}
-            </th>
-            <th scope="col" className="py-2 pr-4 font-medium">
-              {text.requirementReference}
-            </th>
-            <th scope="col" className="py-2 font-medium">
-              {text.result}
-            </th>
-          </tr>
-        </thead>
-        <tbody>
+      <div className={tableStyles.frame}>
+        {/* Table from sm (and when printed) */}
+        <div className={`${tableStyles.wideFromSm} ${tableStyles.wideScroll}`}>
+          <table aria-label={text.tableLabel} className={tableStyles.table}>
+            <thead className={tableStyles.head}>
+              <tr className={tableStyles.printHeadRow}>
+                <th scope="col" className={tableStyles.headCell}>{text.findingId}</th>
+                <th scope="col" className={tableStyles.headCell}>{text.requirementTitle}</th>
+                <th scope="col" className={tableStyles.headCell}>{text.requirementReference}</th>
+                <th scope="col" className={tableStyles.headCell}>{text.result}</th>
+              </tr>
+            </thead>
+            <tbody className={tableStyles.body}>
+              {findings.map((finding) => {
+                const { title, reference } = overviewCells(content.report, finding.requirementId, getRequirement)
+                return (
+                  <tr key={finding.id} className={tableStyles.printRow}>
+                    <th scope="row" className={`${tableStyles.rowHeader} whitespace-nowrap`}>
+                      <FindingLink finding={finding} onJump={onJump} />
+                    </th>
+                    <td className={`${tableStyles.cell} text-maroon`}>{title}</td>
+                    <td className={`${tableStyles.cell} whitespace-nowrap text-maroon`}>{reference}</td>
+                    <td className={tableStyles.cell}>
+                      <ComplianceBadge result={finding.result} labels={content.results} />
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Stacked cards on phones */}
+        <ul aria-label={text.tableLabel} className={tableStyles.cardsBelowSm}>
           {findings.map((finding) => {
             const { title, reference } = overviewCells(content.report, finding.requirementId, getRequirement)
             return (
-              <tr key={finding.id} className="border-b border-beige last:border-0 break-inside-avoid">
-                <td className="py-2.5 pr-4 whitespace-nowrap">{link(finding)}</td>
-                <td className="py-2.5 pr-4 text-maroon">{title}</td>
-                <td className="py-2.5 pr-4 whitespace-nowrap text-maroon">{reference}</td>
-                <td className="py-2.5">
+              <li key={finding.id} className="p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <FindingLink finding={finding} onJump={onJump} />
                   <ComplianceBadge result={finding.result} labels={content.results} />
-                </td>
-              </tr>
+                </div>
+                <p className="mt-1 text-sm text-maroon">{title}</p>
+                <p className="mt-0.5 text-sm text-text-gray">{text.referenceLine.replace('{reference}', reference)}</p>
+              </li>
             )
           })}
-        </tbody>
-      </table>
-
-      {/* Stacked list on phones */}
-      <ul className="divide-y divide-beige sm:hidden print:hidden">
-        {findings.map((finding) => {
-          const { title, reference } = overviewCells(content.report, finding.requirementId, getRequirement)
-          return (
-            <li key={finding.id} className="py-3 first:pt-0 last:pb-0">
-              <div className="flex items-center justify-between gap-3">
-                {link(finding)}
-                <ComplianceBadge result={finding.result} labels={content.results} />
-              </div>
-              <p className="mt-1 text-sm text-maroon">{title}</p>
-              <p className="mt-0.5 text-sm text-text-gray">{text.referenceLine.replace('{reference}', reference)}</p>
-            </li>
-          )
-        })}
-      </ul>
+        </ul>
+      </div>
     </>
   )
 }
 
-// ---------- d) Findings ----------
+// ---------- f) Findings ----------
 
 /** A quoted text (the requirement, the SOP's): a gold left border, grey when printed (index.css). */
 const QUOTE = 'border-l-2 border-gold pl-3'

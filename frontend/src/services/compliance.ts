@@ -9,7 +9,7 @@
  * later with the sample findings. TODO: The service will finish its own checks.
  */
 
-import type { GuidelineVersion, Requirement } from '../data/mock/types'
+import type { CheckProcedure, CheckProcedures, GuidelineVersion, Requirement } from '../data/mock/types'
 import { CheckAlreadyCompletedError } from '../lib/compliance'
 import { supabase } from './supabase'
 
@@ -103,6 +103,47 @@ export async function fetchGuidelineVersions(): Promise<GuidelineVersion[]> {
   const { data, error } = await supabase().from('guideline_versions').select(GUIDELINE_COLUMNS).order('added_at')
   if (error) throw new Error(error.message)
   return (data as GuidelineVersionRow[]).map(toGuidelineVersion)
+}
+
+/**
+ * compliance_check_procedures' result as CheckProcedures. Procedures without an id or text are left out,
+ * each id once (the first). A steps_checked that isn't a positive whole number is unknown. Anything
+ * malformed reads as no procedures.
+ */
+export function toCheckProcedures(data: unknown): CheckProcedures {
+  const value = data && typeof data === 'object' ? (data as { steps_checked?: unknown; procedures?: unknown }) : {}
+  const steps = value.steps_checked
+  const seen = new Set<string>()
+  const procedures = (Array.isArray(value.procedures) ? value.procedures : []).flatMap((item: unknown): CheckProcedure[] => {
+    if (!item || typeof item !== 'object') return []
+    const { chunk_id: id, heading, page, text } = item as { chunk_id?: unknown; heading?: unknown; page?: unknown; text?: unknown }
+    const chunkId = typeof id === 'string' ? id.trim() : ''
+    const body = typeof text === 'string' ? text.trim() : ''
+    if (!chunkId || !body || seen.has(chunkId)) return []
+    seen.add(chunkId)
+    return [{
+      chunkId,
+      ...(typeof heading === 'string' && heading.trim() ? { heading: heading.trim() } : {}),
+      ...(typeof page === 'number' && Number.isInteger(page) && page > 0 ? { page } : {}),
+      text: body,
+    }]
+  })
+  return {
+    ...(typeof steps === 'number' && Number.isInteger(steps) && steps > 0 ? { stepsChecked: steps } : {}),
+    procedures,
+  }
+}
+
+/**
+ * A completed check's procedures and how many steps were checked (compliance_check_procedures: only
+ * these values of the check's metadata, for a check the user may see). Throws when it can't be read,
+ * including for a check the user may not see or that isn't completed.
+ */
+export async function fetchCheckProcedures(checkId: string): Promise<CheckProcedures> {
+  const { data, error } = await supabase().rpc('compliance_check_procedures', { p_check_id: checkId })
+  if (error) throw new Error(error.message)
+  if (data === null || data === undefined) throw new Error('compliance check not found')
+  return toCheckProcedures(data)
 }
 
 /** Starts a check of the SOP's current version against the current guideline; returns its id. */

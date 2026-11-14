@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { SYSTEM_ACTOR } from '../data/mock/types'
 import { SopDeleteError } from '../lib/mySops'
-import { addCoAuthors, createSop, deleteSop, deleteSopVersion, fetchSop, fetchSops, removeCoAuthor, toSop, toSopEvidence, updateSopDetails, uploadSopVersion, type SopRow } from './sops'
+import { addCoAuthors, createSop, deleteSop, deleteSopVersion, fetchSop, fetchSops, removeCoAuthor, toProcedureIds, toSop, toSopEvidence, updateSopDetails, uploadSopVersion, type SopRow } from './sops'
 
 const rpc = vi.fn()
 const invoke = vi.fn()
@@ -237,18 +237,27 @@ describe('reading SOPs', () => {
     expect(query.select).toHaveBeenCalledTimes(2)
   })
 
-  it('reads how many procedures the compliance service checked, and nothing else from the check\'s metadata', async () => {
-    const service = (steps: unknown) => toSop({ ...row, compliance_checks: [{ ...row.compliance_checks[1], engine: 'hawkim', steps_checked: steps }] }).complianceChecks[0]
-    expect(service(7).stepsChecked).toBe(7)
-    expect(service(1).stepsChecked).toBe(1)
-    for (const invalid of [null, undefined, 0, -3, 2.5, '7', {}]) expect(service(invalid), String(invalid)).not.toHaveProperty('stepsChecked')
-    // Sample checks have none.
-    expect(toSop(row).complianceChecks[0]).not.toHaveProperty('stepsChecked')
+  it('never reads the check\'s metadata (the browser may not: the report reads it through compliance_check_procedures)', async () => {
     await fetchSops()
     const [columns] = query.select.mock.calls.at(-1)!
-    expect(columns).toContain('steps_checked:metadata->steps_checked')
-    // Never the whole metadata (it holds the service's large audit copy).
-    expect(columns.replace('steps_checked:metadata->steps_checked', '')).not.toMatch(/\bmetadata\b/)
+    expect(columns).not.toMatch(/\bmetadata\b/)
+    expect(columns).not.toContain('steps_checked')
+    expect(columns).toContain('compliance_checks!compliance_checks_sop_id_fkey (id, sop_version, status, engine, triggered_by, started_at, completed_at,\n')
+    expect(toSop(row).complianceChecks[0]).not.toHaveProperty('stepsChecked')
+  })
+
+  it('keeps the procedures each finding is based on, by chunk id, once each, in the steps\' order', () => {
+    expect(toProcedureIds({ steps: [{ chunk_id: 'S::003' }, { chunk_id: ' S::001 ' }, { chunk_id: 'S::003' }] })).toEqual(['S::003', 'S::001'])
+    // Steps without a usable id are left out; nothing usable (sample checks, malformed evidence): none.
+    expect(toProcedureIds({ steps: [{ chunk_id: '' }, { chunk_id: 7 }, null, 'x', { section: '1' }, { chunk_id: 'S::002' }] })).toEqual(['S::002'])
+    for (const none of [null, undefined, {}, { steps: [] }, { steps: 'S::001' }, { steps: [{ chunk_id: ' ' }] }, 'S::001']) {
+      expect(toProcedureIds(none), JSON.stringify(none)).toBeUndefined()
+    }
+    const finding = (evidence: unknown) =>
+      toSop({ ...row, compliance_checks: [{ ...row.compliance_checks[1], engine: 'hawkim', compliance_findings: [{ ...row.compliance_checks[1].compliance_findings[0], evidence }] }] })
+        .complianceChecks[0].findings[0]
+    expect(finding({ steps: [{ chunk_id: 'S::004', section: '4', sop_text: 'Text.' }] }).procedureIds).toEqual(['S::004'])
+    expect(finding(null)).not.toHaveProperty('procedureIds')
   })
 
   it('reads the findings\' evidence (for the SOP text) next to the SOP reference', async () => {

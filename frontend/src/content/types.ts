@@ -1105,6 +1105,47 @@ export interface ComplianceContent {
       /** Accessible name of the metric tiles. */
       tilesLabel: string
     }
+    /** The GVP requirement passages the check assessed (those with at least one finding). */
+    requirements: {
+      title: string
+      description: string
+      tableLabel: string
+      columns: { id: string; module: string; section: string; title: string; page: string; summary: string }
+      /** `{page}` is replaced. */
+      page: string
+      /** The Findings column's heading, and its label on each phone card. */
+      findings: string
+      findingsCard: string
+      /** Between two finding links in one cell. */
+      linkSeparator: string
+      /** An unknown value (e.g. a page). */
+      none: string
+    }
+    /** The SOP procedures the compliance service extracted from the checked version's file. */
+    procedures: {
+      title: string
+      description: string
+      tableLabel: string
+      columns: { number: string; section: string; page: string; text: string; findings: string }
+      /** In the table and on the phone cards; `{page}` is replaced. */
+      page: string
+      pageCard: string
+      findingsCard: string
+      linkSeparator: string
+      /** No heading, page or finding. */
+      none: string
+      /** The button under a long text; `toggleLabel` (`{number}` replaced) is added to its accessible name. */
+      showMore: string
+      showLess: string
+      toggleLabel: string
+      /** Instead of the table: a sample check; a check with no procedures recorded. */
+      sample: string
+      unavailable: string
+      /** While they're read; `failed` and `retry` when they couldn't be. */
+      loading: string
+      failed: string
+      retry: string
+    }
     overview: {
       title: string
       /**
@@ -1112,6 +1153,8 @@ export interface ComplianceContent {
        * replaced) when the compliance service recorded it; `unknown` otherwise (sample results).
        */
       procedures: { one: string; other: string; unknown: string }
+      /** The accessible name of the table and of the phone list. */
+      tableLabel: string
       findingId: string
       requirementTitle: string
       requirementReference: string

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { CheckAlreadyCompletedError } from '../lib/compliance'
-import { CHECK_ALREADY_COMPLETED_HINT, fetchGuidelineRequirements, finishSampleCheck, startComplianceCheck, toGuidelineVersion, type GuidelineVersionRow } from './compliance'
+import { CHECK_ALREADY_COMPLETED_HINT, fetchCheckProcedures, fetchGuidelineRequirements, finishSampleCheck, startComplianceCheck, toCheckProcedures, toGuidelineVersion, type GuidelineVersionRow } from './compliance'
 
 const rpc = vi.fn()
 // guideline_requirements reads: each call to range() returns the next page.
@@ -85,5 +85,45 @@ describe('running a sample check', () => {
     await expect(startComplianceCheck('uuid-sop')).rejects.toBeInstanceOf(CheckAlreadyCompletedError)
     rpc.mockResolvedValue({ data: null, error: { message: 'Another refusal', code: '23514', hint: null } })
     await expect(startComplianceCheck('uuid-sop')).rejects.not.toBeInstanceOf(CheckAlreadyCompletedError)
+  })
+})
+
+describe("a check's procedures (compliance_check_procedures)", () => {
+  it('calls the function for that check and reads its procedures and steps checked', async () => {
+    rpc.mockResolvedValueOnce({
+      data: { steps_checked: 2, procedures: [
+        { chunk_id: 'S::001', heading: '1. Purpose', page: 1, text: 'Step one.' },
+        { chunk_id: 'S::002', heading: null, page: null, text: 'Step two.' },
+      ] },
+      error: null,
+    })
+    expect(await fetchCheckProcedures('uuid-check')).toEqual({
+      stepsChecked: 2,
+      procedures: [
+        { chunkId: 'S::001', heading: '1. Purpose', page: 1, text: 'Step one.' },
+        { chunkId: 'S::002', text: 'Step two.' },
+      ],
+    })
+    expect(rpc).toHaveBeenCalledWith('compliance_check_procedures', { p_check_id: 'uuid-check' })
+  })
+
+  it('throws when it fails, and for a check it returns nothing for (not visible, not completed, unknown)', async () => {
+    rpc.mockResolvedValueOnce({ data: null, error: { message: 'permission denied' } })
+    await expect(fetchCheckProcedures('uuid-check')).rejects.toThrow('permission denied')
+    rpc.mockResolvedValueOnce({ data: null, error: null })
+    await expect(fetchCheckProcedures('uuid-check')).rejects.toThrow()
+  })
+
+  it('keeps only usable procedures, each id once, and a steps checked that is a positive whole number', () => {
+    expect(toCheckProcedures({ steps_checked: 3, procedures: [
+      { chunk_id: ' S::001 ', heading: '  ', page: 0, text: ' Text. ' },
+      { chunk_id: 'S::001', text: 'Again.' },
+      { chunk_id: '', text: 'No id.' },
+      { chunk_id: 'S::002', text: '' },
+      { chunk_id: 'S::003', page: 2.5, text: 'Odd page.' },
+      null, 'S::004', 7,
+    ] })).toEqual({ stepsChecked: 3, procedures: [{ chunkId: 'S::001', text: 'Text.' }, { chunkId: 'S::003', text: 'Odd page.' }] })
+    for (const steps of [null, 0, -1, 2.5, '3', {}]) expect(toCheckProcedures({ steps_checked: steps, procedures: [] }), String(steps)).toEqual({ procedures: [] })
+    for (const malformed of [null, undefined, 'x', [], { procedures: 'x' }]) expect(toCheckProcedures(malformed)).toEqual({ procedures: [] })
   })
 })

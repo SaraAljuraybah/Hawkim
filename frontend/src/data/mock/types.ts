@@ -447,6 +447,11 @@ export interface Finding {
    * None for sample results.
    */
   sopEvidence?: { section: string; page?: number; text: string }[]
+  /**
+   * The SOP procedures (steps) the result is based on, by the compliance service's chunk id (e.g.
+   * "MySOP::003"): the same ids as the report's Procedures. None for sample results.
+   */
+  procedureIds?: string[]
   /** What to change; only for results that aren't compliant. */
   recommendedAction?: string
   /**
@@ -538,11 +543,29 @@ export interface ComplianceCheck {
   triggeredById?: string
   /** What produced the result, for checks from the database: 'sample' (sample findings) or the compliance service's name ('hawkim'). */
   engine?: string
-  /** How many SOP procedures (steps) the compliance service checked; unknown for sample results. */
-  stepsChecked?: number
   guideline: Guideline
   /** Empty until the check completes. */
   findings: Finding[]
+}
+
+/** One SOP procedure (step) the compliance service extracted from the checked version's file. */
+export interface CheckProcedure {
+  /** The compliance service's id, e.g. "MySOP::003": what findings refer to (Finding.procedureIds). */
+  chunkId: string
+  /** Its heading (section), if any. */
+  heading?: string
+  /** The page it starts on, if known. */
+  page?: number
+  /** Its SOP text. */
+  text: string
+}
+
+/** A completed check's procedures, read when its report is shown (compliance_check_procedures). */
+export interface CheckProcedures {
+  /** How many SOP procedures the compliance service checked; unknown for sample results. */
+  stepsChecked?: number
+  /** In document order; empty for sample results. */
+  procedures: CheckProcedure[]
 }
 
 /** File formats an SOP can be uploaded in. */

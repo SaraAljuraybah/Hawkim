@@ -5,10 +5,12 @@ import { ArrowLeft, Download, RefreshCw } from 'lucide-react'
 import { SampleBanner } from '../components/compliance/ComplianceSummary'
 import { ReportRequirementsContext } from '../components/compliance/reportRequirements'
 import {
+  AssessedRequirements,
   ExecutiveSummary,
   FindingGroup,
+  FindingsOverview,
+  ProceduresTable,
   ReportSection,
-  RequirementsOverview,
 } from '../components/compliance/ReportSections'
 import { Button } from '../components/ui/Button'
 import { SelectField } from '../components/ui/SelectField'
@@ -16,6 +18,7 @@ import { Tabs, type TabItem } from '../components/ui/Tabs'
 import { tabIds } from '../components/ui/tabIds'
 import { complianceEn } from '../content/compliance.en'
 import type { ComplianceResult, Sop } from '../data/mock/types'
+import { useCheckProcedures } from '../hooks/useCheckProcedures'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import {
   currentCheck,
@@ -43,7 +46,7 @@ type TabKey = 'all' | ComplianceResult
 /**
  * Compliance report ("/my-sops/:id/compliance", PBI 4, 5), laid out as a formal
  * report: report details, summary (each result's tile goes to its findings),
- * requirements overview and findings (with recommended actions). Reports of earlier versions stay viewable, and "Download
+ * requirements assessed, procedures, findings overview and findings. Reports of earlier versions stay viewable, and "Download
  * PDF" prints it with a print stylesheet. Sample results for now.
  * - author:   "/my-sops/:id/compliance", for the SOP's author and co-authors;
  * - reviewer: "/reviews/:id/compliance", read-only, for its reviewers and approvers.
@@ -121,6 +124,9 @@ function Report({ sop, backPath }: { sop: Sop; backPath: string }) {
     }
   }, [printTitle])
 
+  const sample = !!report && isSampleCheck(report)
+  // The procedures and how many were checked, read for a service check's report only.
+  const procedures = useCheckProcedures(report && !sample ? report.id : undefined)
   const numbered = report ? numberedFindings(report) : []
   const needsAttention = numbered.filter((finding) => finding.result !== 'compliant')
   const compliant = numbered.filter((finding) => finding.result === 'compliant')
@@ -227,7 +233,7 @@ function Report({ sop, backPath }: { sop: Sop; backPath: string }) {
         </section>
       )}
 
-      {report && isSampleCheck(report) && <SampleBanner text={content.sampleBanner} className="mt-4" />}
+      {sample && <SampleBanner text={content.sampleBanner} className="mt-4" />}
 
       {report && latest?.status === 'running' && (
         <p
@@ -258,12 +264,27 @@ function Report({ sop, backPath }: { sop: Sop; backPath: string }) {
             <ExecutiveSummary check={report} content={content} />
           </ReportSection>
 
-          {/* c) Requirements overview */}
-          <ReportSection id="overview-title" title={text.overview.title}>
-            <RequirementsOverview findings={numbered} stepsChecked={report.stepsChecked} content={content} onJump={jumpTo} />
+          {/* c) Requirements: those this check assessed */}
+          <ReportSection id="requirements-title" title={text.requirements.title} description={text.requirements.description}>
+            <AssessedRequirements findings={numbered} content={content} onJump={jumpTo} />
           </ReportSection>
 
-          {/* d) Findings */}
+          {/* d) Procedures: those the compliance service found in the version's file */}
+          <ReportSection id="procedures-title" title={text.procedures.title} description={text.procedures.description}>
+            <ProceduresTable procedures={procedures} sample={sample} findings={numbered} content={content} onJump={jumpTo} />
+          </ReportSection>
+
+          {/* e) Findings overview */}
+          <ReportSection id="overview-title" title={text.overview.title}>
+            <FindingsOverview
+              findings={numbered}
+              stepsChecked={procedures.state === 'ready' ? procedures.data.stepsChecked : undefined}
+              content={content}
+              onJump={jumpTo}
+            />
+          </ReportSection>
+
+          {/* f) Findings */}
           <section aria-labelledby="findings-title" className="mt-8 print:mt-6">
             <h2 id="findings-title" className="text-lg">
               {text.findings.title}
