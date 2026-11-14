@@ -253,7 +253,8 @@ describe('the Permission section of the Staff Filter', () => {
   it('comes after Department, with a chip per permission labelled as on the badges', () => {
     const html = render()
     expect([...html.matchAll(/<legend[^>]*>([^<]+)<\/legend>/g)].map((match) => match[1])).toEqual(['Division', 'Department', 'Staff permission'])
-    expect(chips(html, 'Staff permission')).toEqual(['author', 'reviewer', 'approver', 'admin'].map((permission) => usersEn.permissions[permission as User['permissions'][number]]))
+    // No Admin chip: Admins are managed on the Admins page.
+    expect(chips(html, 'Staff permission')).toEqual(['author', 'reviewer', 'approver'].map((permission) => usersEn.permissions[permission as User['permissions'][number]]))
   })
 
   it('matches anyone with ANY chosen permission, AND the Division and Department filter', () => {
@@ -267,7 +268,9 @@ describe('the Permission section of the Staff Filter', () => {
 
   it('is read from the URL, summed up in the field, and cleared by Clear Filters', () => {
     const html = render('?permission=author,reviewer,gone')
-    expect(chips(html, 'Staff permission')).toEqual(['Author ✓', 'Reviewer ✓', 'Approver', usersEn.permissions.admin])
+    expect(chips(html, 'Staff permission')).toEqual(['Author ✓', 'Reviewer ✓', 'Approver'])
+    // An old link asking for Admins filters nothing.
+    expect(filterField(render('?permission=admin'))).not.toContain('permission</span>')
     expect(rowCount(html)).toBe(1)
     expect(filterField(html)).toContain('aria-label="Filter: 2 permissions"')
     expect(filterField(render('?permission=approver'))).toContain('>1 permission</span>')

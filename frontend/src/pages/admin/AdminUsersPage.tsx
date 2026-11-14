@@ -22,12 +22,12 @@ import { useDocumentTitle } from '../../hooks/useDocumentTitle'
 import { departmentsKept, filterDepartmentsFrom, filterSelection } from '../../lib/organization'
 import { listParam, readChoice, readList, updateParams } from '../../lib/pagination'
 import { adminUserEditPath, adminUserPath } from '../../lib/routes'
-import { clearedStaffParams, divisionLabel, filterUsers, PERMISSIONS, STAFF_SORTS, STAFF_STATUSES, staffSortGroup, staffWithStatus, type StaffSort, type StaffStatus } from '../../lib/userAdmin'
+import { clearedStaffParams, divisionLabel, filterUsers, STAFF_PERMISSIONS, STAFF_SORTS, STAFF_STATUSES, staffSortGroup, staffWithStatus, type StaffSort, type StaffStatus } from '../../lib/userAdmin'
 import { useDepartments } from '../../state/departmentsContext'
 import { useUsers } from '../../state/usersContext'
 
-/** The Permission chips, labelled as on the badges. */
-const permissionOptions = PERMISSIONS.map((permission) => ({ value: permission, label: usersEn.permissions[permission] }))
+/** The Permission chips, labelled as on the badges: Author, Reviewer and Approver (Admins are on the Admins page). */
+const permissionOptions = STAFF_PERMISSIONS.map((permission) => ({ value: permission, label: usersEn.permissions[permission] }))
 
 /** Ids of the Active Staff / Deactive Staff tabs and their panel. */
 const TAB_ID_PREFIX = 'staff-status'
@@ -65,7 +65,8 @@ export function AdminUsersPage() {
   const filterData = useMemo(() => filterDepartmentsFrom(activeDepartments), [activeDepartments])
   const { divisionChoices, divisions, groups: departmentGroups, departments: departmentIds } = useMemo(
     () => filterSelection(filterData, readList(params, 'division'), readList(params, 'dept')), [filterData, params])
-  const permissions = useMemo(() => PERMISSIONS.filter((permission) => readList(params, 'permission').includes(permission)), [params])
+  // An old link's ?permission=admin is ignored.
+  const permissions = useMemo(() => STAFF_PERMISSIONS.filter((permission) => readList(params, 'permission').includes(permission)), [params])
   // `?sort=name-asc`, `?sort=division-desc` and so on (STAFF_SORTS); the default order leaves it out.
   const sort = readChoice<StaffSort>(params, 'sort', STAFF_SORTS, 'default')
   // `?status=deactivated`: the Deactive Staff tab; Active Staff (the default) leaves it out.
