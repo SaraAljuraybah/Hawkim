@@ -84,3 +84,8 @@ Afterwards, `supabase db reset` brings back every migration.
   The header of each file says how to run it.
 - `organization_anonymous_readonly.mjs`: a read-only, anonymous check of the project the frontend is
   configured for (`frontend/.env.local`). It isn't local.
+- `multi_tenant_rollback.local.sh`: the multi-tenant release's way back, end to end
+  (`bash supabase/tests/multi_tenant_rollback.local.sh`). It builds the hosted project's state, applies the
+  17 multi-tenant migrations, undoes them with the rollback scripts and checks that the schema is the same
+  statement for statement, that no row is lost, and that the 17 apply again. It replaces the local database
+  and ends with `supabase db reset`. Run it after changing a multi-tenant migration or rollback script.

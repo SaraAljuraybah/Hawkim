@@ -6,7 +6,8 @@
 #   4. the compliance service's unit tests (no model is loaded), the frontend's calendar parity test and vitest
 # Left out on purpose (README.md says how to run them): the migration-sequence tests (*_before.sql,
 # *_request.sql, admins_without_department.sql and every *_rolled_back.sql), the *.browser.local.mjs tests
-# (Chrome and the app), and organization_anonymous_readonly.mjs (it reads the hosted project).
+# (Chrome and the app), organization_anonymous_readonly.mjs (it reads the hosted project) and
+# multi_tenant_rollback.local.sh (it replaces the local database; run it on its own).
 #
 # Run from anywhere:  bash supabase/tests/run_all.local.sh
 # Prints PASS/FAIL per test and a summary; exits 1 when anything failed.
