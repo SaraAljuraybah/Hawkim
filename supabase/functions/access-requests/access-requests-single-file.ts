@@ -383,14 +383,8 @@ async function accept(input: Record<string, unknown>): Promise<Response> {
   const blocked = undecidable(r)
   if (blocked) return blocked
   if (r.account_exists) return fail(409, "email_in_use")
-  // One organization per deployment: once it has an Admin (its Super Admin), no other request is
-  // accepted here. Checked before any account is created; accept_access_request checks it again.
-  try {
-    if (await rpc<boolean>("deployment_onboarded", {}) === true) return fail(409, "deployment_onboarded")
-  } catch (e) {
-    console.error(`access-requests: onboarding check for ${r.id} failed:`, e instanceof Error ? e.message : e)
-    return fail(500, "failed")
-  }
+  // Each accepted request creates its own organization (20261117130000), so there is no "already onboarded"
+  // refusal any more: accept_access_request creates it with its departments and its Super Admin.
 
   const site = env("SITE_URL", "https://www.tryhawkim.com").replace(/\/$/, "")
   let link: LinkResult
@@ -406,7 +400,7 @@ async function accept(input: Record<string, unknown>): Promise<Response> {
     const code = e instanceof DbError ? e.message : "failed"
     console.error(`access-requests: accept ${r.id} failed:`, code)
     if (code === "email_in_use") return fail(409, "email_in_use")
-    if (code === "deployment_onboarded") return fail(409, "deployment_onboarded")
+    if (code === "invalid_organization_details") return fail(400, "invalid")
     if (code === "request_already_decided") return fail(409, "already_decided")
     if (code === "review_link_expired") return fail(410, "expired")
     return fail(500, "failed")

@@ -77,6 +77,7 @@ declare
   v_id uuid;
   v_row record;
   v_settings public.organizations;
+  medcare uuid;
 begin
   -- ---------- Grants and definitions ----------
   assert has_function_privilege('service_role', 'public.submit_access_request(text, text, text, text, text, integer, text, text, text, text, text, text, text)', 'execute');
@@ -122,110 +123,73 @@ begin
   -- The columns refuse http:// too (a write that skips the function).
   perform pg_temp.expect_error($q$select pg_temp.add_request(gen_random_uuid(), 'RD Col', 'rd-col@test.invalid', null, null, 'http://rd.test', null, null)$q$, '23514');
 
-  -- ---------- accept_access_request: fills only the empty parts of the profile ----------
-  -- Each case runs on its own and is undone (the deployment is new again for the next one).
+  -- ---------- accept_access_request: a new organization from the request (20261117130000) ----------
+  -- Each case runs on its own and is undone.
+  medcare := (select o.id from public.organizations o order by o.created_at, o.id limit 1);
 
-  -- 1. Nothing saved but the organization's name: every detail is copied; the name is kept.
+  -- 1. Everything the request has: the organization's name and profile, its two departments, its Super Admin.
   perform pg_temp.add_request('9b000000-0000-4000-8000-0000000000a1', 'RD One Pharma', 'rd-1@test.invalid',
     'info@one.test', 'King Fahd Road, Riyadh', 'https://maps.google.com/?q=one', 'https://one.test', 'Makes medicines.');
   begin
     perform pg_temp.act_as(null, 'service_role');
     perform public.accept_access_request('9b000000-0000-4000-8000-0000000000a1', repeat('c', 64), '9b000000-0000-4000-8000-000000000001', 'unused');
     perform pg_temp.as_owner();
-    select * into v_settings from public.organizations;
-    assert v_settings.name = 'MedCare' and v_settings.email = 'info@one.test' and v_settings.description = 'Makes medicines.'
+    select o.* into v_settings from public.organizations o where o.access_request_id = '9b000000-0000-4000-8000-0000000000a1';
+    assert v_settings.id is not null and v_settings.id <> medcare, 'a new organization';
+    assert v_settings.name = 'RD One Pharma' and v_settings.email = 'info@one.test' and v_settings.description = 'Makes medicines.'
       and v_settings.address = 'King Fahd Road, Riyadh' and v_settings.maps_url = 'https://maps.google.com/?q=one'
-      and v_settings.website = 'https://one.test' and v_settings.updated_by is null, 'everything copied';
-    assert (select status = 'accepted' and organization_id = v_settings.id from public.access_requests
-            where id = '9b000000-0000-4000-8000-0000000000a1'), 'accepted, in the organization';
+      and v_settings.website = 'https://one.test', 'everything copied';
     assert v_settings.super_admin_id = '9b000000-0000-4000-8000-000000000001', 'the applicant is its Super Admin';
+    assert (select organization_id from public.profiles where id = '9b000000-0000-4000-8000-000000000001') = v_settings.id;
+    assert (select string_agg(d.name || ':' || d.initials || ':' || d.is_quality || ':' || d.requires_compliance_check, ',' order by d.name)
+            from public.departments d where d.organization_id = v_settings.id)
+      = 'Pharmacovigilance:PV:false:true,Quality Assurance:QA:true:false', 'its two starting departments';
+    assert (select status = 'accepted' and organization_id = v_settings.id from public.access_requests
+            where id = '9b000000-0000-4000-8000-0000000000a1'), 'accepted, in the new organization';
+    assert (select name from public.organizations where id = medcare) = 'MedCare' and (select email from public.organizations where id = medcare) is null,
+      'MedCare''s profile is not touched';
     raise exception 'undo' using errcode = 'P0099';
   exception when sqlstate 'P0099' then null;
   end;
 
-  -- 2. A saved name and email: kept; only the empty values are filled.
-  begin
-    update public.organizations set name = 'Saved Name', email = 'saved@org.test';
-    perform pg_temp.act_as(null, 'service_role');
-    perform public.accept_access_request('9b000000-0000-4000-8000-0000000000a1', repeat('c', 64), '9b000000-0000-4000-8000-000000000001', 'unused');
-    perform pg_temp.as_owner();
-    select * into v_settings from public.organizations;
-    assert v_settings.name = 'Saved Name' and v_settings.email = 'saved@org.test', 'saved values never overwritten';
-    assert v_settings.description = 'Makes medicines.' and v_settings.address = 'King Fahd Road, Riyadh'
-      and v_settings.maps_url = 'https://maps.google.com/?q=one' and v_settings.website = 'https://one.test', 'empty values filled';
-    raise exception 'undo' using errcode = 'P0099';
-  exception when sqlstate 'P0099' then null;
-  end;
-
-  -- 3. A complete saved profile: nothing changes, not even updated_at.
-  begin
-    update public.organizations set name = 'Saved Name', email = 'saved@org.test', description = 'Saved.', address = 'Saved Road',
-      maps_url = 'https://maps.google.com/?q=saved', website = 'https://saved.test', updated_at = '2026-01-01';
-    perform pg_temp.act_as(null, 'service_role');
-    perform public.accept_access_request('9b000000-0000-4000-8000-0000000000a1', repeat('c', 64), '9b000000-0000-4000-8000-000000000001', 'unused');
-    perform pg_temp.as_owner();
-    select * into v_settings from public.organizations;
-    assert v_settings.description = 'Saved.' and v_settings.website = 'https://saved.test'
-      and v_settings.updated_at = '2026-01-01', 'a complete profile is left alone';
-    raise exception 'undo' using errcode = 'P0099';
-  exception when sqlstate 'P0099' then null;
-  end;
-
-  -- 4. A request name the profile would refuse (a tab in it): the name isn't used (the organization's is
-  --    kept), the details are still copied and the request is accepted.
+  -- 2. A name with a control character (a tab): spaces instead, and the request is still accepted.
   perform pg_temp.add_request('9b000000-0000-4000-8000-0000000000a2', 'RD' || chr(9) || 'Tab Pharma', 'rd-2@test.invalid',
     'info@tab.test', 'Tab Road', null, null, 'Tabs.');
   begin
     perform pg_temp.act_as(null, 'service_role');
     perform public.accept_access_request('9b000000-0000-4000-8000-0000000000a2', repeat('c', 64), '9b000000-0000-4000-8000-000000000002', 'unused');
     perform pg_temp.as_owner();
-    select * into v_settings from public.organizations;
-    assert v_settings.name = 'MedCare' and v_settings.email = 'info@tab.test' and v_settings.address = 'Tab Road', 'details copied, name kept';
-    assert (select status = 'accepted' from public.access_requests where id = '9b000000-0000-4000-8000-0000000000a2'), 'still accepted';
-    assert (select o.super_admin_id from public.organizations o) = '9b000000-0000-4000-8000-000000000002', 'still the Super Admin';
+    select o.* into v_settings from public.organizations o where o.access_request_id = '9b000000-0000-4000-8000-0000000000a2';
+    assert v_settings.name = 'RD Tab Pharma' and v_settings.email = 'info@tab.test' and v_settings.address = 'Tab Road', 'name with a space';
+    assert v_settings.super_admin_id = '9b000000-0000-4000-8000-000000000002', 'its Super Admin';
     raise exception 'undo' using errcode = 'P0099';
   exception when sqlstate 'P0099' then null;
   end;
 
-  -- 5. The same refused name with a saved profile: the details are still filled in (no name needed).
-  begin
-    update public.organizations set name = 'Saved Name';
-    perform pg_temp.act_as(null, 'service_role');
-    perform public.accept_access_request('9b000000-0000-4000-8000-0000000000a2', repeat('c', 64), '9b000000-0000-4000-8000-000000000002', 'unused');
-    perform pg_temp.as_owner();
-    select * into v_settings from public.organizations;
-    assert v_settings.name = 'Saved Name' and v_settings.email = 'info@tab.test' and v_settings.address = 'Tab Road'
-      and v_settings.maps_url is null and v_settings.website is null, 'details copied, name kept';
-    raise exception 'undo' using errcode = 'P0099';
-  exception when sqlstate 'P0099' then null;
-  end;
-
-  -- 6. A request sent before the form asked for the details: nothing to copy; the name is kept.
+  -- 3. A request sent before the form asked for the details: an organization with only its name.
   insert into public.access_requests (id, organization, contact_name, email, phone, approx_users, review_token_hash, review_expires_at)
   values ('9b000000-0000-4000-8000-0000000000a3', 'RD Old Pharma', 'Request Person', 'rd-3@test.invalid', '+966500000000', 10, repeat('c', 64), now() + interval '1 day');
   begin
     perform pg_temp.act_as(null, 'service_role');
     perform public.accept_access_request('9b000000-0000-4000-8000-0000000000a3', repeat('c', 64), '9b000000-0000-4000-8000-000000000003', 'unused');
     perform pg_temp.as_owner();
-    select * into v_settings from public.organizations;
-    assert v_settings.name = 'MedCare' and v_settings.email is null and v_settings.description is null
-      and v_settings.address is null and v_settings.maps_url is null and v_settings.website is null, 'nothing copied';
+    select o.* into v_settings from public.organizations o where o.access_request_id = '9b000000-0000-4000-8000-0000000000a3';
+    assert v_settings.name = 'RD Old Pharma' and v_settings.email is null and v_settings.description is null
+      and v_settings.address is null and v_settings.maps_url is null and v_settings.website is null, 'only the name';
     raise exception 'undo' using errcode = 'P0099';
   exception when sqlstate 'P0099' then null;
   end;
 
-  -- 7. A profile value the column refuses (an http:// link saved before this migration, by the owner) is never
-  --    touched: the copy only writes empty values, so the stored link stays and accepting works.
-  begin
-    update public.organizations set name = 'Saved Name', website = 'http://old.test';
-    perform pg_temp.act_as(null, 'service_role');
-    perform public.accept_access_request('9b000000-0000-4000-8000-0000000000a1', repeat('c', 64), '9b000000-0000-4000-8000-000000000001', 'unused');
-    perform pg_temp.as_owner();
-    select * into v_settings from public.organizations;
-    assert v_settings.website = 'http://old.test' and v_settings.email = 'info@one.test', 'old link kept, the rest filled';
-    raise exception 'undo' using errcode = 'P0099';
-  exception when sqlstate 'P0099' then null;
-  end;
+  -- 4. One account, one organization: an account that already has a profile (here MedCare's, deactivated) can't
+  --    start another organization; nothing is created.
+  insert into public.profiles (id, full_name, email, initials, organization_id, deleted_at)
+  values ('9b000000-0000-4000-8000-000000000004', 'RD Former', 'rd-former@test.invalid', 'RF', medcare, now());
+  perform pg_temp.act_as(null, 'service_role');
+  perform pg_temp.expect_error(format('select public.accept_access_request(%L, %L, %L, %L)', '9b000000-0000-4000-8000-0000000000a1',
+    repeat('c', 64), '9b000000-0000-4000-8000-000000000004', 'unused'), 'P0001');
+  perform pg_temp.as_owner();
+  assert not exists (select 1 from public.organizations where access_request_id = '9b000000-0000-4000-8000-0000000000a1'), 'no organization created';
+  assert (select status from public.access_requests where id = '9b000000-0000-4000-8000-0000000000a1') = 'pending', 'still pending';
 end;
 $$;
 

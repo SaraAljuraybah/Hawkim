@@ -193,8 +193,8 @@ await check('19./20. Move SOPs to Others is refused while the department has SOP
   assert(own.directory_group === 'department' && !own.deleted_at, 'SOP stays in its department')
   assert(await stored(moved.path), 'file kept')
 })
-await check('21./22. Request Hawkim: a deployment that already has its Admins accepts no other organization', async () => {
-  // One organization per deployment (20261111120000_super_admin.sql); this database has its first Admin.
+await check('21./22. Request Hawkim: accepting creates a new organization with its departments and Super Admin', async () => {
+  // Each accepted request creates its own organization (20261117130000), even where others exist.
   const hash = randomUUID().replace(/-/g, '') + randomUUID().replace(/-/g, '')
   const email = `e2e-request-${run}@test.invalid`
   const id = await ok(service.rpc('submit_access_request', { p_organization: `E2E Org ${run}`, p_contact_name: 'Request Person', p_job_title: 'Quality Lead',
@@ -202,10 +202,20 @@ await check('21./22. Request Hawkim: a deployment that already has its Admins ac
     p_organization_email: 'info@organization.test', p_organization_address: 'King Fahd Road, Riyadh', p_organization_maps_url: null,
     p_organization_website: null, p_organization_description: 'A test organization.' }), 'submit')
   const { user } = await ok(service.auth.admin.createUser({ email, email_confirm: true }), 'auth user')
-  const accepted = await service.rpc('accept_access_request', { p_id: id, p_token_hash: hash, p_user_id: user.id, p_department: home })
-  assert(accepted.error?.message === 'deployment_onboarded', `accept: ${accepted.error?.message ?? 'went through'}`)
-  assert(!(await db.rows(`select id from public.profiles where id = ${lit(user.id)}`)).length, 'no profile')
-  assert((await db.row(`select status from public.access_requests where id = ${lit(id)}`)).status === 'pending', 'still pending')
+  await ok(service.rpc('accept_access_request', { p_id: id, p_token_hash: hash, p_user_id: user.id, p_department: home }), 'accept')
+  const org = await db.row(`select o.id, o.name, o.email, o.super_admin_id from public.organizations o where o.access_request_id = ${lit(id)}`)
+  assert(org.name === `E2E Org ${run}` && org.email === 'info@organization.test' && org.super_admin_id === user.id, JSON.stringify(org))
+  const person = await db.row(`select organization_id, department_id, position from public.profiles where id = ${lit(user.id)}`)
+  assert(person.organization_id === org.id && person.department_id === null && person.position === null, JSON.stringify(person))
+  const departments = await db.rows(`select name, initials, is_quality, requires_compliance_check from public.departments
+    where organization_id = ${lit(org.id)} order by name`)
+  assert(JSON.stringify(departments) === JSON.stringify([
+    { name: 'Pharmacovigilance', initials: 'PV', is_quality: false, requires_compliance_check: true },
+    { name: 'Quality Assurance', initials: 'QA', is_quality: true, requires_compliance_check: false }]), JSON.stringify(departments))
+  assert((await db.row(`select status from public.access_requests where id = ${lit(id)}`)).status === 'accepted', 'accepted')
+  // MedCare's Admins don't see the new organization's people.
+  const people = await ok(admin.client.from('profiles').select('id').eq('id', user.id), 'read as MedCare')
+  assert(!people.length, "MedCare's Admin sees the new organization's Super Admin")
 })
 await check('23./24. Review routing and the SOP workflow are unchanged', async () => {
   const review = await createSop(author, 'regulatory-affairs', `E2E review ${run}`)

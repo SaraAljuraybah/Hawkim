@@ -1,16 +1,15 @@
 // Disposable people for the *.local.mjs tests, made the way the app makes them, never by inserting
 // profiles or roles directly (the service role can't, and the database rules would be skipped):
 //
-//  - The first Admin: the Super Admin if the local database has one (its sign-in password is replaced,
-//    which is fine only on a disposable local stack), otherwise any active Admin, otherwise one made by
-//    Request Hawkim: submit_access_request and accept_access_request, the database calls of the
-//    access-requests Edge Function (its review emails are left out).
+//  - The first Admin: MedCare's Super Admin if the local database has one (its sign-in password is replaced,
+//    which is fine only on a disposable local stack), otherwise any active MedCare Admin, otherwise one made
+//    by the database owner, as seed.sql makes its people (Request Hawkim would create a new organization).
 //  - Everyone else: a sign-in account (as the add-user Edge Function creates it) and add_user called by
 //    that Admin, which is what Add Staff and Add Admin call.
 //
 // Only for a LOCAL stack: the tests that use it refuse any URL that isn't localhost.
 import { createRequire } from 'node:module'
-import { createHash, randomUUID } from 'node:crypto'
+import { randomUUID } from 'node:crypto'
 import { spawn } from 'node:child_process'
 
 const require = createRequire(new URL('../../frontend/package.json', import.meta.url))
@@ -79,6 +78,7 @@ export function localPeople({ url, anonKey, service, options, run, prefix, conta
     const existing = await ownerValue(container, `
       select p.id || ' ' || p.email from public.profiles p
       where public.is_active_admin(p.id)
+        and p.organization_id = (select o.id from public.organizations o order by o.created_at, o.id limit 1)
       order by exists (select 1 from public.organizations o where o.super_admin_id = p.id) desc, p.email
       limit 1;`)
     if (existing) {
@@ -87,19 +87,18 @@ export function localPeople({ url, anonKey, service, options, run, prefix, conta
       admin = { id, email, password, client: await signIn(email, password, 'first Admin') }
       return admin
     }
-    // A new local database: the first Admin comes from Request Hawkim, as on a new deployment.
+    // A new local database has no MedCare Admin (the seed makes profiles only for existing sign-in
+    // accounts), and Request Hawkim now creates a NEW organization (20261117130000): the first MedCare Admin
+    // is made by the database owner, as seed.sql makes its people. Everyone else is added through add_user.
     const email = `${prefix}-first-admin-${run}@test.invalid`
-    const token = randomUUID().replaceAll('-', '') + randomUUID().replaceAll('-', '')
-    const tokenHash = createHash('sha256').update(token).digest('hex')
-    const requestId = await ok(service.rpc('submit_access_request', {
-      p_organization: `E2E Organization ${prefix} ${run}`, p_contact_name: 'E2E First Admin', p_job_title: null, p_email: email,
-      p_phone: '+966500000000', p_approx_users: 10, p_message: null, p_token_hash: tokenHash,
-      p_organization_email: 'info@organization.test', p_organization_address: 'King Fahd Road, Riyadh',
-      p_organization_maps_url: null, p_organization_website: null, p_organization_description: 'A test organization.',
-    }), 'submit_access_request')
     const { user } = await ok(service.auth.admin.createUser({ email, password, email_confirm: true }), 'create the first Admin')
-    await ok(service.rpc('accept_access_request', { p_id: requestId, p_token_hash: tokenHash, p_user_id: user.id, p_department: null }),
-      'accept_access_request')
+    await ownerValue(container, `
+      begin;
+      insert into public.profiles (id, full_name, email, initials, phone, organization_id)
+      select '${user.id}', 'E2E First Admin', '${email}', 'FA', '+966500000000', o.id
+      from public.organizations o order by o.created_at, o.id limit 1;
+      insert into public.user_roles (user_id, role) values ('${user.id}', 'admin');
+      commit;`)
     admin = { id: user.id, email, password, client: await signIn(email, password, 'first Admin') }
     return admin
   }

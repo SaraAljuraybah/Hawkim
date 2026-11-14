@@ -232,29 +232,26 @@ begin
   perform public.submit_access_request('OM Org', 'Request Person', 'Quality Lead', 'request@test.invalid', '+966500000000', 10, null, repeat('a', 64), 'info@organization.test', 'King Fahd Road, Riyadh', null, null, 'A test organization.');
   perform pg_temp.as_owner();
   insert into auth.users(id) values ('94000000-0000-4000-8000-000000000099');
-  -- One organization per deployment (20261111120000_super_admin.sql): refused while this one has Admins…
-  perform pg_temp.act_as(null, 'service_role');
-  perform pg_temp.expect_error(format('select public.accept_access_request(%L, %L, %L, %L)',
-    (select id from public.access_requests where email = 'request@test.invalid'), repeat('a', 64), '94000000-0000-4000-8000-000000000099', 'om-home'), 'P0001');
-  -- …so it is accepted as on a new deployment (rolled back): no Super Admin and no active Admin.
-  perform pg_temp.as_owner();
-  alter table public.organizations disable trigger user;
-  update public.organizations set super_admin_id = null, super_admin_assigned_at = null;
-  alter table public.organizations enable trigger user;
-  update public.profiles p set deleted_at = now()
-  where p.deleted_at is null and exists (select 1 from public.user_roles r where r.user_id = p.id and r.role = 'admin');
-  perform pg_temp.act_as(null, 'service_role');
-  perform public.accept_access_request((select id from public.access_requests where email = 'request@test.invalid'), repeat('a', 64),
-    '94000000-0000-4000-8000-000000000099', 'om-home');
-  perform pg_temp.as_owner();
-  assert (select o.super_admin_id from public.organizations o) = '94000000-0000-4000-8000-000000000099', 'The accepted requester is the Super Admin';
-  set constraints all immediate; -- run the commit-time department and position checks now
-  -- An Admin has no department and no position (20261112140000_admins_without_department.sql), so the
-  -- request's job title isn't made a position.
-  assert (select department_id is null and "position" is null from public.profiles where id = '94000000-0000-4000-8000-000000000099'),
-    'The accepted requester has no department and no position';
-  assert not exists (select 1 from public.employee_positions where profile_id = '94000000-0000-4000-8000-000000000099'),
-    'The accepted requester holds no position row';
+  -- (Undone at the end of the block: the fixtures below are MedCare's only organization's.)
+  begin
+    -- Accepted into a new organization of its own (20261117130000), whatever Admins this database has.
+    perform pg_temp.act_as(null, 'service_role');
+    perform public.accept_access_request((select id from public.access_requests where email = 'request@test.invalid'), repeat('a', 64),
+      '94000000-0000-4000-8000-000000000099', 'om-home');
+    perform pg_temp.as_owner();
+    assert (select o.super_admin_id from public.organizations o join public.profiles p on p.organization_id = o.id
+            where p.id = '94000000-0000-4000-8000-000000000099') = '94000000-0000-4000-8000-000000000099',
+      'The accepted requester is the Super Admin of their new organization';
+    set constraints all immediate; -- run the commit-time department and position checks now
+    -- An Admin has no department and no position (20261112140000_admins_without_department.sql), so the
+    -- request's job title isn't made a position.
+    assert (select department_id is null and "position" is null from public.profiles where id = '94000000-0000-4000-8000-000000000099'),
+      'The accepted requester has no department and no position';
+    assert not exists (select 1 from public.employee_positions where profile_id = '94000000-0000-4000-8000-000000000099'),
+      'The accepted requester holds no position row';
+    raise exception 'undo' using errcode = 'P0099';
+  exception when sqlstate 'P0099' then null;
+  end;
 
   -- ---------- legacy rows (only when the README fixtures were committed first) ----------
   if exists (select 1 from public.profiles where id = 'b7100000-0000-4000-8000-000000000001') then

@@ -51,7 +51,8 @@ ${sql}
   })
 }
 
-const LOCK = 'locktype = \'advisory\' and classid = 72441 and objid = 1'
+// The organization's lock (lock_organization_changes: 72441 and a hash of the organization, 20261117130000).
+const LOCK = 'locktype = \'advisory\' and classid = 72441'
 /** Waits until `sql` (as the owner) returns 't'. */
 async function until(sql, what, timeoutMs = 10000) {
   const start = Date.now()
@@ -76,22 +77,24 @@ function refused(result, hint, what) {
 const [A, B, C, D] = [randomUUID(), randomUUID(), randomUUID(), randomUUID()]
 const ids = [A, B, C, D]
 const idList = ids.map((id) => `'${id}'`).join(', ')
-// The designation is organizations.super_admin_id since 20261116140000 (one organization here: MedCare).
-const holder = () => owner('select super_admin_id from public.organizations where super_admin_id is not null')
-const rows = () => Number(owner('select count(*) from public.organizations where super_admin_id is not null'))
+// The designation is organizations.super_admin_id since 20261116140000: MedCare's (the first organization;
+// other tests may have created more).
+const MEDCARE = owner('select id from public.organizations order by created_at, id limit 1')
+const holder = () => owner(`select super_admin_id from public.organizations where id = '${MEDCARE}'`)
+const rows = () => Number(owner(`select count(*) from public.organizations where id = '${MEDCARE}' and super_admin_id is not null`))
 const ended = (id) => owner(`select deleted_at is not null from public.profiles where id = '${id}'`) === 't'
 
 // ---------- Setup ----------
-const original = owner('select super_admin_id from public.organizations where super_admin_id is not null') || null
+const original = holder() || null
 owner(`begin;
 insert into auth.users (id, email, aud, role)
 select u.id, 'cc-' || u.id || '@test.invalid', 'authenticated', 'authenticated' from unnest(array[${idList}]::uuid[]) u(id);
-insert into public.profiles (id, full_name, email, initials, phone)
-select u.id, 'CC Admin ' || left(u.id::text, 8), 'cc-' || u.id || '@test.invalid', 'CC', '+966511111111' from unnest(array[${idList}]::uuid[]) u(id);
+insert into public.profiles (id, full_name, email, initials, phone, organization_id)
+select u.id, 'CC Admin ' || left(u.id::text, 8), 'cc-' || u.id || '@test.invalid', 'CC', '+966511111111', '${MEDCARE}' from unnest(array[${idList}]::uuid[]) u(id);
 insert into public.user_roles (user_id, role) select u.id, 'admin' from unnest(array[${idList}]::uuid[]) u(id);
 commit;`)
-if (original) owner(`update public.organizations set super_admin_id = '${A}', super_admin_assigned_at = now() where super_admin_id = '${original}';`)
-else owner(`select public.assign_initial_super_admin((select id from public.organizations), '${A}');`)
+if (original) owner(`update public.organizations set super_admin_id = '${A}', super_admin_assigned_at = now() where id = '${MEDCARE}';`)
+else owner(`select public.assign_initial_super_admin('${MEDCARE}', '${A}');`)
 
 try {
   await check('the fixture starts with A as the only Super Admin', () => {

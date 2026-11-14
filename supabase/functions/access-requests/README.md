@@ -6,12 +6,14 @@ The public **Request Hawkim** form (`/request-hawkim`) and the Hawkim team's **r
 
 1. A visitor sends the form → the request is stored; `requests@tryhawkim.com` gets an email with a
    **Review request** button; the requester gets a confirmation.
-2. The team opens the review page → **Accept** creates the account (Supabase Auth) with an active
-   profile in `ADMIN_DEPARTMENT`, the Admin permission and the **Super Admin** designation (the
-   organization's initial Super Admin), and emails a **Set your password** link (to `/reset-password`);
-   **Reject** tells the requester. A deployment that already has an Admin refuses with
-   `409 deployment_onboarded` before any account is created: each organization has its own deployment
-   (see `docs/admins.md`).
+2. The team opens the review page → **Accept** creates a new **organization** for the request (its name
+   and Organization Profile from the request, and its starting departments Pharmacovigilance and
+   Quality Assurance) and the account (Supabase Auth) with an active profile in it, the Admin permission
+   and the **Super Admin** designation (the organization's initial Super Admin, without a department),
+   and emails a **Set your password** link (to `/reset-password`); **Reject** tells the requester.
+   One project holds any number of organizations (20261117130000). An email that already has an account
+   in any organization is refused (`409 email_in_use`): one account belongs to one organization.
+   `ADMIN_DEPARTMENT` is no longer used.
 
 ## Setup (once)
 
