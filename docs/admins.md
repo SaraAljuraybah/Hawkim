@@ -1,8 +1,11 @@
 # Manage Organization → Admins (Super Admin and Admin)
 
-Hawkim is **single-tenant: one organization per deployment**. Each organization has its own Hawkim
-deployment (frontend + its own Supabase project, Auth and storage). "The organization" is therefore the
-whole database, and there is no organization id.
+Hawkim is **multi-tenant**: one Supabase project holds many organizations, and each accepted Request
+Hawkim creates one (see [multi-tenancy.md](multi-tenancy.md)). Everything below is per organization: each
+organization has its own Super Admin and Admins, and the Super Admin designation is
+`organizations.super_admin_id`. The release sections further down (preflight, hosted status, the
+`20261111120000_super_admin.sql` rollout) describe the earlier single-tenant setup and are kept as history:
+`deployment_onboarded` and "one organization per deployment" were removed in `20261117130000`.
 
 ## Roles
 

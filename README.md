@@ -50,6 +50,14 @@ The scope may be expanded to additional regulatory guidelines in future developm
 
 ---
 
+## Organizations
+
+Hawkim serves many organizations from one deployment. Each accepted Request Hawkim creates an
+organization with its own Super Admin, staff, departments, SOPs and GVP versions, and no organization can
+see another's data. See [docs/multi-tenancy.md](docs/multi-tenancy.md).
+
+---
+
 ## User Roles
 
 Hawkim supports three primary roles involved in the SOP lifecycle:
