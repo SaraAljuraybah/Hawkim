@@ -17,17 +17,20 @@ import { LIST_TOOLBAR } from '../../components/ui/toolbar'
 import { adminEn } from '../../content/admin.en'
 import { filtersEn } from '../../content/filters.en'
 import { usersEn } from '../../content/users.en'
-import type { Permission, User } from '../../data/mock/types'
+import type { User } from '../../data/mock/types'
 import { useDocumentTitle } from '../../hooks/useDocumentTitle'
-import { departmentsKept, filterDepartmentsFrom, filterSelection } from '../../lib/organization'
+import { departmentsKept, filterDepartmentsFrom, filterSelection, OTHERS_FILTER, ROLE_FILTERS, type RoleFilter } from '../../lib/organization'
 import { listParam, readChoice, readList, updateParams } from '../../lib/pagination'
 import { adminUserEditPath, adminUserPath } from '../../lib/routes'
-import { clearedStaffParams, divisionLabel, filterUsers, STAFF_PERMISSIONS, STAFF_SORTS, STAFF_STATUSES, staffSortGroup, staffWithStatus, type StaffSort, type StaffStatus } from '../../lib/userAdmin'
+import { clearedStaffParams, divisionLabel, filterUsers, STAFF_SORTS, STAFF_STATUSES, staffSortGroup, staffWithStatus, type StaffSort, type StaffStatus } from '../../lib/userAdmin'
 import { useDepartments } from '../../state/departmentsContext'
 import { useUsers } from '../../state/usersContext'
 
-/** The Permission chips, labelled as on the badges: Author, Reviewer and Approver (Admins are on the Admins page). */
-const permissionOptions = STAFF_PERMISSIONS.map((permission) => ({ value: permission, label: usersEn.permissions[permission] }))
+/**
+ * The Permission chips, labelled as on the badges: Author, Reviewer and Approver (Admins are on the Admins page),
+ * then Others (none of the three), the same choices and rule as Organizational Structure's filter.
+ */
+const permissionOptions = ROLE_FILTERS.map((role) => ({ value: role, label: role === OTHERS_FILTER ? filtersEn.permission.others : usersEn.permissions[role] }))
 
 /** Ids of the Active Staff / Deactive Staff tabs and their panel. */
 const TAB_ID_PREFIX = 'staff-status'
@@ -66,7 +69,7 @@ export function AdminUsersPage() {
   const { divisionChoices, divisions, groups: departmentGroups, departments: departmentIds } = useMemo(
     () => filterSelection(filterData, readList(params, 'division'), readList(params, 'dept')), [filterData, params])
   // An old link's ?permission=admin is ignored.
-  const permissions = useMemo(() => STAFF_PERMISSIONS.filter((permission) => readList(params, 'permission').includes(permission)), [params])
+  const permissions = useMemo(() => ROLE_FILTERS.filter((role) => readList(params, 'permission').includes(role)), [params])
   // `?sort=name-asc`, `?sort=division-desc` and so on (STAFF_SORTS); the default order leaves it out.
   const sort = readChoice<StaffSort>(params, 'sort', STAFF_SORTS, 'default')
   // `?status=deactivated`: the Deactive Staff tab; Active Staff (the default) leaves it out.
@@ -178,7 +181,7 @@ export function AdminUsersPage() {
               emptyText: filtersEn.department.empty, summary: filtersEn.department.count, scrollable: true,
               groups: departmentGroups.map((group) => ({ id: group.id, label: group.unassigned ? filtersEn.department.unassigned : group.label, options: group.options })) },
             { id: 'permission', legend: filtersEn.permission.legend, options: permissionOptions, value: permissions,
-              onChange: (next) => setFilter({ permission: next as Permission[] }), emptyText: '', summary: filtersEn.permission.count },
+              onChange: (next) => setFilter({ permission: next as RoleFilter[] }), emptyText: '', summary: filtersEn.permission.count },
           ]} />
         <SelectField className="min-w-0" name="staffSort" label={content.sort.label} value={sort}
           options={STAFF_SORTS.map((value) => {

@@ -25,5 +25,7 @@ export const filtersEn: FiltersContent = {
   permission: {
     legend: 'Staff permission',
     count: { one: '{count} permission', other: '{count} permissions' },
+    /** The choice for staff with none of Author, Reviewer and Approver (Staff and Organizational Structure). */
+    others: 'Others',
   },
 }

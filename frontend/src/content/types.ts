@@ -1861,7 +1861,8 @@ export interface FiltersContent {
   /** `unassigned`: the group of departments without a division. */
   department: { legend: string; empty: string; count: CountText; unassigned: string }
   /** Staff only: the permissions (their chip labels are usersEn.permissions, as on the badges). */
-  permission: { legend: string; count: CountText }
+  /** `others`: staff with none of Author, Reviewer and Approver. */
+  permission: { legend: string; count: CountText; others: string }
 }
 
 export interface AdminUsersListContent {
@@ -2218,8 +2219,6 @@ export interface OrganizationContent {
   /** The Filter control's Permission section (the other texts are filtersEn's); `roleCount` is its summary. */
   roleFilter: string
   roleCount: CountText
-  /** The Permission filter's chip for staff without a permission. */
-  others: string
   sort: string
   sortOptions: Record<OrganizationSort, string>
   /** Headings of the Sort menu's groups. */

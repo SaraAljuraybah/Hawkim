@@ -24,7 +24,7 @@ function organizationHeading(name: string | null | undefined): string {
 
 export type OrganizationLoadState = { status: 'loading' } | { status: 'error' } | { status: 'ready'; hierarchy: OrganizationHierarchy }
 
-const roleOptions = ROLE_FILTERS.map((role) => ({ value: role, label: role === OTHERS_FILTER ? content.others : usersEn.permissions[role] }))
+const roleOptions = ROLE_FILTERS.map((role) => ({ value: role, label: role === OTHERS_FILTER ? filtersEn.permission.others : usersEn.permissions[role] }))
 
 /** The search, Filter and Sort toolbar and the table (view only). */
 export function OrganizationStructure({ hierarchy }: { hierarchy: OrganizationHierarchy }) {

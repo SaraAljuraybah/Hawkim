@@ -1,7 +1,7 @@
 import { updateParams } from './pagination'
 import type { Department, DepartmentId, Permission, Sop, User } from '../data/mock/types'
 import type { SopStatus } from '../types/status'
-import { matchesDivisionDepartmentFilter, UNASSIGNED_GROUP_ID } from './organization'
+import { matchesDivisionDepartmentFilter, matchesRoles, UNASSIGNED_GROUP_ID, type RoleFilter } from './organization'
 
 /*
  * Admin rules for users (PBI 15, 18, 19): adding users, changing permissions and
@@ -112,8 +112,11 @@ export interface UserFilter {
   divisions: string[]
   /** Selected department ids. */
   departmentIds: string[]
-  /** Selected permissions: a user matches with any of them; none means everyone. */
-  permissions?: Permission[]
+  /**
+   * Selected permissions, and Others (none of Author, Reviewer and Approver): a user matches with any of them;
+   * none means everyone. The same rule as Organizational Structure's filter (matchesRoles).
+   */
+  permissions?: RoleFilter[]
   /** The order; by name, A to Z, when missing or 'default'. */
   sort?: StaffSort
 }
@@ -135,7 +138,7 @@ export function filterUsers(users: User[], getDepartment: (id: string) => Depart
       const searched = [user.name, user.email, divisionLabel(department), department?.name ?? '', ...user.permissions.map((permission) => permissionLabels[permission])]
       return (!text || searched.some((value) => value.toLowerCase().includes(text))) &&
         matchesDivisionDepartmentFilter(user.departmentId, filter.divisions, filter.departmentIds, (id) => getDepartment(id)?.divisionId || UNASSIGNED_GROUP_ID) &&
-        (!filter.permissions?.length || filter.permissions.some((permission) => user.permissions.includes(permission)))
+        matchesRoles(user, filter.permissions ?? [])
     })
     .sort(staffCompare(filter.sort ?? 'default', getDepartment))
 }

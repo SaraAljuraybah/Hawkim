@@ -27,7 +27,6 @@ export const organizationEn: OrganizationContent = {
   searchPlaceholder: 'Search divisions, departments or staff by name or email',
   roleFilter: 'Staff permission',
   roleCount: { one: '{count} permission', other: '{count} permissions' },
-  others: 'Others',
   sort: 'Sort',
   sortOptions: {
     default: 'Default order',

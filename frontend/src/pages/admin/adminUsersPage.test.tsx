@@ -5,6 +5,8 @@ import { adminEn } from '../../content/admin.en'
 import { usersEn } from '../../content/users.en'
 import type { Department, User } from '../../data/mock/types'
 import { clearedStaffParams, filterUsers, type StaffSort } from '../../lib/userAdmin'
+import { matchesRoles, ROLE_FILTERS, type RoleFilter } from '../../lib/organization'
+import { filtersEn } from '../../content/filters.en'
 import { PermissionBadges } from '../../components/admin/UserBits'
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
 import { AdminUsersPage } from './AdminUsersPage'
@@ -247,14 +249,38 @@ describe('permission badges', () => {
 })
 
 describe('the Permission section of the Staff Filter', () => {
-  const byPermission = (permissions: User['permissions'], divisions: string[] = [], departmentIds: string[] = []) =>
+  const byPermission = (permissions: RoleFilter[], divisions: string[] = [], departmentIds: string[] = []) =>
     filterUsers(fixture.users, getDepartment, { query: '', divisions, departmentIds, permissions }, usersEn.permissions).map((user) => user.id)
 
-  it('comes after Department, with a chip per permission labelled as on the badges', () => {
+  it('comes after Department, with a chip per permission labelled as on the badges, then Others last', () => {
     const html = render()
     expect([...html.matchAll(/<legend[^>]*>([^<]+)<\/legend>/g)].map((match) => match[1])).toEqual(['Division', 'Department', 'Staff permission'])
     // No Admin chip: Admins are managed on the Admins page.
-    expect(chips(html, 'Staff permission')).toEqual(['author', 'reviewer', 'approver'].map((permission) => usersEn.permissions[permission as User['permissions'][number]]))
+    expect(chips(html, 'Staff permission')).toEqual([...['author', 'reviewer', 'approver'].map((permission) => usersEn.permissions[permission as User['permissions'][number]]), 'Others'])
+  })
+
+  it('matches Others to staff with none of Author, Reviewer and Approver, combined with the other choices like a permission', () => {
+    expect(byPermission(['others'])).toEqual(['admin'])
+    expect(byPermission(['others', 'approver'])).toEqual(['admin', 'reem'])
+    expect(byPermission(['others'], [], ['pv'])).toEqual([])
+  })
+
+  it('uses the same rule as Organizational Structure (matchesRoles), so the two can\'t drift apart', () => {
+    for (const selected of [['others'], ['author'], ['approver', 'others'], ['author', 'reviewer', 'approver', 'others']] as RoleFilter[][]) {
+      expect(byPermission(selected)).toEqual(fixture.users.filter((user) => matchesRoles(user, selected)).map((user) => user.id).sort())
+    }
+    // The same chips with the same label on both pages.
+    expect(ROLE_FILTERS).toEqual(['author', 'reviewer', 'approver', 'others'])
+    expect(filtersEn.permission.others).toBe('Others')
+  })
+
+  it('keeps Others in the URL, counts it in the field and clears it with Clear Filters', () => {
+    const html = render('?permission=others')
+    expect(chips(html, 'Staff permission')).toEqual(['Author', 'Reviewer', 'Approver', 'Others ✓'])
+    expect(filterField(html)).toContain('>1 permission</span>')
+    expect(filterField(render('?permission=author,others'))).toContain('aria-label="Filter: 2 permissions"')
+    expect(html).toContain('>Clear Filters<')
+    expect(clearedStaffParams(new URLSearchParams('permission=others&tab=active')).get('permission')).toBeNull()
   })
 
   it('matches anyone with ANY chosen permission, AND the Division and Department filter', () => {
@@ -268,7 +294,7 @@ describe('the Permission section of the Staff Filter', () => {
 
   it('is read from the URL, summed up in the field, and cleared by Clear Filters', () => {
     const html = render('?permission=author,reviewer,gone')
-    expect(chips(html, 'Staff permission')).toEqual(['Author ✓', 'Reviewer ✓', 'Approver'])
+    expect(chips(html, 'Staff permission')).toEqual(['Author ✓', 'Reviewer ✓', 'Approver', 'Others'])
     // An old link asking for Admins filters nothing.
     expect(filterField(render('?permission=admin'))).not.toContain('permission</span>')
     expect(rowCount(html)).toBe(1)
