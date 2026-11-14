@@ -125,7 +125,9 @@ begin
   assert not has_table_privilege('anon', 'public.organizations', 'select');
   assert not has_table_privilege('service_role', 'public.organizations', 'update');
   assert has_function_privilege('authenticated', 'public.current_organization_id()', 'execute');
-  assert not has_function_privilege('anon', 'public.current_organization_id()', 'execute');
+  -- Also for anonymous callers since 20261116150000 (it returns null for them), so the policies that call it
+  -- return no rows instead of a permission error.
+  assert has_function_privilege('anon', 'public.current_organization_id()', 'execute');
   assert not has_function_privilege('authenticated', 'public.only_organization_id()', 'execute');
   assert not has_function_privilege('authenticated', 'public.set_row_organization()', 'execute');
 

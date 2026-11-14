@@ -71,7 +71,8 @@ begin
   assert not has_table_privilege('anon', 'public.organizations', 'select');
   assert not has_table_privilege('service_role', 'public.organizations', 'update');
   assert (select relrowsecurity from pg_class where oid = 'public.organizations'::regclass), 'RLS is on';
-  assert not exists (select 1 from pg_policies where schemaname = 'public' and tablename = 'organizations'), 'no policies';
+  -- No policy that lets anyone read or write it (only the restrictive "Same organization only", 20261116150000).
+  assert not exists (select 1 from pg_policies where schemaname = 'public' and tablename = 'organizations' and permissive = 'PERMISSIVE'), 'no policies';
   assert not has_function_privilege('anon', 'public.get_organization_name()', 'execute');
   assert not has_function_privilege('anon', 'public.set_organization_name(text)', 'execute');
   assert has_function_privilege('authenticated', 'public.get_organization_name()', 'execute');

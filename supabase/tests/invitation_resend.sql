@@ -88,7 +88,8 @@ begin
   assert not has_table_privilege('authenticated', 'public.user_invitations', 'update'), 'not writable directly';
   assert not has_table_privilege('service_role', 'public.user_invitations', 'select');
   assert (select relrowsecurity from pg_class where oid = 'public.user_invitations'::regclass), 'RLS is on';
-  assert not exists (select 1 from pg_policies where schemaname = 'public' and tablename = 'user_invitations'), 'no policies';
+  -- No policy that lets anyone read or write it (only the restrictive "Same organization only", 20261116150000).
+  assert not exists (select 1 from pg_policies where schemaname = 'public' and tablename = 'user_invitations' and permissive = 'PERMISSIVE'), 'no policies';
   assert not has_function_privilege('anon', 'public.claim_invitation_resend(uuid)', 'execute');
   assert not has_function_privilege('anon', 'public.get_my_expired_invitations()', 'execute');
   assert not has_function_privilege('anon', 'public.mark_account_activated()', 'execute');
