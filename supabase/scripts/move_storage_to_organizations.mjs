@@ -5,6 +5,10 @@
 //   SUPABASE_URL=https://<project>.supabase.co SUPABASE_SERVICE_ROLE_KEY=<service role key> \
 //     node supabase/scripts/move_storage_to_organizations.mjs            (dry run: lists what would move)
 //   ... node supabase/scripts/move_storage_to_organizations.mjs --apply  (moves)
+//   ... node supabase/scripts/move_storage_to_organizations.mjs --reverse [--apply]
+//       The way back, for undoing the release after the move (docs/multi-tenancy.md): every file a row uses
+//       in its organization's folder goes back to the path without the folder (storage_paths_to_restore and
+//       restore_storage_path, 20261117160000). Only while MedCare is the only organization.
 //
 // Uses @supabase/supabase-js from frontend/node_modules, with the service role (it can't run as anyone else).
 // - The list comes from the database: storage_paths_to_relocate() (20261117120000), every path a row uses
@@ -25,6 +29,11 @@ const { createClient } = require('@supabase/supabase-js')
 const url = process.env.SUPABASE_URL ?? ''
 const key = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.HAWKIM_SECRET_KEY ?? ''
 const apply = process.argv.includes('--apply')
+const reverse = process.argv.includes('--reverse')
+// The list and the row update, one way or the other.
+const PLAN = reverse ? 'storage_paths_to_restore' : 'storage_paths_to_relocate'
+const RELOCATE = reverse ? 'restore_storage_path' : 'relocate_storage_path'
+const WHERE = reverse ? "out of its organization's folder" : "in its organization's folder"
 if (!url || !key) {
   console.error('Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY (the service role key).')
   process.exit(2)
@@ -32,8 +41,8 @@ if (!url || !key) {
 const supabase = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } })
 
 async function plan() {
-  const { data, error } = await supabase.rpc('storage_paths_to_relocate')
-  if (error) throw new Error(`storage_paths_to_relocate: ${error.message}`)
+  const { data, error } = await supabase.rpc(PLAN)
+  if (error) throw new Error(`${PLAN}: ${error.message}`)
   return data
 }
 
@@ -68,8 +77,8 @@ async function moveFile(bucket, from, to) {
 }
 
 async function relocate(bucket, from, to) {
-  const { data, error } = await supabase.rpc('relocate_storage_path', { p_bucket: bucket, p_old_path: from, p_new_path: to })
-  if (error) throw new Error(`relocate_storage_path ${bucket}/${from}: ${error.message}`)
+  const { data, error } = await supabase.rpc(RELOCATE, { p_bucket: bucket, p_old_path: from, p_new_path: to })
+  if (error) throw new Error(`${RELOCATE} ${bucket}/${from}: ${error.message}`)
   return data
 }
 
@@ -79,7 +88,7 @@ for (const item of items) counts[item.bucket] = (counts[item.bucket] ?? 0) + 1
 console.log(`${items.length} path(s) to move${items.length ? ': ' + Object.entries(counts).map(([b, n]) => `${b} ${n}`).join(', ') : ''}`)
 if (!apply) {
   for (const item of items) console.log(`  ${item.bucket}: ${item.old_path} → ${item.new_path}`)
-  console.log(items.length ? 'Dry run: nothing was changed. Run again with --apply to move them.' : 'Nothing to move.')
+  console.log(items.length ? `Dry run: nothing was changed. Run again with ${reverse ? '--reverse ' : ''}--apply to move them.` : 'Nothing to move.')
   process.exit(0)
 }
 
@@ -105,4 +114,4 @@ if (left.length) {
   console.error(`Still to move: ${left.map((item) => `${item.bucket}/${item.old_path}`).join(', ')}`)
   process.exit(1)
 }
-console.log(`Done: ${items.length} path(s) moved; every row's file is in its organization's folder.`)
+console.log(`Done: ${items.length} path(s) moved; every row's file is ${WHERE}.`)

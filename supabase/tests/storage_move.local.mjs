@@ -9,7 +9,8 @@
 // Fixtures, as before organization folders: an SOP version (and a deleted SOP's version) in sop-files at
 // <user>/<id>.pdf, a GVP version's PDF at files/<id>.pdf and its index at versions/<id>/. The script must move
 // every file into MedCare's folder, point the rows to the new paths, leave nothing to move, and do nothing
-// harmful when run again.
+// harmful when run again. Then --reverse must move them all back. Checks 4 and 5 need MedCare as the only
+// organization: run it right after `supabase db reset` (run_all.local.sh runs it before the other local tests).
 import { createRequire } from 'node:module'
 import { randomUUID } from 'node:crypto'
 import { execFileSync } from 'node:child_process'
@@ -99,6 +100,40 @@ try {
   await check('3. Running it again changes nothing', async () => {
     const out = runScript('--apply')
     assert(out.includes('0 path(s) to move'), out)
+  })
+  await check("4. --reverse moves every file back out of the organization's folder (the undo after step 4)", async () => {
+    const organizations = (await db.row('select count(*)::int as n from public.organizations')).n
+    assert(organizations === 1, `needs MedCare as the only organization (found ${organizations}): run it right after supabase db reset`)
+    const dry = runScript('--reverse')
+    assert(dry.includes(`${medcare}/${sopPath}`) && dry.includes('Dry run'), dry)
+    const out = runScript('--reverse', '--apply')
+    assert(out.includes('Done:'), out)
+    for (const [bucket, path] of [['sop-files', sopPath], ['sop-files', deletedPath], ['guideline-files', gvpPath],
+      ['guideline-indexes', `${indexPath}/meta.json`], ['guideline-indexes', `${indexPath}/units.jsonl`]]) {
+      assert(await stored(bucket, path), `not back at the old path: ${bucket}/${path}`)
+      assert(!(await stored(bucket, `${medcare}/${path}`)), `still in the folder: ${bucket}/${medcare}/${path}`)
+    }
+    const gvp = await db.row(`select storage_path, index_path from public.guideline_versions where id = ${lit(version)}`)
+    assert(gvp.storage_path === gvpPath && gvp.index_path === indexPath, JSON.stringify(gvp))
+    const deleted = await db.row(`select storage_path from public.sop_versions where sop_id = ${lit(deletedSop)}`)
+    assert(deleted.storage_path === deletedPath, "the deleted SOP's version is back too")
+    // Forward again: the same files are listed to move.
+    const again = runScript()
+    assert(again.includes(sopPath) && again.includes(gvpPath), again)
+  })
+  await check('5. --reverse refuses once there is a second organization (paths could clash)', async () => {
+    const other = randomUUID()
+    await db.run(`insert into public.organizations (id, name) values (${lit(other)}, 'Move Second Organization');`)
+    try {
+      let refused = false
+      try { runScript('--reverse') } catch (error) { refused = /More than one organization/.test(String(error.stdout) + String(error.stderr)) }
+      assert(refused, 'the dry run went on')
+      refused = false
+      try { runScript('--reverse', '--apply') } catch (error) { refused = /More than one organization/.test(String(error.stdout) + String(error.stderr)) }
+      assert(refused, 'the move went on')
+    } finally {
+      await db.run(`delete from public.organizations where id = ${lit(other)};`)
+    }
   })
 } finally {
   // ---------- Cleanup (owner, this local database only) ----------

@@ -45,9 +45,13 @@ for f in supabase/tests/*.sql; do
   else echo "FAIL $name :: $(printf '%s' "$out" | grep -m3 -E 'ERROR|DETAIL|CONTEXT' | tr '\n' ' ' | cut -c1-400)"; fails+=("$name"); fi
 done
 
-for f in supabase/tests/*.local.mjs supabase/tests/organization_migrations.mjs; do
+# storage_move.local.mjs first: its --reverse checks need MedCare to be the only organization, and the other
+# local tests leave their test organizations behind.
+for f in supabase/tests/storage_move.local.mjs supabase/tests/*.local.mjs supabase/tests/organization_migrations.mjs; do
   name="$(basename "$f")"
   case "$name" in *.browser.local.mjs) continue ;; esac
+  case " ${ran:-} " in *" $name "*) continue ;; esac
+  ran="${ran:-} $name"
   out="$(timeout 600 node "$f" 2>&1)"
   if [ $? -eq 0 ]; then echo "PASS $name"
   else echo "FAIL $name :: $(printf '%s' "$out" | grep -E '^FAIL|Error' | head -5 | tr '\n' ' ' | cut -c1-500)"; fails+=("$name"); fi
