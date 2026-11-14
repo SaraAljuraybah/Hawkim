@@ -87,7 +87,7 @@ Keep the key out of shell history and files.
 
 ### 0. Before the window
 
-- **Check what's already applied.** The hosted history ends at `20261114130100_pending_review_duration`, and three later migrations were applied by hand in the SQL Editor. Confirm, in the SQL Editor:
+- **Check what's already applied.** The hosted history ends at `20261114130100_pending_review_duration`, and four later migrations were applied by hand in the SQL Editor. Confirm, in the SQL Editor:
   ```sql
   select to_regprocedure('public.submit_access_request(text,text,text,text,text,integer,text,text,text,text,text,text,text)') is not null as m_20261115120000,
          to_regprocedure('public.report_guideline_progress(uuid,integer,text,text)') is not null        as m_20261115130000,
@@ -96,6 +96,8 @@ Keep the key out of shell history and files.
           where oid = 'public.claim_guideline_processing()'::regprocedure)                              as m_20261115150000;
   ```
   All four should be `true`. A `false` means that migration isn't applied yet: it then runs in step 3 instead of being marked.
+
+  **Result (2026-11-14): all four `true`, and the queue check below returned no rows.** Step 3 marks all four as applied. Run both checks again on the day of the window; if anything differs, stop and update step 3 first.
 - **Check the queue** has at most one GVP version waiting or processing per organization (`20261116210000` stops if not):
   ```sql
   select processing_status, count(*) from public.guideline_version_drafts
@@ -148,13 +150,14 @@ Its file count should match the `storage.objects` row count. Keep the backup fol
 
 ```bash
 supabase link --project-ref <project ref>
-# Only the migrations that step 0 found applied by hand:
-supabase migration repair --status applied 20261115130000 20261115140000 20261115150000
-supabase db push --dry-run     # must list exactly the migrations below (plus 20261115120000 if step 0 said false)
+# The four migrations step 0 found applied by hand (all four true on 2026-11-14):
+supabase migration repair --status applied 20261115120000 20261115130000 20261115140000 20261115150000
+supabase migration list        # remote: applied up to 20261115150000; the 17 below are local only
+supabase db push --dry-run     # must list exactly the 17 migrations below, 20261116120000 to 20261117160000, nothing else
 supabase db push
 ```
 
-`db push` applies these 17 migrations, each in one transaction:
+`db push` applies these 17 migrations, each in one transaction. If the dry run lists anything else (in particular one of the four `20261115…` migrations), or fewer than 17, stop: don't push.
 
 1. `20261116120000_organizations`
 2. `20261116130000_conflict_without_retry`
