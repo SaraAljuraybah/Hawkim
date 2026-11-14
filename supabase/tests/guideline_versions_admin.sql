@@ -135,6 +135,13 @@ begin
   -- Refused: each rule, with its hint.
   v_other_path := pg_temp.upload(admin1);
   perform pg_temp.act_as(admin1);
+  -- One version in the queue per organization (20261111150000, per organization since 20261116210000):
+  -- while 901.0 waits, no other version can be added.
+  perform pg_temp.expect_error(format('select public.create_guideline_draft(''T'', ''902.0'', %L, %L, %L, ''a.pdf'')', today, sfda, v_other_path), '55006', 'version-processing');
+  -- For the rules below, 901.0 is processed (no longer in the queue).
+  perform pg_temp.as_owner();
+  update public.guideline_version_drafts set processing_status = 'ready' where id = v_draft;
+  perform pg_temp.act_as(admin1);
   perform pg_temp.expect_error(format('select public.create_guideline_draft(''T'', %L, %L, %L, %L, ''a.pdf'')', '902', today, sfda, v_other_path), '23514', 'version-invalid');
   perform pg_temp.expect_error(format('select public.create_guideline_draft(''T'', %L, %L, %L, %L, ''a.pdf'')', 'v902.0', today, sfda, v_other_path), '23514', 'version-invalid');
   perform pg_temp.expect_error(format('select public.create_guideline_draft(''T'', %L, %L, %L, %L, ''a.pdf'')', '902.0.1', today, sfda, v_other_path), '23514', 'version-invalid');
@@ -182,6 +189,9 @@ begin
   v_returned := pg_temp.upload(admin1, 'application/pdf', 20971520);
   perform pg_temp.act_as(admin1);
   v_second := public.create_guideline_draft('GV Second', '1000.0', today, 'HTTPS://SFDA.GOV.SA', v_returned, 'b.PDF');
+  perform pg_temp.as_owner();
+  update public.guideline_version_drafts set processing_status = 'ready' where id = v_second;   -- out of the queue too
+  perform pg_temp.act_as(admin1);
   -- 901.10 is a new number, higher than 900.0 (numbers compare part by part).
   v_returned := public.create_guideline_draft('GV Third', '901.10', today, sfda, v_other_path, 'c.pdf');
   perform public.delete_guideline_draft(v_returned::uuid);
@@ -297,7 +307,8 @@ begin
   perform pg_temp.expect_error(format('select public.delete_guideline_draft(%L)', v_draft), '42501');
   perform pg_temp.act_as(admin2);
   v_returned := public.delete_guideline_draft(v_draft);
-  assert v_returned = v_path, 'Returns the file to remove';
+  -- Since 20261115130000 it returns {outcome, storage_path} (a version being processed is cancelled instead).
+  assert v_returned::jsonb ->> 'outcome' = 'deleted' and v_returned::jsonb ->> 'storage_path' = v_path, 'Returns the file to remove';
   perform pg_temp.as_owner();
   assert not exists (select 1 from public.guideline_version_drafts d where d.id = v_draft), 'Deleted';
   assert pg_temp.audits('delete-guideline-version', v_draft::text) = 1, 'Deleting is audited';
