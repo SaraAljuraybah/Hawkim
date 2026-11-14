@@ -1,4 +1,4 @@
-import { useId, useState, type CSSProperties, type MouseEvent, type ReactNode } from 'react'
+import { type CSSProperties, type MouseEvent, type ReactNode } from 'react'
 import type { ComplianceContent } from '../../content/types'
 import type { CheckProcedure, ComplianceCheck, ComplianceResult } from '../../data/mock/types'
 import type { CheckProceduresState } from '../../hooks/useCheckProcedures'
@@ -7,10 +7,11 @@ import { Button } from '../ui/Button'
 import { RequirementsTable } from '../ui/RequirementsTable'
 import { tableStyles } from '../ui/tableStyles'
 import { ComplianceBadge } from './ComplianceBadge'
+import { ExpandableText } from './ExpandableText'
 import { FindingText } from './FindingText'
 import { requirementLines, sopReferenceLines, sopSectionLabel, withoutContextLabel } from './findingDetails'
 import { overviewCells } from './overviewCells'
-import { assessedRequirements, excerpt } from './reportTables'
+import { assessedRequirements } from './reportTables'
 import { useReportRequirement } from './reportRequirements'
 
 /** Indicator colours per result (the darker status tokens, so they stand out on white). */
@@ -147,7 +148,8 @@ function FindingLink({ finding, onJump }: { finding: NumberedFinding; onJump: Ju
 
 /**
  * The GVP requirement passages the check assessed: each requirement with at least one finding, once
- * (assessedRequirements), in the GVP version page's table (ID, Module, Section, Title, Page, Summary).
+ * (assessedRequirements), in the GVP version page's table (ID, Module, Section, Title, Page, Summary). A long
+ * summary is an excerpt with "Show more", as the Procedures' text.
  */
 export function AssessedRequirements({ findings, content }: { findings: NumberedFinding[]; content: ComplianceContent }) {
   const text = content.report.requirements
@@ -157,49 +159,34 @@ export function AssessedRequirements({ findings, content }: { findings: Numbered
     // As on the finding cards: without the "[Context: …]" label.
     summary: withoutContextLabel(requirement.summary),
   }))
-  return <RequirementsTable requirements={requirements} labels={text} layout="report" />
+  return (
+    <RequirementsTable
+      requirements={requirements}
+      labels={text}
+      layout="report"
+      summary={(requirement) =>
+        requirement.summary.trim() ? (
+          <ExpandableText
+            text={requirement.summary}
+            showMore={text.showMore}
+            showLess={text.showLess}
+            toggleLabel={text.toggleLabel.replace('{id}', requirement.id)}
+          />
+        ) : (
+          text.none
+        )
+      }
+    />
+  )
 }
 
 // ---------- d) Procedures ----------
 
-/** A procedure's text: its excerpt with "Show more" when it's long (printed in full). */
-function ProcedureText({ procedure, number, content }: { procedure: CheckProcedure; number: number; content: ComplianceContent }) {
-  const text = content.report.procedures
-  const [open, setOpen] = useState(false)
-  const id = useId()
-  const short = excerpt(procedure.text)
-  if (!short.cut) return <FindingText text={procedure.text} className="text-maroon" />
-  return (
-    <div>
-      <div id={id}>
-        {open ? (
-          <FindingText text={procedure.text} className="text-maroon" />
-        ) : (
-          <>
-            <p className="text-maroon print:hidden">{short.text}</p>
-            {/* Printed in full */}
-            <FindingText text={procedure.text} className="hidden text-maroon print:block" />
-          </>
-        )}
-      </div>
-      <button
-        type="button"
-        aria-expanded={open}
-        aria-controls={id}
-        onClick={() => setOpen((value) => !value)}
-        className="mt-1 rounded-sm text-sm font-medium text-maroon underline underline-offset-2 hover:text-maroon-secondary print:hidden"
-      >
-        {open ? text.showLess : text.showMore}
-        <span className="sr-only"> {text.toggleLabel.replace('{number}', String(number))}</span>
-      </button>
-    </div>
-  )
-}
-
 /**
  * The SOP procedures the compliance service extracted from the checked version's file, in document
- * order: No., Section (its heading), Page and the text (an excerpt that opens). Instead of the table: a message for sample checks, while they load, when they couldn't
- * be loaded (with Try Again) and when the check has none recorded.
+ * order: No., Section (its heading), Page and the text (an excerpt that opens). Instead of the table: a
+ * message for sample checks, while they load, when they couldn't be loaded (with Try Again) and when the
+ * check has none recorded.
  */
 export function ProceduresTable({
   procedures,
@@ -249,7 +236,13 @@ export function ProceduresTable({
                 <td className={`${tableStyles.cell} font-medium text-maroon`}>{procedure.heading ?? text.none}</td>
                 <td className={`${tableStyles.cell} whitespace-nowrap text-text-gray`}>{page(procedure, text.page)}</td>
                 <td className={`${tableStyles.cell} min-w-64`}>
-                  <ProcedureText procedure={procedure} number={index + 1} content={content} />
+                  <ExpandableText
+                    text={procedure.text}
+                    showMore={text.showMore}
+                    showLess={text.showLess}
+                    toggleLabel={text.toggleLabel.replace('{number}', String(index + 1))}
+                    className="text-maroon"
+                  />
                 </td>
               </tr>
             ))}
@@ -266,7 +259,13 @@ export function ProceduresTable({
             </p>
             <p className="mt-0.5 text-text-gray">{page(procedure, text.pageCard)}</p>
             <div className="mt-1.5">
-              <ProcedureText procedure={procedure} number={index + 1} content={content} />
+              <ExpandableText
+                text={procedure.text}
+                showMore={text.showMore}
+                showLess={text.showLess}
+                toggleLabel={text.toggleLabel.replace('{number}', String(index + 1))}
+                className="text-maroon"
+              />
             </div>
           </li>
         ))}

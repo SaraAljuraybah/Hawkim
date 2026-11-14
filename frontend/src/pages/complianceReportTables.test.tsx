@@ -118,11 +118,39 @@ describe('Requirements', () => {
   it('lists each requirement that has a finding once, in code order', () => {
     const html = requirements()
     expect(rows(html)).toEqual([
-      ['V.B.2#4', 'Module V', 'V.B.2', 'Risk management', 'p. 107', 'The MAH should.\nKeep a system.'],
+      // The summary as paragraphs (as the finding cards and the procedures show text).
+      ['V.B.2#4', 'Module V', 'V.B.2', 'Risk management', 'p. 107', 'The MAH should.Keep a system.'],
       ['VII.B.5#1', 'Module V', 'VII.B.5', 'Signals', 'p. 12', 'Summary of VII.B.5#1.'],
     ])
     // The summary without the "[Context: …]" label, as on the finding cards.
     expect(html).not.toContain('[Context')
+  })
+
+  it('shows a long summary as an excerpt with "Show more" (closed), printed in full, as the procedures do', () => {
+    const summary = `${'The marketing authorisation holder should operate a pharmacovigilance system. '.repeat(3)}The end.`
+    fixture.sop = { ...fixture.sop!, complianceChecks: [{ ...serviceCheck(), findings: [
+      { id: 'a', requirementId: 'V.B.2#4', result: 'partial', justification: 'x', requirement: requirement('V.B.2#4', 'V.B.2', 'Risk management', 107, summary) },
+    ] }] }
+    const html = requirements()
+    const short = excerpt(summary)
+    expect(short.cut).toBe(true)
+    // In the table cell (grey, as on the GVP page) and on the phone card (maroon).
+    expect(html).toContain('<td class="px-5 py-3.5 text-text-gray"><div><div id="')
+    expect(html).toContain('<div class="mt-1.5 text-sm text-maroon"><div><div id="')
+    expect(html).toContain(`<p class="print:hidden">${short.text}</p>`)
+    // The full summary, only when printed.
+    expect(html).toContain('<div class="space-y-1.5 hidden print:block"><p>The marketing authorisation holder should')
+    expect(html).toMatch(/<button type="button" aria-expanded="false" aria-controls="[^"]+" class="[^"]*print:hidden">Show more<span class="sr-only"> summary of V\.B\.2#4<\/span><\/button>/)
+    expect(html.match(/>Show more</g)).toHaveLength(2) // the table row and its phone card
+  })
+
+  it('shows a short summary in full, with no button, and "—" for an empty one', () => {
+    expect(requirements()).not.toContain('Show more')
+    expect(requirements()).toContain('<td class="px-5 py-3.5 text-text-gray"><div class="space-y-1.5 "><p>Summary of VII.B.5#1.</p></div></td>')
+    fixture.sop = { ...fixture.sop!, complianceChecks: [{ ...serviceCheck(), findings: [
+      { id: 'a', requirementId: 'R1', result: 'partial', justification: 'x', requirement: requirement('R1', 'I.B.10', 'Records', 3, '  ') },
+    ] }] }
+    expect(requirements()).toContain('<td class="px-5 py-3.5 text-text-gray">—</td>')
   })
 
   it('shows each requirement as a card on phones', () => {

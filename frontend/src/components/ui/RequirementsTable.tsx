@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import type { Requirement } from '../../data/mock/types'
 import { tableStyles } from './tableStyles'
 
@@ -17,17 +18,21 @@ export interface RequirementsTableLabels {
  * framed style, with stacked cards on small screens. Used by a GVP version's Requirements and by the
  * compliance report's Requirements.
  * - `layout`: 'md' (the admin pages: the table from md) or 'report' (the table from sm and when printed,
- *   the cards below sm).
+ *   the cards below sm);
+ * - `summary`: renders the Summary cell and the card's summary (e.g. the report's "Show more"); the
+ *   plain text otherwise.
  */
 export function RequirementsTable({
   requirements,
   labels,
   layout = 'md',
+  summary,
   className = '',
 }: {
   requirements: Requirement[]
   labels: RequirementsTableLabels
   layout?: 'md' | 'report'
+  summary?: (requirement: Requirement) => ReactNode
   className?: string
 }) {
   const columns = labels.columns
@@ -59,7 +64,7 @@ export function RequirementsTable({
                 <td className={`${tableStyles.cell} whitespace-nowrap text-text-gray`}>{value(requirement.section)}</td>
                 <td className={`${tableStyles.cell} font-medium text-maroon`}>{value(requirement.sectionTitle)}</td>
                 <td className={`${tableStyles.cell} whitespace-nowrap text-text-gray`}>{page(requirement)}</td>
-                <td className={`${tableStyles.cell} text-text-gray`}>{value(requirement.summary)}</td>
+                <td className={`${tableStyles.cell} text-text-gray`}>{summary ? summary(requirement) : value(requirement.summary)}</td>
               </tr>
             ))}
           </tbody>
@@ -76,7 +81,11 @@ export function RequirementsTable({
             <p className="mt-0.5 text-sm text-text-gray">
               {value(requirement.module)} · {value(requirement.section)} · {page(requirement)}
             </p>
-            <p className="mt-1.5 text-sm text-maroon">{value(requirement.summary)}</p>
+            {summary ? (
+              <div className="mt-1.5 text-sm text-maroon">{summary(requirement)}</div>
+            ) : (
+              <p className="mt-1.5 text-sm text-maroon">{value(requirement.summary)}</p>
+            )}
           </li>
         ))}
       </ul>

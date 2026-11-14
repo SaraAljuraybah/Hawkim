@@ -1115,6 +1115,10 @@ export interface ComplianceContent {
       page: string
       /** An unknown value (e.g. a page). */
       none: string
+      /** The button under a long summary; `toggleLabel` (`{id}` replaced) is added to its accessible name. */
+      showMore: string
+      showLess: string
+      toggleLabel: string
     }
     /** The SOP procedures the compliance service extracted from the checked version's file. */
     procedures: {

@@ -81,6 +81,9 @@ export const complianceEn: ComplianceContent = {
       columns: { id: 'ID', module: 'Module', section: 'Section', title: 'Title', page: 'Page', summary: 'Summary' },
       page: 'p. {page}',
       none: '—',
+      showMore: 'Show more',
+      showLess: 'Show less',
+      toggleLabel: 'summary of {id}',
     },
     procedures: {
       title: 'Procedures',
