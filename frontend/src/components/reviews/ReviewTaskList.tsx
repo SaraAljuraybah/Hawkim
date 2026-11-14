@@ -35,7 +35,7 @@ export function ReviewTaskList({ tasks, view, label }: { tasks: ReviewTask[]; vi
             {task.need && <span className={pill}>{text.needs[task.need]}</span>}
             {task.group === 'waiting' && <span className={pill}>{text.waiting}</span>}
           </div>
-          <p className="mt-3 text-xs text-text-gray">{text.yourRole.replace('{role}', text.roles[task.role])}</p>
+          <p className="mt-3 text-xs text-text-gray">{text.yourRole.replace('{permission}', text.roles[task.role])}</p>
         </div>
         <div className={grid ? 'mt-auto border-t border-beige pt-4' : 'border-t border-beige pt-4 md:w-64 md:shrink-0 md:border-t-0 md:border-l md:pt-0 md:pl-5'}>
           <TaskDetails task={task} />

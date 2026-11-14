@@ -62,6 +62,9 @@ describe('My Reviews presentation', () => {
     expect(html).toContain('Active Reviews')
     expect(html).toContain('Completed Reviews')
     expect(html).toContain('Calibrating equipment')
+    // "permission", not "role".
+    expect(html).toContain('Your permission: Reviewer')
+    expect(html).not.toContain('Your role')
     expect(html).toContain('Main Author')
     expect(html).toContain('Home Department')
     expect(html).toContain('2026-10-01T10:15:23Z')

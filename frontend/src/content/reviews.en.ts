@@ -38,7 +38,7 @@ export const reviewsEn: ReviewsContent = {
     },
     listLabel: 'Assigned SOPs',
     author: 'By {name}',
-    yourRole: 'Your role: {role}',
+    yourRole: 'Your permission: {permission}',
     roles: { reviewer: 'Reviewer', approver: 'Approver' },
     needs: { review: 'Your Review', approval: 'Your Approval', publish: 'Ready to Publish' },
     due: 'Due {date}',

@@ -1187,7 +1187,7 @@ export interface WorkflowDemoContent {
   failNextCheck: string
   commentDialog: {
     title: string
-    /** `{name}` and `{role}` are replaced. */
+    /** `{name}` and `{permission}` are replaced. */
     description: string
     label: string
     placeholder: string
@@ -1337,7 +1337,7 @@ export interface ReviewsContent {
     listLabel: string
     /** `{name}` is replaced. */
     author: string
-    /** `{role}` is replaced. */
+    /** `{permission}` is replaced. */
     yourRole: string
     roles: { reviewer: string; approver: string }
     needs: { review: string; approval: string; publish: string }

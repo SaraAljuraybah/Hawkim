@@ -172,7 +172,7 @@ export default function DemoPanel({ sop, announce }: DemoPanelProps) {
           title={content.commentDialog.title}
           description={content.commentDialog.description
             .replace('{name}', nameOf(returner.userId))
-            .replace('{role}', returner.role === 'approver' ? roles.approver : roles.reviewer)}
+            .replace('{permission}', returner.role === 'approver' ? roles.approver : roles.reviewer)}
           confirmLabel={content.commentDialog.confirm}
           cancelLabel={content.commentDialog.cancel}
           onClose={closeComment}

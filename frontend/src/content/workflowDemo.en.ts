@@ -20,7 +20,7 @@ export const workflowDemoEn: WorkflowDemoContent = {
   failNextCheck: 'Make the Next Compliance Check Fail',
   commentDialog: {
     title: 'Return with Comment',
-    description: 'Acting as {name} ({role}).',
+    description: 'Acting as {name} ({permission}).',
     label: 'Comment',
     placeholder: 'Explain what the author should change…',
     required: 'Enter a comment.',
