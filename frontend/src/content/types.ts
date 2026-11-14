@@ -1040,6 +1040,8 @@ export interface ComplianceContent {
     title: string
     /** `{version}` is the guideline version. */
     running: string
+    /** Under `running`: one compliance service serves every organization, so a check can wait. */
+    sharedService: string
     /** Announced when a running check ends. */
     completed: string
     failed: string
@@ -1601,6 +1603,11 @@ export interface AdminRegulationDetailsContent {
     /** Shown while the version is waiting or being processed. */
     keepWorking: string
     /**
+     * A waiting version's place in the queue of the one compliance service, which serves every organization:
+     * `next` when it is processed next, `position` otherwise (`{position}` is replaced).
+     */
+    queue: { next: string; position: string }
+    /**
      * `{stage}`, `{detail}` and `{percent}` are replaced (the stage and detail come from the compliance
      * service, e.g. "Preparing requirements" and "batch 32 of 186"); `withoutDetail` when there is no
      * detail; `starting` is the stage before the service reported one; `label` names the progress bar.
@@ -2028,8 +2035,7 @@ export interface ReviewRequestContent {
   /** After the team's decision. `{email}` is the requester's address. */
   accepted: { title: string; text: string; emailFailed: string }
   rejected: { title: string; text: string }
-  /** `deploymentOnboarded`: this deployment already has its organization (one organization per deployment). */
-  errors: { emailInUse: string; deploymentOnboarded: string; accountFailed: string; notConnected: string; failed: string }
+  errors: { emailInUse: string; accountFailed: string; notConnected: string; failed: string }
 }
 
 /** The page controls under a long list. `{page}` is the page number. */

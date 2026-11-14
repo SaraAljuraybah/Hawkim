@@ -4,6 +4,8 @@ import { fileTypeOf, fileUrlOf, SIGNED_URL_SECONDS, storagePathFor, uploadSopFil
 const bucket = { upload: vi.fn(), createSignedUrl: vi.fn() }
 const from = vi.fn(() => bucket)
 vi.mock('./supabase', () => ({ supabase: () => ({ storage: { from } }) }))
+// The caller's organization's folder (current_organization_id).
+vi.mock('./organizationFolder', () => ({ organizationFolder: async () => 'org-medcare' }))
 
 beforeEach(() => vi.clearAllMocks())
 
@@ -14,8 +16,8 @@ describe('SOP files', () => {
     expect(fileTypeOf('old.doc')).toBeUndefined()
   })
 
-  it('stores each upload in the uploader\'s folder under a random name', () => {
-    expect(storagePathFor('uuid-sara', 'docx', 'random-id')).toBe('uuid-sara/random-id.docx')
+  it('stores each upload in the uploader\'s folder of their organization\'s, under a random name', () => {
+    expect(storagePathFor('org-medcare', 'uuid-sara', 'docx', 'random-id')).toBe('org-medcare/uuid-sara/random-id.docx')
   })
 
   it('uploads with the right type, never replacing a file, and keeps the original name', async () => {
@@ -24,7 +26,7 @@ describe('SOP files', () => {
     const file = new File(['x'], 'Procédure finale.docx', { type: '' })
     const stored = await uploadSopFile('uuid-sara', file)
     expect(stored.fileName).toBe('Procédure finale.docx')
-    expect(stored.storagePath).toMatch(/^uuid-sara\/[0-9a-f-]{36}\.docx$/)
+    expect(stored.storagePath).toMatch(/^org-medcare\/uuid-sara\/[0-9a-f-]{36}\.docx$/)
     expect(from).toHaveBeenCalledWith('sop-files')
     expect(bucket.upload).toHaveBeenCalledWith(stored.storagePath, file, {
       contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', upsert: false,

@@ -17,6 +17,8 @@ const bucket = { upload: vi.fn(), remove: vi.fn(), createSignedUrl: vi.fn() }
 const from = vi.fn(() => bucket)
 const rpc = vi.fn()
 vi.mock('./supabase', () => ({ supabase: () => ({ storage: { from }, rpc }) }))
+// The caller's organization's folder (current_organization_id).
+vi.mock('./organizationFolder', () => ({ organizationFolder: async () => 'org-medcare' }))
 
 beforeEach(() => vi.clearAllMocks())
 
@@ -27,7 +29,7 @@ describe('guideline PDFs', () => {
     bucket.upload.mockResolvedValue({ data: {}, error: null })
     const file = new File(['%PDF'], 'Drug-GVP4_1.pdf', { type: '' })
     const path = await uploadGuidelineFile(file)
-    expect(path).toMatch(/^files\/[0-9a-f-]{36}\.pdf$/)
+    expect(path).toMatch(/^org-medcare\/files\/[0-9a-f-]{36}\.pdf$/)
     expect(from).toHaveBeenCalledWith('guideline-files')
     expect(bucket.upload).toHaveBeenCalledWith(path, file, { contentType: 'application/pdf', upsert: false })
   })

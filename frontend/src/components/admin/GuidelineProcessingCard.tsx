@@ -1,9 +1,11 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { CircleAlert, CircleCheck, LoaderCircle } from 'lucide-react'
 import { Button } from '../ui/Button'
 import { ProcessingStatusBadge } from '../ui/ProcessingStatusBadge'
 import { adminEn } from '../../content/admin.en'
 import type { GuidelineVersion } from '../../data/mock/types'
+import { fetchGuidelineQueuePosition } from '../../services/guidelines'
+import { queuePositionText } from './guidelineQueue'
 
 const text = adminEn.regulationDetails.processing
 
@@ -25,6 +27,7 @@ export function GuidelineProcessingCard({ version, onRetry, onMakeCurrent }: Gui
   const [confirming, setConfirming] = useState(false)
   const [busy, setBusy] = useState(false)
   const [failed, setFailed] = useState(false)
+  const position = useQueuePosition(version)
   if (!processing) return null
 
   const run = async (action: () => Promise<void>) => {
@@ -59,6 +62,7 @@ export function GuidelineProcessingCard({ version, onRetry, onMakeCurrent }: Gui
           <span>{text.status[processing.status]}</span>
         </p>
         {processing.status === 'processing' && <ProcessingProgress progress={processing.progress} />}
+        {processing.status === 'waiting' && queuePositionText(position) && <p>{queuePositionText(position)}</p>}
         {(processing.status === 'waiting' || processing.status === 'processing') && (
           <p className="text-text-gray">{text.keepWorking}</p>
         )}
@@ -110,6 +114,25 @@ export function GuidelineProcessingCard({ version, onRetry, onMakeCurrent }: Gui
       )}
     </section>
   )
+}
+
+/**
+ * A waiting version's place in the compliance service's queue (null while unknown, or when it isn't waiting).
+ * Read again each time the page reads the version again (it does while the version waits).
+ */
+function useQueuePosition(version: GuidelineVersion): number | null {
+  const waiting = version.processing?.status === 'waiting'
+  const [position, setPosition] = useState<number | null>(null)
+  useEffect(() => {
+    if (!waiting) return
+    let current = true
+    fetchGuidelineQueuePosition(version.id).then(
+      (value) => { if (current) setPosition(value) },
+      () => { if (current) setPosition(null) },   // Not shown when it can't be read; the status line stays.
+    )
+    return () => { current = false }
+  }, [version, waiting])
+  return waiting ? position : null
 }
 
 /**

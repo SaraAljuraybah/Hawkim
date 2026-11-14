@@ -540,6 +540,10 @@ export const adminEn: AdminContent = {
         failed: 'Processing failed.',
       },
       keepWorking: 'You can keep using Hawkim; this page updates by itself when processing is done.',
+      queue: {
+        next: 'Next in the queue: it starts as soon as the compliance service is free.',
+        position: 'Place in the queue: {position}. One compliance service processes the versions of every organization one at a time, after their compliance checks.',
+      },
       progress: {
         withDetail: '{stage}: {detail} ({percent}%)',
         withoutDetail: '{stage} ({percent}%)',

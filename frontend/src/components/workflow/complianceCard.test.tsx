@@ -46,6 +46,8 @@ describe('Compliance overview', () => {
     const html = render(sop([running]))
     expect(html).not.toContain('hasn’t been checked yet')
     expect(html).toContain('Checking against SFDA GVP v4.0')
+    // One compliance service checks every organization's SOPs, so a check can wait.
+    expect(html).toContain('every organization')
   })
 })
 

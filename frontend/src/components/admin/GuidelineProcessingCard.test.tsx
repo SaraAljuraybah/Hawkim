@@ -4,6 +4,7 @@ import { adminEn } from '../../content/admin.en'
 import type { GuidelineVersion } from '../../data/mock/types'
 import { toGuidelineProcessing } from '../../services/guidelines'
 import { GuidelineProcessingCard } from './GuidelineProcessingCard'
+import { queuePositionText } from './guidelineQueue'
 
 const text = adminEn.regulationDetails.processing
 const base: GuidelineVersion = { id: 'uuid-60', version: '6.0', effectiveDate: '2026-11-08', fileName: 'Drug-GVP6_0.pdf', requirements: [], neverCurrent: true }
@@ -28,6 +29,14 @@ describe('GVP version processing', () => {
       expect(html).not.toContain(text.makeCurrent)
       expect(html).not.toContain(text.retry)
     }
+  })
+
+  it("says a waiting version's place in the one queue of every organization", () => {
+    expect(queuePositionText(1)).toBe(text.queue.next)
+    expect(queuePositionText(3)).toBe(text.queue.position.replace('{position}', '3'))
+    expect(queuePositionText(3)).toContain('every organization')
+    expect(queuePositionText(null)).toBeNull()
+    expect(queuePositionText(0)).toBeNull()
   })
 
   it('shows the report, the warnings and Make Current when ready', () => {

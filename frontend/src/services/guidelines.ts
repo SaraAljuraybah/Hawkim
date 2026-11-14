@@ -1,7 +1,7 @@
 /*
  * Managing GVP versions in the admin portal (supabase/migrations/20261108120000_guideline_versions_admin.sql).
  * A version an admin adds is kept apart from the published ones (guideline_version_drafts), so it is
- * never current. PDFs go to the private guideline-files bucket as "files/<random id>.pdf" and are
+ * never current. PDFs go to the private guideline-files bucket as "<organization id>/files/<random id>.pdf" and are
  * opened through signed links that last 10 minutes. Published versions are read in services/compliance.ts.
  */
 
@@ -9,6 +9,7 @@ import type { GuidelineProcessing, GuidelineVersion } from '../data/mock/types'
 import { riyadhDate } from '../lib/riyadhWorkingDays'
 import { SIGNED_URL_SECONDS } from './files'
 import { supabase } from './supabase'
+import { organizationFolder } from './organizationFolder'
 
 const BUCKET = 'guideline-files'
 
@@ -143,9 +144,15 @@ export async function fetchAddedGuidelineVersions(): Promise<GuidelineVersion[]>
   return (data as AddedVersionRow[]).map(toAddedGuidelineVersion)
 }
 
-/** Uploads a PDF under a new random name (never replacing a file); returns where it is. */
+/** Uploads a PDF under a new random name in the organization's folder (never replacing a file); returns where it is. */
 export async function uploadGuidelineFile(file: File): Promise<string> {
-  const storagePath = `files/${crypto.randomUUID()}.pdf`
+  let folder: string
+  try {
+    folder = await organizationFolder()
+  } catch (error) {
+    throw new GuidelineError('upload', error instanceof Error ? error.message : 'No organization')
+  }
+  const storagePath = `${folder}/files/${crypto.randomUUID()}.pdf`
   const { error } = await supabase().storage.from(BUCKET).upload(storagePath, file, { contentType: 'application/pdf', upsert: false })
   if (error) throw new GuidelineError('upload', error.message)
   return storagePath
@@ -213,6 +220,16 @@ export async function signedGuidelineFileUrl(storagePath: string): Promise<strin
 }
 
 /** Processes an added version again after processing failed. */
+/**
+ * A waiting version's place in the compliance service's queue, which serves every organization
+ * (guideline_queue_position, 20261116210000): 1 = processed next; null when it isn't waiting.
+ */
+export async function fetchGuidelineQueuePosition(id: string): Promise<number | null> {
+  const { data, error } = await supabase().rpc('guideline_queue_position', { p_id: id })
+  if (error) throw new Error(error.message)
+  return typeof data === 'number' ? data : null
+}
+
 export async function retryGuidelineProcessing(id: string): Promise<void> {
   const { error } = await supabase().rpc('retry_guideline_processing', { p_id: id })
   if (error) throw guidelineError(error)

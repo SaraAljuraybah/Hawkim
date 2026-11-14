@@ -67,7 +67,6 @@ export function ReviewRequestPage() {
     }
     const messages: Partial<Record<DecideFailure, string>> = {
       'email-in-use': content.errors.emailInUse,
-      'deployment-onboarded': content.errors.deploymentOnboarded,
       'account-failed': content.errors.accountFailed,
       'not-connected': content.errors.notConnected,
     }

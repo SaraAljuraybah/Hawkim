@@ -100,7 +100,6 @@ export const reviewRequestEn: ReviewRequestContent = {
   rejected: { title: 'Request rejected', text: 'The request was rejected and {email} was told by email.' },
   errors: {
     emailInUse: 'This email address already has a Hawkim account.',
-    deploymentOnboarded: 'This Hawkim deployment already belongs to an organization. Each organization needs its own deployment: set one up for this request, then accept it there.',
     accountFailed: 'The account could not be created. Please try again.',
     notConnected: "Couldn't reach Hawkim. Check your internet connection and try again.",
     failed: 'That didn’t work. Please try again.',

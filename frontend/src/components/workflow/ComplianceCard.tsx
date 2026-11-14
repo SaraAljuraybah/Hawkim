@@ -98,10 +98,13 @@ export function ComplianceCard({ sop, content }: ComplianceCardProps) {
       {/* Stays mounted so the end of a check is announced; only visible while it runs. */}
       <div role="status" className={running ? undefined : 'sr-only'}>
         {running ? (
-          <p className="flex items-center gap-2.5 text-sm font-medium text-maroon">
-            <LoaderCircle aria-hidden="true" className="size-5 shrink-0 motion-safe:animate-spin" strokeWidth={2} />
-            {text.running.replace('{version}', check.guideline.version)}
-          </p>
+          <>
+            <p className="flex items-center gap-2.5 text-sm font-medium text-maroon">
+              <LoaderCircle aria-hidden="true" className="size-5 shrink-0 motion-safe:animate-spin" strokeWidth={2} />
+              {text.running.replace('{version}', check.guideline.version)}
+            </p>
+            <p className="mt-1 pl-7.5 text-sm text-text-gray">{text.sharedService}</p>
+          </>
         ) : ended}
       </div>
     </div>
