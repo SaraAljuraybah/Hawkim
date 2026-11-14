@@ -37,7 +37,8 @@ on conflict (id) do update set
 
 insert into public.guideline_versions (name, version, issued_date, effective_date, file_name) values
   ('SFDA Guideline on Good Pharmacovigilance Practices (GVP)', '4.0', '2015-05-27', '2015-09-01', 'Drug-GVP4_0.pdf')
-on conflict (name, version) do update set
+-- Version numbers are per organization (20261116200000); organization_id is set by the database (MedCare).
+on conflict (organization_id, name, version) do update set
   issued_date = excluded.issued_date,
   effective_date = excluded.effective_date,
   file_name = excluded.file_name;

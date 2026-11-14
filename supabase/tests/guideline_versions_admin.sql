@@ -87,7 +87,7 @@ declare
   v_fn text;
 begin
   select count(*) into v_published from public.guideline_versions;
-  assert public.current_guideline_version() = current_id, 'Setup: 900.0 is current';
+  assert public.current_guideline_version((select o.id from public.organizations o)) = current_id, 'Setup: 900.0 is current';
 
   -- ---------- Grants ----------
   foreach v_fn in array array[
@@ -129,7 +129,7 @@ begin
      and v_draft_row.file_size = 2048 and v_draft_row.created_by = admin1, 'Added with trimmed values and the file size from Storage';
   assert pg_temp.audits('add-guideline-version', v_draft::text) = 1, 'Adding is audited';
   -- It is never current, and no published version was added.
-  assert public.current_guideline_version() = current_id, 'Still 900.0 current';
+  assert public.current_guideline_version((select o.id from public.organizations o)) = current_id, 'Still 900.0 current';
   assert (select count(*) from public.guideline_versions) = v_published, 'No published version added';
 
   -- Refused: each rule, with its hint.
@@ -230,7 +230,7 @@ begin
      and v_version_row.version = '900.0' and v_version_row.file_name = 'GV-900.pdf' and v_version_row.effective_date = '2021-02-01'
      and v_version_row.storage_path is null and v_version_row.file_size is null, 'Only the title, issue date and source change';
   assert pg_temp.audits('update-guideline-version', current_id::text) = 1, 'Editing is audited';
-  assert public.current_guideline_version() = current_id, 'Editing doesn''t change which is current';
+  assert public.current_guideline_version((select o.id from public.organizations o)) = current_id, 'Editing doesn''t change which is current';
   perform pg_temp.act_as(admin1);
   -- The issue date can't be after the day it was added (399 days ago for 899.0).
   perform pg_temp.expect_error(format('select public.update_guideline_version(%L, ''T'', %L, %L)', previous, today - 10, sfda), '23514', 'issued-after-added');
@@ -251,7 +251,7 @@ begin
   assert v_version_row.storage_path = v_path and v_version_row.file_size = 4096 and v_version_row.file_name = 'GV-899.pdf'
      and v_version_row.version = '899.0', 'The PDF is added; the file name stays';
   assert pg_temp.audits('attach-guideline-file', previous::text) = 1, 'Adding the PDF is audited';
-  assert public.current_guideline_version() = current_id, 'Adding a PDF doesn''t change which is current';
+  assert public.current_guideline_version((select o.id from public.organizations o)) = current_id, 'Adding a PDF doesn''t change which is current';
   v_other_path := pg_temp.upload(admin1);
   perform pg_temp.act_as(admin1);
   -- Never replaced.
@@ -309,7 +309,7 @@ begin
   perform pg_temp.expect_error(format('select public.delete_guideline_draft(%L)', current_id), 'P0002');
   perform pg_temp.as_owner();
   assert (select count(*) from public.guideline_versions) = v_published, 'Every published version is kept';
-  assert public.current_guideline_version() = current_id, 'Still 900.0 current';
+  assert public.current_guideline_version((select o.id from public.organizations o)) = current_id, 'Still 900.0 current';
 
   -- ---------- The tables refuse bad values directly too ----------
   perform pg_temp.expect_error(format('update public.guideline_versions set source = ''https://example.com'' where id = %L', previous), '23514');
