@@ -25,7 +25,7 @@ MIGRATIONS=(20261116120000 20261116130000 20261116140000 20261116150000 20261116
   20261116180000 20261116190000 20261116200000 20261116210000 20261116220000 20261116230000
   20261117120000 20261117130000 20261117140000 20261117150000 20261117160000)
 # Migrations after the release that db push applies too: undone first, newest first, with their own scripts.
-LATER=(20261118120000:compliance_check_procedures)
+LATER=(20261118130000:close_compliance_check_metadata 20261118120000:compliance_check_procedures)
 COUNTS="select (select count(*) from public.profiles) || '/' || (select count(*) from public.departments) || '/' ||
   (select count(*) from public.user_roles) || '/' || (select count(*) from public.guideline_requirements) || '/' ||
   (select count(*) from public.sample_findings) || '/' || (select count(*) from auth.users)"
