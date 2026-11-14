@@ -111,7 +111,7 @@ begin
   assert (select division_id = v_division and name = 'OM Created' and initials = 'OC' and description = 'About'
     from public.departments where id = v_department), 'Created in its division, normalized';
   select updated_at into v_stamp from public.departments where id = v_department;
-  perform pg_temp.expect_error(format($q$select public.save_department(%L,'OM Created','OC','',%L,%L)$q$, v_department, 'om-active', v_stamp - interval '1 second'), '40001');
+  perform pg_temp.expect_error(format($q$select public.save_department(%L,'OM Created','OC','',%L,%L)$q$, v_department, 'om-active', v_stamp - interval '1 second'), 'P0001');
   perform public.save_department(v_department, 'OM Renamed', 'OR', '', 'om-active', v_stamp);
   assert (select division_id = 'om-active' and name = 'OM Renamed' from public.departments where id = v_department), 'Edit moves it to another division';
   -- The admin's own division cannot be deleted while it has departments.

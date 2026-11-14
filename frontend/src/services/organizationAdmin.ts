@@ -22,9 +22,11 @@ export type SopDisposition = 'empty' | 'delete'
 export const ORGANIZATION_CHANGED = 'hawkim:organization-changed'
 export const organizationEvents = new EventTarget()
 
-export function managementError(error: { code?: string; message?: string }): Error {
+export function managementError(error: { code?: string; message?: string; hint?: string }): Error {
   if (error.code === '42501') return new Error(text.forbidden)
-  if (error.code === '40001' || error.code === 'P0002') return new Error(text.conflict)
+  // A conflict is P0001 with hint 'conflict' (20261116130000_conflict_without_retry.sql); 40001 is kept for
+  // safety (PostgREST 14 retries 40001 until it times out, so the database no longer raises it).
+  if ((error.code === 'P0001' && error.hint === 'conflict') || error.code === '40001' || error.code === 'P0002') return new Error(text.conflict)
   if (error.code === '23505') return new Error(text.duplicate)
   const known = error.message ? DATABASE_MESSAGES[error.message] : undefined
   return new Error(known ?? (error.code === '23514' ? text.invalid : text.failed))

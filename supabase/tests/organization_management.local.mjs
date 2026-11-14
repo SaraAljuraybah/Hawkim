@@ -35,10 +35,11 @@ async function ok(promise, what) {
   if (error) throw new Error(`${what}: ${error.message ?? JSON.stringify(error)}`)
   return data
 }
-async function refused(promise, code, what) {
+async function refused(promise, code, what, hint) {
   const { error } = await promise
   assert(error, `${what} should have been refused`)
   if (code) assert(error.code === code, `${what}: expected ${code}, got ${error.code} ${error.message}`)
+  if (hint) assert(error.hint === hint, `${what}: expected hint ${hint}, got ${error.hint}`)
 }
 // Initials are 2-3 letters and unique among active departments: random per run.
 const initials = () => Array.from({ length: 3 }, () => String.fromCharCode(65 + Math.floor(Math.random() * 26))).join('')
@@ -95,7 +96,7 @@ await check('2. Edit a division (and refuse a stale edit)', async () => {
   const row = await division(admin.client, divisionA)
   await ok(admin.client.rpc('save_division', { p_id: divisionA, p_name: row.name, p_description: 'Edited', p_email: 'team@hawkim.test', p_expected_updated_at: row.updated_at }), 'edit')
   assert((await division(admin.client, divisionA)).email === 'team@hawkim.test', 'email saved')
-  await refused(admin.client.rpc('save_division', { p_id: divisionA, p_name: row.name, p_description: 'Stale', p_email: '', p_expected_updated_at: row.updated_at }), '40001', 'stale division edit')
+  await refused(admin.client.rpc('save_division', { p_id: divisionA, p_name: row.name, p_description: 'Stale', p_email: '', p_expected_updated_at: row.updated_at }), 'P0001', 'stale division edit', 'conflict')
 })
 await check('5. Create a department in its division', async () => {
   created = await ok(admin.client.rpc('save_department', { p_id: null, p_name: `E2E Dept ${run}`, p_initials: createdInitials, p_description: 'Disposable', p_division_id: divisionA }), 'save_department')
@@ -115,7 +116,7 @@ await check('6./7. Edit a department and move it to another division', async () 
   await ok(admin.client.rpc('save_department', { p_id: created, p_name: `E2E Dept ${run} edited`, p_initials: createdInitials, p_description: '', p_division_id: divisionB, p_expected_updated_at: row.updated_at }), 'edit department')
   const after = await department(admin.client, created)
   assert(after.division_id === divisionB && after.name.endsWith('edited'), 'moved to division B')
-  await refused(admin.client.rpc('save_department', { p_id: created, p_name: 'Stale', p_initials: createdInitials, p_description: '', p_division_id: divisionA, p_expected_updated_at: row.updated_at }), '40001', 'stale department edit')
+  await refused(admin.client.rpc('save_department', { p_id: created, p_name: 'Stale', p_initials: createdInitials, p_description: '', p_division_id: divisionA, p_expected_updated_at: row.updated_at }), 'P0001', 'stale department edit', 'conflict')
   // Every active user's department list now carries the division name (PostgREST embedding).
   const listed = await ok(author.client.from('departments').select('id, division_id, division:divisions(name)').eq('id', created).single(), 'department list')
   assert(listed.division_id === divisionB && listed.division?.name === `E2E Division B ${run}`, 'division name embedded for employees')
