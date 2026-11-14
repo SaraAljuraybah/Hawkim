@@ -43,10 +43,10 @@ describe('Request Hawkim page', () => {
     expect(html).not.toContain('organization-title')
   })
 
-  it('asks for the contact person first, then the organization and its details, then the number of users and the message', () => {
+  it('asks for the organization and its details first, then the contact person, then the message', () => {
     expect([...html.matchAll(/<(?:input|textarea)[^>]*name="([^"]+)"/g)].map((match) => match[1])).toEqual([
-      'contactName', 'email', 'phone', 'organization', 'organizationEmail', 'organizationAddress', 'organizationMapsUrl',
-      'organizationWebsite', 'organizationDescription', 'approxUsers', 'message', 'website',
+      'organization', 'organizationEmail', 'organizationAddress', 'organizationMapsUrl',
+      'organizationWebsite', 'organizationDescription', 'approxUsers', 'contactName', 'email', 'phone', 'message', 'website',
     ])
     expect(html).toContain('>Contact person email<')
     expect(html).toContain('>Website (Optional)<')
@@ -60,7 +60,7 @@ describe('Request Hawkim page', () => {
   })
 
   it('puts the address and the Google Maps link in one required Address group, "or" between them, the rule as a hint', () => {
-    const box = html.match(/<fieldset[^>]*>(.*?)<\/fieldset>/)![0]
+    const box = html.match(/<fieldset aria-describedby[^>]*>(.*?)<\/fieldset>/)![0]
     expect(box).toMatch(/<legend[^>]*>Address<span aria-hidden="true"[^>]*>\*<\/span><\/legend>/)
     const hintId = box.match(/<p id="([^"]+)"[^>]*>Enter an address, a Google Maps link, or both\.<\/p>/)![1]
     expect(box).toMatch(new RegExp(`^<fieldset aria-describedby="${hintId}"`))
@@ -68,6 +68,32 @@ describe('Request Hawkim page', () => {
       expect(box).toMatch(new RegExp(`<input[^>]*aria-describedby="${hintId}[^"]*"[^>]*name="${name}"`))
     }
     expect(box).toMatch(/<span aria-hidden="true"[^>]*>or<\/span>/)
+  })
+
+  it('puts the fields in two bordered groups styled like the Address group was: Organization, then Contact person', () => {
+    const groups = [...html.matchAll(/<fieldset class="min-w-0 rounded-lg border border-beige p-4 "><legend class="px-1 text-sm font-bold text-maroon">([^<]+)<\/legend>/g)].map((match) => match[1])
+    expect(groups).toEqual(['Organization', 'Contact person'])
+    const organization = html.slice(html.indexOf('>Organization</legend>'), html.indexOf('>Contact person</legend>'))
+    for (const name of ['organization', 'organizationEmail', 'organizationAddress', 'organizationMapsUrl', 'organizationWebsite', 'organizationDescription', 'approxUsers']) {
+      expect(organization).toContain(`name="${name}"`)
+    }
+    const contact = html.slice(html.indexOf('>Contact person</legend>'), html.indexOf('name="message"'))
+    for (const name of ['contactName', 'email', 'phone']) expect(contact).toContain(`name="${name}"`)
+    // The message comes after both groups.
+    expect(html.indexOf('>Contact person</legend>')).toBeLessThan(html.indexOf('name="message"'))
+  })
+
+  it('keeps Address as a sub-group of Organization, without a second border, its legend like a field label', () => {
+    const address = html.match(/<fieldset aria-describedby="[^"]+" class="([^"]*)"><legend class="([^"]*)">Address/)!
+    expect(address[1]).not.toContain('border')
+    expect(address[2]).toBe('mb-1.5 text-sm font-medium text-maroon')
+  })
+
+  it('keeps the required asterisks', () => {
+    for (const label of ['Organization name', 'Organization email', 'Description', 'Approximate number of users', 'Contact person name', 'Contact person email', 'Phone']) {
+      expect(html).toContain(`>${label}<span aria-hidden="true" class="ml-0.5 text-status-rejected-fg">*</span>`)
+    }
+    expect(html).toMatch(/>Address<span aria-hidden="true" class="ml-0.5 text-status-rejected-fg">\*<\/span><\/legend>/)
   })
 
   it('keeps the hidden field for bots apart from the real Website', () => {

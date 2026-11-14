@@ -1973,7 +1973,9 @@ export interface RequestHawkimContent {
     /** `{count}` and `{max}` are replaced. */
     messageCounter: string
   }
-  /** The box holding the address and the Google Maps link: one of the two is enough. */
+  /** The form's two bordered groups' titles. */
+  groups: { organization: string; contact: string }
+  /** The sub-group holding the address and the Google Maps link: one of the two is enough. */
   addressGroup: { title: string; hint: string; or: string }
   submit: string
   backLink: LinkContent

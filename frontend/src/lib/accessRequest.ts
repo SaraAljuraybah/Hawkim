@@ -21,9 +21,10 @@ export type FieldProblem = 'required' | 'email' | 'phone' | 'approxUsers' | 'url
 
 /** The problems in the form's order (focus goes to the first); the Address group comes before its two fields. */
 export const REQUEST_ERROR_ORDER: readonly RequestErrorKey[] = [
-  'contactName', 'email', 'phone',
   'organization', 'organizationEmail', 'addressGroup', 'organizationAddress', 'organizationMapsUrl', 'organizationWebsite', 'organizationDescription',
-  'approxUsers', 'message',
+  'approxUsers',
+  'contactName', 'email', 'phone',
+  'message',
 ]
 
 /** The organization's details on the form, and the Organization Profile value whose rules they follow. */

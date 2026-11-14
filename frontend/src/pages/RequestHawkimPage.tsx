@@ -5,6 +5,7 @@ import { MessageScreen } from '../components/layout/MessageScreen'
 import { PageBackLink } from '../components/layout/PageBackLink'
 import { Button } from '../components/ui/Button'
 import { EitherFieldGroup } from '../components/ui/EitherFieldGroup'
+import { FieldGroup } from '../components/ui/FieldGroup'
 import { PhoneField } from '../components/ui/PhoneField'
 import { TextAreaField } from '../components/ui/TextAreaField'
 import { TextField } from '../components/ui/TextField'
@@ -48,7 +49,8 @@ export function RequestHawkimPage() {
   const refs = useRef<Partial<Record<RequestField, HTMLInputElement | HTMLTextAreaElement | null>>>({})
   const titleRef = useRef<HTMLHeadingElement>(null)
 
-  useEffect(() => refs.current.contactName?.focus(), [])
+  // The form's first field.
+  useEffect(() => refs.current.organization?.focus(), [])
   useEffect(() => {
     if (sent) titleRef.current?.focus()
   }, [sent])
@@ -148,61 +150,66 @@ export function RequestHawkimPage() {
       <MessageScreen title={content.title} text={content.text} logoAlt={content.logoAlt}>
       <form noValidate onSubmit={submit} className={`${FORM_CARD} w-[min(30rem,calc(100vw-2rem))] space-y-5 text-left`}>
         {failure && <p role="alert" className="text-sm text-status-rejected-fg">{failure}</p>}
-        {/* The contact person first, then the organization. */}
-        {field('contactName', { autoComplete: 'name', maxLength: 100 })}
-        {field('email', { type: 'email', autoComplete: 'email', autoCapitalize: 'none', spellCheck: false })}
-        {/* "+9665" before the field and the 8 digits in it; values.phone keeps "+9665" and the digits */}
-        <PhoneField
-          ref={(element: HTMLInputElement | null) => { refs.current.phone = element }}
-          name="phone"
-          label={content.fields.phone}
-          required
-          requiredMark
-          autoComplete="tel-national"
-          hint={content.fields.phoneHint}
-          invalidMessage={content.errors.phone}
-          value={values.phone}
-          error={errors.phone}
-          onChange={(phone) => set('phone')({ target: { value: phone } })}
-        />
-        {field('organization', { autoComplete: 'organization', maxLength: 200 })}
-        {/* The organization's details, with the Organization Profile's rules. */}
-        {field('organizationEmail', {
-          type: 'email', autoCapitalize: 'none', spellCheck: false, maxLength: ORGANIZATION_DETAIL_MAX.email,
-          placeholder: content.fields.organizationEmailPlaceholder,
-        })}
-        <EitherFieldGroup legend={content.addressGroup.title} hint={content.addressGroup.hint} orLabel={content.addressGroup.or}
-          requiredMark error={errors.addressGroup}
-          first={(group) => field('organizationAddress', {
-            ...group, required: false, autoComplete: 'street-address', maxLength: ORGANIZATION_DETAIL_MAX.address,
-            placeholder: content.fields.organizationAddressPlaceholder,
+        {/* The organization first, then its contact person, each in a bordered group like the Address one
+            used to be. Address is a sub-group inside Organization, without a box of its own (no double border). */}
+        <FieldGroup legend={content.groups.organization}>
+          {field('organization', { autoComplete: 'organization', maxLength: 200 })}
+          {/* The organization's details, with the Organization Profile's rules. */}
+          {field('organizationEmail', {
+            type: 'email', autoCapitalize: 'none', spellCheck: false, maxLength: ORGANIZATION_DETAIL_MAX.email,
+            placeholder: content.fields.organizationEmailPlaceholder,
           })}
-          second={(group) => field('organizationMapsUrl', {
-            ...group, ...linkProps, required: false, maxLength: ORGANIZATION_DETAIL_MAX.mapsUrl,
-            placeholder: content.fields.organizationMapsUrlPlaceholder,
+          <EitherFieldGroup legend={content.addressGroup.title} hint={content.addressGroup.hint} orLabel={content.addressGroup.or}
+            requiredMark nested error={errors.addressGroup}
+            first={(group) => field('organizationAddress', {
+              ...group, required: false, autoComplete: 'street-address', maxLength: ORGANIZATION_DETAIL_MAX.address,
+              placeholder: content.fields.organizationAddressPlaceholder,
+            })}
+            second={(group) => field('organizationMapsUrl', {
+              ...group, ...linkProps, required: false, maxLength: ORGANIZATION_DETAIL_MAX.mapsUrl,
+              placeholder: content.fields.organizationMapsUrlPlaceholder,
+            })}
+          />
+          {field('organizationWebsite', {
+            ...linkProps, required: false, autoComplete: 'url', maxLength: ORGANIZATION_DETAIL_MAX.website,
+            placeholder: content.fields.organizationWebsitePlaceholder,
           })}
-        />
-        {field('organizationWebsite', {
-          ...linkProps, required: false, autoComplete: 'url', maxLength: ORGANIZATION_DETAIL_MAX.website,
-          placeholder: content.fields.organizationWebsitePlaceholder,
-        })}
-        <TextAreaField
-          ref={(element: HTMLTextAreaElement | null) => { refs.current.organizationDescription = element }}
-          name="organizationDescription"
-          label={content.fields.organizationDescription}
-          placeholder={content.fields.organizationDescriptionPlaceholder}
-          required
-          rows={4}
-          maxLength={ORGANIZATION_DETAIL_MAX.description}
-          resizable={false}
-          counter={content.fields.organizationDescriptionCounter
-            .replace('{count}', String(values.organizationDescription.length)).replace('{max}', String(ORGANIZATION_DETAIL_MAX.description))}
-          value={values.organizationDescription}
-          error={errors.organizationDescription}
-          onChange={set('organizationDescription')}
-          onBlur={check('organizationDescription')}
-        />
-        {field('approxUsers', { type: 'number', inputMode: 'numeric', min: 1, max: 100000 })}
+          <TextAreaField
+            ref={(element: HTMLTextAreaElement | null) => { refs.current.organizationDescription = element }}
+            name="organizationDescription"
+            label={content.fields.organizationDescription}
+            placeholder={content.fields.organizationDescriptionPlaceholder}
+            required
+            rows={4}
+            maxLength={ORGANIZATION_DETAIL_MAX.description}
+            resizable={false}
+            counter={content.fields.organizationDescriptionCounter
+              .replace('{count}', String(values.organizationDescription.length)).replace('{max}', String(ORGANIZATION_DETAIL_MAX.description))}
+            value={values.organizationDescription}
+            error={errors.organizationDescription}
+            onChange={set('organizationDescription')}
+            onBlur={check('organizationDescription')}
+          />
+          {field('approxUsers', { type: 'number', inputMode: 'numeric', min: 1, max: 100000 })}
+        </FieldGroup>
+        <FieldGroup legend={content.groups.contact}>
+          {field('contactName', { autoComplete: 'name', maxLength: 100 })}
+          {field('email', { type: 'email', autoComplete: 'email', autoCapitalize: 'none', spellCheck: false })}
+          {/* "+9665" before the field and the 8 digits in it; values.phone keeps "+9665" and the digits */}
+          <PhoneField
+            ref={(element: HTMLInputElement | null) => { refs.current.phone = element }}
+            name="phone"
+            label={content.fields.phone}
+            required
+            requiredMark
+            autoComplete="tel-national"
+            hint={content.fields.phoneHint}
+            invalidMessage={content.errors.phone}
+            value={values.phone}
+            error={errors.phone}
+            onChange={(phone) => set('phone')({ target: { value: phone } })}
+          />
+        </FieldGroup>
         <TextAreaField
           ref={(element: HTMLTextAreaElement | null) => { refs.current.message = element }}
           name="message"

@@ -86,10 +86,10 @@ describe('Request Hawkim: the organization’s details, with the Organization Pr
     expect(requestProblems({ ...valid, organizationWebsite: `https://${'w'.repeat(2037)}.com` })).toEqual({ organizationWebsite: 'tooLong' })
   })
 
-  it('checks the contact person first, then the organization, the Address group before its two boxes (focus goes to the first problem)', () => {
+  it('checks in the form\'s order: the organization (the Address group before its two boxes), then the contact person (focus goes to the first problem)', () => {
     expect(REQUEST_ERROR_ORDER).toEqual([
-      'contactName', 'email', 'phone', 'organization', 'organizationEmail', 'addressGroup', 'organizationAddress', 'organizationMapsUrl',
-      'organizationWebsite', 'organizationDescription', 'approxUsers', 'message',
+      'organization', 'organizationEmail', 'addressGroup', 'organizationAddress', 'organizationMapsUrl',
+      'organizationWebsite', 'organizationDescription', 'approxUsers', 'contactName', 'email', 'phone', 'message',
     ])
   })
 })

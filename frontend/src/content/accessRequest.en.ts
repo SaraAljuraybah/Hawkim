@@ -28,6 +28,7 @@ export const requestHawkimEn: RequestHawkimContent = {
     messagePlaceholder: 'Add a message for the Hawkim team…',
     messageCounter: '{count} / {max}',
   },
+  groups: { organization: 'Organization', contact: 'Contact person' },
   addressGroup: { title: 'Address', hint: 'Enter an address, a Google Maps link, or both.', or: 'or' },
   submit: 'Send Request',
   backLink: { label: 'Back to Home', href: '/' },

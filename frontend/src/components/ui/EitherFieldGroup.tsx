@@ -18,6 +18,11 @@ interface EitherFieldGroupProps {
   error?: string
   /** Red asterisk after the legend when the group is required (at least one of the two). */
   requiredMark?: boolean
+  /**
+   * Inside another bordered group (FieldGroup): no box of its own, so there's no double border; the legend
+   * reads like a field label. The hint, the fields and the error stay the same.
+   */
+  nested?: boolean
   first: (props: EitherFieldProps) => ReactNode
   second: (props: EitherFieldProps) => ReactNode
   className?: string
@@ -28,7 +33,7 @@ interface EitherFieldGroupProps {
  * with "or" between them (stacked on phones), and one error for the group. The fields keep their own labels
  * and their own errors (e.g. a link that isn't valid).
  */
-export function EitherFieldGroup({ legend, hint, orLabel, error, requiredMark = false, first, second, className = '' }: EitherFieldGroupProps) {
+export function EitherFieldGroup({ legend, hint, orLabel, error, requiredMark = false, nested = false, first, second, className = '' }: EitherFieldGroupProps) {
   const id = useId()
   const hintId = `${id}-hint`
   const errorId = `${id}-error`
@@ -36,8 +41,9 @@ export function EitherFieldGroup({ legend, hint, orLabel, error, requiredMark = 
   const fieldProps: EitherFieldProps = { 'aria-describedby': describedBy, invalid: !!error }
 
   return (
-    <fieldset aria-describedby={describedBy} className={`min-w-0 rounded-lg border p-4 ${error ? 'border-maroon-secondary' : 'border-beige'} ${className}`}>
-      <legend className="px-1 text-sm font-bold text-maroon">
+    <fieldset aria-describedby={describedBy}
+      className={`min-w-0 ${nested ? '' : `rounded-lg border p-4 ${error ? 'border-maroon-secondary' : 'border-beige'}`} ${className}`}>
+      <legend className={nested ? 'mb-1.5 text-sm font-medium text-maroon' : 'px-1 text-sm font-bold text-maroon'}>
         {legend}
         {requiredMark && <RequiredMark />}
       </legend>
