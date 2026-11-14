@@ -193,6 +193,7 @@ insert into iso_case (fn, template, targeted, accepted) values
    'As add_user: an email with an account is "taken" (shared sign-in accounts, one organization per account).'),
   ('check_new_user(text,text,text,text,text,text[])', 'public.check_new_user(''iso-new@test.invalid'', ''X'', ''+966512345699'', ''Officer'', {department}, array[''author''])', true, null),
   ('claim_invitation_resend(uuid)', 'public.claim_invitation_resend({author})', true, null),
+  ('compliance_check_procedures(uuid)', 'public.compliance_check_procedures({check})', true, null),
   ('compliance_check_steps(uuid)', '(select coalesce(jsonb_agg(to_jsonb(x)), ''[]'') from public.compliance_check_steps({check}) x)', true, null),
   ('create_guideline_draft(text,text,date,text,text,text)', 'public.create_guideline_draft(''GVP'', ''99.0'', current_date, ''https://www.sfda.gov.sa/x'', {gfile}, ''x.pdf'')', true, null),
   ('create_sop(text,text,text,text,text)', 'public.create_sop(''T'', '''', {department}, {file}, ''a.pdf'')', true, null),

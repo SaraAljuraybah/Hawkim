@@ -24,6 +24,8 @@ psql_local() { docker exec -i "$CONTAINER" psql -X -q -U postgres -d postgres -v
 MIGRATIONS=(20261116120000 20261116130000 20261116140000 20261116150000 20261116160000 20261116170000
   20261116180000 20261116190000 20261116200000 20261116210000 20261116220000 20261116230000
   20261117120000 20261117130000 20261117140000 20261117150000 20261117160000)
+# Migrations after the release that db push applies too: undone first, newest first, with their own scripts.
+LATER=(20261118120000:compliance_check_procedures)
 COUNTS="select (select count(*) from public.profiles) || '/' || (select count(*) from public.departments) || '/' ||
   (select count(*) from public.user_roles) || '/' || (select count(*) from public.guideline_requirements) || '/' ||
   (select count(*) from public.sample_findings) || '/' || (select count(*) from auth.users)"
@@ -43,6 +45,10 @@ echo "2. The 17 migrations, then the way back"
 supabase migration repair --local --status applied 20261115120000 20261115130000 20261115140000 20261115150000 >/dev/null 2>&1
 supabase db push --local --yes >/dev/null 2>&1
 [ "$(psql_local -At -c 'select count(*) from public.organizations')" = 1 ] || { echo "FAIL: db push didn't create MedCare"; exit 1; }
+for later in "${LATER[@]}"; do
+  psql_local < supabase/scripts/rollback_${later#*:}.sql >/dev/null
+  supabase migration repair --local --status reverted "${later%%:*}" >/dev/null 2>&1
+done
 echo "drop function public.restore_storage_path(text, text, text); drop function public.storage_paths_to_restore();" | psql_local
 for s in isolation_fixes add_user_other_organization accept_creates_organization; do psql_local < supabase/scripts/rollback_$s.sql >/dev/null; done
 echo "drop function public.storage_paths_to_relocate();" | psql_local
@@ -76,7 +82,7 @@ echo "4. Forward again: the 17 migrations apply a second time"
 if supabase db push --local --yes >/dev/null 2>&1 \
   && [ "$(psql_local -At -c "select count(*) from public.organizations")" = 1 ] \
   && [ "$(psql_local -At -c "select count(*) from public.profiles where organization_id is null")" = 0 ] \
-  && [ "$(psql_local -At -c "select count(*) from supabase_migrations.schema_migrations where version >= '20261116120000'")" = 17 ]; then
+  && [ "$(psql_local -At -c "select count(*) from supabase_migrations.schema_migrations where version between '20261116120000' and '20261117160000'")" = 17 ]; then
   echo "   applied again: MedCare, every row in it"
 else echo "   FAIL: the second db push"; fail=1; fi
 
