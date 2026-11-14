@@ -318,8 +318,9 @@ begin
   perform pg_temp.as_owner();
   assert not exists (select 1 from public.guideline_version_drafts d where d.id = v_draft), 'Deleted';
   assert pg_temp.audits('delete-guideline-version', v_draft::text) = 1, 'Deleting is audited';
-  assert public.is_unused_guideline_path(v_path), 'Its file can now be removed';
   perform pg_temp.act_as(admin2);
+  -- As an Admin of its organization (20261117150000: outside the caller's organization's folder it is never unused).
+  assert public.is_unused_guideline_path(v_path), 'Its file can now be removed';
   perform pg_temp.expect_error(format('select public.delete_guideline_draft(%L)', v_draft), 'P0002');
   -- A published version can't be deleted.
   perform pg_temp.expect_error(format('select public.delete_guideline_draft(%L)', previous), 'P0002');
