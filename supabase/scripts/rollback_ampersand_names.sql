@@ -11,9 +11,11 @@ update public.departments d set name = c.old_name, updated_at = pg_catalog.clock
 from public.ampersand_name_changes c
 where c.entity = 'department' and c.entity_id = d.id and d.name = c.new_name and d.deletion_job_id is null;
 
-update public.organization_settings o set name = c.old_name, updated_at = now()
+-- The organization's name is organizations.name since 20261116140000 (organization_settings before):
+-- the organization the change was recorded for.
+update public.organizations o set name = c.old_name, updated_at = now()
 from public.ampersand_name_changes c
-where c.entity = 'organization' and o.singleton and o.name = c.new_name;
+where c.entity = 'organization' and o.id = c.organization_id and o.name = c.new_name;
 
 drop table if exists public.ampersand_name_changes;
 

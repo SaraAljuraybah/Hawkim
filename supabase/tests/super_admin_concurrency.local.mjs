@@ -76,12 +76,13 @@ function refused(result, hint, what) {
 const [A, B, C, D] = [randomUUID(), randomUUID(), randomUUID(), randomUUID()]
 const ids = [A, B, C, D]
 const idList = ids.map((id) => `'${id}'`).join(', ')
-const holder = () => owner('select user_id from public.super_admin')
-const rows = () => Number(owner('select count(*) from public.super_admin'))
+// The designation is organizations.super_admin_id since 20261116140000 (one organization here: MedCare).
+const holder = () => owner('select super_admin_id from public.organizations where super_admin_id is not null')
+const rows = () => Number(owner('select count(*) from public.organizations where super_admin_id is not null'))
 const ended = (id) => owner(`select deleted_at is not null from public.profiles where id = '${id}'`) === 't'
 
 // ---------- Setup ----------
-const original = owner('select user_id from public.super_admin') || null
+const original = owner('select super_admin_id from public.organizations where super_admin_id is not null') || null
 owner(`begin;
 insert into auth.users (id, email, aud, role)
 select u.id, 'cc-' || u.id || '@test.invalid', 'authenticated', 'authenticated' from unnest(array[${idList}]::uuid[]) u(id);
@@ -89,8 +90,8 @@ insert into public.profiles (id, full_name, email, initials, phone)
 select u.id, 'CC Admin ' || left(u.id::text, 8), 'cc-' || u.id || '@test.invalid', 'CC', '+966511111111' from unnest(array[${idList}]::uuid[]) u(id);
 insert into public.user_roles (user_id, role) select u.id, 'admin' from unnest(array[${idList}]::uuid[]) u(id);
 commit;`)
-if (original) owner(`update public.super_admin set user_id = '${A}' where singleton;`)
-else owner(`select public.assign_initial_super_admin('${A}');`)
+if (original) owner(`update public.organizations set super_admin_id = '${A}', super_admin_assigned_at = now() where super_admin_id = '${original}';`)
+else owner(`select public.assign_initial_super_admin((select id from public.organizations), '${A}');`)
 
 try {
   await check('the fixture starts with A as the only Super Admin', () => {
@@ -163,9 +164,9 @@ try {
   // ---------- Cleanup (owner, this local database only) ----------
   try {
     if (original && owner(`select public.is_active_admin('${original}')`) === 't') {
-      owner(`update public.super_admin set user_id = '${original}' where singleton;`)
+      owner(`update public.organizations set super_admin_id = '${original}' where super_admin_id in (${idList});`)
     } else {
-      owner(`begin; set local session_replication_role = replica; delete from public.super_admin where user_id in (${idList}); commit;`)
+      owner(`begin; set local session_replication_role = replica; update public.organizations set super_admin_id = null, super_admin_assigned_at = null where super_admin_id in (${idList}); commit;`)
       if (original) results.push(`NOTE  the previous Super Admin ${original} is no longer an active Admin; none was restored`)
     }
     owner(`begin;

@@ -65,11 +65,12 @@ begin
   -- ---------- MedCare ----------
   assert (select count(*) from public.organizations) = 1, 'Exactly one organization after the migration';
   select o.id into medcare from public.organizations o;
-  assert (select o.name from public.organizations o) =
-    coalesce((select nullif(btrim(s.name), '') from public.organization_settings s where s.singleton), 'MedCare'),
-    'The saved organization name is kept; MedCare only when none was saved';
-  -- The Super Admin and the SOP counter are copied again when the singletons are dropped (next
-  -- migration), so they aren't compared here: the local seed assigns them after this migration.
+  -- Its name is the one saved in organization_settings, or MedCare when none was saved; on a new local
+  -- database none was. The Super Admin and the profile were copied again when the singletons were dropped
+  -- (20261116140000_organization_settings_per_organization.sql).
+  assert (select o.name from public.organizations o) is not null, 'The organization has a name';
+  assert to_regclass('public.organization_settings') is null and to_regclass('public.super_admin') is null,
+    'The singletons are gone';
 
   -- ---------- organization_id everywhere, never null, all MedCare ----------
   foreach t in array array[
@@ -111,8 +112,6 @@ begin
       'public.guideline_versions'::regclass, 'public.guideline_requirements'::regclass, 'public.review_rounds'::regclass)
       and array_length(c.conkey, 1) = 1
       and c.conrelid <> 'public.organizations'::regclass
-      -- the singleton the next migration drops
-      and c.conrelid <> 'public.super_admin'::regclass
       -- set null links (who sent an invitation, who saved the name) stay single-column
       and pg_get_constraintdef(c.oid) !~* 'set null'),
     'No single-column link to an organization''s rows is left';
@@ -200,10 +199,13 @@ begin
   insert into public.divisions (id, name, organization_id) values ('org-test-other-division', 'Other Division', other);
   perform pg_temp.expect_error(format('update public.departments set division_id = %L where id = %L',
     'org-test-other-division', 'org-test-med'), '23503');
-  -- The Super Admin of Other can't be a MedCare person.
+  -- The Super Admin of Other can't be a MedCare person: the composite key, checked here without the trigger
+  -- that also requires an active Admin (20261116140000).
+  alter table public.organizations disable trigger organizations_check_super_admin;
   perform pg_temp.expect_error(format('update public.organizations set super_admin_id = %L where id = %L', med_person, other),
     '23503');
   update public.organizations set super_admin_id = other_person where id = other;
+  alter table public.organizations enable trigger organizations_check_super_admin;
 
   -- ---------- organization_id never changes ----------
   perform pg_temp.expect_error(format('update public.profiles set organization_id = %L where id = %L', other, med_person),

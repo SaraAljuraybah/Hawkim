@@ -60,13 +60,13 @@ from generate_series(1, 3) n;
 insert into public.user_roles (user_id, role) values
   ('9a000000-0000-4000-8000-000000000001', 'admin'), ('9a000000-0000-4000-8000-000000000002', 'admin'),
   ('9a000000-0000-4000-8000-000000000003', 'author');
-alter table public.super_admin disable trigger user;
-delete from public.super_admin;
-insert into public.super_admin (user_id) values ('9a000000-0000-4000-8000-000000000001');
-alter table public.super_admin enable trigger user;
--- A deployment whose name was saved before the profile existed.
-delete from public.organization_settings;
-insert into public.organization_settings (singleton, name) values (true, 'Old Name');
+alter table public.organizations disable trigger user;
+update public.organizations set super_admin_id = null, super_admin_assigned_at = null;
+update public.organizations set super_admin_id = '9a000000-0000-4000-8000-000000000001', super_admin_assigned_at = now();
+alter table public.organizations enable trigger user;
+-- An organization whose name was saved before the profile existed (one organization: MedCare's row,
+-- 20261116140000_organization_settings_per_organization.sql).
+update public.organizations set name = 'Old Name', email = null, description = null, address = null, maps_url = null, website = null;
 
 do $$
 declare
@@ -80,7 +80,7 @@ begin
   assert has_function_privilege('authenticated', 'public.get_organization_profile()', 'execute');
   assert not has_function_privilege('anon', 'public.get_organization_profile()', 'execute');
   assert not has_function_privilege('anon', 'public.save_organization_profile(text, text, text, text, text, text)', 'execute');
-  assert not has_table_privilege('authenticated', 'public.organization_settings', 'select'), 'Read only through the function';
+  assert not has_table_privilege('authenticated', 'public.organizations', 'select'), 'Read only through the function';
 
   -- ---------- Reading: active Admins only; the saved name is kept, the new values are not set ----------
   perform pg_temp.act_as(staff);
@@ -115,7 +115,7 @@ begin
   perform pg_temp.expect_error(pg_temp.save_with(3, repeat('d', 1001)), '22023', 'description');
   perform pg_temp.expect_error(pg_temp.save_with(4, 'Line one' || chr(10) || 'line two'), '22023', 'address');
   perform pg_temp.as_owner();
-  assert (select name = 'Old Name' and email is null from public.organization_settings), 'Refused saves change nothing';
+  assert (select name = 'Old Name' and email is null from public.organizations), 'Refused saves change nothing';
 
   -- ---------- A save stores each value in its own column, trimmed ----------
   perform pg_temp.act_as(super);
@@ -135,7 +135,7 @@ begin
   perform pg_temp.as_owner();
   assert exists (select 1 from public.organization_management_audit where action = 'save-organization-profile'
     and actor_id = super and details->'fields' = '["name"]'::jsonb), 'Audited with the changed field only';
-  assert (select updated_by from public.organization_settings) = super, 'Who saved it';
+  assert (select updated_by from public.organizations) = super, 'Who saved it';
   -- A regular Admin reads what was saved.
   perform pg_temp.act_as(admin);
   assert public.get_organization_profile()->>'address' = 'King Fahd Road, Riyadh';

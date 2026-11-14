@@ -41,9 +41,9 @@ $$;
 grant execute on function pg_temp.expect_error(text, text, text), pg_temp.act_as(uuid, text), pg_temp.as_owner() to public;
 
 -- A clean start: no Super Admin and no active Admin (as a new deployment). Rolled back.
-alter table public.super_admin disable trigger user;
-delete from public.super_admin;
-alter table public.super_admin enable trigger user;
+alter table public.organizations disable trigger user;
+update public.organizations set super_admin_id = null, super_admin_assigned_at = null;
+alter table public.organizations enable trigger user;
 update public.profiles p set deleted_at = now()
 where p.deleted_at is null and exists (select 1 from public.user_roles r where r.user_id = p.id and r.role = 'admin');
 
@@ -72,15 +72,18 @@ declare
   v_audit public.organization_management_audit;
 begin
   -- ---------- Grants ----------
-  assert not has_table_privilege('authenticated', 'public.super_admin', 'select'), 'super_admin is not readable directly';
-  assert not has_table_privilege('authenticated', 'public.super_admin', 'update'), 'super_admin is not writable directly';
-  assert not has_table_privilege('service_role', 'public.super_admin', 'update');
+  -- The designation is organizations.super_admin_id (20261116140000_organization_settings_per_organization.sql).
+  assert to_regclass('public.super_admin') is null, 'the singleton table is gone';
+  assert not has_table_privilege('authenticated', 'public.organizations', 'select'), 'organizations is not readable directly';
+  assert not has_table_privilege('authenticated', 'public.organizations', 'update'), 'organizations is not writable directly';
+  assert not has_table_privilege('service_role', 'public.organizations', 'update');
   assert not has_function_privilege('anon', 'public.transfer_super_admin(uuid)', 'execute');
   assert not has_function_privilege('anon', 'public.delete_admin(uuid)', 'execute');
   assert has_function_privilege('authenticated', 'public.transfer_super_admin(uuid)', 'execute');
   assert has_function_privilege('authenticated', 'public.update_admin(uuid,text,text)', 'execute');
-  assert not has_function_privilege('authenticated', 'public.assign_initial_super_admin(uuid)', 'execute'), 'Only the owner assigns the first Super Admin by hand';
-  assert not has_function_privilege('service_role', 'public.assign_initial_super_admin(uuid)', 'execute');
+  assert not has_function_privilege('authenticated', 'public.assign_initial_super_admin(uuid, uuid)', 'execute'), 'Only the owner assigns the first Super Admin by hand';
+  assert not has_function_privilege('service_role', 'public.assign_initial_super_admin(uuid, uuid)', 'execute');
+  assert to_regprocedure('public.assign_initial_super_admin(uuid)') is null, 'the one-argument version is gone';
   assert not has_function_privilege('authenticated', 'public.super_admin_id()', 'execute');
   assert not has_function_privilege('authenticated', 'public.accept_access_request(uuid,text,uuid,text)', 'execute');
   assert has_function_privilege('service_role', 'public.accept_access_request(uuid,text,uuid,text)', 'execute');
@@ -91,8 +94,8 @@ begin
   assert public.deployment_onboarded() = false, 'A new deployment has not been onboarded';
   perform public.accept_access_request('95000000-0000-4000-8000-0000000000a1', repeat('a', 64), sa, 'sa-home');
   perform pg_temp.as_owner();
-  assert public.super_admin_id() = sa, 'The applicant of the accepted request is the Super Admin';
-  assert (select count(*) from public.super_admin) = 1;
+  assert (select o.super_admin_id from public.organizations o) = sa, 'The applicant of the accepted request is the Super Admin';
+  assert (select count(*) from public.organizations where super_admin_id is not null) = 1;
   assert exists (select 1 from public.user_roles where user_id = sa and role = 'admin'), 'The Super Admin holds the Admin role';
   -- One organization per deployment: another request is refused, before and inside the function.
   perform pg_temp.act_as(null, 'service_role');
@@ -100,19 +103,24 @@ begin
   perform pg_temp.expect_error(format('select public.accept_access_request(%L, %L, %L, %L)',
     '95000000-0000-4000-8000-0000000000a2', repeat('b', 64), other_org, 'sa-home'), 'P0001');
   perform pg_temp.as_owner();
-  assert public.super_admin_id() = sa, 'A refused request changes nothing';
+  assert (select o.super_admin_id from public.organizations o) = sa, 'A refused request changes nothing';
   assert (select status from public.access_requests where id = '95000000-0000-4000-8000-0000000000a2') = 'pending';
   assert not exists (select 1 from public.profiles where id = other_org);
-  perform pg_temp.expect_error(format('select public.assign_initial_super_admin(%L)', a1), '23514');
+  perform pg_temp.expect_error(format('select public.assign_initial_super_admin(%L, %L)', (select id from public.organizations), a1), '23514');
 
   -- ---------- 2. The designation itself ----------
-  perform pg_temp.expect_error('delete from public.super_admin', '23514', 'super-admin-required');
-  perform pg_temp.expect_error('truncate public.super_admin', '23514', 'super-admin-required');
-  -- A second row is impossible (the key can only be true), whoever it names.
-  perform pg_temp.expect_error(format('insert into public.super_admin (user_id) values (%L)', sa), '23505');
-  perform pg_temp.expect_error(format('insert into public.super_admin (singleton, user_id) values (false, %L)', sa), '23514');
+  -- Never removed once assigned (only transferred).
+  perform pg_temp.expect_error('update public.organizations set super_admin_id = null', '23514', 'super-admin-required');
+  -- A person is the Super Admin of at most one organization (and only of their own, see organizations.sql).
+  begin
+    insert into public.organizations (id, name) values ('95000000-0000-4000-8000-0000000000f1', 'SA Other Organization');
+    perform pg_temp.expect_error(format('update public.organizations set super_admin_id = %L where id = %L',
+      sa, '95000000-0000-4000-8000-0000000000f1'), '23505');
+    raise exception 'undo' using errcode = 'P0099';
+  exception when sqlstate 'P0099' then null;
+  end;
   -- Only an active Admin can hold it.
-  perform pg_temp.expect_error(format('update public.super_admin set user_id = %L', other_org), '23514', 'recipient-not-admin');
+  perform pg_temp.expect_error(format('update public.organizations set super_admin_id = %L', other_org), '23514', 'recipient-not-admin');
   -- The Super Admin can't be ended or lose the Admin role while holding it, by anyone.
   perform pg_temp.expect_error(format('update public.profiles set deleted_at = now() where id = %L', sa), '23514', 'super-admin-protected');
   perform pg_temp.expect_error(format('delete from public.user_roles where user_id = %L and role = ''admin''', sa), '23514', 'super-admin-protected');
@@ -127,7 +135,7 @@ begin
   perform public.add_user(banned, 'sa-5@test.invalid', 'Admin Five', '+966512345605', null, null, array['admin']);
   assert public.get_super_admin_id() = sa, 'Adding Admins never moves the Super Admin';
   perform pg_temp.as_owner();
-  assert (select count(*) from public.super_admin) = 1;
+  assert (select count(*) from public.organizations where super_admin_id is not null) = 1;
   perform pg_temp.act_as(a1);
   -- A duplicate is refused (retrying uses the same account; it never makes a second profile).
   perform pg_temp.expect_error(format('select public.add_user(%L, %L, %L, %L, null, null, array[''admin''])',
@@ -173,7 +181,7 @@ begin
   perform pg_temp.expect_error(format('select public.update_admin(%L, %L, %L)', a1, 'X', '+966512345602'), '42501');
   perform pg_temp.as_owner();
   assert (select full_name from public.profiles where id = sa) = 'Applicant One', 'Refused edits changed nothing';
-  assert public.super_admin_id() = sa and (select array_agg(role::text) from public.user_roles where user_id = a2) = array['admin'],
+  assert (select o.super_admin_id from public.organizations o) = sa and (select array_agg(role::text) from public.user_roles where user_id = a2) = array['admin'],
     'Editing never changes a role';
 
   -- ---------- 6. Delete Admin ----------
@@ -208,12 +216,12 @@ begin
   perform pg_temp.expect_error(format('select public.transfer_super_admin(%L)', banned), '23514', 'recipient-not-admin');
   perform pg_temp.expect_error(format('select public.transfer_super_admin(%L)', other_org), '23514', 'recipient-not-admin');
   perform pg_temp.as_owner();
-  assert public.super_admin_id() = sa, 'Refused transfers change nothing';
+  assert (select o.super_admin_id from public.organizations o) = sa, 'Refused transfers change nothing';
 
   perform pg_temp.act_as(sa);
   assert public.transfer_super_admin(a1) = a1;
   perform pg_temp.as_owner();
-  assert public.super_admin_id() = a1 and (select count(*) from public.super_admin) = 1, 'Exactly one Super Admin after the transfer';
+  assert (select o.super_admin_id from public.organizations o) = a1 and (select count(*) from public.organizations where super_admin_id is not null) = 1, 'Exactly one Super Admin after the transfer';
   assert exists (select 1 from public.user_roles where user_id = sa and role = 'admin'), 'The former Super Admin stays an Admin';
   select * into v_audit from public.organization_management_audit where action = 'transfer-super-admin' order by id desc limit 1;
   assert v_audit.actor_id = sa and v_audit.entity_id = a1::text
@@ -240,13 +248,13 @@ begin
   perform public.delete_admin(sa);
   perform pg_temp.as_owner();
   assert (select deleted_at is not null from public.profiles where id = sa), 'Former Super Admin deleted after the transfer';
-  assert public.super_admin_id() = a1 and (select count(*) from public.super_admin) = 1;
+  assert (select o.super_admin_id from public.organizations o) = a1 and (select count(*) from public.organizations where super_admin_id is not null) = 1;
 
   -- A refused transfer leaves both roles as they were (all or nothing).
   perform pg_temp.act_as(a1);
   perform pg_temp.expect_error(format('select public.transfer_super_admin(%L)', sa), '23514', 'recipient-not-admin');
   perform pg_temp.as_owner();
-  assert public.super_admin_id() = a1;
+  assert (select o.super_admin_id from public.organizations o) = a1;
 
   -- ---------- 8. Everything else stays open to both levels ----------
   perform pg_temp.act_as(a3);

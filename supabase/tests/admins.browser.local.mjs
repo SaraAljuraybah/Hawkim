@@ -40,7 +40,8 @@ async function check(name, fn) {
 const assert = (condition, message) => { if (!condition) throw new Error(message) }
 async function ok(promise, what) { const { data, error } = await promise; if (error) throw new Error(`${what}: ${error.message}`); return data }
 const ownerSql = (sql) => execFileSync('docker', ['exec', '-i', container, 'psql', '-U', 'postgres', '-d', 'postgres', '-v', 'ON_ERROR_STOP=1', '-qAt'], { input: sql, env: { ...process.env, MSYS_NO_PATHCONV: '1' } }).toString().trim()
-const superAdminId = () => ownerSql('select user_id from public.super_admin;')
+// The designation is organizations.super_admin_id since 20261116140000 (one organization here: MedCare).
+const superAdminId = () => ownerSql('select super_admin_id from public.organizations where super_admin_id is not null;')
 
 // ---------- fixtures ----------
 const password = `E2e-${randomUUID()}`
@@ -56,7 +57,7 @@ async function person(key, roles, department = null, position = null) {
 const superAdmin = await person('super', ['admin'])
 const regular = await person('regular', ['admin'])
 const staff = await person('staff', ['author'], 'regulatory-affairs', 'QA Specialist')
-ownerSql(`insert into public.super_admin (user_id) values ('${superAdmin.id}') on conflict (singleton) do update set user_id = excluded.user_id;`)
+ownerSql(`alter table public.organizations disable trigger organizations_check_super_admin; update public.organizations set super_admin_id = '${superAdmin.id}', super_admin_assigned_at = now(); alter table public.organizations enable trigger organizations_check_super_admin;`)
 const profile = async (id) => ok(service.from('profiles').select('full_name, email, phone, deleted_at, user_roles(role)').eq('id', id).single(), 'read profile')
 async function apiAs(email) {
   const client = createClient(url, process.env.SUPABASE_ANON_KEY, options)
@@ -306,7 +307,7 @@ await check('Confirm Transfer moves the role at once; the page drops the elevate
   await clickText(sa, 'Confirm Transfer', 'button')
   await waitText(sa, 'is now the Super Admin', 30000)
   assert(superAdminId() === regular.id, `Super Admin is ${superAdminId()}`)
-  assert(ownerSql('select count(*) from public.super_admin;') === '1', 'not exactly one')
+  assert(ownerSql('select count(*) from public.organizations where super_admin_id is not null;') === '1', 'not exactly one')
   assert(!(await hasButton(sa, 'Make Super Admin')) && !(await hasButton(sa, `Delete ${regular.name}`)), 'still shows elevated actions')
   // The same page, without a reload: the former Super Admin is now shown as "Admin".
   await roleLabelsAre(sa, 'Admin')

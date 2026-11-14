@@ -17,8 +17,8 @@ insert into public.departments (id, name, initials, division_id) values
 insert into auth.users (id) values ('9b000000-0000-4000-8000-000000000001');
 insert into public.profiles (id, full_name, email, initials, department_id, "position")
 values ('9b000000-0000-4000-8000-000000000001', 'Amp Person', 'amp@test.invalid', 'AP', 'amp-fa', 'Officer');
-delete from public.organization_settings;
-insert into public.organization_settings (singleton, name) values (true, 'Riyadh Pharma & Co');
+-- The organization's name (organizations.name since 20261116140000; MedCare's row here).
+update public.organizations set name = 'Riyadh Pharma & Co';
 delete from public.ampersand_name_changes;
 
 -- The migration's DO block, run again.
@@ -49,9 +49,10 @@ begin
     update public.departments set name = renamed, updated_at = pg_catalog.clock_timestamp() where id = item.id;
     insert into public.ampersand_name_changes(entity, entity_id, old_name, new_name) values ('department', item.id, item.name, renamed);
   end loop;
-  for item in select singleton, name from public.organization_settings where name like '%&%' for update loop
+  -- The migration renamed organization_settings' one row; since 20261116140000 the name is on organizations.
+  for item in select id, name from public.organizations where name like '%&%' for update loop
     renamed := pg_temp.without_ampersand(item.name);
-    update public.organization_settings set name = renamed, updated_at = now() where singleton;
+    update public.organizations set name = renamed, updated_at = now() where id = item.id;
     insert into public.ampersand_name_changes(entity, entity_id, old_name, new_name) values ('organization', 'organization', item.name, renamed);
   end loop;
 end;
@@ -63,7 +64,7 @@ begin
   assert (select name from public.divisions where id = 'amp-qc') = 'Quality and Compliance', '"A&B" gets spaces too';
   assert (select name from public.divisions where id = 'amp-clash') = 'Legal & Governance', 'A clash is skipped, not merged';
   assert (select name from public.departments where id = 'amp-fa') = 'Amp Finance and Administration';
-  assert (select name from public.organization_settings) = 'Riyadh Pharma and Co';
+  assert (select name from public.organizations) = 'Riyadh Pharma and Co';
   -- Ids and links are untouched.
   assert (select division_id from public.departments where id = 'amp-fa') = 'amp-rnd';
   assert (select department_id from public.profiles where id = '9b000000-0000-4000-8000-000000000001') = 'amp-fa';
@@ -77,13 +78,13 @@ update public.divisions d set name = c.old_name from public.ampersand_name_chang
 where c.entity = 'division' and c.entity_id = d.id and d.name = c.new_name;
 update public.departments d set name = c.old_name, updated_at = pg_catalog.clock_timestamp() from public.ampersand_name_changes c
 where c.entity = 'department' and c.entity_id = d.id and d.name = c.new_name and d.deletion_job_id is null;
-update public.organization_settings o set name = c.old_name, updated_at = now() from public.ampersand_name_changes c
-where c.entity = 'organization' and o.singleton and o.name = c.new_name;
+update public.organizations o set name = c.old_name, updated_at = now() from public.ampersand_name_changes c
+where c.entity = 'organization' and o.id = c.organization_id and o.name = c.new_name;
 do $$
 begin
   assert (select name from public.divisions where id = 'amp-rnd') = 'Research & Development';
   assert (select name from public.departments where id = 'amp-fa') = 'Amp Finance & Administration';
-  assert (select name from public.organization_settings) = 'Riyadh Pharma & Co';
+  assert (select name from public.organizations) = 'Riyadh Pharma & Co';
 end;
 $$;
 

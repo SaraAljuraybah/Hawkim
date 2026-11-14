@@ -63,13 +63,13 @@ select ('9d000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid, case when n
 from generate_series(1, 7) n;
 -- Person 1 is the Super Admin (any earlier designation is replaced; rolled back). No other Admin
 -- in this database counts: earlier fixtures' Admins are ended for this test (rolled back).
-alter table public.super_admin disable trigger user;
-delete from public.super_admin;
-alter table public.super_admin enable trigger user;
+alter table public.organizations disable trigger user;
+update public.organizations set super_admin_id = null, super_admin_assigned_at = null;
+alter table public.organizations enable trigger user;
 update public.profiles p set deleted_at = now()
 where p.deleted_at is null and p.id::text not like '9d000000-%'
   and exists (select 1 from public.user_roles r where r.user_id = p.id and r.role = 'admin');
-insert into public.super_admin (user_id) values ('9d000000-0000-4000-8000-000000000001');
+update public.organizations set super_admin_id = '9d000000-0000-4000-8000-000000000001', super_admin_assigned_at = now();
 
 do $$
 declare
@@ -180,15 +180,15 @@ begin
   perform pg_temp.act_as(a2);
   assert pg_temp.mine() = array[s5], 'not another Admin';
   perform pg_temp.as_owner();
-  alter table public.super_admin disable trigger user;
-  delete from public.super_admin;
-  alter table public.super_admin enable trigger user;
+  alter table public.organizations disable trigger user;
+  update public.organizations set super_admin_id = null, super_admin_assigned_at = null;
+  alter table public.organizations enable trigger user;
   perform pg_temp.act_as(a2);
   assert pg_temp.mine() = array[s4, s5, s6], 'no Super Admin: every Admin';
   perform pg_temp.act_as(sa);
   assert pg_temp.mine() = array[s4, s6], 'including the former Super Admin, for the orphaned ones';
   perform pg_temp.as_owner();
-  insert into public.super_admin (user_id) values (sa);
+  update public.organizations set super_admin_id = sa, super_admin_assigned_at = now();
 
   -- ---------- Deleted, blocked, unknown and the Super Admin's own account ----------
   update public.profiles set deleted_at = now() where id = s6;

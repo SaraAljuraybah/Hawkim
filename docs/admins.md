@@ -10,7 +10,8 @@ Hawkim has exactly two administrator roles: **Super Admin** and **Admin**. There
 
 Both levels hold the one existing role, `admin` (`user_roles`). Every admin-only function, policy and
 route keeps working for both. The **Super Admin** is a designation on top of it: the single row of
-`public.super_admin` names one active Admin.
+`public.super_admin` names one active Admin. Since `20261116140000_organization_settings_per_organization.sql`
+the designation is `organizations.super_admin_id`, one per organization (and that table is gone).
 
 ### Names shown to people
 
@@ -200,7 +201,9 @@ where r.status = 'accepted' and (p.id is null or ur.user_id is null);
 3. Never take an id from a guess, from "the oldest Admin" or from "the only accepted request". If no one
    in query 5 is clearly that person, don't assign anyone yet. Admins keep working without a Super Admin.
 4. After the migration, as `postgres`: `select public.assign_initial_super_admin('<that id>');`. It
-   refuses if a Super Admin already exists or the person isn't an active Admin.
+   refuses if a Super Admin already exists or the person isn't an active Admin. Since
+   `20261116140000` it names the organization too:
+   `select public.assign_initial_super_admin('<organization id>', '<that id>');`.
 
 ## Hosted project status and release plan
 
@@ -244,11 +247,13 @@ npx supabase functions deploy access-requests --no-verify-jwt
 ```
 
 Then, as `postgres` in the SQL Editor, the named person: `select public.assign_initial_super_admin('<id>');`
+(since `20261116140000`: `select public.assign_initial_super_admin('<organization id>', '<id>');`)
 
 After it (read-only):
 
 ```sql
 select user_id, assigned_at from public.super_admin;            -- exactly one row, the named person
+-- since 20261116140000: select id, name, super_admin_id from public.organizations;
 select proname, proacl from pg_proc where proname in
   ('get_super_admin_id', 'update_admin', 'delete_admin', 'transfer_super_admin', 'deployment_onboarded', 'assign_initial_super_admin');
 -- get_super_admin_id, update_admin, delete_admin, transfer_super_admin: authenticated only;

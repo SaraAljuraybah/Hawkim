@@ -238,16 +238,16 @@ begin
     (select id from public.access_requests where email = 'request@test.invalid'), repeat('a', 64), '94000000-0000-4000-8000-000000000099', 'om-home'), 'P0001');
   -- …so it is accepted as on a new deployment (rolled back): no Super Admin and no active Admin.
   perform pg_temp.as_owner();
-  alter table public.super_admin disable trigger user;
-  delete from public.super_admin;
-  alter table public.super_admin enable trigger user;
+  alter table public.organizations disable trigger user;
+  update public.organizations set super_admin_id = null, super_admin_assigned_at = null;
+  alter table public.organizations enable trigger user;
   update public.profiles p set deleted_at = now()
   where p.deleted_at is null and exists (select 1 from public.user_roles r where r.user_id = p.id and r.role = 'admin');
   perform pg_temp.act_as(null, 'service_role');
   perform public.accept_access_request((select id from public.access_requests where email = 'request@test.invalid'), repeat('a', 64),
     '94000000-0000-4000-8000-000000000099', 'om-home');
   perform pg_temp.as_owner();
-  assert public.super_admin_id() = '94000000-0000-4000-8000-000000000099', 'The accepted requester is the Super Admin';
+  assert (select o.super_admin_id from public.organizations o) = '94000000-0000-4000-8000-000000000099', 'The accepted requester is the Super Admin';
   set constraints all immediate; -- run the commit-time department and position checks now
   -- An Admin has no department and no position (20261112140000_admins_without_department.sql), so the
   -- request's job title isn't made a position.

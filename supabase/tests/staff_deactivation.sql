@@ -65,10 +65,10 @@ insert into public.user_roles (user_id, role) values
   ('96000000-0000-4000-8000-000000000006', 'admin'),
   ('96000000-0000-4000-8000-000000000007', 'admin');
 -- The Super Admin designation, as a deployment has it (rolled back).
-alter table public.super_admin disable trigger user;
-delete from public.super_admin;
-insert into public.super_admin (user_id) values ('96000000-0000-4000-8000-000000000007');
-alter table public.super_admin enable trigger user;
+alter table public.organizations disable trigger user;
+update public.organizations set super_admin_id = null, super_admin_assigned_at = null;
+update public.organizations set super_admin_id = '96000000-0000-4000-8000-000000000007', super_admin_assigned_at = now();
+alter table public.organizations enable trigger user;
 
 -- SOPs: a Draft by 2 (in progress), a published SOP by 3 (history only).
 insert into public.sops (id, title, department_id, author_id, status, current_version) values
@@ -242,7 +242,7 @@ begin
   assert (select deleted_at from public.profiles where id = admin2) is not null, 'The former Admin stays deactivated';
   assert pg_temp.roles(admin2) = array['admin'], 'Their role is unchanged';
   -- The Super Admin can't be deactivated, so it never needs bringing back; its row stays.
-  assert public.super_admin_id() = super;
+  assert (select o.super_admin_id from public.organizations o) = super;
 
   -- ---------- 8. The whole cycle again: deactivate the reactivated person ----------
   perform pg_temp.act_as(admin);

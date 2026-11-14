@@ -79,7 +79,7 @@ export function localPeople({ url, anonKey, service, options, run, prefix, conta
     const existing = await ownerValue(container, `
       select p.id || ' ' || p.email from public.profiles p
       where public.is_active_admin(p.id)
-      order by (p.id = public.super_admin_id()) desc nulls last, p.email
+      order by exists (select 1 from public.organizations o where o.super_admin_id = p.id) desc, p.email
       limit 1;`)
     if (existing) {
       const [id, email] = existing.split(' ')

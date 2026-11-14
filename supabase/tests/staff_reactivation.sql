@@ -64,10 +64,10 @@ insert into public.user_roles (user_id, role) values
   ('98000000-0000-4000-8000-000000000006', 'admin'),
   ('98000000-0000-4000-8000-000000000007', 'admin'),
   ('98000000-0000-4000-8000-000000000009', 'author');
-alter table public.super_admin disable trigger user;
-delete from public.super_admin;
-insert into public.super_admin (user_id) values ('98000000-0000-4000-8000-000000000007');
-alter table public.super_admin enable trigger user;
+alter table public.organizations disable trigger user;
+update public.organizations set super_admin_id = null, super_admin_assigned_at = null;
+update public.organizations set super_admin_id = '98000000-0000-4000-8000-000000000007', super_admin_assigned_at = now();
+alter table public.organizations enable trigger user;
 -- Deactivated (as deactivate_staff leaves them: profile ended, everything else kept).
 update public.profiles set deleted_at = now() - interval '1 day'
 where id in ('98000000-0000-4000-8000-000000000002', '98000000-0000-4000-8000-000000000003', '98000000-0000-4000-8000-000000000004',

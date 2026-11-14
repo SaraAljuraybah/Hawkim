@@ -1,5 +1,6 @@
 -- Tests for 20261111140000_organization_settings.sql: who can read and change the organization's name,
--- and what is stored. Every call is made as the API would make it (role anon or authenticated, with the
+-- and what is stored. Since 20261116140000_organization_settings_per_organization.sql the name is
+-- organizations.name of the caller's organization (MedCare's row here). Every call is made as the API would make it (role anon or authenticated, with the
 -- caller's id in the JWT claims). Only for a disposable LOCAL database with every migration applied;
 -- never the shared project. Everything is rolled back.
 begin;
@@ -50,10 +51,10 @@ insert into public.user_roles (user_id, role) values
   ('9c000000-0000-4000-8000-000000000001', 'admin'), ('9c000000-0000-4000-8000-000000000002', 'admin'),
   ('9c000000-0000-4000-8000-000000000003', 'author'), ('9c000000-0000-4000-8000-000000000004', 'author');
 -- Person 1 is the Super Admin (any earlier designation is replaced; rolled back).
-alter table public.super_admin disable trigger user;
-delete from public.super_admin;
-alter table public.super_admin enable trigger user;
-insert into public.super_admin (user_id) values ('9c000000-0000-4000-8000-000000000001');
+alter table public.organizations disable trigger user;
+update public.organizations set super_admin_id = null, super_admin_assigned_at = null;
+alter table public.organizations enable trigger user;
+update public.organizations set super_admin_id = '9c000000-0000-4000-8000-000000000001', super_admin_assigned_at = now();
 
 do $$
 declare
@@ -64,26 +65,27 @@ declare
   v_name text;
 begin
   -- ---------- Grants: the table is closed; only signed-in users may call the functions ----------
-  assert not has_table_privilege('authenticated', 'public.organization_settings', 'select'), 'not readable directly';
-  assert not has_table_privilege('authenticated', 'public.organization_settings', 'insert'), 'not writable directly';
-  assert not has_table_privilege('anon', 'public.organization_settings', 'select');
-  assert not has_table_privilege('service_role', 'public.organization_settings', 'update');
-  assert (select relrowsecurity from pg_class where oid = 'public.organization_settings'::regclass), 'RLS is on';
-  assert not exists (select 1 from pg_policies where schemaname = 'public' and tablename = 'organization_settings'), 'no policies';
+  assert to_regclass('public.organization_settings') is null, 'the singleton table is gone';
+  assert not has_table_privilege('authenticated', 'public.organizations', 'select'), 'not readable directly';
+  assert not has_table_privilege('authenticated', 'public.organizations', 'insert'), 'not writable directly';
+  assert not has_table_privilege('anon', 'public.organizations', 'select');
+  assert not has_table_privilege('service_role', 'public.organizations', 'update');
+  assert (select relrowsecurity from pg_class where oid = 'public.organizations'::regclass), 'RLS is on';
+  assert not exists (select 1 from pg_policies where schemaname = 'public' and tablename = 'organizations'), 'no policies';
   assert not has_function_privilege('anon', 'public.get_organization_name()', 'execute');
   assert not has_function_privilege('anon', 'public.set_organization_name(text)', 'execute');
   assert has_function_privilege('authenticated', 'public.get_organization_name()', 'execute');
   assert has_function_privilege('authenticated', 'public.set_organization_name(text)', 'execute');
 
-  -- ---------- Starts empty: no name for anyone ----------
-  assert (select count(*) from public.organization_settings) = 0, 'starts empty';
+  -- ---------- Every organization has a name (MedCare's before anything is saved) ----------
+  update public.organizations set name = 'MedCare';
   perform pg_temp.act_as(staff);
-  assert public.get_organization_name() is null, 'no name yet';
+  assert public.get_organization_name() = 'MedCare', 'the organization''s name';
 
   -- ---------- Direct access is refused, even for the Super Admin ----------
   perform pg_temp.act_as(sa);
-  perform pg_temp.expect_error('select * from public.organization_settings', '42501');
-  perform pg_temp.expect_error($q$insert into public.organization_settings (name) values ('Direct')$q$, '42501');
+  perform pg_temp.expect_error('select * from public.organizations', '42501');
+  perform pg_temp.expect_error($q$update public.organizations set name = 'Direct'$q$, '42501');
   perform pg_temp.act_as(null, 'anon');
   perform pg_temp.expect_error($q$select public.set_organization_name('Anon Pharma')$q$, '42501');
   perform pg_temp.expect_error('select public.get_organization_name()', '42501');
@@ -96,7 +98,7 @@ begin
   perform pg_temp.act_as(former);
   perform pg_temp.expect_error($q$select public.set_organization_name('Former Pharma')$q$, '42501', 'super-admin-required');
   perform pg_temp.as_owner();
-  assert (select count(*) from public.organization_settings) = 0, 'nothing saved by the refused calls';
+  assert (select name from public.organizations) = 'MedCare', 'nothing saved by the refused calls';
 
   -- ---------- The Super Admin saves it, trimmed; everyone with an active profile reads it ----------
   perform pg_temp.act_as(sa);
@@ -109,13 +111,13 @@ begin
   perform pg_temp.act_as(former);
   assert public.get_organization_name() is null, 'a former staff member gets nothing';
   perform pg_temp.as_owner();
-  assert (select updated_by = sa and updated_at <= now() from public.organization_settings), 'who saved it';
+  assert (select updated_by = sa and updated_at <= now() from public.organizations), 'who saved it';
 
   -- ---------- Changing it again keeps one row ----------
   perform pg_temp.act_as(sa);
   perform public.set_organization_name('Jeddah Pharma');
   perform pg_temp.as_owner();
-  assert (select count(*) = 1 and min(name) = 'Jeddah Pharma' from public.organization_settings), 'one row, the new name';
+  assert (select count(*) = 1 and min(name) = 'Jeddah Pharma' from public.organizations), 'one row, the new name';
 
   -- ---------- Invalid names are refused and the saved one stays ----------
   perform pg_temp.act_as(sa);
@@ -128,12 +130,11 @@ begin
   perform public.set_organization_name('Jeddah Pharma');
   assert public.get_organization_name() = 'Jeddah Pharma', 'still the last valid name';
 
-  -- ---------- The table itself keeps one valid row, even for the owner ----------
+  -- ---------- The table itself keeps valid names, even for the owner ----------
   perform pg_temp.as_owner();
-  perform pg_temp.expect_error($q$insert into public.organization_settings (singleton, name) values (false, 'Second')$q$, '23514');
-  perform pg_temp.expect_error($q$insert into public.organization_settings (name) values ('Second')$q$, '23505');
-  perform pg_temp.expect_error($q$update public.organization_settings set name = ' Padded '$q$, '23514');
-  perform pg_temp.expect_error($q$update public.organization_settings set name = ''$q$, '23514');
+  perform pg_temp.expect_error($q$insert into public.organizations (name) values (' Padded ')$q$, '23514');
+  perform pg_temp.expect_error($q$update public.organizations set name = ' Padded '$q$, '23514');
+  perform pg_temp.expect_error($q$update public.organizations set name = ''$q$, '23514');
 
   -- ---------- After a transfer, only the new Super Admin can change it ----------
   perform pg_temp.act_as(sa);
