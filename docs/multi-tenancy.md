@@ -194,8 +194,10 @@ It ends with "every row's file is in its organization's folder", or exits with 1
 Only `access-requests` changed (accepting creates an organization):
 
 ```bash
-supabase functions deploy access-requests
+supabase functions deploy access-requests --no-verify-jwt
 ```
+
+`--no-verify-jwt`: the review links in the emails call it without a sign-in (as in its README).
 
 The other functions are unchanged by this work.
 
