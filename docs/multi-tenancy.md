@@ -63,7 +63,20 @@ Accepting a request (the `access-requests` Edge Function → `accept_access_requ
 
 ## The release (one window)
 
-The website (`tryhawkim.com`) deploys from `develop`. The hosted database is changed only by hand. The new frontend (commit 16, kept local until the window) needs the new database, and the new database refuses the old frontend's uploads. So the steps below happen together, in one window, while nobody uses Hawkim. Estimated time: about an hour.
+The website (`tryhawkim.com`) deploys from `develop`. The hosted database is changed only by hand. The new frontend (commit 16, kept local until the window) needs the new database, and the new database refuses the old frontend's uploads. So the steps below happen together, in one window, while nobody uses Hawkim. Estimated time: about an hour. Do the **rehearsal** (below) first,
+on a copy, and only then the real window.
+
+Rules for the team:
+
+- **During the window, nobody pushes to `develop`.** Every push goes live on `tryhawkim.com` at once and
+  would mix with the release. Hold your commits until the window is over and has been announced as done.
+- **After the window, everyone runs, on their computer:**
+  ```bash
+  git pull
+  supabase db reset        # every migration + seed.sql: your local database becomes multi-tenant too
+  ```
+  A local database without the new migrations doesn't match the website any more: uploads and most pages
+  would fail against it. If `supabase db reset` reports an error, stop and say so; don't work around it.
 
 Placeholders used below:
 
@@ -141,7 +154,7 @@ supabase db push --dry-run     # must list exactly the migrations below (plus 20
 supabase db push
 ```
 
-`db push` applies these 16 migrations, each in one transaction:
+`db push` applies these 17 migrations, each in one transaction:
 
 1. `20261116120000_organizations`
 2. `20261116130000_conflict_without_retry`
@@ -159,6 +172,7 @@ supabase db push
 14. `20261117130000_accept_creates_organization`
 15. `20261117140000_add_user_other_organization`
 16. `20261117150000_isolation_fixes`
+17. `20261117160000_storage_relocation_reverse` (only used to undo step 4, see below)
 
 The first one checks that no row is lost, and stops otherwise. If any migration fails, `db push` stops there. Go to **If something goes wrong** below.
 
@@ -220,10 +234,17 @@ Then:
 ### If something goes wrong
 
 - **Before step 6**, the old website still runs, but its uploads are refused once `20261116230000` is in. Either finish the steps, or undo.
-- **Undo the migrations** (only while MedCare is the only organization) by running the rollback scripts in reverse order, as `postgres` in the SQL Editor. Then remove the reverted versions from the history with `supabase migration repair --status reverted <version>`. If step 4 has already run, first move the files back out of the organization's folder.
+- **If step 4 has already run**, first move the files back out of MedCare's folder, while the migrations are still in place. It refuses when there is more than one organization:
+  ```bash
+  SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... node supabase/scripts/move_storage_to_organizations.mjs --reverse          # dry run
+  SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... node supabase/scripts/move_storage_to_organizations.mjs --reverse --apply
+  ```
+  It ends with "every row's file is out of its organization's folder". If step 5 has run, also deploy the previous `access-requests` from `main` (`git checkout main -- supabase/functions/access-requests`, deploy, then `git checkout develop -- supabase/functions/access-requests`).
+- **Undo the migrations** (only while MedCare is the only organization) by running the rollback scripts in reverse order, as `postgres` in the SQL Editor. Then remove the reverted versions from the history with `supabase migration repair --status reverted <version>`.
 
   | Order | Rollback script |
   |---|---|
+  | 0 | `20261117160000`: `drop function public.restore_storage_path(text, text, text); drop function public.storage_paths_to_restore();` (after the `--reverse` move) |
   | 1 | `supabase/scripts/rollback_isolation_fixes.sql` |
   | 2 | `rollback_add_user_other_organization.sql` |
   | 3 | `rollback_accept_creates_organization.sql` |
@@ -241,5 +262,128 @@ Then:
   | 15 | `rollback_conflict_without_retry.sql` |
   | 16 | `rollback_organizations.sql` |
 
-- **Restore the backup** when the rollback scripts aren't enough. Restore `hawkim.dump` into a new project, or, following Supabase's restore guide, `roles.sql`, then `schema.sql`, then `data.sql`. Upload the storage backup back to its buckets.
+- **Restore the backup** when the rollback scripts aren't enough. Restore `hawkim.dump` into a new project, or, following Supabase's restore guide, `roles.sql`, then `schema.sql`, then `data.sql`. Upload the storage backup back to its buckets with `backup_storage.mjs <folder> --restore`.
 - **The website:** Vercel → hawkim → Deployments → *Instant Rollback* to the deployment before step 6. `main` still has everything up to `8179fb9`.
+
+## The rehearsal (before the real window)
+
+Steps 3–8 run once on a **copy** of the hosted project, a second free Supabase project, so any surprise
+shows up there first. The real project, the website and the real worker are not changed. Do it a day or two
+before the window, with the backup from step 2. Allow about two hours.
+
+Below, `$R_REF`, `$R_DB_URL`, `$R_URL`, `$R_ANON_KEY` and `$R_SERVICE_ROLE_KEY` are the rehearsal project's
+project ref, Session pooler connection string, URL, publishable (anon) key and service role key (Project
+Settings → Database and → API Keys).
+
+### R1. Make the backup
+
+Do steps 1 and 2 above on the real project (step 2 only reads it), then let people use Hawkim again. From
+here on the backup folder is only read.
+
+### R2. Create the rehearsal project
+
+- Supabase Dashboard → **New project**: name `hawkim-rehearsal`, the same region as the real project, a new
+  database password.
+- The Free plan allows two active projects. If you already have two, pause the other one first (not the real
+  Hawkim project).
+
+### R3. Restore the database into it
+
+Roles, then the schema, then the data with triggers off while it loads (Supabase's "restore a backup into a
+new project" steps):
+
+```bash
+cd backup-YYYYMMDD
+docker run --rm -v "$PWD":/backup postgres:17-alpine psql "$R_DB_URL" \
+  --single-transaction --variable ON_ERROR_STOP=1 \
+  --file /backup/roles.sql --file /backup/schema.sql \
+  --command 'SET session_replication_role = replica' --file /backup/data.sql
+```
+
+If `roles.sql` stops on a role that already exists, delete that statement from the file and run the command
+again (it is one transaction: a failed run leaves nothing behind). Then run step 2's row-count query in the
+rehearsal project's SQL Editor: the counts must equal the saved ones.
+
+### R4. Restore the stored files into it
+
+```bash
+SUPABASE_URL=$R_URL SUPABASE_SERVICE_ROLE_KEY=$R_SERVICE_ROLE_KEY \
+  node supabase/scripts/backup_storage.mjs backup-YYYYMMDD/storage --restore
+```
+
+It creates any missing bucket with the settings it had, checks every file against the manifest, and uploads
+it at the same path. The number it prints must equal step 2's file count.
+
+### R5. The migration history
+
+```bash
+supabase link --project-ref $R_REF
+supabase migration list
+```
+
+The restore may or may not have brought the history along (it depends on what `supabase db dump` included). It
+must look like the real project's: applied up to `20261114130100`, nothing newer. If it is empty, mark every
+migration up to and including `20261114130100` as applied with
+`supabase migration repair --status applied <version> ...`. Then run step 0's checks in the rehearsal
+project's SQL Editor: the answers must be the same as on the real project.
+
+### R6. Steps 3–8 on the rehearsal project
+
+Follow the steps above, with the rehearsal values everywhere:
+
+| Step | On the rehearsal project |
+|---|---|
+| **3** | Already linked to `$R_REF` (R5). The same `repair`, `db push --dry-run` and `db push`. |
+| **4** | `move_storage_to_organizations.mjs` with `SUPABASE_URL=$R_URL SUPABASE_SERVICE_ROLE_KEY=$R_SERVICE_ROLE_KEY`: dry run, then `--apply`. |
+| **5** | `supabase functions deploy access-requests --project-ref $R_REF`, then `supabase secrets set --project-ref $R_REF SITE_URL=http://localhost:5173` and the email key (a test key, or any value: accepting still works and only says the email couldn't be sent). |
+| **6** | **Don't push.** Run the held frontend commit on your computer against the rehearsal project (below). |
+| **7** | Run the worker against the rehearsal project (below). The real `.env` stays as it is. |
+| **8** | The same checks on `http://localhost:5173`, **except the test Request Hawkim**: it creates a second organization, and the undo (R7) only works while MedCare is the only one. It comes after R7. |
+
+Step 6, the website on your computer (the held commit is already on your local `develop`):
+
+```bash
+cd frontend
+cp .env.local .env.local.real          # keep your usual settings, if you have the file
+printf 'VITE_SUPABASE_URL=%s\nVITE_SUPABASE_PUBLISHABLE_KEY=%s\n' "$R_URL" "$R_ANON_KEY" > .env.local
+npm run dev                            # http://localhost:5173
+```
+
+Step 7, the worker, in a new PowerShell window (the variables override `.env` for this window only). Stop
+the real worker first: two workers on one computer need twice the RAM.
+
+```powershell
+cd compliance-service
+$env:SUPABASE_URL = '<R_URL>'; $env:SUPABASE_SECRET_KEY = '<R_SERVICE_ROLE_KEY>'
+python worker.py
+```
+
+### R7. Rehearse the undo too
+
+On the rehearsal project, in the order of "If something goes wrong":
+
+1. `move_storage_to_organizations.mjs --reverse` (dry run), then `--reverse --apply`.
+2. The rollback scripts in the order of the table, then `supabase migration repair --status reverted <version>` for each.
+3. Check that the old website (`main`) works against it again. Clone `main` into a separate folder, so
+   your `develop` and its held commit stay as they are:
+   ```bash
+   git clone --branch main <repository URL> hawkim-main
+   cp frontend/.env.local hawkim-main/frontend/.env.local      # the rehearsal settings
+   cd hawkim-main/frontend && npm install && npm run dev
+   ```
+   Sign in, open an SOP's file and a GVP version.
+4. Undo step 5 the same way: deploy `access-requests` from `hawkim-main` with `--project-ref $R_REF`.
+
+Then go forward again, as in the real window: steps 3, 4 and 5 from R6 once more (the `repair` marks the
+reverted versions as not applied, so `db push` applies them again), the website from your `develop` folder,
+and step 8 **with** the test Request Hawkim this time: accept it, sign in as the new Super Admin, and check
+that MedCare's SOPs, people and GVP versions aren't visible.
+
+### R8. Clean up
+
+- `frontend/.env.local`: put yours back (`mv .env.local.real .env.local`). Close the PowerShell window with
+  the rehearsal variables and start the real worker again. Delete the `hawkim-main` folder.
+- Relink the CLI to the real project: `supabase link --project-ref <real ref>`.
+- **Delete the rehearsal project**: Project Settings → General → Delete project. It holds a full copy of the
+  real data.
+- Write down anything that went differently from these steps and fix this document before the real window.
