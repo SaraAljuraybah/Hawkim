@@ -57,7 +57,7 @@ export const complianceEn: ComplianceContent = {
       coAuthors: 'Co-authors',
       department: 'Department',
       checked: 'Check Date',
-      guideline: 'Guideline',
+      guideline: 'Regulatory Requirement',
       runBy: 'Run By',
     },
     summary: {

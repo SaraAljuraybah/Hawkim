@@ -57,6 +57,9 @@ describe('the compliance report layout', () => {
     // No "Checked By: Hawkim compliance checker" item in the header.
     expect(html).not.toContain('Checked By')
     expect(html).not.toContain('Hawkim compliance checker')
+    // The GVP version checked against, labelled Regulatory Requirement (its value unchanged).
+    expect(html).toMatch(/<dt class="text-text-gray">Regulatory Requirement<\/dt><dd class="[^"]*">[^<]*GVP[^<]* v[0-9.]+<\/dd>/)
+    expect(html).not.toContain('>Guideline</dt>')
     expect(html.match(/<h1/g)).toHaveLength(1)
     const h2s = [...html.matchAll(/<h2 id="([^"]+)"/g)].map((match) => match[1])
     expect(h2s).toEqual(['report-details-title', 'summary-title', 'overview-title', 'findings-title'])
