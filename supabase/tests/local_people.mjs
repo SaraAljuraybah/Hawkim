@@ -9,7 +9,7 @@
 //
 // Only for a LOCAL stack: the tests that use it refuse any URL that isn't localhost.
 import { createRequire } from 'node:module'
-import { randomUUID } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 import { spawn } from 'node:child_process'
 
 const require = createRequire(new URL('../../frontend/package.json', import.meta.url))
@@ -122,5 +122,30 @@ export function localPeople({ url, anonKey, service, options, run, prefix, conta
     return { id: user.id, email, password, client: await signIn(email, password, key), department, roles, organizationId }
   }
 
-  return { firstAdmin, person }
+  /**
+   * A new organization made the way the app makes one: Request Hawkim, accepted (submit_access_request and
+   * accept_access_request, the database calls of the access-requests Edge Function; its emails are left
+   * out). Returns { id, admin: { id, email, password, client }, departments: { PV, QA } }.
+   */
+  async function newOrganization(key) {
+    const email = `${prefix}-${key}-super-${run}@test.invalid`
+    const password = `E2e-${randomUUID()}`
+    const token = randomUUID().replaceAll('-', '') + randomUUID().replaceAll('-', '')
+    const tokenHash = createHash('sha256').update(token).digest('hex')
+    const requestId = await ok(service.rpc('submit_access_request', {
+      p_organization: `E2E ${key} ${run}`, p_contact_name: `E2E ${key} Super`, p_job_title: null, p_email: email,
+      p_phone: '+966500000000', p_approx_users: 10, p_message: null, p_token_hash: tokenHash,
+      p_organization_email: 'info@organization.test', p_organization_address: 'King Fahd Road, Riyadh',
+      p_organization_maps_url: null, p_organization_website: null, p_organization_description: 'A test organization.',
+    }), 'submit_access_request')
+    const { user } = await ok(service.auth.admin.createUser({ email, password, email_confirm: true }), `create ${key}'s Super Admin`)
+    await ok(service.rpc('accept_access_request', { p_id: requestId, p_token_hash: tokenHash, p_user_id: user.id, p_department: null }),
+      'accept_access_request')
+    const id = await ownerValue(container, `select organization_id from public.profiles where id = '${user.id}';`)
+    const rows = await ownerValue(container, `select string_agg(initials || '=' || id, ',') from public.departments where organization_id = '${id}';`)
+    const departments = Object.fromEntries(rows.split(',').map((pair) => pair.split('=')))
+    return { id, admin: { id: user.id, email, password, client: await signIn(email, password, `${key}'s Super Admin`) }, departments }
+  }
+
+  return { firstAdmin, person, newOrganization }
 }

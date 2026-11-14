@@ -100,6 +100,10 @@ begin
   -- MedCare's (deactivated) person can't be re-added into Other: one account, one organization.
   perform pg_temp.expect_error(format('select public.add_user(%L, %L, %L, %L, %L, %L, %L)', med_former, 'scope-3@test.invalid',
     'Scope Med Former', '+966512345603', 'Officer', 'scope-other-department', array['author']), '23514', 'email-taken');
+  -- check_new_user (the first step of the add-user Edge Function) refuses the email of another organization's
+  -- person, active or deactivated, so add-user never touches their sign-in account (20261117140000).
+  perform pg_temp.expect_error(format('select public.check_new_user(%L, %L, %L, %L, %L, %L)', 'scope-3@test.invalid',
+    'Scope Med Former', '+966512345603', 'Officer', 'scope-other-department', array['author']), '23514', 'email-taken');
   -- Nor a new person into MedCare's department.
   perform pg_temp.expect_error(format('select public.check_new_user(%L, %L, %L, %L, %L, %L)', 'scope-6@test.invalid',
     'Scope New', '+966512345606', 'Officer', 'pharmacovigilance', array['author']), '23514', 'department-unavailable');
