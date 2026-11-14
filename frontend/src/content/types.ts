@@ -1113,11 +1113,6 @@ export interface ComplianceContent {
       columns: { id: string; module: string; section: string; title: string; page: string; summary: string }
       /** `{page}` is replaced. */
       page: string
-      /** The Findings column's heading, and its label on each phone card. */
-      findings: string
-      findingsCard: string
-      /** Between two finding links in one cell. */
-      linkSeparator: string
       /** An unknown value (e.g. a page). */
       none: string
     }
@@ -1126,13 +1121,11 @@ export interface ComplianceContent {
       title: string
       description: string
       tableLabel: string
-      columns: { number: string; section: string; page: string; text: string; findings: string }
+      columns: { number: string; section: string; page: string; text: string }
       /** In the table and on the phone cards; `{page}` is replaced. */
       page: string
       pageCard: string
-      findingsCard: string
-      linkSeparator: string
-      /** No heading, page or finding. */
+      /** No heading or page. */
       none: string
       /** The button under a long text; `toggleLabel` (`{number}` replaced) is added to its accessible name. */
       showMore: string

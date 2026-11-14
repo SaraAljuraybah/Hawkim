@@ -1,4 +1,4 @@
-import { Fragment, useId, useState, type CSSProperties, type MouseEvent, type ReactNode } from 'react'
+import { useId, useState, type CSSProperties, type MouseEvent, type ReactNode } from 'react'
 import type { ComplianceContent } from '../../content/types'
 import type { CheckProcedure, ComplianceCheck, ComplianceResult } from '../../data/mock/types'
 import type { CheckProceduresState } from '../../hooks/useCheckProcedures'
@@ -10,7 +10,7 @@ import { ComplianceBadge } from './ComplianceBadge'
 import { FindingText } from './FindingText'
 import { requirementLines, sopReferenceLines, sopSectionLabel, withoutContextLabel } from './findingDetails'
 import { overviewCells } from './overviewCells'
-import { assessedRequirements, excerpt, findingsOfProcedure, findingsOfRequirement } from './reportTables'
+import { assessedRequirements, excerpt } from './reportTables'
 import { useReportRequirement } from './reportRequirements'
 
 /** Indicator colours per result (the darker status tokens, so they stand out on white). */
@@ -127,7 +127,7 @@ export function ExecutiveSummary({ check, content }: { check: ComplianceCheck; c
   )
 }
 
-// ---------- Links to findings (Requirements, Procedures, Findings Overview) ----------
+// ---------- Links to findings (Findings Overview) ----------
 
 /** Shows the finding (switching the filter to All if needed) and moves focus to it. */
 type JumpTo = (event: MouseEvent<HTMLAnchorElement>, number: string) => void
@@ -143,37 +143,13 @@ function FindingLink({ finding, onJump }: { finding: NumberedFinding; onJump: Ju
   )
 }
 
-/** Findings' jump links, separated (e.g. "F-01, F-03"); `none` when there are none. */
-function FindingLinks({ findings, separator, none, onJump }: { findings: NumberedFinding[]; separator: string; none: string; onJump: JumpTo }) {
-  if (findings.length === 0) return <span className="text-text-gray">{none}</span>
-  return (
-    <>
-      {findings.map((finding, index) => (
-        <Fragment key={finding.id}>
-          {index > 0 && separator}
-          <FindingLink finding={finding} onJump={onJump} />
-        </Fragment>
-      ))}
-    </>
-  )
-}
-
 // ---------- c) Requirements ----------
 
 /**
  * The GVP requirement passages the check assessed: each requirement with at least one finding, once
- * (assessedRequirements), in the GVP version page's table (ID, Module, Section, Title, Page, Summary)
- * with a Findings column of jump links.
+ * (assessedRequirements), in the GVP version page's table (ID, Module, Section, Title, Page, Summary).
  */
-export function AssessedRequirements({
-  findings,
-  content,
-  onJump,
-}: {
-  findings: NumberedFinding[]
-  content: ComplianceContent
-  onJump: JumpTo
-}) {
+export function AssessedRequirements({ findings, content }: { findings: NumberedFinding[]; content: ComplianceContent }) {
   const text = content.report.requirements
   const getRequirement = useReportRequirement()
   const requirements = assessedRequirements(findings, getRequirement).map((requirement) => ({
@@ -181,20 +157,7 @@ export function AssessedRequirements({
     // As on the finding cards: without the "[Context: …]" label.
     summary: withoutContextLabel(requirement.summary),
   }))
-  return (
-    <RequirementsTable
-      requirements={requirements}
-      labels={text}
-      layout="report"
-      extraColumn={{
-        header: text.findings,
-        cardLabel: text.findingsCard,
-        cell: (requirement) => (
-          <FindingLinks findings={findingsOfRequirement(findings, requirement.id)} separator={text.linkSeparator} none={text.none} onJump={onJump} />
-        ),
-      }}
-    />
-  )
+  return <RequirementsTable requirements={requirements} labels={text} layout="report" />
 }
 
 // ---------- d) Procedures ----------
@@ -235,23 +198,18 @@ function ProcedureText({ procedure, number, content }: { procedure: CheckProcedu
 
 /**
  * The SOP procedures the compliance service extracted from the checked version's file, in document
- * order: No., Section (its heading), Page, the text (an excerpt that opens) and the findings based on it
- * (by chunk id). Instead of the table: a message for sample checks, while they load, when they couldn't
+ * order: No., Section (its heading), Page and the text (an excerpt that opens). Instead of the table: a message for sample checks, while they load, when they couldn't
  * be loaded (with Try Again) and when the check has none recorded.
  */
 export function ProceduresTable({
   procedures,
   sample,
-  findings,
   content,
-  onJump,
 }: {
   procedures: CheckProceduresState
   /** A sample check: no procedures, only a message. */
   sample: boolean
-  findings: NumberedFinding[]
   content: ComplianceContent
-  onJump: JumpTo
 }) {
   const text = content.report.procedures
   const columns = text.columns
@@ -271,9 +229,6 @@ export function ProceduresTable({
   if (rows.length === 0) return <p className="text-sm text-text-gray">{text.unavailable}</p>
   const page = (procedure: CheckProcedure, template: string) =>
     procedure.page === undefined ? text.none : template.replace('{page}', String(procedure.page))
-  const links = (procedure: CheckProcedure) => (
-    <FindingLinks findings={findingsOfProcedure(findings, procedure)} separator={text.linkSeparator} none={text.none} onJump={onJump} />
-  )
 
   return (
     <div className={tableStyles.frame}>
@@ -285,7 +240,6 @@ export function ProceduresTable({
               <th scope="col" className={tableStyles.headCell}>{columns.section}</th>
               <th scope="col" className={tableStyles.headCell}>{columns.page}</th>
               <th scope="col" className={tableStyles.headCell}>{columns.text}</th>
-              <th scope="col" className={tableStyles.headCell}>{columns.findings}</th>
             </tr>
           </thead>
           <tbody className={`${tableStyles.body} align-top`}>
@@ -297,7 +251,6 @@ export function ProceduresTable({
                 <td className={`${tableStyles.cell} min-w-64`}>
                   <ProcedureText procedure={procedure} number={index + 1} content={content} />
                 </td>
-                <td className={`${tableStyles.cell} whitespace-nowrap`}>{links(procedure)}</td>
               </tr>
             ))}
           </tbody>
@@ -315,9 +268,6 @@ export function ProceduresTable({
             <div className="mt-1.5">
               <ProcedureText procedure={procedure} number={index + 1} content={content} />
             </div>
-            <p className="mt-1.5 text-text-gray">
-              {text.findingsCard} {links(procedure)}
-            </p>
           </li>
         ))}
       </ul>

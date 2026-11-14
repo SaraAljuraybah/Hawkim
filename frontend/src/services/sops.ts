@@ -298,20 +298,6 @@ export function toSopEvidence(evidence: unknown): Finding['sopEvidence'] {
   return items.length ? items : undefined
 }
 
-/**
- * The SOP procedures a finding's evidence is based on (`{ steps: [{ chunk_id, … }] }`), by chunk id, once
- * each, in the steps' order; undefined when there are none (sample results) or the evidence is malformed.
- */
-export function toProcedureIds(evidence: unknown): Finding['procedureIds'] {
-  const steps = evidence && typeof evidence === 'object' ? (evidence as { steps?: unknown }).steps : undefined
-  if (!Array.isArray(steps)) return undefined
-  const ids = steps.flatMap((step: unknown) => {
-    const id = step && typeof step === 'object' ? (step as { chunk_id?: unknown }).chunk_id : undefined
-    return typeof id === 'string' && id.trim() ? [id.trim()] : []
-  })
-  return ids.length ? [...new Set(ids)] : undefined
-}
-
 function toCheck(sopId: string, row: ComplianceCheckRow): ComplianceCheck {
   return {
     id: row.id,
@@ -327,7 +313,6 @@ function toCheck(sopId: string, row: ComplianceCheckRow): ComplianceCheck {
       .sort((a, b) => a.position - b.position)
       .map((item) => {
         const sopEvidence = toSopEvidence(item.evidence)
-        const procedureIds = toProcedureIds(item.evidence)
         return {
           id: item.id,
           // The report finds the requirement by its code (R1…) in the guideline version.
@@ -336,7 +321,6 @@ function toCheck(sopId: string, row: ComplianceCheckRow): ComplianceCheck {
           justification: item.justification,
           ...(item.sop_reference ? { sopReference: item.sop_reference } : {}),
           ...(sopEvidence ? { sopEvidence } : {}),
-          ...(procedureIds ? { procedureIds } : {}),
           ...(item.recommended_action ? { recommendedAction: item.recommended_action } : {}),
           requirement: {
             id: item.guideline_requirements.code,

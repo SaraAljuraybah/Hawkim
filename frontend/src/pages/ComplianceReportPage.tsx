@@ -266,12 +266,12 @@ function Report({ sop, backPath }: { sop: Sop; backPath: string }) {
 
           {/* c) Requirements: those this check assessed */}
           <ReportSection id="requirements-title" title={text.requirements.title} description={text.requirements.description}>
-            <AssessedRequirements findings={numbered} content={content} onJump={jumpTo} />
+            <AssessedRequirements findings={numbered} content={content} />
           </ReportSection>
 
           {/* d) Procedures: those the compliance service found in the version's file */}
           <ReportSection id="procedures-title" title={text.procedures.title} description={text.procedures.description}>
-            <ProceduresTable procedures={procedures} sample={sample} findings={numbered} content={content} onJump={jumpTo} />
+            <ProceduresTable procedures={procedures} sample={sample} content={content} />
           </ReportSection>
 
           {/* e) Findings overview */}

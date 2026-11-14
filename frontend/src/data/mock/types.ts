@@ -447,11 +447,6 @@ export interface Finding {
    * None for sample results.
    */
   sopEvidence?: { section: string; page?: number; text: string }[]
-  /**
-   * The SOP procedures (steps) the result is based on, by the compliance service's chunk id (e.g.
-   * "MySOP::003"): the same ids as the report's Procedures. None for sample results.
-   */
-  procedureIds?: string[]
   /** What to change; only for results that aren't compliant. */
   recommendedAction?: string
   /**
@@ -550,7 +545,7 @@ export interface ComplianceCheck {
 
 /** One SOP procedure (step) the compliance service extracted from the checked version's file. */
 export interface CheckProcedure {
-  /** The compliance service's id, e.g. "MySOP::003": what findings refer to (Finding.procedureIds). */
+  /** The compliance service's id, e.g. "MySOP::003". */
   chunkId: string
   /** Its heading (section), if any. */
   heading?: string

@@ -5,7 +5,7 @@ import { complianceEn } from '../content/compliance.en'
 import type { ComplianceCheck, Requirement, Sop, User } from '../data/mock/types'
 import { sops } from '../data/mock/sops'
 import type { CheckProceduresState } from '../hooks/useCheckProcedures'
-import { assessedRequirements, excerpt, findingsOfProcedure, findingsOfRequirement } from '../components/compliance/reportTables'
+import { assessedRequirements, excerpt } from '../components/compliance/reportTables'
 import { numberedFindings } from '../lib/compliance'
 import { tableStyles } from '../components/ui/tableStyles'
 import { ComplianceReportPage } from './ComplianceReportPage'
@@ -38,8 +38,8 @@ const requirement = (id: string, section: string, sectionTitle: string, page = 1
   ({ id, module: 'Module V', section, sectionTitle, shortTitle: sectionTitle, page, summary })
 
 /**
- * A service check: F-01 conflict (V.B.2#4, procedures S::001 and S::003), F-02 partial (VII.B.5#1, S::003),
- * F-03 compliant (V.B.2#4 again, S::002); numbered in the report's order (problems first).
+ * A service check: F-01 conflict (V.B.2#4), F-02 partial (VII.B.5#1), F-03 compliant (V.B.2#4 again);
+ * numbered in the report's order (problems first).
  */
 function serviceCheck(): ComplianceCheck {
   const vb2 = requirement('V.B.2#4', 'V.B.2', 'Risk management', 107, '[Context: The MAH should.]\nKeep a system.')
@@ -47,9 +47,9 @@ function serviceCheck(): ComplianceCheck {
     id: 'chk-service', sopId: 'test', version: '1', status: 'completed', startedAt: '2026-11-01T09:00:00Z', completedAt: '2026-11-01T09:05:00Z',
     engine: 'hawkim', guideline: { name: 'GVP', version: '4.0' },
     findings: [
-      { id: 'a', requirementId: 'V.B.2#4', result: 'conflict', justification: 'x', requirement: vb2, procedureIds: ['S::001', 'S::003'] },
-      { id: 'b', requirementId: 'VII.B.5#1', result: 'partial', justification: 'x', requirement: requirement('VII.B.5#1', 'VII.B.5', 'Signals'), procedureIds: ['S::003'] },
-      { id: 'c', requirementId: 'V.B.2#4', result: 'compliant', justification: 'x', requirement: vb2, procedureIds: ['S::002'] },
+      { id: 'a', requirementId: 'V.B.2#4', result: 'conflict', justification: 'x', requirement: vb2 },
+      { id: 'b', requirementId: 'VII.B.5#1', result: 'partial', justification: 'x', requirement: requirement('VII.B.5#1', 'VII.B.5', 'Signals') },
+      { id: 'c', requirementId: 'V.B.2#4', result: 'compliant', justification: 'x', requirement: vb2 },
     ],
   }
 }
@@ -62,7 +62,7 @@ const ready: CheckProceduresState = {
       { chunkId: 'S::001', heading: '1. Purpose', page: 1, text: 'Short text.' },
       { chunkId: 'S::002', heading: '2. Scope', page: 2, text: longText },
       { chunkId: 'S::003', page: 3, text: 'Third.' },
-      { chunkId: 'S::004', heading: '4. Records', text: 'Not linked to any finding.' },
+      { chunkId: 'S::004', heading: '4. Records', text: 'No page.' },
     ],
   },
 }
@@ -74,8 +74,6 @@ const rows = (html: string) =>
   [...html.matchAll(/<tr class="break-inside-avoid">([\s\S]*?)<\/tr>/g)].map((row) =>
     [...row[1].matchAll(/<t[hd][^>]*>([\s\S]*?)<\/t[hd]>/g)].map((cell) => cell[1].replace(/<[^>]+>/g, '')))
 const headers = (html: string) => [...html.matchAll(/<th scope="col"[^>]*>([^<]+)<\/th>/g)].map((match) => match[1])
-/** The jump links in a piece of HTML: their targets. */
-const links = (html: string) => [...html.matchAll(/<a href="#finding-([^"]+)"/g)].map((match) => match[1])
 
 beforeEach(() => {
   fixture.procedures = ready
@@ -107,27 +105,28 @@ describe('the report tables share the GVP table style', () => {
 describe('Requirements', () => {
   const requirements = (html = render()) => section(html, 'requirements-title')
 
-  it('comes after the Summary, with a description, and has the GVP columns plus Findings', () => {
+  it('comes after the Summary, with a description, and has the GVP columns and no Findings column', () => {
     const html = requirements()
     expect(html).toContain('>Requirements</h2><p class="mt-1 mb-4 text-sm text-text-gray">The GVP requirement passages this check assessed')
-    expect(headers(html)).toEqual(['ID', 'Module', 'Section', 'Title', 'Page', 'Summary', 'Findings'])
+    expect(headers(html)).toEqual(['ID', 'Module', 'Section', 'Title', 'Page', 'Summary'])
     expect(html).toContain('aria-label="GVP requirements assessed"')
+    // No links to findings, in the table or on the phone cards.
+    expect(html).not.toContain('href="#finding-')
+    expect(html).not.toContain('Findings:')
   })
 
-  it('lists each requirement that has a finding once, in code order, with links to all its findings', () => {
+  it('lists each requirement that has a finding once, in code order', () => {
     const html = requirements()
     expect(rows(html)).toEqual([
-      ['V.B.2#4', 'Module V', 'V.B.2', 'Risk management', 'p. 107', 'The MAH should.\nKeep a system.', 'F-01, F-03'],
-      ['VII.B.5#1', 'Module V', 'VII.B.5', 'Signals', 'p. 12', 'Summary of VII.B.5#1.', 'F-02'],
+      ['V.B.2#4', 'Module V', 'V.B.2', 'Risk management', 'p. 107', 'The MAH should.\nKeep a system.'],
+      ['VII.B.5#1', 'Module V', 'VII.B.5', 'Signals', 'p. 12', 'Summary of VII.B.5#1.'],
     ])
     // The summary without the "[Context: …]" label, as on the finding cards.
     expect(html).not.toContain('[Context')
-    expect(links(html)).toEqual(['F-01', 'F-03', 'F-02', 'F-01', 'F-03', 'F-02'])
   })
 
-  it('shows the findings on each phone card', () => {
+  it('shows each requirement as a card on phones', () => {
     const html = requirements()
-    expect(html).toContain('<p class="mt-1.5 text-sm text-text-gray">Findings: <a href="#finding-F-01"')
     expect(html).toContain('<p class="text-sm font-semibold text-maroon">V.B.2#4 · Risk management</p><p class="mt-0.5 text-sm text-text-gray">Module V · V.B.2 · p. 107</p>')
   })
 
@@ -138,17 +137,15 @@ describe('Requirements', () => {
       { id: 'b', requirementId: 'R1', result: 'partial', justification: 'x' },
     ] }] }
     expect(rows(requirements())).toEqual([
-      ['R1', 'Module V', 'I.B.10', 'Record management', 'p. 22', 'Summary of R1.', 'F-02'],
-      ['R2', '—', '—', '—', '—', '—', 'F-01'],
+      ['R1', 'Module V', 'I.B.10', 'Record management', 'p. 22', 'Summary of R1.'],
+      ['R2', '—', '—', '—', '—', '—'],
     ])
   })
 
-  it('works out the requirements and each one\'s findings', () => {
+  it('works out the requirements', () => {
     const numbered = numberedFindings(serviceCheck())
     const lookup = (id: string) => numbered.find((finding) => finding.requirementId === id)?.requirement
     expect(assessedRequirements(numbered, lookup).map((item) => item.id)).toEqual(['V.B.2#4', 'VII.B.5#1'])
-    expect(findingsOfRequirement(numbered, 'V.B.2#4').map((item) => item.number)).toEqual(['F-01', 'F-03'])
-    expect(findingsOfRequirement(numbered, 'R9')).toEqual([])
     // Code order is numeric: R2 before R10, I.B.7#2 before I.B.7#10.
     const codes = ['R10', 'I.B.7#10', 'R2', 'I.B.7#2'].map((id, index) => ({ ...numbered[0], id: String(index), requirementId: id }))
     expect(assessedRequirements(codes, () => undefined).map((item) => item.id)).toEqual(['I.B.7#2', 'I.B.7#10', 'R2', 'R10'])
@@ -158,22 +155,25 @@ describe('Requirements', () => {
 describe('Procedures', () => {
   const procedures = (html = render()) => section(html, 'procedures-title')
 
-  it('comes after Requirements, with a description and the columns No., Section, Page, Text and Findings', () => {
+  it('comes after Requirements, with a description and the columns No., Section, Page and Text (no Findings)', () => {
     const html = procedures()
     expect(html).toContain('>Procedures</h2><p class="mt-1 mb-4 text-sm text-text-gray">The procedures Hawkim found in the file of this SOP version')
-    expect(headers(html)).toEqual(['No.', 'Section', 'Page', 'Text', 'Findings'])
+    expect(headers(html)).toEqual(['No.', 'Section', 'Page', 'Text'])
+    expect(html).not.toContain('href="#finding-')
+    expect(html).not.toContain('Findings:')
     expect(html).toContain('aria-label="SOP procedures"')
     expect(fixture.asked).toContain('chk-service')
   })
 
-  it('lists the procedures in order, linked to the findings based on each by chunk id ("—" when none)', () => {
-    const cells = rows(procedures()).map((row) => [row[0], row[1], row[2], row[4]])
+  it('lists the procedures in order ("—" for a missing heading or page)', () => {
+    const cells = rows(procedures()).map((row) => [row[0], row[1], row[2]])
     expect(cells).toEqual([
-      ['1', '1. Purpose', 'p. 1', 'F-01'],
-      ['2', '2. Scope', 'p. 2', 'F-03'],
-      ['3', '—', 'p. 3', 'F-01, F-02'],
-      ['4', '4. Records', '—', '—'],
+      ['1', '1. Purpose', 'p. 1'],
+      ['2', '2. Scope', 'p. 2'],
+      ['3', '—', 'p. 3'],
+      ['4', '4. Records', '—'],
     ])
+    expect(rows(procedures()).every((row) => row.length === 4)).toBe(true)
   })
 
   it('shows a long text as an excerpt with "Show more" (closed), and prints it in full', () => {
@@ -191,7 +191,6 @@ describe('Procedures', () => {
   it('shows each procedure as a card on phones', () => {
     const html = procedures()
     expect(html).toContain('<li class="p-4 text-sm"><p class="font-semibold text-maroon">1 · 1. Purpose</p><p class="mt-0.5 text-text-gray">Page 1</p>')
-    expect(html).toContain('<p class="mt-1.5 text-text-gray">Findings: <a href="#finding-F-01"')
     expect(html).toContain('<p class="font-semibold text-maroon">4 · 4. Records</p><p class="mt-0.5 text-text-gray">—</p>')
   })
 
@@ -215,12 +214,6 @@ describe('Procedures', () => {
     expect(procedures()).toContain('The procedures aren’t available for this check.')
   })
 
-  it('links procedures to findings by chunk id only', () => {
-    const numbered = numberedFindings(serviceCheck())
-    expect(findingsOfProcedure(numbered, { chunkId: 'S::003' }).map((item) => item.number)).toEqual(['F-01', 'F-02'])
-    expect(findingsOfProcedure(numbered, { chunkId: 'S::00' })).toEqual([])
-    expect(findingsOfProcedure([{ ...numbered[0], procedureIds: undefined }], { chunkId: 'S::001' })).toEqual([])
-  })
 
   it('cuts an excerpt at a word, with "…", only when it is too long', () => {
     expect(excerpt('  Short\n text. ')).toEqual({ text: 'Short text.', cut: false })

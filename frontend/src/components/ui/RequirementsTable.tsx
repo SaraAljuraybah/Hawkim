@@ -1,4 +1,3 @@
-import type { ReactNode } from 'react'
 import type { Requirement } from '../../data/mock/types'
 import { tableStyles } from './tableStyles'
 
@@ -18,21 +17,17 @@ export interface RequirementsTableLabels {
  * framed style, with stacked cards on small screens. Used by a GVP version's Requirements and by the
  * compliance report's Requirements.
  * - `layout`: 'md' (the admin pages: the table from md) or 'report' (the table from sm and when printed,
- *   the cards below sm);
- * - `extraColumn`: one more column at the end (e.g. the report's Findings), also shown on each card,
- *   after its `cardLabel`.
+ *   the cards below sm).
  */
 export function RequirementsTable({
   requirements,
   labels,
   layout = 'md',
-  extraColumn,
   className = '',
 }: {
   requirements: Requirement[]
   labels: RequirementsTableLabels
   layout?: 'md' | 'report'
-  extraColumn?: { header: string; cardLabel: string; cell: (requirement: Requirement) => ReactNode }
   className?: string
 }) {
   const columns = labels.columns
@@ -54,7 +49,6 @@ export function RequirementsTable({
               <th scope="col" className={tableStyles.headCell}>{columns.title}</th>
               <th scope="col" className={tableStyles.headCell}>{columns.page}</th>
               <th scope="col" className={tableStyles.headCell}>{columns.summary}</th>
-              {extraColumn && <th scope="col" className={tableStyles.headCell}>{extraColumn.header}</th>}
             </tr>
           </thead>
           <tbody className={`${tableStyles.body} align-top`}>
@@ -66,7 +60,6 @@ export function RequirementsTable({
                 <td className={`${tableStyles.cell} font-medium text-maroon`}>{value(requirement.sectionTitle)}</td>
                 <td className={`${tableStyles.cell} whitespace-nowrap text-text-gray`}>{page(requirement)}</td>
                 <td className={`${tableStyles.cell} text-text-gray`}>{value(requirement.summary)}</td>
-                {extraColumn && <td className={`${tableStyles.cell} whitespace-nowrap`}>{extraColumn.cell(requirement)}</td>}
               </tr>
             ))}
           </tbody>
@@ -84,11 +77,6 @@ export function RequirementsTable({
               {value(requirement.module)} · {value(requirement.section)} · {page(requirement)}
             </p>
             <p className="mt-1.5 text-sm text-maroon">{value(requirement.summary)}</p>
-            {extraColumn && (
-              <p className="mt-1.5 text-sm text-text-gray">
-                {extraColumn.cardLabel} {extraColumn.cell(requirement)}
-              </p>
-            )}
           </li>
         ))}
       </ul>

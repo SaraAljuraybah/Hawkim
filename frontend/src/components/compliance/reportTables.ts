@@ -1,4 +1,4 @@
-import type { CheckProcedure, Requirement } from '../../data/mock/types'
+import type { Requirement } from '../../data/mock/types'
 import type { NumberedFinding } from '../../lib/compliance'
 
 /** How long a procedure's excerpt is, at most, before "Show more" (in characters, "…" included). */
@@ -17,16 +17,6 @@ export function assessedRequirements(
   return ids
     .sort((a, b) => a.localeCompare(b, 'en', { numeric: true }))
     .map((id) => getRequirement(id) ?? { id, module: '', section: '', sectionTitle: '', shortTitle: '', page: 0, summary: '' })
-}
-
-/** A requirement's findings, in the report's order. */
-export function findingsOfRequirement(findings: NumberedFinding[], requirementId: string): NumberedFinding[] {
-  return findings.filter((finding) => finding.requirementId === requirementId)
-}
-
-/** The findings based on a procedure (by its chunk id: Finding.procedureIds), in the report's order. */
-export function findingsOfProcedure(findings: NumberedFinding[], procedure: Pick<CheckProcedure, 'chunkId'>): NumberedFinding[] {
-  return findings.filter((finding) => finding.procedureIds?.includes(procedure.chunkId))
 }
 
 /**
