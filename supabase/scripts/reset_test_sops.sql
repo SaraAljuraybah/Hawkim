@@ -10,6 +10,15 @@
 
 begin;
 
+-- It deletes the SOPs of EVERY organization: only for a database where MedCare is the only one.
+do $$
+begin
+  if (select count(*) from public.organizations) > 1 then
+    raise exception 'More than one organization exists; this script would delete every organization''s SOPs';
+  end if;
+end;
+$$;
+
 -- Who did what on each SOP (points at review requests, rounds and comments).
 delete from public.timeline_events;
 
@@ -30,7 +39,8 @@ delete from public.sop_versions;
 delete from public.sops;
 
 -- The next SOP created is SOP-001.
-update public.sop_code_counter set last_number = 0;
+-- (The counter is organizations.last_sop_number since 20261116180000_scope_sops.sql.)
+update public.organizations set last_sop_number = 0;
 
 commit;
 
@@ -44,7 +54,7 @@ union all select 'review_rounds', count(*) from public.review_rounds
 union all select 'review_requests', count(*) from public.review_requests
 union all select 'sop_comments', count(*) from public.sop_comments
 union all select 'timeline_events', count(*) from public.timeline_events
-union all select 'sop_code_counter.last_number', last_number from public.sop_code_counter
+union all select 'organizations.last_sop_number', last_sop_number from public.organizations
 union all select 'departments (kept)', count(*) from public.departments
 union all select 'profiles (kept)', count(*) from public.profiles
 union all select 'guideline_requirements (kept)', count(*) from public.guideline_requirements
