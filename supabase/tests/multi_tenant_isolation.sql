@@ -364,6 +364,8 @@ declare
   t text;
   n bigint;
   before_a text;
+  v_user uuid;
+  v_structure text;
 begin
   select * into i from iso;
   -- B (each role) sees and counts no row of A's in any table, and changes none.
@@ -423,6 +425,23 @@ begin
   assert (select count(*) from public.guideline_requirements r join public.compliance_findings f on f.requirement_id = r.id
           where f.check_id = '99000000-0000-4000-8000-0000000000c8' and r.organization_id = i.b_org) = 1, 'B''s requirement, in B';
   assert pg_temp.fingerprint(i.a_org) = before_a, 'B''s jobs changed something of A''s';
+
+  -- Phone numbers (20261119140000): get_organizational_structure gives each employee's phone, only of the
+  -- caller's organization. B's Admin and B's author see their own colleagues' numbers and none of A's.
+  for v_user in select unnest(array['99000000-0000-4000-8000-000000000011', '99000000-0000-4000-8000-000000000012']::uuid[]) loop
+    perform pg_temp.act_as(v_user);
+    v_structure := public.get_organizational_structure()::text;
+    perform pg_temp.as_owner();
+    assert v_structure like '%+966512345612%' and v_structure like '%+966512345613%', 'B sees its own staff''s phone numbers';
+    assert not exists (select 1 from public.profiles p where p.organization_id = i.a_org and p.phone is not null
+      and strpos(v_structure, p.phone) > 0), 'B sees a phone number of A''s staff';
+  end loop;
+  -- And A, as a check of the check: A's author sees A's numbers, none of B's.
+  perform pg_temp.act_as('99000000-0000-4000-8000-000000000002');
+  v_structure := public.get_organizational_structure()::text;
+  perform pg_temp.as_owner();
+  assert v_structure like '%+966512345603%', 'A sees its own staff''s phone numbers';
+  assert v_structure not like '%+96651234561_%', 'A sees a phone number of B''s';
 end;
 $$;
 

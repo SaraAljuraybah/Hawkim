@@ -102,11 +102,12 @@ begin
   assert (select count(*) = 5 from jsonb_object_keys(home));
   assert jsonb_array_length(home->'employees') = 2, 'Deleted employees must not count';
   assert (select value->'permissions' @> '["author", "reviewer"]'::jsonb from jsonb_array_elements(home->'employees') where value->>'id' = 'f4000000-0000-4000-8000-000000000002');
-  assert not exists(select 1 from jsonb_array_elements(home->'employees') where value ? 'phone');
+  -- Since 20261119140000 every employee carries their phone number (the Staff Profile Preview shows it).
+  assert not exists(select 1 from jsonb_array_elements(home->'employees') where not value ? 'phone'), 'Every employee carries a phone key';
   assert (select value->>'email' = 'org-test-2@test.invalid' from jsonb_array_elements(home->'employees') where value->>'id' = 'f4000000-0000-4000-8000-000000000002'), 'Employees carry their profile email';
   assert not exists(select 1 from jsonb_array_elements(home->'employees') e
-    where not (e.value ?& array['id', 'name', 'initials', 'email', 'position', 'permissions'])
-      or (select count(*) <> 6 from jsonb_object_keys(e.value))
+    where not (e.value ?& array['id', 'name', 'initials', 'email', 'phone', 'position', 'permissions'])
+      or (select count(*) <> 7 from jsonb_object_keys(e.value))
       or jsonb_typeof(e.value->'permissions') <> 'array');
   assert not exists(select 1 from jsonb_array_elements(snapshot->'departments') where value->>'id' = 'org-test-removed');
   assert (select jsonb_array_length(value->'employees') = 0 from jsonb_array_elements(snapshot->'departments') where value->>'id' = 'org-test-empty');
