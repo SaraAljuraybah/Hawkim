@@ -15,24 +15,37 @@ begin;
 -- ---------- Departments ----------
 
 -- is_quality: the only department with Approvers. requires_compliance_check: the GVP guideline
--- applies to its SOPs (Pharmacovigilance only). system_key: the organization's two default departments, which can't
--- be deleted or renamed (20261120120000; the seed runs after the migrations, so it sets them itself).
-insert into public.departments (id, name, initials, description, is_quality, requires_compliance_check, system_key) values
-  ('quality-assurance', 'Quality Assurance', 'QA', 'Responsible for quality oversight and compliance.', true, false, 'quality-assurance'),
-  ('regulatory-affairs', 'Regulatory Affairs', 'RA', 'Handles regulatory submissions and communications.', false, false, null),
-  ('pharmacovigilance', 'Pharmacovigilance', 'PV', 'Monitors and evaluates product safety.', false, true, 'pharmacovigilance'),
-  ('research-development', 'Research and Development', 'RD', 'Drives innovation and product development.', false, false, null),
-  ('information-technology', 'Information Technology', 'IT', 'Supports the organization''s technology infrastructure.', false, false, null),
-  ('human-resources', 'Human Resources', 'HR', 'Manages people, policies and culture.', false, false, null),
-  ('finance-administration', 'Finance and Administration', 'FA', 'Oversees financial and administrative operations.', false, false, null),
-  ('clinical-operations', 'Clinical Operations', 'CL', 'Supports clinical studies and operations.', false, false, null),
-  ('legal-governance', 'Legal and Governance', 'LG', 'Ensures legal compliance and governance.', false, false, null)
+-- applies to its SOPs (Pharmacovigilance only).
+insert into public.departments (id, name, initials, description, is_quality, requires_compliance_check) values
+  ('quality-assurance', 'Quality Assurance', 'QA', 'Responsible for quality oversight and compliance.', true, false),
+  ('regulatory-affairs', 'Regulatory Affairs', 'RA', 'Handles regulatory submissions and communications.', false, false),
+  ('pharmacovigilance', 'Pharmacovigilance', 'PV', 'Monitors and evaluates product safety.', false, true),
+  ('research-development', 'Research and Development', 'RD', 'Drives innovation and product development.', false, false),
+  ('information-technology', 'Information Technology', 'IT', 'Supports the organization''s technology infrastructure.', false, false),
+  ('human-resources', 'Human Resources', 'HR', 'Manages people, policies and culture.', false, false),
+  ('finance-administration', 'Finance and Administration', 'FA', 'Oversees financial and administrative operations.', false, false),
+  ('clinical-operations', 'Clinical Operations', 'CL', 'Supports clinical studies and operations.', false, false),
+  ('legal-governance', 'Legal and Governance', 'LG', 'Ensures legal compliance and governance.', false, false)
 on conflict (id) do update set
   name = excluded.name,
   initials = excluded.initials,
   description = excluded.description,
   is_quality = excluded.is_quality,
   requires_compliance_check = excluded.requires_compliance_check;
+
+-- MedCare's two default departments (20261120120000): they can't be deleted or renamed. The seed runs after the
+-- migrations, so their backfill found no department to mark: the seed marks them. Only where the column exists, so a
+-- `supabase db reset --version <older>` still seeds. The guard refuses setting a marker on an existing row, so it is
+-- off for this one statement (the database owner, local seed only).
+do $$
+begin
+  if exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'departments' and column_name = 'system_key') then
+    alter table public.departments disable trigger departments_default_guard;
+    execute $sql$update public.departments set system_key = id where id in ('pharmacovigilance', 'quality-assurance') and system_key is null$sql$;
+    alter table public.departments enable trigger departments_default_guard;
+  end if;
+end;
+$$;
 
 -- ---------- GVP guideline ----------
 
