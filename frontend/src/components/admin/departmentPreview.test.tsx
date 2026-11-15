@@ -21,10 +21,11 @@ describe('department details dialog', () => {
     expect(html).toMatch(/>Description<\/dt><dd class="mt-1 break-words text-black">Audits and CAPA</)
   })
 
-  it('shows the Description and Email labels in bold, their values in regular text', () => {
+  it('shows the Division, Description and Email labels in bold, their values in regular text', () => {
     const html = markup()
     expect(html).toContain('<dt class="font-bold text-maroon">Description</dt><dd class="mt-1 break-words text-black">Audits and CAPA</dd>')
     expect(html).toContain('<dt class="font-bold text-maroon">Email</dt>')
+    expect(html).toContain('<dt class="font-bold text-maroon">Division</dt><dd class="mt-1 break-words text-black">Quality Division</dd>')
     expect(html).toMatch(/<span class="min-w-0 break-all text-black">qa@test.invalid<\/span>/)
     // Only the labels: no value is bold.
     expect(html).not.toMatch(/<dd[^>]*font-(?:bold|semibold)/)

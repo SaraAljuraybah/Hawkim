@@ -12,7 +12,7 @@ export function DepartmentPreview({ department, divisionName, onClose }: { depar
   return <FormDialog open title={department.name} confirmLabel={text.close} onConfirm={() => {}} onClose={onClose}>
     <dl className="-mt-1 space-y-4 text-sm">
       <div>
-        <dt className="font-medium text-maroon">{text.division}</dt>
+        <dt className="font-bold text-maroon">{text.division}</dt>
         {divisionName
           ? <dd className="mt-1 break-words text-black">{divisionName}</dd>
           : <dd className="mt-1 text-text-gray">{text.divisionNone}</dd>}
