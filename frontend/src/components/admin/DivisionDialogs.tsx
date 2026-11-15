@@ -53,7 +53,7 @@ export function DivisionPreview({ division, onClose }: { division: DivisionRecor
   return <FormDialog open title={division.name} confirmLabel={text.close} onConfirm={() => {}} onClose={onClose}>
     <dl className="-mt-1 space-y-4 text-sm">
       <div>
-        <dt className="font-medium text-maroon">{text.description}</dt>
+        <dt className="font-bold text-maroon">{text.description}</dt>
         {/* null (never set) and '' (saved empty) both count as none. */}
         {division.description?.trim()
           ? <dd className="mt-1 break-words text-black">{division.description}</dd>
@@ -67,7 +67,7 @@ export function DivisionPreview({ division, onClose }: { division: DivisionRecor
 /** The Email row of a details dialog: the address with its copy icon, or "No email recorded." (muted, no copy icon). */
 export function EmailDetail({ email }: { email?: string | null }) {
   return <div>
-    <dt className="font-medium text-maroon">{text.email}</dt>
+    <dt className="font-bold text-maroon">{text.email}</dt>
     {email
       // The address and its copy icon stay together; the confirmation takes its own line below.
       ? <dd className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-0.5"><span className="min-w-0 break-all text-black">{email}</span>

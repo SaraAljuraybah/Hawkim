@@ -18,7 +18,7 @@ export function DepartmentPreview({ department, divisionName, onClose }: { depar
           : <dd className="mt-1 text-text-gray">{text.divisionNone}</dd>}
       </div>
       <div>
-        <dt className="font-medium text-maroon">{text.description}</dt>
+        <dt className="font-bold text-maroon">{text.description}</dt>
         {department.description.trim()
           ? <dd className="mt-1 break-words text-black">{department.description}</dd>
           : <dd className="mt-1 text-text-gray">{text.notProvided}</dd>}

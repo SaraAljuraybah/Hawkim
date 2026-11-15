@@ -167,6 +167,14 @@ describe('division preview', () => {
   const preview = (props: Partial<Parameters<typeof DivisionPreview>[0]> = {}) => render(() => DivisionPreview({ division, onClose: vi.fn(), ...props }))
   const markup = (props: Partial<Parameters<typeof DivisionPreview>[0]> = {}) => { host.index = 0; return renderToStaticMarkup(<DivisionPreview division={division} onClose={vi.fn()} {...props} />) }
 
+  it('shows the Description and Email labels in bold, their values in regular text', () => {
+    const html = markup()
+    expect(html).toContain('<dt class="font-bold text-maroon">Description</dt><dd class="mt-1 break-words text-black">Safety work</dd>')
+    expect(html).toContain('<dt class="font-bold text-maroon">Email</dt>')
+    expect(html).toMatch(/<span class="min-w-0 break-all text-black">safety@test.invalid<\/span>/)
+    expect(html).not.toMatch(/<dd[^>]*font-(?:bold|semibold)/)
+  })
+
   it('keeps the title, and puts Description then Email in one compact block (one gap under the title)', () => {
     const element = preview()
     expect(element.props.title).toBe('Safety')
