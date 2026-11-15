@@ -139,6 +139,7 @@ export async function deleteDepartment(department: Pick<ManagedDepartment, 'id' 
       if (error) {
         // Supabase puts non-2xx JSON bodies on FunctionsHttpError.context.
         try { failure = await error.context?.json() ?? failure } catch { /* use the safe fallback below */ }
+        if (failure?.errorCode === 'default-department') throw new Error(text.defaultDepartmentBlocked)
         if (failure?.errorCode === 'employees-assigned') throw new Error(text.departmentBlocked)
         if (failure?.errorCode === 'active-workflow') throw new Error(text.activeWorkflow)
         if (failure?.errorCode === 'forbidden' || failure?.errorCode === 'unauthorized') throw new Error(text.forbidden)
@@ -152,7 +153,7 @@ export async function deleteDepartment(department: Pick<ManagedDepartment, 'id' 
     throw new Error(text.cleanupPending)
   } catch (error) {
     changed() // Preparation may have committed even when the network response was lost.
-    throw error instanceof Error && ([text.departmentBlocked,text.activeWorkflow,text.forbidden,text.conflict,text.cleanupIncomplete,text.cleanupPending] as readonly string[]).includes(error.message)
+    throw error instanceof Error && ([text.defaultDepartmentBlocked,text.departmentBlocked,text.activeWorkflow,text.forbidden,text.conflict,text.cleanupIncomplete,text.cleanupPending] as readonly string[]).includes(error.message)
       ? error : new Error(text.cleanupIncomplete)
   }
 }

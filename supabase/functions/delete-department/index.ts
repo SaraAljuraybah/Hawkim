@@ -1,5 +1,6 @@
 import { createClient } from 'npm:@supabase/supabase-js@2.118.0'
 import { cleanDepartmentFilesUntilDone, type CleanupClaim } from './cleanup.ts'
+import { beginDeletionRefusal } from './errors.ts'
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
@@ -46,9 +47,9 @@ Deno.serve(async (request) => {
         p_id: body.departmentId, p_expected_updated_at: body.expectedUpdatedAt,
       })
       if (error) {
-        if (error.code === '42501') return json(403, { errorCode: 'forbidden' })
-        const errorCode = error.code === '23503' ? 'employees-assigned' : error.code === '23514' ? 'active-workflow' : 'conflict'
-        return json(409, { errorCode })
+        // The database decided; only its refusal is named (a default department included), never its SQL details.
+        const refusal = beginDeletionRefusal(error)
+        return json(refusal.status, { errorCode: refusal.errorCode })
       }
       jobId = data as string
     }
