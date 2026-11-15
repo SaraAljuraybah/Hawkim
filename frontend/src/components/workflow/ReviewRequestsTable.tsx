@@ -70,7 +70,7 @@ export function ReviewRequestsTable({ sop, removeBlocked, onRemove, authorAction
         onClick={(event) => {
           previewOpener.current = event.currentTarget
           setPreview({
-            person: { id: person.id, name: person.name, initials: person.initials, email: person.email, permissions: person.permissions, position: person.position },
+            person: { id: person.id, name: person.name, initials: person.initials, email: person.email, permissions: person.permissions, position: person.position, phone: person.phone },
             departmentName: department?.name ?? '',
             divisionName: department?.divisionName,
           })

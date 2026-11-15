@@ -44,6 +44,7 @@ export const organizationEn: OrganizationContent = {
     open: (name) => `View ${name}’s profile`,
     close: 'Close',
     email: 'Email',
+    phone: 'Phone Number',
     position: 'Position',
     division: 'Division',
     department: 'Department',

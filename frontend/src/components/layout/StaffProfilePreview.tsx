@@ -15,8 +15,8 @@ export interface StaffProfilePreviewPerson {
  * A staff member's Profile Preview on Organizational Structure, opened from their name: the same dialog as
  * the other previews (the name as the title, Close at the bottom, Escape and the backdrop close it), with the
  * details laid out like a staff member's page. It shows only what Organizational Structure already gives
- * every viewer (get_organizational_structure): email (with its copy button), position, division, department
- * and permissions as gold badges; never phone numbers or account details.
+ * every viewer (get_organizational_structure): email (with its copy button), phone number (as on My Profile),
+ * position, division, department and permissions as gold badges; never account details.
  */
 export function StaffProfilePreview({ preview, onClose }: { preview: StaffProfilePreviewPerson; onClose: () => void }) {
   const text = content.profilePreview
@@ -31,6 +31,7 @@ export function StaffProfilePreview({ preview, onClose }: { preview: StaffProfil
             ? <EmailDetail email={email} copyLabel={content.copyEmail(person.name)} copiedText={content.copied} failedText={content.copyFailed} />
             : text.notSet}
         </DetailRow>
+        <DetailRow label={text.phone}>{person.phone?.trim() || text.notSet}</DetailRow>
         <DetailRow label={text.position}>{person.position?.trim() || text.notSet}</DetailRow>
         <DetailRow label={text.division}>{preview.divisionName?.trim() || text.notSet}</DetailRow>
         <DetailRow label={text.department}>{preview.departmentName.trim() || text.notSet}</DetailRow>

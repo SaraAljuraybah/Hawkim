@@ -31,6 +31,16 @@ describe('persisted organizational structure', () => {
     expect(from).toHaveBeenCalledWith('divisions')
     expect(descriptions).toHaveBeenCalledWith('id, description')
   })
+  it('passes each employee’s phone number through (null when none) and rejects one that isn’t text', async () => {
+    const person = (id: string, phone: unknown) => ({ id, name: id, initials: 'XX', email: `${id}@test.invalid`, position: null, phone, permissions: ['author'] })
+    rpc.mockResolvedValue({ data: { organization: null, divisions: [], departments: [
+      { id: 'qa', name: 'QA', divisionId: null, employees: [person('sara', '+966512345678'), person('omar', null)] }] }, error: null })
+    const [qa] = (await fetchOrganization()).departments
+    expect(qa.employees.map((employee) => employee.phone)).toEqual(['+966512345678', null])
+    rpc.mockResolvedValue({ data: { organization: null, divisions: [], departments: [
+      { id: 'qa', name: 'QA', divisionId: null, employees: [person('sara', 966512345678)] }] }, error: null })
+    await expect(fetchOrganization()).rejects.toThrow('Invalid organizational structure')
+  })
   it('fails rather than show the divisions without their descriptions', async () => {
     rpc.mockResolvedValue({ data: { organization: null, divisions: [], departments: [] }, error: null })
     descriptions.mockResolvedValue({ data: null, error: { message: 'permission denied' } })

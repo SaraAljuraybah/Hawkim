@@ -2277,6 +2277,8 @@ export interface OrganizationContent {
     open: (name: string) => string
     close: string
     email: string
+    /** The phone number from their profile (as stored, +9665XXXXXXXX), as on My Profile. */
+    phone: string
     position: string
     division: string
     department: string

@@ -20,6 +20,8 @@ insert into public.user_roles(user_id, role) values
  ('f4000000-0000-4000-8000-000000000002', 'author'),
  ('f4000000-0000-4000-8000-000000000002', 'reviewer');
 update public.profiles set deleted_at = now() where id = 'f4000000-0000-4000-8000-000000000003';
+-- 20261119140000: person 1 has a phone number, person 2 none.
+update public.profiles set phone = '+966512345678' where id = 'f4000000-0000-4000-8000-000000000001';
 
 do $$
 declare snapshot jsonb; home jsonb; rejected boolean := false; caller text; row_count integer;
@@ -61,6 +63,11 @@ begin
   assert exists(select 1 from jsonb_array_elements(snapshot->'departments') where value->>'id' = 'org-test-home'), 'Non-admin active users must see the structure';
   select count(*) into row_count from public.divisions where id like 'org%';
   assert row_count = 3, 'Non-admin active users must read divisions';
+  -- Each employee carries their phone number (null when none), for the Staff Profile Preview.
+  assert (select e->>'phone' = '+966512345678' from jsonb_array_elements(snapshot->'departments') d, jsonb_array_elements(d.value->'employees') e
+    where e->>'id' = 'f4000000-0000-4000-8000-000000000001'), 'The structure carries the phone number';
+  assert (select (e ? 'phone') and e->'phone' = 'null'::jsonb from jsonb_array_elements(snapshot->'departments') d, jsonb_array_elements(d.value->'employees') e
+    where e->>'id' = 'f4000000-0000-4000-8000-000000000002'), 'No phone number: null';
   -- The existing employee directory remains readable.
   assert exists(select 1 from public.profiles where id = 'f4000000-0000-4000-8000-000000000002');
   assert exists(select 1 from public.departments where id = 'org-test-home');

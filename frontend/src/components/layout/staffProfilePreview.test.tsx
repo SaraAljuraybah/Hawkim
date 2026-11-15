@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { StaffProfilePreview } from './StaffProfilePreview'
 
 const preview = (overrides = {}) => ({
-  person: { id: 'dana', name: 'Dana Fahad', initials: 'DF', email: 'dana@test.invalid', permissions: ['author', 'reviewer'] as const, position: 'Specialist' },
+  person: { id: 'dana', name: 'Dana Fahad', initials: 'DF', email: 'dana@test.invalid', permissions: ['author', 'reviewer'] as const, position: 'Specialist', phone: '+966512345678' },
   departmentName: 'Quality',
   divisionName: 'Operations',
   ...overrides,
@@ -24,9 +24,10 @@ describe('Staff Profile Preview (Organizational Structure)', () => {
   it("shows the person's details as on a staff member's page, the email with its copy button", () => {
     const html = render()
     expect([...html.matchAll(/<dt class="text-sm font-bold text-maroon">([^<]+)<\/dt>/g)].map((match) => match[1]))
-      .toEqual(['Email', 'Position', 'Division', 'Department', 'Permission'])
+      .toEqual(['Email', 'Phone Number', 'Position', 'Division', 'Department', 'Permission'])
     expect(row(html, 'Email')).toContain('dana@test.invalid')
     expect(row(html, 'Email')).toContain('aria-label="Copy email for Dana Fahad"')
+    expect(row(html, 'Phone Number')).toContain('+966512345678')
     expect(row(html, 'Position')).toContain('Specialist')
     expect(row(html, 'Division')).toContain('Operations')
     expect(row(html, 'Department')).toContain('Quality')
@@ -46,13 +47,15 @@ describe('Staff Profile Preview (Organizational Structure)', () => {
     expect(html).not.toContain('Dana Fahad')
   })
 
-  it('shows nothing beyond what the page already shows: no phone or account details', () => {
+  it('shows the phone number from the profile, in the same row layout, and no account details', () => {
     const html = render()
-    expect(html).not.toMatch(/Phone|\+966|Password|Last sign/i)
+    expect(html).toMatch(/<dt class="text-sm font-bold text-maroon">Phone Number<\/dt><dd[^>]*>\+966512345678<\/dd>/)
+    expect(html.match(/\+966512345678/g)).toHaveLength(1)
+    expect(html).not.toMatch(/Password|Last sign/i)
   })
 
   it('says Not set for what the person has none of (no division, position or permission)', () => {
     const html = render(preview({ divisionName: undefined, person: { id: 'x', name: 'X', initials: 'X', email: 'x@test.invalid', permissions: [] as const } }))
-    for (const label of ['Position', 'Division', 'Permission']) expect(row(html, label)).toContain('Not set')
+    for (const label of ['Phone Number', 'Position', 'Division', 'Permission']) expect(row(html, label)).toContain('Not set')
   })
 })
