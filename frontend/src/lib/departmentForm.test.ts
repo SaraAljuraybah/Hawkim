@@ -9,7 +9,7 @@ const snapshot: ManagementSnapshot = {
     { id: 'legacy', name: 'Legacy', initials: 'LG', description: '', division_id: null, updated_at: 'r1', people: [], employees: 0, sops: 0, status_counts: {} },
   ],
 }
-const values = { divisionId: 'medical', name: 'Pharmacovigilance', description: ' Safety ', email: '' }
+const values = { divisionId: 'medical', name: 'Pharmacovigilance', description: ' Safety ', email: 'pv@hawkim.test' }
 
 describe('the division a department form starts with', () => {
   it('uses ?division only for a new department and only when it is an active division', () => {
@@ -50,6 +50,12 @@ describe('department form problems', () => {
     expect(Object.values(problems).filter(Boolean)).toEqual([])
     expect(Object.keys(problems)).not.toContain('initials')
   })
+  it('requires an email and a description: empty or only spaces is refused (as save_department does)', () => {
+    for (const blank of ['', '   ', ' \n ']) {
+      const problems = departmentFormProblems({ ...values, email: blank, description: blank }, snapshot, { divisionOptional: false })
+      expect(problems, JSON.stringify(blank)).toMatchObject({ email: 'email-required', description: 'description-required' })
+    }
+  })
   it('reports an invalid email on the email field', () => {
     expect(departmentFormProblems({ ...values, email: 'not-an-email' }, snapshot, { divisionOptional: false }).email).toBe('email-invalid')
     expect(departmentFormProblems({ ...values, email: 'qa@hawkim.test' }, snapshot, { divisionOptional: false }).email).toBeUndefined()
@@ -57,7 +63,8 @@ describe('department form problems', () => {
 })
 
 describe('the department email', () => {
-  it('is optional: empty or only spaces is fine', () => {
+  // Only the format: the form requires the email (departmentFormProblems: 'email-required').
+  it('checks only the format: empty or only spaces is no format problem', () => {
     expect(departmentEmailProblem('')).toBeUndefined()
     expect(departmentEmailProblem('   ')).toBeUndefined()
   })

@@ -43,6 +43,9 @@ const DATABASE_MESSAGES: Record<string, string> = {
   'Department is no longer available': text.departmentUnavailable,
   'Select an active division': text.requiredDivision,
   'Select a division': text.requiredDivision,
+  // 20261119130000: email and description are required.
+  'Enter an email address': text.requiredEmail,
+  'Enter a description': text.requiredDescription,
 }
 async function call<T>(name: string, args?: Record<string, unknown>): Promise<T> {
   const { data, error } = await supabase().rpc(name, args)
@@ -99,7 +102,7 @@ export async function saveDepartment(
   const result = await call<string>('save_department', { p_id: id ?? null, p_name: input.name.trim(),
     p_initials: input.initials.trim().toUpperCase(), p_description: input.description.trim(),
     p_division_id: input.divisionId ?? null, p_expected_updated_at: expected ?? null,
-    // Optional: empty is saved as none.
+    // Required: an empty one is refused by the database ('Enter an email address').
     p_email: input.email?.trim() || null })
   changed(); return result
 }

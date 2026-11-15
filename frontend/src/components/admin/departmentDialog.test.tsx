@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { organizationAdminEn } from '../../content/organizationAdmin.en'
 import { isValidElement, type ReactElement, type ReactNode } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { DepartmentForm } from './DepartmentDialog'
@@ -74,18 +75,14 @@ describe('department dialog layout', () => {
       .toEqual(['departmentName', 'departmentDivision', 'departmentEmail', 'departmentDescription'])
   })
 
-  it('marks Name and Division as required (asterisk and for screen readers), Email and Description not', () => {
+  it('marks Name, Division, Email and Description as required (asterisk and for screen readers)', () => {
     const html = markup({ divisionId: 'medical' })
     const control = (name: string) => html.match(new RegExp(`<(?:input|select|textarea)[^>]*name="${name}"[^>]*>`))![0]
-    expect(control('departmentName')).toContain('required=""')
-    expect(control('departmentDivision')).toContain('required=""')
-    expect(control('departmentEmail')).not.toContain('required=""')
-    expect(control('departmentDescription')).not.toContain('required=""')
+    for (const name of ['departmentName', 'departmentDivision', 'departmentEmail', 'departmentDescription']) {
+      expect(control(name), name).toContain('required=""')
+    }
     const label = (text: string) => html.match(new RegExp(`<label[^>]*>${text}(.*?)</label>`))![1]
-    expect(label('Name')).toContain('>*<')
-    expect(label('Division')).toContain('>*<')
-    expect(label('Email')).not.toContain('>*<')
-    expect(label('Description')).not.toContain('>*<')
+    for (const text of ['Name', 'Division', 'Email', 'Description']) expect(label(text), text).toContain('>*<')
   })
 
   it('is titled Add Department, with Cancel then Save (Save on the right)', () => {
@@ -177,6 +174,33 @@ describe('saving from the department dialog', () => {
     expect(name).not.toHaveBeenCalled()
   })
 
+  it.each([['empty', '', ''], ['whitespace-only', '   ', ' \n ']])('refuses a %s email and description, says why, focuses Email and keeps what was typed', async (_, email, description) => {
+    change(render({ divisionId: 'medical' }), 'departmentName', 'Pharmacovigilance')
+    change(render({ divisionId: 'medical' }), 'departmentEmail', email)
+    change(render({ divisionId: 'medical' }), 'departmentDescription', description)
+    const [name, , emailField, descriptionField] = focusable()
+    await expect(confirm(render({ divisionId: 'medical' }))).resolves.toBe(false)
+    expect(host.save).not.toHaveBeenCalled()
+    const element = render({ divisionId: 'medical' })
+    expect(field(element, 'departmentEmail').props.error).toBe('Enter an email address.')
+    expect(field(element, 'departmentDescription').props.error).toBe('Enter a description.')
+    expect(emailField).toHaveBeenCalledOnce()
+    expect(name).not.toHaveBeenCalled()
+    expect(descriptionField).not.toHaveBeenCalled()
+    expect([field(element, 'departmentName').props.value, field(element, 'departmentEmail').props.value, field(element, 'departmentDescription').props.value])
+      .toEqual(['Pharmacovigilance', email, description])
+  })
+
+  it('uses the same messages as the division dialog', async () => {
+    await confirm(render({ divisionId: 'medical' }))
+    const element = render({ divisionId: 'medical' })
+    expect(field(element, 'departmentEmail').props.error).toBe(organizationAdminEn.requiredEmail)
+    expect(field(element, 'departmentDescription').props.error).toBe(organizationAdminEn.requiredDescription)
+    change(render({ divisionId: 'medical' }), 'departmentEmail', 'bad')
+    await confirm(render({ divisionId: 'medical' }))
+    expect(field(render({ divisionId: 'medical' }), 'departmentEmail').props.error).toBe(organizationAdminEn.invalidEmail)
+  })
+
   it('keeps the name, description and uniqueness rules', async () => {
     change(render({ divisionId: 'medical' }), 'departmentName', 'quality assurance')
     change(render({ divisionId: 'medical' }), 'departmentDescription', 'x'.repeat(201))
@@ -190,14 +214,17 @@ describe('saving from the department dialog', () => {
     const onSaved = vi.fn()
     change(render({ divisionId: 'medical', onSaved }), 'departmentName', 'Clinical Operations')
     change(render({ divisionId: 'medical', onSaved }), 'departmentEmail', ' clinops@test.invalid ')
+    change(render({ divisionId: 'medical', onSaved }), 'departmentDescription', 'Runs the trials')
     await expect(confirm(render({ divisionId: 'medical', onSaved }))).resolves.toBeUndefined()
-    expect(host.save).toHaveBeenCalledWith({ name: 'Clinical Operations', divisionId: 'medical', email: ' clinops@test.invalid ', description: '', initials: 'CO' }, undefined, undefined)
+    expect(host.save).toHaveBeenCalledWith({ name: 'Clinical Operations', divisionId: 'medical', email: ' clinops@test.invalid ', description: 'Runs the trials', initials: 'CO' }, undefined, undefined)
     expect(host.reload).toHaveBeenCalledOnce()
     expect(onSaved).toHaveBeenCalledWith('added')
   })
 
   it('saves under the division whose Add Department was used, even if the form state names another', async () => {
     change(render({ divisionId: 'medical' }), 'departmentName', 'Clinical Operations')
+    change(render({ divisionId: 'medical' }), 'departmentEmail', 'clinops@test.invalid')
+    change(render({ divisionId: 'medical' }), 'departmentDescription', 'Runs the trials')
     // Simulate a tampered form state: the fixed division's id is still the one saved.
     const values = host.states.find((state) => (state as { divisionId?: string })?.divisionId === 'medical') as { divisionId: string }
     values.divisionId = 'quality'
@@ -213,7 +240,11 @@ describe('saving from the department dialog', () => {
     expect(onSaved).toHaveBeenCalledWith('updated')
   })
 
-  it('saves a legacy department without a division', async () => {
+  it('saves a legacy department without a division (once it has an email and a description)', async () => {
+    await expect(confirm(render({ department: legacy }))).resolves.toBe(false)
+    expect(host.save).not.toHaveBeenCalled()
+    change(render({ department: legacy }), 'departmentEmail', 'legacy@test.invalid')
+    change(render({ department: legacy }), 'departmentDescription', 'Older department')
     await confirm(render({ department: legacy }))
     expect(host.save).toHaveBeenCalledWith(expect.objectContaining({ divisionId: null, initials: 'LG' }), 'legacy', 'r2')
   })

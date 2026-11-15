@@ -83,8 +83,8 @@ begin
 
   -- ---------- Names, initials and divisions are per organization ----------
   -- Other can use MedCare's names and initials.
-  v_division := public.save_division(null, med_division_name, '', '');
-  v_department := public.save_department(null, 'Pharmacovigilance', 'PV', '', v_division, null, '');
+  v_division := public.save_division(null, med_division_name, 'About', 'other-division@hawkim.test');
+  v_department := public.save_department(null, 'Pharmacovigilance', 'PV', 'About', v_division, null, 'other-pv@hawkim.test');
   perform pg_temp.as_owner();
   assert (select organization_id from public.departments where id = v_department) = other, 'created in Other';
   assert (select organization_id from public.divisions where id = v_division) = other;

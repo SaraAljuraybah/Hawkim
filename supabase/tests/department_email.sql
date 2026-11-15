@@ -66,23 +66,23 @@ begin
 
   -- ---------- the admin ----------
   perform pg_temp.act_as(admin);
-  -- Optional: no email (old 6-argument call style) and a blank email are both stored as none.
-  v_department := public.save_department(null, 'DE None', 'DN', '', 'de-division');
+  -- Required (20261119130000): no email (old 6-argument call style) and a blank email are both refused.
+  perform pg_temp.expect_error($q$select public.save_department(null,'DE None','DN','About','de-division')$q$, '23514');
+  perform pg_temp.expect_error($q$select public.save_department(null,'DE Blank','DB','About','de-division',null,'   ')$q$, '23514');
   perform pg_temp.as_owner();
-  assert (select email is null from public.departments where id = v_department), 'No email';
+  assert not exists (select 1 from public.departments where name in ('DE None', 'DE Blank')), 'Nothing is saved';
+  -- An existing department without an email stays valid (no table constraint).
+  assert (select email is null from public.departments where id = 'de-existing'), 'Existing department without email kept';
   perform pg_temp.act_as(admin);
-  v_other := public.save_department(null, 'DE Blank', 'DB', '', 'de-division', null, '   ');
-  perform pg_temp.as_owner();
-  assert (select email is null from public.departments where id = v_other), 'Blank email is stored as none';
 
   -- Trimmed and saved; shown in the admin snapshot.
   perform pg_temp.act_as(admin);
-  v_department := public.save_department(null, 'DE Mail', 'DM', '', 'de-division', null, ' team@hawkim.test ');
+  v_department := public.save_department(null, 'DE Mail', 'DM', 'About', 'de-division', null, ' team@hawkim.test ');
   assert jsonb_path_exists(public.get_divisions_departments(), '$.departments[*] ? (@.name == "DE Mail" && @.email == "team@hawkim.test")'), 'Trimmed';
   assert jsonb_path_exists(public.get_divisions_departments(), '$.departments[*] ? (@.id == "de-existing" && @.email == null)'), 'Existing in snapshot';
 
   -- Not unique.
-  perform public.save_department(null, 'DE Same', 'DS', '', 'de-division', null, 'team@hawkim.test');
+  perform public.save_department(null, 'DE Same', 'DS', 'About', 'de-division', null, 'team@hawkim.test');
 
   -- Invalid format or too long.
   perform pg_temp.expect_error($q$select public.save_department(null,'DE Bad','DE','','de-division',null,'not-an-email')$q$, '23514');
@@ -90,20 +90,20 @@ begin
   perform pg_temp.expect_error(format($q$select public.save_department(null,'DE Long','DL','','de-division',null,%L)$q$,
     repeat('a', 243) || '@hawkim.test'), '23514');
   -- Exactly 254 characters is allowed.
-  perform public.save_department(null, 'DE Max', 'DZ', '', 'de-division', null, repeat('a', 242) || '@hawkim.test');
+  perform public.save_department(null, 'DE Max', 'DZ', 'About', 'de-division', null, repeat('a', 242) || '@hawkim.test');
 
-  -- Editing sets, changes and clears the email.
+  -- Editing changes the email, but can't clear it.
   perform pg_temp.as_owner();
   select updated_at into v_stamp from public.departments where id = v_department;
   perform pg_temp.act_as(admin);
-  perform public.save_department(v_department, 'DE Mail', 'DM', '', 'de-division', v_stamp, 'qa@hawkim.test');
+  perform public.save_department(v_department, 'DE Mail', 'DM', 'About', 'de-division', v_stamp, 'qa@hawkim.test');
   perform pg_temp.as_owner();
   assert (select email = 'qa@hawkim.test' from public.departments where id = v_department), 'Changed';
   select updated_at into v_stamp from public.departments where id = v_department;
   perform pg_temp.act_as(admin);
-  perform public.save_department(v_department, 'DE Mail', 'DM', '', 'de-division', v_stamp, '');
+  perform pg_temp.expect_error(format($q$select public.save_department(%L,'DE Mail','DM','About','de-division',%L,'')$q$, v_department, v_stamp), '23514');
   perform pg_temp.as_owner();
-  assert (select email is null from public.departments where id = v_department), 'Cleared';
+  assert (select email = 'qa@hawkim.test' from public.departments where id = v_department), 'Not cleared';
 
   -- The table check also refuses a bad email written directly.
   perform pg_temp.expect_error($q$update public.departments set email = 'nope' where id = 'de-existing'$q$, '23514');

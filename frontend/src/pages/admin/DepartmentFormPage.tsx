@@ -98,6 +98,8 @@ function DepartmentForm({ snapshot, department }: { snapshot: ManagementSnapshot
     'initials-invalid': orgText.invalid,
     'initials-taken': orgText.duplicate,
     'description-too-long': content.errors.descriptionTooLong,
+    'description-required': orgText.requiredDescription,
+    'email-required': orgText.requiredEmail,
     'email-invalid': content.errors.emailInvalid,
   }
   function errorsFor(input: DepartmentFormValues): FieldErrors {
@@ -196,6 +198,8 @@ function DepartmentForm({ snapshot, department }: { snapshot: ManagementSnapshot
           name="description"
           rows={3}
           label={content.description.label}
+          required
+          requiredMark
           hint={content.description.hint}
           value={values.description}
           error={errors.description}
@@ -209,6 +213,8 @@ function DepartmentForm({ snapshot, department }: { snapshot: ManagementSnapshot
           type="email"
           autoComplete="off"
           label={content.email.label}
+          required
+          requiredMark
           placeholder={content.email.placeholder}
           value={values.email}
           error={errors.email}

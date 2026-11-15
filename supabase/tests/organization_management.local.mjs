@@ -82,11 +82,13 @@ const anonymous = createClient(url, anonKey, options)
 let divisionA, divisionB, created
 const createdInitials = initials()
 
-await check('1. Create a division (email optional)', async () => {
-  divisionA = await ok(admin.client.rpc('save_division', { p_id: null, p_name: `E2E Division A ${run}`, p_description: 'First', p_email: '' }), 'save_division')
+await check('1. Create a division (email and description required)', async () => {
+  await refused(admin.client.rpc('save_division', { p_id: null, p_name: `E2E Division A ${run}`, p_description: 'First', p_email: '' }), '23514', 'division without email')
+  await refused(admin.client.rpc('save_division', { p_id: null, p_name: `E2E Division A ${run}`, p_description: '  ', p_email: 'a@hawkim.test' }), '23514', 'division without description')
+  divisionA = await ok(admin.client.rpc('save_division', { p_id: null, p_name: `E2E Division A ${run}`, p_description: 'First', p_email: 'a@hawkim.test' }), 'save_division')
   const row = await division(admin.client, divisionA)
-  assert(row && row.email === null, 'created without email')
-  divisionB = await ok(admin.client.rpc('save_division', { p_id: null, p_name: `E2E Division B ${run}`, p_description: '', p_email: null }), 'save_division B')
+  assert(row && row.email === 'a@hawkim.test', 'created with email')
+  divisionB = await ok(admin.client.rpc('save_division', { p_id: null, p_name: `E2E Division B ${run}`, p_description: 'Second', p_email: 'b@hawkim.test' }), 'save_division B')
 })
 await check('2. Edit a division (and refuse a stale edit)', async () => {
   const row = await division(admin.client, divisionA)
@@ -95,7 +97,7 @@ await check('2. Edit a division (and refuse a stale edit)', async () => {
   await refused(admin.client.rpc('save_division', { p_id: divisionA, p_name: row.name, p_description: 'Stale', p_email: '', p_expected_updated_at: row.updated_at }), 'P0001', 'stale division edit', 'conflict')
 })
 await check('5. Create a department in its division', async () => {
-  created = await ok(admin.client.rpc('save_department', { p_id: null, p_name: `E2E Dept ${run}`, p_initials: createdInitials, p_description: 'Disposable', p_division_id: divisionA }), 'save_department')
+  created = await ok(admin.client.rpc('save_department', { p_id: null, p_name: `E2E Dept ${run}`, p_initials: createdInitials, p_description: 'Disposable', p_division_id: divisionA, p_email: 'dept@hawkim.test' }), 'save_department')
   const row = await department(admin.client, created)
   assert(row.division_id === divisionA && row.initials === createdInitials, 'stored in division A')
   const totals = await division(admin.client, divisionA)
@@ -109,7 +111,7 @@ await check('4. Refuse deleting a division that still has departments', async ()
 })
 await check('6./7. Edit a department and move it to another division', async () => {
   const row = await department(admin.client, created)
-  await ok(admin.client.rpc('save_department', { p_id: created, p_name: `E2E Dept ${run} edited`, p_initials: createdInitials, p_description: '', p_division_id: divisionB, p_expected_updated_at: row.updated_at }), 'edit department')
+  await ok(admin.client.rpc('save_department', { p_id: created, p_name: `E2E Dept ${run} edited`, p_initials: createdInitials, p_description: 'Edited', p_division_id: divisionB, p_expected_updated_at: row.updated_at, p_email: 'dept@hawkim.test' }), 'edit department')
   const after = await department(admin.client, created)
   assert(after.division_id === divisionB && after.name.endsWith('edited'), 'moved to division B')
   await refused(admin.client.rpc('save_department', { p_id: created, p_name: 'Stale', p_initials: createdInitials, p_description: '', p_division_id: divisionA, p_expected_updated_at: row.updated_at }), 'P0001', 'stale department edit', 'conflict')
@@ -118,7 +120,7 @@ await check('6./7. Edit a department and move it to another division', async () 
   assert(listed.division_id === divisionB && listed.division?.name === `E2E Division B ${run}`, 'division name embedded for employees')
 })
 await check('3. Delete an empty division', async () => {
-  const empty = await ok(admin.client.rpc('save_division', { p_id: null, p_name: `E2E Empty ${run}`, p_description: '', p_email: '' }), 'create empty')
+  const empty = await ok(admin.client.rpc('save_division', { p_id: null, p_name: `E2E Empty ${run}`, p_description: 'No departments', p_email: 'empty@hawkim.test' }), 'create empty')
   const row = await division(admin.client, empty)
   await ok(admin.client.rpc('delete_division', { p_id: empty, p_expected_updated_at: row.updated_at }), 'delete empty division')
   assert(!(await division(admin.client, empty)), 'gone from the snapshot')
@@ -158,7 +160,7 @@ await check('12./13./14. Create an SOP with an uploaded file, then delete it (de
   assert(!(await stored(sop.path)), 'file removed')
 })
 await check('15.-18. A department with SOPs cannot be deleted with its SOPs (20261109120000): refused, files kept', async () => {
-  const doomed = await ok(admin.client.rpc('save_department', { p_id: null, p_name: `E2E Doomed ${run}`, p_initials: initials(), p_description: '', p_division_id: divisionB }), 'doomed department')
+  const doomed = await ok(admin.client.rpc('save_department', { p_id: null, p_name: `E2E Doomed ${run}`, p_initials: initials(), p_description: 'Doomed', p_division_id: divisionB, p_email: 'doomed@hawkim.test' }), 'doomed department')
   const temp = await person('temp-author', doomed, ['author'])
   const first = await createSop(temp, doomed, `E2E doomed ${run}`)
   const second = await upload(temp, first.id)
@@ -181,7 +183,7 @@ await check('15.-18. A department with SOPs cannot be deleted with its SOPs (202
   assert(!sop.deleted_at && sop.title === `E2E doomed ${run}`, 'SOP untouched')
 })
 await check('19./20. Move SOPs to Others is refused while the department has SOPs (20261109120000)', async () => {
-  const closing = await ok(admin.client.rpc('save_department', { p_id: null, p_name: `E2E Closing ${run}`, p_initials: initials(), p_description: '', p_division_id: divisionB }), 'closing department')
+  const closing = await ok(admin.client.rpc('save_department', { p_id: null, p_name: `E2E Closing ${run}`, p_initials: initials(), p_description: 'Closing', p_division_id: divisionB, p_email: 'closing@hawkim.test' }), 'closing department')
   const writer = await person('others-author', closing, ['author'])
   const moved = await createSop(writer, closing, `E2E others ${run}`)
   await db.run(`update public.sops set status = 'published' where id = ${lit(moved.id)};`)

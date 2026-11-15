@@ -62,6 +62,8 @@ export const organizationAdminEn = {
   activeWorkflow: 'Some of this department’s SOPs are in review or approval, or have a compliance check running. Finish or withdraw them first, then try again.',
   requiredName: 'Enter a name (up to 100 characters).', invalidEmail: 'Enter a valid email address, e.g. name@example.com (up to 254 characters).',
   descriptionLong: 'Use at most 500 characters.', requiredDivision: 'Select a division.',
+  // Required in Add/Edit Division and Add/Edit Department alike.
+  requiredEmail: 'Enter an email address.', requiredDescription: 'Enter a description.',
   positions: 'Positions', positionsTitle: 'Positions: {name}',
   positionsHint: 'An employee assigned to a department needs at least one position. The first one is the primary position.',
   positionLabel: 'Position {n}', addPosition: 'Add position', removePosition: 'Remove position {n}',

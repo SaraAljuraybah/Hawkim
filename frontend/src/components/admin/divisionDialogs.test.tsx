@@ -54,16 +54,14 @@ describe('division create and edit form', () => {
     const html = renderToStaticMarkup(<DivisionForm onClose={vi.fn()} />)
     expect([...html.matchAll(/<(?:input|textarea)[^>]*name="([^"]+)"/g)].map((match) => match[1])).toEqual(['divisionName', 'divisionEmail', 'divisionDescription'])
   })
-  it('marks only Name as required (asterisk and for screen readers); Email and Description are optional', () => {
+  it('marks Name, Email and Description as required (asterisk and for screen readers)', () => {
     const fields = elements(render(() => DivisionForm({ onClose: vi.fn() })))
-    expect(fields.find((item) => item.props.name === 'divisionName')?.props).toMatchObject({ required: true, requiredMark: true })
-    for (const name of ['divisionEmail', 'divisionDescription']) {
-      expect(fields.find((item) => item.props.name === name)?.props.required).toBeFalsy()
-      expect(fields.find((item) => item.props.name === name)?.props.requiredMark).toBeFalsy()
+    for (const name of ['divisionName', 'divisionEmail', 'divisionDescription']) {
+      expect(fields.find((item) => item.props.name === name)?.props, name).toMatchObject({ required: true, requiredMark: true })
     }
     const html = renderToStaticMarkup(<DivisionForm onClose={vi.fn()} />)
-    expect(html.match(/<label[^>]*>Email(.*?)<\/label>/)![1]).not.toContain('>*<')
-    expect(html.match(/<label[^>]*>Description(.*?)<\/label>/)![1]).not.toContain('>*<')
+    expect(html.match(/<label[^>]*>Email(.*?)<\/label>/)![1]).toContain('>*<')
+    expect(html.match(/<label[^>]*>Description(.*?)<\/label>/)![1]).toContain('>*<')
   })
   it('shows the email placeholder', () => {
     expect(elements(render(() => DivisionForm({ onClose: vi.fn() }))).find((item) => item.props.name === 'divisionEmail')?.props.placeholder).toBe('e.g. qa@example.com')
@@ -101,26 +99,53 @@ describe('division create and edit form', () => {
     expect(description).toHaveBeenCalledOnce()
     expect(host.save).not.toHaveBeenCalled()
   })
-  it.each([['empty', '', ''], ['whitespace-only', '  ', ' \n '], ['null', null, null]])('saves with a %s email and description (the database stores none)', async (_, email, description) => {
+  it.each([['empty', '', ''], ['whitespace-only', '  ', ' \n '], ['null', null, null]])('refuses a %s email and description, says why, focuses Email and keeps what was typed', async (_, email, description) => {
     const saved = { ...division, email, description }
     const component = () => DivisionForm({ division: saved, onClose: vi.fn() })
-    await expect(confirm(render(component))).resolves.toBeUndefined()
-    expect(host.save).toHaveBeenCalledWith({ name: division.name, email: email ?? '', description: description ?? '' }, saved)
-    expect(elements(render(component)).filter((item) => item.props.error)).toEqual([])
+    render(component)
+    const [name, emailField, descriptionField] = focusable()
+    await expect(confirm(render(component))).resolves.toBe(false)
+    expect(host.save).not.toHaveBeenCalled()
+    const fields = elements(render(component))
+    const field = (fieldName: string) => fields.find((item) => item.props.name === fieldName)!.props
+    expect(field('divisionEmail').error).toBe('Enter an email address.')
+    expect(field('divisionDescription').error).toBe('Enter a description.')
+    expect(emailField).toHaveBeenCalledOnce()
+    expect(name).not.toHaveBeenCalled()
+    expect(descriptionField).not.toHaveBeenCalled()
+    // What was typed stays.
+    expect([field('divisionName').value, field('divisionEmail').value, field('divisionDescription').value]).toEqual([division.name, email ?? '', description ?? ''])
+  })
+  it('refuses only the description when the email is valid, and focuses Description', async () => {
+    const component = () => DivisionForm({ division: { ...division, description: '   ' }, onClose: vi.fn() })
+    render(component)
+    const [, emailField, descriptionField] = focusable()
+    await expect(confirm(render(component))).resolves.toBe(false)
+    const fields = elements(render(component))
+    expect(fields.find((item) => item.props.name === 'divisionEmail')?.props.error).toBeUndefined()
+    expect(fields.find((item) => item.props.name === 'divisionDescription')?.props.error).toBe('Enter a description.')
+    expect(descriptionField).toHaveBeenCalledOnce()
+    expect(emailField).not.toHaveBeenCalled()
   })
   it('says what is wrong with a malformed email', async () => {
     const component = () => DivisionForm({ division: { ...division, email: 'invalid' }, onClose: vi.fn() })
     await confirm(render(component))
     expect(elements(render(component)).find((item) => item.props.name === 'divisionEmail')?.props.error).toBe('Enter a valid email address, e.g. name@example.com (up to 254 characters).')
   })
-  it('needs only a name to add a division', async () => {
+  it('needs a name, an email and a description to add a division', async () => {
     const component = () => DivisionForm({ onClose: vi.fn() })
     await expect(confirm(render(component))).resolves.toBe(false)
-    const fields = elements(render(component))
-    expect(['divisionName', 'divisionEmail', 'divisionDescription'].map((name) => Boolean(fields.find((item) => item.props.name === name)?.props.error))).toEqual([true, false, false])
-    change(fields.find((item) => item.props.name === 'divisionName')!, 'Medical Affairs')
+    let fields = elements(render(component))
+    const field = (name: string) => fields.find((item) => item.props.name === name)!
+    expect(['divisionName', 'divisionEmail', 'divisionDescription'].map((name) => field(name).props.error)).toEqual([
+      'Enter a name (up to 100 characters).', 'Enter an email address.', 'Enter a description.'])
+    change(field('divisionName'), 'Medical Affairs')
+    fields = elements(render(component))
+    change(field('divisionEmail'), 'medical@test.invalid')
+    fields = elements(render(component))
+    change(field('divisionDescription'), 'Medical information')
     await expect(confirm(render(component))).resolves.toBeUndefined()
-    expect(host.save).toHaveBeenCalledWith({ name: 'Medical Affairs', email: '', description: '' }, undefined)
+    expect(host.save).toHaveBeenCalledWith({ name: 'Medical Affairs', email: 'medical@test.invalid', description: 'Medical information' }, undefined)
   })
   it('prefills every field and saves using the same revision for both edit entry points', async () => {
     const onSaved = vi.fn()

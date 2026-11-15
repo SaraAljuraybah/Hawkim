@@ -85,34 +85,43 @@ begin
   perform pg_temp.act_as(banned);
   assert not public.can_manage_organization(), 'A banned admin is refused';
 
-  -- ---------- divisions: email optional ----------
+  -- ---------- divisions: email and description required (20261119130000) ----------
   perform pg_temp.act_as(admin);
   assert public.can_manage_organization();
-  v_division := public.save_division(null, 'OM New Division', 'Desc', null);
+  -- Empty, null or blank email or description: refused, on create and on edit.
+  perform pg_temp.expect_error($q$select public.save_division(null, 'OM New Division', 'Desc', null)$q$, '23514');
+  perform pg_temp.expect_error($q$select public.save_division(null, 'OM New Division', 'Desc', '   ')$q$, '23514');
+  perform pg_temp.expect_error($q$select public.save_division(null, 'OM New Division', '', 'team@hawkim.test')$q$, '23514');
+  perform pg_temp.expect_error($q$select public.save_division(null, 'OM New Division', '  ', 'team@hawkim.test')$q$, '23514');
+  perform pg_temp.expect_error($q$select public.save_division(null, 'OM New Division', null, 'team@hawkim.test')$q$, '23514');
+  v_division := public.save_division(null, 'OM New Division', 'Desc', 'first@hawkim.test');
   -- The admin's direct read of email is refused (column grant); the snapshot carries it.
   perform pg_temp.expect_error(format($q$select email from public.divisions where id = %L$q$, v_division), '42501');
-  assert jsonb_path_exists(public.get_divisions_departments(), '$.divisions[*] ? (@.name == "OM New Division" && @.email == null)'), 'Division without email';
+  assert jsonb_path_exists(public.get_divisions_departments(), '$.divisions[*] ? (@.name == "OM New Division" && @.email == "first@hawkim.test")'), 'Division with email';
   select updated_at into v_stamp from public.divisions where id = v_division;
-  perform public.save_division(v_division, 'OM New Division', 'Desc', '   ', v_stamp);
-  assert jsonb_path_exists(public.get_divisions_departments(), '$.divisions[*] ? (@.name == "OM New Division" && @.email == null)'), 'Blank email is stored as none';
-  select updated_at into v_stamp from public.divisions where id = v_division;
+  perform pg_temp.expect_error(format($q$select public.save_division(%L,'OM New Division','Desc', '   ', %L)$q$, v_division, v_stamp), '23514');
+  perform pg_temp.expect_error(format($q$select public.save_division(%L,'OM New Division',' ', 'first@hawkim.test', %L)$q$, v_division, v_stamp), '23514');
   perform public.save_division(v_division, 'OM New Division', 'Desc', 'team@hawkim.test', v_stamp);
   assert jsonb_path_exists(public.get_divisions_departments(), '$.divisions[*] ? (@.name == "OM New Division" && @.email == "team@hawkim.test")');
   select updated_at into v_stamp from public.divisions where id = v_division;
-  perform pg_temp.expect_error(format($q$select public.save_division(%L,'OM New Division','', 'not-an-email', %L)$q$, v_division, v_stamp), '23514');
+  perform pg_temp.expect_error(format($q$select public.save_division(%L,'OM New Division','Desc', 'not-an-email', %L)$q$, v_division, v_stamp), '23514');
 
   -- ---------- departments: create/edit with the division ----------
   perform pg_temp.expect_error($q$select public.save_department(null,'OM No Division','ND','',null)$q$, '23514');
   perform pg_temp.expect_error($q$select public.save_department(null,'OM Inactive','IN','','om-inactive')$q$, '23514');
   perform pg_temp.expect_error($q$select public.save_department(null,'OM Bad','B1','','om-active')$q$, '23514');
   perform pg_temp.expect_error($q$select public.save_department(null,'om home','ZZ','','om-active')$q$, '23505');
-  v_department := public.save_department(null, ' OM Created ', 'oc', ' About ', v_division);
+  -- Email and description required.
+  perform pg_temp.expect_error(format($q$select public.save_department(null,'OM Created','OC','About',%L,null,'')$q$, v_division), '23514');
+  perform pg_temp.expect_error(format($q$select public.save_department(null,'OM Created','OC','  ',%L,null,'om@hawkim.test')$q$, v_division), '23514');
+  v_department := public.save_department(null, ' OM Created ', 'oc', ' About ', v_division, null, 'om@hawkim.test');
   assert v_department like 'department-%';
   assert (select division_id = v_division and name = 'OM Created' and initials = 'OC' and description = 'About'
     from public.departments where id = v_department), 'Created in its division, normalized';
   select updated_at into v_stamp from public.departments where id = v_department;
   perform pg_temp.expect_error(format($q$select public.save_department(%L,'OM Created','OC','',%L,%L)$q$, v_department, 'om-active', v_stamp - interval '1 second'), 'P0001');
-  perform public.save_department(v_department, 'OM Renamed', 'OR', '', 'om-active', v_stamp);
+  perform pg_temp.expect_error(format($q$select public.save_department(%L,'OM Renamed','OR','About','om-active',%L,'  ')$q$, v_department, v_stamp), '23514');
+  perform public.save_department(v_department, 'OM Renamed', 'OR', 'About', 'om-active', v_stamp, 'om@hawkim.test');
   assert (select division_id = 'om-active' and name = 'OM Renamed' from public.departments where id = v_department), 'Edit moves it to another division';
   -- The admin's own division cannot be deleted while it has departments.
   select updated_at into v_stamp from public.divisions where id = 'om-active';
@@ -259,7 +268,7 @@ begin
     assert not exists (select 1 from public.employee_positions where profile_id = 'b7100000-0000-4000-8000-000000000002'), 'No invented title';
     perform pg_temp.act_as(admin);
     select updated_at into v_stamp from public.departments where id = 'legacy-unassigned';
-    perform public.save_department('legacy-unassigned', 'Legacy Unassigned', 'LU', '', null, v_stamp);
+    perform public.save_department('legacy-unassigned', 'Legacy Unassigned', 'LU', 'About', null, v_stamp, 'legacy@hawkim.test');
     perform pg_temp.as_owner();
     assert (select division_id is null from public.departments where id = 'legacy-unassigned'), 'A legacy department may stay unassigned';
     raise notice 'legacy checks ran';

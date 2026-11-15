@@ -63,11 +63,11 @@ const aIndexPath = `${aOrg}/versions/${randomUUID()}/meta.json`
 await ok(service.storage.from('guideline-indexes').upload(aIndexPath, new Blob(['{}'], { type: 'application/json' }), { contentType: 'application/json' }),
   'the service stores an index of A')
 // An empty department of A's, which A itself could delete: B's refusal can only be the organization's.
-const aDivision = await ok(aAdmin.client.rpc('save_division', { p_id: null, p_name: `E2E Iso A Division ${run}`, p_description: '', p_email: '' }),
+const aDivision = await ok(aAdmin.client.rpc('save_division', { p_id: null, p_name: `E2E Iso A Division ${run}`, p_description: 'About', p_email: 'iso-a@hawkim.test' }),
   'A adds a division')
 const aDepartment = await ok(aAdmin.client.rpc('save_department', { p_id: null, p_name: `E2E Iso A Dept ${run}`,
   p_initials: String.fromCharCode(65 + Math.floor(Math.random() * 26), 65 + Math.floor(Math.random() * 26), 65 + Math.floor(Math.random() * 26)),
-  p_description: '', p_division_id: aDivision, p_expected_updated_at: null, p_email: '' }), 'A adds a department')
+  p_description: 'About', p_division_id: aDivision, p_expected_updated_at: null, p_email: 'iso-a-dept@hawkim.test' }), 'A adds a department')
 const aDepartmentRow = await db.row(`select id, updated_at from public.departments where id = ${lit(aDepartment)}`)
 await db.run(`insert into public.user_invitations (user_id, sent_at, sent_by) values (${lit(aAuthor.id)}, now() - interval '3 days', ${lit(aAdmin.id)})
   on conflict (user_id) do update set sent_at = excluded.sent_at, activated_at = null;`)

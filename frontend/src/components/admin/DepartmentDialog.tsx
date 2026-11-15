@@ -68,6 +68,8 @@ export function DepartmentForm({ snapshot, department, divisionId, onClose, onSa
     'initials-invalid': orgText.invalid,
     'initials-taken': orgText.duplicate,
     'description-too-long': content.errors.descriptionTooLong,
+    'description-required': orgText.requiredDescription,
+    'email-required': orgText.requiredEmail,
     'email-invalid': content.errors.emailInvalid,
   }
   function errorsFor(input: DepartmentFormValues): FieldErrors {
@@ -113,9 +115,9 @@ export function DepartmentForm({ snapshot, department, divisionId, onClose, onSa
         required={!divisionOptional} requiredMark={!divisionOptional} placeholder={divisionOptional ? undefined : orgText.selectDivision}
         options={divisionOptions} value={values.divisionId} error={errors.divisionId} onChange={set('divisionId')} onBlur={() => blur('divisionId')} />
     )}
-    <TextField ref={emailRef} name="departmentEmail" type="email" autoComplete="off" label={content.email.label} placeholder={content.email.placeholder}
+    <TextField ref={emailRef} name="departmentEmail" type="email" autoComplete="off" label={content.email.label} required requiredMark placeholder={content.email.placeholder}
       value={values.email} error={errors.email} onChange={set('email')} onBlur={() => blur('email')} />
-    <TextAreaField ref={descriptionRef} name="departmentDescription" rows={3} label={content.description.label} maxLength={DESCRIPTION_MAX}
+    <TextAreaField ref={descriptionRef} name="departmentDescription" rows={3} label={content.description.label} required requiredMark maxLength={DESCRIPTION_MAX}
       counter={content.description.counter.replace('{count}', String(values.description.length)).replace('{max}', String(DESCRIPTION_MAX))}
       value={values.description} error={errors.description} onChange={set('description')} onBlur={() => blur('description')} />
     {error && <p role="alert" className="text-sm text-status-rejected-fg">{error}</p>}

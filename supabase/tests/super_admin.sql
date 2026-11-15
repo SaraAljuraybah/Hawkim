@@ -242,7 +242,7 @@ begin
   assert public.can_manage_organization(), 'The former Super Admin is still an Admin';
   perform public.update_admin(sa, 'Applicant One', '+966512345601');
   perform public.add_user(a3, 'sa-7@test.invalid', 'Admin Seven', '+966512345607', null, null, array['admin']);
-  perform public.save_division(null, 'SA Division ' || gen_random_uuid(), '', null);
+  perform public.save_division(null, 'SA Division ' || gen_random_uuid(), 'About', 'sa-division@hawkim.test');
 
   -- The new Super Admin has them, and may now delete the former one.
   perform pg_temp.act_as(a1);
@@ -262,7 +262,7 @@ begin
   -- ---------- 8. Everything else stays open to both levels ----------
   perform pg_temp.act_as(a3);
   assert public.can_manage_organization() and not public.is_super_admin(), 'A regular Admin manages the organization';
-  perform public.save_division(null, 'SA Division ' || gen_random_uuid(), '', null);
+  perform public.save_division(null, 'SA Division ' || gen_random_uuid(), 'About', 'sa-division@hawkim.test');
   perform public.update_user_details(st, 'Staff Four', '+966512345604', 'Senior Officer');
   perform public.save_user(st, 'Staff Four', '+966512345604', 'Senior Officer', 'sa-home', array['author', 'reviewer'], 'sa-home', array['author']);
   assert (select array_agg(role::text order by role::text) from public.user_roles where user_id = st) = array['author', 'reviewer'],

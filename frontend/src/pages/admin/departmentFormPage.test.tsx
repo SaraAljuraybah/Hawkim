@@ -53,19 +53,19 @@ describe.each([['Add Department', '/admin/departments/new'], ['Edit Department',
     expect(html.match(/<(input|textarea|select)[^>]*name="([^"]+)"/g)!.map((tag) => tag.match(/name="([^"]+)"/)![1])).toEqual(['division', 'name', 'description', 'email'])
   })
 
-  it('has an optional Email field after Description, with its placeholder', () => {
+  it('has a required Email field after Description, with its placeholder', () => {
     const [, id, mark] = label('Email')
-    expect(mark).not.toContain('>*<')
+    expect(mark).toContain('>*<')
     const input = control(id)
-    expect(input).not.toContain('required=""')
+    expect(input).toContain('required=""')
     expect(input).toContain('type="email"')
     expect(input).toContain('placeholder="e.g. qa@example.com"')
   })
 
-  it('keeps Description optional, with no asterisk and no "(Optional)", and keeps the hints', () => {
+  it('makes Description required, with the asterisk and no "(Optional)", and keeps the hints', () => {
     const [, id, mark] = label('Description')
-    expect(mark).not.toContain('>*<')
-    expect(control(id)).not.toContain('required=""')
+    expect(mark).toContain('>*<')
+    expect(control(id)).toContain('required=""')
     expect(html).not.toContain('(Optional)')
     expect(html).toContain('One line about what the department does')
   })

@@ -10,7 +10,7 @@ import { storedDepartmentInitials } from './departmentInitials'
  */
 
 export type DepartmentFormField = 'divisionId' | 'name' | 'description' | 'email'
-export type DepartmentFormProblem = DepartmentProblem | 'division-required' | 'email-invalid'
+export type DepartmentFormProblem = DepartmentProblem | 'division-required' | 'email-required' | 'email-invalid' | 'description-required'
 export type DepartmentFormValues = Omit<DepartmentInput, 'initials'> & { divisionId: string; email: string }
 
 /** Field order, for moving focus to the first problem. */
@@ -68,11 +68,12 @@ export function departmentFormProblems(
   const editing = snapshot.departments.find((department) => department.id === options.editingId)
   // The generated initials are always valid and unused, so only the name and description can be wrong.
   const { name, description } = validateDepartment({ ...input, initials: formInitials(input, snapshot, editing) }, others, options.editingId)
+  // Email and description are required (as in save_department, 20261119130000); blank counts as empty.
   return {
     divisionId: (input.divisionId ? !known : !options.divisionOptional) ? 'division-required' : undefined,
     name,
-    description,
-    email: departmentEmailProblem(input.email),
+    description: input.description.trim() ? description : 'description-required',
+    email: input.email.trim() ? departmentEmailProblem(input.email) : 'email-required',
   }
 }
 
