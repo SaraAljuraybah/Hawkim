@@ -126,7 +126,7 @@ function GuidelineVersionForm({ editing }: { editing?: GuidelineVersion }) {
     'title-too-long': text.errors.titleTooLong,
     'version-invalid': text.errors.versionInvalid,
     'version-exists': text.errors.versionExists.replace('{version}', values.version.trim()),
-    'version-not-higher': text.errors.versionNotHigher.replace('{current}', current.version),
+    'version-not-higher': text.errors.versionNotHigher.replace('{current}', current?.version ?? ''),
     'added-required': text.errors.addedRequired,
     'issued-required': text.errors.issuedRequired,
     'issued-after-added': text.errors.issuedAfterAdded,

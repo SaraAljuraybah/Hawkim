@@ -46,6 +46,9 @@ export const organizationAdminEn = {
   divisionBlocked: 'This division can’t be deleted because it has departments.',
   departmentBlocked: 'This department can’t be deleted because it has employees.',
   departmentHasSopsBlocked: 'This department can’t be deleted because it has SOPs.',
+  // Pharmacovigilance and Quality Assurance: every organization's default departments (20261120120000).
+  defaultDepartmentBlocked: 'This is a default department and cannot be deleted.',
+  defaultDepartmentName: 'The name of a default department cannot be changed.',
   departmentPendingCleanup: 'File cleanup for this department is still in progress. Use Retry file cleanup to finish it.',
   departmentUnavailable: 'This department is no longer available. Refresh the page to see the latest list.',
   deleteTitle: 'Delete {name}?', deleteDivisionText: 'Deleting this division will remove it, and it can’t be restored.',

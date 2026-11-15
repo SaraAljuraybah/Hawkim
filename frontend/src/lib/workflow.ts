@@ -538,7 +538,7 @@ export function submitForReview(
   sop: Sop,
   actorId: string,
   /** The current GVP version: the SOP must have a completed check against it. */
-  guidelineVersion: string,
+  guidelineVersion: string | undefined,
   reviewerIds: string[],
   approverIds: string[],
   reviewDueDays: number | undefined,
@@ -611,7 +611,7 @@ export const SUBMIT_COMMENT_MAX = 500
  * `dueDate` (today or later), and each reviewer sets the next reviewer's due
  * date when they forward it. Original durations are never reused.
  */
-export function resubmit(sop: Sop, actorId: string, guidelineVersion: string, note?: string, dueDate?: string): Sop {
+export function resubmit(sop: Sop, actorId: string, guidelineVersion: string | undefined, note?: string, dueDate?: string): Sop {
   assert(!sop.internalReviewRounds?.length, 'Use the internal review request to resubmit this SOP')
   assert(isAuthor(sop, actorId), 'Only the author can resubmit this SOP')
   assert(canResubmit(sop), 'Add a new version before resubmitting')

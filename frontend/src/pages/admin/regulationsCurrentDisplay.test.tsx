@@ -18,7 +18,7 @@ vi.mock('../../state/usersContext', () => ({ useUsers: () => ({ users: [], nameO
 // What the guidelines store gives with these versions loaded (state/GuidelinesProvider.tsx).
 vi.mock('../../state/guidelinesContext', () => ({
   useGuidelines: () => ({
-    versions: [v40], current: currentVersion([v40]), currentGuideline: { name: 'GVP', version: currentVersion([v40]).version },
+    versions: [v40], current: currentVersion([v40]), currentGuideline: { name: 'GVP', version: v40.version },
     allVersions: [v40, v41], addedStatus: 'ready', retryAdded: () => {}, deleteVersion: async () => {},
     getVersion: (id: string) => [v40, v41].find((item) => item.id === id),
   }),
@@ -61,9 +61,12 @@ describe('"Current" on the Regulatory Requirements tab', () => {
   })
 
   it('never picks an added version, and falls back when there is no published one', () => {
-    expect(newestVersion([v40, v41], v40).version).toBe('4.0')
-    expect(newestVersion([v40], v40).version).toBe('4.0')
-    expect(newestVersion([], v40).version).toBe('4.0')
+    expect(newestVersion([v40, v41], v40)?.version).toBe('4.0')
+    expect(newestVersion([v40], v40)?.version).toBe('4.0')
+    expect(newestVersion([], v40)?.version).toBe('4.0')
+    // A new organization: nothing published and nothing to fall back on, so nothing is shown as current.
+    expect(newestVersion([v41], undefined)).toBeUndefined()
+    expect(newestVersion([], undefined)).toBeUndefined()
   })
 
   it('leaves compliance on the database\'s current version, 4.0', () => {

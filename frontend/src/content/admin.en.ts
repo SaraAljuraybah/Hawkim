@@ -340,6 +340,10 @@ export const adminEn: AdminContent = {
       all: 'No requests yet.',
     },
     noMatches: 'No requests match your search.',
+    loadFailed: {
+      text: "Some requests couldn't be loaded. Check your connection and try again.",
+      retry: 'Retry',
+    },
   },
 
   requestDetails: {
@@ -377,6 +381,7 @@ export const adminEn: AdminContent = {
       title: 'Approve This Request?',
       access: '{name} will get access to {department}.',
       change: "This marks the request as approved. Make any permission changes on {name}'s user page.",
+      guideline: 'This marks the request as approved. No guideline is added: add and process it in SFDA Regulatory Requirements.',
       confirm: 'Approve',
       cancel: 'Cancel',
     },
@@ -390,6 +395,11 @@ export const adminEn: AdminContent = {
     approvedNotice: 'Request approved.',
     rejectedNotice: 'Request rejected.',
     changeHint: 'Make any permission changes on their user page.',
+    guidelineHint: {
+      text: 'Approving only records your decision. Add the guideline in SFDA Regulatory Requirements, where it is processed before compliance checks can use it.',
+      link: 'Open SFDA Regulatory Requirements',
+    },
+    decideFailed: "Your response couldn't be saved. The request may have been cancelled or answered meanwhile. Refresh the page and try again.",
   },
 
   regulations: {
@@ -405,7 +415,16 @@ export const adminEn: AdminContent = {
     },
     versionName: 'GVP Version {version}',
     added: 'GVP version {version} added.',
-    current: { title: 'Current Version', badge: 'Current' },
+    current: {
+      title: 'Current Version',
+      badge: 'Current',
+      // A new organization starts without any regulatory guideline.
+      empty: {
+        text: 'Your organization has no regulatory guideline yet. Add the SFDA GVP version that applies to your organization. Compliance checks become available once it has been processed.',
+        action: 'Add the First Version',
+        processing: 'GVP {version} is being processed. It becomes the current version when processing finishes, and compliance checks can then run.',
+      },
+    },
     // An added version's processing by the compliance service, next to its version number.
     processingStatus: { waiting: 'Waiting', processing: 'Processing…', ready: 'Ready', failed: 'Failed' },
     fields: {
@@ -432,6 +451,7 @@ export const adminEn: AdminContent = {
     history: {
       title: 'Version History',
       tableLabel: 'GVP versions, newest first',
+      empty: 'No versions have been added yet.',
       columns: { title: 'Title', version: 'Version', issued: 'Issued by SFDA On', added: 'Added to Hawkim On', preview: 'Preview', edit: 'Edit', delete: 'Delete' },
     },
     /** "{title} v{version}", e.g. in button names and notices. */

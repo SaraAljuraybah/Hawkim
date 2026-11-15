@@ -22,7 +22,7 @@ interface AuthoredSopGridProps {
 
 /** The same ownership and lifecycle information as the list, in responsive cards. */
 export function AuthoredSopGrid({ sops, content, userId, onDelete }: AuthoredSopGridProps) {
-  const currentGuideline = useGuidelines().current.version
+  const currentGuideline = useGuidelines().current?.version
   return (
     <ul className="grid gap-5 md:grid-cols-2 xl:grid-cols-3 3xl:grid-cols-4">
       {sops.map((sop) => {

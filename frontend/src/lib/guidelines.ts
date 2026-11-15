@@ -22,9 +22,12 @@ export function compareVersions(a: string, b: string): number {
   return aMajor !== bMajor ? aMajor - bMajor : aMinor - bMinor
 }
 
-/** The current version: the latest one added (versions are kept in the order they were added). */
-export function currentVersion(versions: GuidelineVersion[]): GuidelineVersion {
-  return versions[versions.length - 1]
+/**
+ * The current version: the latest one added (versions are kept in the order they were added). None when the
+ * organization has no published version yet (a new organization starts with none): never a stand-in.
+ */
+export function currentVersion(versions: GuidelineVersion[]): GuidelineVersion | undefined {
+  return versions.at(-1)
 }
 
 /**
@@ -33,7 +36,7 @@ export function currentVersion(versions: GuidelineVersion[]): GuidelineVersion {
  * makes it current (GVP phase 2: processing, then Make Current), so it never gets the Current badge.
  * Compliance checks, reports and every other page use the database's current version (`currentVersion`).
  */
-export function newestVersion(allVersions: GuidelineVersion[], fallback: GuidelineVersion): GuidelineVersion {
+export function newestVersion(allVersions: GuidelineVersion[], fallback: GuidelineVersion | undefined): GuidelineVersion | undefined {
   // An added version (phase 2) becomes current only when an admin makes it current, so it isn't shown as current.
   return allVersions.filter((version) => !version.neverCurrent).at(-1) ?? fallback
 }
@@ -199,7 +202,8 @@ export function lastCheckedVersion(sop: Sop): string | undefined {
  * "Recheck recommended": the SOP's newest completed check used an older guideline
  * version than the current one. The author rechecks; nothing is rechecked automatically.
  */
-export function recheckRecommended(sop: Sop, currentGuidelineVersion: string): boolean {
+export function recheckRecommended(sop: Sop, currentGuidelineVersion: string | undefined): boolean {
   const checked = lastCheckedVersion(sop)
-  return FLAGGED_STATUSES.includes(sop.status) && checked !== undefined && checked !== currentGuidelineVersion
+  // Without a current version there's nothing newer to recheck against.
+  return FLAGGED_STATUSES.includes(sop.status) && checked !== undefined && currentGuidelineVersion !== undefined && checked !== currentGuidelineVersion
 }

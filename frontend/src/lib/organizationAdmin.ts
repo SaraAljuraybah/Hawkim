@@ -120,12 +120,21 @@ function sortRows<T extends { division: { name: string; id: string }; employees:
 }
 
 /**
- * Why a department can't be deleted (none: it can). Active employees and SOPs that still exist both block it,
+ * Why a department can't be deleted (none: it can). One of the organization's default departments never can
+ * (20261120120000), whatever else is true. Active employees and SOPs that still exist both block it,
  * as in the database (delete_department, 20261109120000). Employees are reported first, also when there are SOPs
  * too (the database checks them first as well). A department already waiting on file cleanup is never blocked by
  * SOPs: its SOPs are marked deleted, and its Delete button retries the cleanup.
  */
-export function departmentDeleteBlocker(department: Pick<ManagedDepartment, 'employees' | 'sops' | 'deletion_job_id'>): 'employees' | 'sops' | undefined {
+export function departmentDeleteBlocker(
+  department: Pick<ManagedDepartment, 'employees' | 'sops' | 'deletion_job_id' | 'system_key'>,
+): 'default' | 'employees' | 'sops' | undefined {
+  if (isDefaultDepartment(department)) return 'default'
   if (department.employees > 0) return 'employees'
   return !department.deletion_job_id && department.sops > 0 ? 'sops' : undefined
+}
+
+/** One of the organization's two default departments (Pharmacovigilance, Quality Assurance): never deleted or renamed. */
+export function isDefaultDepartment(department: Pick<ManagedDepartment, 'system_key'>): boolean {
+  return !!department.system_key
 }

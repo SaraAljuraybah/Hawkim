@@ -58,7 +58,7 @@ export function complianceReportPath(sopId: string): string {
 }
 
 /** Query parameter names that Submit a Request reads to prefill the form. */
-export const REQUEST_PREFILL_PARAMS = { type: 'type', department: 'department' } as const
+export const REQUEST_PREFILL_PARAMS = { type: 'type', department: 'department', sop: 'sop' } as const
 
 /**
  * Link to Submit a Request with "Department Access" and the given department preselected,
@@ -70,6 +70,17 @@ export function requestDepartmentAccessPath(departmentId: DepartmentId): string 
     [REQUEST_PREFILL_PARAMS.type]: type,
     [REQUEST_PREFILL_PARAMS.department]: departmentId,
   })
+  return `${SUBMIT_REQUEST_PATH}?${params.toString()}`
+}
+
+/**
+ * Link to Submit a Request with "Regulatory Guideline Addition" preselected, from an SOP's Check Compliance
+ * (the form then mentions that SOP and leads back to it), e.g. /requests/new?type=regulatory-guideline-addition&sop=<id>
+ */
+export function requestGuidelineAdditionPath(sopId?: string): string {
+  const type: RequestType = 'regulatory-guideline-addition'
+  const params = new URLSearchParams({ [REQUEST_PREFILL_PARAMS.type]: type })
+  if (sopId) params.set(REQUEST_PREFILL_PARAMS.sop, sopId)
   return `${SUBMIT_REQUEST_PATH}?${params.toString()}`
 }
 

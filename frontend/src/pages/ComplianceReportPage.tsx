@@ -207,7 +207,7 @@ function Report({ sop, backPath }: { sop: Sop; backPath: string }) {
       )}
 
       {/* Checked against an older GVP version (also printed) */}
-      {report && report.guideline.version !== currentGuideline.version && (
+      {report && currentGuideline && report.guideline.version !== currentGuideline.version && (
         <p className="mt-6 flex items-start gap-2 rounded-lg border border-status-pending-fg/25 bg-status-pending-bg px-3.5 py-2.5 text-sm font-medium text-status-pending-fg print:mt-2">
           <RefreshCw aria-hidden="true" className="mt-0.5 size-4 shrink-0" strokeWidth={2} />
           {text.olderGuideline

@@ -98,6 +98,22 @@ export async function fetchGuidelineRequirements(versionId: string): Promise<Req
     }))
 }
 
+/**
+ * Whether the user's organization has a regulatory guideline to check against, and if not, why
+ * (guideline_availability, 20261120130000): 'available' (a current version), 'processing' (an added version is
+ * waiting or being processed), 'unpublished' (processed, not current), 'failed', 'cancelled', or 'none' (never added).
+ */
+export type GuidelineAvailability = 'available' | 'processing' | 'unpublished' | 'failed' | 'cancelled' | 'none'
+const AVAILABILITY: readonly GuidelineAvailability[] = ['available', 'processing', 'unpublished', 'failed', 'cancelled', 'none']
+
+/** Asks the database (for the signed-in user's organization only). Throws when it can't be read. */
+export async function fetchGuidelineAvailability(): Promise<GuidelineAvailability> {
+  const { data, error } = await supabase().rpc('guideline_availability')
+  if (error) throw new Error(error.message)
+  if (!AVAILABILITY.includes(data as GuidelineAvailability)) throw new Error('Unknown guideline availability')
+  return data as GuidelineAvailability
+}
+
 /** Every published guideline version, oldest first (the last one added is current). */
 export async function fetchGuidelineVersions(): Promise<GuidelineVersion[]> {
   const { data, error } = await supabase().from('guideline_versions').select(GUIDELINE_COLUMNS).order('added_at')

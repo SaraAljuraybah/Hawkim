@@ -516,7 +516,14 @@ export interface SubmitRequestContent {
     departmentRequired: string
     titleRequired: string
     descriptionRequired: string
+    /** A saved request type (Regulatory Guideline Addition) couldn't be sent. */
+    saveFailed: string
   }
+  /**
+   * Regulatory Guideline Addition, opened from an SOP's Check Compliance: the title and description it starts
+   * with (both can be changed), and the way back to that SOP. `{title}` is the SOP's title.
+   */
+  guidelinePrefill: { title: string; description: string; descriptionForSop: string; backToSop: string }
   cancel: LinkContent
   /** Where Cancel goes in a read-only department (My Requests is hidden there). */
   readOnlyCancelHref: string
@@ -544,8 +551,14 @@ export interface MyRequestsContent {
   cancelDialog: { title: string; text: string; keep: string; confirm: string }
   /** Announced to screen readers after a request is cancelled. */
   cancelledAnnouncement: string
+  /** A saved request couldn't be cancelled. */
+  cancelFailed: string
   /** Shown when a tab has no requests. */
   empty: string
+  /** While the saved requests are read, instead of the empty message. */
+  loading: string
+  /** The saved requests couldn't be read (the others are still listed). */
+  loadFailed: { text: string; retry: string }
 }
 
 export interface RequestsContent {
@@ -1056,6 +1069,8 @@ export interface ComplianceContent {
       dates: string
       /** Above the View (eye) button, styled like the SOP History table's action headings. */
       preview: string
+      /** In that row's place while the organization has no current guideline. */
+      none: string
     }
   }
   /** The authors' read-only page of that GVP version, from the card's View button. */
@@ -1064,6 +1079,23 @@ export interface ComplianceContent {
     pageTitle: string
     /** Back to the SOP; `{title}` is its title. */
     back: string
+    /** The organization has no current guideline (a link kept from before, or typed). */
+    empty: { title: string; text: string }
+  }
+  /**
+   * Check Compliance while the organization has no current guideline: a dialog that says why, by what
+   * guideline_availability() reports ('error': it couldn't be read). No check is started.
+   */
+  unavailable: {
+    none: { title: string; text: string }
+    processing: { title: string; text: string }
+    failed: { title: string; text: string }
+    unpublished: { title: string; text: string }
+    cancelled: { title: string; text: string }
+    error: { title: string; text: string }
+    request: string
+    cancel: string
+    ok: string
   }
   /** The compliance report page ("/my-sops/:id/compliance"), laid out as a formal report. */
   report: {
@@ -1531,7 +1563,12 @@ export interface AdminRegulationsContent {
   versionName: string
   /** Shown after adding a version; `{version}` is replaced. */
   added: string
-  current: { title: string; badge: string }
+  current: {
+    title: string
+    badge: string
+    /** No version is current yet (a new organization): what to do, or that the first one is being processed. */
+    empty: { text: string; action: string; processing: string }
+  }
   /** An added version's processing status, shown next to its version number in the list. */
   processingStatus: { waiting: string; processing: string; ready: string; failed: string }
   fields: GuidelineVersionFields
@@ -1549,6 +1586,8 @@ export interface AdminRegulationsContent {
     title: string
     tableLabel: string
     columns: { title: string; version: string; issued: string; added: string; preview: string; edit: string; delete: string }
+    /** No version at all yet (a new organization). */
+    empty: string
   }
   /** `{title}` and `{version}` are replaced; the result is `{name}` below. */
   versionLabel: string
@@ -1696,13 +1735,18 @@ export interface AdminRequestDetailsContent {
     departmentRemoved: string
     requesterDeleted: string
   }
-  approveDialog: { title: string; access: string; change: string; confirm: string; cancel: string }
+  /** `guideline`: a Regulatory Guideline Addition (approving adds no guideline). */
+  approveDialog: { title: string; access: string; change: string; guideline: string; confirm: string; cancel: string }
   /** `description` names the requester; `deletedDescription` is used when their account was deleted. */
   rejectDialog: { title: string; description: string; deletedDescription: string; confirm: string; cancel: string }
   approvedNotice: string
   rejectedNotice: string
   /** For permission and role change requests: points to the user page link in the Requester section. */
   changeHint: string
+  /** For Regulatory Guideline Addition: approving records the decision only; the link to add the guideline. */
+  guidelineHint: { text: string; link: string }
+  /** A saved request's response couldn't be saved (for example, it was cancelled or decided meanwhile). */
+  decideFailed: string
 }
 
 export type AdminRequestTabKey = 'pending' | 'approved' | 'rejected' | 'cancelled' | 'all'
@@ -1724,6 +1768,8 @@ export interface AdminRequestsListContent {
   empty: Record<AdminRequestTabKey, string>
   /** When a search finds nothing in the tab. */
   noMatches: string
+  /** The saved requests couldn't be read (the others are still listed). */
+  loadFailed: { text: string; retry: string }
 }
 
 export interface AdminDepartmentFormContent {

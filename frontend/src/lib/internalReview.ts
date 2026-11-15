@@ -140,7 +140,7 @@ function validate(sop: Sop, options: InternalReviewOptions, env: ReviewEnvironme
   assert(!options.note || options.note.trim().length <= SUBMIT_COMMENT_MAX, 'Submission notes must be at most 500 characters')
   deadlines(options)
 }
-export function startInternalReview(sop: Sop, actorId: string, guidelineVersion: string, options: InternalReviewOptions, env: ReviewEnvironment): Sop {
+export function startInternalReview(sop: Sop, actorId: string, guidelineVersion: string | undefined, options: InternalReviewOptions, env: ReviewEnvironment): Sop {
   author(sop, actorId, env)
   assert(sop.status === 'draft' && !sop.internalReviewRounds?.some((round) => round.status === 'open'), 'Only a Draft without an open request can be submitted')
   // Only where the GVP guideline applies (Pharmacovigilance).
@@ -372,7 +372,7 @@ export function canSendNewVersion(sop: Sop): boolean {
   return (sop.status === 'in-review' || sop.status === 'returned') && isUnsentVersion(sop)
 }
 /** The main author sends the new version to the reviewers they choose (all, some, or new ones) as a new round. */
-export function sendNewVersionForReview(sop: Sop, actorId: string, guidelineVersion: string, options: InternalReviewOptions, env: ReviewEnvironment): Sop {
+export function sendNewVersionForReview(sop: Sop, actorId: string, guidelineVersion: string | undefined, options: InternalReviewOptions, env: ReviewEnvironment): Sop {
   author(sop, actorId, env)
   assert(canSendNewVersion(sop), 'Add a new version once every reviewer has finished before sending it for review')
   assert(!checkRequired(sop, env.departments) || hasCurrentCheck(sop, guidelineVersion), 'Complete a compliance check of the new version against the current guideline first')

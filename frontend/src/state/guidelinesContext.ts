@@ -7,12 +7,12 @@ import type { LoadStatus } from './useLoadAfterSignIn'
 export interface GuidelinesStore {
   /** Whether the versions have been loaded from the database (after sign-in). */
   status: LoadStatus
-  /** Every published version, oldest first (the last one is current). */
+  /** Every published version, oldest first (the last one is current). Empty for an organization that has none yet. */
   versions: GuidelineVersion[]
-  /** The current version: the published version added last. */
-  current: GuidelineVersion
-  /** The current version as recorded on a new compliance check. */
-  currentGuideline: Guideline
+  /** The current version: the published version added last. Undefined while the organization has none (not an error). */
+  current: GuidelineVersion | undefined
+  /** The current version as recorded on a new compliance check; undefined while there is none. */
+  currentGuideline: Guideline | undefined
   /**
    * Every version, the ones admins added (`neverCurrent`, loaded only for admins) included, oldest
    * first by the time they were added. Only the published ones while the added ones aren't loaded.
@@ -25,6 +25,8 @@ export interface GuidelinesStore {
   addedStatus: LoadStatus
   /** Loads the versions admins added again (after they couldn't be loaded). */
   retryAdded: () => void
+  /** Reads the versions again (e.g. when one may have been published since they were loaded). */
+  refresh: () => Promise<void>
   /** A version by id, added ones included. */
   getVersion: (id: string | undefined) => GuidelineVersion | undefined
   /** A requirement of a given guideline version (as a report was checked against it). */

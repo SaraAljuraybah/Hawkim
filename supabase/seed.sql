@@ -33,6 +33,20 @@ on conflict (id) do update set
   is_quality = excluded.is_quality,
   requires_compliance_check = excluded.requires_compliance_check;
 
+-- MedCare's two default departments (20261120120000): they can't be deleted or renamed. The seed runs after the
+-- migrations, so their backfill found no department to mark: the seed marks them. Only where the column exists, so a
+-- `supabase db reset --version <older>` still seeds. The guard refuses setting a marker on an existing row, so it is
+-- off for this one statement (the database owner, local seed only).
+do $$
+begin
+  if exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'departments' and column_name = 'system_key') then
+    alter table public.departments disable trigger departments_default_guard;
+    execute $sql$update public.departments set system_key = id where id in ('pharmacovigilance', 'quality-assurance') and system_key is null$sql$;
+    alter table public.departments enable trigger departments_default_guard;
+  end if;
+end;
+$$;
+
 -- ---------- GVP guideline ----------
 
 insert into public.guideline_versions (name, version, issued_date, effective_date, file_name) values

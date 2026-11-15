@@ -75,6 +75,10 @@ reset to that migration first, run the script, then run the check:
 | `supabase db reset --version 20261112130000` | `scripts/rollback_invitation_resend.sql` | `invitation_resend_rolled_back.sql` |
 | `supabase db reset --version 20261111140000` | `scripts/rollback_organization_settings.sql` | `organization_settings_rolled_back.sql` |
 | (the sequence above) | `scripts/rollback_admins_without_department.sql` | `admins_without_department_rolled_back.sql` |
+| `supabase db reset` (all migrations) | `scripts/rollback_default_departments_guideline_requests.sql` | compare `pg_dump --schema-only --schema=public` with a database reset to `20261119140000` (docs/release-2026-11-20.md) |
+
+`seed.sql` marks MedCare's default departments (`departments.system_key`, 20261120120000) only when the column
+exists, so `supabase db reset --version <older version>` still seeds as before.
 
 Afterwards, `supabase db reset` brings back every migration.
 

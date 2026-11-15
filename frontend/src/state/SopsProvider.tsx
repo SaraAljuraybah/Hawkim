@@ -350,8 +350,8 @@ export function SopsProvider({ children }: { children: ReactNode }) {
       // Each review action checks the browser's rules first, then the database's, then reads the SOP again.
       submitForReview: async (id, o) => {
         const sop = current(id)
-        if (sop.status === 'draft') startInternalReview(sop, userId, guideline.version, o, environment)
-        else sendNewVersionForReview(sop, userId, guideline.version, o, environment)
+        if (sop.status === 'draft') startInternalReview(sop, userId, guideline?.version, o, environment)
+        else sendNewVersionForReview(sop, userId, guideline?.version, o, environment)
         await (await reviewService()).submitReview(id, o)
         await refresh(id)
       },
@@ -423,7 +423,7 @@ export function SopsProvider({ children }: { children: ReactNode }) {
           throw new Error('Use Submit for review to send the new version to reviewers')
         }
         if (sop.reviewFlow && !users.some((u) => u.id === userId && !u.deletedAt && u.permissions.includes('author') && !u.permissions.includes('admin'))) throw new Error('An active main Author account is required')
-        return workflow.resubmit(sop, userId, guideline.version, options?.note, options?.dueDate)
+        return workflow.resubmit(sop, userId, guideline?.version, options?.note, options?.dueDate)
       }),
       uploadVersion: async (id, file) => {
         // The browser's rules first (they also cover the review state the database doesn't have yet).
@@ -532,7 +532,7 @@ export function SopsProvider({ children }: { children: ReactNode }) {
       failNextCheck,
       setFailNextCheck,
     }),
-    [status, exposedSops, closedRequests, addDraft, refresh, refreshIfExpired, current, update, runCheck, failNextCheck, setFailNextCheck, userId, guideline.version, users, environment, assertActor, commit],
+    [status, exposedSops, closedRequests, addDraft, refresh, refreshIfExpired, current, update, runCheck, failNextCheck, setFailNextCheck, userId, guideline?.version, users, environment, assertActor, commit],
   )
 
   return <SopsContext.Provider value={store}>{children}</SopsContext.Provider>
