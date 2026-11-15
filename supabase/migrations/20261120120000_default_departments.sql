@@ -1,0 +1,333 @@
+-- Every organization's two default departments, Pharmacovigilance and Quality Assurance, are protected.
+--
+-- accept_access_request (20261117130000) already creates them for each new organization. From now on each one is
+-- marked with an immutable system key, unique within its organization (so the same names can exist in every
+-- organization, and the marker never depends on the name):
+--   'pharmacovigilance'  Pharmacovigilance, PV, requires_compliance_check, not the Quality department
+--   'quality-assurance'  Quality Assurance, QA, the Quality department (is_quality)
+--
+-- A default department:
+--   - can't be deleted: not by delete_department, not by begin_department_file_deletion (the delete-department Edge
+--     Function), not by any direct UPDATE that sets removed_at or deletion_job_id, and not by a DELETE;
+--   - keeps its name and initials (the initials are generated from the name, they aren't a field);
+--   - keeps its is_quality and requires_compliance_check (the compliance and Quality workflows rely on them);
+--   - keeps its system key: nobody can set, change or remove one with an UPDATE.
+-- Its description, email and division can still be edited (save_department), and it can be moved to another division
+-- of the same organization. Employees, SOPs and workflows use it as before.
+--
+-- The rules are a trigger on departments (every path, the database owner included) and early refusals in the three
+-- functions, so the admin gets a clear message before anything else is done.
+--
+-- Existing organizations (MedCare and any created before this migration): their active Pharmacovigilance and Quality
+-- Assurance departments get the key when they still have the default configuration. Nothing is created, deleted or
+-- renamed, and updated_at is unchanged (an edit form that is open still saves). An organization without such a
+-- department is listed in a NOTICE and left as it is.
+begin;
+
+alter table public.departments add column system_key text;
+alter table public.departments add constraint departments_system_key_check
+  check (system_key is null or system_key in ('pharmacovigilance', 'quality-assurance'));
+alter table public.departments add constraint departments_organization_id_system_key_key unique (organization_id, system_key);
+comment on column public.departments.system_key is
+  'Marks one of the organization''s two default departments (pharmacovigilance, quality-assurance): it can''t be deleted or renamed. Set only when the organization is created (or by 20261120120000''s backfill); never changes.';
+
+-- ---------- Backfill: the departments that already are an organization's defaults ----------
+update public.departments d set system_key = 'pharmacovigilance'
+from (
+  select distinct on (x.organization_id) x.id from public.departments x
+  where x.removed_at is null and x.deletion_job_id is null and x.name = 'Pharmacovigilance'
+    and x.requires_compliance_check and not x.is_quality
+  order by x.organization_id, x.created_at, x.id
+) pick
+where d.id = pick.id;
+
+update public.departments d set system_key = 'quality-assurance'
+from (
+  select distinct on (x.organization_id) x.id from public.departments x
+  where x.removed_at is null and x.deletion_job_id is null and x.name = 'Quality Assurance' and x.is_quality
+  order by x.organization_id, x.created_at, x.id
+) pick
+where d.id = pick.id;
+
+do $$
+declare item record;
+begin
+  for item in
+    select o.name, k.key from public.organizations o cross join (values ('pharmacovigilance'), ('quality-assurance')) k(key)
+    where not exists (select 1 from public.departments d where d.organization_id = o.id and d.system_key = k.key)
+    order by o.name, k.key
+  loop
+    raise notice '20261120120000: organization % has no % department with the default configuration; left as it is', item.name, item.key;
+  end loop;
+end;
+$$;
+
+-- ---------- The rule, on every path ----------
+create function public.guard_default_department() returns trigger
+language plpgsql set search_path = ''
+as $$
+begin
+  if tg_op = 'DELETE' then
+    if old.system_key is not null then
+      raise exception 'Default departments cannot be deleted.' using errcode = 'P0001', hint = 'default-department';
+    end if;
+    return old;
+  end if;
+  if new.system_key is distinct from old.system_key then
+    raise exception 'A department''s default marker can''t be changed' using errcode = '42501', hint = 'default-department';
+  end if;
+  if old.system_key is not null then
+    if new.removed_at is not null or new.deletion_job_id is not null then
+      raise exception 'Default departments cannot be deleted.' using errcode = 'P0001', hint = 'default-department';
+    end if;
+    if new.name is distinct from old.name or new.initials is distinct from old.initials then
+      raise exception 'A default department''s name can''t be changed' using errcode = '23514', hint = 'default-department';
+    end if;
+    if new.is_quality is distinct from old.is_quality or new.requires_compliance_check is distinct from old.requires_compliance_check then
+      raise exception 'A default department''s compliance and quality settings can''t be changed' using errcode = '23514', hint = 'default-department';
+    end if;
+  end if;
+  return new;
+end;
+$$;
+revoke all on function public.guard_default_department() from public, anon, authenticated;
+
+create trigger departments_default_guard before update or delete on public.departments
+  for each row execute function public.guard_default_department();
+
+-- ---------- A new organization's default departments get their keys ----------
+-- The body of 20261117130000_accept_creates_organization.sql; only system_key is added to the two departments.
+create or replace function public.accept_access_request(p_id uuid, p_token_hash text, p_user_id uuid, p_department text)
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  request public.access_requests;
+  words text[];
+  initials text;
+  v_name text;
+  v_organization uuid;
+begin
+  -- p_department: sent by older Edge Functions; unused (an Admin has no department).
+  request := public.lock_pending_access_request(p_id, p_token_hash);
+
+  -- One account belongs to one organization: an account that has a profile anywhere can't start another.
+  if exists (select 1 from public.profiles p where p.email = request.email and p.deleted_at is null)
+     or exists (select 1 from public.profiles p where p.id = p_user_id) then
+    raise exception 'email_in_use' using errcode = 'P0001';
+  end if;
+
+  v_name := pg_catalog.left(pg_catalog.btrim(pg_catalog.regexp_replace(coalesce(request.organization, ''), '[[:cntrl:]]+', ' ', 'g')), 200);
+  if v_name = '' then
+    raise exception 'invalid_organization_details' using errcode = 'P0001';
+  end if;
+
+  insert into public.organizations (name, access_request_id) values (v_name, request.id) returning id into v_organization;
+  perform public.lock_organization_changes(v_organization);
+
+  -- The Organization Profile from the request. In its own block: a value the profile refuses is left empty,
+  -- and the request is still accepted.
+  begin
+    update public.organizations o set
+      email = request.organization_email, description = request.organization_description,
+      address = request.organization_address, maps_url = request.organization_maps_url,
+      website = request.organization_website, updated_at = pg_catalog.now()
+    where o.id = v_organization;
+  exception when integrity_constraint_violation or data_exception then
+    raise notice 'accept_access_request: the organization details of request % were not copied (%)', request.id, sqlerrm;
+  end;
+
+  -- Its two default departments (20261120120000: protected, marked with their system keys). No division, and no
+  -- regulatory guideline: the organization starts with none, and an Admin adds its own.
+  insert into public.departments (id, name, initials, description, is_quality, requires_compliance_check, organization_id, system_key) values
+    ('department-' || gen_random_uuid()::text, 'Pharmacovigilance', 'PV', '', false, true, v_organization, 'pharmacovigilance'),
+    ('department-' || gen_random_uuid()::text, 'Quality Assurance', 'QA', '', true, false, v_organization, 'quality-assurance');
+
+  -- The applicant: an Admin, with no department and no position (as in 20261112140000).
+  words := regexp_split_to_array(request.contact_name, '\s+');
+  initials := upper(case
+    when array_length(words, 1) >= 2 then left(words[1], 1) || left(words[array_length(words, 1)], 1)
+    else left(words[1], 2)
+  end);
+  insert into public.profiles (id, full_name, email, initials, department_id, phone, "position", organization_id)
+  values (p_user_id, request.contact_name, request.email, initials, null, request.phone, null, v_organization);
+  insert into public.user_roles (user_id, role) values (p_user_id, 'admin');
+
+  -- The organization's Super Admin.
+  update public.organizations o set super_admin_id = p_user_id, super_admin_assigned_at = now() where o.id = v_organization;
+
+  update public.access_requests r
+  set status = 'accepted', user_id = p_user_id, decided_at = now(), organization_id = v_organization
+  where r.id = request.id;
+end;
+$$;
+
+-- ---------- save_department: a default department keeps its name ----------
+-- The body of 20261119130000_division_department_email_description_required.sql; one refusal is added after the
+-- conflict check (so a stale form still gets "refresh and try again" first).
+create or replace function public.save_department(p_id text, p_name text, p_initials text, p_description text, p_division_id text,
+  p_expected_updated_at timestamp with time zone default null, p_email text default null)
+returns text
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare target text; old public.departments; v_email text := nullif(btrim(p_email), '');
+begin
+  if not public.can_manage_organization() then raise exception 'Administrator required' using errcode='42501'; end if;
+  perform public.lock_organization_changes(public.current_organization_id());
+  if p_name is null or length(btrim(p_name)) not between 1 and 60
+    or p_initials is null or btrim(p_initials) !~ '^[A-Za-z]{2,3}$'
+    or length(btrim(coalesce(p_description,''))) > 200
+    or (v_email is not null and (length(v_email) > 254 or v_email !~ '^[^[:space:]@]+@[^[:space:]@]+[.][^[:space:]@]+$')) then
+    raise exception 'Invalid department fields' using errcode='23514';
+  end if;
+  if p_division_id is not null and not exists(select 1 from public.divisions where id=p_division_id and organization_id = public.current_organization_id()
+    and is_active is not false for share) then
+    raise exception 'Select an active division' using errcode='23514';
+  end if;
+  -- New departments require a division; legacy unassigned departments can stay unassigned.
+  if p_id is null and p_division_id is null then raise exception 'Select a division' using errcode='23514'; end if;
+  if exists(select 1 from public.departments where organization_id = public.current_organization_id() and removed_at is null and id is distinct from p_id
+    and (lower(btrim(name))=lower(btrim(p_name)) or upper(btrim(initials))=upper(btrim(p_initials)))) then
+    raise exception 'Department name or initials already exists' using errcode='23505';
+  end if;
+  if p_id is null then
+    -- Email and description are required (blank counts as empty); checked last, so the other refusals stay as they were.
+    if nullif(btrim(coalesce(p_email,'')),'') is null then raise exception 'Enter an email address' using errcode='23514'; end if;
+    if nullif(btrim(coalesce(p_description,'')),'') is null then raise exception 'Enter a description' using errcode='23514'; end if;
+    target := 'department-' || gen_random_uuid()::text;
+    insert into public.departments(id,name,initials,description,division_id,email)
+      values(target,btrim(p_name),upper(btrim(p_initials)),btrim(coalesce(p_description,'')),p_division_id,v_email);
+  else
+    select * into old from public.departments where id=p_id and organization_id = public.current_organization_id() and removed_at is null for update;
+    if not found or old.updated_at is distinct from p_expected_updated_at then raise exception 'Organization changed; refresh and try again' using errcode = 'P0001', hint = 'conflict'; end if;
+    -- 20261120120000: a default department keeps its name (and the initials generated from it).
+    if old.system_key is not null and (btrim(p_name) is distinct from old.name or upper(btrim(p_initials)) is distinct from old.initials) then
+      raise exception 'A default department''s name can''t be changed' using errcode = '23514', hint = 'default-department';
+    end if;
+    -- Email and description are required (blank counts as empty); checked last, so the other refusals stay as they were.
+    if nullif(btrim(coalesce(p_email,'')),'') is null then raise exception 'Enter an email address' using errcode='23514'; end if;
+    if nullif(btrim(coalesce(p_description,'')),'') is null then raise exception 'Enter a description' using errcode='23514'; end if;
+    target := p_id;
+    update public.departments set name=btrim(p_name),initials=upper(btrim(p_initials)),description=btrim(coalesce(p_description,'')),
+      division_id=p_division_id,email=v_email,updated_at=clock_timestamp() where id=target;
+  end if;
+  insert into public.organization_management_audit(actor_id,action,entity_id) values(auth.uid(),'save-department',target);
+  return target;
+end; $$;
+
+-- ---------- delete_department: a default department can't be deleted ----------
+-- The body of 20261116170000_scope_divisions_departments.sql (with 20261109120000's rules); one refusal is added
+-- after the conflict check.
+create or replace function public.delete_department(p_id text, p_sop_action text, p_expected_updated_at timestamp with time zone)
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare old public.departments; ids uuid[];
+begin
+  if not public.can_manage_organization() then raise exception 'Administrator required' using errcode='42501'; end if;
+  if p_sop_action='delete' then raise exception 'Permanent file deletion requires the secure cleanup endpoint' using errcode='23514'; end if;
+  if p_sop_action is null or p_sop_action not in ('empty','others') then raise exception 'Choose how to handle SOPs' using errcode='23514'; end if;
+  perform public.lock_organization_changes(public.current_organization_id());
+  select * into old from public.departments where id=p_id and organization_id = public.current_organization_id() and removed_at is null for update;
+  if not found or old.updated_at is distinct from p_expected_updated_at then raise exception 'Organization changed; refresh and try again' using errcode = 'P0001', hint = 'conflict'; end if;
+  -- 20261120120000: the organization's default departments stay.
+  if old.system_key is not null then
+    raise exception 'Default departments cannot be deleted.' using errcode = 'P0001', hint = 'default-department';
+  end if;
+  if old.deletion_job_id is not null then raise exception 'Department file cleanup is pending' using errcode='23514'; end if;
+  if exists(select 1 from public.profiles where department_id=p_id and deleted_at is null) then
+    raise exception 'Departments with assigned employees cannot be deleted.' using errcode='23503';
+  end if;
+  -- New: any SOP that still exists (deleted_at is null), in any status, blocks the deletion.
+  -- "Deleted SOP" records left by an earlier "Delete associated SOPs" have deleted_at set and don't count.
+  if exists(select 1 from public.sops where department_id=p_id and deleted_at is null) then
+    raise exception 'Departments with SOPs cannot be deleted.' using errcode='23503';
+  end if;
+  -- Row locks also serialize review/compliance RPCs (which lock their SOP first).
+  perform 1 from public.sops where department_id=p_id order by id for update;
+  select array_agg(id) into ids from public.sops where department_id=p_id and deleted_at is null and directory_group='department';
+  if ids is not null and p_sop_action='empty' then raise exception 'Department has SOPs; choose Delete or Move to Others' using errcode='23503'; end if;
+  if exists(select 1 from public.sops where id=any(ids) and status in ('in-review','in-approval'))
+    or exists(select 1 from public.review_rounds where sop_id=any(ids) and status='open')
+    or exists(select 1 from public.compliance_checks where sop_id=any(ids) and status='running') then
+    raise exception 'Settle active reviews and compliance checks before deleting this department.' using errcode='23514';
+  end if;
+  if p_sop_action='others' then
+    -- The department is a historical tombstone, not an active directory assignment.
+    -- Retain its FK for confidentiality and workflow evidence; do not invent a department.
+    update public.sops set directory_group='others',updated_at=now() where id=any(ids);
+  end if;
+  update public.departments set removed_at=now(),division_id=null,updated_at=clock_timestamp() where id=p_id;
+  insert into public.organization_management_audit(actor_id,action,entity_id,details)
+    values(auth.uid(),'delete-department',p_id,jsonb_build_object('sopAction',p_sop_action,'sopIds',coalesce(to_jsonb(ids),'[]')));
+end; $$;
+
+-- ---------- begin_department_file_deletion (the delete-department Edge Function): the same ----------
+-- The body of 20261116170000_scope_divisions_departments.sql; one refusal is added before anything is changed.
+create or replace function public.begin_department_file_deletion(p_id text, p_expected_updated_at timestamp with time zone)
+returns uuid
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare department public.departments; ids uuid[]; job uuid;
+begin
+  if not public.can_manage_organization() then raise exception 'Administrator required' using errcode='42501'; end if;
+  perform public.lock_organization_changes(public.current_organization_id());
+  select * into department from public.departments where id=p_id and organization_id = public.current_organization_id() for update;
+  if not found then raise exception 'Department unavailable' using errcode = 'P0001', hint = 'conflict'; end if;
+  -- Retries use the immutable original job, never a new set of files or a new delete intent.
+  if department.deletion_job_id is not null then return department.deletion_job_id; end if;
+  if department.removed_at is not null or department.updated_at is distinct from p_expected_updated_at then
+    raise exception 'Organization changed; refresh and try again' using errcode = 'P0001', hint = 'conflict';
+  end if;
+  -- 20261120120000: the organization's default departments stay.
+  if department.system_key is not null then
+    raise exception 'Default departments cannot be deleted.' using errcode = 'P0001', hint = 'default-department';
+  end if;
+  if exists(select 1 from public.profiles where department_id=p_id and deleted_at is null) then
+    raise exception 'Departments with assigned employees cannot be deleted.' using errcode='23503';
+  end if;
+  -- New: any SOP that still exists (deleted_at is null), in any status, blocks the deletion.
+  -- "Deleted SOP" records left by an earlier "Delete associated SOPs" have deleted_at set and don't count.
+  if exists(select 1 from public.sops where department_id=p_id and deleted_at is null) then
+    raise exception 'Departments with SOPs cannot be deleted.' using errcode='23503';
+  end if;
+  perform 1 from public.sops where department_id=p_id order by id for update;
+  select coalesce(array_agg(id),'{}') into ids from public.sops
+    where department_id=p_id and deleted_at is null and directory_group='department';
+  if exists(select 1 from public.sops where id=any(ids) and status in ('in-review','in-approval'))
+    or exists(select 1 from public.review_rounds where sop_id=any(ids) and status='open')
+    or exists(select 1 from public.compliance_checks where sop_id=any(ids) and status='running') then
+    raise exception 'Settle active reviews and compliance checks before deleting this department.' using errcode='23514';
+  end if;
+  insert into public.department_file_deletions(department_id,requested_by,sop_ids)
+    values(p_id,auth.uid(),ids) returning id into job;
+  -- Every version's file, deleted versions included; never a NULL, blank or repeated path.
+  insert into public.department_file_deletion_items(job_id,bucket_id,storage_path)
+    select distinct job,'sop-files',v.storage_path from public.sop_versions v
+    where v.sop_id=any(ids) and v.storage_path is not null and btrim(v.storage_path) <> ''
+  on conflict do nothing;
+  -- Keep relational decision/identity/timestamp evidence needed by existing FKs, removing
+  -- document descriptions, review prose, filenames and derived compliance content.
+  delete from public.compliance_findings where check_id in (select id from public.compliance_checks where sop_id=any(ids));
+  update public.compliance_checks set metadata='{}',error_message=null where sop_id=any(ids);
+  update public.sop_comments set text='Removed with SOP deletion' where sop_id=any(ids);
+  update public.review_requests set decline_reason=case when decline_reason is not null then 'Removed with SOP deletion' end,
+    removal_reason=case when removal_reason is not null then 'Removed with SOP deletion' end where sop_id=any(ids);
+  update public.timeline_events set note=null where sop_id=any(ids);
+  update public.sop_versions set file_name='deleted',deleted_at=coalesce(deleted_at,now()),deleted_by=coalesce(deleted_by,auth.uid()) where sop_id=any(ids);
+  update public.sops set title='Deleted SOP',description='',deleted_at=now(),updated_at=now() where id=any(ids);
+  update public.departments set deletion_job_id=job,updated_at=clock_timestamp() where id=p_id;
+  insert into public.organization_management_audit(actor_id,action,entity_id,details)
+    values(auth.uid(),'department-file-deletion-requested',p_id,jsonb_build_object('jobId',job,'sopIds',ids));
+  return job;
+end; $$;
+
+commit;

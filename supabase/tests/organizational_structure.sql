@@ -186,7 +186,11 @@ begin
   reset role;
   -- An Admin whose home department is removed can still inspect an empty chart.
   update public.profiles set deleted_at = null where id = 'f4000000-0000-4000-8000-000000000001';
+  -- A fixture for the empty chart: since 20261120120000 an organization's default departments can't be removed,
+  -- so the guard is off for this one statement (as the owner, inside this rolled-back transaction).
+  alter table public.departments disable trigger departments_default_guard;
   update public.departments set removed_at = now();
+  alter table public.departments enable trigger departments_default_guard;
   update public.divisions set is_active = false;
   set local role authenticated;
   snapshot := public.get_organizational_structure();

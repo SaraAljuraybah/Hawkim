@@ -131,6 +131,10 @@ select '99000000-0000-4000-8000-0000000000c1', r.id, 'compliant', 'Iso A justifi
 from public.guideline_requirements r join iso i on r.guideline_version_id = public.current_guideline_version(i.a_org) limit 1;
 insert into public.department_file_deletions (id, department_id, requested_by, sop_ids)
 values ('99000000-0000-4000-8000-0000000000e1', 'iso-a-doomed', '99000000-0000-4000-8000-000000000001', '{}');
+-- A pending Regulatory Guideline Addition request by A's author (20261120140000).
+insert into public.user_requests (id, type, title, description, requester_id)
+values ('99000000-0000-4000-8000-0000000000f9', 'regulatory-guideline-addition', 'Iso A request', 'Iso A needs a guideline',
+  '99000000-0000-4000-8000-000000000002');
 
 -- ---------- B: a second organization ----------
 insert into public.organizations (id, name) values ('99000000-0000-4000-8000-0000000000aa', 'Iso B');
@@ -183,6 +187,7 @@ insert into iso_case (fn, template, targeted, accepted) values
   ('attach_guideline_file(uuid,text)', 'public.attach_guideline_file({version}, {gfile})', true, null),
   ('begin_department_file_deletion(text,timestamp with time zone)', 'public.begin_department_file_deletion({department}, now())', true, null),
   ('can_manage_organization()', 'public.can_manage_organization()', false, null),
+  ('cancel_user_request(uuid)', 'public.cancel_user_request({user_request})', true, null),
   ('can_read_organizational_structure()', 'public.can_read_organizational_structure()', false, null),
   ('can_read_review_note(uuid,uuid[])', 'public.can_read_review_note({sop_review}, array[]::uuid[])', true, null),
   ('can_read_sop_file(text)', 'public.can_read_sop_file({file})', true, null),
@@ -200,6 +205,8 @@ insert into iso_case (fn, template, targeted, accepted) values
   ('current_organization_id()', 'public.current_organization_id()', false, null),
   ('deactivate_staff(uuid)', 'public.deactivate_staff({author})', true, null),
   ('decide_review(uuid,text,text)', 'public.decide_review({request}, ''completed'', null)', true, null),
+  ('decide_user_request(uuid,text)', 'public.decide_user_request({user_request}, ''approved'')', true, null),
+  ('decide_user_request(uuid,text)', 'public.decide_user_request({user_request}, ''rejected'')', true, null),
   ('decline_review(uuid,text)', 'public.decline_review({request}, ''x'')', true, null),
   ('delete_admin(uuid)', 'public.delete_admin({admin})', true, null),
   ('delete_department(text,text,timestamp with time zone)', 'public.delete_department({department}, ''empty'', now())', true, null),
@@ -214,6 +221,7 @@ insert into iso_case (fn, template, targeted, accepted) values
   ('get_organization_profile()', 'public.get_organization_profile()', false, null),
   ('get_organizational_structure()', 'public.get_organizational_structure()', false, null),
   ('get_super_admin_id()', 'public.get_super_admin_id()', false, null),
+  ('guideline_availability()', 'public.guideline_availability()', false, null),
   ('guideline_queue_position(uuid)', 'public.guideline_queue_position({draft})', true, null),
   ('has_role(app_role)', 'public.has_role(''author'')', false, null),
   ('is_active_user()', 'public.is_active_user()', false, null),
@@ -244,6 +252,7 @@ insert into iso_case (fn, template, targeted, accepted) values
   ('start_compliance_check(uuid)', 'public.start_compliance_check({sop_published})', true, null),
   ('submit_for_review(uuid,uuid[],date,integer,text)', 'public.submit_for_review({sop_review}, array[{reviewer}]::uuid[], null, null, null)', true, null),
   ('submit_for_review(uuid,uuid[],date,integer,text)', 'public.submit_for_review({b_sop}, array[{reviewer}]::uuid[], null, null, null)', true, null),
+  ('submit_user_request(text,text,text)', 'public.submit_user_request(''regulatory-guideline-addition'', ''Iso B title'', ''Iso B description'')', false, null),
   ('transfer_super_admin(uuid)', 'public.transfer_super_admin({admin})', true, null),
   ('update_admin(uuid,text,text)', 'public.update_admin({admin}, ''X'', ''+966512345699'')', true, null),
   ('update_guideline_draft(uuid,text,text,date,text)', 'public.update_guideline_draft({draft}, ''X'', ''98.0'', current_date, ''https://www.sfda.gov.sa/x'')', true, null),
@@ -294,7 +303,8 @@ begin
     'admin', '99000000-0000-4000-8000-000000000001', 'author_email', 'iso-a-2@test.invalid',
     'check', '99000000-0000-4000-8000-0000000000c1', 'version', public.current_guideline_version(i.a_org),
     'draft', '99000000-0000-4000-8000-0000000000d1', 'job', '99000000-0000-4000-8000-0000000000e1',
-    'department', 'regulatory-affairs', 'division', 'iso-a-division', 'file', i.a_file, 'gfile', i.a_gfile);
+    'department', 'regulatory-affairs', 'division', 'iso-a-division', 'file', i.a_file, 'gfile', i.a_gfile,
+    'user_request', '99000000-0000-4000-8000-0000000000f9');
   assert a_values->>'request' is not null, 'A has a review request';
   b_values := jsonb_build_object('b_sop', '99000000-0000-4000-8000-0000000000b9', 'b_department', 'iso-b-pv');
   -- A's ids and names: none may appear in what B is told.
@@ -308,7 +318,7 @@ begin
         'request', gen_random_uuid(), 'sop_review', gen_random_uuid(), 'sop_published', gen_random_uuid(), 'author', gen_random_uuid(),
         'reviewer', gen_random_uuid(), 'admin', gen_random_uuid(), 'author_email', 'iso-nobody-' || gen_random_uuid() || '@test.invalid',
         'check', gen_random_uuid(), 'version', gen_random_uuid(), 'draft', gen_random_uuid(), 'job', gen_random_uuid(),
-        'department', 'department-' || gen_random_uuid(), 'division', 'division-' || gen_random_uuid(),
+        'department', 'department-' || gen_random_uuid(), 'division', 'division-' || gen_random_uuid(), 'user_request', gen_random_uuid(),
         'file', i.a_org::text || '/99000000-0000-4000-8000-000000000002/' || gen_random_uuid() || '.pdf',
         'gfile', i.a_org::text || '/files/' || gen_random_uuid() || '.pdf');
       sql_a := c.template;
