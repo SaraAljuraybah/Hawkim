@@ -77,7 +77,7 @@ export function AdminRegulationsPage() {
   /** Why a version can't be deleted: it is current in the database, or was current before (and so used for checks). */
   function deleteBlocked(version: GuidelineVersion): string | undefined {
     if (version.neverCurrent) return undefined
-    return version.id === current.id ? text.deleteBlocked.current : text.deleteBlocked.used
+    return version.id === current?.id ? text.deleteBlocked.current : text.deleteBlocked.used
   }
 
   /** Deletes it in the database; if that fails, the dialog opens again with the reason. */
@@ -134,11 +134,26 @@ export function AdminRegulationsPage() {
           <h2 id="current-title" className="text-sm font-semibold tracking-wide text-text-gray uppercase">
             {text.current.title}
           </h2>
-          <p className="mt-2 flex flex-wrap items-center gap-3 text-xl font-semibold text-maroon">
-            {text.versionName.replace('{version}', shownCurrent.version)}
-            <CurrentBadge label={text.current.badge} />
-          </p>
-          <GuidelineVersionDetails version={shownCurrent} actions={{ withoutFile: true, withoutRequirements: true }} className="mt-5" />
+          {shownCurrent ? (
+            <>
+              <p className="mt-2 flex flex-wrap items-center gap-3 text-xl font-semibold text-maroon">
+                {text.versionName.replace('{version}', shownCurrent.version)}
+                <CurrentBadge label={text.current.badge} />
+              </p>
+              <GuidelineVersionDetails version={shownCurrent} actions={{ withoutFile: true, withoutRequirements: true }} className="mt-5" />
+            </>
+          ) : inProgress ? (
+            // The organization's first version: no Current badge until it has been processed.
+            <p className="mt-3 text-sm text-text-gray">{text.current.empty.processing.replace('{version}', inProgress.version)}</p>
+          ) : (
+            <div className="mt-3 flex flex-col items-start gap-4">
+              <p className="text-sm text-text-gray">{text.current.empty.text}</p>
+              <Button to={text.addVersion.href} variant="secondary" size="sm">
+                <Plus aria-hidden="true" className="size-4" strokeWidth={2} />
+                {text.current.empty.action}
+              </Button>
+            </div>
+          )}
         </section>
 
         <section aria-labelledby="history-title">
@@ -160,7 +175,11 @@ export function AdminRegulationsPage() {
               </Button>
             </div>
           )}
-          <GuidelineVersionsTable versions={history} currentId={shownCurrent.id} label={text.history.tableLabel} actions={actions} className="mt-3" />
+          {history.length > 0 ? (
+            <GuidelineVersionsTable versions={history} currentId={shownCurrent?.id} label={text.history.tableLabel} actions={actions} className="mt-3" />
+          ) : addedStatus === 'ready' && (
+            <p className="mt-3 rounded-xl border border-dashed border-beige bg-white px-6 py-10 text-center text-sm text-text-gray">{text.history.empty}</p>
+          )}
         </section>
       </div>
 

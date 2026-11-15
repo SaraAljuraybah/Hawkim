@@ -11,11 +11,15 @@ import { requestsEn } from '../content/requests.en'
 import type { DepartmentId, RequestType } from '../data/mock/types'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { isReadOnlyDepartment } from '../lib/departmentNavigation'
-import { REQUEST_PREFILL_PARAMS } from '../lib/routes'
+import { emptyRequestValues as emptyValues, prefillFromParams, type RequestFormValues as Values } from '../lib/requestPrefill'
+import { mySopPath, REQUEST_PREFILL_PARAMS } from '../lib/routes'
+import { isAuthorOrCoAuthor } from '../lib/workflow'
+import { isSavedRequestType, RequestError } from '../services/requests'
 import { useActiveDepartment } from '../state/activeDepartmentContext'
 import { useDepartments } from '../state/departmentsContext'
 import { useCurrentUser } from '../state/sessionContext'
 import { useRequests } from '../state/requestsContext'
+import { useSops } from '../state/sopsContext'
 
 const TITLE_MAX = 100
 const DESCRIPTION_MAX = 1000
@@ -25,28 +29,7 @@ const ATTACHMENT_MAX_BYTES = 10 * 1024 * 1024 // 10 MB
 const SUBMIT_DELAY_MS = 600
 
 type Field = 'type' | 'departmentId' | 'title' | 'description'
-type Values = { type: RequestType | ''; departmentId: DepartmentId | ''; title: string; description: string }
 type FieldErrors = Partial<Record<Field, string>>
-
-const emptyValues: Values = { type: '', departmentId: '', title: '', description: '' }
-
-/**
- * Initial values from the URL, e.g. ?type=department-access&department=quality-assurance
- * (used by "Request access" on locked SOPs). Unknown values are ignored, and the
- * department is only kept for Department Access and when it is not the user's own.
- */
-function prefillFromParams(
-  params: URLSearchParams,
-  typeOptions: RequestType[],
-  departmentOptions: DepartmentId[],
-): Values {
-  const type = params.get(REQUEST_PREFILL_PARAMS.type) as RequestType | null
-  const department = params.get(REQUEST_PREFILL_PARAMS.department) as DepartmentId | null
-  const validType = type && typeOptions.includes(type) ? type : ''
-  const validDepartment =
-    validType === 'department-access' && department && departmentOptions.includes(department) ? department : ''
-  return { ...emptyValues, type: validType, departmentId: validDepartment }
-}
 
 /** Submit a Request ("/requests/new"): form, then a confirmation panel. */
 export function SubmitRequestPage() {
@@ -56,6 +39,7 @@ export function SubmitRequestPage() {
 
   const { addRequest } = useRequests()
   const user = useCurrentUser()
+  const { sops } = useSops()
   const { activeDepartments } = useDepartments()
   // My Requests is hidden in a read-only department: Cancel returns to the SOP Directory
   // and the confirmation has no link to My Requests.
@@ -68,6 +52,13 @@ export function SubmitRequestPage() {
   const [submitAttempted, setSubmitAttempted] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
+  const [saveError, setSaveError] = useState('')
+  const saveErrorRef = useRef<HTMLParagraphElement>(null)
+  // Opened from one of the user's SOPs (Check Compliance): Cancel and the confirmation lead back to it.
+  const [fromSop] = useState(() => {
+    const sopId = searchParams.get(REQUEST_PREFILL_PARAMS.sop)
+    return sopId ? sops.find((item) => item.id === sopId && isAuthorOrCoAuthor(item, user.id)) : undefined
+  })
 
   const typeRef = useRef<HTMLSelectElement>(null)
   const departmentRef = useRef<HTMLSelectElement>(null)
@@ -88,9 +79,13 @@ export function SubmitRequestPage() {
       searchParams,
       typeOptions.map((option) => option.value),
       departmentOptions.map((option) => option.value),
+      fromSop,
     ),
   )
   const needsDepartment = values.type === 'department-access'
+  // Saved in the database; its attachments wouldn't be, so it has none.
+  const saved = values.type !== '' && isSavedRequestType(values.type)
+  const cancelHref = fromSop ? mySopPath(fromSop.id) : readOnly ? content.readOnlyCancelHref : content.cancel.href
 
   // After submitting, move focus to the confirmation heading; after "Submit another
   // request", move it back to the first field.
@@ -151,14 +146,29 @@ export function SubmitRequestPage() {
     }
 
     setSubmitting(true)
-    // TODO: Send the request (and upload the attachments) to the backend API.
-    await new Promise((resolve) => setTimeout(resolve, SUBMIT_DELAY_MS))
-    addRequest({
-      type: values.type as RequestType,
-      departmentId: needsDepartment ? (values.departmentId as DepartmentId) : undefined,
-      title: values.title.trim(),
-      description: values.description.trim(),
-    })
+    setSaveError('')
+    // TODO: Send the other request types (and upload the attachments) to the backend API too.
+    if (!saved) await new Promise((resolve) => setTimeout(resolve, SUBMIT_DELAY_MS))
+    try {
+      await addRequest({
+        type: values.type as RequestType,
+        departmentId: needsDepartment ? (values.departmentId as DepartmentId) : undefined,
+        title: values.title.trim(),
+        description: values.description.trim(),
+      })
+    } catch (error) {
+      // Not sent: the form keeps what was entered. A field the database refused is shown on that field.
+      const field = error instanceof RequestError && error.reason === 'invalid' ? error.field : undefined
+      if (field === 'title' || field === 'description') {
+        const message = field === 'title' ? content.errors.titleRequired : content.errors.descriptionRequired
+        flushSync(() => { setSubmitting(false); setErrors((prev) => ({ ...prev, [field]: message })) })
+        refs[field].current?.focus()
+        return
+      }
+      flushSync(() => { setSubmitting(false); setSaveError(content.errors.saveFailed) })
+      saveErrorRef.current?.focus()
+      return
+    }
     setSubmitting(false)
     setSubmitted(true)
   }
@@ -167,6 +177,7 @@ export function SubmitRequestPage() {
     setValues(emptyValues)
     setFiles([])
     setErrors({})
+    setSaveError('')
     setSubmitAttempted(false)
     focusTypeAfterReset.current = true
     setSubmitted(false)
@@ -201,6 +212,11 @@ export function SubmitRequestPage() {
             <div className="mt-8 flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
               {!readOnly && (
                 <Button to={content.confirmation.viewRequests.href}>{content.confirmation.viewRequests.label}</Button>
+              )}
+              {fromSop && (
+                <Button to={mySopPath(fromSop.id)} variant="secondary">
+                  {content.guidelinePrefill.backToSop.replace('{title}', fromSop.title)}
+                </Button>
               )}
               <Button variant="secondary" onClick={startAnotherRequest}>
                 {content.confirmation.submitAnother}
@@ -267,17 +283,31 @@ export function SubmitRequestPage() {
               onBlur={() => handleBlur('description')}
             />
 
-            {/* TODO: Upload attachments with the request once the backend exists (they are not saved yet). */}
-            <FileDropzone
-              files={files}
-              onChange={setFiles}
-              extensions={ATTACHMENT_EXTENSIONS}
-              maxSizeBytes={ATTACHMENT_MAX_BYTES}
-              text={content.fields.attachments}
-            />
+            {/* TODO: Upload attachments with the request once the backend exists (they are not saved yet). A saved
+                request type has none: it would claim files that are never stored. */}
+            {!saved && (
+              <FileDropzone
+                files={files}
+                onChange={setFiles}
+                extensions={ATTACHMENT_EXTENSIONS}
+                maxSizeBytes={ATTACHMENT_MAX_BYTES}
+                text={content.fields.attachments}
+              />
+            )}
+
+            {saveError && (
+              <p
+                ref={saveErrorRef}
+                tabIndex={-1}
+                role="alert"
+                className="rounded-lg border border-status-rejected-fg/25 bg-status-rejected-bg px-4 py-3 text-sm text-status-rejected-fg focus:outline-none"
+              >
+                {saveError}
+              </p>
+            )}
 
             <div className="flex flex-col-reverse gap-3 border-t border-beige pt-6 sm:flex-row sm:justify-end">
-              <Button to={readOnly ? content.readOnlyCancelHref : content.cancel.href} variant="secondary">
+              <Button to={cancelHref} variant="secondary">
                 {content.cancel.label}
               </Button>
               <Button type="submit" aria-disabled={submitting || undefined}>

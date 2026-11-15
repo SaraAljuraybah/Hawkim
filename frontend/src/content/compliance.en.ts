@@ -37,11 +37,45 @@ export const complianceEn: ComplianceContent = {
     guideline: {
       dates: 'Issued by SFDA on {issued} · Added to Hawkim on {added}',
       preview: 'Preview',
+      none: 'Your organization has no regulatory guideline yet. Compliance checks become available once your administrator has added one and it has been processed.',
     },
   },
   guidelinePage: {
     pageTitle: '{name} · {title} | Hawkim',
     back: 'Back to {title}',
+    empty: {
+      title: 'No Regulatory Guideline',
+      text: 'Your organization has no regulatory guideline yet. Compliance checks become available once your administrator has added one and it has been processed.',
+    },
+  },
+  unavailable: {
+    none: {
+      title: 'No Regulatory Guidelines Available',
+      text: 'Your organization does not have any regulatory guidelines available for compliance checking. Please submit a request to your administrator to add the required guideline.',
+    },
+    processing: {
+      title: 'Regulatory Guideline Processing',
+      text: "Your organization's regulatory guideline is currently being processed. Compliance checking will be available once processing is completed.",
+    },
+    failed: {
+      title: 'Regulatory Guideline Not Available',
+      text: "Processing of your organization's regulatory guideline failed, so compliance checking isn't available yet. Your administrator can process it again or add it again. You can submit a request to let them know.",
+    },
+    unpublished: {
+      title: 'Regulatory Guideline Not Available',
+      text: "Your organization's regulatory guideline has been processed but isn't the current version yet, so compliance checking isn't available. You can submit a request to your administrator to make it current.",
+    },
+    cancelled: {
+      title: 'Regulatory Guideline Not Available',
+      text: "Processing of your organization's regulatory guideline was cancelled, so compliance checking isn't available. Please submit a request to your administrator to add the required guideline.",
+    },
+    error: {
+      title: "Couldn't Check the Regulatory Guideline",
+      text: "We couldn't check whether your organization's regulatory guideline is available. Check your connection and try again.",
+    },
+    request: 'Submit a Request',
+    cancel: 'Cancel',
+    ok: 'OK',
   },
   report: {
     pageTitle: 'Compliance Report · {title} | Hawkim',

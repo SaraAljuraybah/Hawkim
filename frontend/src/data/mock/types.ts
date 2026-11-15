@@ -588,7 +588,8 @@ export interface ActivityItem {
 }
 
 /** Kinds of request a user can send to the admin team. */
-export type RequestType = 'department-access' | 'permission-change' | 'role-change'
+/** 'regulatory-guideline-addition' is saved in the database (user_requests); the others are in the browser only. */
+export type RequestType = 'department-access' | 'permission-change' | 'role-change' | 'regulatory-guideline-addition'
 
 /** A request sent to the admin team. Requests cannot be edited; a pending one can be cancelled. */
 export interface UserRequest {

@@ -1,6 +1,7 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ClipboardList } from 'lucide-react'
+import { CircleAlert, ClipboardList } from 'lucide-react'
+import { Button } from '../../components/ui/Button'
 import { StatusBadge } from '../../components/ui/StatusBadge'
 import { Tabs, type TabItem } from '../../components/ui/Tabs'
 import { tabIds } from '../../components/ui/tabIds'
@@ -41,7 +42,9 @@ function inTab(tab: AdminRequestTabKey, requests: UserRequest[]): UserRequest[] 
 export function AdminRequestsPage() {
   const content = adminEn.requestsList
   useDocumentTitle(adminEn.pageTitle.replace('{page}', content.title))
-  const { requests } = useRequests()
+  const { requests, savedStatus, refreshSaved } = useRequests()
+  // The saved requests are read again whenever this page opens (new ones may have been sent since).
+  useEffect(() => { void refreshSaved() }, [refreshSaved])
   const { getUser, nameOf } = useUsers()
   const { nameOf: departmentName } = useDepartments()
 
@@ -99,6 +102,21 @@ export function AdminRequestsPage() {
             className="min-w-0"
           />
         </div>
+
+        {savedStatus === 'error' && (
+          <div
+            role="alert"
+            className="mt-6 flex flex-col gap-3 rounded-lg border border-status-rejected-fg/25 bg-status-rejected-bg px-4 py-3 text-sm text-status-rejected-fg sm:flex-row sm:items-center sm:justify-between"
+          >
+            <p className="flex items-start gap-2">
+              <CircleAlert aria-hidden="true" className="mt-0.5 size-4 shrink-0" strokeWidth={2} />
+              {content.loadFailed.text}
+            </p>
+            <Button variant="secondary" onClick={() => void refreshSaved()} className="shrink-0 self-start sm:self-auto">
+              {content.loadFailed.retry}
+            </Button>
+          </div>
+        )}
 
         {/* Announced as the results change */}
         <p role="status" className="mt-6 text-sm font-medium text-text-gray">

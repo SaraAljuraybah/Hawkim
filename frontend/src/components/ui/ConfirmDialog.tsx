@@ -7,8 +7,8 @@ interface ConfirmDialogProps {
   description: string
   /** Label of the safe choice (focused first). */
   cancelLabel: string
-  /** Label of the confirming action. */
-  confirmLabel: string
+  /** Label of the confirming action. Without one, the dialog only informs: its one button (`cancelLabel`, e.g. "OK") closes it. */
+  confirmLabel?: string
   onConfirm: () => void
   /** Called when the dialog closes without confirming (cancel button, Escape, backdrop). */
   onCancel: () => void
@@ -95,18 +95,20 @@ export function ConfirmDialog({ open, title, description, cancelLabel, confirmLa
           {/* Stays mounted while open, so a refusal is announced */}
           <div role="alert">{error && <p className="mt-3 text-sm font-medium text-status-rejected-fg">{error}</p>}</div>
           <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-            <Button variant="secondary" autoFocus onClick={() => dialogRef.current?.close()}>
+            <Button variant={confirmLabel === undefined ? 'primary' : 'secondary'} autoFocus onClick={() => dialogRef.current?.close()}>
               {cancelLabel}
             </Button>
-            <Button
-              onClick={() => {
-                if (canConfirm && !canConfirm()) return
-                confirmedRef.current = true
-                dialogRef.current?.close()
-              }}
-            >
-              {confirmLabel}
-            </Button>
+            {confirmLabel !== undefined && (
+              <Button
+                onClick={() => {
+                  if (canConfirm && !canConfirm()) return
+                  confirmedRef.current = true
+                  dialogRef.current?.close()
+                }}
+              >
+                {confirmLabel}
+              </Button>
+            )}
           </div>
         </div>
       )}

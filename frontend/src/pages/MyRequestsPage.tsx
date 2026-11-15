@@ -1,5 +1,5 @@
-import { useMemo, useRef, useState } from 'react'
-import { Building2, ClipboardList, Plus, ShieldCheck, UserCog, type LucideIcon } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { BookPlus, Building2, CircleAlert, ClipboardList, Plus, ShieldCheck, UserCog, type LucideIcon } from 'lucide-react'
 import { Button } from '../components/ui/Button'
 import { ConfirmDialog } from '../components/ui/ConfirmDialog'
 import { StatusBadge } from '../components/ui/StatusBadge'
@@ -19,6 +19,7 @@ const typeIcons: Record<RequestType, LucideIcon> = {
   'department-access': Building2,
   'permission-change': ShieldCheck,
   'role-change': UserCog,
+  'regulatory-guideline-addition': BookPlus,
 }
 
 /** Requests shown in each tab, newest first. Cancelled requests appear under "All" only. */
@@ -34,8 +35,10 @@ export function MyRequestsPage() {
   const typeLabels = requestsEn.types
   useDocumentTitle(content.pageTitle)
 
-  const { cancelRequest } = useRequests()
+  const { cancelRequest, savedStatus, refreshSaved } = useRequests()
   const requests = useMyRequests()
+  // The saved requests are read again whenever this page opens (another tab or an Admin may have changed them).
+  useEffect(() => { void refreshSaved() }, [refreshSaved])
   const [tab, setTab] = useState<RequestTabKey>('all')
   /** The request waiting for cancel confirmation (dialog open while set). */
   const [pendingCancel, setPendingCancel] = useState<UserRequest | null>(null)
@@ -51,14 +54,21 @@ export function MyRequestsPage() {
   const visibleRequests = useMemo(() => filterRequests(tab, requests), [tab, requests])
   const ids = tabIds(TAB_ID_PREFIX, tab)
 
-  function confirmCancel() {
+  async function confirmCancel() {
     if (!pendingCancel) return
-    cancelRequest(pendingCancel.id)
+    const request = pendingCancel
     setPendingCancel(null)
-    // The row's Cancel button is gone, so move focus to the list and announce the change.
+    let done = content.cancelledAnnouncement
+    try {
+      await cancelRequest(request.id)
+    } catch {
+      // Saved requests only: the database refused, or couldn't be reached. The list shows its current state.
+      done = content.cancelFailed
+    }
+    // The row's Cancel button is gone (or the request changed), so move focus to the list and announce what happened.
     panelRef.current?.focus()
     setAnnouncement('')
-    requestAnimationFrame(() => setAnnouncement(content.cancelledAnnouncement))
+    requestAnimationFrame(() => setAnnouncement(done))
   }
 
   function keepRequest() {
@@ -93,13 +103,32 @@ export function MyRequestsPage() {
         // users (:focus-visible), and keep it subtle: thin maroon line, small offset.
         className="mt-6 rounded-xl focus:outline-none focus-visible:outline-solid focus-visible:outline-[1.5px] focus-visible:outline-offset-2 focus-visible:outline-maroon"
       >
+        {savedStatus === 'error' && (
+          <div
+            role="alert"
+            className="mb-4 flex flex-col gap-3 rounded-lg border border-status-rejected-fg/25 bg-status-rejected-bg px-4 py-3 text-sm text-status-rejected-fg sm:flex-row sm:items-center sm:justify-between"
+          >
+            <p className="flex items-start gap-2">
+              <CircleAlert aria-hidden="true" className="mt-0.5 size-4 shrink-0" strokeWidth={2} />
+              {content.loadFailed.text}
+            </p>
+            <Button variant="secondary" onClick={() => void refreshSaved()} className="shrink-0 self-start sm:self-auto">
+              {content.loadFailed.retry}
+            </Button>
+          </div>
+        )}
         {visibleRequests.length === 0 ? (
+          // While the saved requests are read, "no requests" isn't known yet.
+          savedStatus === 'loading' ? (
+            <p className="rounded-xl border border-dashed border-beige bg-white px-6 py-14 text-center text-text-gray">{content.loading}</p>
+          ) : (
           <div className="flex flex-col items-center rounded-xl border border-dashed border-beige bg-white px-6 py-14 text-center">
             <span aria-hidden="true" className="inline-flex size-12 items-center justify-center rounded-lg bg-beige text-maroon">
               <ClipboardList className="size-6" strokeWidth={1.75} />
             </span>
             <p className="mt-4 text-text-gray">{content.empty}</p>
           </div>
+          )
         ) : (
           <ul className="divide-y divide-beige rounded-xl border border-beige bg-white">
             {visibleRequests.map((request) => {
@@ -168,7 +197,7 @@ export function MyRequestsPage() {
         description={content.cancelDialog.text}
         cancelLabel={content.cancelDialog.keep}
         confirmLabel={content.cancelDialog.confirm}
-        onConfirm={confirmCancel}
+        onConfirm={() => void confirmCancel()}
         onCancel={keepRequest}
       />
     </>

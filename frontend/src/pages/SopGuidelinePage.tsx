@@ -26,7 +26,7 @@ export function SopGuidelinePage() {
   const sop = useSops().sops.find((item) => item.id === id)
   const { current } = useGuidelines()
   const allowed = !!sop && hasPermission(user, 'author') && isAuthorOrCoAuthor(sop, user.id)
-  const name = adminEn.regulations.versionName.replace('{version}', current.version)
+  const name = current ? adminEn.regulations.versionName.replace('{version}', current.version) : text.empty.title
   useDocumentTitle(allowed ? text.pageTitle.replace('{name}', name).replace('{title}', sop.title) : undefined)
 
   if (!allowed) return <NotFoundPage embedded />
@@ -42,10 +42,15 @@ export function SopGuidelinePage() {
       </Link>
       <div className="mt-5 flex flex-wrap items-center gap-3">
         <h1 className="text-2xl tracking-tight sm:text-3xl">{name}</h1>
-        <CurrentBadge label={adminEn.regulations.current.badge} />
+        {current && <CurrentBadge label={adminEn.regulations.current.badge} />}
       </div>
 
-      <GuidelineVersionView key={current.id} version={current} />
+      {/* The organization has no current version yet: no sample version in its place. */}
+      {current ? (
+        <GuidelineVersionView key={current.id} version={current} />
+      ) : (
+        <p className="mt-6 max-w-2xl rounded-xl border border-dashed border-beige bg-white px-6 py-10 text-center text-sm text-text-gray">{text.empty.text}</p>
+      )}
     </>
   )
 }

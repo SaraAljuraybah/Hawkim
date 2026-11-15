@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { GVP_NAME, sampleGuidelineVersions } from '../data/mock/compliance'
+import { GVP_NAME } from '../data/mock/compliance'
 import type { GuidelineVersion } from '../data/mock/types'
 import { currentVersion } from '../lib/guidelines'
 import { hasPermission } from '../lib/permissions'
@@ -47,7 +47,8 @@ async function withUploadedFile(file: File, save: (storagePath: string) => Promi
  * Store of the GVP versions (shared, like departments): compliance checks use the
  * current one, and reports look up requirements in the version they were checked
  * against. The published versions and their requirements are loaded from the database after
- * sign-in (until then the sample v4.0 stands in, but no page shows before they load).
+ * sign-in (no page shows before they load). An organization may have none: a new one starts without any
+ * guideline, so `current` is then undefined and the pages say so (never a sample version in its place).
  * For admins, the versions admins added (never current) are loaded separately: if that fails,
  * only the SFDA Regulatory Requirements tab says so (`addedStatus`, `retryAdded`), and the rest
  * of the portal keeps working. Each change is saved in the database (which checks the rules and
@@ -62,7 +63,7 @@ export function GuidelinesProvider({ children }: { children: ReactNode }) {
   // Only admins read the added versions.
   const addedKey = user && hasPermission(user, 'admin') ? user.id : ''
 
-  const [published, setPublished] = useState<GuidelineVersion[]>(sampleGuidelineVersions)
+  const [published, setPublished] = useState<GuidelineVersion[]>([])
   const publishedRef = useRef(published)
   const commitPublished = useCallback((next: GuidelineVersion[]) => {
     publishedRef.current = next
@@ -122,7 +123,11 @@ export function GuidelinesProvider({ children }: { children: ReactNode }) {
   const versions = published
   const current = currentVersion(versions)
   const allVersions = useMemo(() => byAddedTime([...published, ...addedVersions]), [published, addedVersions])
-  const currentGuideline = useMemo(() => ({ name: GVP_NAME, version: current.version }), [current.version])
+  const currentVersionNumber = current?.version
+  const currentGuideline = useMemo(
+    () => (currentVersionNumber === undefined ? undefined : { name: GVP_NAME, version: currentVersionNumber }),
+    [currentVersionNumber],
+  )
   const getVersion = useCallback((id: string | undefined) => allVersions.find((item) => item.id === id), [allVersions])
   const getRequirement = useCallback(
     (guidelineVersion: string, requirementId: string) =>
@@ -185,8 +190,8 @@ export function GuidelinesProvider({ children }: { children: ReactNode }) {
   }, [processing, reload])
 
   const store = useMemo<GuidelinesStore>(
-    () => ({ status, versions, current, currentGuideline, allVersions, addedStatus, retryAdded, getVersion, getRequirement, addVersion, updateVersion, deleteVersion, retryProcessing, makeCurrent }),
-    [status, versions, current, currentGuideline, allVersions, addedStatus, retryAdded, getVersion, getRequirement, addVersion, updateVersion, deleteVersion, retryProcessing, makeCurrent],
+    () => ({ status, versions, current, currentGuideline, allVersions, addedStatus, retryAdded, refresh: reload, getVersion, getRequirement, addVersion, updateVersion, deleteVersion, retryProcessing, makeCurrent }),
+    [status, versions, current, currentGuideline, allVersions, addedStatus, retryAdded, reload, getVersion, getRequirement, addVersion, updateVersion, deleteVersion, retryProcessing, makeCurrent],
   )
 
   return <GuidelinesContext.Provider value={store}>{children}</GuidelinesContext.Provider>

@@ -8,6 +8,7 @@ import { AddCoAuthorsDialog } from '../components/workflow/AddCoAuthorsDialog'
 import { ComplianceCard } from '../components/workflow/ComplianceCard'
 import { ComplianceGuideline } from '../components/workflow/ComplianceGuideline'
 import { FileDialog } from '../components/workflow/FileDialog'
+import { GuidelineUnavailableDialog } from '../components/workflow/GuidelineUnavailableDialog'
 import { InternalReviewPanel } from '../components/workflow/InternalReviewPanel'
 import { PeopleList } from '../components/workflow/PeopleList'
 import { personWithRole } from '../components/workflow/people'
@@ -30,6 +31,7 @@ import type { SopVersion } from '../data/mock/types'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { canReplaceSampleResult, checkRequired, checkStartFailure, currentCheck, hasCurrentCheck, isCheckRunning } from '../lib/compliance'
 import { approvalButtonBlocker } from '../lib/approval'
+import { guidelineGate, type GuidelineUnavailableState } from '../lib/guidelineGate'
 import { hasResponseOutsideReviewers } from '../lib/reviewRequestRows'
 import { canAddReviewers, canSendNewVersion } from '../lib/internalReview'
 import { reviewAllowsNewVersion } from '../lib/internalReviewStatus'
@@ -46,6 +48,7 @@ import {
   nextVersion,
   responseRecipients,
 } from '../lib/workflow'
+import { fetchGuidelineAvailability } from '../services/compliance'
 import { fileUrlOf } from '../services/files'
 import { useDepartments } from '../state/departmentsContext'
 import { useGuidelines } from '../state/guidelinesContext'
@@ -109,6 +112,9 @@ export function SopWorkflowPage() {
   const [previewing, setPreviewing] = useState<{ version: SopVersion; url: string } | null>(null)
   const [message, setMessage] = useState('')
   const [actionError, setActionError] = useState('')
+  // Check Compliance while the organization has no current guideline: why (the dialog), and while it is asked.
+  const [unavailable, setUnavailable] = useState<GuidelineUnavailableState>(null)
+  const [checkingGuideline, setCheckingGuideline] = useState(false)
   const triggerRef = useRef<HTMLElement | null>(null)
   const statusRef = useRef<HTMLDivElement>(null)
 
@@ -168,7 +174,7 @@ export function SopWorkflowPage() {
   // a resubmit also needs a version uploaded after the return.
   const needsCheck = checkRequired(sop, departments.departments)
   const checkRunning = isCheckRunning(sop)
-  const checkDone = !needsCheck || hasCurrentCheck(sop, guidelines.current.version)
+  const checkDone = !needsCheck || hasCurrentCheck(sop, guidelines.current?.version)
   // A completed check of this version, but against an older GVP version: it must be rerun.
   const checkedOlder = currentCheck(sop)?.status === 'completed'
   const checkReason = checkDone
@@ -176,7 +182,7 @@ export function SopWorkflowPage() {
     : checkRunning
       ? actions.checkWaiting
       : checkedOlder
-        ? actions.checkCurrentNeeded.replace('{version}', guidelines.current.version)
+        ? actions.checkCurrentNeeded.replace('{version}', guidelines.current?.version ?? '')
         : actions.checkNeeded
   const submitReason = sop.status === 'returned' && !canResubmit(sop) ? actions.resubmitHint : checkReason
   // Legacy review plans keep their existing handoff. Parallel reviews await this main-Author action.
@@ -206,7 +212,7 @@ export function SopWorkflowPage() {
       : checkBlock && content.history.checkBlocked['not-uploader'].replace('{name}', authorName)
   // One completed check per version and GVP version: a failed check or a newer GVP version can be run again.
   // A sample result can be checked again: the database allows it while the compliance service is online.
-  const checkCompleted = hasCurrentCheck(sop, guidelines.current.version) && !canReplaceSampleResult(sop)
+  const checkCompleted = hasCurrentCheck(sop, guidelines.current?.version) && !canReplaceSampleResult(sop)
   const checkUnavailableReason = checkBlockedReason || (checkCompleted ? content.history.checkCompleted : undefined)
 
   // Delete version: Draft or Returned, main author (any version) or its uploader, at least one version left.
@@ -227,8 +233,20 @@ export function SopWorkflowPage() {
     : undefined
 
   const sopId = sop.id
-  function runCheck() {
+  async function runCheck() {
     setMessage('')
+    if (!guidelines.current) {
+      // The organization has no current guideline (as loaded): ask the database why, and start no check unless one
+      // has been published since (lib/guidelineGate.ts).
+      triggerRef.current = document.activeElement as HTMLElement | null
+      setCheckingGuideline(true)
+      const state = await guidelineGate(false, fetchGuidelineAvailability, guidelines.refresh)
+      setCheckingGuideline(false)
+      if (state) {
+        setUnavailable(state)
+        return
+      }
+    }
     store.runCheck(sopId).then(
       () => announce(content.messages.checkStarted),
       (error: unknown) => announce(content.messages[checkStartFailure(error)]),
@@ -347,9 +365,9 @@ export function SopWorkflowPage() {
               <Button
                 size="sm"
                 grayWhenDisabled
-                disabled={checkRunning}
+                disabled={checkRunning || checkingGuideline}
                 aria-describedby={checkRunning ? 'check-hint' : undefined}
-                onClick={runCheck}
+                onClick={() => void runCheck()}
               >
                 <ShieldCheck aria-hidden="true" className="size-4" strokeWidth={2} />
                 {content.history.check}
@@ -512,6 +530,14 @@ export function SopWorkflowPage() {
           }}
         />
       )}
+      <GuidelineUnavailableDialog
+        state={unavailable}
+        sopId={sop.id}
+        onClose={() => {
+          setUnavailable(null)
+          returnFocus()
+        }}
+      />
       {dialog === 'newVersion' && (
         <FileDialog
           content={dialogs}

@@ -4,6 +4,7 @@ import { Link, useParams } from 'react-router-dom'
 import { ArrowLeft, ArrowRight, Check, CircleCheck, X } from 'lucide-react'
 import { EmailDetail } from '../../components/admin/DetailsCard'
 import { Button } from '../../components/ui/Button'
+import { PageLoading } from '../../components/ui/PageLoading'
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
 import { StatusBadge } from '../../components/ui/StatusBadge'
 import { adminEn } from '../../content/admin.en'
@@ -13,7 +14,7 @@ import type { UserRequest } from '../../data/mock/types'
 import { useDocumentTitle } from '../../hooks/useDocumentTitle'
 import { formatDate, formatDateTime } from '../../lib/format'
 import { approveBlockers, rejectBlocker, type RequestBlocker } from '../../lib/requestAdmin'
-import { adminUserPath } from '../../lib/routes'
+import { ADMIN_REGULATIONS_PATH, adminUserPath } from '../../lib/routes'
 import { useDepartments } from '../../state/departmentsContext'
 import { useRequests } from '../../state/requestsContext'
 import { useUsers } from '../../state/usersContext'
@@ -29,10 +30,12 @@ import { NotFoundPage } from '../NotFoundPage'
 export function RequestDetailsPage() {
   const { id } = useParams()
   const text = adminEn.requestDetails
-  const { requests } = useRequests()
+  const { requests, savedStatus } = useRequests()
   const request = requests.find((item) => item.id === id)
   useDocumentTitle(request ? text.pageTitle.replace('{title}', request.title) : undefined)
 
+  // A saved request may still be loading after a reload: not "not found" yet.
+  if (!request && savedStatus === 'loading') return <PageLoading />
   if (!request) return <NotFoundPage embedded />
   return (
     <>
@@ -82,7 +85,10 @@ function RequestPanels({ request }: { request: UserRequest }) {
 
   const [dialog, setDialog] = useState<'approve' | 'reject' | null>(null)
   const [notice, setNotice] = useState('')
+  const [failed, setFailed] = useState('')
+  const [busy, setBusy] = useState(false)
   const noticeRef = useRef<HTMLParagraphElement>(null)
+  const failedRef = useRef<HTMLParagraphElement>(null)
   const triggerRef = useRef<HTMLElement | null>(null)
   const approveReasonId = useId()
   const rejectReasonId = useId()
@@ -90,6 +96,7 @@ function RequestPanels({ request }: { request: UserRequest }) {
   const requester = getUser(request.requesterId)
   const name = requester?.name ?? ''
   const isAccess = request.type === 'department-access'
+  const isGuideline = request.type === 'regulatory-guideline-addition'
   const department = departmentName(request.departmentId)
 
   /** Why an action can't be used, as sentences (undefined: it can be used). */
@@ -114,12 +121,21 @@ function RequestPanels({ request }: { request: UserRequest }) {
     setDialog(which)
   }
 
-  function confirm(which: 'approve' | 'reject') {
+  async function confirm(which: 'approve' | 'reject') {
+    if (busy) return
     setDialog(null)
-    if (which === 'approve') approveRequest(request.id)
-    else rejectRequest(request.id)
+    setFailed('')
+    setBusy(true)
+    try {
+      await (which === 'approve' ? approveRequest(request.id) : rejectRequest(request.id))
+    } catch {
+      // A saved request the database refused (cancelled or answered meanwhile) or couldn't save; the page shows its current state.
+      flushSync(() => { setBusy(false); setFailed(text.decideFailed) })
+      failedRef.current?.focus()
+      return
+    }
     // Say what happened, and move focus there (the buttons can no longer be used).
-    flushSync(() => setNotice(which === 'approve' ? text.approvedNotice : text.rejectedNotice))
+    flushSync(() => { setBusy(false); setNotice(which === 'approve' ? text.approvedNotice : text.rejectedNotice) })
     noticeRef.current?.focus()
   }
 
@@ -154,6 +170,16 @@ function RequestPanels({ request }: { request: UserRequest }) {
       </div>
       {decided && <p className="mt-2 text-sm text-text-gray">{decided}</p>}
 
+      {failed && (
+        <p
+          ref={failedRef}
+          tabIndex={-1}
+          role="alert"
+          className="mt-6 rounded-lg border border-status-rejected-fg/25 bg-status-rejected-bg px-4 py-3 text-sm text-status-rejected-fg focus:outline-none"
+        >
+          {failed}
+        </p>
+      )}
       <div role="status">
         {notice && (
           <p
@@ -199,9 +225,9 @@ function RequestPanels({ request }: { request: UserRequest }) {
           <div className="flex flex-wrap gap-3">
             {/* aria-disabled keeps a blocked action focusable, so its reason can be heard */}
             <Button
-              aria-disabled={approveReason ? true : undefined}
+              aria-disabled={approveReason || busy ? true : undefined}
               aria-describedby={approveReason ? approveReasonId : undefined}
-              onClick={(event) => !approveReason && open('approve', event.currentTarget)}
+              onClick={(event) => !approveReason && !busy && open('approve', event.currentTarget)}
               // A blocked action looks inactive (gray), not like the main call to action.
               className="aria-disabled:border-text-gray/40 aria-disabled:bg-beige aria-disabled:text-text-gray aria-disabled:hover:border-text-gray/40 aria-disabled:hover:bg-beige"
             >
@@ -210,9 +236,9 @@ function RequestPanels({ request }: { request: UserRequest }) {
             </Button>
             <Button
               variant="secondary"
-              aria-disabled={rejectReason ? true : undefined}
+              aria-disabled={rejectReason || busy ? true : undefined}
               aria-describedby={rejectReason ? (sameReason ? approveReasonId : rejectReasonId) : undefined}
-              onClick={(event) => !rejectReason && open('reject', event.currentTarget)}
+              onClick={(event) => !rejectReason && !busy && open('reject', event.currentTarget)}
               className="aria-disabled:border-text-gray/40 aria-disabled:text-text-gray aria-disabled:hover:bg-transparent"
             >
               <X aria-hidden="true" className="size-4" strokeWidth={2} />
@@ -230,8 +256,21 @@ function RequestPanels({ request }: { request: UserRequest }) {
             </p>
           )}
           {/* Permission and role changes are made on the user's page (linked under Requester). */}
-          {!isAccess && requester && !requester.deletedAt && (
+          {!isAccess && !isGuideline && requester && !requester.deletedAt && (
             <p className="mt-4 text-sm text-text-gray">{text.changeHint}</p>
+          )}
+          {/* Approving records the decision only: the guideline is added and processed in SFDA Regulatory Requirements. */}
+          {isGuideline && (
+            <div className="mt-4 text-sm text-text-gray">
+              <p>{text.guidelineHint.text}</p>
+              <Link
+                to={ADMIN_REGULATIONS_PATH}
+                className="mt-2 inline-flex items-center gap-1.5 rounded-sm font-medium text-maroon underline underline-offset-2 hover:text-maroon-secondary"
+              >
+                {text.guidelineHint.link}
+                <ArrowRight aria-hidden="true" className="size-4" strokeWidth={1.75} />
+              </Link>
+            </div>
           )}
         </Panel>
       </div>
@@ -239,12 +278,12 @@ function RequestPanels({ request }: { request: UserRequest }) {
       <ConfirmDialog
         open={dialog === 'approve'}
         title={text.approveDialog.title}
-        description={(isAccess ? text.approveDialog.access : text.approveDialog.change)
+        description={(isAccess ? text.approveDialog.access : isGuideline ? text.approveDialog.guideline : text.approveDialog.change)
           .replace('{name}', name)
           .replace('{department}', department)}
         cancelLabel={text.approveDialog.cancel}
         confirmLabel={text.approveDialog.confirm}
-        onConfirm={() => confirm('approve')}
+        onConfirm={() => void confirm('approve')}
         onCancel={() => {
           setDialog(null)
           triggerRef.current?.focus()
@@ -260,7 +299,7 @@ function RequestPanels({ request }: { request: UserRequest }) {
         }
         cancelLabel={text.rejectDialog.cancel}
         confirmLabel={text.rejectDialog.confirm}
-        onConfirm={() => confirm('reject')}
+        onConfirm={() => void confirm('reject')}
         onCancel={() => {
           setDialog(null)
           triggerRef.current?.focus()

@@ -14,12 +14,20 @@ import { useGuidelines } from '../../state/guidelinesContext'
  * The GVP version compliance checks use (the database's current version, never one an admin has
  * added since), as one bordered row: its title, version pill and Current badge, when SFDA issued it
  * and when it was added to Hawkim, and a View button (with "Preview" above it) to its read-only page. On the SOP workflow page,
- * before the Compliance Overview's text.
+ * before the Compliance Overview's text. While the organization has no current version, the row says so instead
+ * (no version, no Current badge, no View).
  */
 export function ComplianceGuideline({ sopId }: { sopId: string }) {
   const { current } = useGuidelines()
   const navigate = useNavigate()
   const names = adminEn.regulations
+  if (!current) {
+    return (
+      <div className="rounded-lg border border-beige bg-white p-4">
+        <p className="text-sm text-text-gray">{complianceEn.card.guideline.none}</p>
+      </div>
+    )
+  }
   const name = names.versionLabel.replace('{title}', current.title ?? '').replace('{version}', current.version)
   const date = (isoDate: string | undefined): ReactNode => (isoDate ? <time dateTime={isoDate}>{formatDate(isoDate)}</time> : names.none)
   // The dates line's template, split around its two placeholders so the dates can be <time> elements.

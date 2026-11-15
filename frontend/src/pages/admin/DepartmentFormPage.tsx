@@ -22,6 +22,7 @@ import {
   type DepartmentFormProblem,
   type DepartmentFormValues,
 } from '../../lib/departmentForm'
+import { isDefaultDepartment } from '../../lib/organizationAdmin'
 import { adminDepartmentPath, NEW_DEPARTMENT_DIVISION_PARAM } from '../../lib/routes'
 import { saveDepartment, type ManagedDepartment, type ManagementSnapshot } from '../../services/organizationAdmin'
 import { useDepartments } from '../../state/departmentsContext'
@@ -66,6 +67,7 @@ function DepartmentForm({ snapshot, department }: { snapshot: ManagementSnapshot
   const [params] = useSearchParams()
 
   const divisions = snapshot.divisions
+  const defaultDepartment = !!department && isDefaultDepartment(department)
   const requestedDivision = department ? null : params.get(NEW_DEPARTMENT_DIVISION_PARAM)
   const requestedIsActive = !!requestedDivision && divisions.some((division) => division.id === requestedDivision)
   // Decided once: a later snapshot refresh doesn't change what the admin is editing.
@@ -187,11 +189,14 @@ function DepartmentForm({ snapshot, department }: { snapshot: ManagementSnapshot
           label={content.name.label}
           required
           requiredMark
+          // A default department keeps its name (the database refuses a change); its other details can change.
+          readOnly={defaultDepartment}
+          hint={defaultDepartment ? orgText.defaultDepartmentName : undefined}
           value={values.name}
           error={errors.name}
           onChange={(event) => setValues({ ...values, name: event.target.value })}
           onBlur={() => blur('name')}
-          className="mt-5"
+          className={`mt-5 ${defaultDepartment ? '[&_input]:bg-beige/40' : ''}`}
         />
         <TextAreaField
           ref={descriptionRef}

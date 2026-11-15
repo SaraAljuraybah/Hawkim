@@ -90,7 +90,7 @@ export function RegulationDetailsPage() {
       </Link>
       <div className="mt-5 flex flex-wrap items-center gap-3">
         <h1 className="text-2xl tracking-tight sm:text-3xl">{name}</h1>
-        {version.id === shownCurrent.id && <CurrentBadge label={names.current.badge} />}
+        {version.id === shownCurrent?.id && <CurrentBadge label={names.current.badge} />}
         {version.neverCurrent && (
           <Button
             ref={deleteButton}

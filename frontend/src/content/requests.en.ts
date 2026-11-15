@@ -11,6 +11,7 @@ export const requestsEn: RequestsContent = {
     'department-access': 'Department Access',
     'permission-change': 'Permission Change',
     'role-change': 'Role Change',
+    'regulatory-guideline-addition': 'Regulatory Guideline Addition',
   },
 
   submit: {
@@ -43,6 +44,15 @@ export const requestsEn: RequestsContent = {
       departmentRequired: 'Select a department.',
       titleRequired: 'Enter a title.',
       descriptionRequired: 'Enter a description.',
+      saveFailed: "Your request couldn't be sent. Check your connection and try again.",
+    },
+    guidelinePrefill: {
+      title: 'Request to Add a Regulatory Guideline',
+      description:
+        'Our organization currently has no regulatory guideline available for compliance checking. Please add the regulatory guideline that applies to our SOPs so they can be checked for compliance.',
+      descriptionForSop:
+        'Our organization currently has no regulatory guideline available for compliance checking. Please add the regulatory guideline that applies to our SOPs so they can be checked for compliance, starting with “{title}”.',
+      backToSop: 'Back to {title}',
     },
     cancel: { label: 'Cancel', href: '/requests' },
     readOnlyCancelHref: '/sops',
@@ -76,6 +86,12 @@ export const requestsEn: RequestsContent = {
       confirm: 'Cancel Request',
     },
     cancelledAnnouncement: 'Request cancelled.',
+    cancelFailed: "The request couldn't be cancelled. It may have been answered already. Refresh the page and try again.",
     empty: 'No requests here yet.',
+    loading: 'Loading requests…',
+    loadFailed: {
+      text: "Some requests couldn't be loaded. Check your connection and try again.",
+      retry: 'Retry',
+    },
   },
 }

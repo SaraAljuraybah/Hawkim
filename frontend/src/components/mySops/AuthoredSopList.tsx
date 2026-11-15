@@ -38,7 +38,7 @@ const focusRing =
  * Only one of the two is ever displayed.
  */
 export function AuthoredSopList({ sops, content, userId, onDelete }: AuthoredSopListProps) {
-  const currentGuideline = useGuidelines().current.version
+  const currentGuideline = useGuidelines().current?.version
   const { departments } = useDepartments()
   const { columns } = content
   // A Delete column only when a row here has the button, so the columns stay aligned.

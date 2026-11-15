@@ -31,7 +31,7 @@ export function ComplianceCard({ sop, content }: ComplianceCardProps) {
   const check = currentCheck(sop)
   const running = check?.status === 'running'
   // Checked against an older GVP version than the current one (drafts, returned and published).
-  const currentGuideline = useGuidelines().current.version
+  const currentGuideline = useGuidelines().current?.version
   const recheck = recheckRecommended(sop, currentGuideline)
 
   // Announce when a running check completes (the results themselves aren't read out).
@@ -56,7 +56,7 @@ export function ComplianceCard({ sop, content }: ComplianceCardProps) {
           <p className="text-sm text-maroon">
             {text.recheck.note
               .replace('{checked}', lastCheckedVersion(sop) ?? '')
-              .replace('{current}', currentGuideline)}
+              .replace('{current}', currentGuideline ?? '')}
           </p>
         </div>
       )}

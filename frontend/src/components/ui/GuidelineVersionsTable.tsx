@@ -30,7 +30,8 @@ export function GuidelineVersionsTable({
   className = '',
 }: {
   versions: GuidelineVersion[]
-  currentId: string
+  /** The version shown as current; undefined while the organization has none (no badge at all). */
+  currentId: string | undefined
   /** Names the table (and the stacked list) for screen readers. */
   label: string
   actions: (version: GuidelineVersion) => GuidelineVersionActions

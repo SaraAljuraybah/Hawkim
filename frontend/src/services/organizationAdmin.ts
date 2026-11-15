@@ -14,6 +14,11 @@ export interface ManagedDepartment {
   id: string; name: string; initials: string; description: string; division_id: string | null;
   /** Optional contact email, admin-only (null when none; missing before migration 20261108150000). */
   email?: string | null
+  /**
+   * Set on the organization's two default departments ('pharmacovigilance', 'quality-assurance'): they can't be
+   * deleted or renamed (the database refuses; 20261120120000). Null for every other department.
+   */
+  system_key?: string | null
   updated_at: string; deletion_job_id?: string | null; people?: ManagedPerson[]; employees: number; sops: number; status_counts: Record<string, number>
 }
 export interface ManagementSnapshot { divisions: DivisionRecord[]; departments: ManagedDepartment[] }
@@ -39,6 +44,9 @@ const DATABASE_MESSAGES: Record<string, string> = {
   'Departments with assigned employees cannot be deleted.': text.departmentBlocked,
   'Settle active reviews and compliance checks before deleting this department.': text.activeWorkflow,
   'Departments with SOPs cannot be deleted.': text.departmentHasSopsBlocked,
+  // 20261120120000: the default departments.
+  'Default departments cannot be deleted.': text.defaultDepartmentBlocked,
+  "A default department's name can't be changed": text.defaultDepartmentName,
   'Department file cleanup is pending': text.departmentPendingCleanup,
   'Department is no longer available': text.departmentUnavailable,
   'Select an active division': text.requiredDivision,
@@ -68,6 +76,7 @@ function isSnapshot(value: unknown): value is ManagementSnapshot {
     if (!object(row) || typeof row.id !== 'string' || departmentIds.has(row.id) || typeof row.name !== 'string' ||
       typeof row.initials !== 'string' || typeof row.description !== 'string' || typeof row.updated_at !== 'string' ||
       !(row.email === undefined || row.email === null || typeof row.email === 'string') ||
+      !(row.system_key === undefined || row.system_key === null || typeof row.system_key === 'string') ||
       !(row.division_id === null || typeof row.division_id === 'string') || !count(row.employees) || !count(row.sops) ||
       !object(row.status_counts) || !Object.values(row.status_counts).every(count) || !Array.isArray(row.people)) return false
     departmentIds.add(row.id)

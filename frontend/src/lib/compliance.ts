@@ -59,11 +59,12 @@ export function currentCheck(sop: Sop): ComplianceCheck | undefined {
 
 /**
  * Submit and Resubmit need a completed check of the SOP's current version against the
- * CURRENT guideline version (PBI 20, 29). The check doesn't have to pass.
+ * CURRENT guideline version (PBI 20, 29). The check doesn't have to pass. Never true while the
+ * organization has no current guideline (`guidelineVersion` undefined): nothing can be checked yet.
  */
-export function hasCurrentCheck(sop: Sop, guidelineVersion: string): boolean {
+export function hasCurrentCheck(sop: Sop, guidelineVersion: string | undefined): boolean {
   const check = currentCheck(sop)
-  return check?.status === 'completed' && check.guideline.version === guidelineVersion
+  return guidelineVersion !== undefined && check?.status === 'completed' && check.guideline.version === guidelineVersion
 }
 
 /** Results from the sample engine (in-memory checks have no engine and are samples too). */
