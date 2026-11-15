@@ -73,7 +73,7 @@ Requirements; once it is processed and published, compliance checks run against 
   - **Worker jobs:** finishing B's GVP version and B's compliance check changes nothing of A's.
 - **`multi_tenant_isolation.local.mjs`:** the same through the real API: Storage (all three buckets), the Edge Functions (`delete-sop`, `delete-department`, `update-user-email`, `resend-invitation`) and PostgREST.
 - **`add_user_other_organization.local.mjs`:** `add-user` across organizations.
-- **One test per migration**, in `supabase/tests/`. For the 2026-11-20 migrations: `default_departments.sql`, `guideline_availability.sql`, `user_requests.sql` (and `multi_tenant_isolation.sql` covers the four new functions and the new table).
+- **One test per migration**, in `supabase/tests/`. For the 2026-11-20 migrations: `default_departments.sql`, `guideline_availability.sql`, `user_requests.sql` (and `multi_tenant_isolation.sql` covers the four new functions and the new table); through the API and Edge Functions `default_departments_requests.local.mjs`, and in Chrome `default_departments_requests.browser.local.mjs`. The release and its rollback: `docs/release-2026-11-20.md`.
 
 ## The release (one window)
 
