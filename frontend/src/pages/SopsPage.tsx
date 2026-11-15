@@ -232,11 +232,13 @@ function SopDirectory({ activeDepartment, admin = false }: { activeDepartment: D
           <ViewToggle value={view} onChange={setView} labels={content.viewToggle} />
         </div>
       </div>
-      {/* What Recently Published means, on both tabs */}
-      <p className="mt-3 flex items-center gap-1.5 text-sm text-text-gray">
-        <Info aria-hidden="true" className="size-4 shrink-0" strokeWidth={2} />
-        {content.recentNote.replace('{count}', String(RECENT_MONTHS))}
-      </p>
+      {/* What Recently Published means: only on that tab, and only when it lists SOPs (an empty tab shows its own message). */}
+      {selectedTab === 'recent' && visibleSops.length > 0 && (
+        <p className="mt-3 flex items-center gap-1.5 text-sm text-text-gray">
+          <Info aria-hidden="true" className="size-4 shrink-0" strokeWidth={2} />
+          {content.recentNote.replace('{count}', String(RECENT_MONTHS))}
+        </p>
+      )}
 
       <div role="tabpanel" id={ids.panel} aria-labelledby={ids.tab} tabIndex={0} className="mt-4 rounded-xl">
         {visibleSops.length === 0 ? (

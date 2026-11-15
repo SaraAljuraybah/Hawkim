@@ -16,6 +16,7 @@ import { approvalEn } from '../content/approval.en'
 import { internalReviewEn } from '../content/internalReview.en'
 import { reviewsEn } from '../content/reviews.en'
 import { sopWorkflowEn } from '../content/workflow.en'
+import { todayIsoDate } from '../lib/format'
 
 const fixture = vi.hoisted(() => ({
   user: { id: 'visitor', name: 'Visitor', initials: 'VV', email: 'v@example.test', departmentId: 'home', permissions: ['author', 'reviewer', 'approver'] } as User,
@@ -212,14 +213,32 @@ describe('the SOP Directory texts for everyone but the System Admin', () => {
     expect(render(<SopsPage />)).toContain('No published SOPs yet.')
   })
 
-  it('explains Recently Published under the tabs on both tabs, with the info icon', () => {
-    const note = 'Recently Published shows SOPs published in the last 3 months.'
-    for (const url of ['/test', '/test?tab=recent']) {
-      const html = render(<SopsPage />, url)
-      expect(html).toMatch(new RegExp(`<p class="mt-3 flex items-center gap-1.5 text-sm text-text-gray"><svg[^>]*lucide-info[^>]*>.*?</svg>${note}</p>`))
-      expect(html.indexOf('role="tablist"')).toBeLessThan(html.indexOf(note))
-      expect(html.indexOf(note)).toBeLessThan(html.indexOf('role="tabpanel"'))
-    }
+  const note = 'Recently Published shows SOPs published in the last 3 months.'
+  const empty = 'No SOPs published in the last 3 months.'
+
+  it('explains Recently Published under the tabs on that tab, with the info icon, when it lists SOPs', () => {
+    fixture.sops = [{ ...sop('home-published', 'home', 'published'), lastUpdated: todayIsoDate() }]
+    const html = render(<SopsPage />, '/test?tab=recent')
+    expect(html).toMatch(new RegExp(`<p class="mt-3 flex items-center gap-1.5 text-sm text-text-gray"><svg[^>]*lucide-info[^>]*>.*?</svg>${note}</p>`))
+    expect(html.indexOf('role="tablist"')).toBeLessThan(html.indexOf(note))
+    expect(html.indexOf(note)).toBeLessThan(html.indexOf('role="tabpanel"'))
+    expect(html).toContain('home-published')
+    expect(html).not.toContain(empty)
+  })
+
+  it('shows only the empty message on Recently Published when nothing was published in the last 3 months', () => {
+    fixture.sops = [{ ...sop('home-published', 'home', 'published'), lastUpdated: '2020-01-01' }]
+    const html = render(<SopsPage />, '/test?tab=recent')
+    expect(html).toContain(empty)
+    expect(html).not.toContain(note)
+  })
+
+  it('never shows the note on All SOPs, with or without SOPs', () => {
+    fixture.sops = [{ ...sop('home-published', 'home', 'published'), lastUpdated: todayIsoDate() }]
+    expect(render(<SopsPage />)).toContain('home-published')
+    expect(render(<SopsPage />)).not.toContain(note)
+    fixture.sops = []
+    expect(render(<SopsPage />)).not.toContain(note)
   })
 
   it('shows the short result count in the tabs row, next to the view toggle, announced, with no line under the search', () => {
