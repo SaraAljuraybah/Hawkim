@@ -7,21 +7,19 @@ import { matchesDivisionDepartmentFilter, UNASSIGNED_GROUP_ID, type FilterDepart
  * Names A to Z or Z to A; staff and SOP counts high to low ('-desc') or low to high ('-asc').
  * Ties go by name A to Z (then the id).
  */
-export const DIVISION_SORTS = [
-  'default',
-  'division-name-asc', 'division-name-desc',
-  'division-staff-desc', 'division-staff-asc',
-  'division-sops-desc', 'division-sops-asc',
-  'department-name-asc', 'department-name-desc',
-  'department-staff-desc', 'department-staff-asc',
-  'department-sops-desc', 'department-sops-asc',
-] as const
-export type DivisionSort = (typeof DIVISION_SORTS)[number]
-/** The Sort menu's groups: what each sort orders by (e.g. 'division-staff': a division's staff). */
-export type DivisionSortGroup = 'division-name' | 'division-staff' | 'division-sops' | 'department-name' | 'department-staff' | 'department-sops'
-/** The group each sort is listed under in the Sort menu ('default' has none). */
-export const sortGroup = (sort: DivisionSort): DivisionSortGroup | undefined =>
-  sort === 'default' ? undefined : (sort.slice(0, sort.lastIndexOf('-')) as DivisionSortGroup)
+/**
+ * The shared Sort area above Divisions and Departments: Number of Staff or Number of SOPs, each ascending or
+ * descending, or neither ('default': the server order). One choice orders the divisions by their totals and,
+ * inside each division, its departments by their own counts.
+ */
+export const DIVISION_SORT_KEYS = ['staff', 'sops'] as const
+export type DivisionSortKey = (typeof DIVISION_SORT_KEYS)[number]
+export type SortDirection = 'asc' | 'desc'
+export type DivisionSort = 'default' | `${DivisionSortKey}-${SortDirection}`
+
+/** The sort after pressing a button: the same button again goes back to the default order. */
+export const nextDivisionSort = (current: DivisionSort, pressed: Exclude<DivisionSort, 'default'>): DivisionSort =>
+  current === pressed ? 'default' : pressed
 
 export interface HierarchyOptions {
   /** Division ids to show (any of them); empty or missing shows every division. */
@@ -96,25 +94,29 @@ export function managementFilterData(snapshot: ManagementSnapshot): FilterDepart
   }
 }
 
-/** Orders the rows (or each row's departments); equal values fall back to the name, then the id, so the order is always the same. */
-function sortRows<T extends { division: { name: string; id: string }; employees: number; sops: number; children: { name: string; id: string; employees: number; sops: number }[] }>(rows: T[], sort: DivisionSort): T[] {
+type Counted = { name: string; id: string; employees: number; sops: number }
+
+/** The order of a sort; equal values fall back to the name, then the id, so the order is always the same. */
+function orderOf(sort: Exclude<DivisionSort, 'default'>): (a: Counted, b: Counted) => number {
+  const [key, direction] = sort.split('-') as [DivisionSortKey, SortDirection]
+  const value = (item: Counted) => (key === 'staff' ? item.employees : item.sops)
+  return (a, b) => (direction === 'asc' ? value(a) - value(b) : value(b) - value(a)) || byName(a, b)
+}
+
+/** Orders departments by their own counts (the departments without a division too). */
+export function sortDepartments<T extends Counted>(departments: T[], sort: DivisionSort = 'default'): T[] {
+  return sort === 'default' ? departments : [...departments].sort(orderOf(sort))
+}
+
+/**
+ * Orders the divisions by their totals and each division's departments by their own counts, so a department
+ * never leaves its division.
+ */
+function sortRows<T extends { division: { name: string; id: string }; employees: number; sops: number; children: Counted[] }>(rows: T[], sort: DivisionSort): T[] {
   if (sort === 'default') return rows
-  type Item = { name: string; id: string; employees: number; sops: number }
-  const orders: Record<'name-asc' | 'name-desc' | 'staff-desc' | 'staff-asc' | 'sops-desc' | 'sops-asc', (a: Item, b: Item) => number> = {
-    'name-asc': byName,
-    'name-desc': (a, b) => -byName(a, b),
-    'staff-desc': (a, b) => b.employees - a.employees || byName(a, b),
-    'staff-asc': (a, b) => a.employees - b.employees || byName(a, b),
-    'sops-desc': (a, b) => b.sops - a.sops || byName(a, b),
-    'sops-asc': (a, b) => a.sops - b.sops || byName(a, b),
-  }
-  if (sort.startsWith('department-')) {
-    const order = orders[sort.slice('department-'.length) as keyof typeof orders]
-    return rows.map((row) => ({ ...row, children: [...row.children].sort(order) }))
-  }
-  const order = orders[sort.slice('division-'.length) as keyof typeof orders]
-  const item = (row: T): Item => ({ name: row.division.name, id: row.division.id, employees: row.employees, sops: row.sops })
-  return [...rows].sort((a, b) => order(item(a), item(b)))
+  const order = orderOf(sort)
+  const item = (row: T): Counted => ({ name: row.division.name, id: row.division.id, employees: row.employees, sops: row.sops })
+  return [...rows].sort((a, b) => order(item(a), item(b))).map((row) => ({ ...row, children: sortDepartments(row.children, sort) }))
 }
 
 /**

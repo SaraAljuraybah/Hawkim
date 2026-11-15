@@ -1,9 +1,8 @@
 import { Fragment, useMemo, useRef, useState } from 'react'
 import { useLocation } from 'react-router-dom'
-import { ChevronDown, ChevronRight, Eye, Pencil, Plus, Trash2, X } from 'lucide-react'
+import { ArrowDownWideNarrow, ArrowUpNarrowWide, ChevronDown, ChevronRight, Eye, Pencil, Plus, Trash2, X } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
 import { TextField } from '../../components/ui/TextField'
-import { SelectField } from '../../components/ui/SelectField'
 import { FilterPopover } from '../../components/ui/FilterPopover'
 import { LIST_TOOLBAR } from '../../components/ui/toolbar'
 import { IconButton } from '../../components/ui/IconButton'
@@ -22,7 +21,7 @@ import { useDocumentTitle } from '../../hooks/useDocumentTitle'
 import { useOrganizationManagement } from '../../hooks/useOrganizationManagement'
 import { departmentsKept, filterSelection } from '../../lib/organization'
 import { formatCount } from '../../lib/count'
-import { departmentDeleteBlocker, DIVISION_SORTS, hierarchyRows, managementFilterData, sortGroup, unassignedRows, type DivisionSort } from '../../lib/organizationAdmin'
+import { departmentDeleteBlocker, DIVISION_SORT_KEYS, hierarchyRows, managementFilterData, nextDivisionSort, sortDepartments, unassignedRows, type DivisionSort } from '../../lib/organizationAdmin'
 import { deleteDivision, type DivisionRecord, type ManagedDepartment, type ManagementSnapshot } from '../../services/organizationAdmin'
 
 export interface AdminDepartmentsLocationState { removed?: string }
@@ -65,7 +64,8 @@ export function AdminDepartmentsPage() {
     <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"><div><h1 className="text-2xl tracking-tight sm:text-3xl">{text.title}</h1>
       <p className="mt-2 max-w-2xl text-text-gray">{text.subtitle}</p></div>
       <Button className="shrink-0 self-start sm:self-auto" onClick={() => open(() => setEditing(null))}><Plus className="size-4" aria-hidden="true" />{text.addDivision}</Button></div>
-    {/* Search | Filter | Sort, the same row as on every list page; from lg the Filter panel lines up with its right edge. */}
+    {/* Search | Filter, the row of every list page; from lg the Filter panel lines up with its right edge. Sorting is the
+        shared Sort area above the table. */}
     <div className={`mt-6 ${LIST_TOOLBAR}`}>
       <TextField className="min-w-0" name="organizationSearch" type="search" label={text.search} placeholder={text.searchPlaceholder} value={query} onChange={(event) => setQuery(event.target.value)} />
       {/* The Filter field of every list page: Division, then Department grouped by division (the linked rule). */}
@@ -78,20 +78,18 @@ export function AdminDepartmentsPage() {
             emptyText: filtersEn.department.empty, summary: filtersEn.department.count, scrollable: true,
             groups: departmentGroups.map((group) => ({ id: group.id, label: group.unassigned ? filtersEn.department.unassigned : group.label, options: group.options })) },
         ]} />
-      <SelectField className="min-w-0" name="divisionSort" label={text.sort} value={sort}
-        options={DIVISION_SORTS.map((value) => {
-          const group = sortGroup(value)
-          return { value, label: text.sortOptions[value], ...(group ? { group: text.sortGroups[group] } : {}) }
-        })}
-        onChange={(event) => setSort(event.target.value as DivisionSort)} />
     </div>
     {(selectedDivisions.length > 0 || selectedDepartments.length > 0) && <ActiveFilters onClear={clearFilter} items={[
       ...divisionChoices.filter((option) => selectedDivisions.includes(option.value))
         .map((option) => ({ id: `division-${option.value}`, label: option.label, onRemove: () => setDivisions(selectedDivisions.filter((id) => id !== option.value)) })),
       ...selectedDepartments.map((id) => ({ id: `department-${id}`, label: departmentLabel(id), onRemove: () => setDepartmentFilter(selectedDepartments.filter((other) => other !== id)) })),
     ]} />}
-    {/* The number of divisions, announced as it changes (as on Staff and Admins). */}
-    {data && !error && <p role="status" className="mt-6 text-sm font-medium text-text-gray">{formatCount(shownDivisions, text.divisionCount)}</p>}
+    {/* The number of divisions, announced as it changes (as on Staff and Admins), and the shared Sort area for
+        divisions and their departments. */}
+    {data && !error && <div className="mt-6 flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
+      <p role="status" className="text-sm font-medium text-text-gray">{formatCount(shownDivisions, text.divisionCount)}</p>
+      <SortArea value={sort} onChange={setSort} />
+    </div>}
     <p role="status" className="mt-4 text-sm text-status-approved-fg">{feedback}</p>
     {error ? <div role="alert"><p>{text.loadFailed}</p><Button variant="secondary" onClick={() => void refresh()}>{text.retry}</Button></div>
       : !data ? <PageLoading /> : <HierarchyTable snapshot={data} query={query} divisions={selectedDivisions} departments={selectedDepartments} sort={sort}
@@ -110,6 +108,32 @@ export function AdminDepartmentsPage() {
     {viewing && <DepartmentPreview department={viewing} divisionName={data?.divisions.find((item) => item.id === viewing.division_id)?.name} onClose={close} />}
     {department && <DeleteDepartmentDialog department={department} onClose={close} onDeleted={() => { setFeedback(text.removed); void refresh() }} />}
   </>
+}
+
+/**
+ * The shared Sort area: Number of Staff and Number of SOPs, each with Ascending and Descending (pressed buttons, one
+ * at a time). Pressing the selected one again goes back to the default order.
+ */
+export function SortArea({ value, onChange }: { value: DivisionSort; onChange: (sort: DivisionSort) => void }) {
+  const labels = text.sortArea
+  return <div role="group" aria-label={labels.label} className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
+    <span aria-hidden="true" className="font-medium text-text-gray">{labels.label}</span>
+    {DIVISION_SORT_KEYS.map((key) => <div key={key} role="group" aria-labelledby={`division-sort-${key}`} className="flex items-center gap-2">
+      <span id={`division-sort-${key}`} className="font-semibold text-maroon">{labels[key]}</span>
+      <span className="inline-flex rounded-lg border border-beige bg-white p-0.5">
+        {(['asc', 'desc'] as const).map((direction) => {
+          const option = `${key}-${direction}` as const
+          const pressed = value === option
+          const Icon = direction === 'asc' ? ArrowUpNarrowWide : ArrowDownWideNarrow
+          return <button key={direction} type="button" aria-pressed={pressed} onClick={() => onChange(nextDivisionSort(value, option))}
+            className={`inline-flex h-9 items-center gap-1.5 rounded-md px-2.5 font-medium transition-colors ${
+              pressed ? 'bg-maroon text-white' : 'text-text-gray hover:bg-beige hover:text-maroon'}`}>
+            <Icon aria-hidden="true" className="size-4" strokeWidth={2} />{labels[direction]}
+          </button>
+        })}
+      </span>
+    </div>)}
+  </div>
 }
 
 /** The selected divisions, then departments, each removable, and Clear Filters (both). */
@@ -160,7 +184,7 @@ export function HierarchyTable({ snapshot, query = '', divisions = [], departmen
     if (opensItself(id)) setCollapsedInSearch(update); else setExpanded(update)
   }
   // Departments without a division: none with a division filter alone; only the chosen ones with a department filter.
-  const unassigned = unassignedRows(snapshot, query, { divisions, departments })
+  const unassigned = sortDepartments(unassignedRows(snapshot, query, { divisions, departments }), sort)
   function child(row: ManagedDepartment) {
     return <tr key={row.id} className="border-t border-beige hover:bg-beige/20">
       <th scope="row" className="py-3 pr-4 pl-12 font-medium"><span className="flex items-center gap-3 border-l border-beige pl-5"><DepartmentBadge department={row} />

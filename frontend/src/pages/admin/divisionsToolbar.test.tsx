@@ -3,7 +3,7 @@ import { isValidElement, type ReactElement, type ReactNode } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { MemoryRouter } from 'react-router-dom'
 import type { ManagementSnapshot } from '../../services/organizationAdmin'
-import { ActiveFilters, AdminDepartmentsPage, HierarchyTable } from './AdminDepartmentsPage'
+import { ActiveFilters, AdminDepartmentsPage, HierarchyTable, SortArea } from './AdminDepartmentsPage'
 
 const management = vi.hoisted(() => ({ value: {} as { data?: unknown; error?: string; refresh: () => Promise<void> } }))
 vi.mock('../../hooks/useDocumentTitle', () => ({ useDocumentTitle: () => {} }))
@@ -21,6 +21,8 @@ const snapshot: ManagementSnapshot = {
   ],
 }
 const page = () => renderToStaticMarkup(<MemoryRouter><AdminDepartmentsPage /></MemoryRouter>)
+/** The shared Sort area's markup. */
+const sortArea = (html: string) => html.slice(html.indexOf('aria-label="Sort by"'), html.indexOf('<table'))
 const table = (props: Partial<Parameters<typeof HierarchyTable>[0]> = {}) => renderToStaticMarkup(<MemoryRouter>
   <HierarchyTable snapshot={snapshot} onEdit={vi.fn()} onPreview={vi.fn()} onViewDepartment={vi.fn()} onAddDepartment={vi.fn()} onEditDepartment={vi.fn()} onDeleteDivision={vi.fn()} onDeleteDepartment={vi.fn()} {...props} />
 </MemoryRouter>)
@@ -34,7 +36,7 @@ describe('the Divisions and Departments page', () => {
     expect(html).toContain('Add Division')
   })
 
-  it('has the toolbar of every list page: Search, Filter and Sort, in that order, above the table', () => {
+  it('has the toolbar of every list page: Search and Filter, in that order, then the shared Sort area, above the table', () => {
     management.value = { data: snapshot, refresh: vi.fn() }
     const html = page()
     // One column on small screens; on large screens 2fr : 1fr : 1fr, as on every list page.
@@ -42,25 +44,23 @@ describe('the Divisions and Departments page', () => {
     expect(toolbar).not.toBeNull()
     expect(toolbar![0]).not.toMatch(/(?<!lg:)grid-cols/)
     expect(html).not.toContain('max-w-md')
-    const order = ['name="organizationSearch"', '>Filter</label>', 'name="divisionSort"', '<table']
+    const order = ['name="organizationSearch"', '>Filter</label>', 'aria-label="Sort by"', '<table']
     expect(order.map((text) => html.indexOf(text))).toEqual([...order.map((text) => html.indexOf(text))].sort((a, b) => a - b))
     expect(html).toContain('placeholder="Search divisions or departments..."')
+    // No Sort dropdown any more, and only one Sort area for both divisions and departments.
+    expect(html).not.toContain('name="divisionSort"')
+    expect(html.match(/aria-label="Sort by"/g)).toHaveLength(1)
   })
 
-  it('offers the default order, then each group (saying what it sorts) with its two directions', () => {
+  it('offers Number of Staff and Number of SOPs, each Ascending and Descending, none selected by default', () => {
     management.value = { data: snapshot, refresh: vi.fn() }
-    const select = page().match(/<select[^>]*name="divisionSort"[^>]*>([\s\S]*?)<\/select>/)![1]
-    const groups = [...select.matchAll(/<optgroup label="([^"]+)">([\s\S]*?)<\/optgroup>/g)]
-      .map((group) => [group[1], [...group[2].matchAll(/>([^<]+)<\/option>/g)].map((option) => option[1])])
+    const area = sortArea(page())
+    const groups = [...area.matchAll(/<div role="group" aria-labelledby="(division-sort-[a-z]+)"[^>]*><span id="\1"[^>]*>([^<]+)<\/span>([\s\S]*?)<\/span><\/div>/g)]
+      .map((group) => [group[2], [...group[3].matchAll(/<button type="button" aria-pressed="(true|false)"[^>]*><svg[\s\S]*?<\/svg>([^<]+)<\/button>/g)].map((button) => `${button[2]}:${button[1]}`)])
     expect(groups).toEqual([
-      ['Division name', ['A to Z', 'Z to A']],
-      ['Division staff', ['High to low', 'Low to high']],
-      ['Division SOPs', ['High to low', 'Low to high']],
-      ['Department name', ['A to Z', 'Z to A']],
-      ['Department staff', ['High to low', 'Low to high']],
-      ['Department SOPs', ['High to low', 'Low to high']],
+      ['Number of Staff', ['Ascending:false', 'Descending:false']],
+      ['Number of SOPs', ['Ascending:false', 'Descending:false']],
     ])
-    expect(select).toMatch(/^<option value="default"[^>]*>Default order<\/option><optgroup/)
   })
 
   it('has the Filter field of every list page: Division, then Department grouped by division, by name', () => {
@@ -81,7 +81,8 @@ describe('the Divisions and Departments page', () => {
   it('shows the number of divisions above the table, like Staff and Admins (the unassigned group isn\'t a division)', () => {
     management.value = { data: snapshot, refresh: vi.fn() }
     const html = page()
-    expect(html).toMatch(/<p role="status" class="mt-6 text-sm font-medium text-text-gray">2 divisions<\/p>/)
+    // On one row with the shared Sort area (the row has the top margin).
+    expect(html).toMatch(/<div class="mt-6 flex flex-wrap items-center justify-between gap-x-6 gap-y-3"><p role="status" class="text-sm font-medium text-text-gray">2 divisions<\/p><div role="group" aria-label="Sort by"/)
     expect(html.indexOf('2 divisions')).toBeLessThan(html.indexOf('<table'))
     management.value = { data: { ...snapshot, divisions: snapshot.divisions.slice(0, 1) }, refresh: vi.fn() }
     expect(page()).toContain('>1 division<')
@@ -115,7 +116,7 @@ describe('the division filter on the table', () => {
   })
 
   it('combines with search and sort, and says when nothing matches', () => {
-    const sorted = table({ divisions: ['q', 'c'], sort: 'division-sops-desc' })
+    const sorted = table({ divisions: ['q', 'c'], sort: 'sops-desc' })
     expect(sorted.indexOf('Clinical Research')).toBeLessThan(sorted.indexOf('Quality and Compliance'))
     const searched = table({ divisions: ['q', 'c'], query: 'operations' })
     expect(searched).toContain('>Clinical Operations</span>')
@@ -248,5 +249,27 @@ describe('the organization name', () => {
     expect(html).not.toContain('lucide-pill')
     expect(html).not.toContain('Organization name')
     expect(html).toMatch(/^<div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"><div><h1/)
+  })
+})
+
+describe('the shared Sort area', () => {
+  const area = (value: Parameters<typeof SortArea>[0]['value']) => renderToStaticMarkup(<SortArea value={value} onChange={vi.fn()} />)
+
+  it('shows the selected direction as pressed, and only that one', () => {
+    const html = area('sops-desc')
+    expect(html.match(/aria-pressed="true"/g)).toHaveLength(1)
+    expect(html).toMatch(/aria-labelledby="division-sort-sops"[\s\S]*?aria-pressed="false"[\s\S]*?aria-pressed="true" class="[^"]*bg-maroon text-white[^"]*"><svg[\s\S]*?<\/svg>Descending</)
+  })
+
+  it('sorts divisions and their departments together, with real numbers', () => {
+    const order = (sort: Parameters<typeof HierarchyTable>[0]['sort']) => {
+      const html = table({ sort })
+      return ['Quality and Compliance', 'Clinical Research and Development'].sort((a, b) => html.indexOf(a) - html.indexOf(b))
+    }
+    // Staff: Quality 3, Clinical 5. SOPs: Quality 2, Clinical 7.
+    expect(order('staff-asc')).toEqual(['Quality and Compliance', 'Clinical Research and Development'])
+    expect(order('staff-desc')).toEqual(['Clinical Research and Development', 'Quality and Compliance'])
+    expect(order('sops-asc')).toEqual(['Quality and Compliance', 'Clinical Research and Development'])
+    expect(order('sops-desc')).toEqual(['Clinical Research and Development', 'Quality and Compliance'])
   })
 })

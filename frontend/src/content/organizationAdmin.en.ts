@@ -20,19 +20,13 @@ export const organizationAdminEn = {
   clearFilters: 'Clear Filters', filteredBy: 'Filtered by:', removeFilter: 'Remove {name} from the filter',
   // Above the table, as on Staff and Admins: the divisions shown (after search and filters).
   divisionCount: { one: '{count} division', other: '{count} divisions' },
-  sort: 'Sort', sortOptions: {
-    default: 'Default order',
-    'division-name-asc': 'A to Z', 'division-name-desc': 'Z to A',
-    'division-staff-desc': 'High to low', 'division-staff-asc': 'Low to high',
-    'division-sops-desc': 'High to low', 'division-sops-asc': 'Low to high',
-    'department-name-asc': 'A to Z', 'department-name-desc': 'Z to A',
-    'department-staff-desc': 'High to low', 'department-staff-asc': 'Low to high',
-    'department-sops-desc': 'High to low', 'department-sops-asc': 'Low to high',
-  },
-  /** Headings of the Sort menu's groups (one level only, so each says what it sorts). */
-  sortGroups: {
-    'division-name': 'Division name', 'division-staff': 'Division staff', 'division-sops': 'Division SOPs',
-    'department-name': 'Department name', 'department-staff': 'Department staff', 'department-sops': 'Department SOPs',
+  /**
+   * The shared Sort area above the table: one choice orders the divisions by their totals and each division's
+   * departments by their own counts. Pressing the selected direction again goes back to the default order.
+   */
+  sortArea: {
+    label: 'Sort by', staff: 'Number of Staff', sops: 'Number of SOPs',
+    asc: 'Ascending', desc: 'Descending',
   },
   addDivision: 'Add Division', addDepartment: 'Add Department', departments: 'Departments',
   name: 'Name', users: 'Users', staff: 'Staff', sops: 'SOPs',

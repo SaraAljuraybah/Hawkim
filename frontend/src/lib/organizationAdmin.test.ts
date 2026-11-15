@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { ManagedDepartment, ManagementSnapshot } from '../services/organizationAdmin'
-import { DIVISION_SORTS, hierarchyRows, departmentDeleteBlocker, managementFilterData, sortGroup, unassignedRows } from './organizationAdmin'
+import { hierarchyRows, departmentDeleteBlocker, managementFilterData, nextDivisionSort, sortDepartments, unassignedRows } from './organizationAdmin'
 
 const department = (id: string, name: string, division: string | null, employees = 0, sops = 0): ManagedDepartment =>
   ({ id, name, initials: 'XX', description: '', division_id: division, updated_at: 'r', employees, sops, status_counts: {}, people: [] })
@@ -27,69 +27,78 @@ describe('sorting division rows', () => {
   })
 
   it.each([
-    ['division-name-asc', ['administration', 'Beta', 'Clinical Research and Development', 'Quality and Compliance']],
-    ['division-name-desc', ['Quality and Compliance', 'Clinical Research and Development', 'Beta', 'administration']],
     // Most staff first (server totals: Quality 7, Clinical 2, administration 1, Beta 0).
-    ['division-staff-desc', ['Quality and Compliance', 'Clinical Research and Development', 'administration', 'Beta']],
-    // Most SOPs first; ties (administration and Quality both 4) fall back to the name.
-    ['division-sops-desc', ['Clinical Research and Development', 'administration', 'Quality and Compliance', 'Beta']],
+    ['staff-desc', ['Quality and Compliance', 'Clinical Research and Development', 'administration', 'Beta']],
     // Fewest staff first.
-    ['division-staff-asc', ['Beta', 'administration', 'Clinical Research and Development', 'Quality and Compliance']],
+    ['staff-asc', ['Beta', 'administration', 'Clinical Research and Development', 'Quality and Compliance']],
+    // Most SOPs first; ties (administration and Quality both 4) fall back to the name.
+    ['sops-desc', ['Clinical Research and Development', 'administration', 'Quality and Compliance', 'Beta']],
     // Fewest SOPs first; the tie still goes by name A to Z (administration before Quality).
-    ['division-sops-asc', ['Beta', 'administration', 'Quality and Compliance', 'Clinical Research and Development']],
-  ] as const)('%s', (sort, expected) => {
+    ['sops-asc', ['Beta', 'administration', 'Quality and Compliance', 'Clinical Research and Development']],
+  ] as const)('orders the divisions by their totals: %s', (sort, expected) => {
     expect(names(hierarchyRows(snapshot, '', { sort }))).toEqual(expected)
   })
 
-  it('offers the default order, then name, staff and SOPs for divisions and for departments, each both ways', () => {
-    expect(DIVISION_SORTS).toEqual([
-      'default',
-      'division-name-asc', 'division-name-desc',
-      'division-staff-desc', 'division-staff-asc',
-      'division-sops-desc', 'division-sops-asc',
-      'department-name-asc', 'department-name-desc',
-      'department-staff-desc', 'department-staff-asc',
-      'department-sops-desc', 'department-sops-asc',
-    ])
-    expect(DIVISION_SORTS.map(sortGroup)).toEqual([
-      undefined,
-      'division-name', 'division-name', 'division-staff', 'division-staff', 'division-sops', 'division-sops',
-      'department-name', 'department-name', 'department-staff', 'department-staff', 'department-sops', 'department-sops',
-    ])
+  it('compares numbers, not text (9 before 10, 10 before 100)', () => {
+    const numeric: ManagementSnapshot = {
+      divisions: [
+        { id: 'x', name: 'X', description: '', email: null, updated_at: null, department_count: 1, employees: 100, sops: 10 },
+        { id: 'y', name: 'Y', description: '', email: null, updated_at: null, department_count: 1, employees: 9, sops: 100 },
+        { id: 'z', name: 'Z', description: '', email: null, updated_at: null, department_count: 1, employees: 10, sops: 9 },
+      ],
+      departments: [],
+    }
+    expect(names(hierarchyRows(numeric, '', { sort: 'staff-asc' }))).toEqual(['Y', 'Z', 'X'])
+    expect(names(hierarchyRows(numeric, '', { sort: 'staff-desc' }))).toEqual(['X', 'Z', 'Y'])
+    expect(names(hierarchyRows(numeric, '', { sort: 'sops-asc' }))).toEqual(['Z', 'X', 'Y'])
+    expect(names(hierarchyRows(numeric, '', { sort: 'sops-desc' }))).toEqual(['Y', 'X', 'Z'])
   })
 
-  it('orders the departments inside each division, keeping the divisions in their order', () => {
-    const quality = (sort: Parameters<typeof hierarchyRows>[2]) => hierarchyRows(snapshot, '', sort)[0].children.map((row) => row.id)
-    expect(names(hierarchyRows(snapshot, '', { sort: 'department-name-desc' }))).toEqual(names(hierarchyRows(snapshot)))
-    expect(quality({ sort: 'department-name-asc' })).toEqual(['qa', 'qc'])
-    expect(quality({ sort: 'department-name-desc' })).toEqual(['qc', 'qa'])
-    expect(quality({ sort: 'department-staff-desc' })).toEqual(['qa', 'qc'])
-    expect(quality({ sort: 'department-sops-desc' })).toEqual(['qa', 'qc'])
-    expect(quality({ sort: 'department-staff-asc' })).toEqual(['qc', 'qa'])
-    expect(quality({ sort: 'department-sops-asc' })).toEqual(['qc', 'qa'])
+  it('orders each division’s departments by their own counts, never moving them to another division', () => {
+    const rows = (sort: Parameters<typeof hierarchyRows>[2]) => hierarchyRows(snapshot, '', sort).map((row) => [row.division.id, row.children.map((child) => child.id)])
+    // Quality: QA 4 staff 3 SOPs, QC 3 staff 1 SOP.
+    expect(rows({ sort: 'staff-desc' })).toEqual([['q', ['qa', 'qc']], ['c', ['co']], ['a', ['ad']], ['b', []]])
+    expect(rows({ sort: 'staff-asc' })).toEqual([['b', []], ['a', ['ad']], ['c', ['co']], ['q', ['qc', 'qa']]])
+    expect(rows({ sort: 'sops-desc' })[2]).toEqual(['q', ['qa', 'qc']])
+    expect(rows({ sort: 'sops-asc' })[2]).toEqual(['q', ['qc', 'qa']])
   })
 
-  it('orders departments with the same number by name A to Z, high to low and low to high', () => {
+  it('orders departments with the same number by name A to Z, both ways', () => {
     const tied: ManagementSnapshot = {
       divisions: [{ id: 'q', name: 'Quality', description: '', email: null, updated_at: null, department_count: 3, employees: 6, sops: 6 }],
       departments: [department('z', 'Zeta', 'q', 2, 2), department('a', 'Alpha', 'q', 2, 2), department('m', 'Mu', 'q', 2, 2)],
     }
-    for (const sort of ['department-staff-desc', 'department-staff-asc', 'department-sops-desc', 'department-sops-asc'] as const) {
+    for (const sort of ['staff-desc', 'staff-asc', 'sops-desc', 'sops-asc'] as const) {
       expect(hierarchyRows(tied, '', { sort })[0].children.map((row) => row.name), sort).toEqual(['Alpha', 'Mu', 'Zeta'])
     }
   })
 
+  it('orders the departments without a division by their own counts too', () => {
+    const loose = [department('b', 'B', null, 5, 1), department('a', 'A', null, 2, 7)]
+    expect(sortDepartments(loose).map((row) => row.id)).toEqual(['b', 'a'])
+    expect(sortDepartments(loose, 'staff-asc').map((row) => row.id)).toEqual(['a', 'b'])
+    expect(sortDepartments(loose, 'sops-asc').map((row) => row.id)).toEqual(['b', 'a'])
+    expect(sortDepartments(loose, 'sops-desc').map((row) => row.id)).toEqual(['a', 'b'])
+  })
+
   it('sorts by the server totals, not by the rows shown, and never changes them', () => {
     // Searching "operations" shows one Clinical department, but its totals stay the server's (3 departments, 9 SOPs).
-    const [clinical] = hierarchyRows(snapshot, 'operations', { sort: 'division-sops-desc' })
+    const [clinical] = hierarchyRows(snapshot, 'operations', { sort: 'sops-desc' })
     expect(clinical).toMatchObject({ departmentCount: 3, employees: 2, sops: 9 })
     expect(clinical.children.map((row) => row.id)).toEqual(['co'])
   })
 
-  it('is deterministic for equal names too (falls back to the id)', () => {
+  it('is deterministic for equal values and names too (falls back to the id)', () => {
     const twins: ManagementSnapshot = { departments: [], divisions: [
       { id: 'z', name: 'Same', description: '', email: null, updated_at: null }, { id: 'y', name: 'same', description: '', email: null, updated_at: null }] }
-    expect(hierarchyRows(twins, '', { sort: 'division-name-asc' }).map((row) => row.division.id)).toEqual(['y', 'z'])
+    expect(hierarchyRows(twins, '', { sort: 'staff-asc' }).map((row) => row.division.id)).toEqual(['y', 'z'])
+  })
+
+  it('selects a direction, switches to another, and goes back to the default when the selected one is pressed again', () => {
+    expect(nextDivisionSort('default', 'staff-asc')).toBe('staff-asc')
+    expect(nextDivisionSort('staff-asc', 'staff-desc')).toBe('staff-desc')
+    expect(nextDivisionSort('staff-desc', 'sops-asc')).toBe('sops-asc')
+    expect(nextDivisionSort('sops-asc', 'sops-asc')).toBe('default')
   })
 })
 
@@ -105,8 +114,8 @@ describe('filtering by division', () => {
   })
 
   it('works together with search and sort', () => {
-    expect(names(hierarchyRows(snapshot, 'quality', { divisions: ['c', 'q'], sort: 'division-name-asc' }))).toEqual(['Quality and Compliance'])
-    expect(names(hierarchyRows(snapshot, 'o', { divisions: ['c', 'q', 'a'], sort: 'division-sops-desc' }))).toEqual(['Clinical Research and Development', 'administration', 'Quality and Compliance'])
+    expect(names(hierarchyRows(snapshot, 'quality', { divisions: ['c', 'q'], sort: 'staff-asc' }))).toEqual(['Quality and Compliance'])
+    expect(names(hierarchyRows(snapshot, 'o', { divisions: ['c', 'q', 'a'], sort: 'sops-desc' }))).toEqual(['Clinical Research and Development', 'administration', 'Quality and Compliance'])
     expect(hierarchyRows(snapshot, 'clinical', { divisions: ['q'] })).toEqual([])
   })
 })
@@ -132,8 +141,8 @@ describe('filtering by department (the linked rule of every list page)', () => {
   it('searches and sorts only the departments listed', () => {
     expect(children(hierarchyRows(snapshot, 'assurance', { departments: ['qc'] }))).toEqual([])
     expect(children(hierarchyRows(snapshot, 'quality', { departments: ['qc'] }))).toEqual([['q', ['qc'], true]])
-    expect(children(hierarchyRows(snapshot, '', { divisions: ['q'], sort: 'department-name-desc' }))).toEqual([['q', ['qc', 'qa'], false]])
-    expect(names(hierarchyRows(snapshot, '', { departments: ['qa', 'co'], sort: 'division-name-asc' }))).toEqual(['Clinical Research and Development', 'Quality and Compliance'])
+    expect(children(hierarchyRows(snapshot, '', { divisions: ['q'], sort: 'staff-asc' }))).toEqual([['q', ['qc', 'qa'], false]])
+    expect(names(hierarchyRows(snapshot, '', { departments: ['qa', 'co'], sort: 'staff-asc' }))).toEqual(['Clinical Research and Development', 'Quality and Compliance'])
   })
 
   it('lists the departments without a division: all, none with divisions only, only the chosen ones with departments', () => {
