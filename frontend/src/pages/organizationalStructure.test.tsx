@@ -119,9 +119,17 @@ describe('Organizational Structure', () => {
     expect(html).toContain('aria-label="View Empty Department details"')
     // The staff count stays as text, outside both buttons.
     expect(html).toMatch(/>Quality<\/button><span class="mt-1 block text-xs font-normal text-text-gray">Staff \(2\)<\/span>/)
-    // Divisions keep one open/close button, with no pop-up.
-    expect(html).toMatch(/<button type="button" aria-expanded="false" aria-controls="org-children-division-1" class="group flex items-start gap-3 rounded text-left">/)
-    expect(html).not.toContain('aria-label="View Operations details"')
+  })
+  it('gives each division two buttons too: the arrow shows its departments, the name opens its details', () => {
+    const html = page()
+    const arrow = html.match(/<button type="button" aria-expanded="false" aria-controls="org-children-division-1"[^>]*>/)![0]
+    expect(arrow).toContain('aria-label="Show departments in Operations"')
+    const name = html.match(/<button type="button" aria-haspopup="dialog" aria-label="View Operations details" class="([^"]*)"[^>]*>Operations<\/button>/)!
+    expect(name[0]).not.toContain('aria-expanded')
+    expect(name[1].split(' ')).toEqual(expect.arrayContaining(['cursor-pointer', 'rounded-sm', 'text-maroon', 'underline', 'font-semibold']))
+    // The department count stays as text, outside both buttons.
+    expect(html).toMatch(/>Operations<\/button><span class="mt-1 block text-xs font-normal text-text-gray">Departments \(\d+\)<\/span>/)
+    expect(html).toContain('aria-label="View R and D Division details"')
   })
   it('shows departments with their staff count and email, and "No staff in this department"', () => {
     const html = page()

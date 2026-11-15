@@ -62,6 +62,8 @@ export interface DivisionRow {
   id: string
   name: string
   email: string | null
+  /** The division's description (null when none, and for the unassigned group). */
+  description: string | null
   /** The "Unassigned departments" group, not a real division. */
   unassigned: boolean
   /** Every department in the division, whatever is filtered. */
@@ -137,11 +139,11 @@ function sortRows(rows: DivisionRow[], sort: OrganizationSort): DivisionRow[] {
 export function organizationRows(hierarchy: OrganizationHierarchy, filters: OrganizationFilters, sort: OrganizationSort = 'default'): DivisionRow[] {
   const divisionIds = new Set(hierarchy.divisions.map((division) => division.id))
   const groups = hierarchy.divisions.map((division) => ({
-    id: division.id, name: division.name, email: division.email ?? null, unassigned: false,
+    id: division.id, name: division.name, email: division.email ?? null, description: division.description ?? null, unassigned: false,
     departments: hierarchy.departments.filter((department) => department.divisionId === division.id),
   }))
   const unassigned = hierarchy.departments.filter((department) => !department.divisionId || !divisionIds.has(department.divisionId))
-  const all = [...groups, ...(unassigned.length ? [{ id: UNASSIGNED_GROUP_ID, name: '', email: null, unassigned: true, departments: unassigned }] : [])]
+  const all = [...groups, ...(unassigned.length ? [{ id: UNASSIGNED_GROUP_ID, name: '', email: null, description: null, unassigned: true, departments: unassigned }] : [])]
   const filtering = isFiltering(filters)
   const query = filters.query.trim()
   const roles = filters.roles
@@ -149,7 +151,7 @@ export function organizationRows(hierarchy: OrganizationHierarchy, filters: Orga
   const selectedDepartments = new Set(filters.departments)
   const rows: DivisionRow[] = []
   for (const group of all) {
-    const base = { id: group.id, name: group.name, email: group.email, unassigned: group.unassigned, departmentCount: group.departments.length }
+    const base = { id: group.id, name: group.name, email: group.email, description: group.description, unassigned: group.unassigned, departmentCount: group.departments.length }
     if (!filtering) {
       rows.push({ ...base, autoOpen: false, departments: group.departments.map((department) => ({ department, staff: department.employees, autoOpen: false })) })
       continue

@@ -2288,6 +2288,10 @@ export interface OrganizationContent {
    * division, description, email). `open` names the name's button; `toggle` names the arrow that shows or
    * hides its staff; `notSet` is an empty value.
    */
+  divisionPreview: {
+    open: (name: string) => string
+    toggle: (name: string) => string
+  }
   departmentPreview: {
     open: (name: string) => string
     toggle: (name: string) => string

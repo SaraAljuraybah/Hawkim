@@ -1,7 +1,7 @@
 import { FormDialog } from '../ui/FormDialog'
 import { organizationAdminEn as text } from '../../content/organizationAdmin.en'
 import type { ManagedDepartment } from '../../services/organizationAdmin'
-import { EmailDetail } from './DivisionDialogs'
+import { EmailDetail } from './DivisionPreview'
 
 /**
  * A department's details on Divisions and Departments, in the same dialog as DivisionPreview:

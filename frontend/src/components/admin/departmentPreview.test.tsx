@@ -60,7 +60,7 @@ describe('department details dialog', () => {
     expect(footer(html)).toMatch(/>Close<\/button>/)
     expect(html).not.toMatch(/>Edit</)
     expect(html).not.toContain('>Cancel<')
-    const division = renderToStaticMarkup(<DivisionPreview division={{ id: 'v', name: 'V', description: '', email: null, updated_at: null }} onClose={vi.fn()} />)
+    const division = renderToStaticMarkup(<DivisionPreview division={{ name: 'V', description: '', email: null }} onClose={vi.fn()} />)
     expect(footer(html)).toBe(footer(division))
   })
 })

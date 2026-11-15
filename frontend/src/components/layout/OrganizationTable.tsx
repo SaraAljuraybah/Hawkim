@@ -4,6 +4,7 @@ import { organizationEn as content } from '../../content/organization.en'
 import { usersEn } from '../../content/users.en'
 import { overflows, type DivisionRow } from '../../lib/organization'
 import { DepartmentBadge } from '../admin/DepartmentBadge'
+import { DivisionPreview, type DivisionPreviewDivision } from '../admin/DivisionPreview'
 import { CopyButton } from '../ui/CopyButton'
 import { PREVIEW_NAME_CLASS } from '../ui/previewName'
 import { tableStyles } from '../ui/tableStyles'
@@ -102,10 +103,12 @@ export function OrganizationTable({ rows, filtering, filterKey, departmentDescri
   const isOpen = (id: string, autoOpen: boolean) => (filtering && autoOpen) !== toggled.has(id)
   const [preview, setPreview] = useState<StaffProfilePreviewPerson>()
   const [departmentPreview, setDepartmentPreview] = useState<DepartmentDetailsPreviewDepartment>()
+  const [divisionPreview, setDivisionPreview] = useState<DivisionPreviewDivision>()
   const previewOpener = useRef<HTMLButtonElement | null>(null)
   function closePreview() {
     setPreview(undefined)
     setDepartmentPreview(undefined)
+    setDivisionPreview(undefined)
     previewOpener.current?.focus()
   }
   const toggle = (id: string) => {
@@ -136,13 +139,25 @@ export function OrganizationTable({ rows, filtering, filterKey, departmentDescri
                 ) : (
                   <tr className="border-t border-beige">
                     <th scope="row" className="p-4">
-                      {/* The chevron and the division name are one toggle. */}
-                      <button type="button" aria-expanded={divisionOpen} aria-controls={childrenId}
-                        className="group flex items-start gap-3 rounded text-left" onClick={() => toggle(divisionKey)}>
-                        <Chevron open={divisionOpen} />
-                        <span className="min-w-0"><span className="block font-semibold break-words text-maroon">{division.name}</span>
-                          <span className="mt-1 block text-xs font-normal text-text-gray">{content.departmentCount(division.departmentCount)}</span></span>
-                      </button>
+                      {/* Two buttons, as on department rows: the arrow shows or hides the departments; the name opens the
+                          division's details (the Divisions and Departments preview, read-only). */}
+                      <span className="flex items-start gap-3">
+                        <button type="button" aria-expanded={divisionOpen} aria-controls={childrenId} aria-label={content.divisionPreview.toggle(division.name)}
+                          className="group -m-0.5 shrink-0 rounded p-0.5" onClick={() => toggle(divisionKey)}>
+                          <Chevron open={divisionOpen} />
+                        </button>
+                        <span className="min-w-0">
+                          <button type="button" aria-haspopup="dialog" aria-label={content.divisionPreview.open(division.name)}
+                            className={`${PREVIEW_NAME} font-semibold`}
+                            onClick={(event) => {
+                              previewOpener.current = event.currentTarget
+                              setDivisionPreview({ name: division.name, description: division.description, email: division.email })
+                            }}>
+                            {division.name}
+                          </button>
+                          <span className="mt-1 block text-xs font-normal text-text-gray">{content.departmentCount(division.departmentCount)}</span>
+                        </span>
+                      </span>
                     </th>
                     <EmailCell email={division.email} name={division.name} />
                   </tr>
@@ -238,6 +253,7 @@ export function OrganizationTable({ rows, filtering, filterKey, departmentDescri
       </table>
       {preview && <StaffProfilePreview preview={preview} onClose={closePreview} />}
       {departmentPreview && <DepartmentDetailsPreview department={departmentPreview} onClose={closePreview} />}
+      {divisionPreview && <DivisionPreview division={divisionPreview} onClose={closePreview} />}
     </div>
   )
 }

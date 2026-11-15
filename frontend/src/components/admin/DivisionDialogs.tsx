@@ -1,7 +1,6 @@
 import { useRef, useState } from 'react'
 import { flushSync } from 'react-dom'
 import { FormDialog } from '../ui/FormDialog'
-import { CopyButton } from '../ui/CopyButton'
 import { TextField } from '../ui/TextField'
 import { TextAreaField } from '../ui/TextAreaField'
 import { organizationAdminEn as text } from '../../content/organizationAdmin.en'
@@ -47,31 +46,5 @@ export function DivisionForm({ division, onClose, onSaved }: { division?: Divisi
   </FormDialog>
 }
 
-/** A division's details: Description ("Not provided." when empty) and Email, then Close. Read-only, like DepartmentPreview. */
-export function DivisionPreview({ division, onClose }: { division: DivisionRecord; onClose: () => void }) {
-  // One block, so the dialog's gap between children doesn't separate the title, Description and Email.
-  return <FormDialog open title={division.name} confirmLabel={text.close} onConfirm={() => {}} onClose={onClose}>
-    <dl className="-mt-1 space-y-4 text-sm">
-      <div>
-        <dt className="font-bold text-maroon">{text.description}</dt>
-        {/* null (never set) and '' (saved empty) both count as none. */}
-        {division.description?.trim()
-          ? <dd className="mt-1 break-words text-black">{division.description}</dd>
-          : <dd className="mt-1 text-text-gray">{text.notProvided}</dd>}
-      </div>
-      <EmailDetail email={division.email} />
-    </dl>
-  </FormDialog>
-}
-
-/** The Email row of a details dialog: the address with its copy icon, or "No email recorded." (muted, no copy icon). */
-export function EmailDetail({ email }: { email?: string | null }) {
-  return <div>
-    <dt className="font-bold text-maroon">{text.email}</dt>
-    {email
-      // The address and its copy icon stay together; the confirmation takes its own line below.
-      ? <dd className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-0.5"><span className="min-w-0 break-all text-black">{email}</span>
-        <CopyButton text={email} label={text.copy} copiedText={text.copied} failedText={text.copyFailed} /></dd>
-      : <dd className="mt-1 text-text-gray">{text.missingEmail}</dd>}
-  </div>
-}
+// The read-only preview is shared with Organizational Structure (DivisionPreview.tsx, without the admin services).
+export { DivisionPreview, EmailDetail } from './DivisionPreview'

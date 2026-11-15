@@ -14,7 +14,8 @@ export interface OrganizationDepartment {
 }
 export interface OrganizationHierarchy {
   organization: { name: string } | null
-  divisions: { id: string; name: string; email?: string | null }[]
+  /** `description`: from the divisions table (every active user reads their organization's); null when none. */
+  divisions: { id: string; name: string; email?: string | null; description?: string | null }[]
   departments: OrganizationDepartment[]
 }
 
@@ -49,15 +50,28 @@ function isHierarchy(value: unknown): value is OrganizationHierarchy {
   })
 }
 
-/** A single authenticated database snapshot for any active user; never falls back to mock data. */
+/**
+ * A single authenticated database snapshot for any active user; never falls back to mock data. Each division
+ * also gets its description, read from the divisions table (the row policies give only the caller's organization;
+ * the email column stays withheld, it comes from the RPC).
+ */
 export async function fetchOrganization(): Promise<OrganizationHierarchy> {
-  const { data, error } = await supabase().rpc('get_organizational_structure')
+  const [structure, descriptions] = await Promise.all([
+    supabase().rpc('get_organizational_structure'),
+    supabase().from('divisions').select('id, description'),
+  ])
+  const { data, error } = structure
   if (error) throw new Error(error.message)
+  if (descriptions.error) throw new Error(descriptions.error.message)
   if (!isHierarchy(data)) {
     throw new Error('Invalid organizational structure response')
   }
+  const descriptionOf = new Map((descriptions.data as { id: string; description: string | null }[] | null ?? [])
+    .map((row) => [row.id, row.description]))
   // Admins belong to no department (whatever their account still holds): they aren't listed in one.
-  return { ...data, departments: data.departments.map((department) => ({
-    ...department, employees: department.employees.filter((employee) => !employee.permissions.includes('admin')),
-  })) }
+  return { ...data,
+    divisions: data.divisions.map((division) => ({ ...division, description: descriptionOf.get(division.id) ?? null })),
+    departments: data.departments.map((department) => ({
+      ...department, employees: department.employees.filter((employee) => !employee.permissions.includes('admin')),
+    })) }
 }

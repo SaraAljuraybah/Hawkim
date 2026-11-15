@@ -2,8 +2,18 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { fetchOrganization } from './organization'
 
 const rpc = vi.hoisted(() => vi.fn())
-vi.mock('./supabase', () => ({ supabase: () => ({ rpc }) }))
-beforeEach(() => vi.clearAllMocks())
+// The divisions' descriptions (from the divisions table): none by default.
+const descriptions = vi.hoisted(() => vi.fn())
+const from = vi.hoisted(() => vi.fn())
+vi.mock('./supabase', () => ({ supabase: () => ({ rpc, from }) }))
+beforeEach(() => {
+  vi.clearAllMocks()
+  descriptions.mockResolvedValue({ data: [], error: null })
+  from.mockReturnValue({ select: descriptions })
+})
+/** The hierarchy as returned: each division with its description (null when none). */
+const withDescriptions = <T extends { divisions: { id: string }[] }>(hierarchy: T, of: Record<string, string> = {}) =>
+  ({ ...hierarchy, divisions: hierarchy.divisions.map((division) => ({ ...division, description: of[division.id] ?? null })) })
 
 describe('persisted organizational structure', () => {
   it('uses the authenticated RPC and returns its actual records without substitution', async () => {
@@ -11,6 +21,20 @@ describe('persisted organizational structure', () => {
     rpc.mockResolvedValue({ data: hierarchy, error: null })
     expect(await fetchOrganization()).toEqual(hierarchy)
     expect(rpc).toHaveBeenCalledWith('get_organizational_structure')
+  })
+  it('adds each division its description from the divisions table (null when none), never its email', async () => {
+    const hierarchy = { organization: null, departments: [], divisions: [
+      { id: 'ops', name: 'Operations', email: 'ops@test.invalid' }, { id: 'rnd', name: 'R&D', email: null }] }
+    rpc.mockResolvedValue({ data: hierarchy, error: null })
+    descriptions.mockResolvedValue({ data: [{ id: 'ops', description: 'Runs the sites' }, { id: 'rnd', description: null }], error: null })
+    expect(await fetchOrganization()).toEqual(withDescriptions(hierarchy, { ops: 'Runs the sites' }))
+    expect(from).toHaveBeenCalledWith('divisions')
+    expect(descriptions).toHaveBeenCalledWith('id, description')
+  })
+  it('fails rather than show the divisions without their descriptions', async () => {
+    rpc.mockResolvedValue({ data: { organization: null, divisions: [], departments: [] }, error: null })
+    descriptions.mockResolvedValue({ data: null, error: { message: 'permission denied' } })
+    await expect(fetchOrganization()).rejects.toThrow('permission denied')
   })
   it('lists no Admin in a department: Admins belong to none, whatever their account still holds', async () => {
     const person = (id: string, permissions: string[]) => ({ id, name: id, initials: 'XX', email: `${id}@test.invalid`, position: 'Title', permissions })
@@ -31,8 +55,8 @@ describe('persisted organizational structure', () => {
     const hierarchy = { organization: null, divisions: [{ id, name }], departments: [] }
     rpc.mockResolvedValue({ data: hierarchy, error: null })
     const result = await fetchOrganization()
-    expect(result).toEqual(hierarchy)
-    expect(result.divisions[0]).toEqual({ id, name })
+    expect(result).toEqual(withDescriptions(hierarchy))
+    expect(result.divisions[0]).toEqual({ id, name, description: null })
   })
   it('rejects missing or malformed responses', async () => {
     rpc.mockResolvedValue({ data: null, error: null })
@@ -45,7 +69,7 @@ describe('persisted organizational structure', () => {
       ] },
     ] }
     rpc.mockResolvedValue({ data: hierarchy, error: null })
-    expect(await fetchOrganization()).toEqual(hierarchy)
+    expect(await fetchOrganization()).toEqual(withDescriptions(hierarchy))
   })
   it.each([
     { organization: undefined, divisions: [], departments: [] },

@@ -50,6 +50,11 @@ export const organizationEn: OrganizationContent = {
     permission: 'Permission',
     notSet: 'Not set',
   },
+  /** A division's name opens its details (the Divisions and Departments preview); its arrow shows its departments. */
+  divisionPreview: {
+    open: (name) => `View ${name} details`,
+    toggle: (name) => `Show departments in ${name}`,
+  },
   departmentPreview: {
     open: (name) => `View ${name} details`,
     toggle: (name) => `Show staff in ${name}`,
