@@ -3,6 +3,7 @@ import {
   type ApprovalDecisionSnapshot,
   type ApprovalSubmission,
   type ApproverAssignment,
+  type InternalReviewDecision,
   type InternalReviewerAssignment,
   type User,
   type ReviewerAssignment,
@@ -422,10 +423,32 @@ function isAuthorOrUploader(sop: Sop, userId: string, version: SopVersion | unde
 /** Why a version can't be deleted now (undefined: it can). */
 export type DeleteVersionBlocker = 'status' | 'not-uploader' | 'submitted-version' | 'last-version'
 
+/** A reviewer took part in the request: they accepted it, completed it or returned it (even if removed afterwards). */
+const ENGAGED: readonly InternalReviewDecision[] = ['accepted', 'completed', 'returned']
+
+/**
+ * Whether the review history of a version protects it from deletion (the database's
+ * version_review_protected, 20261119120000): a round on it that isn't closed (someone is still
+ * pending or reviewing, or someone finished), a request a reviewer accepted, completed or returned,
+ * or a comment on it. A closed round whose requests all ended before anyone accepted (removed,
+ * declined, expired or withdrawn) doesn't. A version sent without an internal review round (older
+ * or other review flows) stays protected by its submission, as before.
+ */
+export function isReviewProtectedVersion(sop: Sop, version: string): boolean {
+  if (sop.comments.some((comment) => comment.version === version)) return true
+  const rounds = (sop.internalReviewRounds ?? []).filter((round) => round.version === version)
+  if (rounds.length === 0) {
+    return sop.timeline.some((item) => item.version === version && (item.type === 'submitted' || item.type === 'resubmitted'))
+  }
+  return rounds.some((round) => round.status !== 'closed' || round.assignments.some((assignment) =>
+    !!assignment.acceptedAt || ENGAGED.includes(assignment.decision) ||
+    (!!assignment.decisionBeforeRemoval && ENGAGED.includes(assignment.decisionBeforeRemoval))))
+}
+
 /**
  * Delete a version: only while Draft or Returned (for everyone); by the main author
  * (any eligible version) or the person who uploaded it; at least one version must remain.
- * A version recorded in any submission or resubmission is permanently protected.
+ * A version whose review is active or really took place is permanently protected (isReviewProtectedVersion).
  */
 export function deleteVersionBlocker(sop: Sop, actorId: string, version: string): DeleteVersionBlocker | undefined {
   // Internal review: a version never sent to any reviewer can be deleted In Review too (sent ones stay protected below).
@@ -433,9 +456,7 @@ export function deleteVersionBlocker(sop: Sop, actorId: string, version: string)
   if (sop.status !== 'draft' && sop.status !== 'returned' && !internalReview) return 'status'
   const target = activeVersions(sop).find((item) => item.version === version)
   if (!isAuthorOrUploader(sop, actorId, target)) return 'not-uploader'
-  if (sop.timeline.some((item) =>
-    item.version === version && (item.type === 'submitted' || item.type === 'resubmitted'),
-  )) return 'submitted-version'
+  if (isReviewProtectedVersion(sop, version)) return 'submitted-version'
   if (activeVersions(sop).length <= 1) return 'last-version'
   return undefined
 }

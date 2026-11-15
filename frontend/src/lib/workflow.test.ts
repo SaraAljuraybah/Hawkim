@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import type { ComplianceCheck, Sop, User } from '../data/mock/types'
+import type { ComplianceCheck, InternalReviewDecision, InternalReviewRound, InternalReviewerAssignment, Sop, User } from '../data/mock/types'
 import { currentCheck, hasCurrentCheck } from './compliance'
 import {
   activeVersions,
@@ -22,6 +22,7 @@ import {
   daysFromToday,
   deleteVersion,
   deleteVersionBlocker,
+  isReviewProtectedVersion,
   dueAtOfDate,
   dueDateRange,
   isOverdue,
@@ -1023,5 +1024,68 @@ describe('individual reviewer deadlines and sequential handoffs', () => {
     expect(today.reviewers[0]).toMatchObject({ dueDate: '2026-10-18', assignedDueDays: 0 })
     const distant = submitForReview(draft(), SARA, GVP, [NOURA], [HUDA], undefined, undefined, undefined, { [NOURA]: '2026-11-18' })
     expect(distant.reviewers[0]).toMatchObject({ dueDate: '2026-11-18', assignedDueDays: 31 })
+  })
+})
+
+describe('deleting a version after an internal review that never really started', () => {
+  /** Sara's draft with versions 1 to 3 (3 current), and a round on version 1 when given. */
+  function withRound(round?: Partial<InternalReviewRound>, request?: Partial<InternalReviewerAssignment>): Sop {
+    const versions = ['1', '2', '3'].map((version) => ({ version, fileName: `v${version}.pdf`, fileType: 'pdf' as const, uploadedAt: '2026-01-01T08:00:00Z' }))
+    const assignment = { id: 'q1', userId: NOURA, decision: 'pending', assignedAt: '2026-01-02T08:00:00Z', ...request } as InternalReviewerAssignment
+    const internalReviewRounds: InternalReviewRound[] = round
+      ? [{ id: 'r1', scope: 'internal', version: '1', status: 'closed', requestedById: SARA, requestedAt: '2026-01-02T08:00:00Z', assignedDueDays: null, assignments: [assignment], ...round }]
+      : []
+    // The round's submission stays in the timeline (the history is kept).
+    const timeline = round ? [{ id: 'e1', type: 'submitted' as const, actorId: SARA, version: '1', createdAt: '2026-01-02T08:00:00Z' }] : []
+    return draft({ version: '3', versions, internalReviewRounds, timeline })
+  }
+
+  it('lets the first version be deleted when it had no reviewers, keeping every other number', () => {
+    const sop = withRound()
+    expect(deleteVersionBlocker(sop, SARA, '1')).toBeUndefined()
+    const deleted = deleteVersion(sop, SARA, '1')
+    expect(activeVersions(deleted).map((version) => version.version)).toEqual(['2', '3'])
+    expect(deleted.version).toBe('3')
+    expect(deleted.versions.find((version) => version.version === '1')?.deletedAt).toBeDefined()
+    // The next upload doesn't reuse a number.
+    expect(nextVersion(deleted)).toBe('4')
+    expect(uploadVersion(deleted, SARA, { fileName: 'v4.pdf', fileType: 'pdf' }).version).toBe('4')
+  })
+
+  it('lets a version be deleted when its only reviewer was removed before accepting', () => {
+    const sop = withRound({}, { decision: 'removed', decisionBeforeRemoval: 'pending', removedAt: '2026-01-03T08:00:00Z' })
+    expect(isReviewProtectedVersion(sop, '1')).toBe(false)
+    expect(deleteVersionBlocker(sop, SARA, '1')).toBeUndefined()
+    const deleted = deleteVersion(sop, SARA, '1')
+    expect(activeVersions(deleted).map((version) => version.version)).toEqual(['2', '3'])
+    // The round, its request and the submission stay.
+    expect(deleted.internalReviewRounds).toEqual(sop.internalReviewRounds)
+    expect(deleted.timeline.slice(0, -1)).toEqual(sop.timeline)
+  })
+
+  it('lets it be deleted when the only request was declined, expired or withdrawn', () => {
+    for (const decision of ['declined', 'expired', 'withdrawn'] as InternalReviewDecision[]) {
+      expect(deleteVersionBlocker(withRound({}, { decision }), SARA, '1'), decision).toBeUndefined()
+    }
+  })
+
+  it('keeps protecting a version with an active reviewer', () => {
+    for (const decision of ['pending', 'accepted'] as InternalReviewDecision[]) {
+      const sop = withRound({ status: 'open' }, { decision, acceptedAt: decision === 'accepted' ? '2026-01-03T08:00:00Z' : undefined })
+      expect(deleteVersionBlocker(sop, SARA, '1'), decision).toBe('submitted-version')
+    }
+  })
+
+  it('keeps protecting a version with a completed or returned review', () => {
+    expect(deleteVersionBlocker(withRound({ status: 'completed' }, { decision: 'completed', acceptedAt: '2026-01-03T08:00:00Z' }), SARA, '1')).toBe('submitted-version')
+    expect(deleteVersionBlocker(withRound({ status: 'changes-requested' }, { decision: 'returned', acceptedAt: '2026-01-03T08:00:00Z' }), SARA, '1')).toBe('submitted-version')
+  })
+
+  it('keeps protecting a version whose reviewer was removed after accepting, or that has comments', () => {
+    const removedAfterAccepting = withRound({}, { decision: 'removed', decisionBeforeRemoval: 'accepted', acceptedAt: '2026-01-03T08:00:00Z' })
+    expect(deleteVersionBlocker(removedAfterAccepting, SARA, '1')).toBe('submitted-version')
+    const commented = { ...withRound({}, { decision: 'removed', decisionBeforeRemoval: 'pending' }),
+      comments: [{ id: 'c1', authorUserId: NOURA, role: 'reviewer' as const, text: 'A note', createdAt: '2026-01-03T08:00:00Z', version: '1' }] }
+    expect(deleteVersionBlocker(commented, SARA, '1')).toBe('submitted-version')
   })
 })
