@@ -87,6 +87,18 @@ insert into public.profiles(id, full_name, email, initials, department_id, "posi
   ('b7100000-0000-4000-8000-000000000002', 'Legacy No Title', 'legacy-2@test.invalid', 'LN', 'legacy-home', null);
 ```
 
+## Default departments (20261120120000)
+
+Every organization has two default departments, created with it: **Pharmacovigilance** (PV, requires the compliance
+check) and **Quality Assurance** (QA, the Quality department). They are marked by `departments.system_key` and:
+
+- are never deleted: the Delete button is disabled with the tooltip "This is a default department and cannot be
+  deleted.", and the database refuses every deletion path;
+- keep their name (and initials): on Edit Department the name is read-only, with "The name of a default department
+  cannot be changed.";
+- can still have their description and email edited, and be moved to another division of the organization;
+- are used for employees, SOPs and workflows like any other department.
+
 ## Known limits
 
 - Existing employees have no position (their profiles had none); one is required when their department

@@ -48,6 +48,20 @@ Accepting a request (the `access-requests` Edge Function → `accept_access_requ
 - the departments **Pharmacovigilance** (PV, compliance check required) and **Quality Assurance** (QA, the Quality department). Departments added later don't require the check by default;
 - the applicant as its **Super Admin**: an Admin, without a department or position.
 
+It creates **no regulatory guideline**: a new organization has no GVP version, draft, requirement or processing job,
+and nothing is copied from another organization. An Admin adds the organization's own guideline in SFDA Regulatory
+Requirements; once it is processed and published, compliance checks run against it.
+
+### Invariants added on 2026-11-20
+
+| Invariant | Enforced by | Migration |
+|---|---|---|
+| Each organization's **Pharmacovigilance** and **Quality Assurance** departments are its *default departments*, marked by `departments.system_key` (`pharmacovigilance`, `quality-assurance`; unique per organization). They can't be deleted (RPC, Edge Function, soft delete or `DELETE`), renamed (name or initials), or lose their `is_quality` / `requires_compliance_check`; the marker can't be set, changed or removed by an `UPDATE`. Description, email and division stay editable. | trigger `departments_default_guard` (every role, the owner included), plus early refusals in `save_department`, `delete_department`, `begin_department_file_deletion` | `20261120120000_default_departments` |
+| Existing organizations: their active `Pharmacovigilance` (compliance check required) and `Quality Assurance` (Quality) departments were marked; nothing was created, deleted, renamed or re-dated. | backfill in the migration | same |
+| `guideline_availability()` tells an active user of the organization why no check can run: `available`, `processing`, `unpublished`, `failed`, `cancelled` or `none`. Only one word, only for the caller's organization. | the function | `20261120130000_guideline_availability` |
+| A compliance check needs a current version of the SOP's own organization (unchanged: `start_compliance_check` raises `no_data_found` otherwise). | `start_compliance_check` | (existing) |
+| **Regulatory Guideline Addition** requests are saved in `user_requests`: the organization is always the requester's (trigger `a0_organization`), there is no direct write grant, the requester reads/cancels their own pending ones, Admins of the organization read and decide them (`decide_user_request`, audited). Approving adds no guideline. The other request types are still kept in the browser only. | RLS (`Same organization only` + read policy), `submit_user_request`, `cancel_user_request`, `decide_user_request` | `20261120140000_user_requests` |
+
 ## Tests
 
 `bash supabase/tests/run_all.local.sh` runs everything against the local stack (see `supabase/tests/README.md`). The isolation tests:
@@ -59,7 +73,7 @@ Accepting a request (the `access-requests` Edge Function → `accept_access_requ
   - **Worker jobs:** finishing B's GVP version and B's compliance check changes nothing of A's.
 - **`multi_tenant_isolation.local.mjs`:** the same through the real API: Storage (all three buckets), the Edge Functions (`delete-sop`, `delete-department`, `update-user-email`, `resend-invitation`) and PostgREST.
 - **`add_user_other_organization.local.mjs`:** `add-user` across organizations.
-- **One test per migration**, in `supabase/tests/`.
+- **One test per migration**, in `supabase/tests/`. For the 2026-11-20 migrations: `default_departments.sql`, `guideline_availability.sql`, `user_requests.sql` (and `multi_tenant_isolation.sql` covers the four new functions and the new table).
 
 ## The release (one window)
 
