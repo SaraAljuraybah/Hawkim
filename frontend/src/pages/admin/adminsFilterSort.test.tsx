@@ -10,7 +10,7 @@ import { AdminAdminsPage } from './AdminAdminsPage'
 const SUPER = 'amal'
 const fixture = vi.hoisted(() => ({ users: [] as User[], status: 'ready' as LoadStatus }))
 vi.mock('../../hooks/useDocumentTitle', () => ({ useDocumentTitle: () => {} }))
-vi.mock('../../state/usersContext', () => ({ useUsers: () => ({ status: fixture.status, activeUsers: fixture.users }) }))
+vi.mock('../../state/usersContext', () => ({ useUsers: () => ({ status: fixture.status, users: fixture.users, activeUsers: fixture.users.filter((user) => !user.deletedAt) }) }))
 vi.mock('../../state/sessionContext', () => ({ useCurrentUser: () => fixture.users[0] }))
 vi.mock('../../hooks/useSuperAdmin', () => ({ useSuperAdmin: () => ({ status: 'ready', superAdminId: 'amal', reload: vi.fn(), set: vi.fn() }) }))
 const admin = (id: string, name: string): User =>
@@ -57,6 +57,8 @@ describe('the Admins Filter (Role) and Sort', () => {
   it('reads the Role and Sort from the URL and offers Clear Filters', () => {
     const html = page('?role=admin&sort=name-desc')
     expect(html).toContain(adminsEn.list.clearFilters)
-    expect(html).toContain('2 Admins')
+    // The tabs replace the count, as on the Staff page; the two regular Admins are listed.
+    expect(html).not.toContain('2 Admins')
+    expect(html.slice(html.indexOf('<table'), html.indexOf('</table>')).match(/<th scope="row"/g)).toHaveLength(2)
   })
 })

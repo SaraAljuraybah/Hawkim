@@ -163,6 +163,8 @@ export function adminUserEditPath(userId: string): string {
 
 /** Manage Organization → Admins: the administrators list. */
 export const ADMIN_ADMINS_PATH = '/admin/admins'
+/** The Admins page's Deactivated Admins tab. */
+export const ADMIN_DEACTIVATED_ADMINS_PATH = `${ADMIN_ADMINS_PATH}?status=deactivated`
 
 /** Add Admin. */
 export const ADMIN_NEW_ADMIN_PATH = `${ADMIN_ADMINS_PATH}/new`

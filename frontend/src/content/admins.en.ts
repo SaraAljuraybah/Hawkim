@@ -1,6 +1,6 @@
 /*
  * English content for Manage Organization → Admins in the admin portal: the administrators list,
- * Add Admin, Edit Admin, an administrator's page, Delete Admin and Make Super Admin.
+ * Add Admin, Edit Admin, an administrator's page, Delete Admin, Reactivate Admin and Make Super Admin.
  * Same pattern as the other content files: components never contain hard-coded text.
  */
 
@@ -32,12 +32,13 @@ export const adminsEn: AdminsContent = {
     role: { legend: 'Admin permission', count: { one: '{count} permission', other: '{count} permissions' } },
     sort: { label: 'Sort', options: { default: 'Default order', 'name-asc': 'A to Z', 'name-desc': 'Z to A' }, groups: { name: 'Admin name' } },
     clearFilters: 'Clear Filters',
-    count: { one: '{count} Admin', other: '{count} Admins' },
     tableLabel: 'Admins',
-    columns: { name: 'Full Name', email: 'Email', phone: 'Phone Number', role: 'Permission', preview: 'Preview', edit: 'Edit', delete: 'Delete' },
+    tabs: { label: 'Admin status', active: 'Active Admins', deactivated: 'Deactivated Admins' },
+    columns: { name: 'Full Name', email: 'Email', phone: 'Phone Number', role: 'Permission', preview: 'Preview', edit: 'Edit', delete: 'Delete', reactivate: 'Reactivate' },
     none: '—',
     actions: { view: 'View {name}', edit: 'Edit {name}' },
     empty: 'No Admins yet.',
+    emptyDeactivated: 'No deactivated Admins found.',
     noMatches: 'No Admins match your search or filter.',
     loading: 'Loading Admins…',
     loadFailed: "The Admins couldn't be loaded.",
@@ -56,6 +57,7 @@ export const adminsEn: AdminsContent = {
       invalid: 'Check the details and try again.',
       'account-failed': "The account couldn't be created. Try again in a few minutes.",
       'account-blocked': "This person's account is blocked. Ask the project owner to unblock it.",
+      'deactivated-admin': 'This admin was deleted. You can reactivate their account from the Deactivated Admins tab.',
       failed: 'Check your connection and try again.',
     },
   },
@@ -123,12 +125,33 @@ export const adminsEn: AdminsContent = {
     button: 'Delete {name}',
     label: 'Delete Admin',
     title: 'Delete {name}?',
-    description: "Are you sure you want to delete this admin? Their account will become inactive and they won't be able to sign in. Their past records will be kept.",
+    description: "Are you sure you want to delete this admin? Their account will become inactive and they won't be able to sign in. Their past records will be kept. You can reactivate their account later from the Deactivated Admins tab.",
     cancel: 'Cancel',
     confirm: 'Delete',
     deleting: 'Deleting…',
     done: '{name} was deleted. Their account is now inactive.',
     notDeleted: "{name} wasn't deleted:",
+  },
+
+  // Reactivate Admin: the same layout and wording as Reactivate Staff.
+  reactivate: {
+    button: 'Reactivate {name}',
+    label: 'Reactivate Admin',
+    busy: 'Reactivating {name}…',
+    title: 'Reactivate {name}?',
+    description: 'Their account will be active again, with the Admin permission. They can sign in to Hawkim with their existing password.',
+    cancel: 'Cancel',
+    confirm: 'Reactivate',
+    refused: "{name} wasn't reactivated:",
+    done: '{name} was reactivated. Their account is active again.',
+    failures: {
+      forbidden: "You don't have permission to reactivate Admins. Sign in again and retry.",
+      'not-found': 'This Admin no longer exists. Refresh the page.',
+      'super-admin-required': 'Only the Super Admin can do this. The permission may have just changed: refresh the page.',
+      'email-taken': "Another active account now uses this email, so they can't be reactivated.",
+      'account-unavailable': "Their sign-in account is no longer available, so they can't be reactivated.",
+      failed: 'Check your connection and try again.',
+    },
   },
 
   transfer: {

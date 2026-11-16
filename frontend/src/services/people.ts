@@ -239,6 +239,8 @@ export type NewUserDetails = UserChanges & { email: string }
 export type AddUserFailure =
   | 'forbidden' | 'email-taken' | 'invalid' | 'admin-exclusive' | 'approver-quality' | 'department-unavailable'
   | 'permission-in-use' | 'account-failed' | 'account-blocked' | 'admin-managed-separately' | 'invitation-failed' | 'failed'
+  /** Add Admin only: the email is a deleted Admin's, who is reactivated from the Deactivated Admins tab instead. */
+  | 'deactivated-admin'
 
 export class AddUserError extends Error {
   readonly reason: AddUserFailure
@@ -252,7 +254,7 @@ export class AddUserError extends Error {
 
 const ADD_USER_FAILURES: AddUserFailure[] = [
   'email-taken', 'invalid', 'admin-exclusive', 'approver-quality', 'department-unavailable', 'permission-in-use', 'account-failed', 'account-blocked',
-  'admin-managed-separately', 'invitation-failed',
+  'admin-managed-separately', 'invitation-failed', 'deactivated-admin',
 ]
 
 async function addUserError(error: unknown): Promise<AddUserError> {

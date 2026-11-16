@@ -12,6 +12,7 @@ import { isSystemAdmin } from './userAdmin'
  * | Add / Edit a regular Admin    | yes         | yes   |
  * | Edit the Super Admin          | themselves  | no    |
  * | Delete a regular Admin        | yes         | no    |
+ * | Reactivate a deleted Admin    | yes         | no    |
  * | Make Super Admin (transfer)   | yes         | no    |
  * | Delete the Super Admin        | no          | no    |
  */
@@ -19,6 +20,20 @@ import { isSystemAdmin } from './userAdmin'
 /** The administrators: active accounts with the Admin permission. */
 export function administrators(activeUsers: User[]): User[] {
   return activeUsers.filter(isSystemAdmin)
+}
+
+/** The Admins page's Active Admins / Deactivated Admins tabs (`?status=deactivated`), as on the Staff page. */
+export const ADMIN_STATUSES = ['active', 'deactivated'] as const
+export type AdminStatus = (typeof ADMIN_STATUSES)[number]
+
+/** The administrators of one tab: active ones, or deleted ones (Deactivated Admins). `users` includes deleted accounts. */
+export function administratorsWithStatus(users: User[], status: AdminStatus): User[] {
+  return users.filter((user) => isSystemAdmin(user) && (status === 'deactivated' ? !!user.deletedAt : !user.deletedAt))
+}
+
+/** Only the Super Admin (a deleted Admin is never the Super Admin). */
+export function canReactivateAdmin(viewerId: string, superAdminId: string | null): boolean {
+  return superAdminId !== null && viewerId === superAdminId
 }
 
 export function adminRole(userId: string, superAdminId: string | null): AdminRoleKey {

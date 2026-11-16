@@ -5,14 +5,15 @@ import { ArrowLeft, CircleAlert, CircleCheck, Info, LoaderCircle, Pencil } from 
 import { AdminRoleBadge } from '../../components/admin/AdminRoleBadge'
 import { DeleteAdminButton } from '../../components/admin/DeleteAdminButton'
 import { DetailRow, DetailsCard, DetailsHeader, EmailDetail } from '../../components/admin/DetailsCard'
+import { ReactivateAdminButton } from '../../components/admin/ReactivateAdminButton'
 import { RefusedBox } from '../../components/admin/RefusedBox'
 import { Button } from '../../components/ui/Button'
 import { adminsEn } from '../../content/admins.en'
 import type { User } from '../../data/mock/types'
 import { useDocumentTitle } from '../../hooks/useDocumentTitle'
 import { useSuperAdmin, type SuperAdminState } from '../../hooks/useSuperAdmin'
-import { adminRole, canDeleteAdmin, canEditAdmin } from '../../lib/adminAccess'
-import { ADMIN_ADMINS_PATH, adminAdminEditPath } from '../../lib/routes'
+import { adminRole, canDeleteAdmin, canEditAdmin, canReactivateAdmin } from '../../lib/adminAccess'
+import { ADMIN_ADMINS_PATH, ADMIN_DEACTIVATED_ADMINS_PATH, adminAdminEditPath } from '../../lib/routes'
 import { isSystemAdmin } from '../../lib/userAdmin'
 import { useCurrentUser } from '../../state/sessionContext'
 import { useUsers } from '../../state/usersContext'
@@ -30,7 +31,8 @@ export interface AdminDetailsLocationState {
  * signed-in administrator may take. The Super Admin sees Edit and Delete on a regular Admin (Make Super
  * Admin is on Edit Admin); a regular Admin sees Edit on regular Admins and only the details of the Super Admin.
  * The permission badge is shown once, in the Details card.
- * Staff and deleted or unknown accounts show Not Found.
+ * A deleted Admin (the Deactivated Admins tab's Preview) has only Reactivate Admin, for the Super Admin, and
+ * Back goes to that tab. Staff and unknown accounts show Not Found.
  */
 export function AdminDetailsPage() {
   const { id } = useParams()
@@ -39,9 +41,10 @@ export function AdminDetailsPage() {
 }
 
 function AdminDetails({ id }: { id: string | undefined }) {
-  const { status, activeUsers } = useUsers()
+  // Every profile: a deleted Admin's page is shown too (Reactivate Admin).
+  const { status, users } = useUsers()
   const superAdmin = useSuperAdmin()
-  const admin = activeUsers.find((user) => user.id === id && isSystemAdmin(user))
+  const admin = users.find((user) => user.id === id && isSystemAdmin(user))
   useDocumentTitle(admin ? adminsEn.pageTitle.replace('{page}', admin.name) : undefined)
 
   if (status === 'loading' || superAdmin.status === 'loading') {
@@ -57,7 +60,7 @@ function AdminDetails({ id }: { id: string | undefined }) {
   return (
     <>
       <Link
-        to={adminsEn.details.back.href}
+        to={admin.deletedAt ? ADMIN_DEACTIVATED_ADMINS_PATH : adminsEn.details.back.href}
         className="inline-flex items-center gap-1.5 rounded-sm text-sm font-medium text-text-gray transition-colors hover:text-maroon"
       >
         <ArrowLeft aria-hidden="true" className="size-4" strokeWidth={1.75} />
@@ -78,7 +81,9 @@ function AdminPanels({ admin, superAdmin }: { admin: User; superAdmin: SuperAdmi
   const [added, setAdded] = useState(() => !!arrived?.added)
   const [invitationFailed] = useState(() => !!arrived?.invitationFailed)
   const [refused, setRefused] = useState<{ title: string; reasons: string[] }>()
+  const [reactivatedNotice, setReactivatedNotice] = useState('')
   const noticeRef = useRef<HTMLDivElement>(null)
+  const reactivatedRef = useRef<HTMLDivElement>(null)
   const refusedRef = useRef<HTMLDivElement>(null)
 
   const superAdminId = superAdmin.status === 'ready' ? superAdmin.superAdminId : null
@@ -86,20 +91,32 @@ function AdminPanels({ admin, superAdmin }: { admin: User; superAdmin: SuperAdmi
   const known = superAdmin.status === 'ready'
   const role = adminRole(admin.id, superAdminId)
   const isSelf = admin.id === viewer.id
-  const mayEdit = known && canEditAdmin(viewer.id, admin.id, superAdminId)
-  const mayDelete = known && canDeleteAdmin(viewer.id, admin.id, superAdminId)
+  const deleted = !!admin.deletedAt
+  // A deleted Admin can only be reactivated (by the Super Admin); an active one edited and deleted as before.
+  const mayEdit = known && !deleted && canEditAdmin(viewer.id, admin.id, superAdminId)
+  const mayDelete = known && !deleted && canDeleteAdmin(viewer.id, admin.id, superAdminId)
+  const mayReactivate = known && deleted && canReactivateAdmin(viewer.id, superAdminId)
 
   function refuse(title: string, reasons: string[]) {
     setAdded(false)
+    setReactivatedNotice('')
     flushSync(() => setRefused({ title, reasons }))
     refusedRef.current?.focus()
     // The role may have moved elsewhere: show who holds it now.
     superAdmin.reload()
   }
 
-  function deleted(message: string) {
+  function wasDeleted(message: string) {
     const state: AdminAdminsLocationState = { notice: message }
     navigate(ADMIN_ADMINS_PATH, { state })
+  }
+
+  // They stay on this page, now an active Admin's (as Reactivate Staff on a staff member's page).
+  function reactivatedHere(message: string) {
+    setAdded(false)
+    setRefused(undefined)
+    flushSync(() => setReactivatedNotice(message))
+    reactivatedRef.current?.focus()
   }
 
   const email = admin.email.trim()
@@ -112,7 +129,7 @@ function AdminPanels({ admin, superAdmin }: { admin: User; superAdmin: SuperAdmi
       <DetailsHeader
         user={admin}
         actions={
-          mayEdit || mayDelete ? (
+          mayEdit || mayDelete || mayReactivate ? (
             <>
               {mayEdit && (
                 <Button to={adminAdminEditPath(admin.id)}>
@@ -120,13 +137,23 @@ function AdminPanels({ admin, superAdmin }: { admin: User; superAdmin: SuperAdmi
                   {text.edit}
                 </Button>
               )}
-              {mayDelete && <DeleteAdminButton admin={admin} onDeleted={deleted} onFailed={refuse} labeled />}
+              {mayDelete && <DeleteAdminButton admin={admin} onDeleted={wasDeleted} onFailed={refuse} labeled />}
+              {mayReactivate && <ReactivateAdminButton admin={admin} onReactivated={reactivatedHere} onRefused={refuse} labeled />}
             </>
           ) : undefined
         }
       />
 
       {refused && <RefusedBox ref={refusedRef} title={refused.title} messages={refused.reasons} />}
+
+      <div role="status" ref={reactivatedRef} tabIndex={-1} className="rounded-lg focus:outline-none">
+        {reactivatedNotice && (
+          <p className="mt-6 flex items-center gap-2 rounded-lg border border-status-approved-fg/25 bg-status-approved-bg px-4 py-3 text-sm font-medium text-status-approved-fg">
+            <CircleCheck aria-hidden="true" className="size-4 shrink-0" strokeWidth={2} />
+            {reactivatedNotice}
+          </p>
+        )}
+      </div>
 
       <div role="status" ref={noticeRef} tabIndex={-1} className="rounded-lg focus:outline-none">
         {added && invitationFailed && (

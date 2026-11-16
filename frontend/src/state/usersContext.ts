@@ -57,6 +57,11 @@ export interface UsersStore {
   updateAdmin: (userId: string, details: AdminDetails) => Promise<void>
   /** Deletes a regular Admin (Super Admin only). Rejects with an AdminActionError. */
   deleteAdmin: (userId: string) => Promise<void>
+  /**
+   * Reactivates a deleted Admin (Super Admin only, reactivate_admin), with the Admin permission and history they had.
+   * The list changes only once the server has done it; rejects with a ReactivateAdminError (nothing changes).
+   */
+  reactivateAdmin: (userId: string) => Promise<void>
 }
 
 /** What Edit Admin saves; `phone` as typed (+9665XXXXXXXX). */

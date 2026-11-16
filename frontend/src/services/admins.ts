@@ -1,13 +1,13 @@
 /*
  * Manage Organization → Admins on the server. Who the Super Admin is, Edit Admin (name and phone),
- * Delete Admin and Make Super Admin are database functions (supabase/migrations/
- * 20261111120000_super_admin.sql) that check the caller, the target and the current Super Admin
+ * Delete Admin, Reactivate Admin and Make Super Admin are database functions (supabase/migrations/
+ * 20261111120000_super_admin.sql, 20261121120000_admin_reactivation.sql) that check the caller, the target and the current Super Admin
  * themselves; the browser's checks only decide what is shown. Add Admin is the add-user Edge Function
  * with the Admin permission (services/people.ts addUserAccount), and an email change is the
  * update-user-email Edge Function (changeUserEmail), so the sign-in account changes with the profile.
  */
 
-import type { AdminActionFailure } from '../content/types'
+import type { AdminActionFailure, ReactivateAdminFailure } from '../content/types'
 import { supabase } from './supabase'
 
 export class AdminActionError extends Error {
@@ -63,6 +63,40 @@ export async function updateAdminDetails(userId: string, name: string, phone: st
 /** Deletes a regular Admin (Super Admin only): they can no longer sign in; their name stays on history. */
 export async function deleteAdminAccount(userId: string): Promise<void> {
   await call<null>('delete_admin', { p_user_id: userId })
+}
+
+export class ReactivateAdminError extends Error {
+  readonly reason: ReactivateAdminFailure
+  constructor(reason: ReactivateAdminFailure) {
+    super(`The administrator was not reactivated (${reason})`)
+    this.reason = reason
+  }
+}
+
+const REACTIVATE_HINTS: ReactivateAdminFailure[] = ['super-admin-required', 'email-taken', 'account-unavailable']
+
+/**
+ * Reactivates a deleted Admin (Super Admin only) through reactivate_admin: the same profile and sign-in account
+ * are active again, with the Admin permission and history they had; their old sessions are ended. A repeated
+ * request succeeds without changing anything. Throws a ReactivateAdminError.
+ */
+export async function reactivateAdminAccount(userId: string): Promise<void> {
+  let response
+  try {
+    response = await supabase().rpc('reactivate_admin', { p_user_id: userId })
+  } catch {
+    throw new ReactivateAdminError('failed')
+  }
+  const error = response.error
+  if (error) {
+    const hinted = REACTIVATE_HINTS.find((reason) => reason === error.hint)
+    if (hinted) throw new ReactivateAdminError(hinted)
+    // PGRST30x: the session's token has expired or isn't valid.
+    if (error.code === '42501' || error.code?.startsWith('PGRST30')) throw new ReactivateAdminError('forbidden')
+    if (error.code === 'P0002') throw new ReactivateAdminError('not-found')
+    throw new ReactivateAdminError('failed')
+  }
+  if ((response.data as { id?: unknown } | null)?.id !== userId) throw new ReactivateAdminError('failed')
 }
 
 /** Makes another Admin the Super Admin; the caller becomes a regular Admin. Returns the new Super Admin's id. */

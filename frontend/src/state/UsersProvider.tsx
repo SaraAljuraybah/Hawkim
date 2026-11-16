@@ -16,7 +16,7 @@ import { useDepartments } from './departmentsContext'
 import { useLoadAfterSignIn } from './useLoadAfterSignIn'
 import { UsersContext, type AdminActionContext, type AdminDetails, type UsersStore } from './usersContext'
 import { addUserAccount, changeUserEmail, deactivateStaff, fetchPeople, reactivateStaff, saveUser } from '../services/people'
-import { AdminActionError, deleteAdminAccount, updateAdminDetails } from '../services/admins'
+import { AdminActionError, deleteAdminAccount, reactivateAdminAccount, updateAdminDetails } from '../services/admins'
 
 /** What the admin entered, as a user's saved fields. A System Admin has no department or position. */
 function savedFields(input: NewUser, departmentId: string) {
@@ -187,9 +187,18 @@ export function UsersProvider({ children }: { children: ReactNode }) {
     [commit],
   )
 
+  const reactivateAdmin = useCallback(
+    async (userId: string) => {
+      // The server first: the list changes only once the database has reactivated them.
+      await reactivateAdminAccount(userId)
+      commit(latestRef.current.map((user) => (user.id === userId ? { ...user, deletedAt: undefined } : user)))
+    },
+    [commit],
+  )
+
   const store = useMemo<UsersStore>(
-    () => ({ status, users, activeUsers, getUser, nameOf, addUser, updateUser, deleteUser, reactivateUser, updateAdmin, deleteAdmin }),
-    [status, users, activeUsers, getUser, nameOf, addUser, updateUser, deleteUser, reactivateUser, updateAdmin, deleteAdmin],
+    () => ({ status, users, activeUsers, getUser, nameOf, addUser, updateUser, deleteUser, reactivateUser, updateAdmin, deleteAdmin, reactivateAdmin }),
+    [status, users, activeUsers, getUser, nameOf, addUser, updateUser, deleteUser, reactivateUser, updateAdmin, deleteAdmin, reactivateAdmin],
   )
 
   return <UsersContext.Provider value={store}>{children}</UsersContext.Provider>

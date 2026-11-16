@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { AdminActionError, deleteAdminAccount, fetchSuperAdminId, transferSuperAdmin, updateAdminDetails } from './admins'
+import { AdminActionError, deleteAdminAccount, fetchSuperAdminId, reactivateAdminAccount, ReactivateAdminError, transferSuperAdmin, updateAdminDetails } from './admins'
 
 const rpc = vi.fn()
 vi.mock('./supabase', () => ({ supabase: () => ({ rpc }) }))
@@ -62,5 +62,35 @@ describe('the Admins server calls', () => {
     await expect(updateAdminDetails('u2', 'A', '+966512345678')).rejects.toMatchObject({ reason: 'failed' })
     rpc.mockResolvedValue({ data: 42, error: null })
     await expect(fetchSuperAdminId()).rejects.toMatchObject({ reason: 'failed' })
+  })
+})
+
+describe('Reactivate Admin on the server', () => {
+  it('reactivates by id only, in ONE call', async () => {
+    rpc.mockResolvedValue({ data: { id: 'u2', alreadyActive: false }, error: null })
+    await reactivateAdminAccount('u2')
+    expect(rpc).toHaveBeenCalledTimes(1)
+    expect(rpc).toHaveBeenCalledWith('reactivate_admin', { p_user_id: 'u2' })
+  })
+
+  it.each([
+    [refused('42501', 'super-admin-required'), 'super-admin-required'],
+    [refused('23514', 'email-taken'), 'email-taken'],
+    [refused('23514', 'account-unavailable'), 'account-unavailable'],
+    [refused('42501'), 'forbidden'],
+    [refused('PGRST301'), 'forbidden'],
+    [refused('P0002'), 'not-found'],
+    [refused('XX000'), 'failed'],
+  ])('explains refusal %# as %s', async (response, reason) => {
+    rpc.mockResolvedValue(response)
+    await expect(reactivateAdminAccount('u2')).rejects.toBeInstanceOf(ReactivateAdminError)
+    await expect(reactivateAdminAccount('u2')).rejects.toMatchObject({ reason })
+  })
+
+  it('reports a lost connection or an unexpected reply as failed', async () => {
+    rpc.mockRejectedValueOnce(new TypeError('fetch failed'))
+    await expect(reactivateAdminAccount('u2')).rejects.toMatchObject({ reason: 'failed' })
+    rpc.mockResolvedValueOnce({ data: { id: 'someone-else' }, error: null })
+    await expect(reactivateAdminAccount('u2')).rejects.toMatchObject({ reason: 'failed' })
   })
 })

@@ -2161,6 +2161,10 @@ export type AdminActionFailure =
   | 'forbidden' | 'not-found' | 'invalid' | 'super-admin-required' | 'super-admin-protected'
   | 'recipient-not-admin' | 'recipient-self' | 'failed'
 
+/** Why Reactivate Admin was refused by the server. Nothing changed. */
+export type ReactivateAdminFailure =
+  | 'forbidden' | 'not-found' | 'super-admin-required' | 'email-taken' | 'account-unavailable' | 'failed'
+
 export interface AdminsContent {
   /** Browser tab title; `{page}` is replaced. */
   pageTitle: string
@@ -2177,14 +2181,17 @@ export interface AdminsContent {
     /** `groups.name`: the title the two name orders are listed under (Default order stands alone). */
     sort: { label: string; options: Record<'default' | 'name-asc' | 'name-desc', string>; groups: { name: string } }
     clearFilters: string
-    count: CountText
     tableLabel: string
-    /** `preview`, `edit`, `delete`: the action columns' headings, as on Divisions and Departments. */
-    columns: { name: string; email: string; phone: string; role: string; preview: string; edit: string; delete: string }
+    /** The Active Admins / Deactivated Admins tabs (`?status=deactivated`), as on the Staff page. */
+    tabs: { label: string; active: string; deactivated: string }
+    /** `preview`, `edit`, `delete`: the action columns' headings; `reactivate` replaces `delete` on Deactivated Admins. */
+    columns: { name: string; email: string; phone: string; role: string; preview: string; edit: string; delete: string; reactivate: string }
     none: string
     /** `{name}` is replaced. */
     actions: { view: string; edit: string }
     empty: string
+    /** The Deactivated Admins tab has no one. */
+    emptyDeactivated: string
     noMatches: string
     loading: string
     /** The administrators or the Super Admin couldn't be loaded. */
@@ -2197,7 +2204,8 @@ export interface AdminsContent {
     submit: string
     adding: string
     notAdded: string
-    failures: Record<'forbidden' | 'email-taken' | 'invalid' | 'account-failed' | 'account-blocked' | 'failed', string>
+    /** `deactivated-admin`: the email is a deleted Admin's (reactivated from the Deactivated Admins tab instead). */
+    failures: Record<'forbidden' | 'email-taken' | 'invalid' | 'account-failed' | 'account-blocked' | 'deactivated-admin' | 'failed', string>
   }
   form: UserFormText
   edit: {
@@ -2249,6 +2257,25 @@ export interface AdminsContent {
     done: string
     /** Above the reason when deleting is refused; `{name}` is replaced. */
     notDeleted: string
+  }
+  /**
+   * Reactivate Admin (Super Admin only), on the Deactivated Admins tab and a deleted Admin's page, the same layout as
+   * Reactivate Staff. `{name}` is replaced in `button`, `busy`, `title`, `refused` and `done`.
+   */
+  reactivate: {
+    /** Accessible name and tooltip of the icon-only button. */
+    button: string
+    /** Visible label of the button on a deleted Admin's page. */
+    label: string
+    busy: string
+    title: string
+    description: string
+    cancel: string
+    confirm: string
+    /** Above the reason when reactivating is refused. */
+    refused: string
+    done: string
+    failures: Record<ReactivateAdminFailure, string>
   }
   transfer: {
     button: string

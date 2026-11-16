@@ -37,6 +37,8 @@ export function AddUserPage() {
   /** What to tell the admin about an add the server refused. */
   function failureMessages(error: unknown): string[] {
     if (!(error instanceof AddUserError)) return [content.failures.failed]
+    // Add Admin's refusal only (a deleted Admin's email when adding an Admin): Add Staff never asks for that.
+    if (error.reason === 'deactivated-admin') return [content.failures.failed]
     if (error.reason !== 'permission-in-use') return [content.failures[error.reason]]
     if (error.inUse.length === 0) return [content.failures.invalid]
     return error.inUse.map(({ permission, count }) =>

@@ -15,10 +15,11 @@ const fixture = vi.hoisted(() => ({
   users: [] as User[],
   usersStatus: 'ready' as LoadStatus,
   superAdmin: { status: 'ready' as LoadStatus, superAdminId: 'amal' as string | null },
+  reactivateAdmin: vi.fn(async (_id: string) => {}),
 }))
 vi.mock('../../hooks/useDocumentTitle', () => ({ useDocumentTitle: () => {} }))
 vi.mock('../../state/usersContext', () => ({
-  useUsers: () => ({ status: fixture.usersStatus, activeUsers: fixture.users, addUser: vi.fn(), updateAdmin: vi.fn(), deleteAdmin: vi.fn() }),
+  useUsers: () => ({ status: fixture.usersStatus, users: fixture.users, activeUsers: fixture.users.filter((user) => !user.deletedAt), addUser: vi.fn(), updateAdmin: vi.fn(), deleteAdmin: vi.fn(), reactivateAdmin: fixture.reactivateAdmin }),
 }))
 vi.mock('../../state/sessionContext', () => ({ useCurrentUser: () => fixture.users.find((user) => user.id === fixture.viewer) }))
 vi.mock('../../state/departmentsContext', () => ({ useDepartments: () => ({ activeDepartments: [] }) }))
@@ -378,5 +379,71 @@ describe('Make Super Admin', () => {
     ])
     expect(text.effect).toBe('This change will take effect immediately.')
     expect([text.cancel, text.confirm]).toEqual(['Cancel', 'Confirm Transfer'])
+  })
+})
+
+describe('Active Admins and Deactivated Admins', () => {
+  const deleted = (id: string, name: string, email: string): User => ({ ...admin(id, name, email), deletedAt: '2026-11-10T09:00:00Z' })
+  const tabs = (html: string) => [...html.matchAll(/<button type="button" role="tab"[^>]*aria-selected="(true|false)"[^>]*>([^<]+)<\/button>/g)]
+    .map(([, selected, label]) => ({ label, selected: selected === 'true' }))
+  const names = (html: string) => [...table(html).matchAll(/<th scope="row"[^>]*><span[^>]*>(?:<span[^>]*>[^<]*<\/span>)?([^<]+)<\/span><\/th>/g)].map((match) => match[1])
+  const headings = (html: string) => [...table(html).matchAll(/<th scope="col"[^>]*>([^<]+)<\/th>/g)].map((match) => match[1])
+  const actions = (html: string) => html.slice(html.indexOf('</h1>'), html.indexOf('admin-details-title'))
+  beforeEach(() => { fixture.users.push(deleted('huda', 'Huda Saleh', 'huda@example.test')) })
+
+  it('has the two tabs right above the table, as on the Staff page, and no count', () => {
+    const html = at('/admin/admins')
+    expect(tabs(html)).toEqual([{ label: 'Active Admins', selected: true }, { label: 'Deactivated Admins', selected: false }])
+    expect(html).toMatch(/<div role="tablist" aria-label="Admin status"/)
+    expect(html.indexOf('name="adminSort"')).toBeLessThan(html.indexOf('role="tablist"'))
+    expect(html.indexOf('role="tablist"')).toBeLessThan(html.indexOf('role="tabpanel"'))
+    expect(html.indexOf('role="tabpanel"')).toBeLessThan(html.indexOf('<table'))
+    expect(html).toContain('rounded-xl border border-beige bg-white rounded-tl-none')
+    expect(html).not.toMatch(/\d+ Admins?</)
+  })
+
+  it('lists active Admins only on Active Admins, and deleted Admins only on Deactivated Admins', () => {
+    expect(names(at('/admin/admins'))).toEqual(['Amal Fahad', 'Nouf Saleh', 'Zaid Omar'])
+    const html = at('/admin/admins?status=deactivated')
+    expect(tabs(html).map((tab) => tab.selected)).toEqual([false, true])
+    expect(names(html)).toEqual(['Huda Saleh'])
+  })
+
+  it('gives the Super Admin Preview and Reactivate on Deactivated Admins (no Edit or Delete)', () => {
+    const html = at('/admin/admins?status=deactivated')
+    expect(headings(html)).toEqual(['Full Name', 'Email', 'Phone Number', 'Permission', 'Preview', 'Reactivate'])
+    expect(labels(row(html, 'Huda Saleh'))).toEqual(expect.arrayContaining(['View Huda Saleh', 'Reactivate Huda Saleh']))
+    expect(labels(html)).not.toContain('Edit Huda Saleh')
+    expect(labels(html)).not.toContain('Delete Huda Saleh')
+  })
+
+  it('shows a regular Admin no Reactivate at all', () => {
+    fixture.viewer = 'nouf'
+    const html = at('/admin/admins?status=deactivated')
+    expect(headings(html)).toEqual(['Full Name', 'Email', 'Phone Number', 'Permission', 'Preview'])
+    expect(html).not.toContain('Reactivate')
+  })
+
+  it('says so when there are no deleted Admins', () => {
+    fixture.users = fixture.users.filter((user) => !user.deletedAt)
+    expect(at('/admin/admins?status=deactivated')).toContain('No deactivated Admins found.')
+  })
+
+  it("shows a deleted Admin's page with Reactivate Admin for the Super Admin only, and Back to Deactivated Admins", () => {
+    const html = at('/admin/admins/huda')
+    const buttons = actions(html).match(/<(a|button) [^>]*>.*?<\/\1>/g)!.map((button) => button.replace(/<[^>]*>/g, ''))
+    expect(buttons).toEqual(['Reactivate Admin'])
+    expect(html).toMatch(/<a[^>]*href="\/admin\/admins\?status=deactivated"[^>]*>.*Back to Admins<\/a>/)
+    fixture.viewer = 'nouf'
+    expect(actions(at('/admin/admins/huda'))).not.toMatch(/<button|\/edit/)
+  })
+
+  it('uses the agreed texts', () => {
+    expect(adminsEn.add.failures['deactivated-admin']).toBe('This admin was deleted. You can reactivate their account from the Deactivated Admins tab.')
+    expect(adminsEn.delete.description).toBe(
+      "Are you sure you want to delete this admin? Their account will become inactive and they won't be able to sign in. Their past records will be kept. You can reactivate their account later from the Deactivated Admins tab.")
+    const text = adminsEn.reactivate
+    expect([text.title, text.confirm, text.done].map((line) => line.replace('{name}', 'Huda Saleh')))
+      .toEqual(['Reactivate Huda Saleh?', 'Reactivate', 'Huda Saleh was reactivated. Their account is active again.'])
   })
 })
