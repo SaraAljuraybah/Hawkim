@@ -15,7 +15,8 @@
 // anything, then succeeding (Sent again, a new link, the old one dead and "replaced"); activation moving the
 // person off Sent Invitations; Cancel (refused for staff and another organization; the link dead and
 // "cancelled", no sign-in, no Forgot-password way in, the profile kept and not deactivated, Resend refused,
-// repeat safe); an already-activated invitation can't be cancelled.
+// repeat safe); an already-activated invitation can't be cancelled; Add Staff with the cancelled email re-invites the
+// same person (old links dead, still no sign-in) until they accept and are on Active Staff.
 import { createRequire } from 'node:module'
 import { randomUUID } from 'node:crypto'
 import { createServer } from 'node:http'
@@ -235,6 +236,48 @@ await check('9. Accepting the invitation and setting a password moves the person
   assert(own?.id === omarId, 'and uses Hawkim')
   const cancel = await invoke(admin.client, 'cancel-invitation', { userId: omarId })
   assert(cancel.status === 409 && cancel.body.errorCode === 'already-activated', `cancel activated: ${cancel.status} ${JSON.stringify(cancel.body)}`)
+})
+
+await check('10. Add Staff with the cancelled email invites them again: the same account and profile, the details entered', async () => {
+  const before = await db.row(`select count(*) n from auth.users where lower(email) = ${lit(rana.email)}`)
+  const again = await invoke(admin.client, 'add-user', { ...rana, position: 'Senior Officer', permissions: ['author'] })
+  assert(again.status === 200 && again.body.emailSent === true, `${again.status} ${JSON.stringify(again.body)}`)
+  assert(again.body.user.id === ranaId && again.body.user.reinvited === true && again.body.user.reactivated === false, `same person: ${JSON.stringify(again.body.user)}`)
+  assert(Number((await db.row(`select count(*) n from auth.users where lower(email) = ${lit(rana.email)}`)).n) === Number(before.n), 'no second account')
+  assert(Number((await db.row(`select count(*) n from public.profiles where email = ${lit(rana.email)}`)).n) === 1, 'no second profile')
+  const profile = await db.row(`select "position", deleted_at from public.profiles where id = ${lit(ranaId)}`)
+  assert(profile.position === 'Senior Officer' && !profile.deleted_at, 'the details entered, not deactivated')
+  const row = await listed(admin.client, ranaId)
+  assert(row && row.cancelled === false && row.expired === false, `Sent again: ${JSON.stringify(row)}`)
+  assert(Number((await db.row(`select count(*) n from public.organization_management_audit where action = 'reinvite-user' and entity_id = ${lit(ranaId)}`)).n) === 1, 'audited')
+})
+
+await check('11. Every earlier link stays dead and the cancelled ones still say so; no sign-in before accepting', async () => {
+  const links = mailTo(rana.email)
+  assert(links.length === 3, `three invitations in all (${links.length})`)
+  for (const old of links.slice(0, 2)) assert(!(await openLink(linkIn(old.html))).session, 'an earlier link opens no session')
+  assert(await linkState(ranaRef) === 'cancelled' && await linkState(newRef) === 'cancelled', 'the cancelled links still say cancelled')
+  const latest = refIn(linkIn(links[2].html))
+  assert(await linkState(latest) === 'valid', 'the new link is valid')
+  const client = createClient(url, anonKey, options)
+  const attempt = await client.auth.signInWithPassword({ email: rana.email, password: `E2e-${randomUUID()}` })
+  assert(attempt.error, 'no sign-in without accepting')
+  const people = await ok(peer.client.rpc('get_unactivated_people'), 'get_unactivated_people')
+  assert(people.some((person) => person.user_id === ranaId && person.cancelled === false), 'still not assignable')
+})
+
+await check('12. Accepting the new invitation: Active Staff, assignable, and signed in', async () => {
+  const opened = await openLink(linkIn(mailTo(rana.email)[2].html))
+  assert(opened.session, `the new link opens a session (${decodeURIComponent(opened.location.split("#")[1] ?? "")})`)
+  const password = `E2e-${randomUUID()}`
+  await activate(opened.session, password)
+  assert(!(await listed(admin.client, ranaId)), 'off Sent Invitations')
+  const people = await ok(peer.client.rpc('get_unactivated_people'), 'get_unactivated_people')
+  assert(!people.some((person) => person.user_id === ranaId), 'assignable now')
+  const client = createClient(url, anonKey, options)
+  await ok(client.auth.signInWithPassword({ email: rana.email, password }), 'signs in')
+  const own = await ok(client.from('profiles').select('id').eq('id', ranaId).maybeSingle(), 'reads their profile')
+  assert(own?.id === ranaId, 'and uses Hawkim')
 })
 
 mock.close()

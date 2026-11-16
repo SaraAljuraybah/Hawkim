@@ -8,7 +8,8 @@
 //
 // Clicks through the tab as an Admin: the third tab, the note, the columns, the badges, the fixed actions (Resend
 // disabled with its tooltip while Sent), Preview, the status Filter, the search, Resend on an Expired invitation,
-// Cancel with its confirmation, Active Staff without invited people, and the cancelled link's message.
+// Cancel with its confirmation, Active Staff without invited people, the cancelled link's message, and Add Staff
+// inviting the cancelled person again.
 import { createRequire } from 'node:module'
 import { randomUUID } from 'node:crypto'
 import { createServer } from 'node:http'
@@ -72,6 +73,8 @@ const context = await browser.createBrowserContext()
 const page = await context.newPage()
 await page.setViewport({ width: 1366, height: 900 })
 page.setDefaultTimeout(30000)
+// Leaving a form on purpose answers the browser's own "Leave site?" with Leave.
+page.on('dialog', (dialog) => void dialog.accept())
 await page.goto(`${APP}/login`, { waitUntil: 'networkidle2' })
 await page.type('input[name="email"]', admin.email)
 await page.type('input[name="password"]', admin.password)
@@ -94,7 +97,7 @@ const press = async (label) => {
   await button.click()
 }
 async function openTab() {
-  await page.goto(`${APP}/admin/users?status=invitations`, { waitUntil: 'networkidle2' })
+  await page.goto(`${APP}/admin/users?status=invitations`, { waitUntil: 'domcontentloaded' })
   await page.waitForSelector('table tbody tr')
 }
 
@@ -186,6 +189,39 @@ await check('7. The cancelled link says "This invitation has been cancelled."', 
   await visitor.waitForFunction(() => document.body.innerText.includes('This invitation has been cancelled.'), { timeout: 20000 })
   assert(!(await visitor.evaluate(() => document.querySelector('input[type="password"]'))), 'no password form')
   if (process.env.SCREENSHOT_DIR) await visitor.screenshot({ path: `${process.env.SCREENSHOT_DIR}/cancelled-link.png` })
+})
+
+await check('8. Add Staff with the cancelled email invites the same person again: back on Sent Invitations, not Active Staff', async () => {
+  await page.goto(`${APP}/admin/users/new`, { waitUntil: 'domcontentloaded' })
+  await page.waitForSelector('input[name="name"]', { visible: true })
+  await page.type('input[name="name"]', rana.name)
+  await page.type('input[name="email"]', rana.email)
+  await page.type('input[name="phone"]', rana.phone.slice(5))
+  for (const [name, label] of [['division', 'No Division'], ['department', 'Regulatory Affairs']]) {
+    await page.click(`input[name="${name}"]`, { clickCount: 3 })
+    await page.type(`input[name="${name}"]`, label)
+    const option = await page.waitForSelector(`::-p-xpath(//li[@role="option" and normalize-space(.)="${label}"])`, { timeout: 5000 })
+    await option.click()
+  }
+  await page.type('input[name="position"]', 'Senior Officer')
+  await page.click('input[name="permissions"][value="author"]')
+  assert(!(await text()).includes('already exists'), 'the email is not called taken')
+  const submit = await page.waitForSelector('::-p-xpath(//button[normalize-space(.)="Add Staff"])')
+  await submit.click()
+  try {
+    await page.waitForFunction(() => /^\/admin\/users\/[0-9a-f-]{36}$/.test(location.pathname), { timeout: 30000 })
+  } catch (error) {
+    await shot('reinvite-stuck')
+    throw new Error(`stayed on ${new URL(page.url()).pathname}: ${(await text()).slice(0, 600).split(/\s*\n\s*/).join(' | ')}`)
+  }
+  assert(page.url().endsWith(`/admin/users/${rana.id}`), 'the same staff member')
+  await openTab()
+  const back = await row(rana.name)
+  assert(back && back.cells[1] === 'Sent', `back on Sent Invitations: ${JSON.stringify(back)}`)
+  await page.goto(`${APP}/admin/users`, { waitUntil: 'domcontentloaded' })
+  await page.waitForSelector('[role="tabpanel"]')
+  assert(!(await text()).includes(rana.name), 'not on Active Staff')
+  await shot('reinvited')
 })
 
 await browser.close()
