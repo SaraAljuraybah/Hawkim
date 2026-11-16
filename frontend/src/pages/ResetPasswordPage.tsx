@@ -9,7 +9,8 @@ import { resetPasswordEn } from '../content/profile.en'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { newPasswordProblems, PASSWORD_MIN_LENGTH } from '../lib/newPassword'
 import { profilePathFor } from '../lib/routes'
-import { restoreSession, setNewPassword, startPasswordRecovery, type NewPasswordFailureReason } from '../services/auth'
+import { linkStage } from '../lib/invitations'
+import { restoreSession, setNewPassword, type NewPasswordFailureReason } from '../services/auth'
 import { useSession } from '../state/sessionContext'
 
 const content = resetPasswordEn
@@ -81,12 +82,14 @@ export function NewPasswordForm({ onSaved, onExpired }: { onSaved: () => void | 
   )
 }
 
-type Stage = 'checking' | 'ready' | 'invalid' | 'saved' | 'saved-signed-out'
+type Stage = 'checking' | 'ready' | 'invalid' | 'cancelled' | 'saved' | 'saved-signed-out'
 
 /**
  * Set New Password ("/reset-password"), opened from the recovery email. The Supabase client
  * doesn't read the address itself (see services/supabase.ts), so this page starts the recovery
  * session from the link, once, and removes the tokens from the address straight away.
+ * An invitation's link also carries `?invitation=<reference>`: when an Admin cancelled that invitation,
+ * the page says so (instead of the expired-link message) and never starts a session from it.
  */
 export function ResetPasswordPage() {
   useDocumentTitle(content.pageTitle)
@@ -100,12 +103,12 @@ export function ResetPasswordPage() {
     started.current = true
     const { hash, pathname, search } = window.location
     window.history.replaceState(null, '', pathname + search)
-    startPasswordRecovery(hash).then((ready) => setStage(ready ? 'ready' : 'invalid'))
+    void linkStage(search, hash).then(setStage)
   }, [])
 
   // The page's content was replaced: move focus to the new heading.
   useEffect(() => {
-    if (stage === 'invalid' || stage === 'saved' || stage === 'saved-signed-out') titleRef.current?.focus()
+    if (stage === 'invalid' || stage === 'cancelled' || stage === 'saved' || stage === 'saved-signed-out') titleRef.current?.focus()
   }, [stage])
 
   async function saved() {
@@ -126,6 +129,13 @@ export function ResetPasswordPage() {
     return (
       <MessageScreen titleRef={titleRef} title={content.invalid.title} text={content.invalid.text} logoAlt={content.logoAlt}>
         <Button to={profilePathFor(session.user)} size="lg">{content.invalid.action.label}</Button>
+      </MessageScreen>
+    )
+  }
+  if (stage === 'cancelled') {
+    return (
+      <MessageScreen titleRef={titleRef} title={content.cancelled.title} text={content.cancelled.text} logoAlt={content.logoAlt}>
+        <Button to={content.cancelled.action.href} size="lg">{content.cancelled.action.label}</Button>
       </MessageScreen>
     )
   }

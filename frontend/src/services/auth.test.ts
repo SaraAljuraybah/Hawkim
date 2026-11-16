@@ -21,7 +21,8 @@ const fetchProfile = vi.fn<(id: string) => Promise<User | null>>()
 vi.mock('./supabase', () => ({ supabase: () => ({ auth }), passwordCheckClient: () => ({ auth: checker }) }))
 vi.mock('./people', () => ({ fetchProfile: (id: string) => fetchProfile(id) }))
 const markAccountActivated = vi.hoisted(() => vi.fn())
-vi.mock('./invitations', () => ({ markAccountActivated }))
+const confirmAccountActivated = vi.hoisted(() => vi.fn(async () => {}))
+vi.mock('./invitations', () => ({ markAccountActivated, confirmAccountActivated }))
 
 const sara: User = { id: 'uuid-sara', name: 'Sara Aljuraybah', email: 'sara.aljuraybah@hawkim.test', initials: 'SA', departmentId: 'information-technology', permissions: ['author'] }
 const signedIn = { data: { user: { id: 'uuid-sara' }, session: {} }, error: null }
@@ -262,13 +263,13 @@ describe('marking the account activated (expired-invitation notifications)', () 
     expect(markAccountActivated).not.toHaveBeenCalled()
   })
 
-  it('marks it after the new password is saved, and not when saving fails', async () => {
+  it('marks it (and waits for it) after the new password is saved, and not when saving fails', async () => {
     auth.updateUser.mockResolvedValue({ data: { user: {} }, error: null })
     expect(await setNewPassword('a-long-new-password')).toEqual({ ok: true })
-    expect(markAccountActivated).toHaveBeenCalledTimes(1)
-    markAccountActivated.mockClear()
+    expect(confirmAccountActivated).toHaveBeenCalledTimes(1)
+    confirmAccountActivated.mockClear()
     auth.updateUser.mockResolvedValue({ data: { user: null }, error: new AuthApiError('Password is too weak', 422, 'weak_password') })
     expect(await setNewPassword('weak')).toEqual({ ok: false, reason: 'weak-password' })
-    expect(markAccountActivated).not.toHaveBeenCalled()
+    expect(confirmAccountActivated).not.toHaveBeenCalled()
   })
 })

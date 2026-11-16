@@ -11,7 +11,7 @@
 import { isAuthApiError, isAuthRetryableFetchError, isAuthSessionMissingError, type AuthError } from '@supabase/supabase-js'
 import type { User } from '../data/mock/types'
 import { RESET_PASSWORD_PATH } from '../lib/routes'
-import { markAccountActivated } from './invitations'
+import { confirmAccountActivated, markAccountActivated } from './invitations'
 import { fetchProfile } from './people'
 import { passwordCheckClient, supabase } from './supabase'
 
@@ -142,8 +142,9 @@ export async function setNewPassword(password: string): Promise<{ ok: true } | {
   try {
     const { error } = await supabase().auth.updateUser({ password })
     if (!error) {
-      // The invitation (or recovery) link is used: the account is activated (never waited for).
-      markAccountActivated()
+      // The invitation (or recovery) link is used: the account is activated, so the person moves from Sent
+      // Invitations to Active Staff. Waited for (it never fails saving the password; a later sign-in marks it too).
+      await confirmAccountActivated()
       return { ok: true }
     }
     if (error.code === 'weak_password') return { ok: false, reason: 'weak-password' }
