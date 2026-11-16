@@ -217,6 +217,7 @@ insert into iso_case (fn, template, targeted, accepted) values
   ('finish_sample_check(uuid,text)', 'public.finish_sample_check({check}, ''completed'')', true, null),
   ('get_department_file_deletion(uuid)', 'public.get_department_file_deletion({job})', true, null),
   ('get_divisions_departments()', 'public.get_divisions_departments()', false, null),
+  ('get_unactivated_people()', '(select coalesce(jsonb_agg(to_jsonb(x)), ''[]'') from public.get_unactivated_people() x)', false, null),
   ('get_staff_invitations()', '(select coalesce(jsonb_agg(to_jsonb(x)), ''[]'') from public.get_staff_invitations() x)', false, null),
   ('get_my_expired_invitations()', '(select coalesce(jsonb_agg(to_jsonb(x)), ''[]'') from public.get_my_expired_invitations() x)', false, null),
   ('get_organization_name()', 'public.get_organization_name()', false, null),
@@ -236,6 +237,7 @@ insert into iso_case (fn, template, targeted, accepted) values
   ('my_closed_review_requests()', '(select coalesce(jsonb_agg(to_jsonb(x)), ''[]'') from public.my_closed_review_requests() x)', false, null),
   ('organizational_structure_emails()', '(select coalesce(jsonb_agg(to_jsonb(x)), ''[]'') from public.organizational_structure_emails() x)', false, null),
   -- B's Super Admin: A's Admin gets the same answer as a made-up id (Admin not found).
+  ('is_invitation_cancelled(uuid)', 'public.is_invitation_cancelled({author})', true, null),
   ('reactivate_admin(uuid)', 'public.reactivate_admin({admin})', true, null),
   ('reactivate_staff(uuid)', 'public.reactivate_staff({author})', true, null),
   ('record_invitation_sent(uuid,uuid)', 'public.record_invitation_sent({author}, null)', true, null),
