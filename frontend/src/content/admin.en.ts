@@ -216,7 +216,7 @@ export const adminEn: AdminContent = {
       'account-failed': "The account couldn't be created. Try again in a few minutes.",
       'account-blocked': "This person's account is blocked. Ask the project owner to unblock it.",
       'admin-managed-separately': 'This email belongs to a former Admin. Admins are managed on the Admins page.',
-      'invitation-failed': "This email belongs to a deactivated staff member, but their new invitation couldn't be sent, so they stay deactivated. Try again in a few minutes.",
+      'invitation-failed': "This email belongs to an existing staff member, but their new invitation couldn't be sent, so nothing changed for them. Try again in a few minutes.",
       failed: 'Check your connection and try again.',
     },
     errors: {

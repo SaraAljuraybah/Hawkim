@@ -29,6 +29,9 @@ beforeEach(() => {
     sendEmail: step('sendEmail', undefined),
     recordInvitation: step('recordInvitation', undefined),
     newLinkRef: vi.fn(() => LINK_REF),
+    invitationCancelled: step('invitationCancelled', false),
+    unblock: step('unblock', undefined),
+    block: step('block', undefined),
     log: vi.fn(),
   }
 })
@@ -326,5 +329,73 @@ describe('the invitation email', () => {
 
   it('escapes the address', () => {
     expect(invitationEmail('<b>@example.test', LINK).html).not.toContain('<b>@example.test')
+  })
+})
+
+describe('Add Staff with the email of a staff member whose invitation was cancelled', () => {
+  const cancelledAccount = () => {
+    steps.accountLink = vi.fn(async () => { calls.push('accountLink'); return { id: 'id-1', link: '', existing: true } })
+    steps.isBanned = vi.fn(async () => { calls.push('isBanned'); return true })
+    steps.profileState = vi.fn(async () => { calls.push('profileState'); return 'active' as const })
+    steps.invitationCancelled = vi.fn(async () => { calls.push('invitationCancelled'); return true })
+    steps.addUser = vi.fn(async () => { calls.push('addUser'); return { ...saved, reinvited: true } })
+  }
+
+  it('re-invites them: the same account, unblocked only after add_user, a new link, then the invitation recorded', async () => {
+    cancelledAccount()
+    const result = await addUserFlow(input, steps)
+    expect(calls).toEqual(['caller', 'checkNewUser', 'accountLink', 'isBanned', 'profileState', 'invitationCancelled', 'addUser', 'unblock', 'freshLink', 'sendEmail', 'recordInvitation'])
+    expect(steps.setRandomPassword).not.toHaveBeenCalled()
+    expect(steps.unblock).toHaveBeenCalledWith('id-1')
+    expect(steps.freshLink).toHaveBeenCalledWith('rana@example.test', LINK_REF)
+    expect(steps.recordInvitation).toHaveBeenCalledWith('id-1', LINK_REF)
+    expect(steps.block).not.toHaveBeenCalled()
+    expect(result.status).toBe(200)
+    expect(result.body.emailSent).toBe(true)
+  })
+
+  it('blocks the account again and reports it when the new invitation cannot be sent (still cancelled)', async () => {
+    cancelledAccount()
+    steps.sendEmail = vi.fn(async () => { calls.push('sendEmail'); throw new Error('SNDR 500') })
+    const result = await addUserFlow(input, steps)
+    expect(steps.block).toHaveBeenCalledWith('id-1')
+    expect(steps.recordInvitation).not.toHaveBeenCalled()
+    expect(steps.deactivate).not.toHaveBeenCalled()
+    expect(result).toEqual({ status: 502, body: { errorCode: 'invitation-failed' } })
+  })
+
+  it('blocks it again when the account cannot be unblocked', async () => {
+    cancelledAccount()
+    steps.unblock = vi.fn(async () => { throw new Error('unblock account 500') })
+    expect(await addUserFlow(input, steps)).toEqual({ status: 502, body: { errorCode: 'invitation-failed' } })
+    expect(steps.sendEmail).not.toHaveBeenCalled()
+    expect(steps.block).toHaveBeenCalled()
+  })
+
+  it('still refuses an account blocked for another reason, and an active person without a cancelled invitation', async () => {
+    cancelledAccount()
+    steps.invitationCancelled = vi.fn(async () => false)
+    expect(await addUserFlow(input, steps)).toEqual({ status: 409, body: { errorCode: 'account-blocked' } })
+    steps.isBanned = vi.fn(async () => false)
+    expect(await addUserFlow(input, steps)).toEqual({ status: 409, body: { errorCode: 'email-taken' } })
+    expect(steps.unblock).not.toHaveBeenCalled()
+    expect(steps.addUser).not.toHaveBeenCalled()
+  })
+
+  it('re-invites when Auth gives a never-accepted invitee a new invite link instead of refusing (add_user decides)', async () => {
+    steps.addUser = vi.fn(async () => { calls.push('addUser'); return { ...saved, reinvited: true } })
+    const result = await addUserFlow(input, steps)
+    expect(calls).toEqual(['caller', 'checkNewUser', 'accountLink', 'addUser', 'unblock', 'freshLink', 'sendEmail', 'recordInvitation'])
+    const [, , html] = (steps.sendEmail as ReturnType<typeof vi.fn>).mock.calls[0]
+    expect(html).toContain(FRESH_LINK)
+    expect(html).not.toContain(LINK)
+    expect(result.status).toBe(200)
+  })
+
+  it('never re-invites through Add Admin', async () => {
+    cancelledAccount()
+    const result = await addUserFlow({ ...input, permissions: ['admin'], position: '', departmentId: '' }, steps)
+    expect(steps.invitationCancelled).not.toHaveBeenCalled()
+    expect(result).toEqual({ status: 409, body: { errorCode: 'account-blocked' } })
   })
 })

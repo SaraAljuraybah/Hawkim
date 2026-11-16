@@ -119,6 +119,16 @@ Deno.serve(async (request) => {
         if (error) throw new Error(`read profile ${error.code}`)
         return !data ? "none" : data.deleted_at ? "deactivated" : "active"
       },
+      invitationCancelled: (id) => rpc<boolean>("is_invitation_cancelled", { p_user_id: id }).then((value) => value === true),
+      unblock: async (id) => {
+        const response = await authAdmin(`users/${id}`, { method: "PUT", body: JSON.stringify({ ban_duration: "none", password: randomPassword() }) })
+        if (!response.ok) throw new Error(`unblock account ${response.status}`)
+      },
+      block: async (id) => {
+        // As Cancel invitation: about a hundred years (Auth's ban has no "forever").
+        const response = await authAdmin(`users/${id}`, { method: "PUT", body: JSON.stringify({ ban_duration: "876000h" }) })
+        if (!response.ok) throw new Error(`block account ${response.status}`)
+      },
       setRandomPassword: async (id) => {
         const response = await authAdmin(`users/${id}`, { method: "PUT", body: JSON.stringify({ password: randomPassword() }) })
         if (!response.ok) throw new Error(`update account ${response.status}`)

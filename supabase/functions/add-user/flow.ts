@@ -17,6 +17,8 @@ export type SavedUser = {
   id: string; email: string; name: string; initials: string; phone: string; position: string | null; departmentId: string | null; permissions: string[]
   /** add_user brought back a deactivated profile (the same account and profile ids). */
   reactivated?: boolean
+  /** add_user re-invited a staff member whose invitation was cancelled (the same account and profile ids). */
+  reinvited?: boolean
 }
 
 export class DatabaseError extends Error {
@@ -45,6 +47,15 @@ export interface AddUserSteps {
   isBanned(id: string): Promise<boolean>
   /** This account's profile, as the caller: none, active, or deactivated (Delete Staff, Delete Admin). */
   profileState(id: string): Promise<"none" | "active" | "deactivated">
+  /** is_invitation_cancelled, as the caller: a staff member of this organization whose invitation was cancelled. */
+  invitationCancelled(id: string): Promise<boolean>
+  /**
+   * Re-invite: lifts the ban Cancel invitation put on the account, with a password nobody knows (every earlier
+   * link and session stays dead). Service key.
+   */
+  unblock(id: string): Promise<void>
+  /** Re-invite whose invitation couldn't be sent: the account is banned again, as the cancellation left it. Service key. */
+  block(id: string): Promise<void>
   /**
    * Replaces the account's password with one nobody knows. Service key. Auth also ends all of the
    * account's sessions and any link made before (measured on GoTrue v2.197, the hosted version).
@@ -142,17 +153,22 @@ export async function addUserFlow(input: unknown, steps: AddUserSteps): Promise<
   let account: { id: string; link: string; existing: boolean }
   // Add Staff with a deactivated staff member's email (Add Admin keeps its own order below).
   let staffReactivation = false
+  // Add Staff with the email of a staff member whose invitation was cancelled: the same account and profile.
+  let reinvite = false
   try {
     account = await steps.accountLink(user.email, user.name, linkRef)
     if (account.existing) {
-      if (await steps.isBanned(account.id)) return refused(409, "account-blocked")
+      const banned = await steps.isBanned(account.id)
       const state = await steps.profileState(account.id)
+      reinvite = state === "active" && !user.permissions.includes("admin") && await steps.invitationCancelled(account.id)
+      // Blocked for another reason (not a cancelled invitation): never unblocked here.
+      if (banned && !reinvite) return refused(409, "account-blocked")
       // Its email may have changed since: never touch the password of someone already using Hawkim.
-      if (state === "active") return refused(409, "email-taken")
+      if (state === "active" && !reinvite) return refused(409, "email-taken")
       staffReactivation = state === "deactivated" && !user.permissions.includes("admin")
       // Only the emailed link can open it: not an old password, nor one set by whoever made the account.
-      // A staff reactivation does this after add_user instead: see below.
-      if (!staffReactivation) await steps.setRandomPassword(account.id)
+      // A staff reactivation and a re-invite do this after add_user instead: see below.
+      if (!staffReactivation && !reinvite) await steps.setRandomPassword(account.id)
     }
   } catch (error) {
     steps.log(`account failed: ${error instanceof Error ? error.message : "unknown"}`)
@@ -170,13 +186,20 @@ export async function addUserFlow(input: unknown, steps: AddUserSteps): Promise<
     return databaseRefusal(error)
   }
 
+  // Auth issues a new invite link for an email whose invite was never accepted instead of refusing it, so a
+  // re-invite can arrive here as a "new" account: add_user's answer is the one that counts.
+  if (saved.reinvited === true) reinvite = true
+
   // emailSent means the email provider accepted the invitation for delivery (not that it reached the inbox).
   let emailSent = true
   try {
     // Only the request add_user let through gets here, so only it changes the account: the old password
     // and every old session end now, and the link is made after that, so nothing ends it.
     if (staffReactivation) await steps.setRandomPassword(account.id)
-    const link = account.existing ? await steps.freshLink(user.email, linkRef) : account.link
+    // A re-invite unblocks the account (with a new password nobody knows) only now, for this new link.
+    if (reinvite) await steps.unblock(account.id)
+    // A re-invite's link is made after the account is unblocked (its new password ends any link made before).
+    const link = account.existing || reinvite ? await steps.freshLink(user.email, linkRef) : account.link
     const email = invitationEmail(user.email, link)
     await steps.sendEmail(user.email, email.subject, email.html)
   } catch (error) {
@@ -197,6 +220,19 @@ export async function addUserFlow(input: unknown, steps: AddUserSteps): Promise<
     }
   }
 
+  // A re-invite whose invitation couldn't be sent stays cancelled (the database still says so, as nothing was
+  // recorded) and blocked again, so Add Staff can simply be tried again.
+  if (!emailSent && reinvite) {
+    try {
+      await steps.block(account.id)
+    } catch (error) {
+      // Unblocked but still cancelled in the database: no access (is_active_user), and no link was sent.
+      steps.log(`could not block ${account.id} again: ${error instanceof Error ? error.message : "unknown"}`)
+    }
+    steps.log(`re-invite of ${account.id} not sent: still cancelled`)
+    return refused(502, "invitation-failed")
+  }
+
   // Only a link that was actually sent can expire unused. A failure here doesn't undo the user.
   if (emailSent) {
     try {
@@ -205,6 +241,6 @@ export async function addUserFlow(input: unknown, steps: AddUserSteps): Promise<
       steps.log(`invitation not recorded for ${account.id}: ${error instanceof DatabaseError ? error.code ?? "unknown" : "unknown"}`)
     }
   }
-  steps.log(`added ${account.id}, readded or reused: ${account.existing}, reactivated: ${!!saved.reactivated}, email sent: ${emailSent}`)
+  steps.log(`added ${account.id}, readded or reused: ${account.existing}, reactivated: ${!!saved.reactivated}, reinvited: ${reinvite}, email sent: ${emailSent}`)
   return { status: 200, body: { user: saved, emailSent } }
 }
