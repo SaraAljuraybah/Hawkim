@@ -25,7 +25,6 @@ vi.mock('react', async (importOriginal) => {
     },
   }
 })
-vi.mock('../data/mock/requests', () => ({ mockRequests: fixture.requests }))
 vi.mock('./sessionContext', () => ({ useSession: () => ({ user: fixture.user }) }))
 vi.mock('./usersContext', () => ({ useUsers: () => ({ users: fixture.users }) }))
 vi.mock('./departmentsContext', () => ({ useDepartments: () => ({ departments: fixture.departments }) }))
@@ -41,7 +40,7 @@ function request(overrides: Partial<UserRequest> = {}): UserRequest {
 function capture(): RequestsStore {
   const observe = vi.fn<(store: RequestsStore) => void>()
   function Capture() { observe(useRequests()); return null }
-  renderToStaticMarkup(<RequestsProvider><Capture /></RequestsProvider>)
+  renderToStaticMarkup(<RequestsProvider initialRequests={fixture.requests}><Capture /></RequestsProvider>)
   return observe.mock.calls.at(-1)![0]
 }
 

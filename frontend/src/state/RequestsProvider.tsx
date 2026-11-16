@@ -1,5 +1,4 @@
 import { useCallback, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { mockRequests } from '../data/mock/requests'
 import type { UserRequest } from '../data/mock/types'
 import { todayIsoDate } from '../lib/format'
 import { approveBlockers, decideRequest, rejectBlocker } from '../lib/requestAdmin'
@@ -10,20 +9,24 @@ import { useSession } from './sessionContext'
 import { useSavedRequests } from './useSavedRequests'
 import { useUsers } from './usersContext'
 
+/** The default start: no requests in memory (one constant, so it never changes between renders). */
+const NO_REQUESTS: UserRequest[] = []
+
 /**
  * Requests store shared by Submit a Request, My Requests, the dashboard and the admin portal (the requests
  * list and published-directory access grants).
  * - Regulatory Guideline Addition requests are saved in the database (useSavedRequests, services/requests.ts):
  *   each change is sent to the database, which enforces who may make it, then they are read again.
- * - The other types are kept in memory: the store starts with the sample data, and their changes are lost on
+ * - The other types are kept in memory: the store starts empty (no demo requests; tests pass their own as
+ *   `initialRequests`), and their changes are lost on
  *   reload (no backend for them yet).
  * Must be inside <DepartmentsProvider>, <UsersProvider> and <SessionProvider>.
  * TODO: Save the other request types in the database too.
  */
-export function RequestsProvider({ children }: { children: ReactNode }) {
-  const [requests, setRequests] = useState<UserRequest[]>(mockRequests)
+export function RequestsProvider({ children, initialRequests = NO_REQUESTS }: { children: ReactNode; initialRequests?: UserRequest[] }) {
+  const [requests, setRequests] = useState<UserRequest[]>(initialRequests)
   // The latest list (as in the other stores): actions check against it, not the last render.
-  const latestRef = useRef<UserRequest[]>(mockRequests)
+  const latestRef = useRef<UserRequest[]>(initialRequests)
   const commit = useCallback((next: UserRequest[]) => {
     latestRef.current = next
     setRequests(next)

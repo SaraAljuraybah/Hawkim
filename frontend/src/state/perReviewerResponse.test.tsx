@@ -34,7 +34,8 @@ vi.mock('../lib/internalReviewStatus', async (original) => ({
   ...await original<typeof import('../lib/internalReviewStatus')>(),
   get PER_REVIEWER_RESPONSE_ACTIVE() { return flag.active },
 }))
-vi.mock('../data/mock/sops', () => ({ sops: [sop] }))
+/** The SOPs the store starts with (it starts empty in the app). */
+const initialSops = [sop]
 vi.mock('./sessionContext', () => ({ useSession: () => ({ user: author }) }))
 vi.mock('./usersContext', () => ({ useUsers: () => ({ users: [author], getUser: () => author }) }))
 vi.mock('./departmentsContext', () => ({ useDepartments: () => ({ departments: [{ id: 'home', name: 'Home', initials: 'HM', description: '' }] }) }))
@@ -46,7 +47,7 @@ const requestOf = (id: string) => sop.internalReviewRounds!.flatMap((round) => r
 function store(): SopsStore {
   const observe = vi.fn<(value: SopsStore) => void>()
   function Capture() { observe(useSops()); return null }
-  renderToStaticMarkup(<SopsProvider><Capture /></SopsProvider>)
+  renderToStaticMarkup(<SopsProvider initialSops={initialSops}><Capture /></SopsProvider>)
   return observe.mock.calls.at(-1)![0]
 }
 

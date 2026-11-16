@@ -1,5 +1,4 @@
 import { useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { sops as seedSops } from '../data/mock/sops'
 import type { ClosedReviewRequest, Sop, UserRequest } from '../data/mock/types'
 import * as compliance from '../lib/compliance'
 import { assertCanCreateSop } from '../lib/sopAccess'
@@ -32,6 +31,8 @@ import type { LoadStatus } from './useLoadAfterSignIn'
 
 const DAY_MS = 24 * 60 * 60 * 1000
 const NO_REQUESTS: UserRequest[] = []
+/** The default start: no SOPs until the database's are read (one constant, so it never changes between renders). */
+const NO_SOPS: Sop[] = []
 // The database services (each call goes through the browser rules first, then the RPC).
 const sopService = async () => sopsApi
 const reviewService = async () => reviewApi
@@ -44,12 +45,14 @@ const fileService = async () => filesApi
  * status, review rounds and requests, comments, responses and their timeline) come from
  * the database: they're read after each sign-in (merged with what this tab already has,
  * see mergeSops.ts), and every action on them is saved there. Approval isn't in the
- * database yet: it is still kept in this tab only and lost on reload, like the sample SOPs.
+ * database yet: it is still kept in this tab only and lost on reload.
+ * The list starts empty: only the database's SOPs are shown (no demo SOPs). Tests pass their
+ * own SOPs as `initialSops`.
  * Consumers see only the signed-in identity's authorized projection (visibleSops).
  * Workflow rules live in lib/workflow.ts. Actions are by the signed-in user.
  * Must be inside <SessionProvider>.
  */
-export function SopsProvider({ children }: { children: ReactNode }) {
+export function SopsProvider({ children, initialSops = NO_SOPS }: { children: ReactNode; initialSops?: Sop[] }) {
   // The signed-in user's id ('' when nobody is: their actions are then refused by the workflow rules).
   const user = useSession().user
   const userId = user?.id ?? ''
@@ -63,14 +66,14 @@ export function SopsProvider({ children }: { children: ReactNode }) {
   const guideline = useGuidelines().currentGuideline
   const { users } = useUsers()
   const { departments } = useDepartments()
-  const [sops, setSops] = useState<Sop[]>(seedSops)
+  const [sops, setSops] = useState<Sop[]>(initialSops)
   /*
    * The latest list, updated as soon as a change is applied. Actions read and
    * check against it (not the last render), so two actions before a re-render
    * build on each other instead of the second overwriting the first.
    */
-  const latestRef = useRef<Sop[]>(seedSops)
-  /** The SOPs read from the database (the others are the sample SOPs, kept only in this tab). */
+  const latestRef = useRef<Sop[]>(initialSops)
+  /** The SOPs read from the database (any others were given as initialSops, kept only in this tab). */
   const storedIds = useRef(new Set<string>())
   /** SOPs deleted in this tab: no read (even one started before the delete) brings them back. */
   const deletedIds = useRef(new Set<string>())
@@ -153,8 +156,8 @@ export function SopsProvider({ children }: { children: ReactNode }) {
 
   /*
    * The expiry also runs on load and at the moment the next response due date ends: in the
-   * database for stored SOPs (asked once per deadline, then read again), in this tab for the
-   * sample SOPs. No scheduled job is needed: someone has to have the app open to see the
+   * database for stored SOPs (asked once per deadline, then read again), in this tab for SOPs
+   * given as initialSops. No scheduled job is needed: someone has to have the app open to see the
    * notification, and loading the SOP expires what is due.
    */
   const expiriesAsked = useRef(new Set<string>())
@@ -335,10 +338,10 @@ export function SopsProvider({ children }: { children: ReactNode }) {
   // Projection happens during render, before effects, so a switch/sign-out cannot
   // render the previous identity's cached documents for even a single frame.
   const exposedSops = useMemo(() => visibleSops(
-    loaded?.userId !== userId ? seedSops : sops,
+    loaded?.userId !== userId ? initialSops : sops,
     user,
     requests,
-  ), [sops, userId, user, requests, loaded])
+  ), [sops, initialSops, userId, user, requests, loaded])
 
   const store = useMemo<SopsStore>(
     () => ({
@@ -447,7 +450,7 @@ export function SopsProvider({ children }: { children: ReactNode }) {
         const trimmed = reason.trim()
         if (!trimmed || trimmed.length > REVIEW_TEXT_MAX) throw new SopDeleteError('invalid-reason', 'A justification of up to 1000 characters is required to delete an SOP')
         if (hasRunningCheck(sop)) throw new SopDeleteError('check-running', "This SOP can't be deleted while a compliance check is running. Try again when it finishes.")
-        // The sample SOPs exist only in this tab and have no rows or files to delete.
+        // SOPs given as initialSops exist only in this tab and have no rows or files to delete.
         if (!storedIds.current.has(id)) throw new SopDeleteError('not-found', 'Only SOPs saved in the database can be deleted')
         await (await sopService()).deleteSop(id, trimmed)
         deletedIds.current.add(id)

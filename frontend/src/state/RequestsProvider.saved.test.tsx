@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { renderToStaticMarkup } from 'react-dom/server'
+import { mockRequests as demoRequests } from '../data/mock/requests'
 import type { User, UserRequest } from '../data/mock/types'
 import { RequestsProvider } from './RequestsProvider'
 import { useRequests, type RequestsStore } from './requestsContext'
@@ -21,7 +22,6 @@ const api = vi.hoisted(() => ({
   cancelSavedRequest: vi.fn(async () => {}),
   decideSavedRequest: vi.fn(async () => {}),
 }))
-vi.mock('../data/mock/requests', () => ({ mockRequests: [] }))
 vi.mock('./sessionContext', () => ({ useSession: () => ({ user: fixture.user }) }))
 vi.mock('./usersContext', () => ({ useUsers: () => ({ users: fixture.users }) }))
 vi.mock('./departmentsContext', () => ({ useDepartments: () => ({ departments: [] }) }))
@@ -51,6 +51,23 @@ beforeEach(() => {
   fixture.status = 'ready'
   fixture.reload.mockClear()
   Object.values(api).forEach((fn) => fn.mockClear())
+})
+
+describe("no demo requests: the list starts empty and shows only the database's requests", () => {
+  it("shows a new organization's Admin an empty Requests list (their database has no requests)", () => {
+    fixture.user = fixture.users[1]
+    fixture.saved = []
+    const store = capture()
+    expect(store.requests).toEqual([])
+    // None of the demo requests (still used by tests) is in the app's list.
+    expect(demoRequests.length).toBeGreaterThan(0)
+    expect(store.requests.some((request) => demoRequests.some((demo) => demo.id === request.id))).toBe(false)
+  })
+
+  it("still lists the database's requests, and only those", () => {
+    fixture.user = fixture.users[1]
+    expect(capture().requests.map((request) => request.id)).toEqual(['saved-1'])
+  })
 })
 
 describe('saved requests in the shared requests store', () => {

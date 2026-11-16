@@ -17,7 +17,8 @@ const { author, sop, changeReviewDeadline } = vi.hoisted(() => {
   return { author, sop, changeReviewDeadline: vi.fn() }
 })
 
-vi.mock('../data/mock/sops', () => ({ sops: [sop] }))
+/** The SOPs the store starts with (it starts empty in the app). */
+const initialSops = [sop]
 vi.mock('./sessionContext', () => ({ useSession: () => ({ user: author }) }))
 vi.mock('./usersContext', () => ({ useUsers: () => ({ users: [author], getUser: () => author }) }))
 vi.mock('./departmentsContext', () => ({ useDepartments: () => ({ departments: [{ id: 'home', name: 'Home', initials: 'HM', description: '' }] }) }))
@@ -28,7 +29,7 @@ vi.mock('../services/sops', () => ({ fetchSops: vi.fn(async () => []), fetchSop:
 function store(): SopsStore {
   const observe = vi.fn<(value: SopsStore) => void>()
   function Capture() { observe(useSops()); return null }
-  renderToStaticMarkup(<SopsProvider><Capture /></SopsProvider>)
+  renderToStaticMarkup(<SopsProvider initialSops={initialSops}><Capture /></SopsProvider>)
   return observe.mock.calls.at(-1)![0]
 }
 

@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { sops as demoSops } from '../data/mock/sops'
 import type { Department, Sop, User } from '../data/mock/types'
+import { directorySopsFor } from '../lib/sopAccess'
 import { currentInternalRound, expireUnanswered } from '../lib/internalReview'
 import { rememberSentForApproval, wasSentForApproval } from './approvalSentStorage'
 import { SopsProvider } from './SopsProvider'
@@ -65,7 +67,6 @@ vi.mock('react', async (original) => {
     },
   }
 })
-vi.mock('../data/mock/sops', () => ({ sops: fixture.sops }))
 vi.mock('./sessionContext', () => ({ useSession: () => ({ user: fixture.user }) }))
 vi.mock('./usersContext', () => ({ useUsers: () => ({ users: fixture.people, getUser: (id: string) => fixture.people.find((user) => user.id === id) }) }))
 vi.mock('./departmentsContext', () => ({ useDepartments: () => ({ departments: fixture.departments }) }))
@@ -171,7 +172,7 @@ const draft = (id: string, authorId: string): Sop => ({
 const stored = (...sops: Sop[]) => { for (const sop of sops) backend.rows.set(sop.id, structuredClone(sop)) }
 function render(): SopsStore {
   fixture.index = 0
-  const store = SopsProvider({ children: null }).props.value as SopsStore
+  const store = SopsProvider({ children: null, initialSops: fixture.sops }).props.value as SopsStore
   fixture.layoutEffects.splice(0).forEach((run) => run())
   return store
 }
@@ -217,6 +218,48 @@ afterEach(() => {
   fixture.slots.forEach((slot) => slot.cleanup?.())
   vi.useRealTimers()
   vi.unstubAllGlobals()
+})
+
+describe("no demo SOPs: the list starts empty and shows only the database's SOPs", () => {
+  /** As in the app (App.tsx): no initialSops. */
+  async function signInAsInApp(user: User): Promise<SopsStore> {
+    fixture.user = user
+    const renderAsInApp = () => {
+      fixture.index = 0
+      const store = SopsProvider({ children: null }).props.value as SopsStore
+      fixture.layoutEffects.splice(0).forEach((run) => run())
+      return store
+    }
+    renderAsInApp(); flushEffects(); await settle()
+    return renderAsInApp()
+  }
+  const admin = (): User => person('new-admin', ['admin'])
+  const published = (id: string): Sop => ({ ...draft(id, 'author'), status: 'published' })
+
+  it("shows a new organization's Admin an empty SOP Directory (their database has no SOPs)", async () => {
+    fixture.people.push(admin())
+    const store = await signInAsInApp(fixture.people.at(-1)!)
+    expect(store.sops).toEqual([])
+    expect(directorySopsFor(store.sops, fixture.people.at(-1)!)).toEqual([])
+    // None of the demo SOPs (still used by tests) is in the app's list.
+    expect(demoSops.length).toBeGreaterThan(0)
+    expect(store.sops.some((sop) => demoSops.some((demo) => demo.id === sop.id))).toBe(false)
+  })
+
+  it('is empty before the first read too, never a demo SOP in its place', () => {
+    fixture.people.push(admin())
+    fixture.user = fixture.people.at(-1)!
+    fixture.index = 0
+    expect((SopsProvider({ children: null }).props.value as SopsStore).sops).toEqual([])
+  })
+
+  it('still loads the real SOPs from the database, and only those', async () => {
+    fixture.people.push(admin())
+    stored(published('db-published'))
+    const store = await signInAsInApp(fixture.people.at(-1)!)
+    expect(store.sops.map((sop) => sop.id)).toEqual(['db-published'])
+    expect(directorySopsFor(store.sops, fixture.people.at(-1)!).map((sop) => sop.id)).toEqual(['db-published'])
+  })
 })
 
 describe('identity isolation with the database services (stand-in database, no network)', () => {

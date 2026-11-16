@@ -28,7 +28,6 @@ vi.mock('react', async (importOriginal) => {
     },
   }
 })
-vi.mock('../data/mock/sops', () => ({ sops: fixture.sops }))
 vi.mock('./sessionContext', () => ({ useSession: () => ({ user: fixture.users.find((user) => user.id === fixture.userId) ?? null }) }))
 vi.mock('./usersContext', () => ({ useUsers: () => ({ users: fixture.users, getUser: (id: string) => fixture.users.find((user) => user.id === id) }) }))
 vi.mock('./departmentsContext', () => ({ useDepartments: () => ({ departments: fixture.departments }) }))
@@ -88,7 +87,7 @@ function capture(userId: string, sop: Sop): SopsStore {
   fixture.commit.mockClear()
   const observe = vi.fn<(store: SopsStore) => void>()
   function Capture() { observe(useSops()); return null }
-  renderToStaticMarkup(<SopsProvider><Capture /></SopsProvider>)
+  renderToStaticMarkup(<SopsProvider initialSops={fixture.sops}><Capture /></SopsProvider>)
   return observe.mock.calls.at(-1)![0]
 }
 function current(): Sop { return (fixture.commit.mock.lastCall?.[0] ?? fixture.sops)[0] }

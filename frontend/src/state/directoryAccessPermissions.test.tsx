@@ -7,7 +7,6 @@ import { useSops, type NewDraft, type SopsStore } from './sopsContext'
 
 
 const fixture = vi.hoisted(() => ({ userId: 'visitor', users: [] as User[], departments: [] as Department[], sops: [] as Sop[] }))
-vi.mock('../data/mock/sops', () => ({ sops: fixture.sops }))
 vi.mock('./sessionContext', () => ({ useSession: () => ({ user: fixture.users.find((user) => user.id === fixture.userId) ?? null }) }))
 vi.mock('./usersContext', () => ({ useUsers: () => ({ users: fixture.users, getUser: (id: string) => fixture.users.find((user) => user.id === id) }) }))
 vi.mock('./departmentsContext', () => ({ useDepartments: () => ({ departments: fixture.departments }) }))
@@ -51,7 +50,7 @@ function storeFor(userId: string, sops: Sop[] = []): SopsStore {
   fixture.sops.splice(0, fixture.sops.length, ...sops)
   const observe = vi.fn<(store: SopsStore) => void>()
   function Capture() { observe(useSops()); return null }
-  renderToStaticMarkup(<SopsProvider><Capture /></SopsProvider>)
+  renderToStaticMarkup(<SopsProvider initialSops={fixture.sops}><Capture /></SopsProvider>)
   return observe.mock.calls.at(-1)![0]
 }
 beforeEach(() => {
