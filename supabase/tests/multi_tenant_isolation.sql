@@ -233,6 +233,8 @@ insert into iso_case (fn, template, targeted, accepted) values
   ('mark_account_activated()', 'public.mark_account_activated()', false, null),
   ('my_closed_review_requests()', '(select coalesce(jsonb_agg(to_jsonb(x)), ''[]'') from public.my_closed_review_requests() x)', false, null),
   ('organizational_structure_emails()', '(select coalesce(jsonb_agg(to_jsonb(x)), ''[]'') from public.organizational_structure_emails() x)', false, null),
+  -- B's Super Admin: A's Admin gets the same answer as a made-up id (Admin not found).
+  ('reactivate_admin(uuid)', 'public.reactivate_admin({admin})', true, null),
   ('reactivate_staff(uuid)', 'public.reactivate_staff({author})', true, null),
   ('record_invitation_sent(uuid)', 'public.record_invitation_sent({author})', true, null),
   ('remove_co_author(uuid,uuid)', 'public.remove_co_author({sop_review}, {author})', true, null),
