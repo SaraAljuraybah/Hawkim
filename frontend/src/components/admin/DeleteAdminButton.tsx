@@ -65,6 +65,7 @@ export function DeleteAdminButton({ admin, onDeleted, onFailed, labeled = false 
       )}
       <ConfirmDialog
         open={confirming}
+        prominent
         title={text.title}
         description={text.description.replace('{name}', admin.name).replace('{email}', admin.email)}
         cancelLabel={text.cancel}

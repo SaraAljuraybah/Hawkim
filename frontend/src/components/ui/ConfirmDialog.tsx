@@ -23,7 +23,7 @@ interface ConfirmDialogProps {
   children?: ReactNode
   /**
    * A larger title over smaller (14px) message text, all left-aligned: for a consequential action whose
-   * message lists what happens (Delete and Reactivate on Staff).
+   * message lists what happens (Delete and Reactivate on Staff, and Delete Admin, laid out like Delete Staff).
    */
   prominent?: boolean
 }
