@@ -6,7 +6,7 @@ import { contentFor, renderEmail } from "../send-email/templates.ts"
 export type AddUserFailure =
   | "unauthorized" | "forbidden" | "invalid" | "email-taken" | "admin-exclusive" | "approver-quality"
   | "department-unavailable" | "permission-in-use" | "account-failed" | "account-blocked" | "failed"
-  | "admin-managed-separately" | "invitation-failed"
+  | "admin-managed-separately" | "invitation-failed" | "deactivated-admin"
 
 /** A System Admin (the Admin permission) has no department or position: both are null. */
 export type NewUserDetails = {
@@ -100,6 +100,8 @@ const refused = (status: number, errorCode: AddUserFailure, extra: Record<string
 
 const REFUSALS: AddUserFailure[] = [
   "invalid", "email-taken", "admin-exclusive", "approver-quality", "department-unavailable", "permission-in-use", "admin-managed-separately",
+  // Add Admin with a deleted Admin's email: check_new_user refuses it before the sign-in account is touched.
+  "deactivated-admin",
 ]
 
 /** What the database refused, in the app's words. */

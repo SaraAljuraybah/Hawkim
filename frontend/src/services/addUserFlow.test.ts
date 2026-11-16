@@ -263,6 +263,19 @@ describe('Add Staff with a deactivated staff member email (reactivation)', () =>
     expect(steps.sendEmail).not.toHaveBeenCalled()
   })
 
+  it('passes on Add Admin\'s refusal for a deleted Admin\'s email, before touching the sign-in account', async () => {
+    steps.checkNewUser = vi.fn(async () => { calls.push('checkNewUser'); throw database('23514', 'deactivated-admin') })
+    expect(await addUserFlow({ ...input, permissions: ['admin'] }, steps)).toEqual({ status: 409, body: { errorCode: 'deactivated-admin' } })
+    expect(calls).toEqual(['caller', 'checkNewUser'])
+    expect(steps.setRandomPassword).not.toHaveBeenCalled()
+  })
+
+  it('passes on add_user\'s deactivated-admin refusal too', async () => {
+    steps.addUser = vi.fn(async () => { throw database('23514', 'deactivated-admin') })
+    expect(await addUserFlow({ ...input, permissions: ['admin'] }, steps)).toEqual({ status: 409, body: { errorCode: 'deactivated-admin' } })
+    expect(steps.sendEmail).not.toHaveBeenCalled()
+  })
+
   it('never makes a second link for an account it just created', async () => {
     steps.accountLink = vi.fn(async () => ({ id: 'id-1', link: LINK, existing: false }))
     await addUserFlow(input, steps)
