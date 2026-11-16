@@ -1053,7 +1053,7 @@ export interface ComplianceContent {
     title: string
     /** `{version}` is the guideline version. */
     running: string
-    /** Under `running`: one compliance service serves every organization, so a check can wait. */
+    /** Under `running`: how long it can take, that the result appears on this card, and that they can leave the page. */
     sharedService: string
     /** Announced when a running check ends. */
     completed: string

@@ -25,7 +25,7 @@ export const complianceEn: ComplianceContent = {
   card: {
     title: 'Compliance Overview',
     running: 'Checking against SFDA GVP v{version}…',
-    sharedService: 'One compliance service checks the SOPs of every organization, one at a time, so this can take a while when it is busy with other checks or a GVP version.',
+    sharedService: "This can take a few minutes. You can leave this page, and the result will appear here when it's ready.",
     completed: 'Compliance check completed.',
     failed: 'The compliance check couldn’t be completed.',
     notChecked: 'v{version} hasn’t been checked yet. Run a compliance check to see the results.',
