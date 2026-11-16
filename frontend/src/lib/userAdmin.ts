@@ -207,7 +207,7 @@ export function validateNewUser(user: NewUser, activeUsers: User[], departments:
     name: user.name.trim() ? undefined : 'name-required',
     email: !EMAIL_PATTERN.test(email)
       ? 'email-invalid'
-      : activeUsers.some((other) => other.email.toLowerCase() === email)
+      : activeUsers.some((other) => other.email.toLowerCase() === email && !(staff && other.invitation === 'cancelled' && !isSystemAdmin(other)))
         ? 'email-taken'
         : undefined,
     phone: !user.phone.trim() ? 'phone-required' : normalizePhone(user.phone) ? undefined : 'phone-invalid',

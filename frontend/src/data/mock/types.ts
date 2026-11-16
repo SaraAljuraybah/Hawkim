@@ -33,6 +33,12 @@ export interface User {
    * sign in and are hidden from lists and pickers, but their name stays on SOP history.
    */
   deletedAt?: string
+  /**
+   * Set while the person's tracked invitation isn't activated: 'pending' (sent or expired) or 'cancelled'.
+   * They can't be given new work (lib/assignable.ts). Missing for activated people and for people added
+   * before invitations were tracked.
+   */
+  invitation?: 'pending' | 'cancelled'
 }
 
 /**

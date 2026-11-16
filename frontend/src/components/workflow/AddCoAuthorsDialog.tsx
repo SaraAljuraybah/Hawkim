@@ -9,6 +9,7 @@ import { useDepartments } from '../../state/departmentsContext'
 import { useUsers } from '../../state/usersContext'
 import { FormDialog } from '../ui/FormDialog'
 import { PeoplePicker } from '../ui/PeoplePicker'
+import { isAssignable } from '../../lib/assignable'
 
 interface AddCoAuthorsDialogProps {
   sop: Sop
@@ -34,6 +35,7 @@ export function AddCoAuthorsDialog({ sop, content, onSubmit, onClose }: AddCoAut
   const options = activeUsers
     .filter(
       (user) =>
+        isAssignable(user) &&
         hasPermission(user, 'author') &&
         user.departmentId === sop.departmentId &&
         !isAuthorOrCoAuthor(sop, user.id) &&

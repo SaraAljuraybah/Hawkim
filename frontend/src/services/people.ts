@@ -74,11 +74,36 @@ export async function fetchProfile(userId: string): Promise<User | null> {
   return row && !row.deleted_at ? toUser(row) : null
 }
 
-/** Everyone with a profile, ended ones included (their names stay on history), by name. */
+/**
+ * The people whose tracked invitation isn't activated (get_unactivated_people): 'pending' or 'cancelled'.
+ * Empty when it can't be read (a database without it): then everyone counts as activated, as before.
+ */
+async function fetchUnactivated(): Promise<Map<string, 'pending' | 'cancelled'>> {
+  try {
+    const { data, error } = await supabase().rpc('get_unactivated_people')
+    if (error || !Array.isArray(data)) return new Map()
+    return new Map(data.flatMap((row: { user_id?: unknown; cancelled?: unknown }) =>
+      typeof row.user_id === 'string' ? [[row.user_id, row.cancelled === true ? 'cancelled' : 'pending'] as const] : []))
+  } catch {
+    return new Map()
+  }
+}
+
+/**
+ * Everyone with a profile, ended ones included (their names stay on history), by name; with `invitation` set
+ * for people who haven't activated their account (left out of every people picker).
+ */
 export async function fetchPeople(): Promise<User[]> {
-  const { data, error } = await supabase().from('profiles').select(PROFILE_COLUMNS).order('full_name')
+  const [{ data, error }, unactivated] = await Promise.all([
+    supabase().from('profiles').select(PROFILE_COLUMNS).order('full_name'),
+    fetchUnactivated(),
+  ])
   if (error) throw new Error(error.message)
-  return (data as ProfileRow[]).map(toUser)
+  return (data as ProfileRow[]).map((row) => {
+    const user = toUser(row)
+    const invitation = unactivated.get(user.id)
+    return invitation ? { ...user, invitation } : user
+  })
 }
 
 /**
@@ -301,6 +326,8 @@ export async function addUserAccount(details: NewUserDetails): Promise<{ user: U
       phone: saved.phone,
       ...(typeof saved.position === 'string' ? { position: saved.position } : {}),
       permissions: PERMISSIONS.filter((permission) => permissions.includes(permission)),
+      // An invitation went out: they wait for it (left out of the people pickers) until they accept it.
+      ...(data?.emailSent === true ? { invitation: 'pending' as const } : {}),
     },
     emailSent: data?.emailSent === true,
     reactivated: saved.reactivated === true,

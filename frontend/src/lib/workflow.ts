@@ -21,6 +21,7 @@ import { SOP_DESCRIPTION_MAX } from './sopDescription'
 import { SOP_TITLE_MAX, sopTitleProblem } from './sopTitle'
 import { isInactiveDecision, isOpenDecision, isUnsentVersion, latestAssignments, projectReviewers, requestDeadline, reviewAllowsNewVersion } from './internalReviewStatus'
 import { endOfRiyadhDay, reviewWorkingDueDateFrom, riyadhDate, WORKING_DAY_POLICY } from './riyadhWorkingDays'
+import { isAssignable } from './assignable'
 
 /*
  * SOP workflow rules (Sprint 0, PBI 2 / 3 / 6 / 8 / 12 / 22 / 24) as pure functions.
@@ -987,9 +988,9 @@ export function approveAs(sop: Sop, approverId: string, text?: string, snapshot?
  * permission, work in another department than the SOP's, and aren't already on it
  * (author, co-author, reviewer or approver: separation of duties).
  */
-export function canBeRoutedTo(sop: Sop, person: Pick<User, 'id' | 'departmentId' | 'permissions' | 'deletedAt'>): boolean {
+export function canBeRoutedTo(sop: Sop, person: Pick<User, 'id' | 'departmentId' | 'permissions' | 'deletedAt'> & Partial<Pick<User, 'invitation'>>): boolean {
   return (
-    !person.deletedAt &&
+    isAssignable(person) &&
     person.permissions.includes('reviewer') &&
     person.departmentId !== sop.departmentId &&
     !isAuthorOrCoAuthor(sop, person.id) &&

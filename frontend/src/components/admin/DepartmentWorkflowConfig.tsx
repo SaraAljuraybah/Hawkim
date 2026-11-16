@@ -8,6 +8,7 @@ import { Button } from '../ui/Button'
 import { FormDialog } from '../ui/FormDialog'
 import { SelectField } from '../ui/SelectField'
 import { TextField } from '../ui/TextField'
+import { isAssignable } from '../../lib/assignable'
 
 /** Explicit configuration; no division or controller is inferred from names or permissions alone. */
 export function DepartmentWorkflowConfig({ department }: { department: Department }) {
@@ -35,7 +36,7 @@ export function DepartmentWorkflowConfig({ department }: { department: Departmen
     }}>
       {error && <p role="alert" className="text-sm text-status-rejected-fg">{error}</p>}
       <TextField name="divisionId" label={text.division} hint={text.divisionHint} maxLength={80} value={divisionId} onChange={(event) => setDivisionId(event.target.value)} />
-      <SelectField name="qualityController" label={text.controller} value={controllerId} options={[{ value: '', label: text.unconfigured }, ...activeUsers.filter((u) => !u.permissions.includes('admin') && u.permissions.includes('approver')).map((u) => ({ value: u.id, label: u.name }))]} onChange={(event) => setControllerId(event.target.value)} />
+      <SelectField name="qualityController" label={text.controller} value={controllerId} options={[{ value: '', label: text.unconfigured }, ...activeUsers.filter((u) => isAssignable(u) && !u.permissions.includes('admin') && u.permissions.includes('approver')).map((u) => ({ value: u.id, label: u.name }))]} onChange={(event) => setControllerId(event.target.value)} />
     </FormDialog>}
   </section>
 }

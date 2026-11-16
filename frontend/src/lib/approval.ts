@@ -3,6 +3,7 @@ import type { SopStatus } from '../types/status'
 import { todayIsoDate } from './format'
 import type { ReviewEnvironment } from './reviewFlow'
 import { hasCompletedCurrentReview, isAuthorOrCoAuthor, isReviewer, SUBMIT_COMMENT_MAX } from './workflow'
+import { isAssignable } from './assignable'
 
 export interface ApprovalSubmissionOptions {
   /** The version and completed round shown when the Author opened the dialog. */
@@ -61,7 +62,7 @@ export function qualityDepartment(departments: Department[]): Department | undef
 export function eligibleApprovers(sop: Sop, env: ReviewEnvironment): User[] {
   const quality = qualityDepartment(env.departments)
   if (!quality) return []
-  return env.users.filter((user) => user.departmentId === quality.id && !user.deletedAt && user.permissions.includes('approver') &&
+  return env.users.filter((user) => user.departmentId === quality.id && isAssignable(user) && user.permissions.includes('approver') &&
     !user.permissions.includes('admin') && !isAuthorOrCoAuthor(sop, user.id) && !isReviewer(sop, user.id))
 }
 

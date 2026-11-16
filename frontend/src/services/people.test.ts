@@ -151,7 +151,8 @@ describe('adding a user', () => {
     const added = await addUserAccount(details)
     expect(invoke).toHaveBeenCalledWith('add-user', { body: details })
     expect(added.emailSent).toBe(true)
-    expect(added.user).toEqual({ ...saved, permissions: ['author', 'reviewer'] })
+    // An invitation went out: they wait for it (left out of the people pickers).
+    expect(added.user).toEqual({ ...saved, permissions: ['author', 'reviewer'], invitation: 'pending' })
   })
 
   it('reports that only the email failed', async () => {

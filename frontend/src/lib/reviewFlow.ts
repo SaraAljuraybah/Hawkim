@@ -2,6 +2,7 @@ import type { Department, DepartmentReview, DepartmentWorkflowConfiguration, Rev
 import { hasCurrentCheck } from './compliance'
 import { todayIsoDate } from './format'
 import { currentReviewer, isApprover, isAuthor, isAuthorOrCoAuthor, parseDueDate, requiredReviewsComplete, returnAsReviewer, reviewDateDueAt, SUBMIT_COMMENT_MAX } from './workflow'
+import { isAssignable } from './assignable'
 
 export interface ReviewEnvironment { users: User[]; departments: Department[] }
 export type ReviewAction =
@@ -31,7 +32,7 @@ function withDecision(sop: Sop, userId: string, decision: 'pending' | 'completed
 }
 /** Eligibility uses the ordinary Reviewer permission, home department and separation of duties. */
 export function eligibleReviewers(sop: Sop, departmentId: string, users: User[], excluded: string[] = []): User[] {
-  return users.filter((user) => !user.deletedAt && !user.permissions.includes('admin') && user.permissions.includes('reviewer') && user.departmentId === departmentId &&
+  return users.filter((user) => isAssignable(user) && !user.permissions.includes('admin') && user.permissions.includes('reviewer') && user.departmentId === departmentId &&
     !isAuthorOrCoAuthor(sop, user.id) && !isApprover(sop, user.id) && !excluded.includes(user.id))
 }
 /**
@@ -87,7 +88,7 @@ export function departmentsForScope(sop: Sop, scope: ReviewScope, departments: D
 }
 export function qualityController(sop: Sop, env: ReviewEnvironment): User | undefined {
   const id = env.departments.find((d) => d.id === sop.departmentId && !d.removedAt)?.qualityControllerId
-  return env.users.find((u) => u.id === id && !u.deletedAt && !u.permissions.includes('admin') && u.permissions.includes('approver') &&
+  return env.users.find((u) => u.id === id && isAssignable(u) && !u.permissions.includes('admin') && u.permissions.includes('approver') &&
     !isAuthorOrCoAuthor(sop, u.id) && !sop.reviewers.some((p) => p.userId === u.id))
 }
 /** Validates explicit administrative configuration without inventing organizational relationships. */
@@ -95,7 +96,7 @@ export function validateWorkflowConfiguration(input: DepartmentWorkflowConfigura
   const divisionId = input.divisionId?.trim() || undefined
   assert(!divisionId || divisionId.length <= 80, 'Division identifiers must be at most 80 characters')
   const qualityControllerId = input.qualityControllerId || undefined
-  assert(!qualityControllerId || users.some((u) => u.id === qualityControllerId && !u.deletedAt && u.permissions.includes('approver')), 'Select an active user with Approver permission')
+  assert(!qualityControllerId || users.some((u) => u.id === qualityControllerId && isAssignable(u) && u.permissions.includes('approver')), 'Select an active user with Approver permission')
   return { divisionId, qualityControllerId }
 }
 function decisionStage(scope: ReviewScope): 'same-division-decision' | 'cross-division-decision' { return scope === 'same-division' ? 'same-division-decision' : 'cross-division-decision' }
