@@ -407,6 +407,25 @@ begin
   assert (select count(*) from public.organizations) = 0, 'organizations is read only through functions';
   -- Storage: none of A's files, and no upload into A's folder.
   assert not exists (select 1 from storage.objects where name like i.a_org::text || '/%'), 'B sees a file of A''s folder';
+  -- Explicitly, the System Admins' directory read (20261110130000, scoped in 20261116180000): B's Admin sees
+  -- none of A's published SOPs, their published versions or their files, as rows or through the three functions.
+  assert (select count(*) from public.sops s where s.organization_id = i.a_org and s.status = 'published') = 0,
+    'B''s Admin sees a published SOP of A''s';
+  assert (select count(*) from public.sop_versions v where v.sop_id = '99000000-0000-4000-8000-0000000000b1') = 0,
+    'B''s Admin sees a version of A''s published SOP';
+  assert (select count(*) from storage.objects o where o.bucket_id = 'sop-files' and o.name = i.a_file) = 0,
+    'B''s Admin sees the file of A''s published SOP';
+  assert not public.admin_can_read_published_sop('99000000-0000-4000-8000-0000000000b1')
+     and not public.admin_can_read_published_version('99000000-0000-4000-8000-0000000000b1', 1)
+     and not public.admin_can_read_published_sop_file(i.a_file),
+    'B''s Admin may read A''s published SOP, version or file through the directory functions';
+  -- A check of the check: A's Admin does see them, so the zeros above aren't empty by accident.
+  perform pg_temp.act_as('99000000-0000-4000-8000-000000000001');
+  assert (select count(*) from public.sops s where s.id = '99000000-0000-4000-8000-0000000000b1') = 1
+     and (select count(*) from public.sop_versions v where v.sop_id = '99000000-0000-4000-8000-0000000000b1' and v.version = 1) = 1
+     and (select count(*) from storage.objects o where o.bucket_id = 'sop-files' and o.name = i.a_file) = 1,
+    'A''s Admin sees A''s published SOP, its version and its file';
+  perform pg_temp.act_as('99000000-0000-4000-8000-000000000011');
   begin
     insert into storage.objects (bucket_id, name, owner_id) values ('guideline-files', i.a_org::text || '/files/' || gen_random_uuid() || '.pdf',
       '99000000-0000-4000-8000-000000000011');
