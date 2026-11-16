@@ -38,10 +38,10 @@ const tabs = (html: string) => [...html.matchAll(/<button type="button" role="ta
 const headings = (html: string) => [...table(html).matchAll(/<th scope="col"[^>]*>([^<]+)<\/th>/g)].map((match) => match[1])
 
 describe('the Active Staff and Deactive Staff tabs', () => {
-  it('replace the staff count: two tabs, side by side, right under Search | Filter | Sort and right above the table', () => {
+  it('replace the staff count: three tabs, side by side, right under Search | Filter | Sort and right above the table', () => {
     const html = render()
     expect(html).not.toMatch(/\d+ staff members?</)
-    expect(tabs(html).map((tab) => tab.label)).toEqual(['Active Staff', 'Deactivated Staff'])
+    expect(tabs(html).map((tab) => tab.label)).toEqual(['Active Staff', 'Deactivated Staff', 'Sent Invitations'])
     expect(html).toMatch(/<div role="tablist" aria-label="Staff status"/)
     const toolbar = html.indexOf('name="staffSort"'), tablist = html.indexOf('role="tablist"'), panel = html.indexOf('role="tabpanel"'), tableAt = html.indexOf('<table')
     expect(toolbar).toBeLessThan(tablist)
@@ -53,7 +53,7 @@ describe('the Active Staff and Deactive Staff tabs', () => {
 
   it('opens on Active Staff, which lists active staff only', () => {
     const html = render()
-    expect(tabs(html).map((tab) => tab.selected)).toEqual([true, false])
+    expect(tabs(html).map((tab) => tab.selected)).toEqual([true, false, false])
     expect(names(html)).toEqual(['Reem Alharbi', 'Sara Aljuraybah'])
     expect(html).not.toContain('Huda Saleh')
     expect(html).not.toContain('Old Admin')
@@ -70,7 +70,7 @@ describe('the Active Staff and Deactive Staff tabs', () => {
 
   it('Deactive Staff (?status=deactivated) lists deactivated staff only, never Admins', () => {
     const html = render('?status=deactivated')
-    expect(tabs(html).map((tab) => tab.selected)).toEqual([false, true])
+    expect(tabs(html).map((tab) => tab.selected)).toEqual([false, true, false])
     expect(names(html)).toEqual(['Amal Fahad', 'Huda Saleh'])
     expect(html).not.toContain('Sara Aljuraybah')
     expect(html).not.toContain('Old Admin')

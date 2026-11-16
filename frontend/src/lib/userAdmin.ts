@@ -91,18 +91,22 @@ export type StaffSortGroup = 'name' | 'division' | 'department'
 export const staffSortGroup = (sort: StaffSort): StaffSortGroup | undefined =>
   sort === 'default' ? undefined : (sort.slice(0, sort.lastIndexOf('-')) as StaffSortGroup)
 
-/** The Staff page's tabs (`?status=`): Active Staff (the default) and Deactive Staff. */
-export const STAFF_STATUSES = ['active', 'deactivated'] as const
+/** The Staff page's tabs (`?status=`): Active Staff (the default), Deactive Staff and Sent Invitations. */
+export const STAFF_STATUSES = ['active', 'deactivated', 'invitations'] as const
 export type StaffStatus = (typeof STAFF_STATUSES)[number]
 
-/** The staff on a Staff tab: never Admins (they are on the Admins page); active or deactivated only. */
-export function staffWithStatus(users: User[], status: StaffStatus): User[] {
-  return users.filter((user) => !isSystemAdmin(user) && (status === 'deactivated' ? !!user.deletedAt : !user.deletedAt))
+/**
+ * The staff on the Active Staff or Deactive Staff tab: never Admins (they are on the Admins page); active or
+ * deactivated only. `invited`: staff whose invitation isn't activated (waiting, or cancelled), who are never
+ * on Active Staff (lib/staffInvitations.ts lists the waiting ones on Sent Invitations).
+ */
+export function staffWithStatus(users: User[], status: Exclude<StaffStatus, 'invitations'>, invited: ReadonlySet<string> = new Set()): User[] {
+  return users.filter((user) => !isSystemAdmin(user) && (status === 'deactivated' ? !!user.deletedAt : !user.deletedAt && !invited.has(user.id)))
 }
 
 /** Clear Filters: the URL without the Filter and the sort (other parameters, like the tab, stay). */
 export function clearedStaffParams(current: URLSearchParams): URLSearchParams {
-  return updateParams(current, { division: undefined, dept: undefined, permission: undefined, sort: undefined }, {})
+  return updateParams(current, { division: undefined, dept: undefined, permission: undefined, invitation: undefined, sort: undefined }, {})
 }
 
 export interface UserFilter {
@@ -143,7 +147,8 @@ export function filterUsers(users: User[], getDepartment: (id: string) => Depart
     .sort(staffCompare(filter.sort ?? 'default', getDepartment))
 }
 
-function staffCompare(sort: StaffSort, getDepartment: (id: string) => Department | undefined): (a: User, b: User) => number {
+/** The Staff list's order for a sort (see filterUsers); also Sent Invitations' for every sort but 'default'. */
+export function staffCompare(sort: StaffSort, getDepartment: (id: string) => Department | undefined): (a: User, b: User) => number {
   const byName = (a: User, b: User) => a.name.localeCompare(b.name)
   const group = staffSortGroup(sort)
   const direction = sort.endsWith('-desc') ? -1 : 1

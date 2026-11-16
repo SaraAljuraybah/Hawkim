@@ -1,5 +1,5 @@
 import type { ReactivateStaffFailure } from '../services/people'
-import type { ResendFailureReason } from '../services/invitations'
+import type { CancelInvitationFailure, ResendFailureReason } from '../services/invitations'
 import type { FileDropzoneText } from '../components/ui/FileDropzone'
 import type {
   ComplianceResult,
@@ -272,6 +272,8 @@ export interface ResetPasswordContent {
   }
   /** The link is missing, invalid or expired. */
   invalid: { title: string; text: string; /** Goes to the person's own profile (see profilePathFor). */ action: { label: string } }
+  /** The link's invitation was cancelled by an Admin. */
+  cancelled: { title: string; text: string; action: LinkContent }
   saved: { title: string; text: string; dashboard: LinkContent; signIn: LinkContent }
 }
 
@@ -1968,8 +1970,8 @@ export interface AdminUsersListContent {
   sort: { label: string; options: Record<StaffSort, string>; groups: Record<StaffSortGroup, string> }
   /** Clears the search, the Filter and the sort. */
   clearFilters: string
-  /** The two tabs above the table: active staff (the default) and deactivated staff. `label` names the tab list. */
-  tabs: { label: string; active: string; deactivated: string }
+  /** The tabs above the table: active staff (the default), deactivated staff and sent invitations. `label` names the tab list. */
+  tabs: { label: string; active: string; deactivated: string; invitations: string }
   /** Accessible name of the table. */
   tableLabel: string
   /**
@@ -1985,6 +1987,50 @@ export interface AdminUsersListContent {
   empty: string
   /** No deactivated staff (match the search and Filter). */
   emptyDeactivated: string
+  /** The Sent Invitations tab. */
+  invitations: AdminStaffInvitationsContent
+}
+
+/**
+ * Staff → Sent Invitations: staff who were invited and haven't activated their account. `{name}` and
+ * `{email}` are replaced where they appear.
+ */
+export interface AdminStaffInvitationsContent {
+  /** Above the table. */
+  note: string
+  /** Accessible name of the table. */
+  tableLabel: string
+  columns: { name: string; email: string; status: string; sentDate: string; actions: string }
+  statuses: { sent: string; expired: string }
+  /** The Filter on this tab: its one section, and the field's text while nothing is chosen. */
+  filter: { legend: string; all: string; count: CountText }
+  copyEmail: string
+  copied: string
+  copyFailed: string
+  /** Accessible names and tooltips of the row's icon buttons. */
+  actions: { preview: string; resend: string; resending: string; resendUnavailable: string; cancel: string; cancelling: string }
+  /** No invitations (match the search and Filter). */
+  empty: string
+  /** The invitations couldn't be read. */
+  loadFailed: string
+  /** The Preview pop-up: the same details as the Add Staff form. */
+  preview: {
+    name: string; email: string; phone: string; division: string; department: string; position: string; permission: string
+    notSet: string; close: string
+  }
+  /** Cancel Invitation's confirmation, and what it says afterwards. */
+  cancel: {
+    title: string
+    description: string
+    consequences: string[]
+    keep: string
+    confirm: string
+    done: string
+    refused: string
+    failures: Record<CancelInvitationFailure, string>
+  }
+  /** Above the reason when a resend didn't send. */
+  resendRefused: string
 }
 
 /**

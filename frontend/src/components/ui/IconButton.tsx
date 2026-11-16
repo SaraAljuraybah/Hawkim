@@ -1,5 +1,5 @@
 import { useId, useState, type KeyboardEvent, type MouseEvent, type Ref } from 'react'
-import type { LucideIcon } from 'lucide-react'
+import { LoaderCircle, type LucideIcon } from 'lucide-react'
 
 interface IconButtonProps {
   /** Accessible name, also shown as the tooltip, e.g. "Preview v2". */
@@ -10,6 +10,8 @@ interface IconButtonProps {
    * and the tooltip shows the reason, so keyboard and screen-reader users get it too.
    */
   disabledReason?: string
+  /** Working on it: a spinning loader instead of the icon (with `disabledReason` saying what is happening). */
+  busy?: boolean
   /** A link (e.g. a download) instead of a button. */
   href?: string
   download?: string
@@ -38,7 +40,7 @@ const iconOnly = 'size-6 rounded-sm'
  * of the button's right edge, so it stays inside the page at the end of a row; above the button, or
  * below it where there is no room above (the top bar).
  */
-export function IconButton({ label, icon: Icon, disabledReason, href, download, onClick, danger = false, bare = false, tooltip = true, tooltipPlacement = 'above', ref }: IconButtonProps) {
+export function IconButton({ label, icon: Icon, disabledReason, busy = false, href, download, onClick, danger = false, bare = false, tooltip = true, tooltipPlacement = 'above', ref }: IconButtonProps) {
   const [open, setOpen] = useState(false)
   const tooltipId = useId()
   const disabled = !!disabledReason
@@ -59,7 +61,9 @@ export function IconButton({ label, icon: Icon, disabledReason, href, download, 
       }
     },
   }
-  const icon = <Icon aria-hidden="true" className="size-4" strokeWidth={1.75} />
+  const icon = busy
+    ? <LoaderCircle aria-hidden="true" className="size-4 motion-safe:animate-spin" strokeWidth={1.75} />
+    : <Icon aria-hidden="true" className="size-4" strokeWidth={1.75} />
 
   return (
     <span className="relative inline-flex" onMouseEnter={() => setOpen(tooltip)} onMouseLeave={() => setOpen(false)}>

@@ -73,6 +73,11 @@ export const resetPasswordEn: ResetPasswordContent = {
     text: 'The link is invalid or has expired. Request a new one from your profile.',
     action: { label: 'Go to My Profile' },
   },
+  cancelled: {
+    title: 'This invitation has been cancelled.',
+    text: 'Contact your organization’s Hawkim administrator if you need access.',
+    action: { label: 'Go to Sign In', href: '/login' },
+  },
   saved: {
     title: 'Password Changed',
     text: 'Your new password is saved.',

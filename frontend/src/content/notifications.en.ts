@@ -73,6 +73,7 @@ export const notificationsEn: NotificationsContent = {
       'not-found': '{name} no longer has a Hawkim account, so no invitation was sent.',
       'no-invitation': 'There is no invitation to resend for {name}.',
       'account-blocked': '{name}’s account is blocked, so no invitation was sent.',
+      cancelled: '{name}’s invitation was cancelled, so no invitation was sent.',
       forbidden: 'You don’t have permission to resend this invitation. Refresh the page.',
       'email-failed': 'The invitation email couldn’t be sent. Try again in a few minutes.',
       failed: 'The invitation couldn’t be resent. Check your connection and try again.',

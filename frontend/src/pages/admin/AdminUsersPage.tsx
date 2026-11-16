@@ -1,14 +1,19 @@
 import { useMemo, useRef, useState } from 'react'
 import { flushSync } from 'react-dom'
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
-import { CircleAlert, CircleCheck, Eye, Pencil, Plus, Users } from 'lucide-react'
+import { CircleAlert, CircleCheck, Eye, Info, Pencil, Plus, Users } from 'lucide-react'
+import { EmailDetail } from '../../components/admin/DetailsCard'
 import { DeleteUserButton } from '../../components/admin/DeleteUserButton'
+import { CancelInvitationButton, ResendInvitationButton } from '../../components/admin/InvitationActions'
+import { InvitationPreview } from '../../components/admin/InvitationPreview'
 import { ReactivateUserButton } from '../../components/admin/ReactivateUserButton'
 import { PermissionBadges, UserAvatar } from '../../components/admin/UserBits'
 import { Button } from '../../components/ui/Button'
 import { IconButton } from '../../components/ui/IconButton'
 import { FilterPopover } from '../../components/ui/FilterPopover'
+import { PageLoading } from '../../components/ui/PageLoading'
 import { SelectField } from '../../components/ui/SelectField'
+import { StatusBadge } from '../../components/ui/StatusBadge'
 import { Tabs } from '../../components/ui/Tabs'
 import { tabIds } from '../../components/ui/tabIds'
 import { TextField } from '../../components/ui/TextField'
@@ -16,12 +21,17 @@ import { tableStyles } from '../../components/ui/tableStyles'
 import { LIST_TOOLBAR } from '../../components/ui/toolbar'
 import { adminEn } from '../../content/admin.en'
 import { filtersEn } from '../../content/filters.en'
+import { statusLabelsEn } from '../../content/status.en'
 import { usersEn } from '../../content/users.en'
 import type { User } from '../../data/mock/types'
+import { useDeadlineClock } from '../../hooks/useDeadlineClock'
 import { useDocumentTitle } from '../../hooks/useDocumentTitle'
+import { useStaffInvitations } from '../../hooks/useStaffInvitations'
+import { formatDateTime } from '../../lib/format'
 import { departmentsKept, filterDepartmentsFrom, filterSelection, OTHERS_FILTER, ROLE_FILTERS, type RoleFilter } from '../../lib/organization'
 import { listParam, readChoice, readList, updateParams } from '../../lib/pagination'
 import { adminUserEditPath, adminUserPath } from '../../lib/routes'
+import { filterInvitations, INVITATION_STATUSES, invitationRows, invitationStatus, invitedIds, type InvitationStatus } from '../../lib/staffInvitations'
 import { clearedStaffParams, divisionLabel, filterUsers, STAFF_SORTS, STAFF_STATUSES, staffSortGroup, staffWithStatus, type StaffSort, type StaffStatus } from '../../lib/userAdmin'
 import { useDepartments } from '../../state/departmentsContext'
 import { useUsers } from '../../state/usersContext'
@@ -32,7 +42,14 @@ import { useUsers } from '../../state/usersContext'
  */
 const permissionOptions = ROLE_FILTERS.map((role) => ({ value: role, label: role === OTHERS_FILTER ? filtersEn.permission.others : usersEn.permissions[role] }))
 
-/** Ids of the Active Staff / Deactive Staff tabs and their panel. */
+/** Sent Invitations' Filter chips: Sent and Expired (none chosen: All Statuses). */
+const invitationText = adminEn.usersList.invitations
+const invitationStatusOptions = INVITATION_STATUSES.map((value) => ({ value, label: invitationText.statuses[value] }))
+/** The badge of each invitation status: Sent as waiting (amber), Expired as the review requests' expired (grey). */
+const INVITATION_BADGES = { sent: 'pending', expired: 'cancelled' } as const
+const invitationBadgeLabels = { ...statusLabelsEn, pending: invitationText.statuses.sent, cancelled: invitationText.statuses.expired }
+
+/** Ids of the Active Staff / Deactive Staff / Sent Invitations tabs and their panel. */
 const TAB_ID_PREFIX = 'staff-status'
 
 /** Set after deleting (or reactivating) a user, to say so on the list. */
@@ -42,10 +59,15 @@ export interface AdminUsersLocationState {
 
 /**
  * Staff ("/admin/users", PBI 17): one search, the Filter (Division, Department and Permission, several of each,
- * kept in the URL), Sort by name (in the URL too), Clear Filters, then the Active Staff and Deactive Staff tabs
- * (`?status=deactivated`, Active Staff by default) right above the table. Search, Filter and Sort apply to the
- * selected tab's staff only. Active Staff rows have Delete (it deactivates them); Deactive Staff rows have
- * Reactivate in that column. Administrators aren't staff: they are on Manage Organization → Admins.
+ * kept in the URL), Sort by name (in the URL too), Clear Filters, then the Active Staff, Deactive Staff and Sent
+ * Invitations tabs (`?status=deactivated`, `?status=invitations`, Active Staff by default) right above the table.
+ * Search, Filter and Sort apply to the selected tab's staff only. Active Staff rows have Delete (it deactivates
+ * them); Deactive Staff rows have Reactivate in that column. Administrators aren't staff: they are on Manage
+ * Organization → Admins.
+ *
+ * Sent Invitations lists staff whose invitation isn't activated yet (get_staff_invitations): the search matches
+ * the full name and email, Sort is the same, and the Filter offers the invitation's status instead (`?invitation=`).
+ * They aren't on Active Staff until they activate their account; a cancelled invitation's person is on no tab.
  */
 export function AdminUsersPage() {
   const content = adminEn.usersList
@@ -75,17 +97,38 @@ export function AdminUsersPage() {
   // `?status=deactivated`: the Deactive Staff tab; Active Staff (the default) leaves it out.
   const status = readChoice<StaffStatus>(params, 'status', STAFF_STATUSES, 'active')
   const deactivatedTab = status === 'deactivated'
-  const tabStaff = useMemo(() => staffWithStatus(everyone, status), [everyone, status])
+  const invitationsTab = status === 'invitations'
+  // Staff whose invitation isn't activated are never on Active Staff. If the invitations can't be read,
+  // Active Staff lists everyone, as it did before Sent Invitations.
+  const staffInvitations = useStaffInvitations()
+  const invited = useMemo(() => invitedIds(staffInvitations.invitations), [staffInvitations.invitations])
+  const tabStaff = useMemo(() => (invitationsTab ? [] : staffWithStatus(everyone, status, invited)), [everyone, status, invitationsTab, invited])
   const selectTab = (next: StaffStatus) => setParams((current) => updateParams(current, { status: next }, { status: 'active' }), { replace: true })
-  const hasFilters = query.trim().length > 0 || divisions.length > 0 || departmentIds.length > 0 || permissions.length > 0 || sort !== 'default'
+  // `?invitation=sent,expired`: Sent Invitations' Filter (none: All Statuses).
+  const invitationStatuses = useMemo(() => INVITATION_STATUSES.filter((value) => readList(params, 'invitation').includes(value)), [params])
+  const hasFilters = query.trim().length > 0 || sort !== 'default' ||
+    (invitationsTab ? invitationStatuses.length > 0 : divisions.length > 0 || departmentIds.length > 0 || permissions.length > 0)
   const visible = useMemo(
     () => filterUsers(tabStaff, getDepartment, { query, divisions, departmentIds, permissions, sort }, usersEn.permissions),
     [tabStaff, getDepartment, query, divisions, departmentIds, permissions, sort],
   )
+  const allInvitationRows = useMemo(() => invitationRows(everyone, staffInvitations.invitations), [everyone, staffInvitations.invitations])
+  // The next expiry among the rows, so a Sent row turns Expired (and Resend works) when its 24 hours are over.
+  const nextExpiry = useMemo(() => {
+    // Those the database read as still Sent; one already past only refreshes the clock once.
+    const upcoming = allInvitationRows.filter((row) => !row.invitation.expired).map((row) => Date.parse(row.invitation.expiresAt))
+    return upcoming.length > 0 ? new Date(Math.min(...upcoming)).toISOString() : undefined
+  }, [allInvitationRows])
+  const now = useDeadlineClock(nextExpiry, invitationsTab)
+  const visibleInvitations = useMemo(
+    () => filterInvitations(allInvitationRows, getDepartment, { query, statuses: invitationStatuses, sort }, now),
+    [allInvitationRows, getDepartment, query, invitationStatuses, sort, now],
+  )
+  const [previewing, setPreviewing] = useState<User>()
   const setSort = (next: StaffSort) => setParams((current) => updateParams(current, { sort: next }, { sort: 'default' }), { replace: true })
   // Replacing the URL: no history entry per click. Deselecting a division also deselects its departments (one update).
-  const setFilter = (changes: { division?: string[]; dept?: string[]; permission?: string[] }) => setParams((current) => updateParams(current,
-    Object.fromEntries(Object.entries(changes).map(([name, ids]) => [name, listParam(ids)])), { division: '', dept: '', permission: '' }), { replace: true })
+  const setFilter = (changes: { division?: string[]; dept?: string[]; permission?: string[]; invitation?: string[] }) => setParams((current) => updateParams(current,
+    Object.fromEntries(Object.entries(changes).map(([name, ids]) => [name, listParam(ids)])), { division: '', dept: '', permission: '', invitation: '' }), { replace: true })
   const setDivisions = (ids: string[]) => setFilter({ division: ids, dept: departmentsKept(filterData, ids, departmentIds) })
   function clearFilters() {
     setQuery('')
@@ -123,6 +166,27 @@ export function AdminUsersPage() {
     return <div className="flex justify-end gap-1">{buttons.preview}{buttons.edit}{buttons.action}</div>
   }
   const panelIds = tabIds(TAB_ID_PREFIX, status)
+
+  // Sent Invitations' actions. A refusal saying the person already activated reads the list again (they are
+  // on Active Staff now); so does one saying the invitation was cancelled elsewhere.
+  function invitationRefused(title: string, reasons: string[], reason: string) {
+    refuse(title, reasons)
+    if (reason === 'already-activated' || reason === 'cancelled' || reason === 'not-found') void staffInvitations.reload()
+  }
+  const invitationCell = (user: User, expired: boolean) => ({
+    preview: <IconButton label={invitationText.actions.preview.replace('{name}', user.name)} icon={Eye} onClick={() => setPreviewing(user)} />,
+    resend: <ResendInvitationButton user={user} expired={expired} resend={staffInvitations.resend} onSent={deleted} onRefused={invitationRefused} />,
+    cancel: <CancelInvitationButton user={user} cancel={staffInvitations.cancel} onCancelled={deleted} onRefused={invitationRefused} />,
+  })
+  // Always all three, in this order, whatever the status (Resend is disabled while the link works).
+  const invitationActions = (user: User, expired: boolean) => {
+    const buttons = invitationCell(user, expired)
+    return <div className="flex justify-end gap-1">{buttons.preview}{buttons.resend}{buttons.cancel}</div>
+  }
+  const copyEmail = (user: User) => (
+    <EmailDetail email={user.email} copyLabel={invitationText.copyEmail.replace('{name}', user.name)} copiedText={invitationText.copied} failedText={invitationText.copyFailed} />
+  )
+  const invitationBadge = (status: InvitationStatus) => <StatusBadge status={INVITATION_BADGES[status]} labels={invitationBadgeLabels} />
 
   return (
     <>
@@ -172,6 +236,14 @@ export function AdminUsersPage() {
           onChange={(event) => setQuery(event.target.value)}
         />
         {/* The Filter field of every list page. */}
+        {invitationsTab ? (
+          <FilterPopover className="relative min-w-0 lg:static" label={filtersEn.label} allLabel={invitationText.filter.all} title={filtersEn.title} clearLabel={filtersEn.clearAll}
+            onClear={() => setFilter({ invitation: [] })}
+            sections={[
+              { id: 'invitation', legend: invitationText.filter.legend, options: invitationStatusOptions, value: invitationStatuses,
+                onChange: (next) => setFilter({ invitation: next }), emptyText: '', summary: invitationText.filter.count },
+            ]} />
+        ) : (
         <FilterPopover className="relative min-w-0 lg:static" label={filtersEn.label} allLabel={filtersEn.all} title={filtersEn.title} clearLabel={filtersEn.clearAll}
           onClear={() => setFilter({ division: [], dept: [], permission: [] })}
           sections={[
@@ -183,6 +255,7 @@ export function AdminUsersPage() {
             { id: 'permission', legend: filtersEn.permission.legend, options: permissionOptions, value: permissions,
               onChange: (next) => setFilter({ permission: next as RoleFilter[] }), emptyText: '', summary: filtersEn.permission.count },
           ]} />
+        )}
         <SelectField className="min-w-0" name="staffSort" label={content.sort.label} value={sort}
           options={STAFF_SORTS.map((value) => {
             const group = staffSortGroup(value)
@@ -191,9 +264,17 @@ export function AdminUsersPage() {
           onChange={(event) => setSort(event.target.value as StaffSort)} />
       </div>
 
-      {/* Active Staff | Deactive Staff, right under Search | Filter | Sort, side by side on top of the table frame
-          and lined up with its left edge; Clear Filters (when something is set) at the right of the same row. */}
-      <div className="mt-6 flex flex-wrap items-end justify-between gap-x-4 gap-y-2">
+      {/* Sent Invitations: how long a link works, above the tabs and the table. */}
+      {invitationsTab && (
+        <p className="mt-6 flex items-center gap-1.5 text-sm text-text-gray">
+          <Info aria-hidden="true" className="size-4 shrink-0" strokeWidth={2} />
+          {invitationText.note}
+        </p>
+      )}
+
+      {/* Active Staff | Deactive Staff | Sent Invitations, right under Search | Filter | Sort, side by side on top of
+          the table frame and lined up with its left edge; Clear Filters (when something is set) at the right of the same row. */}
+      <div className={`${invitationsTab ? 'mt-3' : 'mt-6'} flex flex-wrap items-end justify-between gap-x-4 gap-y-2`}>
         <Tabs
           className="order-last sm:order-first"
           variant="folder"
@@ -206,7 +287,83 @@ export function AdminUsersPage() {
         {hasFilters && <Button size="sm" variant="secondary" className="mb-2 ml-auto" onClick={clearFilters}>{content.clearFilters}</Button>}
       </div>
       <div role="tabpanel" id={panelIds.panel} aria-labelledby={panelIds.tab}>
-      {visible.length === 0 ? (
+      {invitationsTab ? (
+        staffInvitations.status === 'loading' ? (
+          <div className="rounded-xl rounded-tl-none border border-beige bg-white px-6 py-14">
+            <PageLoading />
+          </div>
+        ) : staffInvitations.status === 'failed' || visibleInvitations.length === 0 ? (
+          <div className="flex flex-col items-center rounded-xl rounded-tl-none border border-beige bg-white px-6 py-14 text-center">
+            <span aria-hidden="true" className="inline-flex size-12 items-center justify-center rounded-lg bg-beige text-maroon">
+              <Users className="size-6" strokeWidth={1.75} />
+            </span>
+            <p role="status" className="mt-4 text-text-gray">
+              {staffInvitations.status === 'failed' ? invitationText.loadFailed : invitationText.empty}
+            </p>
+          </div>
+        ) : (
+          <div className={`${tableStyles.frame} rounded-tl-none`}>
+            {/* Table — md and up */}
+            <div className={tableStyles.wide}>
+              <table aria-label={invitationText.tableLabel} className={`${tableStyles.table} [&_thead_th:first-child]:rounded-tl-none`}>
+                <thead className={tableStyles.head}>
+                  <tr>
+                    <th scope="col" className={tableStyles.headCell}>{invitationText.columns.name}</th>
+                    <th scope="col" className={tableStyles.headCell}>{invitationText.columns.email}</th>
+                    <th scope="col" className={tableStyles.headCell}>{invitationText.columns.status}</th>
+                    <th scope="col" className={tableStyles.headCell}>{invitationText.columns.sentDate}</th>
+                    <th scope="col" className={`${tableStyles.headCell} text-right`}>{invitationText.columns.actions}</th>
+                  </tr>
+                </thead>
+                <tbody className={tableStyles.body}>
+                  {visibleInvitations.map(({ user, invitation }) => {
+                    const state = invitationStatus(invitation, now)
+                    return (
+                      <tr key={user.id}>
+                        <th scope="row" className={tableStyles.rowHeader}>
+                          <span className="flex items-center gap-3">
+                            <UserAvatar user={user} />
+                            {user.name}
+                          </span>
+                        </th>
+                        <td className={`${tableStyles.cell} text-text-gray`}>{copyEmail(user)}</td>
+                        <td className={tableStyles.cell}>{invitationBadge(state)}</td>
+                        <td className={`${tableStyles.cell} text-text-gray whitespace-nowrap`}>
+                          <time dateTime={invitation.sentAt}>{formatDateTime(invitation.sentAt)}</time>
+                        </td>
+                        <td className={tableStyles.cell}>{invitationActions(user, state === 'expired')}</td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Stacked cards — below md */}
+            <ul aria-label={invitationText.tableLabel} className={tableStyles.cards}>
+              {visibleInvitations.map(({ user, invitation }) => {
+                const state = invitationStatus(invitation, now)
+                return (
+                  <li key={user.id} className="flex gap-3 p-4">
+                    <UserAvatar user={user} />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium break-words text-maroon">{user.name}</p>
+                      <dl className="mt-1 grid grid-cols-[auto_minmax(0,1fr)] gap-x-2 gap-y-0.5 text-sm">
+                        <dt className="text-text-gray">{invitationText.columns.email}</dt>
+                        <dd className="text-maroon">{copyEmail(user)}</dd>
+                        <dt className="text-text-gray">{invitationText.columns.sentDate}</dt>
+                        <dd className="text-maroon"><time dateTime={invitation.sentAt}>{formatDateTime(invitation.sentAt)}</time></dd>
+                      </dl>
+                      <div className="mt-2">{invitationBadge(state)}</div>
+                      <div className="mt-3 flex justify-end">{invitationActions(user, state === 'expired')}</div>
+                    </div>
+                  </li>
+                )
+              })}
+            </ul>
+          </div>
+        )
+      ) : visible.length === 0 ? (
         <div className="flex flex-col items-center rounded-xl rounded-tl-none border border-beige bg-white px-6 py-14 text-center">
           <span aria-hidden="true" className="inline-flex size-12 items-center justify-center rounded-lg bg-beige text-maroon">
             <Users className="size-6" strokeWidth={1.75} />
@@ -281,6 +438,14 @@ export function AdminUsersPage() {
         </div>
       )}
       </div>
+      {previewing && (
+        <InvitationPreview
+          user={previewing}
+          divisionName={divisionLabel(getDepartment(previewing.departmentId)) || undefined}
+          departmentName={getDepartment(previewing.departmentId)?.name}
+          onClose={() => setPreviewing(undefined)}
+        />
+      )}
     </>
   )
 }
