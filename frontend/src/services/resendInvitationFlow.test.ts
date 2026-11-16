@@ -5,6 +5,7 @@ import { resendInvitationFlow, validateRequest, type ResendSteps } from '../../.
 const USER = '9d000000-0000-4000-8000-000000000004'
 const LINK = 'https://example.test/verify?token=SECRET-LINK-TOKEN'
 const CLAIMED = '2026-11-11T10:00:00.123456+00:00'
+const LINK_REF = '7c000000-0000-4000-8000-0000000000bb'
 
 let calls: string[]
 let steps: ResendSteps
@@ -16,8 +17,9 @@ beforeEach(() => {
   const step = <T,>(name: string, value: T) => vi.fn(async () => { calls.push(name); return value })
   steps = {
     caller: step('caller', 'allowed' as const),
-    claim: step('claim', { email: 'rana@example.test', claimedAt: CLAIMED }),
+    claim: step('claim', { email: 'rana@example.test', claimedAt: CLAIMED, linkRef: LINK_REF }),
     revert: step('revert', undefined),
+    endOldLinks: step('endOldLinks', undefined),
     newLink: step('newLink', LINK),
     sendEmail: step('sendEmail', undefined),
     log: vi.fn(),
@@ -25,17 +27,26 @@ beforeEach(() => {
 })
 
 describe('resending an expired invitation', () => {
+  it('ends every earlier link before making the new one; if that fails, the sending is put back', async () => {
+    steps.endOldLinks = vi.fn(async () => { calls.push('endOldLinks'); throw new Error('update account 500') })
+    const result = await resendInvitationFlow({ userId: USER }, steps)
+    expect(calls).toEqual(['caller', 'claim', 'endOldLinks', 'revert'])
+    expect(steps.endOldLinks).toHaveBeenCalledWith(USER)
+    expect(steps.revert).toHaveBeenCalledWith(USER, CLAIMED)
+    expect(result).toEqual({ status: 502, body: { errorCode: 'link-failed' } })
+  })
+
   it('claims it first, then makes a new link and emails it to the account', async () => {
     const result = await resendInvitationFlow({ userId: USER }, steps)
-    expect(calls).toEqual(['caller', 'claim', 'newLink', 'sendEmail'])
+    expect(calls).toEqual(['caller', 'claim', 'endOldLinks', 'newLink', 'sendEmail'])
     expect(steps.claim).toHaveBeenCalledWith(USER)
-    expect(steps.newLink).toHaveBeenCalledWith('rana@example.test')
+    expect(steps.newLink).toHaveBeenCalledWith('rana@example.test', LINK_REF)
     const [to, subject, html] = (steps.sendEmail as ReturnType<typeof vi.fn>).mock.calls[0]
     expect(to).toBe('rana@example.test')
     expect(subject).toBe('You’re invited to Hawkim')
     expect(html).toContain(`href="${LINK}"`)
     expect(html).toContain('A Hawkim Admin has created an account for')
-    expect(result).toEqual({ status: 200, body: { email: 'rana@example.test' } })
+    expect(result).toEqual({ status: 200, body: { email: 'rana@example.test', sentAt: CLAIMED } })
   })
 
   it('uses only the id from the request, never an address from it', async () => {

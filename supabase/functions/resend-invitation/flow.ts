@@ -5,17 +5,22 @@ import { DatabaseError, invitationEmail } from "../add-user/flow.ts"
 
 export type ResendFailure =
   | "unauthorized" | "forbidden" | "invalid" | "not-found" | "no-invitation" | "account-blocked"
-  | "already-activated" | "still-valid" | "super-admin-required" | "link-failed" | "email-failed" | "failed"
+  | "already-activated" | "still-valid" | "super-admin-required" | "cancelled" | "link-failed" | "email-failed" | "failed"
 
 export interface ResendSteps {
   /** The Auth server verifies the session, then the database's active, non-banned Admin check. */
   caller(): Promise<"allowed" | "unauthorized" | "forbidden">
-  /** claim_invitation_resend, as the caller: the account's email and the claim's time. */
-  claim(userId: string): Promise<{ email: string; claimedAt: string }>
+  /** claim_invitation_resend, as the caller: the account's email, the claim's time and the new link's reference. */
+  claim(userId: string): Promise<{ email: string; claimedAt: string; linkRef?: string }>
   /** revert_invitation_resend, as the caller. */
   revert(userId: string, claimedAt: string): Promise<void>
-  /** A new activation link for the account (replacing the old one). Service key. */
-  newLink(email: string): Promise<string>
+  /**
+   * Ends every link issued before (the first invite link included): a password nobody knows, as Add Staff
+   * does for an existing account. The person hasn't activated, so they have no password of their own. Service key.
+   */
+  endOldLinks(userId: string): Promise<void>
+  /** A new activation link for the account (replacing the old one), carrying the reference. Service key. */
+  newLink(email: string, linkRef?: string): Promise<string>
   sendEmail(to: string, subject: string, html: string): Promise<void>
   log(message: string): void
 }
@@ -41,6 +46,7 @@ const CLAIM_REFUSALS: Partial<Record<string, [number, ResendFailure]>> = {
   "account-blocked": [409, "account-blocked"],
   "already-activated": [409, "already-activated"],
   "still-valid": [409, "still-valid"],
+  cancelled: [409, "cancelled"],
 }
 
 function claimRefusal(error: unknown): Result {
@@ -60,7 +66,7 @@ export async function resendInvitationFlow(input: unknown, steps: ResendSteps): 
   if (!userId) return refused(400, "invalid")
 
   // Under the row's lock: still a person, not activated, the link expired. A second click is refused here.
-  let claim: { email: string; claimedAt: string }
+  let claim: { email: string; claimedAt: string; linkRef?: string }
   try {
     claim = await steps.claim(userId)
   } catch (error) {
@@ -80,7 +86,8 @@ export async function resendInvitationFlow(input: unknown, steps: ResendSteps): 
 
   let link: string
   try {
-    link = await steps.newLink(claim.email)
+    await steps.endOldLinks(userId)
+    link = await steps.newLink(claim.email, claim.linkRef)
   } catch (error) {
     return undo("link-failed", error)
   }
@@ -93,5 +100,5 @@ export async function resendInvitationFlow(input: unknown, steps: ResendSteps): 
   }
 
   steps.log(`resent ${userId}`)
-  return { status: 200, body: { email: claim.email } }
+  return { status: 200, body: { email: claim.email, sentAt: claim.claimedAt } }
 }

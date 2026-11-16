@@ -22,6 +22,12 @@ const CORS = {
 const json = (status: number, body: unknown) =>
   new Response(JSON.stringify(body), { status, headers: { ...CORS, "Content-Type": "application/json" } })
 
+/** 32 random bytes, stored by Auth as a hash and never shown to anyone. */
+function randomPassword(): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(32))
+  return btoa(String.fromCharCode(...bytes))
+}
+
 Deno.serve(async (request) => {
   if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS })
   if (request.method !== "POST") return json(405, { errorCode: "failed" })
@@ -63,20 +69,29 @@ Deno.serve(async (request) => {
         return !allowed.error && allowed.data === true ? "allowed" : "forbidden"
       },
       claim: async (userId) => {
-        const claimed = await rpc<{ email?: unknown; claimedAt?: unknown } | null>("claim_invitation_resend", { p_user_id: userId })
+        const claimed = await rpc<{ email?: unknown; claimedAt?: unknown; linkRef?: unknown } | null>("claim_invitation_resend", { p_user_id: userId })
         if (typeof claimed?.email !== "string" || typeof claimed.claimedAt !== "string") throw new Error("claim: unexpected response")
-        return { email: claimed.email, claimedAt: claimed.claimedAt }
+        return { email: claimed.email, claimedAt: claimed.claimedAt, ...(typeof claimed.linkRef === "string" ? { linkRef: claimed.linkRef } : {}) }
       },
       revert: async (userId, claimedAt) => {
         await rpc("revert_invitation_resend", { p_user_id: userId, p_claimed_at: claimedAt })
       },
-      // A recovery link for the existing account: it replaces any earlier link and opens Set New Password.
-      newLink: async (email) => {
+      endOldLinks: async (userId) => {
+        const response = await fetch(`${url}/auth/v1/admin/users/${userId}`, {
+          method: "PUT",
+          headers: { apikey: serverKey, Authorization: `Bearer ${serverKey}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ password: randomPassword() }),
+        })
+        if (!response.ok) throw new Error(`update account ${response.status}`)
+      },
+      // A recovery link for the existing account: it replaces any earlier link and opens Set New Password
+      // (`?invitation=` carries the link's reference; Auth adds its own part after `#`).
+      newLink: async (email, linkRef) => {
         const site = env("SITE_URL", "https://www.tryhawkim.com").replace(/\/$/, "")
         const response = await fetch(`${url}/auth/v1/admin/generate_link`, {
           method: "POST",
           headers: { apikey: serverKey, Authorization: `Bearer ${serverKey}`, "Content-Type": "application/json" },
-          body: JSON.stringify({ type: "recovery", email, redirect_to: `${site}/reset-password` }),
+          body: JSON.stringify({ type: "recovery", email, redirect_to: `${site}/reset-password${linkRef ? `?invitation=${encodeURIComponent(linkRef)}` : ""}` }),
         })
         const account = await response.json().catch(() => null)
         if (!response.ok || !account?.action_link) throw new Error(`generate_link ${response.status}`)

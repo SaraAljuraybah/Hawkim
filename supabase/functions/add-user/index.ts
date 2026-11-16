@@ -55,9 +55,10 @@ Deno.serve(async (request) => {
   })
   // Auth's own links (invite for a new account, recovery for an existing one): they open Set New Password.
   const site = env("SITE_URL", "https://www.tryhawkim.com").replace(/\/$/, "")
-  const generateLink = (type: string, email: string, extra: Record<string, unknown>) => authAdmin("generate_link", {
+  // `?invitation=` carries the link's reference (see newLinkRef); Auth adds its own part after `#`.
+  const generateLink = (type: string, email: string, linkRef: string, extra: Record<string, unknown>) => authAdmin("generate_link", {
     method: "POST",
-    body: JSON.stringify({ type, email, redirect_to: `${site}/reset-password`, ...extra }),
+    body: JSON.stringify({ type, email, redirect_to: `${site}/reset-password?invitation=${encodeURIComponent(linkRef)}`, ...extra }),
   })
   const rpc = async <T>(name: string, args: Record<string, unknown>): Promise<T> => {
     const { data, error } = await caller.rpc(name, args)
@@ -84,8 +85,8 @@ Deno.serve(async (request) => {
         p_email: user.email, p_full_name: user.name, p_phone: user.phone, p_position: user.position,
         p_department_id: user.departmentId, p_roles: user.permissions,
       }),
-      accountLink: async (email, name) => {
-        const response = await generateLink("invite", email, { data: { full_name: name } })
+      accountLink: async (email, name, linkRef) => {
+        const response = await generateLink("invite", email, linkRef, { data: { full_name: name } })
         if (response.status === 422) {
           // A sign-in account already exists: only its id now, no link. Its link is made by freshLink once
           // the profile is saved (a link made earlier would die when its password is replaced, and a
@@ -126,8 +127,8 @@ Deno.serve(async (request) => {
         p_user_id: id, p_email: user.email, p_full_name: user.name, p_phone: user.phone, p_position: user.position,
         p_department_id: user.departmentId, p_roles: user.permissions,
       }),
-      freshLink: async (email) => {
-        const response = await generateLink("recovery", email, {})
+      freshLink: async (email, linkRef) => {
+        const response = await generateLink("recovery", email, linkRef, {})
         const account = await response.json().catch(() => null)
         if (!response.ok || !account?.action_link) throw new Error(`generate_link ${response.status}`)
         return account.action_link as string
@@ -141,9 +142,10 @@ Deno.serve(async (request) => {
         })
         if (!response.ok) throw new Error(`SNDR ${response.status}`)
       },
-      recordInvitation: async (id) => {
-        await rpc("record_invitation_sent", { p_user_id: id })
+      recordInvitation: async (id, linkRef) => {
+        await rpc("record_invitation_sent", { p_user_id: id, p_link_ref: linkRef })
       },
+      newLinkRef: () => crypto.randomUUID(),
       log: (message) => console.log(`add-user: ${message}`),
     })
     return json(status, body)

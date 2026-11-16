@@ -7,6 +7,7 @@ const input = { name: ' Rana Saleh ', email: ' Rana@Example.TEST ', phone: '+966
 const cleaned = { name: 'Rana Saleh', email: 'rana@example.test', phone: '+966512345678', position: 'Specialist', departmentId: 'home', permissions: ['author', 'reviewer'] }
 const saved = { id: 'id-1', email: cleaned.email, name: cleaned.name, initials: 'RS', phone: cleaned.phone, position: cleaned.position, departmentId: 'home', permissions: cleaned.permissions }
 
+const LINK_REF = '7c000000-0000-4000-8000-0000000000aa'
 let calls: string[]
 let steps: AddUserSteps
 const logs = () => (steps.log as ReturnType<typeof vi.fn>).mock.calls.map(([message]) => String(message)).join('\n')
@@ -27,6 +28,7 @@ beforeEach(() => {
     deactivate: step('deactivate', undefined),
     sendEmail: step('sendEmail', undefined),
     recordInvitation: step('recordInvitation', undefined),
+    newLinkRef: vi.fn(() => LINK_REF),
     log: vi.fn(),
   }
 })
@@ -40,7 +42,7 @@ describe('a new user', () => {
 
   it('records the sent invitation for that account, so an unused link can be noticed when it expires', async () => {
     await addUserFlow(input, steps)
-    expect(steps.recordInvitation).toHaveBeenCalledWith('id-1')
+    expect(steps.recordInvitation).toHaveBeenCalledWith('id-1', LINK_REF)
   })
 
   it('records nothing when the email could not be sent', async () => {
@@ -60,7 +62,7 @@ describe('a new user', () => {
   it('saves the email in lowercase, and everything trimmed', async () => {
     await addUserFlow(input, steps)
     expect(steps.checkNewUser).toHaveBeenCalledWith(cleaned)
-    expect(steps.accountLink).toHaveBeenCalledWith('rana@example.test', 'Rana Saleh')
+    expect(steps.accountLink).toHaveBeenCalledWith('rana@example.test', 'Rana Saleh', LINK_REF)
     expect(steps.addUser).toHaveBeenCalledWith('id-1', cleaned)
     expect((steps.sendEmail as ReturnType<typeof vi.fn>).mock.calls[0][0]).toBe('rana@example.test')
   })
@@ -141,7 +143,7 @@ describe('an account that already exists', () => {
 
   it('emails a link made after the profile is saved, so a concurrent, refused request cannot replace it', async () => {
     await addUserFlow(input, steps)
-    expect(steps.freshLink).toHaveBeenCalledWith('rana@example.test')
+    expect(steps.freshLink).toHaveBeenCalledWith('rana@example.test', LINK_REF)
     const html = (steps.sendEmail as ReturnType<typeof vi.fn>).mock.calls[0][2] as string
     expect(html).toContain('FRESH-SECRET-TOKEN')
     expect(html).not.toContain('SECRET-LINK-TOKEN"')

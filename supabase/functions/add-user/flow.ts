@@ -40,7 +40,7 @@ export interface AddUserSteps {
    * Creates the account with its invitation link, or finds it; `existing` when it already had one (then
    * there is no link yet: see freshLink). Service key.
    */
-  accountLink(email: string, name: string): Promise<{ id: string; link: string; existing: boolean }>
+  accountLink(email: string, name: string, linkRef: string): Promise<{ id: string; link: string; existing: boolean }>
   /** Whether Auth has the account banned. Service key. */
   isBanned(id: string): Promise<boolean>
   /** This account's profile, as the caller: none, active, or deactivated (Delete Staff, Delete Admin). */
@@ -57,12 +57,20 @@ export interface AddUserSteps {
    * replaced and its profile saved: Auth ends any link made before a password change, and only the
    * request whose profile was saved makes one. Service key.
    */
-  freshLink(email: string): Promise<string>
+  freshLink(email: string, linkRef: string): Promise<string>
   /** deactivate_staff, as the caller: undoes a reactivation whose invitation couldn't be sent. */
   deactivate(id: string): Promise<void>
   sendEmail(to: string, subject: string, html: string): Promise<void>
-  /** record_invitation_sent, as the caller: when the link was sent and by whom (for expired-invitation notifications). */
-  recordInvitation(id: string): Promise<void>
+  /**
+   * record_invitation_sent, as the caller: when the link was sent, by whom and its reference (Sent Invitations,
+   * expired-invitation notifications, and Set New Password telling a cancelled link from an expired one).
+   */
+  recordInvitation(id: string, linkRef: string): Promise<void>
+  /**
+   * A new random reference for this invitation's link, put in the link's address (?invitation=). It isn't a
+   * token: it only lets Set New Password ask whether the invitation was cancelled.
+   */
+  newLinkRef(): string
   log(message: string): void
 }
 
@@ -130,11 +138,12 @@ export async function addUserFlow(input: unknown, steps: AddUserSteps): Promise<
     return databaseRefusal(error)
   }
 
+  const linkRef = steps.newLinkRef()
   let account: { id: string; link: string; existing: boolean }
   // Add Staff with a deactivated staff member's email (Add Admin keeps its own order below).
   let staffReactivation = false
   try {
-    account = await steps.accountLink(user.email, user.name)
+    account = await steps.accountLink(user.email, user.name, linkRef)
     if (account.existing) {
       if (await steps.isBanned(account.id)) return refused(409, "account-blocked")
       const state = await steps.profileState(account.id)
@@ -167,7 +176,7 @@ export async function addUserFlow(input: unknown, steps: AddUserSteps): Promise<
     // Only the request add_user let through gets here, so only it changes the account: the old password
     // and every old session end now, and the link is made after that, so nothing ends it.
     if (staffReactivation) await steps.setRandomPassword(account.id)
-    const link = account.existing ? await steps.freshLink(user.email) : account.link
+    const link = account.existing ? await steps.freshLink(user.email, linkRef) : account.link
     const email = invitationEmail(user.email, link)
     await steps.sendEmail(user.email, email.subject, email.html)
   } catch (error) {
@@ -191,7 +200,7 @@ export async function addUserFlow(input: unknown, steps: AddUserSteps): Promise<
   // Only a link that was actually sent can expire unused. A failure here doesn't undo the user.
   if (emailSent) {
     try {
-      await steps.recordInvitation(account.id)
+      await steps.recordInvitation(account.id, linkRef)
     } catch (error) {
       steps.log(`invitation not recorded for ${account.id}: ${error instanceof DatabaseError ? error.code ?? "unknown" : "unknown"}`)
     }
