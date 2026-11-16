@@ -2239,14 +2239,15 @@ export interface AdminsContent {
     button: string
     /** Visible label of the Delete button on an Admin's page. */
     label: string
+    /** `{name}` is replaced. */
     title: string
-    /** `{name}` and `{email}` are replaced. */
     description: string
     cancel: string
     confirm: string
     deleting: string
     /** `{name}` is replaced. */
     done: string
+    /** Above the reason when deleting is refused; `{name}` is replaced. */
     notDeleted: string
   }
   transfer: {

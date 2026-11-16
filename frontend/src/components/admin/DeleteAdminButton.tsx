@@ -38,7 +38,7 @@ export function DeleteAdminButton({ admin, onDeleted, onFailed, labeled = false 
       await deleteAdmin(admin.id)
     } catch (error) {
       setBusy(false)
-      onFailed(text.notDeleted, [adminsEn.failures[error instanceof AdminActionError ? error.reason : 'failed']])
+      onFailed(text.notDeleted.replace('{name}', admin.name), [adminsEn.failures[error instanceof AdminActionError ? error.reason : 'failed']])
       return
     }
     onDeleted(text.done.replace('{name}', admin.name))
@@ -66,8 +66,8 @@ export function DeleteAdminButton({ admin, onDeleted, onFailed, labeled = false 
       <ConfirmDialog
         open={confirming}
         prominent
-        title={text.title}
-        description={text.description.replace('{name}', admin.name).replace('{email}', admin.email)}
+        title={text.title.replace('{name}', admin.name)}
+        description={text.description}
         cancelLabel={text.cancel}
         confirmLabel={text.confirm}
         onConfirm={confirm}

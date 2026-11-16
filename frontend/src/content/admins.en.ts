@@ -122,13 +122,13 @@ export const adminsEn: AdminsContent = {
   delete: {
     button: 'Delete {name}',
     label: 'Delete Admin',
-    title: 'Delete Admin?',
-    description: "Are you sure you want to delete {name} ({email})? They will no longer be able to sign in to Hawkim. Their name stays on past records. This can't be undone.",
+    title: 'Delete {name}?',
+    description: "Are you sure you want to delete this admin? Their account will become inactive and they won't be able to sign in. Their past records will be kept.",
     cancel: 'Cancel',
     confirm: 'Delete',
     deleting: 'Deleting…',
-    done: '{name} deleted.',
-    notDeleted: "Admin wasn't deleted:",
+    done: '{name} was deleted. Their account is now inactive.',
+    notDeleted: "{name} wasn't deleted:",
   },
 
   transfer: {
