@@ -30,11 +30,6 @@ export function departmentEmailProblem(email: string): 'email-invalid' | undefin
   return value.length > EMAIL_MAX || !EMAIL_PATTERN.test(value) ? 'email-invalid' : undefined
 }
 
-/** A legacy department without a division may keep none; every other department needs one. */
-export function divisionIsOptional(department?: Pick<ManagedDepartment, 'division_id'>): boolean {
-  return !!department && !department.division_id
-}
-
 /**
  * The division a form starts with: the edited department's own, or for a new department the
  * `?division=` value when it names an active division (otherwise none, so the admin chooses).
@@ -61,16 +56,17 @@ export function formInitials(
 export function departmentFormProblems(
   input: DepartmentFormValues,
   snapshot: ManagementSnapshot,
-  options: { editingId?: string; divisionOptional: boolean },
+  options: { editingId?: string },
 ): Partial<Record<DepartmentFormField, DepartmentFormProblem>> {
   const others: Department[] = snapshot.departments.map(({ id, name, initials, description }) => ({ id, name, initials, description }))
   const known = snapshot.divisions.some((division) => division.id === input.divisionId)
   const editing = snapshot.departments.find((department) => department.id === options.editingId)
   // The generated initials are always valid and unused, so only the name and description can be wrong.
   const { name, description } = validateDepartment({ ...input, initials: formInitials(input, snapshot, editing) }, others, options.editingId)
-  // Email and description are required (as in save_department, 20261119130000); blank counts as empty.
+  // Every department needs an active division (save_department, 20261124120000). Email and description are
+  // required (as in save_department, 20261119130000); blank counts as empty.
   return {
-    divisionId: (input.divisionId ? !known : !options.divisionOptional) ? 'division-required' : undefined,
+    divisionId: known ? undefined : 'division-required',
     name,
     description: input.description.trim() ? description : 'description-required',
     email: input.email.trim() ? departmentEmailProblem(input.email) : 'email-required',

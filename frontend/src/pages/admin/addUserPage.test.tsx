@@ -56,12 +56,6 @@ describe('Add User', () => {
     }
   })
 
-  it('chooses No Division from the start when it is the only choice, so Department is ready', () => {
-    expect(control(html, 'division')).toContain('value="No Division"')
-    expect(control(html, 'department')).not.toContain('disabled=""')
-    expect(html).toContain('>Plain Department<')
-  })
-
   it('keeps Department waiting until a division is chosen when real divisions exist', () => {
     departments = [plain, { ...plain, id: 'grouped', name: 'Grouped Department', divisionId: 'Medical Division' }]
     const markup = render()

@@ -12,7 +12,8 @@ import { navLinks } from '../lib/sidebarNav'
 
 const fixture = vi.hoisted(() => ({
   user: { id: 'admin', name: 'Nouf', initials: 'NA', email: 'nouf@example.test', departmentId: 'it', permissions: ['admin'] } as User,
-  it: { id: 'it', name: 'Information Technology', initials: 'IT', description: '' } as Department,
+  // Every department is in a division (20261124120000).
+  it: { id: 'it', name: 'Information Technology', initials: 'IT', description: '', divisionId: 'tech', divisionName: 'Technology' } as Department,
   other: { id: 'pv', name: 'Pharmacovigilance', initials: 'PV', description: '', divisionId: 'med', divisionName: 'Medical' } as Department,
   removed: { id: 'old', name: 'Old Department', initials: 'OD', description: '', divisionId: 'gone', divisionName: 'Gone Division', removedAt: '2026-01-01' } as Department,
   sops: [] as Sop[],
@@ -96,10 +97,10 @@ describe('the SOP Directory in the admin portal', () => {
     for (const removed of ['name="divisionFilter"', 'name="departmentFilter"', 'Filter by Division', 'Filter by Department', 'No Division', '>Clear Filters<'])
       expect(html).not.toContain(removed)
     expect(html).toContain('>Clear all</button>')
-    // Division chips from the real data (removed departments left out); Department chips grouped by division, unassigned last.
+    // Division chips from the real data (removed departments left out); Department chips grouped by division.
     const chips = [...html.matchAll(/aria-pressed="false"[^>]*><span class="min-w-0 break-words">([^<]+)<\/span>/g)].map((match) => match[1])
-    expect(chips).toEqual(['Medical', 'Pharmacovigilance', 'Information Technology'])
-    expect([...html.matchAll(/<p id="[^"]+" class="mb-1.5 text-xs font-semibold text-text-gray">([^<]+)<\/p>/g)].map((match) => match[1])).toEqual(['Medical', 'Unassigned departments'])
+    expect(chips).toEqual(['Medical', 'Technology', 'Pharmacovigilance', 'Information Technology'])
+    expect([...html.matchAll(/<p id="[^"]+" class="mb-1.5 text-xs font-semibold text-text-gray">([^<]+)<\/p>/g)].map((match) => match[1])).toEqual(['Medical', 'Technology'])
     expect(html.match(/max-h-\[8.5rem\] overflow-y-auto/g)).toHaveLength(2)
     expect(html).not.toContain('Old Department')
     expect(html).not.toContain('Gone Division')
@@ -115,8 +116,8 @@ describe('the SOP Directory in the admin portal', () => {
     expect(byDivision).toContain('>1 division</span>')
     expect(byDivision).toMatch(/aria-pressed="true"[^>]*>(?:<svg.*?<\/svg>)?<span class="min-w-0 break-words">Medical</)
     expect(byDivision).toContain('>Clear Filters<')
-    // With a division selected, only its departments are offered (no Unassigned group).
-    expect(byDivision).not.toContain('>Unassigned departments</p>')
+    // With a division selected, only its departments are offered.
+    expect(byDivision).not.toContain('>Technology</p>')
     // An old single-value link still works.
     const byDepartment = directory('?dept=it')
     expect(byDepartment).toContain('>Procedure 1<')
@@ -126,7 +127,7 @@ describe('the SOP Directory in the admin portal', () => {
 
   it('combines them with Rule 1, and ignores the removed No Division value in old links', () => {
     fixture.sops = [sop('1', 'it'), sop('9', 'pv')]
-    // The unassigned department isn't offered while a division is selected, so it is dropped; the division keeps its departments.
+    // A department of another division isn't offered while a division is selected, so it is dropped; the division keeps its departments.
     const both = directory('?division=med&dept=it')
     expect(both).toContain('>Procedure 9<')
     expect(both).not.toContain('Procedure 1<')
@@ -204,9 +205,9 @@ describe('an SOP opened from the admin directory', () => {
     const employee = renderToStaticMarkup(<MemoryRouter initialEntries={['/sops/9']}><Routes><Route path="/sops/:id" element={<SopDetailPage />} /></Routes></MemoryRouter>)
     expect(subtitle(employee)).toBe(expected)
     fixture.user = { ...fixture.user, permissions: ['admin'] }
-    // A department without a division: from the department.
+    // Another department: its own division.
     fixture.sops = [sop('1', 'it')]
-    expect(subtitle(detail('1'))).toBe(`<span>Information Technology</span>${dot}<span>Published on </span><time dateTime="2026-10-01">Oct 1, 2026</time>`)
+    expect(subtitle(detail('1'))).toBe(`<span>Technology</span>${dot}<span>Information Technology</span>${dot}<span>Published on </span><time dateTime="2026-10-01">Oct 1, 2026</time>`)
   })
 
   it('still locks an SOP in Others, without Request Access', () => {

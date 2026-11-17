@@ -3,7 +3,7 @@ import type { SopTabKey } from '../content/types'
 import { todayIsoDate } from './format'
 import type { MySopSort } from './mySops'
 import { parsePage, readChoice, readList } from './pagination'
-import { matchesDivisionDepartmentFilter, UNASSIGNED_GROUP_ID } from './organization'
+import { matchesDivisionDepartmentFilter } from './organization'
 
 /** The directory section shown: the active department's SOPs, or Others (SOPs of deleted departments). */
 export const OTHERS_SECTION = '__others__'
@@ -28,7 +28,7 @@ export interface DirectoryFilters {
   since?: string
   /** Selected divisions (the admin's Filter): see `departments`. Empty or left out: every division. */
   divisions?: string[]
-  /** Looks up an SOP's department, for its division (none: the unassigned departments). */
+  /** Looks up an SOP's department, for its division (a deleted department keeps it). */
   getDepartment?: (id: DepartmentId) => Pick<Department, 'divisionId'> | undefined
   /**
    * Selected departments. With `divisions`, Rule 1 (matchesDivisionDepartmentFilter): in a division
@@ -53,7 +53,7 @@ export function filterDirectorySops(
   const inSection = (sop: Sop) => section === EVERY_SOP || (section === OTHERS_SECTION
     ? sop.directoryGroup === 'others'
     : sop.directoryGroup !== 'others' && (section === ALL_DEPARTMENTS || sop.departmentId === section))
-  const groupOf = (id: DepartmentId) => getDepartment?.(id)?.divisionId || UNASSIGNED_GROUP_ID
+  const groupOf = (id: DepartmentId) => getDepartment?.(id)?.divisionId ?? ''
   const visible = all.filter((sop) =>
     sop.status === 'published' && inSection(sop) &&
     matchesDivisionDepartmentFilter(sop.departmentId, divisions, departments, groupOf) &&

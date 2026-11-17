@@ -14,7 +14,6 @@ import { useOrganizationManagement } from '../../hooks/useOrganizationManagement
 import {
   DEPARTMENT_FORM_FIELDS,
   departmentFormProblems,
-  divisionIsOptional,
   formInitials,
   initialDivisionId,
   submitDepartmentForm,
@@ -35,8 +34,8 @@ type FieldErrors = Partial<Record<DepartmentFormField, string>>
  * ("/admin/departments/:id/edit"), PBI 13. Reads the admin management snapshot
  * (get_divisions_departments) and saves through save_department, which enforces the same rules,
  * the active division and the expected version on the server. Initials
- * are not a field: they are generated from the name (lib/departmentInitials.ts). A new department needs a division;
- * a legacy department without one may stay unassigned. On success, the department's page opens.
+ * are not a field: they are generated from the name (lib/departmentInitials.ts). Every department needs a division.
+ * On success, the department's page opens.
  */
 export function DepartmentFormPage() {
   const { id } = useParams()
@@ -70,8 +69,6 @@ function DepartmentForm({ snapshot, department }: { snapshot: ManagementSnapshot
   const defaultDepartment = !!department && isDefaultDepartment(department)
   const requestedDivision = department ? null : params.get(NEW_DEPARTMENT_DIVISION_PARAM)
   const requestedIsActive = !!requestedDivision && divisions.some((division) => division.id === requestedDivision)
-  // Decided once: a later snapshot refresh doesn't change what the admin is editing.
-  const [divisionOptional] = useState(() => divisionIsOptional(department))
   // The version that was edited: the server refuses the save if someone changed it since.
   const [expectedUpdatedAt] = useState(department?.updated_at)
 
@@ -105,7 +102,7 @@ function DepartmentForm({ snapshot, department }: { snapshot: ManagementSnapshot
     'email-invalid': content.errors.emailInvalid,
   }
   function errorsFor(input: DepartmentFormValues): FieldErrors {
-    const problems = departmentFormProblems(input, snapshot, { editingId: department?.id, divisionOptional })
+    const problems = departmentFormProblems(input, snapshot, { editingId: department?.id })
     const errorOf = (field: DepartmentFormField) => {
       const problem = problems[field]
       return problem && messages[problem]
@@ -156,10 +153,7 @@ function DepartmentForm({ snapshot, department }: { snapshot: ManagementSnapshot
     )
   }
 
-  const divisionOptions = [
-    ...(divisionOptional ? [{ value: '', label: orgText.noDivision }] : []),
-    ...divisions.map((division) => ({ value: division.id, label: division.name })),
-  ]
+  const divisionOptions = divisions.map((division) => ({ value: division.id, label: division.name }))
 
   return (
     <>
@@ -172,9 +166,9 @@ function DepartmentForm({ snapshot, department }: { snapshot: ManagementSnapshot
           ref={divisionRef}
           name="division"
           label={orgText.division}
-          required={!divisionOptional}
-          requiredMark={!divisionOptional}
-          placeholder={divisionOptional ? undefined : orgText.selectDivision}
+          required
+          requiredMark
+          placeholder={orgText.selectDivision}
           hint={requestedDivision && !requestedIsActive ? orgText.divisionLinkUnavailable : undefined}
           options={divisionOptions}
           value={values.divisionId}

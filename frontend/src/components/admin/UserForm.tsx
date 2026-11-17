@@ -6,7 +6,6 @@ import type { UserFormText } from '../../content/types'
 import { usersEn } from '../../content/users.en'
 import type { Permission, User } from '../../data/mock/types'
 import {
-  defaultDivision,
   departmentsInDivision,
   hasUnsavedChanges,
   isSystemAdmin,
@@ -80,11 +79,12 @@ export function UserForm({ initial, otherUsers, submitLabel, busyLabel, notice, 
   const positionRef = useRef<HTMLInputElement>(null)
   const permissionsRef = useRef<HTMLInputElement>(null)
 
-  const division = values.divisionId ?? defaultDivision(activeDepartments)
+  // No division until one is chosen (every department has one, so there is no default).
+  const division = values.divisionId ?? ''
   const user: NewUser = { ...values, divisionId: division }
   const systemAdmin = isSystemAdmin(values)
   // The phone is compared as stored ("+9665" and the digits), so an untouched number is no change.
-  const dirty = hasUnsavedChanges({ ...initial, divisionId: initial.divisionId ?? defaultDivision(activeDepartments) }, user)
+  const dirty = hasUnsavedChanges({ ...initial, divisionId: initial.divisionId ?? '' }, user)
   const departmentOptions = departmentsInDivision(activeDepartments, division).map((department) => ({ value: department.id, label: department.name }))
 
   const messages: Record<NewUserProblem, string> = {

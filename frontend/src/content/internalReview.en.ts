@@ -8,7 +8,6 @@ export const internalReviewEn = {
     versionIntro: 'You are sending v{version}.',
     department: 'Department',
     division: 'Division',
-    noDivision: 'No Division',
     divisionPicker: { placeholder: 'Select or type a division', toggle: 'Show divisions', noMatches: 'No division matches. Choose one from the list.' },
     departmentPicker: { placeholder: 'Select or type a department', toggle: 'Show departments', noMatches: 'No department matches. Choose one from the list.' },
     reviewers: 'Reviewers',

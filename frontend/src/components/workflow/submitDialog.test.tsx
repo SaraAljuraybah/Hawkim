@@ -1,6 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { renderToStaticMarkup } from 'react-dom/server'
-import { internalReviewEn } from '../../content/internalReview.en'
 import { sopWorkflowEn } from '../../content/workflow.en'
 import type { Department, Sop, User } from '../../data/mock/types'
 import { SubmitDialog } from './SubmitDialog'
@@ -69,15 +68,10 @@ describe('Submit for Review safe frontend presentation', () => {
     expect(html).not.toContain('All Departments')
   })
 
-  it('offers "No Division" for a department without one', () => {
-    const configured = fixture.departments[0].divisionId
-    try {
-      delete fixture.departments[0].divisionId
-      const html = render()
-      expect(html.match(/<input[^>]*name="reviewDivision"[^>]*>/)![0]).toContain(`value="${internalReviewEn.submit.noDivision}"`)
-      // Both departments are without a division now, so both are listed.
-      expect(html).toContain('Other Department')
-    } finally { fixture.departments[0].divisionId = configured }
+  it('offers no "No Division" choice: every department has a division', () => {
+    const html = render()
+    expect(html).not.toContain('No Division')
+    expect(html.match(/<input[^>]*name="reviewDivision"[^>]*>/)![0]).toContain('value="configured-division"')
   })
 
   it('labels the reviewer picker visibly and gives it a chevron that opens the list', () => {

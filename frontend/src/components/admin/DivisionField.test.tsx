@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { adminEn } from '../../content/admin.en'
 import type { Department } from '../../data/mock/types'
-import { NO_DIVISION } from '../../lib/userAdmin'
 import { DivisionField } from './DivisionField'
 
 const content = adminEn.addUser.division
@@ -24,13 +23,12 @@ describe('the Division field', () => {
     expect(html).toContain('>*<')
   })
 
-  it('lists each division, then No Division for departments without one', () => {
-    expect(options(render([plain, medical, { ...medical, id: 'other' }]))).toEqual(['Medical Division', 'No Division'])
+  it('lists each division once, and no "No Division" choice', () => {
+    expect(options(render([plain, medical, { ...medical, id: 'other' }]))).toEqual(['Medical Division'])
     expect(options(render([medical]))).toEqual(['Medical Division'])
   })
 
   it('shows the chosen division by name', () => {
-    expect(input(render([plain], NO_DIVISION))).toContain('value="No Division"')
     expect(input(render([medical, plain], 'Medical Division'))).toContain('value="Medical Division"')
   })
 

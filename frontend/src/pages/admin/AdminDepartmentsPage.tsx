@@ -21,7 +21,7 @@ import { useDocumentTitle } from '../../hooks/useDocumentTitle'
 import { useOrganizationManagement } from '../../hooks/useOrganizationManagement'
 import { departmentsKept, filterSelection } from '../../lib/organization'
 import { formatCount } from '../../lib/count'
-import { departmentDeleteBlocker, DIVISION_SORT_KEYS, hierarchyRows, managementFilterData, nextDivisionSort, sortDepartments, unassignedRows, type DivisionSort } from '../../lib/organizationAdmin'
+import { departmentDeleteBlocker, DIVISION_SORT_KEYS, hierarchyRows, managementFilterData, nextDivisionSort, type DivisionSort } from '../../lib/organizationAdmin'
 import { deleteDivision, type DivisionRecord, type ManagedDepartment, type ManagementSnapshot } from '../../services/organizationAdmin'
 
 export interface AdminDepartmentsLocationState { removed?: string }
@@ -76,7 +76,7 @@ export function AdminDepartmentsPage() {
             emptyText: filtersEn.division.empty, summary: filtersEn.division.count, scrollable: true },
           { id: 'department', legend: filtersEn.department.legend, value: selectedDepartments, onChange: setDepartmentFilter,
             emptyText: filtersEn.department.empty, summary: filtersEn.department.count, scrollable: true,
-            groups: departmentGroups.map((group) => ({ id: group.id, label: group.unassigned ? filtersEn.department.unassigned : group.label, options: group.options })) },
+            groups: departmentGroups },
         ]} />
     </div>
     {(selectedDivisions.length > 0 || selectedDepartments.length > 0) && <ActiveFilters onClear={clearFilter} items={[
@@ -183,8 +183,6 @@ export function HierarchyTable({ snapshot, query = '', divisions = [], departmen
     const update = (previous: Set<string>) => { const next = new Set(previous); if (next.has(id)) next.delete(id); else next.add(id); return next }
     if (opensItself(id)) setCollapsedInSearch(update); else setExpanded(update)
   }
-  // Departments without a division: none with a division filter alone; only the chosen ones with a department filter.
-  const unassigned = sortDepartments(unassignedRows(snapshot, query, { divisions, departments }), sort)
   function child(row: ManagedDepartment) {
     return <tr key={row.id} className="border-t border-beige hover:bg-beige/20">
       <th scope="row" className="py-3 pr-4 pl-12 font-medium"><span className="flex items-center gap-3 border-l border-beige pl-5"><DepartmentBadge department={row} />
@@ -236,9 +234,7 @@ export function HierarchyTable({ snapshot, query = '', divisions = [], departmen
         </tbody></Fragment>
       })}
       <tbody>
-      {unassigned.length > 0 && <tr><th colSpan={8} className="bg-beige/20 p-4 text-maroon">{text.unassigned}</th></tr>}
-      {unassigned.map(child)}
-      {!rows.length && !unassigned.length && <tr><td colSpan={8} className="p-10 text-center text-text-gray">{divisions.length || departments.length ? text.emptyFiltered : text.empty}</td></tr>}
+      {!rows.length && <tr><td colSpan={8} className="p-10 text-center text-text-gray">{divisions.length || departments.length ? text.emptyFiltered : text.empty}</td></tr>}
     </tbody></table>
   </div>
 }

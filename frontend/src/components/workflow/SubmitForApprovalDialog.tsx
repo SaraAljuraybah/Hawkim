@@ -4,7 +4,7 @@ import { approvalEn } from '../../content/approval.en'
 import type { Sop } from '../../data/mock/types'
 import { approvalReadiness, eligibleApprovers, qualityDepartment, type ApprovalBlocker, type ApprovalSubmissionOptions } from '../../lib/approval'
 import { refusesChoice } from '../../lib/reviewDepartment'
-import { departmentsInDivision, divisionNameIn, divisionOptions, NO_DIVISION } from '../../lib/userAdmin'
+import { departmentsInDivision, divisionNameIn, divisionOptions } from '../../lib/userAdmin'
 import { SUBMIT_COMMENT_MAX } from '../../lib/workflow'
 import { useDepartments } from '../../state/departmentsContext'
 import { useCurrentUser } from '../../state/sessionContext'
@@ -41,7 +41,7 @@ export function SubmitForApprovalDialog({ sop, onSubmit, onClose }: SubmitForApp
   const quality = qualityDepartment(departments)
   const qualityName = quality?.name ?? ''
   const lockMessage = text.qualityOnly.replace('{department}', qualityName)
-  const ownDivision = quality?.divisionId || NO_DIVISION
+  const ownDivision = quality?.divisionId ?? ''
   const choosable = departments.filter((item) => !item.removedAt)
   const approvers = eligibleApprovers(sop, environment)
   const [approverIds, setApproverIds] = useState<string[]>([])
@@ -94,7 +94,7 @@ export function SubmitForApprovalDialog({ sop, onSubmit, onClose }: SubmitForApp
       )}
       {/* Both lists can be opened, but only the Quality department's division and department can be chosen. */}
       <SelectCombobox name="approvalDivision" label={text.division} placeholder={text.divisionPicker.placeholder}
-        options={divisionOptions(choosable).map((item) => ({ value: item, label: item === NO_DIVISION ? text.noDivision : divisionNameIn(choosable, item) }))}
+        options={divisionOptions(choosable).map((item) => ({ value: item, label: divisionNameIn(choosable, item) }))}
         value={ownDivision} error={divisionError || undefined} toggleLabel={text.divisionPicker.toggle} noMatchesText={text.divisionPicker.noMatches}
         required requiredMark onChange={(next) => setDivisionError(refusesChoice(true, ownDivision, next) ? lockMessage : '')} />
       <SelectCombobox name="approvalDepartment" label={text.department} placeholder={text.departmentPicker.placeholder}

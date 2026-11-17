@@ -106,11 +106,12 @@ describe('the Division of a department', () => {
     expect(selected(render('/admin/departments/home/edit?division=medical'))).toBe('Quality Division')
   })
 
-  it('lets a legacy department without a division keep none (optional, no asterisk)', () => {
+  it('requires a division even for a department that has none: no "No Division" choice', () => {
     const html = render('/admin/departments/legacy/edit')
-    expect(selected(html)).toBe('No division (existing assignment)')
+    expect(selected(html)).toBe('Select a division')
+    expect(html).not.toContain('No division')
     const select = html.match(/<select[^>]*name="division"[^>]*>/)![0]
-    expect(select).not.toContain('required=""')
+    expect(select).toContain('required=""')
   })
 })
 

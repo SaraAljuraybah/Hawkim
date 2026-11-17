@@ -251,7 +251,7 @@ export function AdminUsersPage() {
               emptyText: filtersEn.division.empty, summary: filtersEn.division.count, scrollable: true },
             { id: 'department', legend: filtersEn.department.legend, value: departmentIds, onChange: (ids) => setFilter({ dept: ids }),
               emptyText: filtersEn.department.empty, summary: filtersEn.department.count, scrollable: true,
-              groups: departmentGroups.map((group) => ({ id: group.id, label: group.unassigned ? filtersEn.department.unassigned : group.label, options: group.options })) },
+              groups: departmentGroups },
             { id: 'permission', legend: filtersEn.permission.legend, options: permissionOptions, value: permissions,
               onChange: (next) => setFilter({ permission: next as RoleFilter[] }), emptyText: '', summary: filtersEn.permission.count },
           ]} />

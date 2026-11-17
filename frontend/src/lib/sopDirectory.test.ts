@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest'
 import type { Department, Sop } from '../data/mock/types'
 import { sops } from '../data/mock/sops'
 import { ALL_DEPARTMENTS, filterDirectorySops, recentSince } from './sopDirectory'
-import { NO_DIVISION } from './userAdmin'
 
 const base = sops[0]
 const items: Sop[] = [
@@ -63,21 +62,20 @@ describe('the System Admin directory: every department, Filter by Division and F
     expect(filterDirectorySops(items, ALL_DEPARTMENTS, '', 'newest', { departments: [] })).toHaveLength(3)
   })
 
-  // IT is in the Technology division; Quality Assurance has none.
-  const departments: Record<string, Pick<Department, 'divisionId'>> = { 'information-technology': { divisionId: 'technology' }, 'quality-assurance': {} }
+  // IT is in the Technology division, Quality Assurance in the Quality one (every department has a division).
+  const departments: Record<string, Pick<Department, 'divisionId'>> = { 'information-technology': { divisionId: 'technology' }, 'quality-assurance': { divisionId: 'quality' } }
   const getDepartment = (id: string) => departments[id]
 
-  it('keeps only the selected divisions; departments without one are never a division; none selected means every division', () => {
+  it('keeps only the selected divisions; none selected means every division', () => {
     expect(ids(filterDirectorySops(items, ALL_DEPARTMENTS, '', 'newest', { divisions: ['technology'], getDepartment }))).toEqual(['two', 'one'])
-    // The removed "No Division" choice matches nothing (the page drops it from old links).
-    expect(filterDirectorySops(items, ALL_DEPARTMENTS, '', 'newest', { divisions: [NO_DIVISION], getDepartment })).toEqual([])
+    expect(ids(filterDirectorySops(items, ALL_DEPARTMENTS, '', 'newest', { divisions: ['quality'], getDepartment }))).toEqual(['other'])
     expect(filterDirectorySops(items, ALL_DEPARTMENTS, '', 'newest', { divisions: [], getDepartment })).toHaveLength(3)
   })
 
   it('combines divisions and departments with Rule 1: selected departments narrow only their own division', () => {
     // A department selected in the division: only it.
     expect(ids(filterDirectorySops(items, ALL_DEPARTMENTS, '', 'newest', { divisions: ['technology'], getDepartment, departments: ['information-technology'] }))).toEqual(['two', 'one'])
-    // An unassigned department selected: it shows, and the selected division keeps all its departments.
+    // A department of another division selected: it shows, and the selected division keeps all its departments.
     expect(ids(filterDirectorySops(items, ALL_DEPARTMENTS, '', 'newest', { divisions: ['technology'], getDepartment, departments: ['quality-assurance'] })).sort()).toEqual(['one', 'other', 'two'])
     // Departments only: just those.
     expect(ids(filterDirectorySops(items, ALL_DEPARTMENTS, '', 'newest', { getDepartment, departments: ['quality-assurance'] }))).toEqual(['other'])

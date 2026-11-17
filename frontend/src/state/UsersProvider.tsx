@@ -5,7 +5,6 @@ import {
   changesPermissions,
   deleteBlockers,
   isSystemAdmin,
-  NO_DIVISION,
   normalizePhone,
   PERMISSIONS,
   permissionChangeBlockers,
@@ -25,7 +24,7 @@ function savedFields(input: NewUser, departmentId: string) {
     name: input.name.trim(),
     email: input.email.trim().toLowerCase(),
     departmentId: systemAdmin ? '' : departmentId,
-    divisionId: !systemAdmin && input.divisionId && input.divisionId !== NO_DIVISION ? input.divisionId : undefined,
+    divisionId: !systemAdmin && input.divisionId ? input.divisionId : undefined,
     phone: normalizePhone(input.phone) ?? '',
     position: systemAdmin ? '' : input.position.trim(),
     // Kept in display order, without duplicates.

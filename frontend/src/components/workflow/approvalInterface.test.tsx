@@ -30,7 +30,7 @@ const fixture = vi.hoisted(() => ({
   departments: [
     { id: 'home', name: 'Home', initials: 'HM', description: '' },
     { id: 'other', name: 'Other', initials: 'OT', description: '' },
-    { id: 'quality', name: 'Quality Assurance', initials: 'QA', description: '', isQuality: true },
+    { id: 'quality', name: 'Quality Assurance', initials: 'QA', description: '', isQuality: true, divisionId: 'qc', divisionName: 'Quality and Compliance' },
   ] as Department[],
 }))
 
@@ -206,8 +206,7 @@ describe('main Author approval interface', () => {
     const html = renderDialog(finished())
     const division = html.match(/<input[^>]*name="approvalDivision"[^>]*>/)![0]
     const department = html.match(/<input[^>]*name="approvalDepartment"[^>]*>/)![0]
-    // Divisions aren't loaded yet: the same fallback as Submit for Review.
-    expect(division).toContain('value="No Division"')
+    expect(division).toContain('value="Quality and Compliance"')
     expect(department).toContain('value="Quality Assurance"')
     for (const input of [division, department]) expect(input).toContain('role="combobox"')
     expect(html).toContain('>Division<')

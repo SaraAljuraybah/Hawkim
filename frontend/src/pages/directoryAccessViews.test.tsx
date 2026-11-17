@@ -20,8 +20,9 @@ import { todayIsoDate } from '../lib/format'
 
 const fixture = vi.hoisted(() => ({
   user: { id: 'visitor', name: 'Visitor', initials: 'VV', email: 'v@example.test', departmentId: 'home', permissions: ['author', 'reviewer', 'approver'] } as User,
-  home: { id: 'home', name: 'Home Department', initials: 'HM', description: '' } as Department,
-  other: { id: 'other', name: 'Foreign Directory', initials: 'OT', description: '' } as Department,
+  // Every department is in a division (20261124120000).
+  home: { id: 'home', name: 'Home Department', initials: 'HM', description: '', divisionId: 'home-division', divisionName: 'Home Division' } as Department,
+  other: { id: 'other', name: 'Foreign Directory', initials: 'OT', description: '', divisionId: 'foreign-division', divisionName: 'Foreign Division' } as Department,
   requests: [] as UserRequest[], sops: [] as Sop[],
 }))
 vi.mock('../state/sessionContext', () => ({ useCurrentUser: () => fixture.user, useSession: () => ({ status: 'signed-in', user: fixture.user }) }))
@@ -121,7 +122,6 @@ describe('directory selection never changes authoring or membership context', ()
   })
 
   it('offers every division and department, even without SOPs in their directory, and filters by them', () => {
-    fixture.home = { ...fixture.home, divisionId: 'home-division', divisionName: 'Home Division' }
     fixture.sops = [...fixture.sops, sop('home-published', 'home', 'published')]
     const html = render(<SopsPage />)
     expect(html).toContain('Foreign Directory')
@@ -135,7 +135,6 @@ describe('directory selection never changes authoring or membership context', ()
     const without = render(<SopsPage />)
     expect(without).toContain('Home Division')
     expect(without).toContain('Home Department')
-    fixture.home = { ...fixture.home, divisionId: undefined, divisionName: undefined }
   })
 
   it('shows the empty state directly on the page background: icon and text centered, no box', () => {

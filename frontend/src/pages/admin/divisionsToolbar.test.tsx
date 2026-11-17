@@ -17,7 +17,7 @@ const snapshot: ManagementSnapshot = {
   departments: [
     { id: 'qa', name: 'Quality Assurance', initials: 'QA', description: '', division_id: 'q', updated_at: 'r', employees: 3, sops: 2, status_counts: {} },
     { id: 'co', name: 'Clinical Operations', initials: 'CO', description: '', division_id: 'c', updated_at: 'r', employees: 5, sops: 7, status_counts: {} },
-    { id: 'old', name: 'Legacy', initials: 'LG', description: '', division_id: null, updated_at: 'r', employees: 0, sops: 0, status_counts: {} },
+    { id: 'old', name: 'Legacy', initials: 'LG', description: '', division_id: 'c', updated_at: 'r', employees: 0, sops: 0, status_counts: {} },
   ],
 }
 const page = () => renderToStaticMarkup(<MemoryRouter><AdminDepartmentsPage /></MemoryRouter>)
@@ -70,15 +70,15 @@ describe('the Divisions and Departments page', () => {
     const section = (legend: string) => html.slice(html.indexOf(`>${legend}</legend>`), html.indexOf('</fieldset>', html.indexOf(`>${legend}</legend>`)))
     const chips = (legend: string) => [...section(legend).matchAll(/aria-pressed="false"[^>]*><span class="min-w-0 break-words">([^<]+)<\/span>/g)].map((match) => match[1])
     expect(chips('Division')).toEqual(['Clinical Research and Development', 'Quality and Compliance'])
-    // Under their divisions (A to Z), then the departments without one.
-    expect(chips('Department')).toEqual(['Clinical Operations', 'Quality Assurance', 'Legacy'])
+    // Under their divisions (A to Z); every department has one.
+    expect(chips('Department')).toEqual(['Clinical Operations', 'Legacy', 'Quality Assurance'])
     const headings = [...section('Department').matchAll(/<p[^>]*>([^<]+)<\/p>/g)].map((match) => match[1])
-    expect(headings).toEqual(['Clinical Research and Development', 'Quality and Compliance', 'Unassigned departments'])
+    expect(headings).toEqual(['Clinical Research and Development', 'Quality and Compliance'])
     expect(html).toMatch(/>Filter<\/label><button id="[^"]+" type="button" aria-label="Filter"[^>]*><span class="truncate text-text-gray">All<\/span>/)
     expect(html).not.toContain('All divisions')
   })
 
-  it('shows the number of divisions above the table, like Staff and Admins (the unassigned group isn\'t a division)', () => {
+  it('shows the number of divisions above the table, like Staff and Admins', () => {
     management.value = { data: snapshot, refresh: vi.fn() }
     const html = page()
     // On one row with the shared Sort area (the row has the top margin).
@@ -101,7 +101,7 @@ describe('the Divisions and Departments page', () => {
 })
 
 describe('the division filter on the table', () => {
-  it('shows only the selected divisions, with their server totals, and hides unassigned departments', () => {
+  it('shows only the selected divisions, with their server totals', () => {
     const html = table({ divisions: ['q'] })
     expect(html).toContain('Quality and Compliance')
     expect(html).not.toContain('Clinical Research')
@@ -135,11 +135,11 @@ describe('the division filter on the table', () => {
     expect(html).not.toContain('Unassigned departments')
     // The division keeps its own totals (3 staff, 2 SOPs) and department count.
     expect(html).toMatch(/>Departments \(1\)<\/span><\/span><\/button><\/th><td[^>]*>3<\/td><td[^>]*>2<\/td>/)
-    // A chosen department without a division: under Unassigned departments only.
+    // Another chosen department: under its own division, opened.
     const legacy = table({ departments: ['old'] })
-    expect(legacy).toContain('Unassigned departments')
+    expect(legacy).toContain('aria-expanded="true" aria-controls="children-c"')
     expect(legacy).toContain('>Legacy</span>')
-    expect(legacy).not.toContain('aria-controls="children-')
+    expect(legacy).not.toContain('>Clinical Operations</span>')
     expect(table({ departments: ['qa'], query: 'clinical' })).toContain('No divisions or departments match your search and filters.')
   })
 

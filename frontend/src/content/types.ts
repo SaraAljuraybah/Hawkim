@@ -579,8 +579,6 @@ export interface InternalReviewSubmitContent {
   versionIntro: string
   department: string
   division: string
-  /** The Division choice for departments without one. */
-  noDivision: string
   /** The searchable Division and Department lists. */
   divisionPicker: { placeholder: string; toggle: string; noMatches: string }
   departmentPicker: { placeholder: string; toggle: string; noMatches: string }
@@ -1830,8 +1828,8 @@ export interface AdminAddUserContent {
   name: { label: string }
   email: { label: string }
   phone: { label: string; hint: string }
-  /** Searchable list of divisions; `noDivision` is the choice for departments without one. */
-  division: { label: string; placeholder: string; noDivision: string; toggle: string; noMatches: string }
+  /** Searchable list of divisions. */
+  division: { label: string; placeholder: string; toggle: string; noMatches: string }
   /** Searchable list of the chosen division's departments. */
   department: { label: string; placeholder: string; selectDivisionFirst: string; toggle: string; noMatches: string }
   position: { label: string }
@@ -1953,8 +1951,7 @@ export interface FiltersContent {
   clearAll: string
   /** `count`: in the field's summary, e.g. "2 divisions" (`{count}` is replaced). */
   division: { legend: string; empty: string; count: CountText }
-  /** `unassigned`: the group of departments without a division. */
-  department: { legend: string; empty: string; count: CountText; unassigned: string }
+  department: { legend: string; empty: string; count: CountText }
   /** Staff only: the permissions (their chip labels are usersEn.permissions, as on the badges). */
   /** `others`: staff with none of Author, Reviewer and Approver. */
   permission: { legend: string; count: CountText; others: string }
@@ -2372,8 +2369,6 @@ export interface OrganizationContent {
   /** A department's staff list (its table, and its scroll area when it scrolls), e.g. "Staff of Quality". */
   staffListLabel: (department: string) => string
   noDepartments: string
-  /** The group of departments without a division. */
-  unassigned: string
   /** Screen-reader prefix of a person's permissions. */
   rolesLabel: string
   /** The copy button's accessible name, e.g. "Copy email for Dana Fahad". */

@@ -18,7 +18,6 @@ export const organizationEn: OrganizationContent = {
   noStaff: 'No staff in this department',
   staffListLabel: (department) => `Staff of ${department}`,
   noDepartments: 'No departments in this division',
-  unassigned: 'Unassigned departments',
   rolesLabel: 'Permissions',
   copyEmail: (name) => `Copy email for ${name}`,
   copied: 'Copied',

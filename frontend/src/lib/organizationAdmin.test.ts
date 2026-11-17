@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { ManagedDepartment, ManagementSnapshot } from '../services/organizationAdmin'
-import { hierarchyRows, departmentDeleteBlocker, managementFilterData, nextDivisionSort, sortDepartments, unassignedRows } from './organizationAdmin'
+import { hierarchyRows, departmentDeleteBlocker, managementFilterData, nextDivisionSort, sortDepartments } from './organizationAdmin'
 
 const department = (id: string, name: string, division: string | null, employees = 0, sops = 0): ManagedDepartment =>
   ({ id, name, initials: 'XX', description: '', division_id: division, updated_at: 'r', employees, sops, status_counts: {}, people: [] })
@@ -121,7 +121,8 @@ describe('filtering by division', () => {
 })
 
 describe('filtering by department (the linked rule of every list page)', () => {
-  const withUnassigned: ManagementSnapshot = { ...snapshot, departments: [...snapshot.departments, department('old', 'Legacy', null), department('lost', 'Lost', 'gone')] }
+  // Departments outside the listed divisions (none can be active: 20261124120000).
+  const withStray: ManagementSnapshot = { ...snapshot, departments: [...snapshot.departments, department('old', 'Legacy', null), department('lost', 'Lost', 'gone')] }
   const children = (rows: ReturnType<typeof hierarchyRows>) => rows.map((row) => [row.division.id, row.children.map((child) => child.id), row.picked])
 
   it('shows only the divisions of the chosen departments, listing only those departments, opened', () => {
@@ -145,17 +146,13 @@ describe('filtering by department (the linked rule of every list page)', () => {
     expect(names(hierarchyRows(snapshot, '', { departments: ['qa', 'co'], sort: 'staff-asc' }))).toEqual(['Clinical Research and Development', 'Quality and Compliance'])
   })
 
-  it('lists the departments without a division: all, none with divisions only, only the chosen ones with departments', () => {
-    expect(unassignedRows(withUnassigned).map((row) => row.id)).toEqual(['old', 'lost'])
-    expect(unassignedRows(withUnassigned, 'leg').map((row) => row.id)).toEqual(['old'])
-    expect(unassignedRows(withUnassigned, '', { divisions: ['q'] })).toEqual([])
-    expect(unassignedRows(withUnassigned, '', { departments: ['lost', 'qa'] }).map((row) => row.id)).toEqual(['lost'])
-    // Only unassigned departments chosen: no division row.
-    expect(hierarchyRows(withUnassigned, '', { departments: ['old'] })).toEqual([])
+  it('has no "Unassigned departments" rows: a department outside the divisions is not listed', () => {
+    expect(hierarchyRows(withStray).flatMap((row) => row.children.map((child) => child.id))).toEqual(['qa', 'qc', 'co', 'ad'])
+    expect(hierarchyRows(withStray, '', { departments: ['old'] })).toEqual([])
   })
 
   it('offers every division, even one without departments, and every department with its division', () => {
-    const data = managementFilterData(withUnassigned)
+    const data = managementFilterData(withStray)
     expect(data.divisions.map((division) => division.id)).toEqual(['q', 'c', 'a', 'b'])
     expect(data.departments.find((row) => row.id === 'old')).toEqual({ id: 'old', name: 'Legacy', divisionId: null })
   })

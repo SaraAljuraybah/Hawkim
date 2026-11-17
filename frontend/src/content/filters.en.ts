@@ -20,7 +20,6 @@ export const filtersEn: FiltersContent = {
     legend: 'Department',
     empty: 'No departments yet.',
     count: { one: '{count} department', other: '{count} departments' },
-    unassigned: 'Unassigned departments',
   },
   permission: {
     legend: 'Staff permission',

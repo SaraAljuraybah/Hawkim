@@ -32,8 +32,8 @@ export const organizationAdminEn = {
   name: 'Name', users: 'Users', staff: 'Staff', sops: 'SOPs',
   /** Headings of the four action columns, above each row's buttons. */
   actionColumns: { add: 'Add Department', preview: 'Preview', edit: 'Edit', delete: 'Delete' }, position: 'Position', email: 'Email',
-  description: 'Description', division: 'Division', unassigned: 'Unassigned departments',
-  selectDivision: 'Select a division', noDivision: 'No division (existing assignment)',
+  description: 'Description', division: 'Division',
+  selectDivision: 'Select a division',
   divisionNone: 'No division', saving: 'Saving…',
   divisionLinkUnavailable: 'The division in the link is no longer available. Select a division.',
   preview: 'Preview', edit: 'Edit', delete: 'Delete', save: 'Save', saveChanges: 'Save Changes', cancel: 'Cancel', close: 'Close',

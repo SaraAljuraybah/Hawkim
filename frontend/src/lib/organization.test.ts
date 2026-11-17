@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { Permission } from '../data/mock/types'
 import type { OrganizationEmployee, OrganizationHierarchy } from '../services/organization'
-import { departmentFilterGroups, isFiltering, matchesDivisionDepartmentFilter, overflows, matchesRoles, matchesSearch, ORGANIZATION_SORTS, organizationRows, organizationSortGroup, OTHERS_FILTER, UNASSIGNED_GROUP_ID, type OrganizationFilters, type OrganizationSort } from './organization'
+import { departmentFilterGroups, isFiltering, matchesDivisionDepartmentFilter, overflows, matchesRoles, matchesSearch, ORGANIZATION_SORTS, organizationRows, organizationSortGroup, OTHERS_FILTER, type OrganizationFilters, type OrganizationSort } from './organization'
 
 const person = (id: string, name: string, permissions: Permission[] = [], email = `${id}@test.invalid`): OrganizationEmployee =>
   ({ id, name, initials: 'XX', email, permissions })
@@ -22,7 +22,6 @@ const hierarchy: OrganizationHierarchy = {
     { id: 'pv', name: 'Pharmacovigilance', divisionId: 'ops', email: 'pv@test.invalid', employees: [sara, noura] },
     { id: 'reg', name: 'Regulatory Affairs', divisionId: 'ops', email: null, employees: [huda] },
     { id: 'qa', name: 'Quality Assurance', divisionId: 'qual', employees: [reem, lama] },
-    { id: 'legacy', name: 'Legacy Unit', divisionId: null, employees: [] },
   ],
 }
 const none: OrganizationFilters = { query: '', divisions: [], departments: [], roles: [] }
@@ -56,18 +55,19 @@ describe('search and role matching', () => {
 })
 
 describe('organization rows', () => {
-  it('lists every division, then the unassigned group, with everything and nothing opened', () => {
+  it('lists every division, with everything and nothing opened', () => {
     const all = rows()
-    expect(all.map((row) => row.id)).toEqual(['ops', 'qual', 'empty', UNASSIGNED_GROUP_ID])
+    expect(all.map((row) => row.id)).toEqual(['ops', 'qual', 'empty'])
     expect(all.every((row) => !row.autoOpen && row.departments.every((d) => !d.autoOpen))).toBe(true)
     expect(all[0].departmentCount).toBe(2)
     expect(all[0].email).toBe('ops-team@test.invalid')
     expect(all[2].email).toBeNull()
-    expect(all[3]).toMatchObject({ unassigned: true, departmentCount: 1 })
   })
-  it('has no unassigned group when every department has a division', () => {
-    const data = { ...hierarchy, departments: hierarchy.departments.filter((d) => d.divisionId) }
-    expect(organizationRows(data, none).map((row) => row.id)).toEqual(['ops', 'qual', 'empty'])
+  it('has no "Unassigned departments" group: every department is in a division (20261124120000)', () => {
+    const data = { ...hierarchy, departments: [...hierarchy.departments, { id: 'legacy', name: 'Legacy Unit', divisionId: null, employees: [] }] }
+    const all = organizationRows(data, none)
+    expect(all.map((row) => row.id)).toEqual(['ops', 'qual', 'empty'])
+    expect(all.flatMap((row) => row.departments.map((d) => d.department.id))).not.toContain('legacy')
   })
   it('staff match: shows only that person, with their department and division opened', () => {
     expect(shape({ query: 'huda' })).toEqual({ ops: { open: true, departments: { reg: { open: true, staff: ['huda'] } } } })
@@ -85,10 +85,6 @@ describe('organization rows', () => {
     // "quality" matches the division and its department: the division opens, the department stays closed.
     expect(shape({ query: 'quality' })).toEqual({ qual: { open: true, departments: { qa: { open: false, staff: ['reem', 'lama'] } } } })
   })
-  it('searches departments in the unassigned group, but never the group label', () => {
-    expect(shape({ query: 'legacy' })).toEqual({ [UNASSIGNED_GROUP_ID]: { open: true, departments: { legacy: { open: false, staff: [] } } } })
-    expect(shape({ query: 'unassigned' })).toEqual({})
-  })
   it('role filter: only staff with a selected role, opened down to them', () => {
     expect(shape({ roles: ['reviewer'] })).toEqual({ ops: { open: true, departments: {
       pv: { open: true, staff: ['noura'] }, reg: { open: true, staff: ['huda'] } } } })
@@ -98,7 +94,7 @@ describe('organization rows', () => {
     expect(shape({ query: 'operations', roles: ['author'] })).toEqual({ ops: { open: true, departments: { pv: { open: true, staff: ['sara', 'noura'] } } } })
     expect(shape({ query: 'sara', roles: ['reviewer'] })).toEqual({})
   })
-  it('division filter: only the selected divisions, closed, never the unassigned group', () => {
+  it('division filter: only the selected divisions, closed', () => {
     expect(shape({ divisions: ['empty', 'qual'] })).toEqual({
       qual: { open: false, departments: { qa: { open: false, staff: ['reem', 'lama'] } } },
       empty: { open: false, departments: {} },
@@ -107,7 +103,6 @@ describe('organization rows', () => {
   })
   it('department filter: only the selected departments, closed, under their opened division', () => {
     expect(shape({ departments: ['reg'] })).toEqual({ ops: { open: true, departments: { reg: { open: false, staff: ['huda'] } } } })
-    expect(shape({ departments: ['legacy'] })).toEqual({ [UNASSIGNED_GROUP_ID]: { open: true, departments: { legacy: { open: false, staff: [] } } } })
   })
   it('department filter narrows only its own division; other selected divisions keep all departments (Rule 1)', () => {
     expect(shape({ divisions: ['ops', 'qual'], departments: ['pv'] })).toEqual({
@@ -138,8 +133,6 @@ describe('sort', () => {
       { id: 'mu', name: 'Mu', divisionId: 'a', employees: [reem] },
       { id: 'kappa', name: 'Kappa', divisionId: 'b', employees: [] },
       { id: 'iota', name: 'Iota', divisionId: 'g', employees: [] },
-      { id: 'omega', name: 'Omega', divisionId: null, employees: [] },
-      { id: 'beta-unit', name: 'Beta Unit', divisionId: null, employees: [lama] },
     ],
   }
   const sorted = (sort: OrganizationSort) => organizationRows(sortable, none, sort)
@@ -161,41 +154,37 @@ describe('sort', () => {
     ])
   })
   it('keeps the loaded order by default', () => {
-    expect(divisionOrder('default')).toEqual(['g', 'a', 'b', UNASSIGNED_GROUP_ID])
+    expect(divisionOrder('default')).toEqual(['g', 'a', 'b'])
     expect(departmentOrder('default', 'a')).toEqual(['zeta', 'eta', 'mu'])
   })
-  it('orders the divisions by name, keeping their departments and the unassigned group last', () => {
-    expect(divisionOrder('division-name-asc')).toEqual(['a', 'b', 'g', UNASSIGNED_GROUP_ID])
-    expect(divisionOrder('division-name-desc')).toEqual(['g', 'b', 'a', UNASSIGNED_GROUP_ID])
+  it('orders the divisions by name, keeping their departments', () => {
+    expect(divisionOrder('division-name-asc')).toEqual(['a', 'b', 'g'])
+    expect(divisionOrder('division-name-desc')).toEqual(['g', 'b', 'a'])
     expect(departmentOrder('division-name-asc', 'a')).toEqual(['zeta', 'eta', 'mu'])
-    expect(departmentOrder('division-name-asc', UNASSIGNED_GROUP_ID)).toEqual(['omega', 'beta-unit'])
   })
   it('orders the divisions by number of departments, most first, ties by name', () => {
     // Beta and Gamma both have one department: Beta first, although Gamma comes first by default.
-    expect(divisionOrder('division-departments-desc')).toEqual(['a', 'b', 'g', UNASSIGNED_GROUP_ID])
+    expect(divisionOrder('division-departments-desc')).toEqual(['a', 'b', 'g'])
   })
   it('orders the divisions by number of departments, fewest first, ties still by name A to Z', () => {
-    // Beta and Gamma (one each) before Alpha (three); Beta before Gamma by name. The unassigned group stays last.
-    expect(divisionOrder('division-departments-asc')).toEqual(['b', 'g', 'a', UNASSIGNED_GROUP_ID])
+    // Beta and Gamma (one each) before Alpha (three); Beta before Gamma by name.
+    expect(divisionOrder('division-departments-asc')).toEqual(['b', 'g', 'a'])
   })
   it('orders the departments inside each division by name, the divisions keeping their order', () => {
-    expect(divisionOrder('department-name-asc')).toEqual(['g', 'a', 'b', UNASSIGNED_GROUP_ID])
+    expect(divisionOrder('department-name-asc')).toEqual(['g', 'a', 'b'])
     expect(departmentOrder('department-name-asc', 'a')).toEqual(['eta', 'mu', 'zeta'])
-    expect(departmentOrder('department-name-asc', UNASSIGNED_GROUP_ID)).toEqual(['beta-unit', 'omega'])
-    expect(divisionOrder('department-name-desc')).toEqual(['g', 'a', 'b', UNASSIGNED_GROUP_ID])
+    expect(divisionOrder('department-name-desc')).toEqual(['g', 'a', 'b'])
     expect(departmentOrder('department-name-desc', 'a')).toEqual(['zeta', 'mu', 'eta'])
   })
   it('orders the departments inside each division by number of staff, most first, ties by name', () => {
-    expect(divisionOrder('department-staff-desc')).toEqual(['g', 'a', 'b', UNASSIGNED_GROUP_ID])
+    expect(divisionOrder('department-staff-desc')).toEqual(['g', 'a', 'b'])
     // Mu and Zeta both have one person: Mu first, although Zeta comes first by default.
     expect(departmentOrder('department-staff-desc', 'a')).toEqual(['eta', 'mu', 'zeta'])
-    expect(departmentOrder('department-staff-desc', UNASSIGNED_GROUP_ID)).toEqual(['beta-unit', 'omega'])
   })
   it('orders the departments inside each division by number of staff, fewest first, ties still by name A to Z', () => {
-    expect(divisionOrder('department-staff-asc')).toEqual(['g', 'a', 'b', UNASSIGNED_GROUP_ID])
+    expect(divisionOrder('department-staff-asc')).toEqual(['g', 'a', 'b'])
     // Mu and Zeta (one each) before Eta (two); Mu before Zeta by name.
     expect(departmentOrder('department-staff-asc', 'a')).toEqual(['mu', 'zeta', 'eta'])
-    expect(departmentOrder('department-staff-asc', UNASSIGNED_GROUP_ID)).toEqual(['omega', 'beta-unit'])
   })
   it('keeps the staff inside a department in their order', () => {
     for (const sort of ORGANIZATION_SORTS) {
@@ -211,14 +200,13 @@ describe('sort', () => {
 })
 
 describe('department filter chips', () => {
-  it('groups departments by division A to Z, skipping empty divisions, then the unassigned ones', () => {
+  it('groups departments by division A to Z, skipping empty divisions', () => {
     expect(departmentFilterGroups(hierarchy, []).map((group) => [group.id, group.label, group.options.map((option) => option.label)])).toEqual([
       ['ops', 'Operations', ['Pharmacovigilance', 'Regulatory Affairs']],
       ['qual', 'Quality Division', ['Quality Assurance']],
-      [UNASSIGNED_GROUP_ID, '', ['Legacy Unit']],
     ])
   })
-  it('offers only the departments of the selected divisions, never the unassigned ones', () => {
+  it('offers only the departments of the selected divisions', () => {
     expect(departmentFilterGroups(hierarchy, ['qual']).map((group) => group.id)).toEqual(['qual'])
   })
 })
@@ -233,33 +221,31 @@ describe('staff scroll box', () => {
 })
 
 describe('Division and Department filter together (Rule 1, the admin SOP Directory)', () => {
-  const group: Record<string, string> = { pv: 'ops', reg: 'ops', qa: 'qual', legacy: UNASSIGNED_GROUP_ID }
+  const group: Record<string, string> = { pv: 'ops', reg: 'ops', qa: 'qual' }
   const match = (department: string, divisions: string[], departments: string[]) =>
-    matchesDivisionDepartmentFilter(department, divisions, departments, (id) => group[id] ?? UNASSIGNED_GROUP_ID)
+    matchesDivisionDepartmentFilter(department, divisions, departments, (id) => group[id] ?? '')
   it('matches everything when nothing is selected', () => {
-    for (const department of ['pv', 'qa', 'legacy']) expect(match(department, [], [])).toBe(true)
+    for (const department of ['pv', 'qa']) expect(match(department, [], [])).toBe(true)
   })
   it('keeps every department of a selected division without selected departments', () => {
     expect(match('pv', ['ops'], [])).toBe(true)
     expect(match('reg', ['ops'], [])).toBe(true)
     expect(match('qa', ['ops'], [])).toBe(false)
-    expect(match('legacy', ['ops'], [])).toBe(false)
   })
   it('narrows only the division whose departments are selected', () => {
     expect(match('pv', ['ops', 'qual'], ['pv'])).toBe(true)
     expect(match('reg', ['ops', 'qual'], ['pv'])).toBe(false)
     expect(match('qa', ['ops', 'qual'], ['pv'])).toBe(true)
   })
-  it('shows selected departments without their division selected, and unassigned ones when picked', () => {
+  it('shows selected departments without their division selected', () => {
     expect(match('reg', [], ['reg'])).toBe(true)
     expect(match('pv', [], ['reg'])).toBe(false)
-    expect(match('legacy', [], ['legacy'])).toBe(true)
   })
 })
 
 describe('Organizational Structure keeps its Department chips', () => {
   it('gives the same groups from its hierarchy as before (the widened input type)', () => {
     expect(departmentFilterGroups(hierarchy, ['ops']).map((g) => [g.id, g.options.map((o) => o.value)])).toEqual([['ops', ['pv', 'reg']]])
-    expect(departmentFilterGroups(hierarchy, []).map((g) => g.id)).toEqual(['ops', 'qual', UNASSIGNED_GROUP_ID])
+    expect(departmentFilterGroups(hierarchy, []).map((g) => g.id)).toEqual(['ops', 'qual'])
   })
 })

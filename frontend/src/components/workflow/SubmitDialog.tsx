@@ -12,7 +12,7 @@ import { RESPONSE_WORKING_DAYS } from '../../lib/fixedResponseDeadline'
 import { latestReviewDueDate } from '../../lib/reviewDeadline'
 import { lockedFieldClass, refusesChoice, reviewDepartmentLock, type SubmitMode } from '../../lib/reviewDepartment'
 import { REVIEW_NOTE_EDITOR_MAX, prepareReviewSubmission } from '../../lib/reviewSubmission'
-import { departmentsInDivision, divisionNameIn, divisionOptions, NO_DIVISION } from '../../lib/userAdmin'
+import { departmentsInDivision, divisionNameIn, divisionOptions } from '../../lib/userAdmin'
 import { useDepartments } from '../../state/departmentsContext'
 import type { SubmitOptions } from '../../state/sopsContext'
 import { useUsers } from '../../state/usersContext'
@@ -58,7 +58,7 @@ export function SubmitDialog({ sop, content, onSubmit, onClose, mode = 'submit' 
   const lockMessage = (lock === 'first-review' ? text.firstReviewHome : lock === 'first-send' ? text.firstSendHome : text.homeFirst).replace('{department}', departmentName)
   // Departments that still exist, and the SOP's own in any case.
   const choosable = departments.filter((item) => !item.removedAt || item.id === sop.departmentId)
-  const ownDivision = department?.divisionId || NO_DIVISION
+  const ownDivision = department?.divisionId ?? ''
   const [division, setDivision] = useState(ownDivision)
   const [departmentId, setDepartmentId] = useState(sop.departmentId)
   const [divisionError, setDivisionError] = useState('')
@@ -135,7 +135,7 @@ export function SubmitDialog({ sop, content, onSubmit, onClose, mode = 'submit' 
       {mode === 'version' && <p className="text-sm text-maroon">{text.versionIntro.replace('{version}', sop.version)}</p>}
       {failed && <p role="alert" className="text-sm text-status-rejected-fg">{failedText || fields.errors.submitFailed}</p>}
       <SelectCombobox name="reviewDivision" label={text.division} placeholder={text.divisionPicker.placeholder}
-        options={divisionOptions(choosable).map((item) => ({ value: item, label: item === NO_DIVISION ? text.noDivision : divisionNameIn(choosable, item) }))}
+        options={divisionOptions(choosable).map((item) => ({ value: item, label: divisionNameIn(choosable, item) }))}
         value={division} error={divisionError || undefined} toggleLabel={text.divisionPicker.toggle} noMatchesText={text.divisionPicker.noMatches}
         className={lockedFieldClass(!!lock, !!divisionError)} required requiredMark onChange={chooseDivision} />
       <SelectCombobox

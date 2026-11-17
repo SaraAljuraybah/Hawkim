@@ -4,7 +4,6 @@ import type { SopStatus } from '../types/status'
 import {
   hasUnsavedChanges,
   isSystemAdmin,
-  NO_DIVISION,
   responsibilitiesInProgress,
   transfersDepartment,
   validateNewUser,
@@ -57,7 +56,7 @@ describe('a System Admin account', () => {
 })
 
 describe('unsaved changes in the staff form', () => {
-  const initial: NewUser = { name: 'Rana', email: 'rana@hawkim.demo', phone: '+966512345678', position: 'QA Specialist', divisionId: NO_DIVISION, departmentId: 'qa', permissions: ['author'] }
+  const initial: NewUser = { name: 'Rana', email: 'rana@hawkim.demo', phone: '+966512345678', position: 'QA Specialist', divisionId: 'Quality', departmentId: 'qa', permissions: ['author'] }
 
   it('are none while every field is as it started', () => {
     expect(hasUnsavedChanges(initial, { ...initial })).toBe(false)

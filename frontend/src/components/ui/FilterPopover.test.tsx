@@ -49,7 +49,7 @@ describe('the Filter field of every list page', () => {
 describe('the linked Division and Department filter (shared by every list page)', () => {
   const data: FilterDepartments = {
     divisions: [{ id: 'ops', name: 'Operations' }, { id: 'med', name: 'Medical' }],
-    departments: [{ id: 'pv', name: 'Pharmacovigilance', divisionId: 'med' }, { id: 'qa', name: 'Quality', divisionId: 'ops' }, { id: 'it', name: 'IT' }],
+    departments: [{ id: 'pv', name: 'Pharmacovigilance', divisionId: 'med' }, { id: 'qa', name: 'Quality', divisionId: 'ops' }, { id: 'it', name: 'IT', divisionId: 'ops' }],
   }
 
   it('offers the divisions A to Z and drops choices no longer offered', () => {

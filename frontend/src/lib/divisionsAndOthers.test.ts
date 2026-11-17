@@ -3,7 +3,7 @@ import type { Sop, User } from '../data/mock/types'
 import { toDepartment } from '../services/people'
 import { getSopAccess } from './sopAccess'
 import { filterDirectorySops, OTHERS_SECTION } from './sopDirectory'
-import { departmentsInDivision, divisionLabel, divisionNameIn, divisionOptions, NO_DIVISION } from './userAdmin'
+import { departmentsInDivision, divisionLabel, divisionNameIn, divisionOptions } from './userAdmin'
 
 const row = { name: 'Dept', initials: 'DP', description: '', is_quality: false, removed_at: null, requires_compliance_check: false }
 
@@ -12,7 +12,7 @@ describe('departments carry their database division', () => {
     expect(toDepartment({ ...row, id: 'pv', division_id: 'regulatory_drug_safety', division: { name: 'Regulatory and Drug Safety' } }))
       .toMatchObject({ id: 'pv', divisionId: 'regulatory_drug_safety', divisionName: 'Regulatory and Drug Safety' })
   })
-  it('keeps a department without a division unassigned', () => {
+  it('leaves a department without a division (deleted before 20261124120000) without one', () => {
     const department = toDepartment({ ...row, id: 'legacy', division_id: null, division: null })
     expect(department.divisionId).toBeUndefined()
     expect(department.divisionName).toBeUndefined()
@@ -26,8 +26,8 @@ describe('division pickers show names but keep ids as keys', () => {
     { id: 'c', divisionId: 'z-id', divisionName: 'Alpha Division' },
     { id: 'd' },
   ]
-  it('orders divisions by name, then No Division', () => {
-    expect(divisionOptions(departments)).toEqual(['z-id', 'a-id', NO_DIVISION])
+  it('orders divisions by name, with no "No Division" choice', () => {
+    expect(divisionOptions(departments)).toEqual(['z-id', 'a-id'])
   })
   it('labels a division key with its name, falling back to the key', () => {
     expect(divisionNameIn(departments, 'a-id')).toBe('Zulu Division')
@@ -36,7 +36,6 @@ describe('division pickers show names but keep ids as keys', () => {
   })
   it('groups departments by the same id as before (eligibility is unchanged)', () => {
     expect(departmentsInDivision(departments, 'z-id').map((item) => item.id)).toEqual(['a', 'c'])
-    expect(departmentsInDivision(departments, NO_DIVISION).map((item) => item.id)).toEqual(['d'])
   })
 })
 

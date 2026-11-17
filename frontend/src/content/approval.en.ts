@@ -5,7 +5,6 @@ export const approvalEn = {
   dialog: {
     title: 'Submit for Approval',
     division: 'Division',
-    noDivision: 'No Division',
     divisionPicker: { placeholder: 'Select or type a division', toggle: 'Show divisions', noMatches: 'No division matches. Choose one from the list.' },
     department: 'Department',
     departmentPicker: { placeholder: 'Select or type a department', toggle: 'Show departments', noMatches: 'No department matches. Choose one from the list.' },

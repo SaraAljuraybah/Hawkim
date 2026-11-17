@@ -19,7 +19,8 @@ const fixture = vi.hoisted(() => ({
   ] as User[],
   departments: [
     { id: 'pv', name: 'Pharmacovigilance', initials: 'PV', description: '', divisionId: 'regulatory_drug_safety', divisionName: 'Regulatory and Drug Safety' },
-    { id: 'qa', name: 'Quality Assurance', initials: 'QA', description: '' },
+    // Every department is in a division (20261124120000).
+    { id: 'qa', name: 'Quality Assurance', initials: 'QA', description: '', divisionId: 'governance_quality_compliance', divisionName: 'Quality and Compliance' },
   ] as Department[],
 }))
 vi.mock('../../hooks/useDocumentTitle', () => ({ useDocumentTitle: () => {} }))
@@ -67,10 +68,10 @@ describe('Users list', () => {
     expect(headers[0]).toContain('first:rounded-tl-xl')
     expect(headers.at(-1)).toContain('last:rounded-tr-xl')
     expect(html).not.toContain('sara@example.test')
-    // The division of the department, or — without one.
+    // The division of the department: every department has one, so no "—".
     expect(html).toContain('>Regulatory and Drug Safety<')
-    // Only Reem's department has no division (the administrator without one isn't listed).
-    expect(html.match(/<td[^>]*>—<\/td>/g)).toHaveLength(1)
+    expect(html).toContain('>Quality and Compliance<')
+    expect(html).not.toMatch(/<td[^>]*>—<\/td>/)
   })
 
   it('makes only the buttons interactive: the row isn\'t a link and the name is plain text', () => {
@@ -127,10 +128,10 @@ describe('Users list', () => {
     expect(filterField(html)).toMatch(/^<label[^>]*>Filter<\/label><button id="[^"]+" type="button" aria-label="Filter" aria-expanded="false" aria-controls="[^"]+"/)
     expect(filterField(html)).toContain('>All</span>')
     expect(html).toMatch(/role="group" aria-labelledby="[^"]+"[^>]*><div[^>]*><h2 id="[^"]+" class="text-base">Filters<\/h2>/)
-    // Division chips; Department chips under their division, departments without one last.
-    expect(chips(html, 'Division')).toEqual(['Regulatory and Drug Safety'])
-    expect(chips(html, 'Department')).toEqual(['Pharmacovigilance', 'Quality Assurance'])
-    expect(html).toContain('>Unassigned departments</p>')
+    // Division chips; Department chips under their division (A to Z).
+    expect(chips(html, 'Division')).toEqual(['Quality and Compliance', 'Regulatory and Drug Safety'])
+    expect(chips(html, 'Department')).toEqual(['Quality Assurance', 'Pharmacovigilance'])
+    expect(html).not.toContain('Unassigned departments')
     expect(html).not.toContain('All Permissions')
     // Administrators aren't staff, so Nouf (an admin) isn't counted.
     expect(rowCount(html)).toBe(2)
@@ -155,10 +156,10 @@ describe('Users list', () => {
     expect(rowCount(byDivision)).toBe(1)
     expect(filterField(byDivision)).toContain('aria-label="Filter: 1 division"')
     expect(filterField(byDivision)).toContain('>1 division</span>')
-    expect(chips(byDivision, 'Division')).toEqual(['Regulatory and Drug Safety ✓'])
+    expect(chips(byDivision, 'Division')).toEqual(['Quality and Compliance', 'Regulatory and Drug Safety ✓'])
     expect(chips(byDivision, 'Department')).toEqual(['Pharmacovigilance'])
     expect(byDivision).toContain('>Clear Filters<')
-    // A department without a division (Reem; Nouf is there too, but is an administrator).
+    // A department of another division (Reem; Nouf is there too, but is an administrator).
     const byDepartment = render('?dept=qa')
     expect(rowCount(byDepartment)).toBe(1)
     expect(filterField(byDepartment)).toContain('>1 department</span>')
@@ -352,8 +353,8 @@ describe('the Staff Sort', () => {
   })
 
   it('orders by division or department as shown, A to Z or Z to A; staff without one last, ties by name', () => {
-    // Nouf and Reem are in Quality Assurance, which has no division; Sara is in Pharmacovigilance.
-    expect(sorted('division-asc')).toEqual(['sara', 'admin', 'reem'])
+    // Nouf and Reem are in Quality Assurance (Quality and Compliance); Sara is in Pharmacovigilance (Regulatory and Drug Safety).
+    expect(sorted('division-asc')).toEqual(['admin', 'reem', 'sara'])
     expect(sorted('division-desc')).toEqual(['sara', 'admin', 'reem'])
     expect(sorted('department-asc')).toEqual(['sara', 'admin', 'reem'])
     expect(sorted('department-desc')).toEqual(['admin', 'reem', 'sara'])

@@ -9,7 +9,6 @@ import { organizationAdminEn as orgText } from '../../content/organizationAdmin.
 import { DESCRIPTION_MAX } from '../../lib/departmentAdmin'
 import {
   departmentFormProblems,
-  divisionIsOptional,
   formInitials,
   initialDivisionId,
   submitDepartmentForm,
@@ -28,8 +27,8 @@ type FieldErrors = Partial<Record<DepartmentFormField, string>>
 /**
  * Add Department (with `divisionId`, the division whose "Add Department" was used) and Edit Department
  * (with `department`) in the same dialog as DivisionForm. Same rules as the Add/Edit Department page
- * (lib/departmentForm.ts); initials are generated from the name. A legacy department without a division
- * may stay unassigned; a new one needs a division. On success the dialog closes and `onSaved` reports it.
+ * (lib/departmentForm.ts); initials are generated from the name. Every department needs a division. On
+ * success the dialog closes and `onSaved` reports it.
  * Added from a division that exists, the division is fixed: shown read-only (not a dropdown), and the
  * department is always saved under that division's id, whatever the form state holds.
  */
@@ -40,7 +39,6 @@ export function DepartmentForm({ snapshot, department, divisionId, onClose, onSa
   const content = adminEn.departmentForm
   const { reload } = useDepartments()
   // Decided once: a snapshot refresh while the dialog is open doesn't change what is being edited.
-  const [divisionOptional] = useState(() => divisionIsOptional(department))
   const [expectedUpdatedAt] = useState(department?.updated_at)
   // Add Department from a division: that division, by id. Read from the props on every render, so a
   // dialog opened for another division never keeps a previous one.
@@ -73,17 +71,14 @@ export function DepartmentForm({ snapshot, department, divisionId, onClose, onSa
     'email-invalid': content.errors.emailInvalid,
   }
   function errorsFor(input: DepartmentFormValues): FieldErrors {
-    const problems = departmentFormProblems(input, snapshot, { editingId: department?.id, divisionOptional })
+    const problems = departmentFormProblems(input, snapshot, { editingId: department?.id })
     return Object.fromEntries(FIELD_ORDER.map((field) => [field, problems[field] && messages[problems[field]]]))
   }
   // Errors first show on Save; after that, each field re-checks when it loses focus.
   const blur = (field: DepartmentFormField) => { if (attempted) setErrors((previous) => ({ ...previous, [field]: errorsFor(values)[field] })) }
   const set = (field: DepartmentFormField) => (event: { target: { value: string } }) => setValues({ ...values, [field]: event.target.value })
 
-  const divisionOptions = [
-    ...(divisionOptional ? [{ value: '', label: orgText.noDivision }] : []),
-    ...snapshot.divisions.map((division) => ({ value: division.id, label: division.name })),
-  ]
+  const divisionOptions = snapshot.divisions.map((division) => ({ value: division.id, label: division.name }))
 
   return <FormDialog open title={department ? content.edit.title : content.add.title}
     confirmLabel={department ? content.dialogSubmit.edit : content.dialogSubmit.add} cancelLabel={content.cancel}
@@ -112,7 +107,7 @@ export function DepartmentForm({ snapshot, department, divisionId, onClose, onSa
         value={fixedDivision.name} title={fixedDivision.name} className="[&_input]:cursor-default [&_input]:truncate [&_input]:bg-offwhite" />
     ) : (
       <SelectField ref={divisionRef} name="departmentDivision" label={orgText.division}
-        required={!divisionOptional} requiredMark={!divisionOptional} placeholder={divisionOptional ? undefined : orgText.selectDivision}
+        required requiredMark placeholder={orgText.selectDivision}
         options={divisionOptions} value={values.divisionId} error={errors.divisionId} onChange={set('divisionId')} onBlur={() => blur('divisionId')} />
     )}
     <TextField ref={emailRef} name="departmentEmail" type="email" autoComplete="off" label={content.email.label} required requiredMark placeholder={content.email.placeholder}

@@ -174,14 +174,13 @@ describe('Organizational Structure', () => {
     expect(table({ query: 'nobody' })).toContain('No divisions, departments or staff match your search and filters.')
     expect(renderToStaticMarkup(<OrganizationTable rows={[]} filtering={false} filterKey="" />)).toContain('No divisions or departments have been configured yet.')
   })
-  it('adds an "Unassigned departments" group row last, only when such a department exists', () => {
+  it('has no "Unassigned departments" group, in the table or the Department filter: every department is in a division', () => {
     expect(page()).not.toContain('Unassigned departments')
     const data = structuredClone(hierarchy)
     data.departments.push({ id: 'department-3', name: 'Legacy Unit', divisionId: null, employees: [] })
     const html = page(data)
-    expect(html).toContain('<th scope="colgroup" colSpan="2" class="bg-beige/20 p-4 text-maroon">Unassigned departments</th>')
-    expect(html.indexOf('Unassigned departments')).toBeGreaterThan(html.indexOf('R and D Division'))
-    expect(html.indexOf('Legacy Unit')).toBeGreaterThan(html.indexOf('Unassigned departments'))
+    expect(html).not.toContain('Unassigned departments')
+    expect(html).not.toContain('Legacy Unit')
   })
   it('has one search and a Filter button with Division and Role chips', () => {
     const html = page()
@@ -220,12 +219,6 @@ describe('Organizational Structure', () => {
       ['Department staff', ['High to low', 'Low to high']],
     ])
     expect(select).toMatch(/^<option value="default"[^>]*>Default order<\/option><optgroup/)
-  })
-  it('lists unassigned departments under their own subheading in the Department filter', () => {
-    const data = structuredClone(hierarchy)
-    data.departments.push({ id: 'department-3', name: 'Legacy Unit', divisionId: null, employees: [] })
-    const html = page(data)
-    expect(html).toMatch(/text-xs font-semibold text-text-gray">Unassigned departments<\/p><ul[^>]*><li[^>]*><button type="button" aria-pressed="false"[^>]*><span class="min-w-0 break-words">Legacy Unit</)
   })
   it('puts the staff of each department in a named table of their own, in a box about 6 rows tall that can scroll', () => {
     const html = table({ query: 'dana' })

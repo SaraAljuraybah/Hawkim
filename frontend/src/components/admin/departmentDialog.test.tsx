@@ -144,10 +144,10 @@ describe('department dialog layout', () => {
     expect(field(render({ department: qa }), 'departmentDescription').props.counter).toBe('200 / 200')
   })
 
-  it('lets a legacy department without a division keep none (not required)', () => {
+  it('requires a division even for a department that has none: no "No Division" choice', () => {
     const division = field(render({ department: legacy }), 'departmentDivision')
-    expect(division.props).toMatchObject({ value: '', required: false, requiredMark: false })
-    expect((division.props.options as { value: string; label: string }[])[0]).toEqual({ value: '', label: 'No division (existing assignment)' })
+    expect(division.props).toMatchObject({ value: '', required: true, requiredMark: true, placeholder: 'Select a division' })
+    expect((division.props.options as { value: string; label: string }[]).some((option) => option.value === '')).toBe(false)
   })
 })
 
@@ -240,13 +240,14 @@ describe('saving from the department dialog', () => {
     expect(onSaved).toHaveBeenCalledWith('updated')
   })
 
-  it('saves a legacy department without a division (once it has an email and a description)', async () => {
-    await expect(confirm(render({ department: legacy }))).resolves.toBe(false)
-    expect(host.save).not.toHaveBeenCalled()
+  it('saves a department without a division only once one is chosen', async () => {
     change(render({ department: legacy }), 'departmentEmail', 'legacy@test.invalid')
     change(render({ department: legacy }), 'departmentDescription', 'Older department')
+    await expect(confirm(render({ department: legacy }))).resolves.toBe(false)
+    expect(host.save).not.toHaveBeenCalled()
+    change(render({ department: legacy }), 'departmentDivision', 'quality')
     await confirm(render({ department: legacy }))
-    expect(host.save).toHaveBeenCalledWith(expect.objectContaining({ divisionId: null, initials: 'LG' }), 'legacy', 'r2')
+    expect(host.save).toHaveBeenCalledWith(expect.objectContaining({ divisionId: 'quality', initials: 'LG' }), 'legacy', 'r2')
   })
 
   it('keeps the dialog open and shows a server error inside it', async () => {

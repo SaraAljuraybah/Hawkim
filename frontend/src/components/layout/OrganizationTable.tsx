@@ -130,38 +130,34 @@ export function OrganizationTable({ rows, filtering, filterKey, departmentDescri
         {rows.map((division) => {
           const divisionKey = `division:${division.id}`
           const childrenId = `org-children-${division.id}`
-          const divisionOpen = division.unassigned || isOpen(divisionKey, division.autoOpen)
+          const divisionOpen = isOpen(divisionKey, division.autoOpen)
           return (
             <Fragment key={divisionKey}>
               <tbody>
-                {division.unassigned ? (
-                  <tr className="border-t border-beige"><th scope="colgroup" colSpan={2} className="bg-beige/20 p-4 text-maroon">{content.unassigned}</th></tr>
-                ) : (
-                  <tr className="border-t border-beige">
-                    <th scope="row" className="p-4">
-                      {/* Two buttons, as on department rows: the arrow shows or hides the departments; the name opens the
-                          division's details (the Divisions and Departments preview, read-only). */}
-                      <span className="flex items-start gap-3">
-                        <button type="button" aria-expanded={divisionOpen} aria-controls={childrenId} aria-label={content.divisionPreview.toggle(division.name)}
-                          className="group -m-0.5 shrink-0 rounded p-0.5" onClick={() => toggle(divisionKey)}>
-                          <Chevron open={divisionOpen} />
+                <tr className="border-t border-beige">
+                  <th scope="row" className="p-4">
+                    {/* Two buttons, as on department rows: the arrow shows or hides the departments; the name opens the
+                        division's details (the Divisions and Departments preview, read-only). */}
+                    <span className="flex items-start gap-3">
+                      <button type="button" aria-expanded={divisionOpen} aria-controls={childrenId} aria-label={content.divisionPreview.toggle(division.name)}
+                        className="group -m-0.5 shrink-0 rounded p-0.5" onClick={() => toggle(divisionKey)}>
+                        <Chevron open={divisionOpen} />
+                      </button>
+                      <span className="min-w-0">
+                        <button type="button" aria-haspopup="dialog" aria-label={content.divisionPreview.open(division.name)}
+                          className={`${PREVIEW_NAME} font-semibold`}
+                          onClick={(event) => {
+                            previewOpener.current = event.currentTarget
+                            setDivisionPreview({ name: division.name, description: division.description, email: division.email })
+                          }}>
+                          {division.name}
                         </button>
-                        <span className="min-w-0">
-                          <button type="button" aria-haspopup="dialog" aria-label={content.divisionPreview.open(division.name)}
-                            className={`${PREVIEW_NAME} font-semibold`}
-                            onClick={(event) => {
-                              previewOpener.current = event.currentTarget
-                              setDivisionPreview({ name: division.name, description: division.description, email: division.email })
-                            }}>
-                            {division.name}
-                          </button>
-                          <span className="mt-1 block text-xs font-normal text-text-gray">{content.departmentCount(division.departmentCount)}</span>
-                        </span>
+                        <span className="mt-1 block text-xs font-normal text-text-gray">{content.departmentCount(division.departmentCount)}</span>
                       </span>
-                    </th>
-                    <EmailCell email={division.email} name={division.name} />
-                  </tr>
-                )}
+                    </span>
+                  </th>
+                  <EmailCell email={division.email} name={division.name} />
+                </tr>
               </tbody>
               <tbody id={childrenId} hidden={!divisionOpen}>
                 {division.departments.length === 0 && (
@@ -188,7 +184,7 @@ export function OrganizationTable({ rows, filtering, filterKey, departmentDescri
                                 onClick={(event) => {
                                   previewOpener.current = event.currentTarget
                                   setDepartmentPreview({
-                                    name: department.name, divisionName: division.unassigned ? undefined : division.name,
+                                    name: department.name, divisionName: division.name,
                                     description: departmentDescription?.(department.id), email: department.email,
                                   })
                                 }}>
@@ -219,7 +215,7 @@ export function OrganizationTable({ rows, filtering, filterKey, departmentDescri
                                               className={`${PREVIEW_NAME} font-medium`}
                                               onClick={(event) => {
                                                 previewOpener.current = event.currentTarget
-                                                setPreview({ person, departmentName: department.name, divisionName: division.unassigned ? undefined : division.name })
+                                                setPreview({ person, departmentName: department.name, divisionName: division.name })
                                               }}>
                                               {person.name}
                                             </button>

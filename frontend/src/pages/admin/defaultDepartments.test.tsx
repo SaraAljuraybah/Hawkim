@@ -14,7 +14,7 @@ const snapshot: ManagementSnapshot = {
   ],
   departments: [
     { id: 'pv', name: 'Pharmacovigilance', initials: 'PV', description: 'Drug safety', email: 'pv@test.invalid', division_id: 'v', updated_at: 'r', employees: 0, sops: 0, status_counts: {}, people: [], system_key: 'pharmacovigilance' },
-    { id: 'qa', name: 'Quality Assurance', initials: 'QA', description: 'Quality', email: 'qa@test.invalid', division_id: null, updated_at: 'r', employees: 0, sops: 0, status_counts: {}, people: [], system_key: 'quality-assurance' },
+    { id: 'qa', name: 'Quality Assurance', initials: 'QA', description: 'Quality', email: 'qa@test.invalid', division_id: 'w', updated_at: 'r', employees: 0, sops: 0, status_counts: {}, people: [], system_key: 'quality-assurance' },
     { id: 'md', name: 'Medical', initials: 'MD', description: 'Medical', email: 'md@test.invalid', division_id: 'v', updated_at: 'r', employees: 0, sops: 0, status_counts: {}, people: [], system_key: null },
   ],
 }
@@ -51,7 +51,7 @@ describe('Divisions and Departments: the default departments', () => {
     expect(button(table('Medical'), 'Delete', 'Medical')).toEqual({ disabled: false, reason: undefined })
   })
 
-  it('stays listed, with or without a division', () => {
+  it('stays listed, in its division', () => {
     expect(table('Pharmacovigilance')).toContain('>Pharmacovigilance</span>')
     expect(table('Quality Assurance')).toContain('>Quality Assurance</span>')
   })

@@ -71,9 +71,9 @@ describe('unified divisions and departments table', () => {
     expect(html.match(/>0<\/td>/g)).toHaveLength(2)
     expect(render('unknown')).toContain('No divisions or departments match your search.')
   })
-  it('preserves unassigned legacy departments without inventing a parent', () => {
+  it('has no "Unassigned departments" group: a department outside the divisions is not listed', () => {
     const html = render('', { ...snapshot, divisions: [] })
-    expect(html).toContain('Unassigned departments'); expect(html).toContain('Medical')
+    expect(html).not.toContain('Unassigned departments'); expect(html).not.toContain('>Medical</span>')
   })
 })
 describe('admin navigation', () => {

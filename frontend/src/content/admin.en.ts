@@ -189,7 +189,6 @@ export const adminEn: AdminContent = {
     division: {
       label: 'Division',
       placeholder: 'Select or type a division',
-      noDivision: 'No Division',
       toggle: 'Show divisions',
       noMatches: 'No division matches. Choose one from the list.',
     },

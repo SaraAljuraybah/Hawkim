@@ -1,5 +1,5 @@
 import type { ManagedDepartment, ManagementSnapshot } from '../services/organizationAdmin'
-import { matchesDivisionDepartmentFilter, UNASSIGNED_GROUP_ID, type FilterDepartments } from './organization'
+import { matchesDivisionDepartmentFilter, type FilterDepartments } from './organization'
 
 /**
  * How the table is ordered; 'default' keeps the server's order. 'division-…' orders the division rows;
@@ -65,25 +65,10 @@ export function hierarchyRows(snapshot: ManagementSnapshot, query = '', options:
   return sortRows(rows, options.sort ?? 'default')
 }
 
-/** The department's filter group: its division, or the unassigned group (no division, or one that's gone). */
+/** The department's filter group: its division (every active department has one: 20261124120000). */
 function departmentGroup(snapshot: ManagementSnapshot) {
-  const divisionIds = new Set(snapshot.divisions.map((division) => division.id))
   const divisionOf = new Map(snapshot.departments.map((department) => [department.id, department.division_id]))
-  return (id: string) => {
-    const division = divisionOf.get(id)
-    return division && divisionIds.has(division) ? division : UNASSIGNED_GROUP_ID
-  }
-}
-
-/**
- * The departments without a division (or whose division is gone), listed last: those matching the search,
- * and, while filtering, only the chosen ones (a division filter alone leaves none).
- */
-export function unassignedRows(snapshot: ManagementSnapshot, query = '', options: Pick<HierarchyOptions, 'divisions' | 'departments'> = {}) {
-  const search = query.trim().toLowerCase()
-  const groupOf = departmentGroup(snapshot)
-  return snapshot.departments.filter((row) => groupOf(row.id) === UNASSIGNED_GROUP_ID && row.name.toLowerCase().includes(search)
-    && matchesDivisionDepartmentFilter(row.id, options.divisions ?? [], options.departments ?? [], groupOf))
+  return (id: string) => divisionOf.get(id) ?? ''
 }
 
 /** The Filter's data on this page: every division (even without departments) and every department. */

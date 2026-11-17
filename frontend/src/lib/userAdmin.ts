@@ -1,7 +1,7 @@
 import { updateParams } from './pagination'
 import type { Department, DepartmentId, Permission, Sop, User } from '../data/mock/types'
 import type { SopStatus } from '../types/status'
-import { matchesDivisionDepartmentFilter, matchesRoles, UNASSIGNED_GROUP_ID, type RoleFilter } from './organization'
+import { matchesDivisionDepartmentFilter, matchesRoles, type RoleFilter } from './organization'
 
 /*
  * Admin rules for users (PBI 15, 18, 19): adding users, changing permissions and
@@ -30,7 +30,7 @@ export interface NewUser {
   phone: string
   /** Job title, free text. */
   position: string
-  /** A division, NO_DIVISION, or '' while none is chosen. */
+  /** A division, or '' while none is chosen. */
   divisionId?: string
   departmentId: DepartmentId | ''
   permissions: Permission[]
@@ -141,7 +141,7 @@ export function filterUsers(users: User[], getDepartment: (id: string) => Depart
       const department = getDepartment(user.departmentId)
       const searched = [user.name, user.email, divisionLabel(department), department?.name ?? '', ...user.permissions.map((permission) => permissionLabels[permission])]
       return (!text || searched.some((value) => value.toLowerCase().includes(text))) &&
-        matchesDivisionDepartmentFilter(user.departmentId, filter.divisions, filter.departmentIds, (id) => getDepartment(id)?.divisionId || UNASSIGNED_GROUP_ID) &&
+        matchesDivisionDepartmentFilter(user.departmentId, filter.divisions, filter.departmentIds, (id) => getDepartment(id)?.divisionId ?? '') &&
         matchesRoles(user, filter.permissions ?? [])
     })
     .sort(staffCompare(filter.sort ?? 'default', getDepartment))
@@ -165,35 +165,23 @@ export function staffCompare(sort: StaffSort, getDepartment: (id: string) => Dep
   }
 }
 
-/** The Division choice for departments that have none. */
-export const NO_DIVISION = '__no-division__'
-
-/**
- * The divisions to choose from: each division of these departments, by name, then NO_DIVISION
- * when some department has none.
- */
+/** The divisions to choose from: each division of these departments, by name (every department has one: 20261124120000). */
 export function divisionOptions(departments: Pick<Department, 'divisionId' | 'divisionName'>[]): string[] {
   const divisions = [...new Set(departments.flatMap((department) => (department.divisionId ? [department.divisionId] : [])))]
   divisions.sort((a, b) => divisionNameIn(departments, a).localeCompare(divisionNameIn(departments, b), 'en') || a.localeCompare(b, 'en'))
-  return departments.some((department) => !department.divisionId) ? [...divisions, NO_DIVISION] : divisions
+  return divisions
 }
 
-/** The Division chosen from the start: NO_DIVISION when it is the only choice, otherwise none. */
-export function defaultDivision(departments: Pick<Department, 'divisionId'>[]): string {
-  const options = divisionOptions(departments)
-  return options.length === 1 && options[0] === NO_DIVISION ? NO_DIVISION : ''
-}
-
-/** The departments in this division (NO_DIVISION: those without one; '': none yet). */
+/** The departments in this division ('': none yet). */
 export function departmentsInDivision<T extends Pick<Department, 'divisionId'>>(departments: T[], division: string): T[] {
   if (!division) return []
-  return departments.filter((department) => (division === NO_DIVISION ? !department.divisionId : department.divisionId === division))
+  return departments.filter((department) => department.divisionId === division)
 }
 
 /**
  * What is wrong with each field (nothing for a valid user). Email must be unique among active
- * users, ignoring case; phone must be +9665XXXXXXXX. Staff also need a division (NO_DIVISION
- * counts) with the department in it, and a position of up to POSITION_MAX characters; a System Admin
+ * users, ignoring case; phone must be +9665XXXXXXXX. Staff also need a division with the department
+ * in it, and a position of up to POSITION_MAX characters; a System Admin
  * (see isSystemAdmin) has none of those. Approver is only for the Quality department (the database
  * refuses it too).
  */
@@ -231,7 +219,7 @@ export function userFormValues(user: User, activeDepartments: Pick<Department, '
     phone: user.phone ?? '',
     position: user.position ?? '',
     departmentId: department?.id ?? '',
-    ...(department ? { divisionId: department.divisionId ?? NO_DIVISION } : {}),
+    ...(department?.divisionId ? { divisionId: department.divisionId } : {}),
     permissions: user.permissions,
   }
 }

@@ -14,9 +14,10 @@ import { endOfRiyadhDay } from './riyadhWorkingDays'
 
 const fixture = vi.hoisted(() => ({
   departments: [
-    { id: 'home', name: 'Home Department', initials: 'HD', description: '', qualityControllerId: 'controller' },
-    { id: 'other', name: 'Other Department', initials: 'OD', description: '' },
-    { id: 'gone', name: 'Gone Department', initials: 'GD', description: '', removedAt: '2026-10-01' },
+    // Every department is in a division (20261124120000); these share one.
+    { id: 'home', name: 'Home Department', initials: 'HD', description: '', qualityControllerId: 'controller', divisionId: 'shared', divisionName: 'Shared Division' },
+    { id: 'other', name: 'Other Department', initials: 'OD', description: '', divisionId: 'shared', divisionName: 'Shared Division' },
+    { id: 'gone', name: 'Gone Department', initials: 'GD', description: '', removedAt: '2026-10-01', divisionId: 'shared', divisionName: 'Shared Division' },
   ] as Department[],
   users: [] as User[],
 }))

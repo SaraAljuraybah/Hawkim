@@ -64,7 +64,7 @@ export function OrganizationStructure({ hierarchy }: { hierarchy: OrganizationHi
               emptyText: filtersEn.division.empty, summary: filtersEn.division.count, scrollable: true },
             { id: 'department', legend: filtersEn.department.legend, value: departments, onChange: setDepartmentFilter,
               emptyText: filtersEn.department.empty, summary: filtersEn.department.count, scrollable: true,
-              groups: departmentGroups.map((group) => ({ id: group.id, label: group.unassigned ? filtersEn.department.unassigned : group.label, options: group.options })) },
+              groups: departmentGroups },
             { id: 'role', legend: content.roleFilter, options: roleOptions, value: roles, onChange: (next) => setRoles(next as RoleFilter[]), emptyText: '', summary: content.roleCount },
           ]} />
         <SelectField className="min-w-0" name="organizationSort" label={content.sort} value={sort}

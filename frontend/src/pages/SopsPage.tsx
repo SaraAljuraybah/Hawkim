@@ -197,7 +197,7 @@ function SopDirectory({ activeDepartment, admin = false }: { activeDepartment: D
                   emptyText: filtersEn.division.empty, summary: filtersEn.division.count, scrollable: true },
                 { id: 'department', legend: filtersEn.department.legend, value: filterDepartments, onChange: setDepartments,
                   emptyText: filtersEn.department.empty, summary: filtersEn.department.count, scrollable: true,
-                  groups: departmentGroups.map((group) => ({ id: group.id, label: group.unassigned ? filtersEn.department.unassigned : group.label, options: group.options })) },
+                  groups: departmentGroups },
               ]} />
           <SelectField
             name="sopSort"
