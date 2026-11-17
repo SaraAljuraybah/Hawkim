@@ -31,7 +31,7 @@ begin
 end;
 $$;
 
-insert into public.departments (id, name, initials) values ('cm-home', 'CM Home', 'CM');
+insert into public.departments (id, name, initials, division_id) values ('cm-home', 'CM Home', 'CM', 'rnd');
 insert into auth.users (id) values ('97900000-0000-4000-8000-000000000001');
 insert into public.profiles (id, full_name, email, initials, department_id, "position")
 values ('97900000-0000-4000-8000-000000000001', 'CM Author', 'cm-1@test.invalid', 'CA', 'cm-home', 'Title');

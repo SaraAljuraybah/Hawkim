@@ -52,7 +52,7 @@ $$;
 
 -- People: 1 admin (home department), 2 author in the other department (writes every test SOP),
 -- 3 employee of the home department, 4 admin whose profile has ended, 5 author in the other department (a co-author).
-insert into public.departments (id, name, initials) values ('ar-home', 'AR Home', 'AH'), ('ar-other', 'AR Other', 'AO');
+insert into public.departments (id, name, initials, division_id) values ('ar-home', 'AR Home', 'AH', 'rnd'), ('ar-other', 'AR Other', 'AO', 'rnd');
 insert into auth.users (id) select ('9b000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid from generate_series(1, 5) n;
 insert into public.profiles (id, full_name, email, initials, department_id, "position", deleted_at)
 select ('9b000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid, 'AR Person', 'ar-' || n || '@test.invalid', 'AP',

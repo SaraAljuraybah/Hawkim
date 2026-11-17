@@ -9,7 +9,7 @@
 --   6. admins_without_department_rolled_back.sql
 begin;
 
-insert into public.departments (id, name, initials) values ('aw-it', 'AW IT', 'AI'), ('aw-ops', 'AW Ops', 'AO') on conflict do nothing;
+insert into public.departments (id, name, initials, division_id) values ('aw-it', 'AW IT', 'AI', 'rnd'), ('aw-ops', 'AW Ops', 'AO', 'rnd') on conflict do nothing;
 
 -- 1 a Super Admin with a department, position and its row (as Sara on the live project);
 -- 2 an Admin with a department and two positions; 3 an Admin with a department but no position (as the

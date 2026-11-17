@@ -67,7 +67,7 @@ declare
   s1 uuid; s2 uuid; s3 uuid; s4 uuid; v_round uuid; v_detail text; v_saved jsonb;
 begin
   assert quality is not null, 'No Quality department';
-  insert into public.departments(id, name, initials) values ('zz-test-a', 'ZZ Test A', 'QZX'), ('zz-test-b', 'ZZ Test B', 'QZY');
+  insert into public.departments(id, name, initials, division_id) values ('zz-test-a', 'ZZ Test A', 'QZX', 'rnd'), ('zz-test-b', 'ZZ Test B', 'QZY', 'rnd');
   -- An admin with a department first (roles need a profile), then without one: a System Admin.
   perform pg_temp.person(admin, 'zz-test-a', '{admin}');
   update public.profiles set department_id = null, "position" = null where id = admin;

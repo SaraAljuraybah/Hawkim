@@ -54,8 +54,9 @@ insert into public.user_invitations (user_id, sent_at, sent_by)
 values ('98200000-0000-4000-8000-000000000002', now() - interval '3 days', '98200000-0000-4000-8000-000000000001');
 
 insert into public.organizations (id, name) values ('98200000-0000-4000-8000-0000000000aa', 'Scope Other');
-insert into public.departments (id, name, initials, organization_id)
-values ('scope-other-department', 'Scope Other Department', 'SOD', '98200000-0000-4000-8000-0000000000aa');
+insert into public.divisions (id, name, organization_id) values ('scope-other-department-division', 'Other Division', '98200000-0000-4000-8000-0000000000aa');
+insert into public.departments (id, name, initials, organization_id, division_id)
+values ('scope-other-department', 'Scope Other Department', 'SOD', '98200000-0000-4000-8000-0000000000aa', 'scope-other-department-division');
 insert into public.profiles (id, full_name, email, initials, department_id, phone, "position", organization_id) values
   ('98200000-0000-4000-8000-000000000004', 'Scope Other Admin', 'scope-4@test.invalid', 'OA', null, '+966512345604', null,
    '98200000-0000-4000-8000-0000000000aa'),

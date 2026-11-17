@@ -34,8 +34,8 @@ begin
 end;
 $$;
 
-insert into public.departments (id, name, initials)
-values ('rpc-test-home', 'RPC test home', 'RT'), ('rpc-test-foreign', 'RPC test foreign', 'RF');
+insert into public.departments (id, name, initials, division_id)
+values ('rpc-test-home', 'RPC test home', 'RT', 'rnd'), ('rpc-test-foreign', 'RPC test foreign', 'RF', 'rnd');
 insert into auth.users (id) select ('90000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid from generate_series(1, 8) n;
 insert into public.profiles (id, full_name, email, initials, department_id, deleted_at)
 select ('90000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid,

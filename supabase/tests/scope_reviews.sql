@@ -53,8 +53,9 @@ insert into public.sop_versions (sop_id, version, file_name, file_type, storage_
 values ('98500000-0000-4000-8000-0000000000b1', 1, 'rev.pdf', 'pdf', 'rev-test/rev.pdf', 1, '98500000-0000-4000-8000-000000000001');
 
 insert into public.organizations (id, name) values ('98500000-0000-4000-8000-0000000000aa', 'Rev Other');
-insert into public.departments (id, name, initials, organization_id)
-values ('rev-other-ra', 'Regulatory Affairs', 'RA', '98500000-0000-4000-8000-0000000000aa');
+insert into public.divisions (id, name, organization_id) values ('rev-other-ra-division', 'Other Division', '98500000-0000-4000-8000-0000000000aa');
+insert into public.departments (id, name, initials, organization_id, division_id)
+values ('rev-other-ra', 'Regulatory Affairs', 'RA', '98500000-0000-4000-8000-0000000000aa', 'rev-other-ra-division');
 insert into public.profiles (id, full_name, email, initials, department_id, phone, "position", organization_id) values
   ('98500000-0000-4000-8000-000000000003', 'Rev Other Author', 'rev-3@test.invalid', 'OA', 'rev-other-ra', '+966512345603', 'Officer', '98500000-0000-4000-8000-0000000000aa'),
   ('98500000-0000-4000-8000-000000000004', 'Rev Other Reviewer', 'rev-4@test.invalid', 'OR', 'rev-other-ra', '+966512345604', 'Officer', '98500000-0000-4000-8000-0000000000aa');

@@ -42,7 +42,7 @@ grant execute on function pg_temp.expect_error(text, text, text), pg_temp.act_as
 -- People: 1 the Super Admin, 2 a regular Admin, 3 staff, 4 a former staff member (profile ended).
 insert into auth.users (id, email)
 select ('9c000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid, 'os-' || n || '@test.invalid' from generate_series(1, 4) n;
-insert into public.departments (id, name, initials) values ('os-home', 'OS Home', 'OH') on conflict do nothing;
+insert into public.departments (id, name, initials, division_id) values ('os-home', 'OS Home', 'OH', 'rnd') on conflict do nothing;
 insert into public.profiles (id, full_name, email, initials, department_id, deleted_at)
 select ('9c000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid, 'OS Person ' || n, 'os-' || n || '@test.invalid', 'OP', 'os-home',
        case when n = 4 then now() end

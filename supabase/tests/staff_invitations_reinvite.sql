@@ -55,8 +55,9 @@ insert into public.user_roles (user_id, role)
 select ('9e200000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid, case when n = 1 then 'admin' else 'author' end::public.app_role
 from generate_series(1, 5) n;
 insert into public.organizations (id, name) values ('9e200000-0000-4000-8000-0000000000aa', 'RI Other');
-insert into public.departments (id, name, initials, organization_id)
-values ('ri-other-department', 'RI Other Department', 'ROD', '9e200000-0000-4000-8000-0000000000aa');
+insert into public.divisions (id, name, organization_id) values ('ri-other-department-division', 'Other Division', '9e200000-0000-4000-8000-0000000000aa');
+insert into public.departments (id, name, initials, organization_id, division_id)
+values ('ri-other-department', 'RI Other Department', 'ROD', '9e200000-0000-4000-8000-0000000000aa', 'ri-other-department-division');
 insert into public.profiles (id, full_name, email, initials, department_id, phone, "position", organization_id) values
   ('9e200000-0000-4000-8000-000000000006', 'RI Other Admin', 'ri-6@test.invalid', 'OA', null, '+966512345706', null, '9e200000-0000-4000-8000-0000000000aa'),
   ('9e200000-0000-4000-8000-000000000007', 'RI Other Staff', 'ri-7@test.invalid', 'OS', 'ri-other-department', '+966512345707', 'Officer', '9e200000-0000-4000-8000-0000000000aa');

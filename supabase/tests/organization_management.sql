@@ -214,7 +214,8 @@ begin
   perform pg_temp.act_as(null, 'service_role');
   assert public.ack_department_file_deletion(v_job, (v_row ->> 'leaseToken')::uuid, array['om/' || v_sop || '/1.pdf'], false) = 'completed';
   perform pg_temp.as_owner();
-  assert (select removed_at is not null and division_id is null from public.departments where id = 'om-delete'), 'Department removed after cleanup';
+  -- 20261124120000: the deleted department keeps its division.
+  assert (select removed_at is not null and division_id = 'om-active' from public.departments where id = 'om-delete'), 'Department removed after cleanup, in its division';
 
   -- Move to Others is refused while the department has SOPs (20261109120000).
   insert into public.sops(id, title, department_id, author_id, status, current_version)
@@ -268,9 +269,9 @@ begin
     assert not exists (select 1 from public.employee_positions where profile_id = 'b7100000-0000-4000-8000-000000000002'), 'No invented title';
     perform pg_temp.act_as(admin);
     select updated_at into v_stamp from public.departments where id = 'legacy-unassigned';
-    perform public.save_department('legacy-unassigned', 'Legacy Unassigned', 'LU', 'About', null, v_stamp, 'legacy@hawkim.test');
+    -- 20261124120000: no department can be left without a division, a legacy one included.
+    perform pg_temp.expect_error(format($q$select public.save_department('legacy-unassigned', 'Legacy Unassigned', 'LU', 'About', null, %L, 'legacy@hawkim.test')$q$, v_stamp), '23514');
     perform pg_temp.as_owner();
-    assert (select division_id is null from public.departments where id = 'legacy-unassigned'), 'A legacy department may stay unassigned';
     raise notice 'legacy checks ran';
   end if;
 end;

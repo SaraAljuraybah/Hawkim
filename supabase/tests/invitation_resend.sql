@@ -53,7 +53,7 @@ grant execute on function pg_temp.expect_error(text, text, text), pg_temp.act_as
 insert into auth.users (id, email)
 select ('9d000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid, 'ir-' || n || '@test.invalid' from generate_series(1, 7) n;
 update auth.users set banned_until = now() + interval '1 year' where id = '9d000000-0000-4000-8000-000000000007';
-insert into public.departments (id, name, initials) values ('ir-home', 'IR Home', 'IH') on conflict do nothing;
+insert into public.departments (id, name, initials, division_id) values ('ir-home', 'IR Home', 'IH', 'rnd') on conflict do nothing;
 insert into public.profiles (id, full_name, email, initials, department_id, "position")
 select ('9d000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid, 'IR Person ' || n, 'ir-' || n || '@test.invalid', 'IP',
        case when n >= 4 then 'ir-home' end, case when n >= 4 then 'Specialist' end

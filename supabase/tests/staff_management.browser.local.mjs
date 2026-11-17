@@ -59,11 +59,11 @@ const employee = await person('employee', RA, ['author'], 'QA Specialist')
   await ok(client.storage.from('sop-files').upload(path, new Blob(['%PDF-1.4\n%%EOF\n'], { type: 'application/pdf' }), { contentType: 'application/pdf' }), 'upload')
   await ok(client.rpc('create_sop', { p_title: `UI draft ${run}`, p_description: '', p_department_id: RA, p_storage_path: path, p_file_name: 'a.pdf' }), 'create_sop')
 }
-// A target department in another division (or none) than Regulatory Affairs.
+// A target department in another division than Regulatory Affairs (every department has one: 20261124120000).
 const departments = await ok(service.from('departments').select('id, name, division_id, division:divisions(name)').is('removed_at', null), 'departments')
 const ra = departments.find((d) => d.id === RA)
 const target = departments.find((d) => d.id !== RA && d.id !== 'quality-assurance' && d.id !== 'pharmacovigilance')
-const divisionLabel = (d) => d.division?.name ?? 'No Division'
+const divisionLabel = (d) => d.division.name
 const profile = async (id) => ok(service.from('profiles').select('full_name, email, phone, position, department_id').eq('id', id).single(), 'read profile')
 
 // ---------- browser helpers ----------
@@ -134,8 +134,7 @@ await check('Tasks 7, 8, 16: Staff list title, no description, placeholder, sear
   assert(!body.includes('Manage who can use Hawkim and what they can do.'), 'description still shown')
   assert(!/\bUsers?\b/.test(body), 'Users wording on the page')
   assert(await page.$eval('input[name="search"]', (i) => i.placeholder) === 'Search by staff name, email, division, department', 'placeholder')
-  // "No Division" is a label, not a division name: only a real division is searched.
-  for (const query of [mover.name, mover.email, ra.name, ...(ra.division ? [ra.division.name] : [])]) {
+  for (const query of [mover.name, mover.email, ra.name, ra.division.name]) {
     await fill(page, 'search', query)
     await nextTick(250)
     assert((await text(page)).includes(mover.name), `"${query}" doesn't find the staff member`)

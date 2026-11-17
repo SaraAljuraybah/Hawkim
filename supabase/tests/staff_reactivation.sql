@@ -50,7 +50,7 @@ insert into auth.users (id, email, aud, role)
 select ('98000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid, 'sr-' || n || '@test.invalid', 'authenticated', 'authenticated'
 from generate_series(1, 9) n;
 update auth.users set banned_until = now() + interval '1 day' where id = '98000000-0000-4000-8000-000000000009';
-insert into public.departments (id, name, initials) values ('sr-home', 'SR Home', 'SH'), ('sr-gone', 'SR Gone', 'SG');
+insert into public.departments (id, name, initials, division_id) values ('sr-home', 'SR Home', 'SH', 'rnd'), ('sr-gone', 'SR Gone', 'SG', 'rnd');
 insert into public.profiles (id, full_name, email, initials, department_id, phone, "position")
 select ('98000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid, 'SR Person ' || n, 'sr-' || n || '@test.invalid', 'SP',
   case when n = 3 then 'sr-gone' else 'sr-home' end, '+96651234561' || (n % 10), 'Officer'

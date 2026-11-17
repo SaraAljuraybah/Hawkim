@@ -51,7 +51,7 @@ grant execute on function pg_temp.expect_error(text, text), pg_temp.act_as(uuid)
 
 -- 1 main author, 2 co-author, 3 reviewer, 4 author in another department (no relation to the SOP).
 insert into auth.users (id) select ('99000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid from generate_series(1, 4) n;
-insert into public.departments (id, name, initials) values ('usd-home', 'USD Home', 'UH');
+insert into public.departments (id, name, initials, division_id) values ('usd-home', 'USD Home', 'UH', 'rnd');
 insert into public.profiles (id, full_name, email, initials, department_id, "position")
 select ('99000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid, 'USD Person ' || n, 'usd-' || n || '@test.invalid', 'UP', 'usd-home', 'Officer'
 from generate_series(1, 4) n;

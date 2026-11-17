@@ -22,7 +22,7 @@ end;
 $$;
 
 -- People: 1 main author, 2 co-author, 3 other author, 4 deleted profile, 5 banned, 6 deleted Auth account, 7 reviewer.
-insert into public.departments (id, name, initials) values ('delete-test-home', 'Delete test home', 'DT');
+insert into public.departments (id, name, initials, division_id) values ('delete-test-home', 'Delete test home', 'DT', 'rnd');
 insert into auth.users (id) select ('93000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid from generate_series(1, 7) n;
 -- Every assigned employee holds a position (20261107120300_employee_positions.sql checks it at commit).
 insert into public.profiles (id, full_name, email, initials, department_id, deleted_at, "position")

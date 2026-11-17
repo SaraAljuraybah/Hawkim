@@ -68,7 +68,7 @@ begin
   assert first is not null, 'name free after rejection';
 
   -- Accepting keeps the name taken (accept_access_request unchanged).
-  insert into public.departments (id, name, initials) values ('uo-home', 'UO Home', 'UH');
+  insert into public.departments (id, name, initials, division_id) values ('uo-home', 'UO Home', 'UH', 'rnd');
   insert into auth.users (id) values (v_user);
   perform public.accept_access_request(first, repeat('a', 64), v_user, 'uo-home');
   assert (select status = 'accepted' and user_id = 'a1000000-0000-4000-8000-000000000001' from public.access_requests where id = first), 'accepted';

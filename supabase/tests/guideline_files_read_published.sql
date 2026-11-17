@@ -41,7 +41,7 @@ create function pg_temp.visible() returns text language sql as $$
 $$;
 
 -- People: 1 admin, 2 author, 3 author whose profile has ended (not active).
-insert into public.departments (id, name, initials) values ('gf-home', 'GF Home', 'GF');
+insert into public.departments (id, name, initials, division_id) values ('gf-home', 'GF Home', 'GF', 'rnd');
 insert into auth.users (id) select ('9a000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid from generate_series(1, 3) n;
 insert into public.profiles (id, full_name, email, initials, department_id, "position", deleted_at)
 select ('9a000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid, 'GF Person', 'gf-' || n || '@test.invalid', 'GP', 'gf-home', 'Title',

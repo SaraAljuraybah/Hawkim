@@ -87,9 +87,15 @@ begin
   assert (select count(*) from public.departments where organization_id = one_org) = 2, 'exactly two departments';
   assert (select count(*) from public.departments where organization_id = two_org and system_key is not null) = 2;
   assert one_pv.name = 'Pharmacovigilance' and one_pv.initials = 'PV' and one_pv.requires_compliance_check and not one_pv.is_quality
-    and one_pv.removed_at is null and one_pv.division_id is null, 'PV configuration';
+    and one_pv.removed_at is null, 'PV configuration';
   assert one_qa.name = 'Quality Assurance' and one_qa.initials = 'QA' and one_qa.is_quality and not one_qa.requires_compliance_check
-    and one_qa.removed_at is null and one_qa.division_id is null, 'QA configuration';
+    and one_qa.removed_at is null, 'QA configuration';
+  -- 20261124120000: each is in one of the organization's two default divisions (MedCare's names and descriptions, no email).
+  assert (select v.name = 'Regulatory and Drug Safety' and v.description = 'Regulatory Affairs and Drug Safety Division' and v.email is null
+    and v.is_active and v.organization_id = one_org from public.divisions v where v.id = one_pv.division_id), 'PV in Regulatory and Drug Safety';
+  assert (select v.name = 'Quality and Compliance' and v.description = 'Governance, Quality Assurance and Compliance Division' and v.email is null
+    and v.is_active and v.organization_id = one_org from public.divisions v where v.id = one_qa.division_id), 'QA in Quality and Compliance';
+  assert (select count(*) from public.divisions where organization_id = one_org) = 2, 'exactly two divisions';
   assert two_pv.name = one_pv.name and two_pv.id <> one_pv.id and two_pv.id <> 'pharmacovigilance', 'same name, own row per organization';
   assert (select count(*) from public.departments) = (select departments from dd_before) + 4, 'only the four new departments were added';
 
@@ -125,7 +131,7 @@ begin
   perform pg_temp.expect_error(format('select public.save_department(%L, %L, %L, %L, %L, %L, %L)', one_pv.id, 'pharmacovigilance', 'PV',
     'x', v_division_b, one_pv.updated_at, 'pv@dd.test'), '23514', 'default-department');
   perform pg_temp.expect_error(format('select public.save_department(%L, %L, %L, %L, %L, %L, %L)', one_qa.id, 'Quality Assurance', 'QX',
-    'x', null, one_qa.updated_at, 'qa@dd.test'), '23514', 'default-department');
+    'x', one_qa.division_id, one_qa.updated_at, 'qa@dd.test'), '23514', 'default-department');
   -- A stale form still gets "refresh and try again" first.
   perform pg_temp.expect_error(format('select public.save_department(%L, %L, %L, %L, %L, %L, %L)', one_pv.id, 'Drug Safety', 'DS',
     'x', v_division_b, now() - interval '1 day', 'pv@dd.test'), 'P0001', 'conflict');
@@ -153,10 +159,11 @@ begin
   perform pg_temp.expect_error(format('delete from public.departments where id = %L', 'pharmacovigilance'), 'P0001', 'default-department');
   perform pg_temp.expect_error($q$update public.departments set removed_at = now() where id = 'quality-assurance'$q$, 'P0001', 'default-department');
   -- One of each per organization; another organization may have its own.
-  perform pg_temp.expect_error(format('insert into public.departments (id, name, initials, organization_id, system_key) values (%L, %L, %L, %L, %L)',
-    'dd-second-pv', 'Second PV', 'SPV', one_org, 'pharmacovigilance'), '23505');
-  perform pg_temp.expect_error(format('insert into public.departments (id, name, initials, organization_id, system_key) values (%L, %L, %L, %L, %L)',
-    'dd-unknown-key', 'Unknown Key', 'UK', one_org, 'regulatory-affairs'), '23514');
+  -- In a division (20261124120000), so only the key is refused.
+  perform pg_temp.expect_error(format('insert into public.departments (id, name, initials, organization_id, system_key, division_id) values (%L, %L, %L, %L, %L, %L)',
+    'dd-second-pv', 'Second PV', 'SPV', one_org, 'pharmacovigilance', one_pv.division_id), '23505');
+  perform pg_temp.expect_error(format('insert into public.departments (id, name, initials, organization_id, system_key, division_id) values (%L, %L, %L, %L, %L, %L)',
+    'dd-unknown-key', 'Unknown Key', 'UK', one_org, 'regulatory-affairs', one_pv.division_id), '23514');
 
   -- ---------- Ordinary departments keep their behaviour ----------
   perform pg_temp.act_as(one_admin);
@@ -179,7 +186,7 @@ begin
   -- ---------- Another organization can't touch them ----------
   perform pg_temp.act_as(two_admin);
   perform pg_temp.expect_error(format('select public.save_department(%L, %L, %L, %L, %L, %L, %L)', one_pv.id, 'DD Takeover', 'DT',
-    'Taken over', null, one_pv.updated_at, 'x@dd.test'), 'P0001', 'conflict');
+    'Taken over', two_pv.division_id, one_pv.updated_at, 'x@dd.test'), 'P0001', 'conflict');
   perform pg_temp.expect_error(format('select public.delete_department(%L, %L, %L)', one_qa.id, 'empty', one_qa.updated_at), 'P0001', 'conflict');
   perform pg_temp.expect_error(format('select public.begin_department_file_deletion(%L, %L)', one_qa.id, one_qa.updated_at), 'P0001', 'conflict');
   -- Organization two's own default departments are protected on their own.

@@ -99,7 +99,9 @@ begin
   assert org1 is not null and (select name from public.organizations where id = org1) = 'Org One', 'A new organization, named as the request';
   assert public.super_admin_of(org1) = sa, 'The applicant of the accepted request is its Super Admin';
   assert exists (select 1 from public.user_roles where user_id = sa and role = 'admin'), 'The Super Admin holds the Admin role';
-  insert into public.departments (id, name, initials, organization_id) values ('sa-home', 'SA Home', 'SH', org1);
+  -- In one of the organization's default divisions (20261124120000).
+  insert into public.departments (id, name, initials, organization_id, division_id)
+  values ('sa-home', 'SA Home', 'SH', org1, (select id from public.divisions where organization_id = org1 and name = 'Quality and Compliance'));
   -- Another organization's request: its own organization and Super Admin; the first one is unchanged.
   perform pg_temp.act_as(null, 'service_role');
   perform public.accept_access_request('95000000-0000-4000-8000-0000000000a2', repeat('b', 64), other_org, 'sa-home');

@@ -21,7 +21,7 @@ end;
 $$;
 
 -- People: 1 main author, 2 reviewer, 3 reviewer who is deactivated later.
-insert into public.departments (id, name, initials) values ('engaged-test-home', 'Engaged test home', 'ET');
+insert into public.departments (id, name, initials, division_id) values ('engaged-test-home', 'Engaged test home', 'ET', 'rnd');
 insert into auth.users (id) select ('94000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid from generate_series(1, 3) n;
 insert into public.profiles (id, full_name, email, initials, department_id, "position")
 select ('94000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid, 'Engaged person ' || n,

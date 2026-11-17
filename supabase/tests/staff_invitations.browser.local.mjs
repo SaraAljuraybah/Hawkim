@@ -197,7 +197,7 @@ await check('8. Add Staff with the cancelled email invites the same person again
   await page.type('input[name="name"]', rana.name)
   await page.type('input[name="email"]', rana.email)
   await page.type('input[name="phone"]', rana.phone.slice(5))
-  for (const [name, label] of [['division', 'No Division'], ['department', 'Regulatory Affairs']]) {
+  for (const [name, label] of [['division', 'Regulatory and Drug Safety'], ['department', 'Regulatory Affairs']]) {
     await page.click(`input[name="${name}"]`, { clickCount: 3 })
     await page.type(`input[name="${name}"]`, label)
     const option = await page.waitForSelector(`::-p-xpath(//li[@role="option" and normalize-space(.)="${label}"])`, { timeout: 5000 })

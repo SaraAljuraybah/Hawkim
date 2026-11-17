@@ -114,7 +114,7 @@ try {
 
   await check('the API refuses renaming a default department, and allows its description, email and division', async () => {
     const pv = await department(a.departments.PV)
-    await refused(a.admin.client.rpc('save_department', { p_id: pv.id, p_name: 'Drug Safety', p_initials: 'DS', p_description: 'x', p_division_id: null,
+    await refused(a.admin.client.rpc('save_department', { p_id: pv.id, p_name: 'Drug Safety', p_initials: 'DS', p_description: 'x', p_division_id: pv.division_id,
       p_expected_updated_at: pv.updated_at, p_email: 'pv@hawkim.test' }), '23514', 'rename', 'default-department')
     await refused(a.admin.client.rpc('delete_department', { p_id: pv.id, p_sop_action: 'empty', p_expected_updated_at: pv.updated_at }), 'P0001', 'delete', 'default-department')
     const division = await ok(a.admin.client.rpc('save_division', { p_id: null, p_name: `E2E DDR Division ${run}`, p_description: 'About', p_email: 'div@hawkim.test' }), 'division')

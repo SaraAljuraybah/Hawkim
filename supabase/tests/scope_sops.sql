@@ -52,8 +52,9 @@ insert into public.sop_versions (sop_id, version, file_name, file_type, storage_
 values ('98400000-0000-4000-8000-0000000000b1', 1, 'med.pdf', 'pdf', 'sop-test/med.pdf', 1, '98400000-0000-4000-8000-000000000002');
 
 insert into public.organizations (id, name) values ('98400000-0000-4000-8000-0000000000aa', 'Sop Other');
-insert into public.departments (id, name, initials, organization_id)
-values ('sop-other-pv', 'Pharmacovigilance', 'PV', '98400000-0000-4000-8000-0000000000aa');
+insert into public.divisions (id, name, organization_id) values ('sop-other-pv-division', 'Other Division', '98400000-0000-4000-8000-0000000000aa');
+insert into public.departments (id, name, initials, organization_id, division_id)
+values ('sop-other-pv', 'Pharmacovigilance', 'PV', '98400000-0000-4000-8000-0000000000aa', 'sop-other-pv-division');
 insert into public.profiles (id, full_name, email, initials, department_id, phone, "position", organization_id) values
   ('98400000-0000-4000-8000-000000000003', 'Sop Other Admin', 'sop-3@test.invalid', 'OA', null, '+966512345603', null, '98400000-0000-4000-8000-0000000000aa'),
   ('98400000-0000-4000-8000-000000000004', 'Sop Other Author', 'sop-4@test.invalid', 'OU', 'sop-other-pv', '+966512345604', 'Officer', '98400000-0000-4000-8000-0000000000aa');

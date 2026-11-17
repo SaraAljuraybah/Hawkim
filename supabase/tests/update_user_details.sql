@@ -36,7 +36,7 @@ language sql as $$
 $$;
 
 -- People: 1 admin, 2 author (not admin), 3 banned admin, 4 target, 5 deleted, 6 target without a position.
-insert into public.departments(id, name, initials) values ('ud-home', 'UD Home', 'UH');
+insert into public.departments(id, name, initials, division_id) values ('ud-home', 'UD Home', 'UH', 'rnd');
 insert into auth.users(id) select ('95000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid from generate_series(1, 6) n;
 -- Person 6 is a legacy profile: it was added before a position was required.
 alter table public.profiles disable trigger profiles_require_position;

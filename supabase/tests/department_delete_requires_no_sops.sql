@@ -91,7 +91,8 @@ begin
   select updated_at into v_stamp from public.departments where id = 'dd-leftover';
   perform public.delete_department('dd-leftover', 'empty', v_stamp);
   perform pg_temp.as_owner();
-  assert (select removed_at is not null and division_id is null from public.departments where id = 'dd-leftover'), 'Leftovers only: deleted';
+  -- 20261124120000: a deleted department keeps its division.
+  assert (select removed_at is not null and division_id = 'dd-division' from public.departments where id = 'dd-leftover'), 'Leftovers only: deleted, in its division';
 
   -- ---------- a department without SOPs is deleted as before ----------
   perform pg_temp.act_as(admin);

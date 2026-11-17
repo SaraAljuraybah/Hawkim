@@ -57,8 +57,9 @@ insert into public.sop_versions (sop_id, version, file_name, file_type, storage_
 values ('98800000-0000-4000-8000-0000000000b1', 1, 'med.pdf', 'pdf', 'chk-test/med.pdf', 1, '98800000-0000-4000-8000-000000000001');
 
 insert into public.organizations (id, name) values ('98800000-0000-4000-8000-0000000000aa', 'Chk Other');
-insert into public.departments (id, name, initials, requires_compliance_check, organization_id)
-values ('chk-other-pv', 'Pharmacovigilance', 'PV', true, '98800000-0000-4000-8000-0000000000aa');
+insert into public.divisions (id, name, organization_id) values ('chk-other-pv-division', 'Other Division', '98800000-0000-4000-8000-0000000000aa');
+insert into public.departments (id, name, initials, requires_compliance_check, organization_id, division_id)
+values ('chk-other-pv', 'Pharmacovigilance', 'PV', true, '98800000-0000-4000-8000-0000000000aa', 'chk-other-pv-division');
 insert into public.profiles (id, full_name, email, initials, department_id, phone, "position", organization_id)
 values ('98800000-0000-4000-8000-000000000002', 'Chk Other Author', 'chk-2@test.invalid', 'OA', 'chk-other-pv', '+966512345602', 'Officer',
   '98800000-0000-4000-8000-0000000000aa');

@@ -67,8 +67,9 @@ from generate_series(1, 6) n;
 insert into public.user_roles (user_id, role) values ('9e100000-0000-4000-8000-000000000003', 'reviewer');
 
 insert into public.organizations (id, name) values ('9e100000-0000-4000-8000-0000000000aa', 'SI Other');
-insert into public.departments (id, name, initials, organization_id)
-values ('si-other-department', 'SI Other Department', 'SOD', '9e100000-0000-4000-8000-0000000000aa');
+insert into public.divisions (id, name, organization_id) values ('si-other-department-division', 'Other Division', '9e100000-0000-4000-8000-0000000000aa');
+insert into public.departments (id, name, initials, organization_id, division_id)
+values ('si-other-department', 'SI Other Department', 'SOD', '9e100000-0000-4000-8000-0000000000aa', 'si-other-department-division');
 insert into public.profiles (id, full_name, email, initials, department_id, phone, "position", organization_id) values
   ('9e100000-0000-4000-8000-000000000007', 'SI Other Admin', 'si-7@test.invalid', 'OA', null, '+966512345607', null, '9e100000-0000-4000-8000-0000000000aa'),
   ('9e100000-0000-4000-8000-000000000008', 'SI Other Staff', 'si-8@test.invalid', 'OS', 'si-other-department', '+966512345608', 'Officer', '9e100000-0000-4000-8000-0000000000aa');

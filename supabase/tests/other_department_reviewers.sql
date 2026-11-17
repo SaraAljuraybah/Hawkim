@@ -30,7 +30,7 @@ language sql as $$
   select coalesce(array_agg(v.version order by v.version), '{}') from public.sop_versions v where v.sop_id = p_sop;
 $$;
 
-insert into public.departments (id, name, initials) values ('od-home', 'Home', 'HO'), ('od-other', 'Other', 'OT'), ('od-gone', 'Gone', 'GO');
+insert into public.departments (id, name, initials, division_id) values ('od-home', 'Home', 'HO', 'rnd'), ('od-other', 'Other', 'OT', 'rnd'), ('od-gone', 'Gone', 'GO', 'rnd');
 insert into auth.users (id) select ('a0000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid from generate_series(1, 6) n;
 insert into public.profiles (id, full_name, email, initials, department_id)
 select ('a0000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid, 'Person ' || n, 'od-' || n || '@test.invalid', 'PE',

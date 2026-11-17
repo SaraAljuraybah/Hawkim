@@ -12,26 +12,40 @@
 
 begin;
 
+-- ---------- Divisions ----------
+
+-- Every active department belongs to a division (20261124120000). The ids and the departments in each are
+-- MedCare's on the live database.
+insert into public.divisions (id, name, description) values
+  ('rnd', 'Clinical Research and Development', 'Clinical Research and Development Division'),
+  ('regulatory_drug_safety', 'Regulatory and Drug Safety', 'Regulatory Affairs and Drug Safety Division'),
+  ('governance_quality_compliance', 'Quality and Compliance', 'Governance, Quality Assurance and Compliance Division'),
+  ('corporate_services_operations', 'Corporate Services and Operations', 'Corporate Services and Operations Division')
+on conflict (id) do update set
+  name = excluded.name,
+  description = excluded.description;
+
 -- ---------- Departments ----------
 
 -- is_quality: the only department with Approvers. requires_compliance_check: the GVP guideline
 -- applies to its SOPs (Pharmacovigilance only).
-insert into public.departments (id, name, initials, description, is_quality, requires_compliance_check) values
-  ('quality-assurance', 'Quality Assurance', 'QA', 'Responsible for quality oversight and compliance.', true, false),
-  ('regulatory-affairs', 'Regulatory Affairs', 'RA', 'Handles regulatory submissions and communications.', false, false),
-  ('pharmacovigilance', 'Pharmacovigilance', 'PV', 'Monitors and evaluates product safety.', false, true),
-  ('research-development', 'Research and Development', 'RD', 'Drives innovation and product development.', false, false),
-  ('information-technology', 'Information Technology', 'IT', 'Supports the organization''s technology infrastructure.', false, false),
-  ('human-resources', 'Human Resources', 'HR', 'Manages people, policies and culture.', false, false),
-  ('finance-administration', 'Finance and Administration', 'FA', 'Oversees financial and administrative operations.', false, false),
-  ('clinical-operations', 'Clinical Operations', 'CL', 'Supports clinical studies and operations.', false, false),
-  ('legal-governance', 'Legal and Governance', 'LG', 'Ensures legal compliance and governance.', false, false)
+insert into public.departments (id, name, initials, description, is_quality, requires_compliance_check, division_id) values
+  ('quality-assurance', 'Quality Assurance', 'QA', 'Responsible for quality oversight and compliance.', true, false, 'governance_quality_compliance'),
+  ('regulatory-affairs', 'Regulatory Affairs', 'RA', 'Handles regulatory submissions and communications.', false, false, 'regulatory_drug_safety'),
+  ('pharmacovigilance', 'Pharmacovigilance', 'PV', 'Monitors and evaluates product safety.', false, true, 'regulatory_drug_safety'),
+  ('research-development', 'Research and Development', 'RD', 'Drives innovation and product development.', false, false, 'rnd'),
+  ('information-technology', 'Information Technology', 'IT', 'Supports the organization''s technology infrastructure.', false, false, 'corporate_services_operations'),
+  ('human-resources', 'Human Resources', 'HR', 'Manages people, policies and culture.', false, false, 'corporate_services_operations'),
+  ('finance-administration', 'Finance and Administration', 'FA', 'Oversees financial and administrative operations.', false, false, 'corporate_services_operations'),
+  ('clinical-operations', 'Clinical Operations', 'CL', 'Supports clinical studies and operations.', false, false, 'rnd'),
+  ('legal-governance', 'Legal and Governance', 'LG', 'Ensures legal compliance and governance.', false, false, 'governance_quality_compliance')
 on conflict (id) do update set
   name = excluded.name,
   initials = excluded.initials,
   description = excluded.description,
   is_quality = excluded.is_quality,
-  requires_compliance_check = excluded.requires_compliance_check;
+  requires_compliance_check = excluded.requires_compliance_check,
+  division_id = excluded.division_id;
 
 -- MedCare's two default departments (20261120120000): they can't be deleted or renamed. The seed runs after the
 -- migrations, so their backfill found no department to mark: the seed marks them. Only where the column exists, so a

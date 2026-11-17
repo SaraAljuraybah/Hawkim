@@ -81,7 +81,7 @@ select ('99000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid, 'iso-b-' ||
 from generate_series(11, 14) n;
 insert into public.divisions (id, name, description) values ('iso-a-division', 'Iso A Division', '');
 update public.departments set division_id = 'iso-a-division' where id = 'regulatory-affairs';
-insert into public.departments (id, name, initials) values ('iso-a-doomed', 'Iso A Doomed', 'IAD');
+insert into public.departments (id, name, initials, division_id) values ('iso-a-doomed', 'Iso A Doomed', 'IAD', 'rnd');
 insert into public.profiles (id, full_name, email, initials, department_id, phone, "position") values
   ('99000000-0000-4000-8000-000000000001', 'Iso A Admin', 'iso-a-1@test.invalid', 'AA', null, '+966512345601', null),
   ('99000000-0000-4000-8000-000000000002', 'Iso A Author', 'iso-a-2@test.invalid', 'AU', 'regulatory-affairs', '+966512345602', 'Iso A Officer'),
@@ -138,8 +138,9 @@ values ('99000000-0000-4000-8000-0000000000f9', 'regulatory-guideline-addition',
 
 -- ---------- B: a second organization ----------
 insert into public.organizations (id, name) values ('99000000-0000-4000-8000-0000000000aa', 'Iso B');
-insert into public.departments (id, name, initials, requires_compliance_check, organization_id)
-values ('iso-b-pv', 'Pharmacovigilance', 'PV', true, '99000000-0000-4000-8000-0000000000aa');
+insert into public.divisions (id, name, organization_id) values ('iso-b-pv-division', 'Other Division', '99000000-0000-4000-8000-0000000000aa');
+insert into public.departments (id, name, initials, requires_compliance_check, organization_id, division_id)
+values ('iso-b-pv', 'Pharmacovigilance', 'PV', true, '99000000-0000-4000-8000-0000000000aa', 'iso-b-pv-division');
 insert into public.profiles (id, full_name, email, initials, department_id, phone, "position", organization_id) values
   ('99000000-0000-4000-8000-000000000011', 'Iso B Admin', 'iso-b-11@test.invalid', 'BA', null, '+966512345611', null, '99000000-0000-4000-8000-0000000000aa'),
   ('99000000-0000-4000-8000-000000000012', 'Iso B Author', 'iso-b-12@test.invalid', 'BU', 'iso-b-pv', '+966512345612', 'Officer', '99000000-0000-4000-8000-0000000000aa'),
@@ -248,6 +249,8 @@ insert into iso_case (fn, template, targeted, accepted) values
   ('retry_guideline_processing(uuid)', 'public.retry_guideline_processing({draft})', true, null),
   ('revert_invitation_resend(uuid,timestamp with time zone)', 'public.revert_invitation_resend({author}, now())', true, null),
   ('save_department(text,text,text,text,text,timestamp with time zone,text)', 'public.save_department({department}, ''X'', ''XY'', '''', null, now(), '''')', true, null),
+  -- 20261124120000: with B's own division, so the call gets past "Select a division" to the department lookup.
+  ('save_department(text,text,text,text,text,timestamp with time zone,text)', 'public.save_department({department}, ''X'', ''XY'', ''About'', {b_division}, now(), ''x@test.invalid'')', true, null),
   ('save_department(text,text,text,text,text,timestamp with time zone,text)', 'public.save_department(null, ''Iso New'', ''INW'', '''', {division}, null, '''')', true, null),
   ('save_division(text,text,text,text,timestamp with time zone)', 'public.save_division({division}, ''X'', '''', '''', now())', true, null),
   ('save_organization_profile(text,text,text,text,text,text)', 'public.save_organization_profile(''Iso B'', ''b@test.invalid'', ''B.'', ''Road'', null, null)', false, null),
@@ -313,7 +316,7 @@ begin
     'department', 'regulatory-affairs', 'division', 'iso-a-division', 'file', i.a_file, 'gfile', i.a_gfile,
     'user_request', '99000000-0000-4000-8000-0000000000f9');
   assert a_values->>'request' is not null, 'A has a review request';
-  b_values := jsonb_build_object('b_sop', '99000000-0000-4000-8000-0000000000b9', 'b_department', 'iso-b-pv');
+  b_values := jsonb_build_object('b_sop', '99000000-0000-4000-8000-0000000000b9', 'b_department', 'iso-b-pv', 'b_division', 'iso-b-pv-division');
   -- A's ids and names: none may appear in what B is told.
   markers := array(select value from jsonb_each_text(a_values)) || array['Iso A', 'iso-a-', i.a_org::text,
     (select name from public.organizations where id = i.a_org)];

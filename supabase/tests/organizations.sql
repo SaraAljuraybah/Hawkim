@@ -39,7 +39,9 @@ $$;
 -- Runs with the owner's rights while the request role stays the caller's, as a SECURITY DEFINER function does.
 create function pg_temp.insert_department_as_function(p_id text, p_organization uuid) returns void
 language sql security definer as $$
-  insert into public.departments (id, name, initials, organization_id) values (p_id, p_id, 'API', p_organization);
+  -- In a division of the caller's organization (every active department has one: 20261124120000).
+  insert into public.departments (id, name, initials, organization_id, division_id)
+  values (p_id, p_id, 'API', p_organization, (select v.id from public.divisions v where v.organization_id = public.current_organization_id() order by v.id limit 1));
 $$;
 grant execute on function pg_temp.expect_error(text, text, text), pg_temp.act_as(uuid, text), pg_temp.as_owner(),
   pg_temp.insert_department_as_function(text, uuid) to public;
@@ -133,7 +135,7 @@ begin
 
   -- ---------- The trigger: rows that start an organization's data ----------
   -- The owner, with one organization: MedCare (transitional).
-  insert into public.departments (id, name, initials) values ('org-test-med', 'Org Test Med', 'OTM');
+  insert into public.departments (id, name, initials, division_id) values ('org-test-med', 'Org Test Med', 'OTM', 'rnd');
   assert (select organization_id from public.departments where id = 'org-test-med') = medcare;
   insert into public.profiles (id, full_name, email, initials, department_id, phone, "position")
   values (med_person, 'Med Person', 'org-1@test.invalid', 'MP', 'org-test-med', '+966512345671', 'Tester');
@@ -145,7 +147,8 @@ begin
   assert public.only_organization_id() is null, 'With two organizations there is no default';
   perform pg_temp.expect_error($q$insert into public.departments (id, name, initials) values ('org-test-none', 'No Org', 'NO')$q$,
     '23502', 'organization-required');
-  insert into public.departments (id, name, initials, organization_id) values ('org-test-other', 'Org Test Other', 'OTO', other);
+  insert into public.divisions (id, name, organization_id) values ('org-test-other-home', 'Other Home Division', other);
+  insert into public.departments (id, name, initials, organization_id, division_id) values ('org-test-other', 'Org Test Other', 'OTO', other, 'org-test-other-home');
   insert into public.profiles (id, full_name, email, initials, department_id, phone, "position", organization_id)
   values (other_person, 'Other Person', 'org-2@test.invalid', 'OP', 'org-test-other', '+966512345672', 'Tester', other);
   insert into public.user_roles (user_id, role) values (other_person, 'author');

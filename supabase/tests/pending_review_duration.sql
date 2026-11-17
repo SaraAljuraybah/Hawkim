@@ -45,7 +45,7 @@ $$;
 create function pg_temp.visible(p_sop uuid, p_type text) returns integer
 language sql as $$ select count(*)::integer from public.timeline_events e where e.sop_id = p_sop and e.type::text = p_type $$;
 
-insert into public.departments (id, name, initials) values ('prd-home', 'Home', 'HO');
+insert into public.departments (id, name, initials, division_id) values ('prd-home', 'Home', 'HO', 'rnd');
 insert into auth.users (id) select ('b8000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid from generate_series(1, 7) n;
 insert into public.profiles (id, full_name, email, initials, department_id)
 select ('b8000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid, 'Person ' || n, 'prd-' || n || '@test.invalid', 'PE', 'prd-home'

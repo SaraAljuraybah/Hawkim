@@ -130,7 +130,8 @@ async function addStaff(page, email, name) {
   await page.type('input[name="phone"]', '12345678')
   // The division field is the first combobox; its name follows DivisionField.
   const division = await page.$('input[name="division"]')
-  if (division) await choose(page, 'division', ra.division?.name ?? 'No Division')
+  // Every department is in a division (20261124120000).
+  if (division) await choose(page, 'division', ra.division.name)
   await choose(page, 'department', ra.name)
   await page.type('input[name="position"]', 'Senior Officer')
   await page.click('input[name="permissions"][value="reviewer"]')

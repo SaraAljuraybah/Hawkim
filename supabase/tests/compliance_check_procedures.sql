@@ -38,7 +38,7 @@ language sql as $$
 $$;
 
 -- People: 1 author, 2 same department (not the author), 3 other department.
-insert into public.departments (id, name, initials) values ('cp-home', 'CP Home', 'CH'), ('cp-other', 'CP Other', 'CO');
+insert into public.departments (id, name, initials, division_id) values ('cp-home', 'CP Home', 'CH', 'rnd'), ('cp-other', 'CP Other', 'CO', 'rnd');
 insert into auth.users (id) select ('97500000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid from generate_series(1, 3) n;
 insert into public.profiles (id, full_name, email, initials, department_id, "position")
 select ('97500000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid, 'CP Person', 'cp-' || n || '@test.invalid', 'CP',

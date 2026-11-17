@@ -5,8 +5,8 @@ insert into public.divisions(id, name) values ('org-test-division', 'Test Divisi
 insert into public.divisions(id, name, is_active) values ('org_empty_division', 'Empty Division', true), ('org_inactive_division', 'Inactive Division', false);
 insert into public.departments(id, name, initials, division_id) values
  ('org-test-home', 'Test Home', 'TH', 'org-test-division'),
- ('org-test-empty', 'Test Empty', 'TE', null),
- ('org-test-removed', 'Test Removed', 'TR', null);
+ ('org-test-empty', 'Test Empty', 'TE', 'org-test-division'),
+ ('org-test-removed', 'Test Removed', 'TR', 'org-test-division');
 update public.departments set removed_at = now() where id = 'org-test-removed';
 -- Contact emails (20261110140000): one division and one department have one; the rest have none.
 update public.divisions set email = 'division@test.invalid' where id = 'org-test-division';

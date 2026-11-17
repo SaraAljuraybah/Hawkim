@@ -52,7 +52,7 @@ grant execute on function pg_temp.expect_error(text, text, text), pg_temp.act_as
 
 -- 1 the Super Admin, 2 a regular Admin, 3 staff.
 insert into auth.users (id) select ('9a000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid from generate_series(1, 3) n;
-insert into public.departments (id, name, initials) values ('op-home', 'OP Home', 'OH');
+insert into public.departments (id, name, initials, division_id) values ('op-home', 'OP Home', 'OH', 'rnd');
 insert into public.profiles (id, full_name, email, initials, department_id, "position")
 select ('9a000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid, 'OP Person ' || n, 'op-' || n || '@test.invalid', 'OP',
   case when n = 3 then 'op-home' end, case when n = 3 then 'Officer' end

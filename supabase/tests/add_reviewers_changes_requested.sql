@@ -32,7 +32,7 @@ end;
 $$;
 
 -- 1 author, 2 Noura (home), 3 Omar (home), 4 Huda (other department), 5 another author, 6 co-author.
-insert into public.departments (id, name, initials) values ('acr-home', 'Home', 'HO'), ('acr-other', 'Other', 'OT');
+insert into public.departments (id, name, initials, division_id) values ('acr-home', 'Home', 'HO', 'rnd'), ('acr-other', 'Other', 'OT', 'rnd');
 insert into auth.users (id) select ('c4000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid from generate_series(1, 6) n;
 insert into public.profiles (id, full_name, email, initials, department_id)
 select ('c4000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid, 'Person ' || n, 'acr-' || n || '@test.invalid', 'PE',

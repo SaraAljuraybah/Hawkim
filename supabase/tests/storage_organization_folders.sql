@@ -69,8 +69,9 @@ select 'guideline-files', f.medcare || '/files/98900000-0000-4000-8000-000000000
   '98900000-0000-4000-8000-000000000001', '{"mimetype": "application/pdf", "size": 1}' from fold_ids f;
 
 insert into public.organizations (id, name) values ('98900000-0000-4000-8000-0000000000aa', 'Fold Other');
-insert into public.departments (id, name, initials, organization_id)
-values ('fold-other-pv', 'Pharmacovigilance', 'PV', '98900000-0000-4000-8000-0000000000aa');
+insert into public.divisions (id, name, organization_id) values ('fold-other-pv-division', 'Other Division', '98900000-0000-4000-8000-0000000000aa');
+insert into public.departments (id, name, initials, organization_id, division_id)
+values ('fold-other-pv', 'Pharmacovigilance', 'PV', '98900000-0000-4000-8000-0000000000aa', 'fold-other-pv-division');
 insert into public.profiles (id, full_name, email, initials, department_id, phone, "position", organization_id) values
   ('98900000-0000-4000-8000-000000000003', 'Fold Other Admin', 'fold-3@test.invalid', 'OA', null, '+966512345603', null, '98900000-0000-4000-8000-0000000000aa'),
   ('98900000-0000-4000-8000-000000000004', 'Fold Other Author', 'fold-4@test.invalid', 'OU', 'fold-other-pv', '+966512345604', 'Officer', '98900000-0000-4000-8000-0000000000aa');

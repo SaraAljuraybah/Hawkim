@@ -51,7 +51,7 @@ grant execute on function pg_temp.expect_error(text, text, text), pg_temp.act_as
 insert into auth.users (id, email, aud, role)
 select ('96000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid, 'sd-' || n || '@test.invalid', 'authenticated', 'authenticated'
 from generate_series(1, 7) n;
-insert into public.departments (id, name, initials) values ('sd-home', 'SD Home', 'SH'), ('sd-other', 'SD Other', 'SO');
+insert into public.departments (id, name, initials, division_id) values ('sd-home', 'SD Home', 'SH', 'rnd'), ('sd-other', 'SD Other', 'SO', 'rnd');
 insert into public.profiles (id, full_name, email, initials, department_id, phone, "position")
 select ('96000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid, 'SD Person ' || n, 'sd-' || n || '@test.invalid', 'SP', 'sd-home',
   '+96651234560' || n, 'Officer'

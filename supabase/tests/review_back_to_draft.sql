@@ -63,7 +63,7 @@ $$;
 create function pg_temp.plus(p_before text[], variadic p_new text[]) returns text[]
 language sql as $$ select array_agg(t order by t) from unnest(p_before || p_new) t $$;
 
-insert into public.departments (id, name, initials) values ('btd-home', 'Home', 'HO'), ('btd-other', 'Other', 'OT');
+insert into public.departments (id, name, initials, division_id) values ('btd-home', 'Home', 'HO', 'rnd'), ('btd-other', 'Other', 'OT', 'rnd');
 insert into auth.users (id) select ('b7000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid from generate_series(1, 5) n;
 insert into public.profiles (id, full_name, email, initials, department_id)
 select ('b7000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid, 'Person ' || n, 'btd-' || n || '@test.invalid', 'PE',
