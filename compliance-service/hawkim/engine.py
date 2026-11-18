@@ -25,6 +25,7 @@ from .extract import extract_document
 from .llm import LLMClient
 from .metrics import requirement_matches
 from .scope import ScopeClassifier, module_of, sop_purpose, sop_title
+from . import number_check
 from .validation import validate
 
 STEP_RE = re.compile(r"^\d+(?:[.\-]\d+){2,}$")
@@ -76,11 +77,53 @@ class Engine:
         self.base_allowed = ~self.excluded
         self.top_k = int(cfg["retrieval"]["top_k"])
 
+        self.number_action = str((cfg.get("number_check") or {}).get("action", "flag")).lower()
         self.system_prompt = Path(self.lc["system_prompt_file"]).read_text(encoding="utf-8").strip()
         key = "user_prompt_top1_file" if self.mode == "top1" else "user_prompt_topk_file"
         self.user_tpl = string.Template(Path(self.lc[key]).read_text(encoding="utf-8"))
         self.llm = None
         self.cache_dir = cache_dir or (Path(cfg["paths"]["runs_dir"]) / "_llm_cache")
+
+    def _number_check(self, v: dict, sop_text: str, flags: list) -> None:
+        """Compare deadlines and retention periods in the step with the chosen requirement.
+
+        A less strict SOP is a possible CONFLICT (expert rule); a stricter SOP is compliant for that
+        element. action "flag" adds a flag and a note for the reviewer; "override" also sets the label
+        to CONFLICT; "off" skips the check.
+        """
+        action = self.number_action
+        unit = self.index.by_id.get(v.get("requirement_id") or "")
+        if action == "off" or not v["valid"] or unit is None:
+            return
+        res = number_check.check(sop_text, unit["text"])
+        notes = []
+        if res["conflicts"]:
+            for item in res["conflicts"]:
+                flags.append(f"possible_conflict_{item['kind']}")
+            what = "; ".join(number_check.describe(i, True) for i in res["conflicts"])
+            if v["label"] != "CONFLICT":
+                if action == "override":
+                    notes.append(f"Rule check: {what}, which is a conflict under the agreed rule. "
+                                 f"Label changed from {v['label']} to CONFLICT.")
+                    flags.append("label_set_by_rule_check")
+                    v["label"] = "CONFLICT"
+                    v["missing_or_conflicting_elements"] = (
+                        "; ".join(f"SOP {i['sop']} vs GVP {i['requirement']}" for i in res["conflicts"])
+                        + (f"; {v['missing_or_conflicting_elements']}" if v.get("missing_or_conflicting_elements")
+                           else ""))
+                    if not v.get("recommended_action"):
+                        v["recommended_action"] = ("Change the SOP so that it is at least as strict as the GVP "
+                                                   "requirement (" + "; ".join(i["requirement"] for i in
+                                                                               res["conflicts"]) + ").")
+                else:
+                    notes.append(f"Rule check: {what}, which may be a conflict; a reviewer should confirm.")
+        elif res["stricter"] and v["label"] == "CONFLICT":
+            flags.append("sop_stricter_than_requirement")
+            what = "; ".join(number_check.describe(i, False) for i in res["stricter"])
+            notes.append(f"Rule check: {what}. A stricter SOP is compliant for this element under the agreed "
+                         f"rule; a reviewer should confirm the CONFLICT label.")
+        if notes:
+            v["justification"] = " ".join([v.get("justification") or ""] + notes).strip()
 
     def _llm(self):
         if self.llm is None:
@@ -213,6 +256,8 @@ class Engine:
                          "flagged for human review.")}
                 decided_by = "rule"
             flags.extend(v.get("notes") or [])
+            if decided_by == "llm" and oracle is None:
+                self._number_check(v, c.text, flags)
             used_id = v["requirement_id"]
             used_unit = self.index.by_id.get(used_id) if used_id else None
             used_section = cands[0]["section"] if oracle is not None else (used_unit["section"] if used_unit else None)

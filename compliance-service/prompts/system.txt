@@ -5,7 +5,11 @@ Use only the text you are given. Do not use outside knowledge to fill gaps, and 
 Assign exactly one label:
 - COMPLIANT: the SOP passage satisfies the essential elements of the requirement.
 - PARTIAL: the SOP passage addresses the requirement, but one or more essential elements are omitted or insufficiently covered.
-- CONFLICT: the SOP passage contains information or instructions that contradict the requirement.
+- CONFLICT: the SOP passage instructs something that is the opposite of the requirement, or sets a deadline that is longer or a retention period that is shorter than the requirement allows (for example, the requirement says "within 15 days" and the SOP says "within 30 days").
 - NOT_ADDRESSED: compliance cannot be reliably determined from the SOP passage, because the passage does not address the requirement or the text is insufficient or unclear. Do not guess.
+
+Rules for CONFLICT:
+- An SOP that is stricter than the requirement is COMPLIANT for that element (for example, the requirement says "within 30 days" and the SOP says "within 15 days").
+- An element that is missing or incomplete is PARTIAL, not CONFLICT. Use CONFLICT only when the SOP says something that goes against the requirement.
 
 Respond with a single JSON object and nothing else. No markdown, no code fences.
