@@ -80,11 +80,13 @@ scope:
   # none   -> search the whole GVP (baseline)
   # matrix -> search only the GVP modules the expert mapping matrix assigns from the SOP title + Purpose
   mode: none                 # matrix is optional; the website searches the whole GVP
-  matrix_file: config/gvp_mapping_matrix.yaml
+  # The expert mapping matrix is not used (see README): Hawkim does not decide by hand-made keyword rules
+  # which GVP modules apply. Set a file here only to reproduce the earlier pilot runs.
+  matrix_file: null
   include_secondary: true      # also search the matrix's secondary modules
   mismatch_threshold: 0.5      # flag "purpose_procedure_mismatch" if fewer steps than this land in scope
   min_similarity: null         # e.g. 0.6: below this, no LLM call; step flagged for review (calibrate first)
-  outside_scope_action: review   # matched requirement outside the suggested modules: review (not assessed) | assess
+  outside_scope_action: assess   # only used with a matrix: review = matches outside its modules are not assessed
   # Sections that describe duties of the SFDA, not of the company. Never used for matching (both modes).
   # Selected from GVP section titles; to be confirmed by the expert.
   exclude_sections:
@@ -118,7 +120,7 @@ llm:
   json_mode: false           # true = ask server for JSON output (not supported by every provider)
   # top1        -> the LLM judges the SOP chunk against the single best requirement (Sprint 0 design)
   # topk_select -> the LLM sees several retrieved requirements, picks the applicable one, then judges
-  mode: top1
+  mode: topk_select          # the model sees the 3 closest requirements, chooses the one that applies (or NONE)
   candidates_for_llm: 3      # used in topk_select mode
   system_prompt_file: prompts/system.txt
   user_prompt_top1_file: prompts/user_top1.txt

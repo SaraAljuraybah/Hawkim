@@ -60,19 +60,32 @@ class ComplianceService:
         units = engine.index.by_id
         findings = []
         for r in res["records"]:
-            u = units.get(r["requirement_used"] or "")
+            chosen = r["requirement_used"] or ""
+            justification = r["justification"]
+            flags = list(r["flags"])
+            # Top-3 mode: the model found that none of the candidates applies ("NONE"). The step stays in the
+            # report as Requires Human Review, under its closest requirement, so a reviewer decides.
+            if chosen == "NONE" and r["retrieved"]:
+                closest = ", ".join(c for c in r.get("llm_candidates") or [h["id"] for h in r["retrieved"][:3]])
+                chosen = r["retrieved"][0]["id"]
+                justification = (f"None of the closest GVP requirements ({closest}) applies to this step, so a "
+                                 f"reviewer should decide which requirement it must meet. {justification or ''}").strip()
+                flags.append("no_candidate_applies")
+            u = units.get(chosen)
+            # The similarity of the requirement used (in top-3 mode the model may choose the 2nd or 3rd).
+            score = next((h["score"] for h in r["retrieved"] if h["id"] == chosen), None)
             findings.append({
                 "chunk_id": r["chunk_id"], "chunk_type": r["chunk_type"], "heading": r["heading"],
                 "page": r["page_start"], "text": r["text"],
                 "label": r["label"] if r["valid"] else None, "valid": r["valid"], "decided_by": r["decided_by"],
                 "requirement": ({"id": u["id"], "section": u["section"], "section_title": u.get("section_title"),
                                  "page": u.get("page"), "text": u["text"]} if u else None),
-                "similarity": r["retrieved"][0]["score"] if r["retrieved"] else None,
-                "other_candidates": [{"id": h["id"], "score": h["score"]} for h in r["retrieved"][1:]],
+                "similarity": score,
+                "other_candidates": [{"id": h["id"], "score": h["score"]} for h in r["retrieved"] if h["id"] != chosen],
                 "sop_evidence": r["sop_evidence"], "sop_evidence_found_in_text": r["sop_evidence_grounded"],
                 "missing_or_conflicting_elements": r["missing_or_conflicting_elements"],
                 "recommended_action": r.get("recommended_action"),
-                "justification": r["justification"], "flags": r["flags"], "raw_output": r.get("raw_output"),
+                "justification": justification, "flags": flags, "raw_output": r.get("raw_output"),
                 "review_required": r["review_required"], "error": r["llm_error"] or ("; ".join(r["validation_errors"]) or None)})
         findings.sort(key=lambda f: (LABEL_ORDER.index(f["label"]) if f["label"] in LABEL_ORDER else -1))
         counts = Counter(f["label"] or "INVALID" for f in findings)

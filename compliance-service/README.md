@@ -9,12 +9,16 @@ database, where the existing compliance report page shows them.
 | 1. Text extraction | Word or PDF; repeated page headers and footers removed |
 | 2. SOP chunking | One chunk per procedure step (Procedures section only) |
 | 3. GVP requirement index | 1,505 obligation units, embedded once with BGE-M3 |
-| 4. Scope classification | Title and Purpose matched with the expert's mapping matrix. **Not used to limit the search** (`scope.mode: none`); used to recognise matches that may not apply |
-| 5. Retrieval | BGE-M3, cosine similarity, from the whole GVP. Sections describing SFDA duties (e.g. I.B.9.2, III.B.4.1) are excluded (`scope.exclude_sections`) |
-| 6. Compliance reasoning | Qwen2.5-7B-Instruct, temperature 0, labels COMPLIANT, PARTIAL, CONFLICT or NOT_ADDRESSED, with evidence, missing elements, recommended action and justification. A step whose best match lies outside the modules suggested for the SOP is not assessed and goes to human review (`scope.outside_scope_action: review`) |
-| 7. Rule-based validation | Valid JSON, allowed label, quoted evidence found in the SOP text |
-| 8. Structured results | Steps grouped into **one finding per GVP requirement** with the most serious result |
-| 9. Compliance report | Written to `compliance_findings`; shown on the website's report page. NOT_ADDRESSED is shown as **Requires Human Review** |
+| 4. Retrieval | BGE-M3, cosine similarity, from the whole GVP; the 3 closest units are kept. Sections describing SFDA duties (e.g. I.B.9.2, III.B.4.1) are excluded (`scope.exclude_sections`) |
+| 5. Compliance reasoning | Qwen2.5-7B-Instruct, temperature 0 (`llm.mode: topk_select`): it chooses the one candidate the step is meant to fulfil, or NONE, then labels it COMPLIANT, PARTIAL, CONFLICT or NOT_ADDRESSED, with evidence, missing elements, recommended action and justification. A NONE answer stays in the report as Requires Human Review |
+| 6. Rule-based validation | Valid JSON, allowed label, chosen requirement among the candidates, quoted evidence found in the SOP text |
+| 7. Structured results | Steps grouped into **one finding per GVP requirement** with the most serious result |
+| 8. Compliance report | Written to `compliance_findings`; shown on the website's report page. NOT_ADDRESSED is shown as **Requires Human Review** |
+
+The expert's GVP mapping matrix (`config/gvp_mapping_matrix.yaml`) is **not used** (`scope.matrix_file: null`):
+deciding by hand-made keyword rules which GVP modules apply would hide retrieval errors and go out of date when
+a new GVP version is added. Instead, the model sees the 3 closest requirements and decides which one applies.
+The matrix file remains only to reproduce the earlier pilot runs (set `scope.matrix_file: config/gvp_mapping_matrix.yaml`).
 
 ## How it connects to the website
 
@@ -92,6 +96,6 @@ python run.py chunk / run / evaluate / compare  # evaluation on a test set (see 
 - **Confidential SOPs:** keep `llm.provider: ollama`. OpenRouter sends text to an external API and is
   for non-confidential test SOPs only.
 - **New GVP version:** rebuild the index from the new PDF, set `service.guideline_version`, and have the
-  expert review `config/gvp_mapping_matrix.yaml` and `scope.exclude_sections`.
+  expert review `scope.exclude_sections`.
 - **Results support human review;** final decisions stay with the assigned reviewers and approvers.
   In the pilot, the model did not assign CONFLICT to any step, so conflicts rely on human review.
