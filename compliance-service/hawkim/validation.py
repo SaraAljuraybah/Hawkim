@@ -115,7 +115,15 @@ def validate(raw_text: str, mode: str, candidate_ids: list[str], sop_text: str,
         result[f] = v if isinstance(v, str) else (json.dumps(v, ensure_ascii=False) if v is not None else None)
 
     if mode == "topk_select":
-        rid = str(obj.get("requirement_id", "")).strip()
+        rid = re.sub(r"^\s*(?:requirement\s*)?id\s*[:=]\s*", "", str(obj.get("requirement_id", "")), flags=re.I)
+        rid = rid.strip().strip("`'\" ")
+        if rid not in candidate_ids and rid.upper() != "NONE":
+            # The model sometimes writes only the section (e.g. "I.B.7" for "I.B.7#4"). Use the
+            # highest-ranked candidate of that section, and flag it so a reviewer can see it was completed.
+            same_section = [c for c in candidate_ids if c.split("#")[0] == rid]
+            if same_section:
+                result["notes"].append("requirement_id_completed_from_section")
+                rid = same_section[0]
         if rid.upper() == "NONE":
             rid = "NONE"
             if label not in (None, "NOT_ADDRESSED"):

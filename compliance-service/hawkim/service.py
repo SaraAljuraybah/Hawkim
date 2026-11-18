@@ -63,6 +63,20 @@ class ComplianceService:
             chosen = r["requirement_used"] or ""
             justification = r["justification"]
             flags = list(r["flags"])
+            label, valid = r["label"], r["valid"]
+            error = r["llm_error"] or ("; ".join(r["validation_errors"]) or None)
+            action, missing = r.get("recommended_action"), r["missing_or_conflicting_elements"]
+            # The quote is shown as the step's SOP text only when it is really in the step (the model
+            # sometimes copies the requirement instead); otherwise the website shows the whole step.
+            evidence = r["sop_evidence"] if r["sop_evidence_grounded"] is not False else ""
+            # An answer the system cannot use (invalid JSON, a requirement that was not offered, ...) must
+            # not drop the step: it stays in the report as Requires Human Review, under its closest requirement.
+            if not valid and r["retrieved"]:
+                chosen = r["retrieved"][0]["id"]
+                label, valid, evidence, action, missing = "NOT_ADDRESSED", True, "", "", ""
+                justification = (f"The model's answer could not be used ({error}), so a reviewer should assess "
+                                  f"this step against the closest GVP requirement.")
+                flags.append("model_answer_invalid")
             # Top-3 mode: the model found that none of the candidates applies ("NONE"). The step stays in the
             # report as Requires Human Review, under its closest requirement, so a reviewer decides.
             if chosen == "NONE" and r["retrieved"]:
@@ -77,16 +91,16 @@ class ComplianceService:
             findings.append({
                 "chunk_id": r["chunk_id"], "chunk_type": r["chunk_type"], "heading": r["heading"],
                 "page": r["page_start"], "text": r["text"],
-                "label": r["label"] if r["valid"] else None, "valid": r["valid"], "decided_by": r["decided_by"],
+                "label": label if valid else None, "valid": valid, "decided_by": r["decided_by"],
                 "requirement": ({"id": u["id"], "section": u["section"], "section_title": u.get("section_title"),
                                  "page": u.get("page"), "text": u["text"]} if u else None),
                 "similarity": score,
                 "other_candidates": [{"id": h["id"], "score": h["score"]} for h in r["retrieved"] if h["id"] != chosen],
-                "sop_evidence": r["sop_evidence"], "sop_evidence_found_in_text": r["sop_evidence_grounded"],
-                "missing_or_conflicting_elements": r["missing_or_conflicting_elements"],
-                "recommended_action": r.get("recommended_action"),
+                "sop_evidence": evidence, "sop_evidence_found_in_text": r["sop_evidence_grounded"],
+                "missing_or_conflicting_elements": missing,
+                "recommended_action": action,
                 "justification": justification, "flags": flags, "raw_output": r.get("raw_output"),
-                "review_required": r["review_required"], "error": r["llm_error"] or ("; ".join(r["validation_errors"]) or None)})
+                "review_required": r["review_required"] or not r["valid"], "error": error})
         findings.sort(key=lambda f: (LABEL_ORDER.index(f["label"]) if f["label"] in LABEL_ORDER else -1))
         counts = Counter(f["label"] or "INVALID" for f in findings)
         return {

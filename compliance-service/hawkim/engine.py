@@ -193,6 +193,7 @@ class Engine:
                                   req_text=u["text"])
                 else:
                     fields["requirements"] = "\n\n".join(_format_requirement(u) for u in cands)
+                    fields["candidate_ids"] = ", ".join([u["id"] for u in cands] + ["NONE"])
                 resp = self._llm().chat(self.system_prompt, self.user_tpl.safe_substitute(fields))
                 cand_ids = [u["id"] for u in cands]
                 v = validate(resp["text"], self.mode, cand_ids, c.text, {u["id"]: u["text"] for u in cands})

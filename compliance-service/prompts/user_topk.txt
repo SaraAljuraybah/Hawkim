@@ -12,7 +12,7 @@ Step 2: assess the SOP passage against that requirement.
 
 Return this JSON object:
 {
-  "requirement_id": "ID of the chosen candidate, or NONE",
+  "requirement_id": "the chosen candidate's ID copied exactly, without the word ID (one of: $candidate_ids)",
   "label": "COMPLIANT | PARTIAL | CONFLICT | NOT_ADDRESSED",
   "sop_evidence": "exact sentence(s) copied from the SOP passage that support the label, or an empty string if none",
   "missing_or_conflicting_elements": "essential elements that are missing or contradicted, or an empty string",
