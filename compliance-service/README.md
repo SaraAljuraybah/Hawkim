@@ -11,7 +11,7 @@ database, where the existing compliance report page shows them.
 | 3. GVP requirement index | 1,505 obligation units, embedded once with BGE-M3 |
 | 4. Retrieval | BGE-M3, cosine similarity, from the whole GVP; the 3 closest units are kept. Sections describing SFDA duties (e.g. I.B.9.2, III.B.4.1) are excluded (`scope.exclude_sections`) |
 | 5. Compliance reasoning | Qwen2.5-7B-Instruct, temperature 0 (`llm.mode: topk_select`): it chooses the one candidate the step is meant to fulfil, or NONE, then labels it COMPLIANT, PARTIAL, CONFLICT or NOT_ADDRESSED, with evidence, missing elements, recommended action and justification. A NONE answer stays in the report as Requires Human Review |
-| 6. Rule-based validation | Valid JSON, allowed label, chosen requirement among the candidates, quoted evidence found in the SOP text, number check: a deadline or retention period in the step that is less strict than the requirement is flagged as a possible CONFLICT (`number_check.action` in config.yaml) |
+| 6. Rule-based validation | Valid JSON, allowed label, chosen requirement among the candidates, quoted evidence found in the SOP text, number check: a deadline or retention period in the step that is less strict than the requirement is labelled CONFLICT; a stricter SOP that the model did not label COMPLIANT goes to human review (`number_check.action` in config.yaml) |
 | 7. Structured results | Steps grouped into **one finding per GVP requirement** with the most serious result |
 | 8. Compliance report | Written to `compliance_findings`; shown on the website's report page. NOT_ADDRESSED is shown as **Requires Human Review** |
 

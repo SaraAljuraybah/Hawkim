@@ -87,43 +87,52 @@ class Engine:
     def _number_check(self, v: dict, sop_text: str, flags: list) -> None:
         """Compare deadlines and retention periods in the step with the chosen requirement.
 
-        A less strict SOP is a possible CONFLICT (expert rule); a stricter SOP is compliant for that
-        element. action "flag" adds a flag and a note for the reviewer; "override" also sets the label
-        to CONFLICT; "off" skips the check.
+        Expert rule: a less strict SOP is a CONFLICT; a stricter SOP meets that element.
+        action "override": a less strict SOP becomes CONFLICT with the rule's own justification; a
+        stricter SOP that the model did not label COMPLIANT goes to human review (NOT_ADDRESSED) with a
+        justification that names both views. The label and the justification always say the same thing.
+        action "flag": keep the model's label and add a note. action "off": no check.
+        The model's original answer stays in raw_output.
         """
         action = self.number_action
         unit = self.index.by_id.get(v.get("requirement_id") or "")
         if action == "off" or not v["valid"] or unit is None:
             return
         res = number_check.check(sop_text, unit["text"])
-        notes = []
+        model_label = v["label"]
+        model_reason = (v.get("justification") or "").strip()
+        reason_in_brackets = model_reason.rstrip(". ")
         if res["conflicts"]:
             for item in res["conflicts"]:
                 flags.append(f"possible_conflict_{item['kind']}")
             what = "; ".join(number_check.describe(i, True) for i in res["conflicts"])
-            if v["label"] != "CONFLICT":
-                if action == "override":
-                    notes.append(f"Rule check: {what}, which is a conflict under the agreed rule. "
-                                 f"Label changed from {v['label']} to CONFLICT.")
-                    flags.append("label_set_by_rule_check")
-                    v["label"] = "CONFLICT"
-                    v["missing_or_conflicting_elements"] = (
-                        "; ".join(f"SOP {i['sop']} vs GVP {i['requirement']}" for i in res["conflicts"])
-                        + (f"; {v['missing_or_conflicting_elements']}" if v.get("missing_or_conflicting_elements")
-                           else ""))
-                    if not v.get("recommended_action"):
-                        v["recommended_action"] = ("Change the SOP so that it is at least as strict as the GVP "
-                                                   "requirement (" + "; ".join(i["requirement"] for i in
-                                                                               res["conflicts"]) + ").")
-                else:
-                    notes.append(f"Rule check: {what}, which may be a conflict; a reviewer should confirm.")
-        elif res["stricter"] and v["label"] == "CONFLICT":
+            if model_label == "CONFLICT":
+                return
+            if action == "override":
+                flags.append("label_set_by_rule_check")
+                v["label"] = "CONFLICT"
+                v["justification"] = (f"{what[0].upper()}{what[1:]}. Under the agreed rule, an SOP that is less "
+                                      f"strict than the GVP requirement is a conflict.")
+                v["missing_or_conflicting_elements"] = "; ".join(
+                    f"SOP {i['sop']} vs GVP {i['requirement']}" for i in res["conflicts"])
+                v["recommended_action"] = ("Change the SOP so that it is at least as strict as the GVP requirement ("
+                                           + "; ".join(i["requirement"] for i in res["conflicts"]) + ").")
+            else:
+                v["justification"] = f"{model_reason} Rule check: {what}, which may be a conflict; a reviewer should confirm.".strip()
+        elif res["stricter"] and model_label != "COMPLIANT":
             flags.append("sop_stricter_than_requirement")
             what = "; ".join(number_check.describe(i, False) for i in res["stricter"])
-            notes.append(f"Rule check: {what}. A stricter SOP is compliant for this element under the agreed "
-                         f"rule; a reviewer should confirm the CONFLICT label.")
-        if notes:
-            v["justification"] = " ".join([v.get("justification") or ""] + notes).strip()
+            if action == "override":
+                flags.append("model_and_rule_disagree")
+                v["label"] = "NOT_ADDRESSED"
+                v["justification"] = (f"The model labelled this step {model_label.replace('_', ' ').title()}"
+                                      f"{f' (its reason: {reason_in_brackets})' if reason_in_brackets else ''}, but the rule "
+                                      f"check found that {what}, which meets this element. Because the two "
+                                      f"disagree, a reviewer should decide the label.")
+                v["recommended_action"] = ""
+            else:
+                v["justification"] = (f"{model_reason} Rule check: {what}. A stricter SOP meets this element; "
+                                      f"a reviewer should confirm the label.").strip()
 
     def _llm(self):
         if self.llm is None:

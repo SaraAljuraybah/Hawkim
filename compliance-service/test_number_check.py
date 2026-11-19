@@ -60,15 +60,25 @@ def test_engine_flag_keeps_label():
     assert "Rule check" in v["justification"]
 
 
-def test_engine_override_sets_conflict():
+def test_engine_override_sets_conflict_with_matching_reason():
     v, flags = _run("override", "PARTIAL", "Report the case to the SFDA within 30 days.")
     assert v["label"] == "CONFLICT" and "label_set_by_rule_check" in flags and v["recommended_action"]
+    assert "Model reason" not in v["justification"] and "conflict" in v["justification"]
 
 
-def test_engine_stricter_sop_labelled_conflict():
-    v, flags = _run("override", "CONFLICT", "Report the case to the SFDA within 7 days.")
-    assert v["label"] == "CONFLICT" and flags == ["sop_stricter_than_requirement"]
+def test_engine_stricter_disagreement_goes_to_review():
+    for label in ("PARTIAL", "CONFLICT"):
+        v, flags = _run("override", label, "Report the case to the SFDA within 7 days.")
+        assert v["label"] == "NOT_ADDRESSED" and "model_and_rule_disagree" in flags
+        assert "Model reason" in v["justification"] and "reviewer should decide" in v["justification"]
 
 
-def test_engine_off_and_none():
+def test_engine_agreement_unchanged():
+    v, flags = _run("override", "COMPLIANT", "Report the case to the SFDA within 7 days.")
+    assert v["label"] == "COMPLIANT" and v["justification"] == "Model reason." and flags == []
+    v, flags = _run("override", "CONFLICT", "Report the case to the SFDA within 30 days.")
+    assert v["label"] == "CONFLICT" and v["justification"] == "Model reason."
+
+
+def test_engine_off():
     assert _run("off", "COMPLIANT", "within 30 days.")[1] == []
