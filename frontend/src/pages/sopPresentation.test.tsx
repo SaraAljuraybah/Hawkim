@@ -148,6 +148,12 @@ describe('SOP title presentation without exposing generated serial numbers', () 
       expect(sopWorkflowEn.messages[key]).not.toMatch(/sample/i)
     })
 
+    it('names every SOP status in which the database refuses a check', () => {
+      for (const status of ['under review', 'under approval', 'approved', 'published']) {
+        expect(sopWorkflowEn.messages.checkWrongStatus).toContain(status)
+      }
+    })
+
     it('shows the existing reason first when the user may not run a check', () => {
       fixture.sop = { ...fixture.sop!, complianceChecks: [check('completed', '4.0')], versions: [{ ...fixture.sop!.versions[0], uploadedById: 'author' }] }
       fixture.userId = 'coauthor'

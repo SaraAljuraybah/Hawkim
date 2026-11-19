@@ -322,7 +322,7 @@ export const sopWorkflowEn: SopWorkflowContent = {
     checkStartFailed: "The compliance check couldn't be started. Try again. If it happens again, contact your administrator.",
     checkAlreadyRunning: 'A compliance check is already running for this SOP. Wait for it to finish; the result will appear under Compliance Overview.',
     checkNotAllowed: 'Only the main author, or the co-author who added the current version, can run a compliance check.',
-    checkWrongStatus: "A compliance check can't be run while the SOP is under review or approved. It can be run while the SOP is a draft or returned.",
+    checkWrongStatus: "A compliance check can't be run while the SOP is under review, under approval, approved or published. It can be run while the SOP is a draft or returned.",
     checkNotRequired: "Compliance checks are only for SOPs of departments the GVP applies to, so this SOP doesn't need one.",
     checkNoGuideline: "Your organization has no current GVP version to check against. Ask your administrator to add one.",
     checkNoConnection: "Hawkim couldn't reach the server, so the check wasn't started. Check your internet connection and try again.",
