@@ -141,7 +141,7 @@ number_check:
   # flag     -> keep the model's label and add a "Rule check" note
   # off      -> no check
   # The model's original answer is always kept in the raw results.
-  action: hint
+  action: override
 
 evaluation:
   scoring: sprint0           # sprint0 = as in Sprint 0 Table 6; lenient = invalid wrong, NOT_ADDRESSED counts as detected
