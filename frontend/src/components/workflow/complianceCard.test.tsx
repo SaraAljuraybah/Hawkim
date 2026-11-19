@@ -51,6 +51,26 @@ describe('Compliance overview', () => {
   })
 })
 
+describe('a failed check', () => {
+  const failed = (errorMessage?: string): ComplianceCheck => ({
+    id: 'chk-3', sopId: 'test', version: '2', status: 'failed', startedAt: '2026-10-21T09:00:00Z',
+    completedAt: '2026-10-21T09:03:00Z', guideline: { name: 'GVP', version: '4.0' }, findings: [],
+    ...(errorMessage ? { errorMessage } : {}),
+  })
+
+  it('shows why it stopped (e.g. the checker lost its connection) and no longer shows it as running', () => {
+    const reason = 'The compliance checker lost its connection while checking this SOP, so the check was stopped.'
+    const html = render(sop([failed(reason)]))
+    expect(html).toContain(complianceEn.card.failed)
+    expect(html).toContain(reason)
+    expect(html).not.toContain('Checking against SFDA GVP')
+  })
+
+  it('shows only the general line when no reason was saved', () => {
+    expect(render(sop([failed()]))).toContain(complianceEn.card.failed)
+  })
+})
+
 describe('the Compliance Overview results box', () => {
   const routed = (item: Sop) => renderToStaticMarkup(<MemoryRouter><GuidelinesProvider><ComplianceCard sop={item} content={complianceEn} /></GuidelinesProvider></MemoryRouter>)
   const box = /^<div class="rounded-lg border border-beige bg-white p-4[ "]/

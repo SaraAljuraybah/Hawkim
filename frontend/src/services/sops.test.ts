@@ -242,10 +242,17 @@ describe('reading SOPs', () => {
     const [columns] = query.select.mock.calls.at(-1)!
     expect(columns).not.toMatch(/\bmetadata\b/)
     expect(columns).not.toContain('steps_checked')
-    expect(columns).toContain('compliance_checks!compliance_checks_sop_id_fkey (id, sop_version, status, engine, triggered_by, started_at, completed_at,\n')
+    expect(columns).toContain('compliance_checks!compliance_checks_sop_id_fkey (id, sop_version, status, engine, triggered_by, started_at, completed_at, error_message,\n')
     expect(toSop(row).complianceChecks[0]).not.toHaveProperty('stepsChecked')
   })
 
+
+  it('keeps a failed check\'s reason (error_message), and none for other checks', () => {
+    const failedRow = { ...row, compliance_checks: [{ ...row.compliance_checks[0], status: 'failed' as const, completed_at: '2026-10-26T09:08:00Z', error_message: 'The compliance checker lost its connection.' }] }
+    expect(toSop(failedRow).complianceChecks[0].errorMessage).toBe('The compliance checker lost its connection.')
+    const runningRow = { ...row, compliance_checks: [{ ...row.compliance_checks[0], error_message: 'left over' }] }
+    expect(toSop(runningRow).complianceChecks[0]).not.toHaveProperty('errorMessage')
+  })
 
   it('reads the findings\' evidence (for the SOP text) next to the SOP reference', async () => {
     await fetchSops()

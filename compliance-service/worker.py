@@ -8,6 +8,9 @@ How it works (see supabase/migrations/20261031120000_compliance_service.sql):
      version from the sop-files bucket, and runs the pipeline on it.
   3. It writes one finding per GVP requirement and completes the check
      (complete_compliance_check), or marks it failed with the reason (fail_compliance_check).
+     While it works on a check it calls compliance_check_alive every 20 s. If the internet connection
+     is lost, those stop and the website closes the check as failed after 2 minutes
+     (close_lost_compliance_checks), so the SOP can be checked again or deleted.
 
 Run:  python worker.py            (stop with Ctrl+C)
 Needs .env (see .env.example) with SUPABASE_URL, SUPABASE_SECRET_KEY and, for OpenRouter,
@@ -417,7 +420,97 @@ def build_guideline(job: dict, svc: ComplianceService, sb: "Supabase", tracker: 
           f"in {report['sections']} sections ({report['seconds']} s)")
 
 
+CONNECTION_LOST = ("The compliance checker lost its connection while checking this SOP, so the check was "
+                   "stopped. Make sure the computer running the checker is connected to the internet, then run "
+                   "the check again.")
+
+
+def is_connection_error(e: BaseException) -> bool:
+    """A lost or failed network connection (no internet, server not reachable, timeout), also when it is
+    the cause of another error."""
+    seen = set()
+    while e is not None and id(e) not in seen:
+        seen.add(id(e))
+        if isinstance(e, (requests.ConnectionError, requests.Timeout)):
+            return True
+        e = e.__cause__ or e.__context__
+    return False
+
+
+def rpc_with_retry(sb: "Supabase", name: str, params: dict, seconds: float, wait: float = 10):
+    """sb.rpc, tried again while the connection is down, for up to `seconds`. Other errors are raised at once."""
+    deadline = time.time() + seconds
+    while True:
+        try:
+            return sb.rpc(name, params)
+        except requests.RequestException as e:
+            if time.time() + wait > deadline:
+                raise
+            print(f"[worker] {name}: no connection ({type(e).__name__}), trying again in {wait:.0f} s")
+            time.sleep(wait)
+
+
+def failure_message(e: BaseException) -> str:
+    """The reason the website shows when a check fails."""
+    if is_connection_error(e):
+        return CONNECTION_LOST
+    return str(e)[:1000]
+
+
+def report_failure(sb: "Supabase", check_id: str, e: BaseException):
+    """Marks the check failed. Without a connection this is tried again for up to 10 minutes; if the website
+    closed the check meanwhile (close_lost_compliance_checks), fail_compliance_check does nothing."""
+    try:
+        rpc_with_retry(sb, "fail_compliance_check", {"p_check_id": check_id, "p_message": failure_message(e)},
+                       seconds=600, wait=15)
+    except Exception:
+        traceback.print_exc()
+
+
+class CheckAlive:
+    """While a check runs, tells the database every `seconds` that this worker is still working on it
+    (compliance_check_alive). If these stop for 2 minutes (e.g. the internet connection is lost), the
+    website closes the check as failed with a message, and the SOP can be checked again or deleted."""
+
+    def __init__(self, sb: "Supabase", check_id: str, seconds: float = 20):
+        self.sb, self.check_id, self.seconds = sb, check_id, seconds
+        self.stopped = threading.Event()
+        self.closed = False   # the database says the check is no longer running
+        self.thread = threading.Thread(target=self._run, daemon=True)
+
+    def _beat(self):
+        try:
+            if self.sb.rpc("compliance_check_alive", {"p_check_id": self.check_id}) is False:
+                if not self.closed:
+                    print(f"[worker] check {self.check_id}: closed on the website (connection lost); "
+                          f"its result won't be saved")
+                self.closed = True
+        except requests.RequestException as e:
+            print(f"[worker] check {self.check_id}: could not reach the database ({type(e).__name__})")
+        except Exception as e:   # e.g. HTTP 404: the migration with compliance_check_alive isn't applied yet
+            print(f"[worker] check {self.check_id}: compliance_check_alive failed: {str(e)[:160]}")
+
+    def _run(self):
+        while not self.stopped.wait(self.seconds):
+            self._beat()
+
+    def __enter__(self):
+        self._beat()
+        self.thread.start()
+        return self
+
+    def __exit__(self, *exc):
+        self.stopped.set()
+        self.thread.join(timeout=5)
+        return False
+
+
 def process(job: dict, svc: ComplianceService, sb: Supabase, scfg: dict):
+    with CheckAlive(sb, job["check_id"]):
+        _process(job, svc, sb, scfg)
+
+
+def _process(job: dict, svc: ComplianceService, sb: Supabase, scfg: dict):
     check_id = job["check_id"]
     print(f"[worker] check {check_id}: {job['file_name']} (SOP version {job['sop_version']})")
     # The SOP file and the GVP index must be the check's own organization's.
@@ -455,8 +548,11 @@ def process(job: dict, svc: ComplianceService, sb: Supabase, scfg: dict):
                 "missing_or_conflicting_elements", "recommended_action", "justification", "flags",
                 "review_required", "error", "raw_output")} for f in result.get("findings", [])],
         }
-        sb.rpc("complete_compliance_check", {"p_check_id": check_id, "p_findings": findings,
-                                             "p_engine_version": scfg.get("engine_version"), "p_metadata": metadata})
+        # The work is done: if the connection is down, keep trying to save it for 90 s (the website waits
+        # 2 minutes without a sign from this worker before it closes the check).
+        rpc_with_retry(sb, "complete_compliance_check", {"p_check_id": check_id, "p_findings": findings,
+                                                         "p_engine_version": scfg.get("engine_version"),
+                                                         "p_metadata": metadata}, seconds=90)
         print(f"[worker] check {check_id}: completed, {stats['requirements']} requirements "
               f"{stats['results']} in {metadata['seconds']} s")
     finally:
@@ -533,10 +629,10 @@ def main():
                     process(job, svc, sb, scfg)
                 except Exception as e:  # the check fails, the worker keeps running
                     traceback.print_exc()
-                    try:
-                        sb.rpc("fail_compliance_check", {"p_check_id": job["check_id"], "p_message": str(e)[:1000]})
-                    except Exception:
-                        traceback.print_exc()
+                    if is_connection_error(e):
+                        print(f"[worker] check {job['check_id']}: the connection was lost; the check is marked "
+                              f"failed when the connection is back (the website closes it after 2 minutes)")
+                    report_failure(sb, job["check_id"], e)
                 if args.once:
                     return
                 continue
@@ -557,8 +653,11 @@ def main():
                 return
         except KeyboardInterrupt:
             raise
-        except Exception:
-            traceback.print_exc()
+        except Exception as e:
+            if is_connection_error(e):   # no internet: one line instead of a traceback every few seconds
+                print(f"[worker] no connection to the database ({type(e).__name__}); trying again in {poll:.0f} s")
+            else:
+                traceback.print_exc()
         time.sleep(poll)
 
 

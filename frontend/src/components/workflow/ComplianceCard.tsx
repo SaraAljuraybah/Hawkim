@@ -92,6 +92,7 @@ export function ComplianceCard({ sop, content }: ComplianceCardProps) {
           <p role="alert" className="text-sm font-medium text-status-rejected-fg">
             {text.failed}
           </p>
+          {check.errorMessage && <p className="mt-1 text-sm text-status-rejected-fg">{check.errorMessage}</p>}
         </div>
       )}
 

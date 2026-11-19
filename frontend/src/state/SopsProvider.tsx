@@ -221,7 +221,12 @@ export function SopsProvider({ children, initialSops = NO_SOPS }: { children: Re
       const until = Date.now() + compliance.SERVICE_CHECK_WATCH_MS
       const poll = () => {
         window.setTimeout(() => {
-          refresh(sopId)
+          // A check whose checker lost its connection is closed as failed first (with its reason), so the
+          // page stops showing it as running and the check can be run again or the SOP deleted.
+          complianceService()
+            .then((service) => service.closeLostComplianceChecks(sopId))
+            .catch(() => 0)
+            .then(() => refresh(sopId))
             .then((sop) => {
               if (sop && compliance.isCheckRunning(sop) && Date.now() < until) poll()
               else watching.current.delete(sopId)

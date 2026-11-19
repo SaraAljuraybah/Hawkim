@@ -537,6 +537,8 @@ export interface ComplianceCheck {
   /** ISO date and time */
   startedAt: string
   completedAt?: string
+  /** Why a failed check stopped (compliance_checks.error_message), e.g. the checker lost its connection. */
+  errorMessage?: string
   /**
    * Who ran the check: the person who uploaded the version (automatic check after an
    * upload) or who pressed Check. Its timeline events are attributed to them.

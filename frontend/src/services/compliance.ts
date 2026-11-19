@@ -170,6 +170,17 @@ export async function startComplianceCheck(sopId: string): Promise<string> {
   return data as string
 }
 
+/**
+ * Closes the SOP's compliance check as failed when its checker lost the connection (no sign from it for
+ * 2 minutes) or went offline before starting it; returns how many were closed. Called while a check is
+ * awaited, so the page doesn't keep showing a check that no longer runs.
+ */
+export async function closeLostComplianceChecks(sopId: string): Promise<number> {
+  const { data, error } = await supabase().rpc('close_lost_compliance_checks', { p_sop_id: sopId })
+  if (error) throw new Error(error.message)
+  return (data as number | null) ?? 0
+}
+
 /** SAMPLE ENGINE ONLY: finishes a running sample check, with the sample findings or as failed. */
 export async function finishSampleCheck(checkId: string, outcome: 'completed' | 'failed'): Promise<void> {
   const { error } = await supabase().rpc('finish_sample_check', { p_check_id: checkId, p_outcome: outcome })
