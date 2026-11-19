@@ -88,10 +88,14 @@ function Report({ sop, backPath }: { sop: Sop; backPath: string }) {
   const report = reports.find((check) => check.version === version)
   const latest = version === sop.version ? currentCheck(sop) : undefined
   const unavailable = !report
-    ? (latest?.status === 'running' ? text.running : latest?.status === 'failed' ? text.failed : text.none).replace(
-        '{version}',
-        version,
-      )
+    ? [
+        (latest?.status === 'running' ? text.running : latest?.status === 'failed' ? text.failed : text.none).replace(
+          '{version}',
+          version,
+        ),
+        // Why the check failed, e.g. the checker lost its connection.
+        ...(latest?.status === 'failed' && latest.errorMessage ? [latest.errorMessage] : []),
+      ].join(' ')
     : undefined
 
   /*

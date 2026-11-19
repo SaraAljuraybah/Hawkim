@@ -135,6 +135,19 @@ describe('SOP title presentation without exposing generated serial numbers', () 
       expect(sopWorkflowEn.messages[checkStartFailure(new Error('Connection lost'))]).toBe(sopWorkflowEn.messages.checkStartFailed)
     })
 
+    it.each([
+      ['A compliance check is already running', 'checkAlreadyRunning'],
+      ['Only the main author or the uploader of the current version can run a check', 'checkNotAllowed'],
+      ["A compliance check can't be run while the SOP is approved", 'checkWrongStatus'],
+      ['Compliance checks are only for SOPs of departments the GVP guideline applies to', 'checkNotRequired'],
+      ['No guideline is available to check against', 'checkNoGuideline'],
+      ['TypeError: Failed to fetch', 'checkNoConnection'],
+      ['something else', 'checkStartFailed'],
+    ] as const)('explains why a check couldn\'t start: %s', (reason, key) => {
+      expect(checkStartFailure(new Error(reason))).toBe(key)
+      expect(sopWorkflowEn.messages[key]).not.toMatch(/sample/i)
+    })
+
     it('shows the existing reason first when the user may not run a check', () => {
       fixture.sop = { ...fixture.sop!, complianceChecks: [check('completed', '4.0')], versions: [{ ...fixture.sop!.versions[0], uploadedById: 'author' }] }
       fixture.userId = 'coauthor'

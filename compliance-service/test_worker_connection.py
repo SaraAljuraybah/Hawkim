@@ -33,7 +33,8 @@ def test_connection_errors_are_recognised_also_as_cause():
 
 def test_failure_message_is_clear_for_connection_errors():
     assert worker.failure_message(requests.ConnectionError()) == worker.CONNECTION_LOST
-    assert worker.failure_message(RuntimeError("other reason")) == "other reason"
+    other = worker.failure_message(RuntimeError("other reason"))
+    assert other.startswith("Something went wrong") and other.endswith("RuntimeError: other reason")
 
 
 def test_rpc_is_tried_again_until_the_connection_is_back(monkeypatch):

@@ -36,7 +36,8 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 
 from hawkim.aggregate import findings_for_database, requirement_passage  # noqa: E402
-from hawkim.organization_paths import guideline_index_path, require_in_organization  # noqa: E402
+from hawkim.organization_paths import (  # noqa: E402
+    WrongOrganizationPath, guideline_index_path, require_in_organization)
 from hawkim.service import ComplianceService  # noqa: E402
 
 BUCKET = "sop-files"
@@ -247,6 +248,19 @@ MEMORY_MESSAGE = ("The computer running the compliance service ran out of memory
                   "(for example Ollama or a browser with many tabs) and try again.")
 UPLOAD_MESSAGE = ("The requirements were prepared, but saving them to Hawkim timed out (slow connection). "
                   "Try again: they won't be prepared again, only saved.")
+GVP_CONNECTION_LOST = ("The compliance checker lost its connection while processing this GVP version. Make sure the "
+                       "computer running the checker is connected to the internet, then try again.")
+GVP_FILE_MISSING = ("The GVP file couldn't be found in Hawkim. Delete this version and add the file again.")
+GVP_FILE_UNREADABLE = ("The GVP file couldn't be opened. It may be damaged or protected with a password. Delete this "
+                       "version and add the PDF again without a password.")
+GVP_NO_REQUIREMENTS = ("No GVP requirements were found in this PDF; it is probably a scanned image. Delete this "
+                       "version and add a PDF with selectable text.")
+GVP_WRONG_ORGANIZATION = ("This GVP file isn't stored in your organization's folder, so it wasn't processed. Delete "
+                          "this version and add the file again.")
+GVP_SETUP_PROBLEM = ("The compliance checker isn't set up correctly, so this GVP version wasn't processed. Contact "
+                     "the Hawkim team. Details: {detail}")
+GVP_UNEXPECTED = ("Something went wrong while processing this GVP version. Try again. If it happens again, contact "
+                  "the Hawkim team. Details: {detail}")
 
 
 class GuidelineCancelled(BaseException):
@@ -359,7 +373,10 @@ def build_guideline(job: dict, svc: ComplianceService, sb: "Supabase", tracker: 
     draft_id = job["id"]
     # The version's own organization's folder (the database refuses any other in complete_guideline_processing).
     index_path = guideline_index_path(job)
-    require_in_organization(job, index_path, job["storage_path"])
+    try:
+        require_in_organization(job, index_path, job["storage_path"])
+    except WrongOrganizationPath as e:
+        raise GuidelineProcessingError(GVP_WRONG_ORGANIZATION) from e
     local = INDEX_CACHE / index_path
     progress = tracker.update
 
@@ -373,7 +390,12 @@ def build_guideline(job: dict, svc: ComplianceService, sb: "Supabase", tracker: 
         work = Path(tempfile.mkdtemp(prefix="hawkim_gvp_"))
         try:
             pdf = work / Path(job["file_name"]).name
-            sb.download_object(GUIDELINE_FILES_BUCKET, job["storage_path"], pdf, what="the guideline PDF")
+            try:
+                sb.download_object(GUIDELINE_FILES_BUCKET, job["storage_path"], pdf, what="the guideline PDF")
+            except Exception as e:
+                if is_connection_error(e):
+                    raise
+                raise GuidelineProcessingError(GVP_FILE_MISSING) from e
             built = work / "index"
             try:
                 _, _, report = build_index(svc.cfg, pdf, built, svc.embedder, log=print, progress=progress)
@@ -382,6 +404,14 @@ def build_guideline(job: dict, svc: ComplianceService, sb: "Supabase", tracker: 
             except RuntimeError as e:
                 if "not enough memory" in str(e).lower() or "out of memory" in str(e).lower():
                     raise GuidelineProcessingError(MEMORY_MESSAGE) from e
+                raise
+            except ValueError as e:
+                if "No GVP requirements were found" in str(e):
+                    raise GuidelineProcessingError(GVP_NO_REQUIREMENTS) from e
+                raise
+            except Exception as e:
+                if is_file_reading_error(e):
+                    raise GuidelineProcessingError(GVP_FILE_UNREADABLE) from e
                 raise
             shutil.rmtree(local, ignore_errors=True)
             local.parent.mkdir(parents=True, exist_ok=True)
@@ -420,21 +450,82 @@ def build_guideline(job: dict, svc: ComplianceService, sb: "Supabase", tracker: 
           f"in {report['sections']} sections ({report['seconds']} s)")
 
 
+# ---------- What the website shows when a check fails ----------
+# Each failure gets one message that says what happened and what to do. The website shows it on the SOP page
+# under "The compliance check couldn't be completed." The technical error is printed in this terminal.
+
 CONNECTION_LOST = ("The compliance checker lost its connection while checking this SOP, so the check was "
                    "stopped. Make sure the computer running the checker is connected to the internet, then run "
                    "the check again.")
+WRONG_ORGANIZATION = ("This SOP's file isn't stored in your organization's folder, so it wasn't checked. "
+                      "Add the file again as a new version. If it happens again, contact your administrator.")
+GVP_NOT_READY = ("The GVP version this SOP is checked against isn't ready: its requirements weren't prepared "
+                 "completely. Ask your administrator to process the GVP version again, then run the check.")
+SOP_FILE_MISSING = ("The SOP file couldn't be found in Hawkim. Add the file again as a new version, then run "
+                    "the check.")
+UNSUPPORTED_FILE = ("Hawkim can only check PDF and Word (.docx) files. Add the SOP as a PDF or Word file, then "
+                    "run the check.")
+FILE_UNREADABLE = ("The SOP file couldn't be opened. It may be damaged or protected with a password. Save it "
+                   "again as a PDF or Word file without a password, add it as a new version, and run the check.")
+NO_TEXT = ("No text could be read from the SOP file; it is probably a scanned image. Add a version with "
+           "selectable text (for example, the original Word file), then run the check.")
+NO_STEPS = ("No procedure steps were found in this SOP. Hawkim checks the numbered steps of the Procedures "
+            "section (for example 5-1-1). Make sure the SOP has them, then run the check.")
+MODEL_UNAVAILABLE = ("The AI model on the checker computer didn't respond, so no procedure step could be "
+                     "assessed. Make sure Ollama is running on that computer with the Qwen model, then run the "
+                     "check again.")
+CHECK_OUT_OF_MEMORY = ("The checker computer ran out of memory while checking this SOP. Close other programs "
+                       "on it, then run the check again.")
+SETUP_PROBLEM = ("The compliance checker isn't set up correctly, so this SOP wasn't checked. Contact your "
+                 "administrator. Details: {detail}")
+UNEXPECTED = ("Something went wrong in the compliance checker while checking this SOP. Run the check again. "
+              "If it happens again, contact your administrator. Details: {detail}")
+
+
+class CheckError(RuntimeError):
+    """A check failure with a message for the user (one of the messages above)."""
+
+
+def _chain(e: BaseException):
+    """The error and the errors that caused it."""
+    seen = set()
+    while e is not None and id(e) not in seen:
+        seen.add(id(e))
+        yield e
+        e = e.__cause__ or e.__context__
 
 
 def is_connection_error(e: BaseException) -> bool:
     """A lost or failed network connection (no internet, server not reachable, timeout), also when it is
     the cause of another error."""
-    seen = set()
-    while e is not None and id(e) not in seen:
-        seen.add(id(e))
-        if isinstance(e, (requests.ConnectionError, requests.Timeout)):
-            return True
-        e = e.__cause__ or e.__context__
-    return False
+    return any(isinstance(x, (requests.ConnectionError, requests.Timeout)) for x in _chain(e))
+
+
+def is_out_of_memory(e: BaseException) -> bool:
+    return any(isinstance(x, MemoryError) or "out of memory" in str(x).lower() for x in _chain(e))
+
+
+def is_file_reading_error(e: BaseException) -> bool:
+    """The SOP file couldn't be opened (damaged, password-protected, not really a PDF or Word file)."""
+    import zipfile
+    return any(isinstance(x, zipfile.BadZipFile)
+               or type(x).__module__.split(".")[0] in ("pypdf", "pdfminer", "pdfplumber", "docx")
+               for x in _chain(e))
+
+
+def failure_message(e: BaseException) -> str:
+    """The reason the website shows when a check fails: a message the user can act on."""
+    for x in _chain(e):
+        if isinstance(x, CheckError):
+            return str(x)
+    if is_connection_error(e):
+        return CONNECTION_LOST
+    if is_out_of_memory(e):
+        return CHECK_OUT_OF_MEMORY
+    detail = f"{type(e).__name__}: {str(e)[:300]}"
+    if isinstance(e, SystemExit):
+        return SETUP_PROBLEM.format(detail=str(e)[:300])
+    return UNEXPECTED.format(detail=detail)
 
 
 def rpc_with_retry(sb: "Supabase", name: str, params: dict, seconds: float, wait: float = 10):
@@ -450,11 +541,18 @@ def rpc_with_retry(sb: "Supabase", name: str, params: dict, seconds: float, wait
             time.sleep(wait)
 
 
-def failure_message(e: BaseException) -> str:
-    """The reason the website shows when a check fails."""
+def guideline_failure_message(e: BaseException) -> str:
+    """The reason the GVP version's page shows when processing fails: a message the admin can act on."""
+    for x in _chain(e):
+        if isinstance(x, GuidelineProcessingError):
+            return str(x)
     if is_connection_error(e):
-        return CONNECTION_LOST
-    return str(e)[:1000]
+        return GVP_CONNECTION_LOST
+    if is_out_of_memory(e):
+        return MEMORY_MESSAGE
+    if isinstance(e, SystemExit):
+        return GVP_SETUP_PROBLEM.format(detail=str(e)[:300])
+    return GVP_UNEXPECTED.format(detail=f"{type(e).__name__}: {str(e)[:300]}")
 
 
 def report_failure(sb: "Supabase", check_id: str, e: BaseException):
@@ -507,33 +605,72 @@ class CheckAlive:
 
 def process(job: dict, svc: ComplianceService, sb: Supabase, scfg: dict):
     with CheckAlive(sb, job["check_id"]):
-        _process(job, svc, sb, scfg)
+        try:
+            _process(job, svc, sb, scfg)
+        except SystemExit as e:   # a setup error inside the pipeline: fail this check, keep the worker running
+            raise CheckError(SETUP_PROBLEM.format(detail=str(e)[:300])) from e
+
+
+def _not_connection(e: BaseException, message: str) -> CheckError:
+    """`message` for this failure, unless the real cause is a lost connection (then that message wins)."""
+    if is_connection_error(e):
+        raise e
+    return CheckError(message)
+
+
+def model_unavailable(result: dict) -> bool:
+    """No procedure step got any answer from the model (Ollama isn't running or the model is missing)."""
+    findings = result.get("findings") or []
+    return bool(findings) and all(not f.get("raw_output") and f.get("error") for f in findings)
 
 
 def _process(job: dict, svc: ComplianceService, sb: Supabase, scfg: dict):
     check_id = job["check_id"]
     print(f"[worker] check {check_id}: {job['file_name']} (SOP version {job['sop_version']})")
     # The SOP file and the GVP index must be the check's own organization's.
-    require_in_organization(job, job["storage_path"], job.get("guideline_index_path"))
+    try:
+        require_in_organization(job, job["storage_path"], job.get("guideline_index_path"))
+    except WrongOrganizationPath as e:
+        raise CheckError(WRONG_ORGANIZATION) from e
     # The check's GVP version: its own index (added on the website), or the local index (e.g. GVP 4.0).
     if job.get("guideline_index_path"):
-        engine = svc.engine_for(local_index(sb, job["guideline_index_path"]))
+        try:
+            engine = svc.engine_for(local_index(sb, job["guideline_index_path"]))
+        except (Exception, SystemExit) as e:
+            raise _not_connection(e, GVP_NOT_READY) from e
     elif str(job.get("guideline_version")) == str(scfg.get("guideline_version")):
         engine = None
     else:
-        raise RuntimeError(f"GVP {job.get('guideline_version')} has no processed index; the service's local index "
-                           f"is for version {scfg.get('guideline_version')}")
+        print(f"[worker] GVP {job.get('guideline_version')} has no processed index; the service's local index "
+              f"is for version {scfg.get('guideline_version')}")
+        raise CheckError(GVP_NOT_READY)
     folder = Path(tempfile.mkdtemp(prefix="hawkim_check_"))
     try:
         # Keep the original file name: chunk IDs are built from it.
         path = folder / Path(job["file_name"]).name
-        sb.download(job["storage_path"], path)
+        try:
+            sb.download(job["storage_path"], path)
+        except Exception as e:
+            raise _not_connection(e, SOP_FILE_MISSING) from e
+        if path.suffix.lower() not in (".pdf", ".docx"):
+            raise CheckError(UNSUPPORTED_FILE)
         t0 = time.time()
-        result = svc.check(path, engine=engine)
+        try:
+            result = svc.check(path, engine=engine)
+        except Exception as e:
+            if is_file_reading_error(e):
+                raise CheckError(FILE_UNREADABLE) from e
+            raise
+        warnings = result.get("warnings") or []
+        if warnings:
+            print(f"[worker] check {check_id}: " + "; ".join(warnings))
+        if model_unavailable(result):
+            raise CheckError(MODEL_UNAVAILABLE)
         findings, stats = findings_for_database(result)
         if not findings:
-            raise RuntimeError("No procedure step could be assessed in this SOP"
-                               + (f" ({'; '.join(result.get('warnings') or [])})" if result.get("warnings") else ""))
+            if any("No text extracted" in w or "probably scanned" in w for w in warnings):
+                raise CheckError(NO_TEXT)
+            raise CheckError(NO_STEPS)
         metadata = {
             "seconds": round(time.time() - t0, 1), **stats,
             "llm": result["engine"]["llm"], "embedding": result["engine"]["embedding"],
@@ -642,10 +779,12 @@ def main():
                 draft = drafts[0]
                 try:
                     process_guideline(draft, svc, sb)
-                except Exception as e:  # the version is marked failed, the worker keeps running
+                except (Exception, SystemExit) as e:  # the version is marked failed, the worker keeps running
                     traceback.print_exc()
                     try:
-                        sb.rpc("fail_guideline_processing", {"p_id": draft["id"], "p_error": str(e)[:500]})
+                        rpc_with_retry(sb, "fail_guideline_processing",
+                                       {"p_id": draft["id"], "p_error": guideline_failure_message(e)[:500]},
+                                       seconds=600, wait=15)
                     except Exception:
                         traceback.print_exc()
                 continue

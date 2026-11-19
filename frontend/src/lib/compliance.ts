@@ -29,8 +29,30 @@ export const SERVICE_CHECK_WATCH_MS = 35 * 60 * 1000
 export class CheckAlreadyCompletedError extends Error {}
 
 /** Which message explains why a check didn't start. */
-export function checkStartFailure(error: unknown): 'checkAlreadyCompleted' | 'checkStartFailed' {
-  return error instanceof CheckAlreadyCompletedError ? 'checkAlreadyCompleted' : 'checkStartFailed'
+export type CheckStartFailure =
+  | 'checkAlreadyCompleted'
+  | 'checkAlreadyRunning'
+  | 'checkNotAllowed'
+  | 'checkWrongStatus'
+  | 'checkNotRequired'
+  | 'checkNoGuideline'
+  | 'checkNoConnection'
+  | 'checkStartFailed'
+
+/**
+ * Why a compliance check couldn't be started, as the key of its message: the database's reason
+ * (start_compliance_check), the browser's lost connection, or the general message.
+ */
+export function checkStartFailure(error: unknown): CheckStartFailure {
+  if (error instanceof CheckAlreadyCompletedError) return 'checkAlreadyCompleted'
+  const message = error instanceof Error ? error.message : String(error)
+  if (/already running/i.test(message)) return 'checkAlreadyRunning'
+  if (/only the main author/i.test(message)) return 'checkNotAllowed'
+  if (/can.t be run while the SOP is/i.test(message)) return 'checkWrongStatus'
+  if (/only for SOPs of departments/i.test(message)) return 'checkNotRequired'
+  if (/no guideline is available/i.test(message)) return 'checkNoGuideline'
+  if (/failed to fetch|networkerror|network request failed|load failed/i.test(message)) return 'checkNoConnection'
+  return 'checkStartFailed'
 }
 
 /** Result order for sorting and filters: problems first. */
