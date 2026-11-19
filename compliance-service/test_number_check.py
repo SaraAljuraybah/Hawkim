@@ -88,7 +88,8 @@ def test_fact_for_model():
     from hawkim.number_check import fact_for_model
     fact = fact_for_model("Report the case within 30 days.", REQ_15)
     assert fact.startswith("Rule check") and "within 30 days" in fact and "CONFLICT" in fact
-    assert "meets this element" in fact_for_model("Report it within 7 days.", REQ_15)
+    met = fact_for_model("Report it within 7 days.", REQ_15)
+    assert "meets this element" in met and "settles only the deadline" in met and "PARTIAL" in met
     assert fact_for_model("Report serious cases promptly.", REQ_15) is None
 
 

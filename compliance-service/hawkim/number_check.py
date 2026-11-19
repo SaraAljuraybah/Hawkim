@@ -121,4 +121,8 @@ def fact_for_model(sop_text: str, requirement_text: str) -> str | None:
         lines.append(f"{what[0].upper()}{what[1:]}. Under the agreed rule, a stricter SOP meets this element.")
     if not lines:
         return None
-    return "Rule check (computed by a program from the numbers in the two texts): " + " ".join(lines)
+    kinds = sorted({i["kind"] for i in res["conflicts"] + res["stricter"]})
+    covers = " and ".join("the deadline" if k == "deadline" else "the retention period" for k in kinds)
+    return ("Rule check (computed by a program from the numbers in the two texts): " + " ".join(lines)
+            + f" This settles only {covers}. Judge every other element of the requirement yourself: if one is "
+              f"missing, the label is PARTIAL even when {covers} is met.")
