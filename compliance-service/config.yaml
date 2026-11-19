@@ -131,11 +131,11 @@ number_check:
   # Compares deadlines ("within 15 days") and retention periods ("kept for 10 years") in each step with
   # the chosen GVP requirement. Expert rule: a stricter SOP is compliant, a less strict SOP is a conflict
   # (GVP 30 days: SOP 15 days = compliant, SOP 35 days = conflict).
-  # hint     -> (default) the comparison goes into the prompt as a fact for each candidate, and the model
+  # hint     -> the comparison goes into the prompt as a fact for each candidate, and the model
   #             decides the label and writes the justification. If its label still goes against the fact
   #             (less strict SOP not CONFLICT, or stricter SOP labelled CONFLICT), the step goes to
   #             Requires Human Review with both views.
-  # override -> SOP less strict: label CONFLICT, with the rule's own justification.
+  # override -> (default) SOP less strict: label CONFLICT, with the rule's own justification.
   #             SOP stricter but the model did not say COMPLIANT: Requires Human Review, with a
   #             justification that names both views. Label and justification always agree.
   # flag     -> keep the model's label and add a "Rule check" note
