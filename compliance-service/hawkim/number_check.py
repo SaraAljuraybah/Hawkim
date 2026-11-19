@@ -105,3 +105,20 @@ def describe(item: dict, conflict: bool) -> str:
     else:
         how = "a shorter retention period" if conflict else "a longer retention period"
     return (f"the SOP sets {how} (\"{item['sop']}\") than the GVP requirement (\"{item['requirement']}\")")
+
+
+def fact_for_model(sop_text: str, requirement_text: str) -> str | None:
+    """The number comparison as a fact for the model's prompt (mode "hint"), or None when there is nothing
+    to compare. The model then decides the label and writes the justification itself."""
+    res = check(sop_text, requirement_text)
+    lines = []
+    for item in res["conflicts"]:
+        what = describe(item, True)
+        lines.append(f"{what[0].upper()}{what[1:]}. Under the agreed rule, an SOP that is less strict than the "
+                     f"requirement is a CONFLICT.")
+    for item in res["stricter"]:
+        what = describe(item, False)
+        lines.append(f"{what[0].upper()}{what[1:]}. Under the agreed rule, a stricter SOP meets this element.")
+    if not lines:
+        return None
+    return "Rule check (computed by a program from the numbers in the two texts): " + " ".join(lines)

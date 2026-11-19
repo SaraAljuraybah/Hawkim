@@ -82,3 +82,26 @@ def test_engine_agreement_unchanged():
 
 def test_engine_off():
     assert _run("off", "COMPLIANT", "within 30 days.")[1] == []
+
+
+def test_fact_for_model():
+    from hawkim.number_check import fact_for_model
+    fact = fact_for_model("Report the case within 30 days.", REQ_15)
+    assert fact.startswith("Rule check") and "within 30 days" in fact and "CONFLICT" in fact
+    assert "meets this element" in fact_for_model("Report it within 7 days.", REQ_15)
+    assert fact_for_model("Report serious cases promptly.", REQ_15) is None
+
+
+def test_hint_keeps_the_models_answer_when_it_follows_the_fact():
+    v, flags = _run("hint", "CONFLICT", "Report the case to the SFDA within 30 days.")
+    assert v["label"] == "CONFLICT" and v["justification"] == "Model reason." and flags == []
+    v, flags = _run("hint", "PARTIAL", "Report the case to the SFDA within 7 days.")   # partial for another element
+    assert v["label"] == "PARTIAL" and v["justification"] == "Model reason." and flags == []
+
+
+def test_hint_sends_a_disagreement_to_review():
+    v, flags = _run("hint", "PARTIAL", "Report the case to the SFDA within 30 days.")
+    assert v["label"] == "NOT_ADDRESSED" and "model_and_rule_disagree" in flags
+    assert "its reason: Model reason)" in v["justification"] and "conflict under the agreed rule" in v["justification"]
+    v, flags = _run("hint", "CONFLICT", "Report the case to the SFDA within 7 days.")
+    assert v["label"] == "NOT_ADDRESSED" and "meets this element" in v["justification"]

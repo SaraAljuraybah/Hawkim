@@ -12,4 +12,6 @@ Rules for CONFLICT:
 - An SOP that is stricter than the requirement is COMPLIANT for that element (for example, the requirement says "within 30 days" and the SOP says "within 15 days").
 - An element that is missing or incomplete is PARTIAL, not CONFLICT. Use CONFLICT only when the SOP says something that goes against the requirement.
 
+Some requirements are followed by a "Rule check" line. A program computed it by comparing the deadlines or retention periods in the two texts. Treat it as correct, use it for that element, and judge the other elements of the requirement yourself.
+
 Respond with a single JSON object and nothing else. No markdown, no code fences.

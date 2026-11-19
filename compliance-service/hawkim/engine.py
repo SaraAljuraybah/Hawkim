@@ -36,8 +36,9 @@ def index_folder(cfg: dict) -> Path:
     return Path(cfg["paths"]["index_dir"]) / model_slug(e["backend"], e.get("model"))
 
 
-def _format_requirement(u: dict) -> str:
-    return f"ID: {u['id']}\nSection: {u['section']} {u.get('section_title', '')}\nText:\n{u['text']}"
+def _format_requirement(u: dict, fact: str | None = None) -> str:
+    text = f"ID: {u['id']}\nSection: {u['section']} {u.get('section_title', '')}\nText:\n{u['text']}"
+    return f"{text}\n{fact}" if fact else text
 
 
 class Engine:
@@ -101,6 +102,9 @@ class Engine:
         res = number_check.check(sop_text, unit["text"])
         model_label = v["label"]
         model_reason = (v.get("justification") or "").strip()
+        if action == "hint":
+            self._number_review(v, res, flags, model_label, model_reason)
+            return
         reason_in_brackets = model_reason.rstrip(". ")
         if res["conflicts"]:
             for item in res["conflicts"]:
@@ -133,6 +137,31 @@ class Engine:
             else:
                 v["justification"] = (f"{model_reason} Rule check: {what}. A stricter SOP meets this element; "
                                       f"a reviewer should confirm the label.").strip()
+
+    @staticmethod
+    def _number_review(v: dict, res: dict, flags: list, model_label: str, model_reason: str) -> None:
+        """Mode "hint": the model was given the number comparison as a fact and decided the label itself.
+        Its label and justification are kept, unless its label goes against that fact; then the step goes to
+        human review (NOT_ADDRESSED), with a justification that names both views:
+          - the SOP is less strict, but the model did not say CONFLICT
+          - the SOP is stricter, but the model said CONFLICT
+        A stricter SOP that the model labelled PARTIAL is kept: it may be partial for another element."""
+        if res["conflicts"] and model_label != "CONFLICT":
+            items, conflict = res["conflicts"], True
+        elif res["stricter"] and not res["conflicts"] and model_label == "CONFLICT":
+            items, conflict = res["stricter"], False
+        else:
+            return
+        what = "; ".join(number_check.describe(i, conflict) for i in items)
+        rule = ("which is a conflict under the agreed rule" if conflict else "which meets this element under the "
+                "agreed rule")
+        reason = model_reason.rstrip(". ")
+        flags.append("model_and_rule_disagree")
+        v["label"] = "NOT_ADDRESSED"
+        v["justification"] = (f"The model labelled this step {model_label.replace('_', ' ').title()}"
+                              f"{f' (its reason: {reason})' if reason else ''}, but the rule check found that "
+                              f"{what}, {rule}. Because the two disagree, a reviewer should decide the label.")
+        v["recommended_action"] = ""
 
     def _llm(self):
         if self.llm is None:
@@ -239,12 +268,17 @@ class Engine:
 
             if cands and not below and not outside:
                 fields = {"sop_file": c.sop_file, "sop_heading": c.heading, "sop_text": c.text}
+                # Mode "hint": the number comparison with each candidate goes into the prompt as a fact.
+                facts = {u["id"]: (number_check.fact_for_model(c.text, u["text"])
+                                   if self.number_action == "hint" and oracle is None else None) for u in cands}
+                if any(facts.values()):
+                    flags.append("number_fact_given")
                 if self.mode == "top1":
                     u = cands[0]
                     fields.update(req_id=u["id"], req_section=f"{u['section']} {u.get('section_title', '')}",
-                                  req_text=u["text"])
+                                  req_text=u["text"] + (f"\n{facts[u['id']]}" if facts[u["id"]] else ""))
                 else:
-                    fields["requirements"] = "\n\n".join(_format_requirement(u) for u in cands)
+                    fields["requirements"] = "\n\n".join(_format_requirement(u, facts[u["id"]]) for u in cands)
                     fields["candidate_ids"] = ", ".join([u["id"] for u in cands] + ["NONE"])
                 resp = self._llm().chat(self.system_prompt, self.user_tpl.safe_substitute(fields))
                 cand_ids = [u["id"] for u in cands]
