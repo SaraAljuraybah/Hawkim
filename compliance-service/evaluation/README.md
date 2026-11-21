@@ -35,7 +35,7 @@ Options: `--gvp-version 4.0` (default), `--files SOP-PV-001 pdf ...`, `--run-id 
    is no re-ask), `strict_json` (the raw text is only a JSON object), the final verdict (COMPLIANT,
    PARTIAL, CONFLICT or **Requires Human Review** with `rhr_reason`), the chosen requirement and justification.
 5. **Timing and memory:** extraction, embedding, retrieval and LLM time per step and per file; peak RAM of the
-   harness and of Ollama; lowest free RAM; `failed` + error.
+   harness and of Ollama (including its `llama-server` model runner); lowest free RAM; `failed` + error.
 
 Embedding and retrieval run once per file for all steps, so their per-step time is the file time divided
 by the number of steps. Model loading and one LLM warm-up call are timed separately (`run_meta.json`).
