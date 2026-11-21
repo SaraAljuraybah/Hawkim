@@ -25,8 +25,9 @@ EMPTY_COLS = ["is_true_step", "relevant_requirement_ids", "expert_verdict", "exp
 
 INSTRUCTIONS = [
     ("Column", "Who", "Allowed values / meaning"),
-    ("is_true_step", "team", "Y = this row is a real procedure step of the SOP; N = not a step (e.g. a heading, "
-                             "an introduction, or text wrongly cut from another step)"),
+    ("is_true_step", "team", "Y = this row is a real checked unit of the Procedures section (a sub-section "
+                             "introduction or a numbered step); N = not a real unit (e.g. text from another section, "
+                             "a fragment wrongly cut from a step, or two units merged)"),
     ("relevant_requirement_ids", "team", "GVP requirement ids this step must meet, separated by ';' (e.g. "
                                          "I.B.7#4; VI.C.2.2#1). A section code (e.g. I.B.7) counts every unit in "
                                          "that section. Look up ids outside the top 5 in the sheet gvp_requirements. "
