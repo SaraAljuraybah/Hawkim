@@ -192,6 +192,28 @@ def chunk_gvp(doc: Document, obligation_keywords: list[str], obligation_only: bo
 # Numbered lines: "5- Procedures:", "5-1. Title", "5.1 Title", "Section 3 Title", "5-1-1. The PV Manager shall ..."
 SOP_NUM_RE = re.compile(r"^\s*(##\s+)?(?:(?:section|step)\s+)?(\d{1,2}(?:[.\-]\d{1,2}){0,4})([.\-:)]?)\s+(\S.*)$", re.I)
 SOP_MD_HEADING_RE = re.compile(r"^\s*##\s+(\S.*)$")
+# A table-of-contents line: "<number> <title> <page>", e.g. "1 Purpose 3", "5 Procedures 4-5", "2.1 Scope ..... 7".
+TOC_LINE_RE = re.compile(r"^\s*(?:(?:section|step)\s+)?\d{1,2}(?:[.\-]\d{1,2}){0,4}[.\-:)]?\s+(?=\S*[^\W\d_])"
+                         r"\S.*?[\s.·…_]+\d{1,3}(?:\s*[-–]\s*\d{1,3})?\s*$", re.I)
+TOC_MIN_LINES = 3
+
+
+def _toc_lines(lines: list[str]) -> set[int]:
+    """Indexes of the lines in table-of-contents blocks: TOC_MIN_LINES or more consecutive (empty lines
+    ignored) "<number> <title> <page>" lines. One such line alone is not a contents line: a step can end
+    in a number ("Report within 15"). chunk_sop only uses the blocks found before the first real heading."""
+    found: set[int] = set()
+    run: list[int] = []
+    for i, line in enumerate(lines + ["<end>"]):
+        if not line.strip():
+            continue
+        if TOC_LINE_RE.match(line):
+            run.append(i)
+            continue
+        if len(run) >= TOC_MIN_LINES:
+            found.update(run)
+        run = []
+    return found
 
 
 @dataclass
@@ -247,8 +269,16 @@ def chunk_sop(doc: Document, min_chunk_chars=80, max_chunk_chars=2500, heading_m
         blocks.append(current)
         current = {"heading": heading, "page": page, "lines": [first_line] if first_line else [], "preamble": preamble}
 
-    for page, raw in doc.lines_with_pages():
-        line = raw.strip()
+    lines = [(page, raw.strip()) for page, raw in doc.lines_with_pages()]
+    toc = _toc_lines([line for _, line in lines])
+    toc_kept = 0
+    for i, (page, line) in enumerate(lines):
+        # A contents page before the first heading: its "1 Purpose 3" lines are not headings. They stay with
+        # the text before the first heading, so the real headings ("1- Purpose:") start the sections.
+        if i in toc and not stack:
+            current["lines"].append(line)
+            toc_kept += 1
+            continue
         m = SOP_NUM_RE.match(line)
         if m:
             md, num, sep, title = m.group(1), m.group(2), m.group(3), m.group(4).strip()
@@ -282,6 +312,8 @@ def chunk_sop(doc: Document, min_chunk_chars=80, max_chunk_chars=2500, heading_m
             continue
         current["lines"].append(line)
     blocks.append(current)
+    if toc_kept:
+        notes.append(f"Table of contents found ({toc_kept} lines): kept with the text before the first heading")
 
     if all(b["preamble"] for b in blocks):
         notes.append("No section headings detected; using fixed-size sentence windows instead.")
