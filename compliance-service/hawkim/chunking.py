@@ -216,6 +216,17 @@ def _toc_lines(lines: list[str]) -> set[int]:
     return found
 
 
+def _skipped_section(heading_path: str, skip_sections: list[str]) -> bool:
+    """True when the block's TOP-LEVEL section title is a skip-list entry as a whole title ("8 Revision History",
+    "Approvals", "Definitions and Abbreviations": every part is an entry, a plural "s" allowed). Words inside a
+    title or a sub-heading don't count: "5 Procedures > 5-3 SFDA Coordination and Approval Process" is kept."""
+    top = heading_path.split(" > ")[0].lower()
+    title = re.sub(r"^\s*(?:(?:section|step)\s+)?\d{1,2}(?:[.\-]\d{1,2})*[.\-:)]?\s+", "", top).strip(" :.")
+    parts = [p.strip() for p in re.split(r"\s+and\s+|\s*[&,/]\s*", title) if p.strip()]
+    return bool(parts) and all(p in skip_sections or (p.endswith("s") and p[:-1] in skip_sections)
+                               for p in parts)
+
+
 @dataclass
 class SOPChunk:
     chunk_id: str
@@ -292,7 +303,9 @@ def chunk_sop(doc: Document, min_chunk_chars=80, max_chunk_chars=2500, heading_m
                               (top_sep is None or sep == top_sep)
             else:
                 in_sequence = len(parent) >= depth - 1 and parent[:depth - 1] == parts[:depth - 1]
-            if (short or md) and in_sequence:                       # ---- heading
+            # A 3-level number ("5-1-3.") always starts a step, never a sub-heading: a PDF can break a short
+            # step's first line ("5-1-3. QPPV shall approve ... determine communication") before its full stop.
+            if (short or md) and in_sequence and depth < 3:         # ---- heading
                 label = f"{num} {title.rstrip(':').strip()}"
                 while stack and len(stack[-1][0]) >= depth:
                     stack.pop()
@@ -329,7 +342,7 @@ def chunk_sop(doc: Document, min_chunk_chars=80, max_chunk_chars=2500, heading_m
         if b["preamble"] and skip_preamble:
             notes.append(f"Skipped text before the first heading ({len(body)} chars: title page, approvals, contents)")
             continue
-        if any(k in b["heading"].lower() for k in skip_sections):
+        if _skipped_section(b["heading"], skip_sections):
             notes.append(f"Skipped section (skip list): {b['heading']}")
             continue
         if carry:

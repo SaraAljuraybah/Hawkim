@@ -91,3 +91,65 @@ def test_two_numbered_lines_are_not_a_contents_block():
     two = ["1 Purpose 3", "2 Scope 3"]
     chunks, notes = split([TITLE_PAGE, two + BODY])
     assert not any("Table of contents" in n for n in notes)
+
+
+
+# ---- skip list: whole top-level section titles only (as config.yaml)
+
+SKIP_LIST = ["revision history", "approval", "signature", "abbreviation", "definitions", "references",
+             "related documents"]
+STEP_5_3_1 = ("5-3-1. Regulatory Affairs shall submit the draft DHPC to the SFDA via the NPC database with the "
+              "accompanying communication plan.")
+HISTORY = ["6- Revision History:", "1 01-01-2025 01 First issue of this SOP, approved by the QPPV and the manager"]
+
+
+def split_with(body, skip=SKIP_LIST):
+    return chunk_sop(Document("SOP.pdf", [TITLE_PAGE, body]), skip_sections=skip)
+
+
+def test_skip_word_inside_a_procedure_sub_heading_is_kept():
+    """a) "Approval" in a sub-heading of the Procedures section is not the Approval section."""
+    body = BODY[:9] + ["5-3. SFDA Coordination and Approval Process", STEP_5_3_1] + HISTORY
+    chunks, notes = split_with(body)
+    step = next(c for c in chunks if c.heading == "5 Procedures > 5-3 SFDA Coordination and Approval Process > 5-3-1")
+    assert step.text == STEP_5_3_1
+    assert not any("Approval Process" in n for n in notes)
+    # the real Revision History section is still skipped
+    assert "Skipped section (skip list): 6 Revision History" in notes
+    assert not any("Revision History" in c.heading for c in chunks)
+
+
+def test_whole_top_level_titles_are_skipped():
+    """Only a top-level title that is a skip entry as a whole (plural and "A and B" allowed) is skipped."""
+    for title in ("6- Approvals:", "6- Definitions and Abbreviations:", "6- References:", "6- Signatures"):
+        body = BODY[:9] + ["5-3. SFDA Coordination", STEP_5_3_1, title,
+                           "6-1. The QPPV, the PV Manager and the general manager approve and sign this SOP here."]
+        chunks, notes = split_with(body)
+        assert not any(c.heading.startswith("6 ") for c in chunks), title
+    # a top-level title that only contains a skip word is checked
+    body = BODY[:9] + ["5-3. SFDA Coordination", STEP_5_3_1, "6- Approval Process Management:",
+                       "6-1. The QPPV shall approve each safety communication before it is sent to the SFDA."]
+    chunks, notes = split_with(body)
+    assert [c.heading for c in chunks if c.heading.startswith("6 ")] == ["6 Approval Process Management > 6-1"]
+
+
+# ---- a 3-level number always starts a step
+
+def test_short_three_level_line_is_a_step_not_a_sub_heading():
+    """b) A PDF line break after a short first line ("... determine communication", no full stop): the step
+    keeps all of its text and is not used as a sub-heading."""
+    body = BODY[:9] + ["5-1. Identification and Assessment of Safety Communication Need",
+                       "5-1-3. QPPV shall approve the communication need assessment and determine communication",
+                       "urgency classification (immediate: within 24 hours, urgent: within 72 hours)."] + HISTORY
+    chunks, _ = split_with(body)
+    step = next(c for c in chunks if c.heading.endswith("> 5-1-3"))
+    assert step.heading == "5 Procedures > 5-1 Identification and Assessment of Safety Communication Need > 5-1-3"
+    assert step.text == ("5-1-3. QPPV shall approve the communication need assessment and determine communication "
+                         "urgency classification (immediate: within 24 hours, urgent: within 72 hours).")
+
+
+def test_two_level_short_line_is_still_a_sub_heading():
+    """Sub-headings such as "5-1. Title" are unchanged."""
+    chunks, _ = split_with(BODY)
+    assert "5 Procedures > 5-1 Identification and Assessment of Safety Communication Need > 5-1-1" in [
+        c.heading for c in chunks]
