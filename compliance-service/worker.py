@@ -41,6 +41,39 @@ from hawkim.organization_paths import (  # noqa: E402
 from hawkim.service import ComplianceService  # noqa: E402
 
 BUCKET = "sop-files"
+# Errors of failed checks and model calls, with the time (also printed in the terminal). Not committed.
+LOG_FILE = HERE / "worker.log"
+LOG_MAX_BYTES = 5_000_000          # then worker.log becomes worker.log.1 and a new one starts
+SECRET_ENV = ("SUPABASE_SECRET_KEY", "OPENROUTER_API_KEY")
+
+
+def redact(text: str) -> str:
+    """`text` without the values of the secret keys (they must never reach the log or the website)."""
+    for name in SECRET_ENV:
+        value = os.environ.get(name) or ""
+        if len(value) >= 8:
+            text = text.replace(value, "[hidden]")
+    return text
+
+
+def log(message: str):
+    """Prints `message` and appends it, with the time, to worker.log. A failure to write the file is ignored:
+    the log must never stop a check."""
+    message = redact(message)
+    print(message)
+    try:
+        if LOG_FILE.exists() and LOG_FILE.stat().st_size > LOG_MAX_BYTES:
+            LOG_FILE.replace(LOG_FILE.with_name(LOG_FILE.name + ".1"))
+        with open(LOG_FILE, "a", encoding="utf-8") as f:
+            f.write(f"{time.strftime('%Y-%m-%d %H:%M:%S')} {message}\n")
+    except OSError:
+        pass
+
+
+def error_chain(e: BaseException) -> str:
+    """'Type: message' of the error and of each error that caused it, e.g.
+    'CheckError: The AI model ... <- ReadTimeout: ... Read timed out.'"""
+    return " <- ".join(f"{type(x).__name__}: {str(x)[:300]}" for x in _chain(e))
 
 
 def load_env(path: Path):
@@ -624,6 +657,23 @@ def model_unavailable(result: dict) -> bool:
     return bool(findings) and all(not f.get("raw_output") and f.get("error") for f in findings)
 
 
+def llm_errors(result: dict) -> dict[str, int]:
+    """The distinct errors of the model calls that failed (e.g. 'ReadTimeout: ... Read timed out.'), each with
+    the number of steps it happened on. Answers that came back but were not valid are not counted here."""
+    counts: dict[str, int] = {}
+    for f in result.get("findings") or []:
+        err = f.get("llm_error") or (f.get("error") if not f.get("raw_output") else None)
+        if err:
+            err = redact(str(err))[:300]
+            counts[err] = counts.get(err, 0) + 1
+    return counts
+
+
+def llm_error_summary(errors: dict[str, int]) -> str:
+    """'ReadTimeout: ... (16 steps)'; several errors are separated by '; '."""
+    return "; ".join(f"{err} ({n} step{'s' if n != 1 else ''})" for err, n in errors.items())
+
+
 def _process(job: dict, svc: ComplianceService, sb: Supabase, scfg: dict):
     check_id = job["check_id"]
     print(f"[worker] check {check_id}: {job['file_name']} (SOP version {job['sop_version']})")
@@ -664,7 +714,12 @@ def _process(job: dict, svc: ComplianceService, sb: Supabase, scfg: dict):
         warnings = result.get("warnings") or []
         if warnings:
             print(f"[worker] check {check_id}: " + "; ".join(warnings))
+        errors = llm_errors(result)
+        if errors:
+            log(f"[worker] check {check_id}: the model call failed on {sum(errors.values())} of "
+                f"{len(result.get('findings') or [])} steps: {llm_error_summary(errors)}")
         if model_unavailable(result):
+            # The user sees the plain message; the real error is only in worker.log (logged above).
             raise CheckError(MODEL_UNAVAILABLE)
         findings, stats = findings_for_database(result)
         if not findings:
@@ -683,7 +738,7 @@ def _process(job: dict, svc: ComplianceService, sb: Supabase, scfg: dict):
                 "chunk_id", "chunk_type", "heading", "page", "text", "label", "valid", "decided_by", "requirement",
                 "similarity", "other_candidates", "sop_evidence", "sop_evidence_found_in_text",
                 "missing_or_conflicting_elements", "recommended_action", "justification", "flags",
-                "review_required", "error", "raw_output")} for f in result.get("findings", [])],
+                "review_required", "error", "llm_error", "raw_output")} for f in result.get("findings", [])],
         }
         # The work is done: if the connection is down, keep trying to save it for 90 s (the website waits
         # 2 minutes without a sign from this worker before it closes the check).
@@ -766,6 +821,7 @@ def main():
                     process(job, svc, sb, scfg)
                 except Exception as e:  # the check fails, the worker keeps running
                     traceback.print_exc()
+                    log(f"[worker] check {job['check_id']} failed: {error_chain(e)}")
                     if is_connection_error(e):
                         print(f"[worker] check {job['check_id']}: the connection was lost; the check is marked "
                               f"failed when the connection is back (the website closes it after 2 minutes)")
@@ -781,6 +837,7 @@ def main():
                     process_guideline(draft, svc, sb)
                 except (Exception, SystemExit) as e:  # the version is marked failed, the worker keeps running
                     traceback.print_exc()
+                    log(f"[worker] GVP {draft.get('version')} failed: {error_chain(e)}")
                     try:
                         rpc_with_retry(sb, "fail_guideline_processing",
                                        {"p_id": draft["id"], "p_error": guideline_failure_message(e)[:500]},

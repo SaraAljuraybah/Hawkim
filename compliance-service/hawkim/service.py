@@ -100,7 +100,8 @@ class ComplianceService:
                 "missing_or_conflicting_elements": missing,
                 "recommended_action": action,
                 "justification": justification, "flags": flags, "raw_output": r.get("raw_output"),
-                "review_required": r["review_required"] or not r["valid"], "error": error})
+                "review_required": r["review_required"] or not r["valid"], "error": error,
+                "llm_error": r["llm_error"]})
         findings.sort(key=lambda f: (LABEL_ORDER.index(f["label"]) if f["label"] in LABEL_ORDER else -1))
         counts = Counter(f["label"] or "INVALID" for f in findings)
         return {

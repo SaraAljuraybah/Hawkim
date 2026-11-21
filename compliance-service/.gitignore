@@ -11,5 +11,7 @@ work/
 runs/
 reports/
 worker.lock
+worker.log
+worker.log.1
 __pycache__/
 *.pyc
