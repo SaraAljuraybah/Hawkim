@@ -180,7 +180,9 @@ class MemorySampler:
     @staticmethod
     def _ollama_processes():
         import psutil
-        return [p for p in psutil.process_iter(["name"]) if (p.info["name"] or "").lower().startswith("ollama")]
+        # Ollama runs the model in its own runner process: "llama-server" in current versions.
+        names = ("ollama", "llama-server", "llama_server")
+        return [p for p in psutil.process_iter(["name"]) if (p.info["name"] or "").lower().startswith(names)]
 
     def _sample(self):
         # Scanning every process is slow on Windows (seconds) and would distort the timings, so the Ollama
