@@ -26,7 +26,7 @@ import time
 import traceback
 from pathlib import Path
 
-from eval_common import (RESULTS_DIR, RHR, SERVICE_DIR, VERDICTS, MemorySampler, ReadOnlyDB, StageTimer,
+from eval_common import (RESULTS_DIR, RHR, SERVICE_DIR, VERDICTS, MemorySampler, ReadOnlyDB, StageTimer, load_results,
                          free_ram_gb, git_info, load_env, ram_guard, step_number, test_files, worker_running)
 
 
@@ -217,6 +217,11 @@ def main():
 
     run_id = args.run_id or f"{dt.datetime.now():%Y%m%d_%H%M}_runs{args.runs}"
     out_dir = RESULTS_DIR / run_id
+    # Files can be run one call at a time into the same folder; a result is never overwritten.
+    taken = [f"{c['sop_id']}_{c['format']}_run{k}.json" for k in range(1, args.runs + 1) for c in cases
+             if (out_dir / f"{c['sop_id']}_{c['format']}_run{k}.json").exists()]
+    if taken:
+        raise SystemExit(f"[eval] {out_dir.name} already has {', '.join(taken)}; results are never overwritten")
     out_dir.mkdir(parents=True, exist_ok=True)
     print(f"[eval] {len(cases)} files x {args.runs} run(s) -> {out_dir}")
 
@@ -263,13 +268,34 @@ def main():
         "machine": {"platform": platform.platform(), "python": sys.version.split()[0],
                     "ram_free_at_start_gb": round(free_ram_gb(), 2)},
         "config_file": str(SERVICE_DIR / "config.yaml"),
+        "config_sha1": {p.name: sha1(p) for p in (SERVICE_DIR / "config.yaml", Path(lc["system_prompt_file"]),
+                                                   Path(lc["user_prompt_top1_file"]), Path(lc["user_prompt_topk_file"]))},
     }
-    (out_dir / "run_meta.json").write_text(json.dumps(meta, indent=2, ensure_ascii=False, default=str), encoding="utf-8")
+    session = {"started": meta["started"], "files": meta["files"], "runs": args.runs,
+               "model_load_sec": meta["model_load_sec"], "llm_warmup": warmup,
+               "ram_free_at_start_gb": meta["machine"]["ram_free_at_start_gb"]}
+    meta_path = out_dir / "run_meta.json"
+    if meta_path.exists():
+        # A later call into the same folder: everything that affects the results must be the same.
+        first = json.loads(meta_path.read_text(encoding="utf-8"))
+        now = json.loads(json.dumps(meta, default=str))
+        diff = [k for k in SAME_SETTINGS if _get(first, k) != _get(now, k)]
+        if diff:
+            raise SystemExit("[eval] not the same setup as the first call in " + out_dir.name + ": " + "; ".join(
+                f"{k}: {_get(first, k)} -> {_get(now, k)}" for k in diff))
+        meta = first
+        meta["sessions"].append(session)
+        meta["files"] = list(dict.fromkeys(meta["files"] + session["files"]))
+        meta["runs"] = max(meta["runs"], args.runs)
+    else:
+        meta["sessions"] = [session]
+    meta_path.write_text(json.dumps(meta, indent=2, ensure_ascii=False, default=str), encoding="utf-8")
     excluded = engine.excluded
-    (out_dir / "gvp_requirements.json").write_text(json.dumps(
-        [{"id": u["id"], "section": u["section"], "section_title": u.get("section_title"), "page": u.get("page"),
-          "excluded_sfda_duty": bool(excluded[i]), "text": u["text"]} for i, u in enumerate(engine.index.units)],
-        ensure_ascii=False, indent=1), encoding="utf-8")
+    if not (out_dir / "gvp_requirements.json").exists():
+        (out_dir / "gvp_requirements.json").write_text(json.dumps(
+            [{"id": u["id"], "section": u["section"], "section_title": u.get("section_title"), "page": u.get("page"),
+              "excluded_sfda_duty": bool(excluded[i]), "text": u["text"]} for i, u in enumerate(engine.index.units)],
+            ensure_ascii=False, indent=1), encoding="utf-8")
 
     done, failed = [], 0
     try:
@@ -289,12 +315,28 @@ def main():
                       f"peak RSS {res['memory']['peak_rss_harness_gb']} GB")
     finally:
         sampler.stop()
-        meta.update(finished=dt.datetime.now().isoformat(timespec="seconds"), file_runs=len(done),
-                    failed_file_runs=failed)
+        session.update(finished=dt.datetime.now().isoformat(timespec="seconds"), file_runs=len(done),
+                       failed_file_runs=failed)
+        everything = load_results(out_dir)   # every file run in the folder, from all calls
+        meta.update(finished=session["finished"], file_runs=len(everything),
+                    failed_file_runs=sum(r["failed"] for r in everything))
         (out_dir / "run_meta.json").write_text(json.dumps(meta, indent=2, ensure_ascii=False, default=str),
                                                encoding="utf-8")
-        write_verdicts(out_dir, done)
+        write_verdicts(out_dir, everything)
     print(f"[eval] done: {len(done)} file runs, {failed} failed -> {out_dir}")
+
+
+# Everything that affects the results; a later call into the same results folder must match the first.
+SAME_SETTINGS = ["git.commit", "git.uncommitted_changes_in_compliance_service", "models", "top_k", "llm_candidates",
+                 "llm_mode", "temperature", "max_tokens", "llm_cache", "number_check", "scope_mode",
+                 "excluded_sections", "excluded_units", "gvp.id", "gvp.version", "gvp.index_dir",
+                 "gvp.index_meta.gvp_sha1", "gvp.index_meta.n_units", "config_sha1"]
+
+
+def _get(d: dict, dotted: str):
+    for part in dotted.split("."):
+        d = d.get(part) if isinstance(d, dict) else None
+    return d
 
 
 def write_verdicts(out_dir: Path, results: list[dict]):
