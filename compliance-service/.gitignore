@@ -15,3 +15,7 @@ worker.log
 worker.log.1
 __pycache__/
 *.pyc
+# Evaluation harness: test SOPs, results and labels are never committed
+evaluation/data/
+evaluation/results/
+evaluation/labels/
