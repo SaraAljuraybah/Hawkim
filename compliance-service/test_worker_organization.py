@@ -71,28 +71,39 @@ class CancelTest(unittest.TestCase):
 
 
 class ProcessingTest(unittest.TestCase):
+    """A wrong organization path is refused with the user's message (CheckError / GuidelineProcessingError,
+    since e0c34ac); the WrongOrganizationPath is kept as its cause."""
+
+    def assert_refused(self, error, message):
+        self.assertEqual(str(error), message)
+        self.assertIsInstance(error.__cause__, WrongOrganizationPath)
+
     def test_a_check_with_another_organizations_file_is_refused_before_reading_it(self):
         sb = FakeSupabase()
         job = {"check_id": str(uuid.uuid4()), "file_name": "a.pdf", "sop_version": 1, "organization_id": ORG,
                "storage_path": f"{OTHER}/user/a.pdf", "guideline_index_path": f"{ORG}/versions/{uuid.uuid4()}"}
-        with self.assertRaises(WrongOrganizationPath):
+        with self.assertRaises(worker.CheckError) as failure:
             worker.process(job, svc=None, sb=sb, scfg={})
-        self.assertEqual(sb.calls, [])
+        self.assert_refused(failure.exception, worker.WRONG_ORGANIZATION)
+        # only the keep-alive of the check (dd8bd8e); no download (FakeSupabase would fail the test)
+        self.assertEqual([c[:2] for c in sb.calls], [("rpc", "compliance_check_alive")])
 
     def test_a_check_with_another_organizations_index_is_refused(self):
         sb = FakeSupabase()
         job = {"check_id": str(uuid.uuid4()), "file_name": "a.pdf", "sop_version": 1, "organization_id": ORG,
                "storage_path": f"{ORG}/user/a.pdf", "guideline_index_path": f"{OTHER}/versions/{uuid.uuid4()}"}
-        with self.assertRaises(WrongOrganizationPath):
+        with self.assertRaises(worker.CheckError) as failure:
             worker.process(job, svc=None, sb=sb, scfg={})
+        self.assert_refused(failure.exception, worker.WRONG_ORGANIZATION)
 
     def test_a_gvp_version_with_another_organizations_pdf_is_refused_before_reading_it(self):
         version = str(uuid.uuid4())
         sb = FakeSupabase()
         job = {"id": version, "version": "9.0", "file_name": "gvp.pdf", "organization_id": ORG,
                "storage_path": f"{OTHER}/files/{version}.pdf"}
-        with self.assertRaises(WrongOrganizationPath):
+        with self.assertRaises(worker.GuidelineProcessingError) as failure:
             worker.build_guideline(job, svc=None, sb=sb, tracker=None)
+        self.assert_refused(failure.exception, worker.GVP_WRONG_ORGANIZATION)
         self.assertEqual(sb.calls, [])
 
 
