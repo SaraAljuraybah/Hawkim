@@ -9,6 +9,10 @@ from .engine import Engine
 from .pipeline import load_config
 
 LABEL_ORDER = ["CONFLICT", "PARTIAL", "NOT_ADDRESSED", "COMPLIANT"]
+# Shown on the website for a step whose model answer can't be used. Plain on purpose: the real error
+# (exception or validation errors) stays in "error"/"llm_error" of the audit copy and in worker.log.
+MODEL_ANSWER_UNUSABLE = ("The AI model's answer for this step could not be used, so it needs human review "
+                         "against the closest GVP requirement.")
 
 
 class ComplianceService:
@@ -74,8 +78,7 @@ class ComplianceService:
             if not valid and r["retrieved"]:
                 chosen = r["retrieved"][0]["id"]
                 label, valid, evidence, action, missing = "NOT_ADDRESSED", True, "", "", ""
-                justification = (f"The model's answer could not be used ({error}), so a reviewer should assess "
-                                  f"this step against the closest GVP requirement.")
+                justification = MODEL_ANSWER_UNUSABLE
                 flags.append("model_answer_invalid")
             # Top-3 mode: the model found that none of the candidates applies ("NONE"). The step stays in the
             # report as Requires Human Review, under its closest requirement, so a reviewer decides.
