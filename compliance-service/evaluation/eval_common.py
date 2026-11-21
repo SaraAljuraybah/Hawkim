@@ -32,7 +32,10 @@ GOLD_LABELS = ("COMPLIANT", "PARTIAL", "CONFLICT", "NOT_ADDRESSED")
 # Gap detection: the expert's label says the step does not fully meet its requirement.
 GAP_LABELS = {"PARTIAL", "CONFLICT", "NOT_ADDRESSED"}
 
-# Manual step counts per SOP (Procedures section), given by the team.
+# Manual counts per SOP (Procedures section), given by the team. The checked unit is what the pipeline
+# assesses and the expert reviewed: sub-section introductions + numbered steps. Numbered steps alone are
+# reported as a second row.
+MANUAL_UNIT_COUNTS = {"SOP-PV-001": 16, "SOP-PV-002": 16, "SOP-PV-004": 16, "SOP-PV-010": 20}
 MANUAL_STEP_COUNTS = {"SOP-PV-001": 12, "SOP-PV-002": 12, "SOP-PV-004": 12, "SOP-PV-010": 15}
 
 

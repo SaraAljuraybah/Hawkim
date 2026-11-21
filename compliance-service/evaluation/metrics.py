@@ -25,7 +25,7 @@ import statistics
 from collections import Counter, defaultdict
 from pathlib import Path
 
-from eval_common import (FORMATS, GAP_LABELS, GOLD_LABELS, LABELS_DIR, MANUAL_STEP_COUNTS, RHR, VERDICTS,
+from eval_common import (FORMATS, GAP_LABELS, GOLD_LABELS, LABELS_DIR, MANUAL_STEP_COUNTS, MANUAL_UNIT_COUNTS, RHR, VERDICTS,
                          latest_results_dir, load_results, md_table, norm_text)
 from hawkim.metrics import parse_gold_ids, requirement_matches
 
@@ -130,20 +130,33 @@ def labels_for(res: dict, labels: dict, docx_by_key: dict) -> dict[str, dict]:
 # ------------------------------------------------------------------ tables
 
 def t_step_extraction(results, labels, docx_by_key):
-    rows = []
+    """Two rows per file: the checked units (sub-section introductions + numbered steps, the primary unit)
+    and the numbered steps alone."""
+    rows, tot = [], defaultdict(Counter)
     for r in results:
         labs = labels_for(r, labels, docx_by_key)
-        marked = [(s, labs[s["step_id"]]["is_true_step"]) for s in r["steps"]
-                  if s["step_id"] in labs and labs[s["step_id"]]["is_true_step"] is not None]
-        true_keys = {base_key(s["step_key"]) for s, y in marked if y}
-        manual = MANUAL_STEP_COUNTS.get(r["sop_id"])
-        n = len(r["steps"])
-        rows.append({"sop": r["sop_id"], "format": r["format"], "extracted": n,
-                     "numbered_steps": sum(s["chunk_type"] == "step" for s in r["steps"]), "manual_count": manual,
-                     "count_ratio": round(n / manual, 3) if manual else None, "labelled": len(marked),
-                     "true_steps": sum(y for _, y in marked) if marked else None,
-                     "precision": round(sum(y for _, y in marked) / len(marked), 3) if marked else None,
-                     "recall": round(len(true_keys) / manual, 3) if marked and manual else None})
+        for unit, manual_counts, keep in (
+                ("checked units (intro + steps)", MANUAL_UNIT_COUNTS, lambda s: True),
+                ("numbered steps only", MANUAL_STEP_COUNTS, lambda s: s["chunk_type"] == "step")):
+            steps = [s for s in r["steps"] if keep(s)]
+            marked = [(s, labs[s["step_id"]]["is_true_step"]) for s in steps
+                      if s["step_id"] in labs and labs[s["step_id"]]["is_true_step"] is not None]
+            true_n = sum(y for _, y in marked)
+            true_keys = {base_key(s["step_key"]) for s, y in marked if y}
+            manual = manual_counts.get(r["sop_id"])
+            t = tot[(unit, r["format"])]
+            t.update(extracted=len(steps), manual=manual or 0, labelled=len(marked), true=true_n, keys=len(true_keys))
+            rows.append({"unit": unit, "sop": r["sop_id"], "format": r["format"], "extracted": len(steps),
+                         "manual_count": manual, "count_ratio": round(len(steps) / manual, 3) if manual else None,
+                         "labelled": len(marked), "true": true_n if marked else None,
+                         "precision": round(true_n / len(marked), 3) if marked else None,
+                         "recall": round(len(true_keys) / manual, 3) if marked and manual else None})
+    for (unit, fmt), t in tot.items():
+        rows.append({"unit": unit, "sop": "ALL", "format": fmt, "extracted": t["extracted"], "manual_count": t["manual"],
+                     "count_ratio": round(t["extracted"] / t["manual"], 3) if t["manual"] else None,
+                     "labelled": t["labelled"], "true": t["true"] if t["labelled"] else None,
+                     "precision": round(t["true"] / t["labelled"], 3) if t["labelled"] else None,
+                     "recall": round(t["keys"] / t["manual"], 3) if t["labelled"] and t["manual"] else None})
     return rows
 
 
@@ -425,9 +438,11 @@ def main():
                 w.writerows(rows)
 
     notes = {
-        "1_step_extraction": "precision = true steps / labelled steps; recall = distinct true step numbers / manual "
-                             "count. Empty until is_true_step is filled. pdf steps inherit the docx label when step "
-                             "number and text match.",
+        "1_step_extraction": "Primary unit: checked units (sub-section introductions + numbered steps; manual "
+                             "16/16/16/20); second row: numbered steps only (manual 12/12/12/15). precision = units "
+                             "marked is_true_step = Y / labelled units; recall = distinct true units / manual count. "
+                             "Empty until is_true_step is filled. pdf units inherit the docx label when step number "
+                             "and text match.",
         "2_gvp_extraction": f"{'no labels/gvp_manual.xlsx yet' if n_manual is None else f'{n_manual} manual requirements'}; "
                             f"match = same section and >= {args.min_overlap:.0%} of the manual text's words.",
         "3_retrieval": "Uses relevant_requirement_ids (team). A section code counts every unit in that section. "

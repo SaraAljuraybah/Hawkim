@@ -58,8 +58,10 @@ at least 80% of the manual text's words.
 - **Requires Human Review** is an abstention, never mapped to a label. Expert tables give coverage, metrics on
   answered steps only, and strict metrics where every human-review step counts as wrong.
 - **Gap detection recall:** expert label PARTIAL, CONFLICT or NOT_ADDRESSED, pipeline verdict PARTIAL or CONFLICT.
-- **Step extraction:** precision = steps marked `is_true_step = Y` / labelled steps; recall = distinct true step
-  numbers / the manual count (SOP-PV-001, 002, 004: 12; SOP-PV-010: 15).
+- **Step extraction:** the checked unit is what the pipeline assesses and the expert reviewed (sub-section
+  introductions + numbered steps; manual counts 16 / 16 / 16 / 20); numbered steps alone (12 / 12 / 12 / 15)
+  are a second row. precision = units marked `is_true_step = Y` / labelled units; recall = distinct true units
+  / the manual count.
 - **pdf steps** inherit the docx labels when the step number and text are the same.
 - **Error attribution** (wrong steps): retrieval error = no relevant requirement in the top 5 (expert ids, else
   team ids); otherwise an LLM error, split by whether the relevant requirement was among the 3 the LLM saw.
