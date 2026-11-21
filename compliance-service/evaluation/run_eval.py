@@ -199,7 +199,10 @@ def main():
     ap.add_argument("--runs", type=int, default=1, help="run each file N times (3 for the consistency test)")
     ap.add_argument("--gvp-version", default="4.0", help="GVP version number in the database (default 4.0)")
     ap.add_argument("--files", nargs="*", help="only these SOP ids / formats / file names")
-    ap.add_argument("--min-ram-gb", type=float, default=7.0, help="stop if less RAM than this is free")
+    ap.add_argument("--min-ram-gb", type=float, default=7.0, help="stop if less RAM than this is free before "
+                    "the models are loaded")
+    ap.add_argument("--min-ram-after-load-gb", type=float, default=2.0, help="stop before a file if less RAM than "
+                    "this is free once the models are loaded (they hold several GB)")
     ap.add_argument("--run-id", help="results folder name (default: date_time_runsN)")
     args = ap.parse_args()
 
@@ -265,6 +268,7 @@ def main():
         "excluded_sections": cfg["scope"].get("exclude_sections"), "excluded_units": int(engine.excluded.sum()),
         "gvp": {**gvp["db_row"], "index_dir": str(gvp["index_dir"]), "index_meta": engine.index.meta},
         "model_load_sec": round(load_sec, 2), "llm_warmup": warmup, "min_ram_gb": args.min_ram_gb,
+        "min_ram_after_load_gb": args.min_ram_after_load_gb,
         "machine": {"platform": platform.platform(), "python": sys.version.split()[0],
                     "ram_free_at_start_gb": round(free_ram_gb(), 2)},
         "config_file": str(SERVICE_DIR / "config.yaml"),
@@ -301,7 +305,7 @@ def main():
     try:
         for run_no in range(1, args.runs + 1):
             for case in cases:
-                free = ram_guard(args.min_ram_gb, f"before {case['path'].name} (run {run_no})")
+                free = ram_guard(args.min_ram_after_load_gb, f"before {case['path'].name} (run {run_no}, models loaded)")
                 print(f"[eval] run {run_no}/{args.runs} {case['sop_id']} {case['format']} (free RAM {free:.1f} GB)")
                 res = run_file(case, run_no, svc, engine, timer, sampler)
                 res["free_ram_before_gb"] = round(free, 2)

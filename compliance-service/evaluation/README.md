@@ -13,7 +13,8 @@ The database is only read (the GVP version row); nothing is written to it.
 ## Steps
 
 Run from `compliance-service/`. Stop `worker.py` first. The harness stops if less than 7 GB of RAM is free
-(`--min-ram-gb`) before loading the models and before each file.
+before loading the models (`--min-ram-gb`). Once they are loaded they hold several GB, so before each file
+it only stops below 2 GB (`--min-ram-after-load-gb`). To check 7 GB before every file, run one file per call.
 
 ```bash
 python evaluation/run_eval.py --runs 1          # all files once (3 for the consistency test)
