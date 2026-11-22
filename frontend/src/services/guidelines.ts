@@ -6,6 +6,7 @@
  */
 
 import type { GuidelineProcessing, GuidelineVersion } from '../data/mock/types'
+import { fileTooLarge, GUIDELINE_FILE_MAX_BYTES } from '../lib/fileLimits'
 import { riyadhDate } from '../lib/riyadhWorkingDays'
 import { SIGNED_URL_SECONDS } from './files'
 import { supabase } from './supabase'
@@ -146,6 +147,8 @@ export async function fetchAddedGuidelineVersions(): Promise<GuidelineVersion[]>
 
 /** Uploads a PDF under a new random name in the organization's folder (never replacing a file); returns where it is. */
 export async function uploadGuidelineFile(file: File): Promise<string> {
+  // Checked before uploading: the guideline-files bucket (and check_guideline_file) would refuse it anyway.
+  if (fileTooLarge(file, GUIDELINE_FILE_MAX_BYTES)) throw new GuidelineError('file-too-large', 'The file must be at most 20 MB')
   let folder: string
   try {
     folder = await organizationFolder()

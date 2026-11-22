@@ -266,7 +266,7 @@ describe('identity isolation with the database services (stand-in database, no n
   it('creates drafts through Storage and the create RPC, with the existing validation first', async () => {
     const store = await signIn(fixture.people[0])
     const input = { title: '  Stored SOP  ', description: 'First line\nSecond line', departmentId: 'home', file: new File(['%PDF'], 'stored.pdf', { type: 'application/pdf' }) }
-    await expect(store.addDraft({ ...input, title: 'x'.repeat(51) })).rejects.toThrow(/1 to 50/)
+    await expect(store.addDraft({ ...input, title: 'x'.repeat(151) })).rejects.toThrow(/1 to 150/)
     expect(backend.calls).not.toContain('uploadSopFile')
     await expect(store.addDraft({ ...input, file: new File(['text'], 'invalid.txt') })).rejects.toThrow(/PDF/)
     expect(backend.calls).not.toContain('createSop')

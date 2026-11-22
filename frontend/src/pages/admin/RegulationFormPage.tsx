@@ -20,6 +20,8 @@ import {
   type GuidelineProblem,
   type GuidelineVersionInput,
 } from '../../lib/guidelines'
+import { GUIDELINE_FILE_MAX_BYTES } from '../../lib/fileLimits'
+import { formatFileSize } from '../../lib/format'
 import { riyadhDate } from '../../lib/riyadhWorkingDays'
 import { ADMIN_REGULATIONS_PATH, adminRegulationPath } from '../../lib/routes'
 import { GuidelineError, type GuidelineFailure } from '../../services/guidelines'
@@ -28,7 +30,6 @@ import { NotFoundPage } from '../NotFoundPage'
 import type { AdminRegulationsLocationState } from './AdminRegulationsPage'
 
 const FILE_EXTENSIONS = ['.pdf']
-const FILE_MAX_BYTES = 20 * 1024 * 1024
 
 const FIELDS: GuidelineField[] = ['title', 'version', 'issuedDate', 'addedDate', 'fileName', 'source']
 
@@ -160,6 +161,10 @@ function GuidelineVersionForm({ editing }: { editing?: GuidelineVersion }) {
       case 'file-exists':
         return { field: 'fileName', message: text.errors.fileExists }
       case 'file-too-large':
+        // The database also refuses an empty file under this reason; only a file over the limit is "too large".
+        return files[0] && files[0].size > 0
+          ? { field: 'fileName', message: text.errors.fileTooLarge.replace('{max}', formatFileSize(GUIDELINE_FILE_MAX_BYTES)) }
+          : { field: 'fileName', message: text.errors.uploadFailed }
       case 'file-missing':
       case 'file-in-use':
       case 'upload':
@@ -315,7 +320,7 @@ function GuidelineVersionForm({ editing }: { editing?: GuidelineVersion }) {
             if (submitAttempted || errors.fileName) setErrors((prev) => ({ ...prev, fileName: errorsFor(input(next)).fileName }))
           }}
           extensions={FILE_EXTENSIONS}
-          maxSizeBytes={FILE_MAX_BYTES}
+          maxSizeBytes={GUIDELINE_FILE_MAX_BYTES}
           // Adding the PDF to a version that has none is optional.
           text={canAddFile ? { ...text.file, requiredTag: undefined, hint: text.attachHint } : text.file}
           browseRef={browseRef}

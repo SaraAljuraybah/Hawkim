@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { ManagedDepartment, ManagementSnapshot } from '../services/organizationAdmin'
-import { hierarchyRows, departmentDeleteBlocker, managementFilterData, nextDivisionSort, sortDepartments } from './organizationAdmin'
+import { divisionNameTaken, hierarchyRows, departmentDeleteBlocker, managementFilterData, nextDivisionSort, sortDepartments } from './organizationAdmin'
 
 const department = (id: string, name: string, division: string | null, employees = 0, sops = 0): ManagedDepartment =>
   ({ id, name, initials: 'XX', description: '', division_id: division, updated_at: 'r', employees, sops, status_counts: {}, people: [] })
@@ -171,5 +171,19 @@ describe('when a department can be deleted', () => {
   it('never blocks the retry of a deletion confirmed earlier because of SOPs', () => {
     expect(departmentDeleteBlocker(department(0, 0, 'job'))).toBeUndefined()
     expect(departmentDeleteBlocker(department(0, 3, 'job'))).toBeUndefined()
+  })
+})
+
+describe('divisionNameTaken (as save_division compares names)', () => {
+  const divisions = [{ id: 'q', name: 'Quality and Compliance' }, { id: 's', name: ' Safety ' }]
+  it.each(['Quality and Compliance', 'quality and compliance', 'QUALITY AND COMPLIANCE', '  Quality and Compliance  ', 'safety', 'Safety\t'])('finds %j in use', (name) => {
+    expect(divisionNameTaken(divisions, name)).toBe(true)
+  })
+  it.each(['Quality', 'Quality and  Compliance', 'Safety Plus', '', '   '])('finds %j free', (name) => {
+    expect(divisionNameTaken(divisions, name)).toBe(false)
+  })
+  it('lets the division being edited keep its own name or change its case', () => {
+    expect(divisionNameTaken(divisions, 'quality AND compliance', 'q')).toBe(false)
+    expect(divisionNameTaken(divisions, 'Safety', 'q')).toBe(true)
   })
 })

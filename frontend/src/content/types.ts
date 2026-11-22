@@ -1649,6 +1649,8 @@ export interface AdminRegulationFormContent {
     sourceNotSfda: string
     sourceTooLong: string
     fileExists: string
+    /** The PDF is over the limit (refused before uploading, or by the database); `{max}` is replaced, e.g. "20 MB". */
+    fileTooLarge: string
     uploadFailed: string
     /** Saving was refused: not an admin (any more). */
     permission: string

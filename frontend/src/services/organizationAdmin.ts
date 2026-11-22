@@ -32,9 +32,21 @@ export function managementError(error: { code?: string; message?: string; hint?:
   // A conflict is P0001 with hint 'conflict' (20261116130000_conflict_without_retry.sql); 40001 is kept for
   // safety (PostgREST 14 retries 40001 until it times out, so the database no longer raises it).
   if ((error.code === 'P0001' && error.hint === 'conflict') || error.code === '40001' || error.code === 'P0002') return new Error(text.conflict)
+  if (isDivisionNameConflict(error)) return new Error(text.divisionNameExists)
   if (error.code === '23505') return new Error(text.duplicate)
   const known = error.message ? DATABASE_MESSAGES[error.message] : undefined
   return new Error(known ?? (error.code === '23514' ? text.invalid : text.failed))
+}
+
+/**
+ * A division name that another active division of the organization already has: save_division's own refusal
+ * (20261119130000), or the unique index when two saves race past that check (divisions_organization_name_unique,
+ * 20261124120000; divisions_name_unique on a database that 20261124120000 hasn't reached yet). Only these: any other
+ * unique violation (a department's name or initials, an audit row…) keeps its own message.
+ */
+function isDivisionNameConflict(error: { code?: string; message?: string }): boolean {
+  if (error.code !== '23505' || !error.message) return false
+  return error.message === 'Division name already exists' || /"divisions_(organization_)?name_unique"/.test(error.message)
 }
 
 /** The exact refusals raised in supabase/migrations/2026110512*–16*, as what the admin should do next. */

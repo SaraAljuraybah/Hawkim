@@ -56,3 +56,17 @@ describe('SOP files', () => {
     await expect(fileUrlOf({ storagePath: 'uuid-sara/a.pdf' })).rejects.toThrow('Object not found')
   })
 })
+
+describe('SOP file size, checked before uploading', () => {
+  const sized = (size: number) => { const file = new File(['x'], 'procedure.pdf'); Object.defineProperty(file, 'size', { value: size }); return file }
+  it('uploads a file below or exactly at 10 MB', async () => {
+    bucket.upload.mockResolvedValue({ data: {}, error: null })
+    await uploadSopFile('uuid-sara', sized(10 * 1024 * 1024 - 1))
+    await uploadSopFile('uuid-sara', sized(10 * 1024 * 1024))
+    expect(bucket.upload).toHaveBeenCalledTimes(2)
+  })
+  it('refuses a file over 10 MB without sending it', async () => {
+    await expect(uploadSopFile('uuid-sara', sized(10 * 1024 * 1024 + 1))).rejects.toThrow('10 MB or smaller')
+    expect(bucket.upload).not.toHaveBeenCalled()
+  })
+})

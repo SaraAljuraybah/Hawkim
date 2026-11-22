@@ -2,7 +2,7 @@ import { useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, u
 import type { ClosedReviewRequest, Sop, UserRequest } from '../data/mock/types'
 import * as compliance from '../lib/compliance'
 import { assertCanCreateSop } from '../lib/sopAccess'
-import { sopTitleProblem } from '../lib/sopTitle'
+import { SOP_TITLE_MAX, sopTitleProblem } from '../lib/sopTitle'
 import { submitForApproval } from '../lib/approval'
 import { applyReviewAction } from '../lib/reviewFlow'
 import { RequestExpiredError, RequestNotResendableError } from '../lib/internalReviewStatus'
@@ -321,7 +321,7 @@ export function SopsProvider({ children, initialSops = NO_SOPS }: { children: Re
     async ({ file, ...draft }: NewDraft) => {
       if (!userId || activeIdentity.current !== userId) throw new Error('The signed-in user changed')
       assertCanCreateSop(users.find((user) => user.id === userId), draft.departmentId, departments)
-      if (sopTitleProblem(draft.title)) throw new Error('An SOP title of 1 to 50 characters is required')
+      if (sopTitleProblem(draft.title)) throw new Error(`An SOP title of 1 to ${SOP_TITLE_MAX} characters is required`)
       // The file first, then the SOP; the database gives it its number and version 1.
       const stored = await (await fileService()).uploadSopFile(userId, file)
       if (activeIdentity.current !== userId) throw new Error('The signed-in user changed')

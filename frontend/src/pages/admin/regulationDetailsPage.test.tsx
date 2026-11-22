@@ -32,9 +32,9 @@ const detail = (html: string, label: string) => html.match(new RegExp(`<dt[^>]*>
 describe('a GVP version\'s requirements', () => {
   it('opens from the requirements count: a link-style button with aria-expanded, aria-controls and a down chevron', () => {
     const html = render('gvp-4-0')
-    const button = detail(html, 'Requirement Passages')
+    const button = detail(html, 'Requirements')
     expect(button).toMatch(/^<button type="button" aria-expanded="false" aria-controls="guideline-requirements" class="[^"]*text-maroon[^"]*hover:underline/)
-    expect(button).toContain('>2 Requirement Passages<')
+    expect(button).toContain('>2 Requirements<')
     expect(button).toContain('lucide-chevron-down')
     expect(button).not.toContain('lucide-chevron-up')
   })
@@ -57,7 +57,7 @@ describe('a GVP version\'s requirements', () => {
 
   it('stays plain text where there is no table (the Current Version card)', () => {
     const html = renderToStaticMarkup(<GuidelineVersionDetails version={v40} />)
-    expect(detail(html, 'Requirement Passages')).toBe('2 Requirement Passages')
+    expect(detail(html, 'Requirements')).toBe('2 Requirements')
     expect(detail(html, 'File')).toBe('<span class="break-all">Drug-GVP4_0.pdf</span>')
   })
 })
@@ -65,10 +65,10 @@ describe('a GVP version\'s requirements', () => {
 describe("a published version's passages", () => {
   it('shows their count from the list and reads them on the page, not with the list', () => {
     const html = render('uuid-39')
-    expect(detail(html, 'Requirement Passages')).toContain('>1483 Requirement Passages<')
+    expect(detail(html, 'Requirements')).toContain('>1483 Requirements<')
     // Static rendering shows the state before they arrive.
-    expect(html).toContain('<p role="status" class="mt-3 text-sm text-text-gray">Loading requirement passages…</p>')
-    expect(html).not.toContain('aria-label="Requirement passages"')
+    expect(html).toContain('<p role="status" class="mt-3 text-sm text-text-gray">Loading requirements…</p>')
+    expect(html).not.toContain('aria-label="Requirements"')
   })
 })
 
@@ -76,7 +76,7 @@ describe('the Requirements table', () => {
   it('has the same style as the admin Users and Version History tables, with its columns and content', () => {
     const html = render('gvp-4-0')
     const table = html.slice(html.indexOf('<table'), html.indexOf('</table>'))
-    expect(table).toContain(`<table aria-label="Requirement passages" class="${tableStyles.table}">`)
+    expect(table).toContain(`<table aria-label="Requirements" class="${tableStyles.table}">`)
     expect(table).toContain(`<thead class="${tableStyles.head.replace('&', '&amp;')}">`)
     const headers = [...table.matchAll(/<th scope="col" class="([^"]*)">([^<]+)<\/th>/g)]
     expect(headers.map((match) => match[2])).toEqual(['ID', 'Module', 'Section', 'Title', 'Page', 'Summary'])
@@ -85,7 +85,7 @@ describe('the Requirements table', () => {
     expect(table).toContain('Keep records.')
     // The same frame, and stacked cards below md like the other tables.
     expect(html).toContain(`<div class="mt-3 ${tableStyles.frame}"><div class="${tableStyles.wide} overflow-x-auto">`)
-    expect(html).toContain(`<ul aria-label="Requirement passages" class="${tableStyles.cards}">`)
+    expect(html).toContain(`<ul aria-label="Requirements" class="${tableStyles.cards}">`)
     expect(html).not.toContain('bg-beige/60')
   })
 })
@@ -135,7 +135,7 @@ describe('a GVP version\'s File card', () => {
     const html = render('uuid-50')
     expect(html).toMatch(/>GVP Version 5\.0<\/h1>/)
     expect(html).not.toContain('>Current<')
-    expect(detail(html, 'Requirement Passages')).toContain('>0 Requirement Passages<')
+    expect(detail(html, 'Requirements')).toContain('>0 Requirements<')
   })
 
   it('shows the Current badge on the database\'s current version only', () => {

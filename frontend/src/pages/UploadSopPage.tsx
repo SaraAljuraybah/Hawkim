@@ -9,6 +9,7 @@ import { TextAreaField } from '../components/ui/TextAreaField'
 import { TextField } from '../components/ui/TextField'
 import { uploadSopEn } from '../content/mySops.en'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
+import { SOP_FILE_MAX_BYTES } from '../lib/fileLimits'
 import { formatDate } from '../lib/format'
 import { hasPermission } from '../lib/permissions'
 import { riyadhDate } from '../lib/riyadhWorkingDays'
@@ -23,7 +24,6 @@ import type { MySopsLocationState } from './MySopsPage'
 
 /** Authors can upload Word (.docx) and PDF files (PBI 1). */
 const FILE_EXTENSIONS = ['.docx', '.pdf']
-const FILE_MAX_BYTES = 10 * 1024 * 1024 // 10 MB
 
 type Field = 'title' | 'file'
 type FieldErrors = Partial<Record<Field, string>>
@@ -144,7 +144,7 @@ export function UploadSopPage() {
             files={files}
             onChange={handleFilesChange}
             extensions={FILE_EXTENSIONS}
-            maxSizeBytes={FILE_MAX_BYTES}
+            maxSizeBytes={SOP_FILE_MAX_BYTES}
             text={content.fields.file}
             browseRef={browseRef}
             multiple={false}

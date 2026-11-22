@@ -201,15 +201,15 @@ describe('SOP title presentation without exposing generated serial numbers', () 
 })
 
 describe('author workflow section layout', () => {
-  it('requires an SOP title of at most 50 characters without changing existing saved titles', () => {
+  it('requires an SOP title of at most 150 characters without changing existing saved titles', () => {
     const html = render(<UploadSopPage />)
     const input = html.match(/<input[^>]*name="title"[^>]*>/)![0]
     expect(input).toContain('required=""')
-    expect(input).toContain('maxLength="50"')
+    expect(input).toContain('maxLength="150"')
     expect(input).toContain('aria-describedby=')
     expect(sopTitleProblem('   ')).toBe('required')
-    expect(sopTitleProblem('x'.repeat(50))).toBeUndefined()
-    expect(sopTitleProblem('x'.repeat(51))).toBe('too-long')
+    expect(sopTitleProblem('x'.repeat(150))).toBeUndefined()
+    expect(sopTitleProblem('x'.repeat(151))).toBe('too-long')
   })
 
   it('names the SOP History date column Added Date', () => {

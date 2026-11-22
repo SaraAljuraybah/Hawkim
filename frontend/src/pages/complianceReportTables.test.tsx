@@ -107,7 +107,7 @@ describe('Requirements', () => {
 
   it('comes after the Summary, with a description, and has the GVP columns and no Findings column', () => {
     const html = requirements()
-    expect(html).toContain('>Requirements</h2><p class="mt-1 mb-4 text-sm text-text-gray">The GVP requirement passages this check assessed')
+    expect(html).toContain('>Requirements</h2><p class="mt-1 mb-4 text-sm text-text-gray">The GVP requirements this check assessed')
     expect(headers(html)).toEqual(['ID', 'Module', 'Section', 'Title', 'Page', 'Summary'])
     expect(html).toContain('aria-label="GVP requirements assessed"')
     // No links to findings, in the table or on the phone cards.
@@ -183,10 +183,10 @@ describe('Requirements', () => {
 describe('Procedures', () => {
   const procedures = (html = render()) => section(html, 'procedures-title')
 
-  it('comes after Requirements, with a description and the columns No., Section, Page and Text (no Findings)', () => {
+  it('comes after Requirements, with a description and the columns No., Section, Page and SOP Procedure Text (no Findings)', () => {
     const html = procedures()
     expect(html).toContain('>Procedures</h2><p class="mt-1 mb-4 text-sm text-text-gray">The procedures Hawkim found in the file of this SOP version')
-    expect(headers(html)).toEqual(['No.', 'Section', 'Page', 'Text'])
+    expect(headers(html)).toEqual(['No.', 'Section', 'Page', 'SOP Procedure Text'])
     expect(html).not.toContain('href="#finding-')
     expect(html).not.toContain('Findings:')
     expect(html).toContain('aria-label="SOP procedures"')

@@ -1,12 +1,12 @@
 import { useRef, useState } from 'react'
 import { flushSync } from 'react-dom'
 import type { SopWorkflowContent } from '../../content/types'
+import { SOP_FILE_MAX_BYTES } from '../../lib/fileLimits'
 import { FileDropzone } from '../ui/FileDropzone'
 import { FormDialog } from '../ui/FormDialog'
 
 /** Same rules as Add SOP: one .docx or PDF file, up to 10 MB. */
 const FILE_EXTENSIONS = ['.docx', '.pdf']
-const FILE_MAX_BYTES = 10 * 1024 * 1024
 
 interface FileDialogProps {
   content: SopWorkflowContent['dialogs']
@@ -56,7 +56,7 @@ export function FileDialog({ content, title, description, confirmLabel, onSubmit
           if (next.length === 1) setError(undefined)
         }}
         extensions={FILE_EXTENSIONS}
-        maxSizeBytes={FILE_MAX_BYTES}
+        maxSizeBytes={SOP_FILE_MAX_BYTES}
         text={content.fileField}
         browseRef={browseRef}
         multiple={false}

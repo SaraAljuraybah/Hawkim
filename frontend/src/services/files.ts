@@ -7,6 +7,7 @@
 
 import type { SopFileType } from '../data/mock/types'
 import type { StoredFile } from './sops'
+import { fileTooLarge, SOP_FILE_MAX_BYTES } from '../lib/fileLimits'
 import { localFileUrl } from '../lib/prototypeFiles'
 import { supabase } from './supabase'
 import { organizationFolder } from './organizationFolder'
@@ -36,6 +37,8 @@ export function storagePathFor(organizationId: string, userId: string, fileType:
 export async function uploadSopFile(userId: string, file: File): Promise<StoredFile> {
   const fileType = fileTypeOf(file.name)
   if (!fileType) throw new Error('Only PDF and DOCX files can be uploaded')
+  // Checked before uploading: the sop-files bucket would refuse it anyway, after the whole file was sent.
+  if (fileTooLarge(file, SOP_FILE_MAX_BYTES)) throw new Error('SOP files must be 10 MB or smaller')
   const storagePath = storagePathFor(await organizationFolder(), userId, fileType)
   const { error } = await supabase().storage.from(BUCKET).upload(storagePath, file, { contentType: CONTENT_TYPES[fileType], upsert: false })
   if (error) throw new Error(error.message)

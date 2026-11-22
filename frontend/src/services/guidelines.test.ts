@@ -104,3 +104,20 @@ describe('an added version', () => {
     })
   })
 })
+
+describe('guideline PDF size, checked before uploading', () => {
+  const sized = (size: number) => { const file = new File(['%PDF'], 'gvp.pdf'); Object.defineProperty(file, 'size', { value: size }); return file }
+  it('uploads a PDF below or exactly at 20 MB', async () => {
+    bucket.upload.mockResolvedValue({ data: {}, error: null })
+    await uploadGuidelineFile(sized(20 * 1024 * 1024 - 1))
+    await uploadGuidelineFile(sized(20 * 1024 * 1024))
+    expect(bucket.upload).toHaveBeenCalledTimes(2)
+  })
+  it('refuses a PDF over 20 MB as too large, without sending it', async () => {
+    await expect(uploadGuidelineFile(sized(20 * 1024 * 1024 + 1))).rejects.toMatchObject({ reason: 'file-too-large' })
+    expect(bucket.upload).not.toHaveBeenCalled()
+  })
+  it('keeps the database refusal of a file too large as its own reason', () => {
+    expect(guidelineError({ code: '23514', hint: 'file-too-large', message: 'The file must be at most 20 MB' }).reason).toBe('file-too-large')
+  })
+})

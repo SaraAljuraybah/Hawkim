@@ -711,12 +711,12 @@ describe('SOP details (title and description)', () => {
     expect(() => updateDetails(draft({ status: 'published' }), SARA, details('T', 'Too late'))).toThrow(/published/)
   })
 
-  it('is only for the main author, with a required title of up to 50 characters and up to 1000 for the description', () => {
+  it('is only for the main author, with a required title of up to 150 characters and up to 1000 for the description', () => {
     expect(() => updateDetails(draft(), REEM, details('T', 'Co-author edit'))).toThrow(/Only the main author/)
     expect(() => updateDetails(draft(), NOURA, details('T', 'Reviewer edit'))).toThrow(/Only the main author/)
     expect(() => updateDetails(draft(), SARA, details('   ', 'x'))).toThrow(/title is required/)
-    expect(updateDetails(draft(), SARA, details('a'.repeat(50), '')).title).toHaveLength(50)
-    expect(() => updateDetails(draft(), SARA, details('a'.repeat(51), ''))).toThrow(/50 characters/)
+    expect(updateDetails(draft(), SARA, details('a'.repeat(150), '')).title).toHaveLength(150)
+    expect(() => updateDetails(draft(), SARA, details('a'.repeat(151), ''))).toThrow(/150 characters/)
     expect(updateDetails(draft(), SARA, details('T', 'a'.repeat(1000))).description).toHaveLength(1000)
     expect(() => updateDetails(draft(), SARA, details('T', 'a'.repeat(1001)))).toThrow(/1000 characters/)
   })

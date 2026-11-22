@@ -31,6 +31,48 @@ const confirm = (element: Element) => (element.props.onConfirm as () => Promise<
 const change = (element: Element, value: string | boolean) => (element.props.onChange as (event: unknown) => void)({ target: { value, checked: value } })
 beforeEach(() => { host.states = []; host.index = 0; host.refs = []; host.refIndex = 0; vi.clearAllMocks(); host.save.mockResolvedValue('v'); host.remove.mockResolvedValue(undefined) })
 describe('division create and edit form', () => {
+  const exists = 'A division with this name already exists. Please choose a different name.'
+  const others = [{ id: 'q', name: 'Quality and Compliance' }, division]
+  const field = (component: () => Element, name: string) => elements(render(component)).find((item) => item.props.name === name)!
+  const nameField = (component: () => Element) => field(component, 'divisionName').props
+  it.each(['Quality and Compliance', 'quality and compliance', '  QUALITY AND COMPLIANCE  '])('refuses %j when another division has that name, under Name, before saving', async (name) => {
+    const component = () => DivisionForm({ divisions: others, onClose: vi.fn() }) as Element
+    render(component)
+    change(field(component, 'divisionName'), name)
+    change(field(component, 'divisionEmail'), 'q@test.invalid')
+    change(field(component, 'divisionDescription'), 'Quality work')
+    const [nameFocus] = focusable()
+    await expect(confirm(render(component))).resolves.toBe(false)
+    expect(host.save).not.toHaveBeenCalled()
+    expect(nameField(component).error).toBe(exists)
+    expect(nameFocus).toHaveBeenCalledOnce()
+    expect(renderToStaticMarkup(render(component))).not.toContain('role="alert"')
+  })
+  it('lets an edited division keep its own name, or change only its case', async () => {
+    const component = () => DivisionForm({ division: { ...division, name: 'SAFETY ' }, divisions: others, onClose: vi.fn() }) as Element
+    await expect(confirm(render(component))).resolves.toBeUndefined()
+    expect(host.save).toHaveBeenCalledOnce()
+    expect(nameField(component).error).toBeUndefined()
+  })
+  it('shows the database refusal under Name (a division added since the list loaded), until the name changes', async () => {
+    host.save.mockRejectedValueOnce(new Error(exists))
+    const component = () => DivisionForm({ division, divisions: [], onClose: vi.fn() }) as Element
+    render(component)
+    const [nameFocus] = focusable()
+    await expect(confirm(render(component))).resolves.toBe(false)
+    expect(nameField(component).error).toBe(exists)
+    expect(nameFocus).toHaveBeenCalledOnce()
+    expect(renderToStaticMarkup(render(component))).not.toContain('role="alert"')
+    change(field(component, 'divisionName'), 'Safety Two')
+    expect(nameField(component).error).toBeUndefined()
+  })
+  it('keeps any other refusal below the fields, not under Name', async () => {
+    host.save.mockRejectedValueOnce(new Error('Someone else changed this record. Refresh the page and try again.'))
+    const component = () => DivisionForm({ division, divisions: others, onClose: vi.fn() }) as Element
+    await expect(confirm(render(component))).resolves.toBe(false)
+    expect(nameField(component).error).toBeUndefined()
+    expect(renderToStaticMarkup(render(component))).toContain('role="alert" class="text-sm text-status-rejected-fg">Someone else changed this record.')
+  })
   it.each(['invalid', 'a@b', 'a b@test.invalid'])('rejects a malformed email %s before saving', async (email) => {
     const component = () => DivisionForm({ division: { ...division, email }, onClose: vi.fn() })
     await expect(confirm(render(component))).resolves.toBe(false)

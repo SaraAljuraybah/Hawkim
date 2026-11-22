@@ -110,7 +110,7 @@ export const complianceEn: ComplianceContent = {
     },
     requirements: {
       title: 'Requirements',
-      description: 'The GVP requirement passages this check assessed, each listed once.',
+      description: 'The GVP requirements this check assessed, each listed once.',
       tableLabel: 'GVP requirements assessed',
       columns: { id: 'ID', module: 'Module', section: 'Section', title: 'Title', page: 'Page', summary: 'Summary' },
       page: 'p. {page}',
@@ -123,7 +123,7 @@ export const complianceEn: ComplianceContent = {
       title: 'Procedures',
       description: 'The procedures Hawkim found in the file of this SOP version, in document order.',
       tableLabel: 'SOP procedures',
-      columns: { number: 'No.', section: 'Section', page: 'Page', text: 'Text' },
+      columns: { number: 'No.', section: 'Section', page: 'Page', text: 'SOP Procedure Text' },
       page: 'p. {page}',
       pageCard: 'Page {page}',
       none: '—',

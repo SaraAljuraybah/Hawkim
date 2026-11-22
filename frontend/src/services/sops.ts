@@ -28,7 +28,7 @@ import { todayIsoDate } from '../lib/format'
 import { projectReviewers } from '../lib/internalReviewStatus'
 import { WORKING_DAY_DEADLINES_ACTIVE } from '../lib/deadlinePolicy'
 import { isSopDeleteErrorCode, SopDeleteError, type SopDeleteErrorCode } from '../lib/mySops'
-import { sopTitleProblem } from '../lib/sopTitle'
+import { SOP_TITLE_MAX, sopTitleProblem } from '../lib/sopTitle'
 import { supabase } from './supabase'
 
 /*
@@ -395,7 +395,7 @@ export interface StoredFile {
 
 /** Creates an SOP in the author's home department with its first version; returns its id. */
 export async function createSop(input: { title: string; description?: string; departmentId: string; file: StoredFile }): Promise<string> {
-  if (sopTitleProblem(input.title)) throw new Error('An SOP title of 1 to 50 characters is required')
+  if (sopTitleProblem(input.title)) throw new Error(`An SOP title of 1 to ${SOP_TITLE_MAX} characters is required`)
   const { data, error } = await supabase().rpc('create_sop', {
     p_title: input.title.trim(),
     p_description: input.description ?? '',

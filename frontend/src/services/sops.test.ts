@@ -291,8 +291,8 @@ describe('saving SOPs and versions', () => {
   })
 
   it('refuses blank or overlong titles before calling the database and trims accepted titles', async () => {
-    for (const title of ['', '  ', 'x'.repeat(51)]) {
-      await expect(createSop({ title, departmentId: 'information-technology', file })).rejects.toThrow(/1 to 50/)
+    for (const title of ['', '  ', 'x'.repeat(151)]) {
+      await expect(createSop({ title, departmentId: 'information-technology', file })).rejects.toThrow(/1 to 150/)
     }
     expect(rpc).not.toHaveBeenCalled()
     rpc.mockResolvedValue({ data: 'uuid-new', error: null })
@@ -300,13 +300,13 @@ describe('saving SOPs and versions', () => {
     expect(rpc).toHaveBeenLastCalledWith('create_sop', expect.objectContaining({ p_title: 'Backup' }))
   })
 
-  it('uses the existing 50 UTF-16-unit title limit for supplementary Unicode characters', async () => {
-    const title = '😀'.repeat(25)
+  it('uses the existing 150 UTF-16-unit title limit for supplementary Unicode characters', async () => {
+    const title = '😀'.repeat(75)
     rpc.mockResolvedValue({ data: 'uuid-new', error: null })
     await createSop({ title, departmentId: 'information-technology', file })
     expect(rpc).toHaveBeenLastCalledWith('create_sop', expect.objectContaining({ p_title: title }))
     rpc.mockClear()
-    await expect(createSop({ title: title + 'x', departmentId: 'information-technology', file })).rejects.toThrow(/1 to 50/)
+    await expect(createSop({ title: title + 'x', departmentId: 'information-technology', file })).rejects.toThrow(/1 to 150/)
     expect(rpc).not.toHaveBeenCalled()
   })
 

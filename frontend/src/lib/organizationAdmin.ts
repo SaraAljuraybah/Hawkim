@@ -1,4 +1,4 @@
-import type { ManagedDepartment, ManagementSnapshot } from '../services/organizationAdmin'
+import type { DivisionRecord, ManagedDepartment, ManagementSnapshot } from '../services/organizationAdmin'
 import { matchesDivisionDepartmentFilter, type FilterDepartments } from './organization'
 
 /**
@@ -122,4 +122,14 @@ export function departmentDeleteBlocker(
 /** One of the organization's two default departments (Pharmacovigilance, Quality Assurance): never deleted or renamed. */
 export function isDefaultDepartment(department: Pick<ManagedDepartment, 'system_key'>): boolean {
   return !!department.system_key
+}
+
+/**
+ * Whether another active division already has this name, as save_division compares names: ignoring case and
+ * leading or trailing spaces (lower(btrim(name)), 20261119130000; the unique index divisions_organization_name_unique,
+ * 20261124120000). The division being edited (exceptId) doesn't count, so it can keep its own name or change its case.
+ */
+export function divisionNameTaken(divisions: readonly Pick<DivisionRecord, 'id' | 'name'>[], name: string, exceptId?: string): boolean {
+  const key = name.trim().toLowerCase()
+  return !!key && divisions.some((division) => division.id !== exceptId && division.name.trim().toLowerCase() === key)
 }

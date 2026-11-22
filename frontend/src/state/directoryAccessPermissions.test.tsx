@@ -63,11 +63,11 @@ beforeEach(() => {
 describe('directory access never authorizes authoring', () => {
   it('enforces the required 50-character title limit before uploading or saving a direct draft mutation', async () => {
     const store = storeFor('visitor')
-    for (const title of ['', '   ', 'x'.repeat(51)]) {
-      await expect(store.addDraft({ ...draft(), title })).rejects.toThrow(/1 to 50/)
+    for (const title of ['', '   ', 'x'.repeat(151)]) {
+      await expect(store.addDraft({ ...draft(), title })).rejects.toThrow(/1 to 150/)
       expect(database.created).toEqual([])
     }
-    const title = 'x'.repeat(50)
+    const title = 'x'.repeat(150)
     await expect(store.addDraft({ ...draft(), title })).resolves.toMatchObject({ title, authorId: 'visitor', departmentId: 'home' })
     await expect(store.addDraft({ ...draft(), title: '  Trimmed title  ' })).resolves.toMatchObject({ title: 'Trimmed title' })
   })

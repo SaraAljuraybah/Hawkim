@@ -96,7 +96,7 @@ export function AdminDepartmentsPage() {
         onPreview={(row) => open(() => setPreview(row))} onViewDepartment={(row) => open(() => setViewing(row))} onEdit={(row) => open(() => setEditing(row))}
         onAddDepartment={(divisionId) => open(() => setDepartmentForm({ divisionId }))} onEditDepartment={(row) => open(() => setDepartmentForm({ department: row }))}
         onDeleteDivision={(row) => open(() => setDeleting(row))} onDeleteDepartment={(row) => open(() => setDepartment(row))} />}
-    {editing !== undefined && <DivisionForm onSaved={() => setFeedback(text.saved)} division={editing ?? undefined} onClose={() => { close(); void refresh() }} />}
+    {editing !== undefined && <DivisionForm onSaved={() => setFeedback(text.saved)} division={editing ?? undefined} divisions={data?.divisions} onClose={() => { close(); void refresh() }} />}
     {preview && <DivisionPreview division={preview} onClose={close} />}
     {deleting && <FormDialog open title={text.deleteTitle.replace('{name}', deleting.name)} description={text.deleteDivisionText}
       confirmLabel={text.delete} cancelLabel={text.cancel} onClose={close} onConfirm={async () => {

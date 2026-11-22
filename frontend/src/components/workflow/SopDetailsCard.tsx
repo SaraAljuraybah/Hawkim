@@ -87,7 +87,7 @@ function Row({ label, children }: { label: string; children: ReactNode }) {
 }
 
 /**
- * Edit SOP Details: the current Title (required, up to 50 characters, as when adding an SOP) and Description
+ * Edit SOP Details: the current Title (required, up to SOP_TITLE_MAX characters, as when adding an SOP) and Description
  * (optional, up to 1000). Save Changes checks them first; a failed save keeps the dialog open with what was
  * typed and says so. Cancel, Escape and the backdrop discard the changes.
  */

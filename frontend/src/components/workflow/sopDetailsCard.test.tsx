@@ -26,7 +26,7 @@ describe('SOP Details', () => {
   })
 
   it('wraps long titles and descriptions instead of breaking the layout, and keeps line breaks', () => {
-    const html = render({ sop: sop({ title: 'T'.repeat(50), description: 'D'.repeat(1000) }) })
+    const html = render({ sop: sop({ title: 'T'.repeat(150), description: 'D'.repeat(1000) }) })
     expect(html).toContain('text-base break-words text-maroon')
     expect(html).toMatch(/rounded-lg border border-beige bg-white px-4 py-3[^"]*break-words whitespace-pre-line/)
   })
