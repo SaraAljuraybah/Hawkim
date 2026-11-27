@@ -80,10 +80,7 @@ export function AdminDepartmentsPage() {
         ]} />
       {/* The Sort field of every list page; one choice orders the divisions and, inside each, their departments. */}
       <SelectField className="min-w-0" name="divisionSort" label={text.sort.label} value={sort}
-        options={DIVISION_SORTS.map((value) => {
-          const group = divisionSortGroup(value)
-          return { value, label: text.sort.options[value], ...(group ? { group: text.sort.groups[group] } : {}) }
-        })}
+        options={DIVISION_SORTS.map((value) => ({ value, label: text.sort.options[value], group: text.sort.groups[divisionSortGroup(value)] }))}
         onChange={(event) => setSort(event.target.value as DivisionSort)} />
     </div>
     {(selectedDivisions.length > 0 || selectedDepartments.length > 0) && <ActiveFilters onClear={clearFilter} items={[

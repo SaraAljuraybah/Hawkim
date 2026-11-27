@@ -31,7 +31,7 @@ describe('the Sort field on Divisions and Departments', () => {
     const tableSort = () => render().find((item) => item.type === HierarchyTable)!.props.sort
     expect(sortField().props.value).toBe('default')
     expect(tableSort()).toBe('default')
-    for (const value of ['sops-desc', 'staff-asc', 'default']) {
+    for (const value of ['division-desc', 'department-desc', 'sops-desc', 'staff-asc', 'default']) {
       ;(sortField().props.onChange as (event: unknown) => void)({ target: { value } })
       expect(sortField().props.value).toBe(value)
       expect(tableSort()).toBe(value)

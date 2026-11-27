@@ -43,8 +43,8 @@ const props = {
   snapshot: { divisions: [{ id:'v', name:'Safety',email:null,description:'',updated_at:null }], departments: [{ id:'d',name:'Medical',initials:'MD',description:'',division_id:'v',updated_at:'revision',employees:0,sops:1,status_counts:{} }] },
   onPreview:vi.fn(),onViewDepartment:vi.fn(),onAddDepartment:vi.fn(),onEditDepartment:vi.fn(),onEdit:vi.fn(),onDeleteDivision:vi.fn(),onDeleteDepartment:vi.fn(),
 }
-/** Safety (v) then Quality (w), in the default (snapshot) order. */
-const twoDivisions = { ...props.snapshot, divisions: [...props.snapshot.divisions, { id: 'w', name: 'Quality', email: null, description: '', updated_at: null }] }
+/** Safety (v) then Training (w): the default order is by name, A to Z. */
+const twoDivisions = { ...props.snapshot, divisions: [...props.snapshot.divisions, { id: 'w', name: 'Training', email: null, description: '', updated_at: null }] }
 beforeEach(() => { state.value = new Set(); vi.clearAllMocks() })
 it('expands and collapses using the chevron while leaving aggregate values unchanged', () => {
   const render = () => flatten(HierarchyTable(props))
@@ -74,7 +74,7 @@ it('gives every division row Add Department, Preview, Edit, Delete in that order
   const nodes = flatten(HierarchyTable({ ...props, snapshot: twoDivisions }))
   // Collapsed: only the two division rows have actions.
   expect(actionCells(nodes)).toHaveLength(2)
-  for (const [index, name] of [[0, 'Safety'], [1, 'Quality']] as const) {
+  for (const [index, name] of [[0, 'Safety'], [1, 'Training']] as const) {
     const buttons = actions(actionCells(nodes)[index])
     expect(buttons.map((node) => node.props.label)).toEqual(['Add Department', `Preview ${name}`, `Edit ${name}`, `Delete ${name}`])
     expect(buttons.map((node) => node.props.icon)).toEqual([Plus, Eye, Pencil, Trash2])
@@ -94,12 +94,12 @@ it('presets Add Department to the clicked division, collapsed or expanded', () =
   expect(props.onAddDepartment).toHaveBeenLastCalledWith('w')
   ;(addOf(0).props.onClick as () => void)()
   expect(props.onAddDepartment).toHaveBeenLastCalledWith('v')
-  // Expand Safety: its button still targets Safety (and Quality's, Quality), and no other Add Department appears.
+  // Expand Safety: its button still targets Safety (and Training's, Training), and no other Add Department appears.
   ;(toggles(nodes)[0].props.onClick as () => void)()
   nodes = render()
   expect(toggles(nodes)[0].props['aria-expanded']).toBe(true)
   expect(nodes.filter(isAdd)).toHaveLength(2)
-  // Rows: Safety, Medical, Quality.
+  // Rows: Safety, Medical, Training.
   expect(actions(actionCells(nodes)[1]).some(isAdd)).toBe(false)
   ;(addOf(0).props.onClick as () => void)()
   expect(props.onAddDepartment).toHaveBeenLastCalledWith('v')

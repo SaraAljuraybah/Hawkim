@@ -62,11 +62,15 @@ describe('the Divisions and Departments page', () => {
     // Labelled "Sort", as on Staff, My SOPs and the SOP Directory, in the same SelectField wrapper as Staff's Sort.
     const id = select.match(/id="([^"]+)"/)![1]
     expect(html).toMatch(new RegExp(`<div class="min-w-0"><label for="${id}"[^>]*>Sort</label>`))
-    // Default order first (selected), then Number of Staff and Number of SOPs, each option clear on its own when closed.
-    expect(select).toMatch(/<select[^>]*><option value="default"[^>]* selected="">Default order<\/option><optgroup/)
+    // Division name first, its A to Z the default (selected, marked "(default)"); then Department name, Number of
+    // Staff and Number of SOPs, each option clear on its own when closed.
+    expect(select).toMatch(/<select[^>]*><optgroup label="Division name"><option value="default"[^>]* selected="">A to Z \(default\)<\/option>/)
+    expect(select).not.toContain('Default order')
     const groups = [...select.matchAll(/<optgroup label="([^"]+)">([\s\S]*?)<\/optgroup>/g)]
       .map((group) => [group[1], [...group[2].matchAll(/<option value="([^"]+)"[^>]*>([^<]+)<\/option>/g)].map((option) => `${option[1]}:${option[2]}`)])
     expect(groups).toEqual([
+      ['Division name', ['default:A to Z (default)', 'division-desc:Z to A']],
+      ['Department name', ['department-asc:A to Z', 'department-desc:Z to A']],
       ['Number of Staff', ['staff-asc:Fewest staff first', 'staff-desc:Most staff first']],
       ['Number of SOPs', ['sops-asc:Fewest SOPs first', 'sops-desc:Most SOPs first']],
     ])
@@ -261,6 +265,24 @@ describe('the organization name', () => {
 })
 
 describe('sorting the table', () => {
+  it('sorts by division name or department name, departments staying in their divisions', () => {
+    const many: ManagementSnapshot = { ...snapshot, departments: [...snapshot.departments,
+      { id: 'cr', name: 'Clinical Regulatory', initials: 'CR', description: '', division_id: 'c', updated_at: 'r', employees: 0, sops: 0, status_counts: {} }] }
+    const order = (sort: Parameters<typeof HierarchyTable>[0]['sort'], names: string[]) => {
+      const html = table({ snapshot: many, sort, query: 'c' })
+      return [...names].sort((a, b) => html.indexOf(`>${a}<`) - html.indexOf(`>${b}<`))
+    }
+    const divisions = ['Quality and Compliance', 'Clinical Research and Development']
+    expect(order('default', divisions)).toEqual(['Clinical Research and Development', 'Quality and Compliance'])
+    expect(order('division-desc', divisions)).toEqual(['Quality and Compliance', 'Clinical Research and Development'])
+    // Clinical's departments (opened by the search): A to Z by default and with Department name A to Z.
+    const departments = ['Clinical Operations', 'Clinical Regulatory']
+    expect(order('default', departments)).toEqual(['Clinical Operations', 'Clinical Regulatory'])
+    expect(order('department-asc', departments)).toEqual(['Clinical Operations', 'Clinical Regulatory'])
+    expect(order('department-desc', departments)).toEqual(['Clinical Regulatory', 'Clinical Operations'])
+    expect(order('department-desc', divisions)).toEqual(['Clinical Research and Development', 'Quality and Compliance'])
+  })
+
   it('sorts divisions and their departments together, with real numbers', () => {
     const order = (sort: Parameters<typeof HierarchyTable>[0]['sort']) => {
       const html = table({ sort })

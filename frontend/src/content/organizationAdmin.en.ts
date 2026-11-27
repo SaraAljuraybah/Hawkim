@@ -23,15 +23,17 @@ export const organizationAdminEn = {
   /**
    * The Sort field in the toolbar, as on Staff: one choice orders the divisions by their totals and each division's
    * departments by their own counts. Each option names its count and direction, so it reads clearly when closed.
+   * The default (Division name, A to Z) says "(default)", as on every Sort list.
    */
   sort: {
     label: 'Sort',
     options: {
-      default: 'Default order',
+      default: 'A to Z (default)', 'division-desc': 'Z to A',
+      'department-asc': 'A to Z', 'department-desc': 'Z to A',
       'staff-asc': 'Fewest staff first', 'staff-desc': 'Most staff first',
       'sops-asc': 'Fewest SOPs first', 'sops-desc': 'Most SOPs first',
     },
-    groups: { staff: 'Number of Staff', sops: 'Number of SOPs' },
+    groups: { division: 'Division name', department: 'Department name', staff: 'Number of Staff', sops: 'Number of SOPs' },
   },
   addDivision: 'Add Division', addDepartment: 'Add Department', departments: 'Departments',
   name: 'Name', users: 'Users', staff: 'Staff', sops: 'SOPs',
