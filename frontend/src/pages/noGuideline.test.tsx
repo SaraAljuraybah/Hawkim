@@ -91,6 +91,8 @@ describe('SFDA Regulatory Requirements without a version', () => {
 
   it('invites the Admin to add the first version; nothing is shown as current', () => {
     const html = page()
+    // Without a current version, the card keeps its "Current Version" heading.
+    expect(html).toMatch(/<h2 id="current-title"[^>]*>Current Version<\/h2>/)
     expect(html).toContain('Your organization has no regulatory guideline yet.')
     expect(html).toContain('Add the First Version')
     expect(html).toContain('No versions have been added yet.')
@@ -104,6 +106,7 @@ describe('SFDA Regulatory Requirements without a version', () => {
       addedAt: '2026-11-15T08:00:00Z', processing: { status: 'processing' },
     } as GuidelineVersion]
     const html = page()
+    expect(html).toMatch(/<h2 id="current-title"[^>]*>Current Version<\/h2>/)
     expect(html).toContain('GVP 1.0 is being processed.')
     expect(html).not.toContain('Add the First Version')
     expect(html).not.toMatch(/>Current</)

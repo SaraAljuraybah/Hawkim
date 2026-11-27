@@ -118,8 +118,11 @@ describe('Regulatory Requirements page', () => {
   })
 
   it('shows the current version in the Current Version card, without a Requirements row', () => {
-    const card = currentCard(render())
-    expect(card).toMatch(/GVP Version 4\.1<span class="[^"]*">Current<\/span>/)
+    const html = render()
+    const card = currentCard(html)
+    // Its name, with the Current badge, is the card's heading; no "Current Version" label above it.
+    expect(html).toMatch(/<h2 id="current-title" class="[^"]*">GVP Version 4\.1<span class="[^"]*">Current<\/span><\/h2>/)
+    expect(html).not.toContain('Current Version')
     expect(card).not.toContain('5.0')
     expect(card).not.toContain('GVP Requirements')
     expect(card).not.toContain('<table')

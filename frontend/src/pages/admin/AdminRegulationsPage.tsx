@@ -131,28 +131,33 @@ export function AdminRegulationsPage() {
 
       <div className="mt-8 grid gap-8">
         <section aria-labelledby="current-title" className="max-w-4xl rounded-xl border border-beige bg-white p-5 sm:p-6">
-          <h2 id="current-title" className="text-sm font-semibold tracking-wide text-text-gray uppercase">
-            {text.current.title}
-          </h2>
+          {/* The current version's name, with its Current badge, is the card's heading; without one, "Current Version". */}
           {shownCurrent ? (
             <>
-              <p className="mt-2 flex flex-wrap items-center gap-3 text-xl font-semibold text-maroon">
+              <h2 id="current-title" className="flex flex-wrap items-center gap-3 text-xl font-semibold text-maroon">
                 {text.versionName.replace('{version}', shownCurrent.version)}
                 <CurrentBadge label={text.current.badge} />
-              </p>
+              </h2>
               <GuidelineVersionDetails version={shownCurrent} actions={{ withoutFile: true, withoutRequirements: true }} className="mt-5" />
             </>
-          ) : inProgress ? (
-            // The organization's first version: no Current badge until it has been processed.
-            <p className="mt-3 text-sm text-text-gray">{text.current.empty.processing.replace('{version}', inProgress.version)}</p>
           ) : (
-            <div className="mt-3 flex flex-col items-start gap-4">
-              <p className="text-sm text-text-gray">{text.current.empty.text}</p>
-              <Button to={text.addVersion.href} variant="secondary" size="sm">
-                <Plus aria-hidden="true" className="size-4" strokeWidth={2} />
-                {text.current.empty.action}
-              </Button>
-            </div>
+            <>
+              <h2 id="current-title" className="text-sm font-semibold tracking-wide text-text-gray uppercase">
+                {text.current.title}
+              </h2>
+              {inProgress ? (
+                // The organization's first version: no Current badge until it has been processed.
+                <p className="mt-3 text-sm text-text-gray">{text.current.empty.processing.replace('{version}', inProgress.version)}</p>
+              ) : (
+                <div className="mt-3 flex flex-col items-start gap-4">
+                  <p className="text-sm text-text-gray">{text.current.empty.text}</p>
+                  <Button to={text.addVersion.href} variant="secondary" size="sm">
+                    <Plus aria-hidden="true" className="size-4" strokeWidth={2} />
+                    {text.current.empty.action}
+                  </Button>
+                </div>
+              )}
+            </>
           )}
         </section>
 
