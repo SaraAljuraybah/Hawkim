@@ -481,7 +481,7 @@ export const adminEn: AdminContent = {
       addedBy: 'Added By',
       source: 'Source',
       file: 'File',
-      requirements: 'Requirements',
+      requirements: 'GVP Requirements',
     },
     none: '—',
     // TEMPORARY placeholder: v4.0 was added by a setup script, so it has no recorded uploader.
@@ -489,7 +489,7 @@ export const adminEn: AdminContent = {
     addedByFallback: 'Nouf Almutairi',
     /** After the Source link, for screen readers. */
     newTab: '(opens in a new tab)',
-    requirementsCount: { one: '{count} Requirement', other: '{count} Requirements' },
+    requirementsCount: { one: '{count} GVP Requirement', other: '{count} GVP Requirements' },
     addedLoadFailed: {
       text: "Some versions couldn't be loaded. Check your connection and try again.",
       retry: 'Retry',
@@ -590,10 +590,10 @@ export const adminEn: AdminContent = {
       },
     },
     requirements: {
-      title: 'Requirements',
-      tableLabel: 'Requirements',
-      loading: 'Loading requirements…',
-      failed: "The requirements couldn't be loaded. Check your connection and try again.",
+      title: 'GVP Requirements',
+      tableLabel: 'GVP requirements',
+      loading: 'Loading GVP requirements…',
+      failed: "The GVP requirements couldn't be loaded. Check your connection and try again.",
       retry: 'Try Again',
       columns: { id: 'ID', module: 'Module', section: 'Section', title: 'Title', page: 'Page', summary: 'Summary' },
       page: 'p. {page}',
@@ -617,7 +617,7 @@ export const adminEn: AdminContent = {
         starting: 'Reading the regulatory requirements file',
         label: 'Processing progress',
       },
-      report: '{requirements} requirements from {sections} sections',
+      report: '{requirements} GVP requirements from {sections} sections',
       pages: '{pages} pages',
       warningsTitle: 'Warnings',
       missingExcluded: 'These excluded SFDA sections are not in this version: {sections}. Check the compliance service settings.',

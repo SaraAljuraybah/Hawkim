@@ -473,7 +473,7 @@ def build_guideline(job: dict, svc: ComplianceService, sb: "Supabase", tracker: 
         tracker.check()
         sb.rpc("save_guideline_passages", {"p_id": draft_id, "p_passages": passages[start:start + PASSAGES_PER_CALL],
                                            "p_first": start == 0})
-    progress(100, STAGE_SAVING, f"{len(passages)} requirement passages")
+    progress(100, STAGE_SAVING, f"{len(passages)} GVP requirements")
     # The last word on cancelling before completing (complete_guideline_processing also refuses it).
     tracker.sync()
     tracker.check()
