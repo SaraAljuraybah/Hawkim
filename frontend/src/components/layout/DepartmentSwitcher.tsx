@@ -62,10 +62,11 @@ export function DepartmentSwitcher({ content, variant, onSwitched }: DepartmentS
   )
   const srLabel = <span className="sr-only">{content.label}: </span>
 
-  // The SOP Directory lists the home department's SOPs (plus those the user worked on) whatever department is
-  // active, so switching would change nothing there: it shows the home department as plain text, no menu.
-  const onSopDirectory = location.pathname === SOP_DIRECTORY_PATH
-  // One department, or the SOP Directory: plain text, no menu.
+  // The SOP Directory and an SOP opened from it (/sops/:id) follow the home department (plus the SOPs the user
+  // worked on) whatever department is active (lib/sopAccess.ts), so switching would change nothing there: they
+  // show the home department as plain text, no menu.
+  const onSopDirectory = location.pathname === SOP_DIRECTORY_PATH || location.pathname.startsWith(`${SOP_DIRECTORY_PATH}/`)
+  // One department, or the SOP Directory and its SOP pages: plain text, no menu.
   if (directoryDepartments.length < 2 || onSopDirectory) {
     return (
       <div className={isDrawer ? 'rounded-lg bg-white/10 px-3 py-2.5' : ''}>

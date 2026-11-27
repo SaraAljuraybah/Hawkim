@@ -323,9 +323,20 @@ describe('the department switcher on the SOP Directory', () => {
     expect(html).not.toContain('(Read-only)')
   })
 
-  it('stays a menu on the other pages', () => {
-    for (const url of ['/my-sops', '/reviews', '/dashboard']) {
+  it.each(['topbar', 'drawer'] as const)('%s: does the same on an SOP opened from it (/sops/:id)', (variant) => {
+    const html = renderToStaticMarkup(<MemoryRouter initialEntries={['/sops/foreign-reviewed']}>
+      <DepartmentSwitcher content={appShellEn.departmentSwitcher} variant={variant} /></MemoryRouter>)
+    expect(html).not.toContain('aria-haspopup="menu"')
+    expect(html).toContain('Home Department')
+    expect(html).not.toContain('Foreign Directory')
+  })
+
+  it('stays a menu on the other pages, including /my-sops/:id (not under /sops)', () => {
+    for (const url of ['/my-sops', '/reviews', '/dashboard', '/sopsx']) {
       expect(render(<DepartmentSwitcher content={appShellEn.departmentSwitcher} variant="topbar" />, url), url).toContain('aria-haspopup="menu"')
     }
+    const workflow = renderToStaticMarkup(<MemoryRouter initialEntries={['/my-sops/home-owned']}>
+      <DepartmentSwitcher content={appShellEn.departmentSwitcher} variant="topbar" /></MemoryRouter>)
+    expect(workflow).toContain('aria-haspopup="menu"')
   })
 })
