@@ -21,9 +21,10 @@ describe('SOP title and description limits', () => {
   it('keeps the description at 1000 characters', () => {
     expect(SOP_DESCRIPTION_MAX).toBe(1000)
   })
-  it('says the same limit in the hint and the error on Add SOP and Edit SOP Details', () => {
-    expect(uploadSopEn.fields.title.hint).toBe('Up to 150 characters.')
-    expect(uploadSopEn.errors.titleTooLong).toBe('Enter a title of up to 150 characters.')
+  it('says the same limit in the hint and the error on Add SOP and Edit SOP Details, filled from SOP_TITLE_MAX', () => {
+    const filled = (text: string) => text.replace('{max}', String(SOP_TITLE_MAX))
+    expect(filled(uploadSopEn.fields.title.hint)).toBe('Up to 150 characters.')
+    expect(filled(uploadSopEn.errors.titleTooLong)).toBe('Enter a title of up to 150 characters.')
     expect(sopWorkflowEn.details.dialog.titleHint).toBe(uploadSopEn.fields.title.hint)
     expect(sopWorkflowEn.details.dialog.errors.titleTooLong).toBe(uploadSopEn.errors.titleTooLong)
   })

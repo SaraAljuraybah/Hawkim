@@ -110,7 +110,7 @@ function SopDetailsDialog({ sop, onSave, onSaved, onClose }: {
   function check() {
     const problem = sopTitleProblem(title)
     const next = {
-      title: problem === 'required' ? dialog.errors.titleRequired : problem === 'too-long' ? dialog.errors.titleTooLong : undefined,
+      title: problem === 'required' ? dialog.errors.titleRequired : problem === 'too-long' ? dialog.errors.titleTooLong.replace('{max}', String(SOP_TITLE_MAX)) : undefined,
       description: description.trim().length > SOP_DESCRIPTION_MAX ? dialog.errors.descriptionTooLong : undefined,
     }
     setErrors(next)
@@ -142,7 +142,7 @@ function SopDetailsDialog({ sop, onSave, onSaved, onClose }: {
         ref={titleRef}
         name="sopTitle"
         label={text.fields.title}
-        hint={dialog.titleHint}
+        hint={dialog.titleHint.replace('{max}', String(SOP_TITLE_MAX))}
         required
         requiredMark
         maxLength={SOP_TITLE_MAX}

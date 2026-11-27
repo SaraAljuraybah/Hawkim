@@ -69,7 +69,7 @@ export const uploadSopEn: UploadSopContent = {
   title: 'Add SOP',
   subtitle: 'Add a new SOP to {department}. It will be saved as a draft.',
   fields: {
-    title: { label: 'Title', placeholder: 'Enter the SOP title', hint: 'Up to 150 characters.', counter: '{count} / {max}' },
+    title: { label: 'Title', placeholder: 'Enter the SOP title', hint: 'Up to {max} characters.', counter: '{count} / {max}' },
     division: { label: 'Division', none: 'No Division' },
     department: { label: 'Department' },
     addedOn: { label: 'Added to Hawkim On' },
@@ -93,7 +93,7 @@ export const uploadSopEn: UploadSopContent = {
   errors: {
     saveFailed: 'The SOP could not be saved. Your draft has been kept.',
     titleRequired: 'Enter a title.',
-    titleTooLong: 'Enter a title of up to 150 characters.',
+    titleTooLong: 'Enter a title of up to {max} characters.',
     fileRequired: 'Add an SOP file.',
   },
   cancel: { label: 'Cancel', href: '/my-sops' },

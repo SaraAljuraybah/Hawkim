@@ -206,6 +206,7 @@ describe('author workflow section layout', () => {
     const input = html.match(/<input[^>]*name="title"[^>]*>/)![0]
     expect(input).toContain('required=""')
     expect(input).toContain('maxLength="150"')
+    expect(html).toContain('Up to 150 characters.')
     expect(input).toContain('aria-describedby=')
     expect(sopTitleProblem('   ')).toBe('required')
     expect(sopTitleProblem('x'.repeat(150))).toBeUndefined()

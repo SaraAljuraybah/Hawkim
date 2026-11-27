@@ -57,7 +57,7 @@ export function UploadSopPage() {
   function validate(field: Field, values = { title, files }): string | undefined {
     if (field === 'title') {
       const problem = sopTitleProblem(values.title)
-      return problem === 'required' ? content.errors.titleRequired : problem === 'too-long' ? content.errors.titleTooLong : undefined
+      return problem === 'required' ? content.errors.titleRequired : problem === 'too-long' ? content.errors.titleTooLong.replace('{max}', String(SOP_TITLE_MAX)) : undefined
     }
     return values.files.length === 1 ? undefined : content.errors.fileRequired
   }
@@ -123,7 +123,7 @@ export function UploadSopPage() {
             name="title"
             label={content.fields.title.label}
             placeholder={content.fields.title.placeholder}
-            hint={content.fields.title.hint}
+            hint={content.fields.title.hint.replace('{max}', String(SOP_TITLE_MAX))}
             required
             requiredMark
             maxLength={SOP_TITLE_MAX}
