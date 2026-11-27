@@ -121,7 +121,7 @@ describe('directory selection never changes authoring or membership context', ()
     expect(render(<SopsPage />, '/test?q=x')).toMatch(/<div class="mt-3 flex justify-end"><button[^>]*>Clear Filters<\/button><\/div><\/div>/)
   })
 
-  it('offers every division and department, even without SOPs in their directory, and filters by them', () => {
+  it('offers the divisions and departments of the SOPs in their directory, and filters by them', () => {
     fixture.sops = [...fixture.sops, sop('home-published', 'home', 'published')]
     const html = render(<SopsPage />)
     expect(html).toContain('Foreign Directory')
@@ -130,11 +130,11 @@ describe('directory selection never changes authoring or membership context', ()
     expect(departmentOnly).toContain('home-published')
     expect(departmentOnly).not.toContain('foreign-reviewed')
     expect(departmentOnly).toContain('>1 SOP<')
-    // Home Department has no SOP in their directory now: still offered.
+    // Home Department has no SOP in their directory now: no longer offered (it would only lead to an empty list).
     fixture.sops = [{ ...sop('foreign-reviewed', 'other', 'published'), reviewers: [{ userId: 'visitor', decision: 'completed' }] }]
     const without = render(<SopsPage />)
-    expect(without).toContain('Home Division')
-    expect(without).toContain('Home Department')
+    expect(without).not.toContain('Home Division')
+    expect(without).not.toMatch(/<span class="min-w-0 break-words">Home Department</)
   })
 
   it('shows the empty state directly on the page background: icon and text centered, no box', () => {
@@ -262,5 +262,38 @@ describe('the SOP detail page for their department', () => {
   it('still refuses one of their department that isn\'t published', () => {
     fixture.sops = [sop('home-draft', 'home', 'draft')]
     expect(render(<SopDetailPage />, '/home-draft')).not.toContain('Confidential multiline description')
+  })
+})
+
+describe('the SOP Directory Filter for an employee', () => {
+  // The Division and Department chips, in order (Division chips first, then each division's Department chips).
+  const chips = (html: string) => [...html.matchAll(/aria-pressed="false"[^>]*><span class="min-w-0 break-words">([^<]+)<\/span>/g)].map((match) => match[1])
+
+  it('offers only the departments they can see SOPs from, and those departments\' divisions', () => {
+    fixture.sops = [sop('home-published', 'home', 'published'), sop('foreign-published', 'other', 'published')]
+    const html = render(<SopsPage />)
+    expect(html).toContain('>home-published<')
+    expect(html).not.toContain('>foreign-published<')
+    expect(chips(html)).toEqual(['Home Division', 'Home Department'])
+    expect(html).not.toContain('Foreign Division')
+    expect(html).not.toContain('Foreign Directory<')
+  })
+
+  it('adds another department once they can see one of its SOPs (here: one they reviewed)', () => {
+    fixture.sops = [sop('home-published', 'home', 'published'), { ...sop('foreign-reviewed', 'other', 'published'), reviewers: [{ userId: 'visitor', decision: 'completed' }] }]
+    expect(chips(render(<SopsPage />))).toEqual(['Foreign Division', 'Home Division', 'Foreign Directory', 'Home Department'])
+  })
+
+  it('offers nothing to choose while they can see no SOP', () => {
+    fixture.sops = [sop('foreign-published', 'other', 'published')]
+    expect(chips(render(<SopsPage />))).toEqual([])
+  })
+
+  it('ignores a division from an old link that is no longer offered, instead of showing an empty list', () => {
+    fixture.sops = [sop('home-published', 'home', 'published'), sop('foreign-published', 'other', 'published')]
+    const html = render(<SopsPage />, '/test?division=foreign-division')
+    expect(html).not.toMatch(/aria-pressed="true"[^>]*>(?:<svg.*?<\/svg>)?<span class="min-w-0 break-words">/)
+    expect(html).toContain('>home-published<')
+    expect(html).toContain('>1 SOP<')
   })
 })

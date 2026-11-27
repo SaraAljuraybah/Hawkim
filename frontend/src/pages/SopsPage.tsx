@@ -97,9 +97,14 @@ function SopDirectory({ activeDepartment, admin = false }: { activeDepartment: D
   // department's plus those they worked on, in any department (Others included). The active department
   // doesn't narrow it.
   const authorized = useMemo(() => directorySopsFor(listSops, user), [listSops, user])
-  // The Filter (Division and Department chips, as on Organizational Structure): every active division and
-  // department, for every role. Choices that no longer exist (an old link) are dropped.
-  const filterData = useMemo(() => filterDepartmentsFrom(departments), [departments])
+  // The Filter (Division and Department chips, as on Organizational Structure). The System Admin's offers every
+  // active division and department; everyone else's only the departments they can see SOPs from (and those
+  // departments' divisions), so no choice leads to an empty list. Choices that no longer exist (an old link) are dropped.
+  const filterData = useMemo(() => {
+    if (admin) return filterDepartmentsFrom(departments)
+    const withSops = new Set(authorized.map((sop) => sop.departmentId))
+    return filterDepartmentsFrom(departments.filter((department) => withSops.has(department.id)))
+  }, [admin, departments, authorized])
   // The Department chips follow the selected divisions; a selected department no longer offered is dropped.
   const { divisionChoices, divisions: filterDivisions, groups: departmentGroups, departments: filterDepartments } = useMemo(
     () => filterSelection(filterData, urlDivisions, urlDepartments), [filterData, urlDivisions, urlDepartments])
