@@ -233,10 +233,10 @@ describe('the finding cards', () => {
     const html = render(<ComplianceReportPage />)
     return html.slice(html.indexOf('<article id="finding-F-01"'), html.indexOf('</article>', html.indexOf('<article id="finding-F-01"')))
   }
-  /** The SOP Reference block: from its heading to the next block's (SOP Text, or else Justification). */
+  /** The SOP Reference block: from its heading to the next block's (SOP Procedure Text, or else Justification). */
   const sopReference = (html: string) => {
     const start = html.indexOf('>SOP Reference</dt>')
-    const ends = ['>SOP Text</dt>', '>Justification</dt>'].map((heading) => html.indexOf(heading, start)).filter((index) => index > -1)
+    const ends = ['>SOP Procedure Text</dt>', '>Justification</dt>'].map((heading) => html.indexOf(heading, start)).filter((index) => index > -1)
     return html.slice(start, Math.min(...ends))
   }
   /** The headings of a card's blocks, in order. */
@@ -250,9 +250,9 @@ describe('the finding cards', () => {
     expect(text.heading).toBe('{number}')
   })
 
-  it('shows the blocks in order: GVP Requirement Reference, GVP Requirement Text, SOP Reference, SOP Text, Justification', () => {
+  it('shows the blocks in order: GVP Requirement Reference, GVP Requirement Text, SOP Reference, SOP Procedure Text, Justification', () => {
     expect(headings(card({ sopReference: 'Section 5-1-3', sopEvidence: [{ section: '5-1-3', page: 4, text: 'Quote.' }] })))
-      .toEqual(['GVP Requirement Reference', 'GVP Requirement Text', 'SOP Reference', 'SOP Text', 'Justification'])
+      .toEqual(['GVP Requirement Reference', 'GVP Requirement Text', 'SOP Reference', 'SOP Procedure Text', 'Justification'])
     expect(headings(card({}))).toEqual(['GVP Requirement Reference', 'GVP Requirement Text', 'SOP Reference', 'Justification'])
   })
 
@@ -283,7 +283,7 @@ describe('the finding cards', () => {
       + '<blockquote class="border-l-2 border-gold pl-3 break-inside-avoid"><div class="space-y-1.5 text-[0.9375rem] text-maroon">'
       + '<p>Marketing authorisation holders should have a system.</p>'
       + '<ul class="list-disc space-y-1 pl-5"><li>that records the risks</li><li>that is reviewed</li></ul></div></blockquote></dd>')
-    // The same border and padding as a SOP Text quote.
+    // The same border and padding as an SOP Procedure Text quote.
     const sop = card({ sopEvidence: [{ section: '5-1', text: 'Quote.' }] })
     expect(sop).toContain('<blockquote class="border-l-2 border-gold pl-3"><div class="space-y-1.5 text-[0.9375rem] text-maroon"><p>Quote.</p>')
     expect(html).not.toContain('•')
@@ -363,7 +363,7 @@ describe('the finding cards', () => {
 
   it('shows one quote after the SOP Reference with no label above it', () => {
     const html = card({ sopReference: 'Section 5-4-2', sopEvidence: [{ section: '5-4-2', page: 4, text: 'Update RMP Summary (Part VI) when important changes occur.' }] })
-    expect(html).toContain('>SOP Text</dt><dd class="mt-0.5 space-y-3"><figure class="break-inside-avoid">'
+    expect(html).toContain('>SOP Procedure Text</dt><dd class="mt-0.5 space-y-3"><figure class="break-inside-avoid">'
       + '<blockquote class="border-l-2 border-gold pl-3"><div class="space-y-1.5 text-[0.9375rem] text-maroon">'
       + '<p>Update RMP Summary (Part VI) when important changes occur.</p></div></blockquote></figure></dd>')
     expect(html).not.toContain('<figcaption')
@@ -378,12 +378,12 @@ describe('the finding cards', () => {
       + '<blockquote class="mt-1 border-l-2 border-gold pl-3"><div class="space-y-1.5 text-[0.9375rem] text-maroon">'
       + '<p>First quote.</p></div></blockquote></figure>')
     expect(html).toContain('<figcaption class="text-text-gray">Section number not found</figcaption>')
-    expect(html.slice(html.indexOf('>SOP Text</dt>'))).not.toContain('Page')
+    expect(html.slice(html.indexOf('>SOP Procedure Text</dt>'))).not.toContain('Page')
   })
 
-  it('shows no SOP Text heading when the finding has no SOP text', () => {
-    expect(card({ sopReference: 'Section 5-4-1' })).not.toContain('SOP Text')
-    expect(card({ sopReference: 'Section 5-4-1', sopEvidence: [] })).not.toContain('SOP Text')
+  it('shows no SOP Procedure Text heading when the finding has no SOP text', () => {
+    expect(card({ sopReference: 'Section 5-4-1' })).not.toContain('SOP Procedure Text')
+    expect(card({ sopReference: 'Section 5-4-1', sopEvidence: [] })).not.toContain('SOP Procedure Text')
   })
 
   it('keeps the sample references, and "None …" when there is no reference', () => {

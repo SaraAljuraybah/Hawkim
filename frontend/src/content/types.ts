@@ -1223,7 +1223,7 @@ export interface ComplianceContent {
       lineSeparator: string
       /** The Section line of a step without a numbered SOP section. */
       noSectionNumberValue: string
-      /** Label of a quote when the SOP Text has several; `{section}` is replaced (e.g. "5-4-1"). */
+      /** Label of a quote when the SOP Procedure Text has several; `{section}` is replaced (e.g. "5-4-1"). */
       stepSection: string
       /** The same for a step without a numbered SOP section. */
       noSectionNumber: string
