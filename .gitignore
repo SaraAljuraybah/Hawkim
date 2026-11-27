@@ -9,3 +9,6 @@ dist/
 Thumbs.db
 desktop.ini
 .idea/
+
+# Local labelling sheet at the repo root (thesis evaluation); never committed.
+/labels.xlsx
