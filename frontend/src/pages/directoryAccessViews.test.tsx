@@ -194,7 +194,7 @@ describe('published directory access remains separate from internal views', () =
   it('shows the no-access panel, without Request Access, for a published SOP they didn\'t work on (a direct link)', () => {
     const html = render(<SopDetailPage />, '/foreign-published')
     expect(html).toContain("You don&#x27;t have access to this SOP")
-    expect(html).toContain('You can open the published SOPs of your department, plus the ones you authored, co-authored, reviewed or approved.')
+    expect(html).toContain('You can open the published SOPs of your department, plus the ones you authored, co-authored, were asked to review or approved.')
     expect(html).not.toContain('Confidential multiline description')
     expect(html).not.toContain('/files/foreign-published.docx')
     expect(html).not.toContain('Request Access')
@@ -204,7 +204,7 @@ describe('published directory access remains separate from internal views', () =
 
 describe('the SOP Directory texts for everyone but the System Admin', () => {
   it('names their department in the description', () => {
-    expect(render(<SopsPage />)).toContain('Published SOPs from Home Department, plus the ones you authored, co-authored, reviewed or approved.')
+    expect(render(<SopsPage />)).toContain('Published SOPs from Home Department, plus the ones you authored, co-authored, were asked to review or approved.')
   })
 
   it('says "No published SOPs yet." when there are none', () => {

@@ -11,7 +11,7 @@ export const sopsEn: SopsContent = {
 pageTitle: 'SOP Directory | Hawkim',
 adminPageTitle: 'SOP Directory · Admin Portal | Hawkim',
 title: 'SOP Directory',
-subtitle: 'Published SOPs from {department}, plus the ones you authored, co-authored, reviewed or approved.',
+subtitle: 'Published SOPs from {department}, plus the ones you authored, co-authored, were asked to review or approved.',
 adminSubtitle: 'Browse every published SOP in your organization.',
 
   tabsLabel: 'Filter SOPs',
@@ -71,7 +71,7 @@ adminSubtitle: 'Browse every published SOP in your organization.',
     noFile: "The file for this SOP isn't available yet.",
     noAccess: {
       title: "You don't have access to this SOP",
-      text: 'You can open the published SOPs of your department, plus the ones you authored, co-authored, reviewed or approved.',
+      text: 'You can open the published SOPs of your department, plus the ones you authored, co-authored, were asked to review or approved.',
       adminText: 'This SOP belongs to {department}.',
     },
   },

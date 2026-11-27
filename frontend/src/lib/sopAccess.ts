@@ -1,5 +1,6 @@
 import type { Department, Sop, User, UserRequest } from '../data/mock/types'
 import { hasDirectoryAccess } from './departments'
+import { reviewerLostAccess } from './reviewAccess'
 
 export type SopAccess = 'granted' | 'requested' | 'locked'
 
@@ -27,17 +28,22 @@ export function getSopAccess(
 }
 
 /**
- * Whether the user worked on the SOP: its main author, a co-author, a reviewer who completed or returned
- * a review (any version, any round), or an approver who approved it. Approvals aren't saved in the
- * database yet, so approvers count only where this browser has them.
+ * Whether the user worked on the SOP: its main author, a co-author, a reviewer, or an approver who approved it.
+ * A reviewer is anyone asked to review it (any request, any version, any round, whatever its status), unless
+ * they lost access: from another department, with their latest request declined, removed or expired. That is
+ * the database's rule (can_view_sop and reviewer_lost_access, 20261116180000 and 20261102130000).
+ * Approvals aren't saved in the database yet, so approvers count only where this browser has them.
  */
-export function workedOn(sop: Pick<Sop, 'authorId' | 'coAuthorIds' | 'reviewers' | 'approvers'> & Partial<Pick<Sop, 'internalReviewRounds'>>, userId: string): boolean {
-  const reviewed = (decision: string) => decision === 'completed' || decision === 'returned'
-  return sop.authorId === userId
-    || sop.coAuthorIds.includes(userId)
-    || !!sop.internalReviewRounds?.some((round) => round.assignments.some((item) => item.userId === userId && reviewed(item.decision)))
-    || sop.reviewers.some((item) => item.userId === userId && reviewed(item.decision))
-    || sop.approvers.some((item) => item.userId === userId && item.decision === 'approved')
+export function workedOn(
+  sop: Pick<Sop, 'authorId' | 'coAuthorIds' | 'reviewers' | 'approvers' | 'departmentId'> & Partial<Pick<Sop, 'internalReviewRounds'>>,
+  user: Pick<User, 'id' | 'departmentId'>,
+): boolean {
+  const askedToReview = !!sop.internalReviewRounds?.some((round) => round.assignments.some((item) => item.userId === user.id))
+    || sop.reviewers.some((item) => item.userId === user.id)
+  return sop.authorId === user.id
+    || sop.coAuthorIds.includes(user.id)
+    || (askedToReview && !reviewerLostAccess(sop, user))
+    || sop.approvers.some((item) => item.userId === user.id && item.decision === 'approved')
 }
 
 /**
@@ -54,7 +60,7 @@ export function directoryAccess(
   if (user.permissions?.includes('admin')) return sop.directoryGroup === 'others' ? 'locked' : 'granted'
   // Others belongs to a deleted department: only those who worked on it, never by department.
   const ownDepartment = sop.directoryGroup !== 'others' && !!user.departmentId && sop.departmentId === user.departmentId
-  return ownDepartment || workedOn(sop, user.id) ? 'granted' : 'locked'
+  return ownDepartment || workedOn(sop, user) ? 'granted' : 'locked'
 }
 
 /** Authorize before directory search, counts, links or document rendering. */

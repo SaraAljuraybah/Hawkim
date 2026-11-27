@@ -102,21 +102,41 @@ describe('the SOP Directory: their department\'s published SOPs, plus those the 
   const base = { id: 'x', departmentId: 'quality-assurance', status: 'published', authorId: 'someone', coAuthorIds: [], reviewers: [], approvers: [] } as unknown as Sop
   const round = (decision: string): InternalReviewRound[] => [{ assignments: [{ userId: 'sara', decision }] } as unknown as InternalReviewRound]
 
-  it('counts the main author, a co-author, a reviewer who completed or returned a review, and an approver who approved', () => {
-    expect(workedOn({ ...base, authorId: 'sara' }, 'sara')).toBe(true)
-    expect(workedOn({ ...base, coAuthorIds: ['sara'] }, 'sara')).toBe(true)
-    expect(workedOn({ ...base, internalReviewRounds: round('completed') }, 'sara')).toBe(true)
-    expect(workedOn({ ...base, internalReviewRounds: round('returned') }, 'sara')).toBe(true)
-    expect(workedOn({ ...base, reviewers: [{ userId: 'sara', decision: 'completed' }] }, 'sara')).toBe(true)
-    expect(workedOn({ ...base, approvers: [{ userId: 'sara', decision: 'approved' }] } as Sop, 'sara')).toBe(true)
+  const rounds = (...decisions: string[]): InternalReviewRound[] =>
+    decisions.map((decision) => ({ assignments: [{ userId: 'sara', decision }] }) as unknown as InternalReviewRound)
+  const DECISIONS = ['pending', 'accepted', 'declined', 'withdrawn', 'expired', 'removed', 'completed', 'returned']
+
+  it('counts the main author, a co-author, anyone asked to review it, and an approver who approved', () => {
+    expect(workedOn({ ...base, authorId: 'sara' }, me)).toBe(true)
+    expect(workedOn({ ...base, coAuthorIds: ['sara'] }, me)).toBe(true)
+    expect(workedOn({ ...base, reviewers: [{ userId: 'sara', decision: 'pending' }] }, me)).toBe(true)
+    expect(workedOn({ ...base, approvers: [{ userId: 'sara', decision: 'approved' }] } as Sop, me)).toBe(true)
   })
 
-  it('doesn\'t count a review they didn\'t finish, a pending approval, or someone else\'s SOP', () => {
-    for (const decision of ['pending', 'accepted', 'declined', 'withdrawn', 'expired', 'removed']) {
-      expect(workedOn({ ...base, internalReviewRounds: round(decision) }, 'sara'), decision).toBe(false)
+  it('follows the database for reviewers (can_view_sop): a request with any status in their own department', () => {
+    for (const decision of DECISIONS) {
+      expect(workedOn({ ...base, departmentId: 'information-technology', internalReviewRounds: round(decision) }, me), decision).toBe(true)
     }
-    expect(workedOn({ ...base, approvers: [{ userId: 'sara', decision: 'pending' }] } as Sop, 'sara')).toBe(false)
-    expect(workedOn(base, 'sara')).toBe(false)
+  })
+
+  it('and from another department, unless their latest request was declined, removed or expired (reviewer_lost_access)', () => {
+    for (const decision of DECISIONS) {
+      expect(workedOn({ ...base, internalReviewRounds: round(decision) }, me), decision).toBe(!['declined', 'removed', 'expired'].includes(decision))
+    }
+    // Only the latest request counts: asked again after declining, they have it again; declining later loses it.
+    expect(workedOn({ ...base, internalReviewRounds: rounds('declined', 'pending') }, me)).toBe(true)
+    expect(workedOn({ ...base, internalReviewRounds: rounds('completed', 'declined') }, me)).toBe(false)
+  })
+
+  it("doesn't count a pending approval, or someone else's SOP", () => {
+    expect(workedOn({ ...base, approvers: [{ userId: 'sara', decision: 'pending' }] } as Sop, me)).toBe(false)
+    expect(workedOn(base, me)).toBe(false)
+    expect(workedOn({ ...base, internalReviewRounds: [{ assignments: [{ userId: 'nouf', decision: 'completed' }] } as unknown as InternalReviewRound] }, me)).toBe(false)
+  })
+
+  it("lists a published SOP of another department for a reviewer who hasn't finished, and not once they declined", () => {
+    expect(directoryAccess({ ...base, internalReviewRounds: round('accepted') }, me)).toBe('granted')
+    expect(directoryAccess({ ...base, internalReviewRounds: round('declined') }, me)).toBe('locked')
   })
 
   it('never lists an SOP they authored that isn\'t published: draft, in review, in approval, approved or returned', () => {
