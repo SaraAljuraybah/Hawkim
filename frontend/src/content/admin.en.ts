@@ -354,7 +354,6 @@ export const adminEn: AdminContent = {
     errors: {
       nameRequired: 'Enter a department name.',
       nameTooLong: 'Keep the name to 60 characters or fewer.',
-      nameTaken: 'A department with this name already exists.',
       descriptionTooLong: 'Keep the description to 200 characters or fewer.',
       emailInvalid: 'Enter a valid email address, e.g. name@example.com (up to 254 characters).',
     },

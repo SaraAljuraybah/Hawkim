@@ -16,6 +16,7 @@ import {
   type DepartmentFormProblem,
   type DepartmentFormValues,
 } from '../../lib/departmentForm'
+import { DuplicateNameError, sameName } from '../../lib/duplicateNameError'
 import { saveDepartment, type ManagedDepartment, type ManagementSnapshot } from '../../services/organizationAdmin'
 import { useDepartments } from '../../state/departmentsContext'
 
@@ -52,6 +53,8 @@ export function DepartmentForm({ snapshot, department, divisionId, onClose, onSa
   const [errors, setErrors] = useState<FieldErrors>({})
   const [attempted, setAttempted] = useState(false)
   const [error, setError] = useState('')
+  // The name the database refused as already used: shown under Name until the name changes.
+  const [takenName, setTakenName] = useState<string>()
   const nameRef = useRef<HTMLInputElement>(null)
   const divisionRef = useRef<HTMLSelectElement>(null)
   const emailRef = useRef<HTMLInputElement>(null)
@@ -61,10 +64,11 @@ export function DepartmentForm({ snapshot, department, divisionId, onClose, onSa
     'division-required': orgText.requiredDivision,
     'name-required': content.errors.nameRequired,
     'name-too-long': content.errors.nameTooLong,
-    'name-taken': content.errors.nameTaken,
-    // Initials are generated, so these can't happen; listed for completeness.
+    'name-taken': orgText.duplicateDepartmentName,
+    // Initials are generated unused from this list, so these can't happen; listed for completeness. Taken
+    // initials would mean the list changed meanwhile.
     'initials-invalid': orgText.invalid,
-    'initials-taken': orgText.duplicate,
+    'initials-taken': orgText.conflict,
     'description-too-long': content.errors.descriptionTooLong,
     'description-required': orgText.requiredDescription,
     'email-required': orgText.requiredEmail,
@@ -72,7 +76,9 @@ export function DepartmentForm({ snapshot, department, divisionId, onClose, onSa
   }
   function errorsFor(input: DepartmentFormValues): FieldErrors {
     const problems = departmentFormProblems(input, snapshot, { editingId: department?.id })
-    return Object.fromEntries(FIELD_ORDER.map((field) => [field, problems[field] && messages[problems[field]]]))
+    const found: FieldErrors = Object.fromEntries(FIELD_ORDER.map((field) => [field, problems[field] && messages[problems[field]]]))
+    if (!found.name && takenName !== undefined && sameName(takenName, input.name)) found.name = orgText.duplicateDepartmentName
+    return found
   }
   // Errors first show on Save; after that, each field re-checks when it loses focus.
   const blur = (field: DepartmentFormField) => { if (attempted) setErrors((previous) => ({ ...previous, [field]: errorsFor(values)[field] })) }
@@ -97,7 +103,14 @@ export function DepartmentForm({ snapshot, department, divisionId, onClose, onSa
         const saved = fixedDivision ? { ...values, divisionId: fixedDivision.id } : values
         const { state } = await submitDepartmentForm(saved, formInitials(values, snapshot, department), department, expectedUpdatedAt, { save: saveDepartment, reload })
         onSaved?.(state.notice)
-      } catch (reason) { setError((reason as Error).message); return false }
+      } catch (reason) {
+        // A name already used goes under Name (focused, so screen readers read it); other refusals below the form.
+        if (reason instanceof DuplicateNameError) {
+          flushSync(() => { setTakenName(values.name); setErrors((previous) => ({ ...previous, name: orgText.duplicateDepartmentName })) })
+          nameRef.current?.focus()
+        } else setError((reason as Error).message)
+        return false
+      }
     }}>
     <TextField ref={nameRef} name="departmentName" autoComplete="off" label={content.name.label} required requiredMark
       value={values.name} error={errors.name} onChange={set('name')} onBlur={() => blur('name')} />

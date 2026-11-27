@@ -4,6 +4,7 @@ import { isValidElement, type ReactElement, type ReactNode } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { DepartmentForm } from './DepartmentDialog'
 import type { ManagementSnapshot } from '../../services/organizationAdmin'
+import { DuplicateNameError } from '../../lib/duplicateNameError'
 
 // Hooks as plain storage, so the dialog can be called as a function and its handlers run without a browser.
 const host = vi.hoisted(() => ({
@@ -206,7 +207,7 @@ describe('saving from the department dialog', () => {
     change(render({ divisionId: 'medical' }), 'departmentDescription', 'x'.repeat(201))
     await confirm(render({ divisionId: 'medical' }))
     const element = render({ divisionId: 'medical' })
-    expect(field(element, 'departmentName').props.error).toBe('A department with this name already exists.')
+    expect(field(element, 'departmentName').props.error).toBe('A department with this name already exists. Please choose a different name.')
     expect(field(element, 'departmentDescription').props.error).toBe('Keep the description to 200 characters or fewer.')
   })
 
@@ -257,5 +258,28 @@ describe('saving from the department dialog', () => {
     expect(elements(render({ department: qa, onSaved })).some((item) => item.props.role === 'alert'
       && item.props.children === 'Someone else changed this record. Refresh the page and try again.')).toBe(true)
     expect(onSaved).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    ['Add', { divisionId: 'medical' }],
+    ['Edit', { department: qa }],
+  ] as [string, Partial<Props>][])('%s Department: a name the server finds already used shows under Name only, focused, until it changes', async (_, props) => {
+    host.save.mockRejectedValue(new DuplicateNameError('department'))
+    change(render(props), 'departmentName', 'Clinical Operations')
+    change(render(props), 'departmentEmail', 'clinops@test.invalid')
+    change(render(props), 'departmentDescription', 'Runs the trials')
+    render(props)
+    const [nameFocus] = focusable()
+    await expect(confirm(render(props))).resolves.toBe(false)
+    expect(field(render(props), 'departmentName').props.error).toBe('A department with this name already exists. Please choose a different name.')
+    expect(nameFocus).toHaveBeenCalled()
+    expect(elements(render(props)).some((item) => item.props.role === 'alert')).toBe(false)
+    // The same name again is refused before saving; another name clears it once the field is checked again.
+    host.save.mockClear()
+    await expect(confirm(render(props))).resolves.toBe(false)
+    expect(host.save).not.toHaveBeenCalled()
+    change(render(props), 'departmentName', 'Clinical Research')
+    ;(field(render(props), 'departmentName').props.onBlur as () => void)()
+    expect(field(render(props), 'departmentName').props.error).toBeUndefined()
   })
 })

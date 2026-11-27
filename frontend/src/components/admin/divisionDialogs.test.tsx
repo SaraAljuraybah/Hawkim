@@ -4,6 +4,7 @@ import { DivisionForm, DivisionPreview, EmailDetail } from './DivisionDialogs'
 import { DeleteDepartmentDialog } from './DeleteDepartmentDialog'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { CopyButton } from '../ui/CopyButton'
+import { DuplicateNameError } from '../../lib/duplicateNameError'
 const host = vi.hoisted(() => ({ states: [] as unknown[], index: 0, refs: [] as { current: unknown }[], refIndex: 0, save: vi.fn(), remove: vi.fn() }))
 vi.mock('react', async (original) => ({ ...await original<typeof import('react')>(), useState: (initial: unknown) => {
   const index = host.index++
@@ -55,7 +56,8 @@ describe('division create and edit form', () => {
     expect(nameField(component).error).toBeUndefined()
   })
   it('shows the database refusal under Name (a division added since the list loaded), until the name changes', async () => {
-    host.save.mockRejectedValueOnce(new Error(exists))
+    // What saveDivision throws for save_division's 23505 (services/organizationAdmin.ts).
+    host.save.mockRejectedValueOnce(new DuplicateNameError('division'))
     const component = () => DivisionForm({ division, divisions: [], onClose: vi.fn() }) as Element
     render(component)
     const [nameFocus] = focusable()
@@ -203,6 +205,29 @@ describe('division create and edit form', () => {
     const component = () => DivisionForm({ division, onClose: vi.fn() })
     await expect(confirm(render(component))).resolves.toBe(false)
     expect(elements(render(component)).some((item) => item.props.role === 'alert' && item.props.children === 'Conflict. Refresh.')).toBe(true)
+  })
+  it.each([['Add', undefined], ['Edit', division]])('%s Division: a name already used shows under Name only, focused, until the name changes', async (_, edited) => {
+    host.save.mockRejectedValue(new DuplicateNameError('division'))
+    const component = () => DivisionForm({ division: edited, onClose: vi.fn() })
+    if (!edited) {
+      const fields = elements(render(component))
+      change(fields.find((item) => item.props.name === 'divisionName')!, 'Safety')
+      change(elements(render(component)).find((item) => item.props.name === 'divisionEmail')!, 'safety@test.invalid')
+      change(elements(render(component)).find((item) => item.props.name === 'divisionDescription')!, 'Safety work')
+    }
+    render(component)
+    const [nameFocus] = focusable()
+    await expect(confirm(render(component))).resolves.toBe(false)
+    const name = () => elements(render(component)).find((item) => item.props.name === 'divisionName')!
+    expect(name().props.error).toBe('A division with this name already exists. Please choose a different name.')
+    expect(nameFocus).toHaveBeenCalled()
+    expect(elements(render(component)).some((item) => item.props.role === 'alert')).toBe(false)
+    // The same name again is refused before saving; another name clears the message.
+    host.save.mockClear()
+    await expect(confirm(render(component))).resolves.toBe(false)
+    expect(host.save).not.toHaveBeenCalled()
+    change(name(), 'Safety Two')
+    expect(name().props.error).toBeUndefined()
   })
 })
 describe('division preview', () => {

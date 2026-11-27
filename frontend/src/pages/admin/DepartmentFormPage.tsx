@@ -23,6 +23,7 @@ import {
 } from '../../lib/departmentForm'
 import { isDefaultDepartment } from '../../lib/organizationAdmin'
 import { adminDepartmentPath, NEW_DEPARTMENT_DIVISION_PARAM } from '../../lib/routes'
+import { DuplicateNameError, sameName } from '../../lib/duplicateNameError'
 import { saveDepartment, type ManagedDepartment, type ManagementSnapshot } from '../../services/organizationAdmin'
 import { useDepartments } from '../../state/departmentsContext'
 import { NotFoundPage } from '../NotFoundPage'
@@ -82,6 +83,8 @@ function DepartmentForm({ snapshot, department }: { snapshot: ManagementSnapshot
   const [submitAttempted, setSubmitAttempted] = useState(false)
   const [busy, setBusy] = useState(false)
   const [saveError, setSaveError] = useState('')
+  // The name the database refused as already used: shown under Name until the name changes.
+  const [takenName, setTakenName] = useState<string>()
   const divisionRef = useRef<HTMLSelectElement>(null)
   const nameRef = useRef<HTMLInputElement>(null)
   const descriptionRef = useRef<HTMLTextAreaElement>(null)
@@ -92,10 +95,11 @@ function DepartmentForm({ snapshot, department }: { snapshot: ManagementSnapshot
     'division-required': orgText.requiredDivision,
     'name-required': content.errors.nameRequired,
     'name-too-long': content.errors.nameTooLong,
-    'name-taken': content.errors.nameTaken,
-    // Initials are generated, so these can't happen; listed for completeness.
+    'name-taken': orgText.duplicateDepartmentName,
+    // Initials are generated unused from this list, so these can't happen; listed for completeness. Taken
+    // initials would mean the list changed meanwhile.
     'initials-invalid': orgText.invalid,
-    'initials-taken': orgText.duplicate,
+    'initials-taken': orgText.conflict,
     'description-too-long': content.errors.descriptionTooLong,
     'description-required': orgText.requiredDescription,
     'email-required': orgText.requiredEmail,
@@ -107,7 +111,8 @@ function DepartmentForm({ snapshot, department }: { snapshot: ManagementSnapshot
       const problem = problems[field]
       return problem && messages[problem]
     }
-    return { divisionId: errorOf('divisionId'), name: errorOf('name'), description: errorOf('description'), email: errorOf('email') }
+    const name = errorOf('name') ?? (takenName !== undefined && sameName(takenName, input.name) ? orgText.duplicateDepartmentName : undefined)
+    return { divisionId: errorOf('divisionId'), name, description: errorOf('description'), email: errorOf('email') }
   }
 
   // Errors are first shown on submit; after that, each field re-validates on blur.
@@ -134,6 +139,12 @@ function DepartmentForm({ snapshot, department }: { snapshot: ManagementSnapshot
       const { targetId, state } = await submitDepartmentForm(values, formInitials(values, snapshot, department), department, expectedUpdatedAt, { save: saveDepartment, reload })
       navigate(adminDepartmentPath(targetId), { state })
     } catch (reason) {
+      // A name already used goes under Name (focused, so screen readers read it); other refusals above the buttons.
+      if (reason instanceof DuplicateNameError) {
+        flushSync(() => { setBusy(false); setTakenName(values.name); setErrors((prev) => ({ ...prev, name: orgText.duplicateDepartmentName })) })
+        nameRef.current?.focus()
+        return
+      }
       flushSync(() => { setBusy(false); setSaveError((reason as Error).message) })
       saveErrorRef.current?.focus()
     }
@@ -222,7 +233,7 @@ function DepartmentForm({ snapshot, department }: { snapshot: ManagementSnapshot
           className="mt-5"
         />
 
-        {/* Refusals from the server (duplicate, changed by someone else, not allowed…). */}
+        {/* Refusals from the server (changed by someone else, not allowed…); a name already used shows under Name. */}
         <div role="alert">
           {saveError && (
             <p ref={saveErrorRef} tabIndex={-1} className="mt-6 rounded-lg border border-status-rejected-fg/25 bg-status-rejected-bg px-4 py-3 text-sm text-status-rejected-fg focus:outline-none">

@@ -61,9 +61,10 @@ export const organizationAdminEn = {
   retry: 'Retry', loadFailed: 'Could not load organizational data. Try again.',
   failed: 'Could not save changes. Try again.', conflict: 'Someone else changed this record. Refresh the page and try again.',
   forbidden: 'Only an active Admin can manage divisions and departments.',
-  duplicate: 'That name is already in use, or another change was saved at the same time. Refresh the page and try again.', invalid: 'Check the fields and try again.',
-  // Add/Edit Division, under Name: another active division has this name (ignoring case and surrounding spaces).
-  divisionNameExists: 'A division with this name already exists. Please choose a different name.',
+  // Under the Name field when another active division or department already has the name (23505).
+  duplicateDivisionName: 'A division with this name already exists. Please choose a different name.',
+  duplicateDepartmentName: 'A department with this name already exists. Please choose a different name.',
+  invalid: 'Check the fields and try again.',
   activeWorkflow: 'Some of this department’s SOPs are in review or approval, or have a compliance check running. Finish or withdraw them first, then try again.',
   requiredName: 'Enter a name (up to 100 characters).', invalidEmail: 'Enter a valid email address, e.g. name@example.com (up to 254 characters).',
   descriptionLong: 'Use at most 500 characters.', requiredDivision: 'Select a division.',

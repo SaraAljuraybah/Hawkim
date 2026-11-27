@@ -5,6 +5,7 @@ import { TextField } from '../ui/TextField'
 import { TextAreaField } from '../ui/TextAreaField'
 import { organizationAdminEn as text } from '../../content/organizationAdmin.en'
 import { saveDivision, type DivisionRecord } from '../../services/organizationAdmin'
+import { DuplicateNameError, sameName } from '../../lib/duplicateNameError'
 import { divisionNameTaken } from '../../lib/organizationAdmin'
 
 /** The most a division description may have; the database allows the same (validate_division_management). */
@@ -22,17 +23,17 @@ export function DivisionForm({ division, divisions = [], onClose, onSaved }: {
   const [description, setDescription] = useState(division?.description ?? '')
   const [attempted, setAttempted] = useState(false)
   const [error, setError] = useState('')
-  // The name the database refused as already in use (another admin may have added it since the list loaded).
-  const [refusedName, setRefusedName] = useState<string | undefined>(undefined)
+  // The name the database refused as already used: shown under Name until the name changes.
+  const [takenName, setTakenName] = useState<string>()
   const nameRef = useRef<HTMLInputElement>(null)
   const emailRef = useRef<HTMLInputElement>(null)
   const descriptionRef = useRef<HTMLTextAreaElement>(null)
   // Name, email and description are all required, as in the database (save_division, 20261119130000); blank counts as empty.
-  // A name is in use when another active division has it, ignoring case and surrounding spaces (as save_division).
-  const nameError = !name.trim() || name.trim().length > 100 ? text.requiredName
-    : divisionNameTaken(divisions, name, division?.id) || (refusedName !== undefined && refusedName === name.trim().toLowerCase())
-      ? text.divisionNameExists : undefined
-  const nameInvalid = !!nameError
+  const nameInvalid = !name.trim() || name.trim().length > 100
+  // Already used: by another division in the loaded list (checked before saving, comparing names as save_division
+  // does), or refused by the database (a division added since the list loaded) until the name changes. One message.
+  const nameTaken = divisionNameTaken(divisions, name, division?.id) || (takenName !== undefined && sameName(takenName, name))
+  const nameError = nameInvalid ? text.requiredName : nameTaken ? text.duplicateDivisionName : undefined
   const emailError = !email.trim() ? text.requiredEmail
     : !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()) || email.trim().length > 254 ? text.invalidEmail : undefined
   const descriptionError = !description.trim() ? text.requiredDescription
@@ -44,16 +45,13 @@ export function DivisionForm({ division, divisions = [], onClose, onSaved }: {
       // Show the messages before moving focus, so screen readers read them with the field.
       flushSync(() => { setAttempted(true); setError('') })
       // The first invalid field in the visible order: Name, Email, Description.
-      const firstInvalid = nameInvalid ? nameRef : emailInvalid ? emailRef : descriptionInvalid ? descriptionRef : undefined
+      const firstInvalid = nameInvalid || nameTaken ? nameRef : emailInvalid ? emailRef : descriptionInvalid ? descriptionRef : undefined
       if (firstInvalid) { firstInvalid.current?.focus(); return false }
       try { await saveDivision({ name, email, description }, division); onSaved?.() }
       catch (reason) {
-        const message = (reason as Error).message
-        // A name already in use is shown under Name, with focus there; any other refusal below the fields.
-        if (message === text.divisionNameExists) {
-          flushSync(() => setRefusedName(name.trim().toLowerCase()))
-          nameRef.current?.focus()
-        } else setError(message)
+        // A name already used goes under Name (focused, so screen readers read it); other refusals below the form.
+        if (reason instanceof DuplicateNameError) { flushSync(() => setTakenName(name)); nameRef.current?.focus() }
+        else setError((reason as Error).message)
         return false
       }
     }}>

@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { fetchManagement, managementError, ORGANIZATION_CHANGED, organizationEvents, saveDepartment, saveDivision } from './organizationAdmin'
+import { DuplicateNameError } from '../lib/duplicateNameError'
 
 const rpc = vi.hoisted(() => vi.fn())
 vi.mock('./supabase', () => ({ supabase: () => ({ rpc }) }))
@@ -39,7 +40,8 @@ describe('saveDepartment (save_department RPC)', () => {
   })
 
   it.each([
-    [{ code: '23505', message: 'Department name or initials already exists' }, 'That name is already in use, or another change was saved at the same time. Refresh the page and try again.'],
+    // The latest list can't be read here (every call is refused), so the name message, as the database said.
+    [{ code: '23505', message: 'Department name or initials already exists' }, 'A department with this name already exists. Please choose a different name.'],
     [{ code: 'P0001', hint: 'conflict', message: 'Organization changed; refresh and try again' }, 'Someone else changed this record. Refresh the page and try again.'],
     [{ code: '40001', message: 'Organization changed; refresh and try again' }, 'Someone else changed this record. Refresh the page and try again.'],
     [{ code: '42501', message: 'Administrator required' }, 'Only an active Admin can manage divisions and departments.'],
@@ -52,6 +54,47 @@ describe('saveDepartment (save_department RPC)', () => {
     await expect(saveDepartment({ name: 'QA', initials: 'QA', description: '', divisionId: 'medical' })).rejects.toThrow(message)
     organizationEvents.removeEventListener(ORGANIZATION_CHANGED, listener)
     expect(listener).not.toHaveBeenCalled()
+  })
+})
+
+describe('a name already used (23505), apart from a save at the same time (conflict)', () => {
+  const snapshotWith = (names: string[]) => ({ divisions: [{ id: 'medical', name: 'Medical', description: '', email: null, updated_at: 'v1' }],
+    departments: names.map((name, index) => ({ id: `d${index}`, name, initials: `D${'ABC'[index]}`, description: '', division_id: 'medical',
+      updated_at: 'r1', people: [], employees: 0, sops: 0, status_counts: {} })) })
+  const refusedSave = (snapshot: unknown) => rpc.mockImplementation(async (name: string) => name === 'save_department'
+    ? { data: null, error: { code: '23505', message: 'Department name or initials already exists' } }
+    : { data: snapshot, error: null })
+
+  it('says a division with this name exists, as a DuplicateNameError for the Name field', async () => {
+    rpc.mockResolvedValue({ data: null, error: { code: '23505', message: 'Division name already exists' } })
+    const refusal = saveDivision({ name: 'Safety', description: 'd', email: 'a@b.co' })
+    await expect(refusal).rejects.toBeInstanceOf(DuplicateNameError)
+    await expect(refusal).rejects.toThrow('A division with this name already exists. Please choose a different name.')
+  })
+
+  it('says a department with this name exists when the latest list has it (ignoring case and spaces)', async () => {
+    refusedSave(snapshotWith(['Quality Assurance']))
+    const refusal = saveDepartment({ name: ' quality assurance ', initials: 'QAS', description: '', divisionId: 'medical' })
+    await expect(refusal).rejects.toBeInstanceOf(DuplicateNameError)
+    await expect(refusal).rejects.toThrow('A department with this name already exists. Please choose a different name.')
+  })
+
+  it('reports a save at the same time when the name is free in the latest list (the generated initials were taken)', async () => {
+    refusedSave(snapshotWith(['Clinical Operations']))
+    await expect(saveDepartment({ name: 'Quality Assurance', initials: 'QA', description: '', divisionId: 'medical' }))
+      .rejects.toThrow('Someone else changed this record. Refresh the page and try again.')
+  })
+
+  it("doesn't count the edited department's own name", async () => {
+    refusedSave(snapshotWith(['Quality Assurance']))
+    await expect(saveDepartment({ name: 'Quality Assurance', initials: 'QA', description: '', divisionId: 'medical' }, 'd0', 'r1'))
+      .rejects.toThrow('Someone else changed this record. Refresh the page and try again.')
+  })
+
+  it('keeps the conflict message for a stale edit', async () => {
+    rpc.mockResolvedValue({ data: null, error: { code: 'P0001', hint: 'conflict', message: 'Organization changed; refresh and try again' } })
+    await expect(saveDivision({ name: 'Safety', description: 'd', email: 'a@b.co' }, { id: 'v', name: 'Safety', description: 'd', email: 'a@b.co', updated_at: 'old' }))
+      .rejects.toThrow('Someone else changed this record. Refresh the page and try again.')
   })
 })
 
@@ -77,12 +120,16 @@ describe('managementError (a division name already in use)', () => {
   ])('names the clash for %s', (_, error) => {
     expect(managementError(error).message).toBe(exists)
   })
+  it('names a department name clash as a department one', () => {
+    expect(managementError({ code: '23505', message: 'Department name or initials already exists' }).message)
+      .toBe('A department with this name already exists. Please choose a different name.')
+  })
   it.each([
-    ['a department’s name or initials', { code: '23505', message: 'Department name or initials already exists' }],
     ['another unique index', { code: '23505', message: 'duplicate key value violates unique constraint "divisions_pkey"' }],
     ['a 23505 with no message', { code: '23505' }],
-  ])('keeps the general message for %s', (_, error) => {
-    expect(managementError(error).message).toBe('That name is already in use, or another change was saved at the same time. Refresh the page and try again.')
+  ])('never calls %s a name clash: the general save message', (_, error) => {
+    expect(managementError(error)).not.toBeInstanceOf(DuplicateNameError)
+    expect(managementError(error).message).toBe('Could not save changes. Try again.')
   })
   it('never treats the division message under another code as a name clash', () => {
     expect(managementError({ code: '23514', message: 'Division name already exists' }).message).toBe('Check the fields and try again.')

@@ -1798,7 +1798,6 @@ export interface AdminDepartmentFormContent {
   errors: {
     nameRequired: string
     nameTooLong: string
-    nameTaken: string
     descriptionTooLong: string
     emailInvalid: string
   }
