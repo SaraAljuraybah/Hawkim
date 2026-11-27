@@ -28,8 +28,8 @@ export const organizationEn: OrganizationContent = {
   roleCount: { one: '{count} permission', other: '{count} permissions' },
   sort: 'Sort',
   sortOptions: {
-    default: 'Default order',
-    'division-name-asc': 'A to Z', 'division-name-desc': 'Z to A',
+    // Listed under Division name: the default is the divisions (and their departments) A to Z.
+    default: 'A to Z (default)', 'division-name-desc': 'Z to A',
     'division-departments-desc': 'High to low', 'division-departments-asc': 'Low to high',
     'department-name-asc': 'A to Z', 'department-name-desc': 'Z to A',
     'department-staff-desc': 'High to low', 'department-staff-asc': 'Low to high',

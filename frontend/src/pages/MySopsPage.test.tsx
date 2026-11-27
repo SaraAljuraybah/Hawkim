@@ -61,8 +61,8 @@ describe('My SOPs presentation and permissions', () => {
 
   it('sorts Newest to Oldest by default', () => {
     const sort = renderPage().match(/<select[^>]*name="mySopSort"[^>]*>.*?<\/select>/)![0]
-    expect(sort.match(/>([^<]+)<\/option>/g)).toEqual(['>Newest to Oldest</option>', '>Oldest to Newest</option>', '>A to Z</option>', '>Z to A</option>'])
-    expect(sort).toMatch(/<option[^>]*selected=""[^>]*>Newest to Oldest/)
+    expect(sort.match(/>([^<]+)<\/option>/g)).toEqual(['>Newest to Oldest (default)</option>', '>Oldest to Newest</option>', '>A to Z</option>', '>Z to A</option>'])
+    expect(sort).toMatch(/<option[^>]*selected=""[^>]*>Newest to Oldest \(default\)/)
   })
 
   it('defaults to cards and honors its own remembered List view without using the directory preference', () => {

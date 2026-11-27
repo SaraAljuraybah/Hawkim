@@ -91,6 +91,20 @@ export type StaffSortGroup = 'name' | 'division' | 'department'
 export const staffSortGroup = (sort: StaffSort): StaffSortGroup | undefined =>
   sort === 'default' ? undefined : (sort.slice(0, sort.lastIndexOf('-')) as StaffSortGroup)
 
+/**
+ * The Sort menu on a Staff tab, each order with its group. On Active and Deactive Staff the default is by name,
+ * A to Z, so it is listed as Staff name's A to Z ('name-asc' isn't listed twice; see staffTabSort). On Sent
+ * Invitations the default is the newest sent first, on its own, and 'name-asc' is listed.
+ */
+export function staffSortMenu(invitations: boolean): { value: StaffSort; group?: StaffSortGroup }[] {
+  return STAFF_SORTS.filter((sort) => invitations || sort !== 'name-asc')
+    .map((value) => ({ value, group: value === 'default' && !invitations ? 'name' : staffSortGroup(value) }))
+}
+
+/** The sort a Staff tab shows: on Active and Deactive Staff, A to Z by name is the default itself. */
+export const staffTabSort = (sort: StaffSort, invitations: boolean): StaffSort =>
+  !invitations && sort === 'name-asc' ? 'default' : sort
+
 /** The Staff page's tabs (`?status=`): Active Staff (the default), Deactive Staff and Sent Invitations. */
 export const STAFF_STATUSES = ['active', 'deactivated', 'invitations'] as const
 export type StaffStatus = (typeof STAFF_STATUSES)[number]

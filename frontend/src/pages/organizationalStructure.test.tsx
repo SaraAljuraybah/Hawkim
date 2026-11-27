@@ -208,17 +208,18 @@ describe('Organizational Structure', () => {
     expect(html).toMatch(/aria-pressed="false" class="inline-flex [^"]*text-left/)
     expect(html).toContain('>Clear all</button>')
   })
-  it('offers the default order, then each group (saying what it sorts) with its two directions', () => {
+  it('offers each group (saying what it sorts) with its two directions, the default marked as Division name, A to Z', () => {
     const select = page().match(/<select[^>]*name="organizationSort"[^>]*>([\s\S]*?)<\/select>/)![1]
     const groups = [...select.matchAll(/<optgroup label="([^"]+)">([\s\S]*?)<\/optgroup>/g)]
       .map((group) => [group[1], [...group[2].matchAll(/>([^<]+)<\/option>/g)].map((option) => option[1])])
     expect(groups).toEqual([
-      ['Division name', ['A to Z', 'Z to A']],
+      ['Division name', ['A to Z (default)', 'Z to A']],
       ['Division departments', ['High to low', 'Low to high']],
       ['Department name', ['A to Z', 'Z to A']],
       ['Department staff', ['High to low', 'Low to high']],
     ])
-    expect(select).toMatch(/^<option value="default"[^>]*>Default order<\/option><optgroup/)
+    expect(select).toMatch(/^<optgroup label="Division name"><option value="default"[^>]* selected="">A to Z \(default\)<\/option>/)
+    expect(select).not.toContain('Default order')
   })
   it('puts the staff of each department in a named table of their own, in a box about 6 rows tall that can scroll', () => {
     const html = table({ query: 'dana' })

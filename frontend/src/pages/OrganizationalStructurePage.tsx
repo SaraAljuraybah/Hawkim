@@ -68,10 +68,7 @@ export function OrganizationStructure({ hierarchy }: { hierarchy: OrganizationHi
             { id: 'role', legend: content.roleFilter, options: roleOptions, value: roles, onChange: (next) => setRoles(next as RoleFilter[]), emptyText: '', summary: content.roleCount },
           ]} />
         <SelectField className="min-w-0" name="organizationSort" label={content.sort} value={sort}
-          options={ORGANIZATION_SORTS.map((value) => {
-            const group = organizationSortGroup(value)
-            return { value, label: content.sortOptions[value], ...(group ? { group: content.sortGroups[group] } : {}) }
-          })}
+          options={ORGANIZATION_SORTS.map((value) => ({ value, label: content.sortOptions[value], group: content.sortGroups[organizationSortGroup(value)] }))}
           onChange={(event) => setSort(event.target.value as OrganizationSort)} />
       </div>
       <OrganizationTable rows={rows} filtering={filtering} filterKey={JSON.stringify([query.trim().toLowerCase(), [...divisions].sort(), [...departments].sort(), [...roles].sort()])}

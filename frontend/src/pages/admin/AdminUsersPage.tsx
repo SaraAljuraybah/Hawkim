@@ -32,7 +32,7 @@ import { departmentsKept, filterDepartmentsFrom, filterSelection, OTHERS_FILTER,
 import { listParam, readChoice, readList, updateParams } from '../../lib/pagination'
 import { adminUserEditPath, adminUserPath } from '../../lib/routes'
 import { filterInvitations, INVITATION_STATUSES, invitationRows, invitationStatus, invitedIds, type InvitationStatus } from '../../lib/staffInvitations'
-import { clearedStaffParams, divisionLabel, filterUsers, STAFF_SORTS, STAFF_STATUSES, staffSortGroup, staffWithStatus, type StaffSort, type StaffStatus } from '../../lib/userAdmin'
+import { clearedStaffParams, divisionLabel, filterUsers, STAFF_SORTS, STAFF_STATUSES, staffSortMenu, staffTabSort, staffWithStatus, type StaffSort, type StaffStatus } from '../../lib/userAdmin'
 import { useDepartments } from '../../state/departmentsContext'
 import { useUsers } from '../../state/usersContext'
 
@@ -92,12 +92,13 @@ export function AdminUsersPage() {
     () => filterSelection(filterData, readList(params, 'division'), readList(params, 'dept')), [filterData, params])
   // An old link's ?permission=admin is ignored.
   const permissions = useMemo(() => ROLE_FILTERS.filter((role) => readList(params, 'permission').includes(role)), [params])
-  // `?sort=name-asc`, `?sort=division-desc` and so on (STAFF_SORTS); the default order leaves it out.
-  const sort = readChoice<StaffSort>(params, 'sort', STAFF_SORTS, 'default')
   // `?status=deactivated`: the Deactive Staff tab; Active Staff (the default) leaves it out.
   const status = readChoice<StaffStatus>(params, 'status', STAFF_STATUSES, 'active')
   const deactivatedTab = status === 'deactivated'
   const invitationsTab = status === 'invitations'
+  // `?sort=name-desc`, `?sort=division-desc` and so on (STAFF_SORTS); the default order leaves it out. On the staff
+  // tabs, A to Z by name is the default itself.
+  const sort = staffTabSort(readChoice<StaffSort>(params, 'sort', STAFF_SORTS, 'default'), invitationsTab)
   // Staff whose invitation isn't activated are never on Active Staff. If the invitations can't be read,
   // Active Staff lists everyone, as it did before Sent Invitations.
   const staffInvitations = useStaffInvitations()
@@ -257,10 +258,9 @@ export function AdminUsersPage() {
           ]} />
         )}
         <SelectField className="min-w-0" name="staffSort" label={content.sort.label} value={sort}
-          options={STAFF_SORTS.map((value) => {
-            const group = staffSortGroup(value)
-            return { value, label: content.sort.options[value], ...(group ? { group: content.sort.groups[group] } : {}) }
-          })}
+          options={staffSortMenu(invitationsTab).map(({ value, group }) => ({ value,
+            label: value === 'default' && invitationsTab ? content.sort.invitationsDefault : content.sort.options[value],
+            ...(group ? { group: content.sort.groups[group] } : {}) }))}
           onChange={(event) => setSort(event.target.value as StaffSort)} />
       </div>
 

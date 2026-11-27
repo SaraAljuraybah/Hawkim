@@ -43,7 +43,7 @@ describe('the My SOPs Sort field', () => {
     const html = render()
     expect(html).toMatch(/<label[^>]*>Sort<\/label>/)
     expect(sortField(html)).toMatch(
-      /<optgroup label="Last Updated"><option[^>]*value="newest"[^>]*>Newest to Oldest<\/option><option[^>]*value="oldest"[^>]*>Oldest to Newest<\/option><\/optgroup><optgroup label="Title"><option[^>]*value="title-asc"[^>]*>A to Z<\/option><option[^>]*value="title-desc"[^>]*>Z to A<\/option><\/optgroup>/,
+      /<optgroup label="Last Updated"><option[^>]*value="newest"[^>]*>Newest to Oldest \(default\)<\/option><option[^>]*value="oldest"[^>]*>Oldest to Newest<\/option><\/optgroup><optgroup label="Title"><option[^>]*value="title-asc"[^>]*>A to Z<\/option><option[^>]*value="title-desc"[^>]*>Z to A<\/option><\/optgroup>/,
     )
     expect(sortField(html)).toMatch(/<option[^>]*value="newest"[^>]*selected=""/)
     expect(titles(html)).toEqual(['Batch Release', 'Change Control', 'Audit Trail'])

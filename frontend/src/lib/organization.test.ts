@@ -55,18 +55,19 @@ describe('search and role matching', () => {
 })
 
 describe('organization rows', () => {
-  it('lists every division, with everything and nothing opened', () => {
+  it('lists every division (by name, A to Z), with everything and nothing opened', () => {
     const all = rows()
-    expect(all.map((row) => row.id)).toEqual(['ops', 'qual', 'empty'])
+    expect(all.map((row) => row.id)).toEqual(['empty', 'ops', 'qual'])
     expect(all.every((row) => !row.autoOpen && row.departments.every((d) => !d.autoOpen))).toBe(true)
-    expect(all[0].departmentCount).toBe(2)
-    expect(all[0].email).toBe('ops-team@test.invalid')
-    expect(all[2].email).toBeNull()
+    const ops = all.find((row) => row.id === 'ops')!
+    expect(ops.departmentCount).toBe(2)
+    expect(ops.email).toBe('ops-team@test.invalid')
+    expect(all.find((row) => row.id === 'empty')!.email).toBeNull()
   })
   it('has no "Unassigned departments" group: every department is in a division (20261124120000)', () => {
     const data = { ...hierarchy, departments: [...hierarchy.departments, { id: 'legacy', name: 'Legacy Unit', divisionId: null, employees: [] }] }
     const all = organizationRows(data, none)
-    expect(all.map((row) => row.id)).toEqual(['ops', 'qual', 'empty'])
+    expect(all.map((row) => row.id)).toEqual(['empty', 'ops', 'qual'])
     expect(all.flatMap((row) => row.departments.map((d) => d.department.id))).not.toContain('legacy')
   })
   it('staff match: shows only that person, with their department and division opened', () => {
@@ -140,49 +141,47 @@ describe('sort', () => {
   const departmentOrder = (sort: OrganizationSort, divisionId: string) =>
     sorted(sort).find((row) => row.id === divisionId)!.departments.map((row) => row.department.id)
 
-  it('lists Default order, then division name and departments, department name and staff, each both ways in its group', () => {
+  it('lists division name (the default is its A to Z) and departments, department name and staff, each both ways in its group', () => {
     expect(ORGANIZATION_SORTS).toEqual([
-      'default',
-      'division-name-asc', 'division-name-desc',
+      'default', 'division-name-desc',
       'division-departments-desc', 'division-departments-asc',
       'department-name-asc', 'department-name-desc',
       'department-staff-desc', 'department-staff-asc',
     ])
     expect(ORGANIZATION_SORTS.map(organizationSortGroup)).toEqual([
-      undefined, 'division-name', 'division-name', 'division-departments', 'division-departments',
+      'division-name', 'division-name', 'division-departments', 'division-departments',
       'department-name', 'department-name', 'department-staff', 'department-staff',
     ])
   })
-  it('keeps the loaded order by default', () => {
-    expect(divisionOrder('default')).toEqual(['g', 'a', 'b'])
-    expect(departmentOrder('default', 'a')).toEqual(['zeta', 'eta', 'mu'])
+  it('by default, orders the divisions by name, A to Z, each with its departments A to Z (whatever the loaded order)', () => {
+    expect(divisionOrder('default')).toEqual(['a', 'b', 'g'])
+    expect(departmentOrder('default', 'a')).toEqual(['eta', 'mu', 'zeta'])
   })
-  it('orders the divisions by name, keeping their departments', () => {
-    expect(divisionOrder('division-name-asc')).toEqual(['a', 'b', 'g'])
+  it('orders the divisions by name, Z to A, their departments staying A to Z', () => {
     expect(divisionOrder('division-name-desc')).toEqual(['g', 'b', 'a'])
-    expect(departmentOrder('division-name-asc', 'a')).toEqual(['zeta', 'eta', 'mu'])
+    expect(departmentOrder('division-name-desc', 'a')).toEqual(['eta', 'mu', 'zeta'])
   })
   it('orders the divisions by number of departments, most first, ties by name', () => {
-    // Beta and Gamma both have one department: Beta first, although Gamma comes first by default.
+    // Beta and Gamma both have one department: Beta first, by name (although Gamma is loaded first).
     expect(divisionOrder('division-departments-desc')).toEqual(['a', 'b', 'g'])
   })
   it('orders the divisions by number of departments, fewest first, ties still by name A to Z', () => {
     // Beta and Gamma (one each) before Alpha (three); Beta before Gamma by name.
     expect(divisionOrder('division-departments-asc')).toEqual(['b', 'g', 'a'])
   })
-  it('orders the departments inside each division by name, the divisions keeping their order', () => {
-    expect(divisionOrder('department-name-asc')).toEqual(['g', 'a', 'b'])
+  it('orders the departments inside each division by name, the divisions staying A to Z', () => {
+    expect(divisionOrder('department-name-asc')).toEqual(['a', 'b', 'g'])
     expect(departmentOrder('department-name-asc', 'a')).toEqual(['eta', 'mu', 'zeta'])
-    expect(divisionOrder('department-name-desc')).toEqual(['g', 'a', 'b'])
+    expect(divisionOrder('department-name-desc')).toEqual(['a', 'b', 'g'])
     expect(departmentOrder('department-name-desc', 'a')).toEqual(['zeta', 'mu', 'eta'])
   })
   it('orders the departments inside each division by number of staff, most first, ties by name', () => {
-    expect(divisionOrder('department-staff-desc')).toEqual(['g', 'a', 'b'])
-    // Mu and Zeta both have one person: Mu first, although Zeta comes first by default.
+    expect(divisionOrder('department-staff-desc')).toEqual(['a', 'b', 'g'])
+    // Mu and Zeta both have one person: Mu first, by name (although Zeta is loaded first).
     expect(departmentOrder('department-staff-desc', 'a')).toEqual(['eta', 'mu', 'zeta'])
   })
   it('orders the departments inside each division by number of staff, fewest first, ties still by name A to Z', () => {
-    expect(divisionOrder('department-staff-asc')).toEqual(['g', 'a', 'b'])
+    expect(divisionOrder('department-staff-asc')).toEqual(['a', 'b', 'g'])
     // Mu and Zeta (one each) before Eta (two); Mu before Zeta by name.
     expect(departmentOrder('department-staff-asc', 'a')).toEqual(['mu', 'zeta', 'eta'])
   })
@@ -194,7 +193,7 @@ describe('sort', () => {
   })
   it('falls back to the id when names are the same', () => {
     const twins: OrganizationHierarchy = { organization: null, divisions: [{ id: 'd2', name: 'Same' }, { id: 'd1', name: 'same' }], departments: [] }
-    expect(organizationRows(twins, none, 'division-name-asc').map((row) => row.id)).toEqual(['d1', 'd2'])
+    expect(organizationRows(twins, none, 'default').map((row) => row.id)).toEqual(['d1', 'd2'])
     expect(organizationRows(twins, none, 'division-departments-desc').map((row) => row.id)).toEqual(['d1', 'd2'])
   })
 })

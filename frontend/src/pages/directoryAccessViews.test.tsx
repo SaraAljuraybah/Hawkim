@@ -148,10 +148,10 @@ describe('directory selection never changes authoring or membership context', ()
   it('offers Sort By next to the search, Newest to Oldest by default, and stacks on small screens', () => {
     fixture.sops = [{ ...sop('older-sop', 'other', 'published', 'visitor'), lastUpdated: '2026-01-01' }, { ...sop('newer-sop', 'other', 'published', 'visitor'), lastUpdated: '2026-10-01' }]
     const html = render(<SopsPage />)
-    for (const text of ['Sort By', 'Newest to Oldest', 'Oldest to Newest']) expect(html).toContain(text)
+    for (const text of ['Sort By', 'Newest to Oldest (default)', 'Oldest to Newest']) expect(html).toContain(text)
     expect(html.indexOf('Search SOPs')).toBeLessThan(html.indexOf('Sort By'))
     expect(html).not.toContain('Document Type')
-    expect(html).toMatch(/<option value="newest"[^>]* selected="">Newest to Oldest<\/option>/)
+    expect(html).toMatch(/<option value="newest"[^>]* selected="">Newest to Oldest \(default\)<\/option>/)
     // The row of every list page (Search | Sort here), on the page background.
     expect(html).toContain('<div role="search" aria-label="Search and filter SOPs" class="mt-6"><div class="relative grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)] lg:items-end">')
     expect(html.indexOf('newer-sop')).toBeLessThan(html.indexOf('older-sop'))

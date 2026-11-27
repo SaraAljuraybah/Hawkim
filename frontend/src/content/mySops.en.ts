@@ -28,10 +28,10 @@ export const mySopsEn: MySopsContent = {
     searchPlaceholder: 'Search by SOP title',
     showTitles: 'Show SOP Titles',
     noTitles: 'No matching SOPs',
-    // As on Staff: each order under its heading.
+    // As on Staff: each order under its heading; the default says "(default)".
     sort: {
       label: 'Sort',
-      options: { newest: 'Newest to Oldest', oldest: 'Oldest to Newest', 'title-asc': 'A to Z', 'title-desc': 'Z to A' },
+      options: { newest: 'Newest to Oldest (default)', oldest: 'Oldest to Newest', 'title-asc': 'A to Z', 'title-desc': 'Z to A' },
       groups: { lastUpdated: 'Last Updated', title: 'Title' },
     },
     roleLabel: 'My Permission',

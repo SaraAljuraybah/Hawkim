@@ -15,14 +15,14 @@ export const ROLE_FILTERS: RoleFilter[] = ['author', 'reviewer', 'approver', OTH
 const FILTER_ROLES: Permission[] = ['author', 'reviewer', 'approver']
 
 /**
- * The Sort options; 'default' keeps the loaded order. 'division-…' orders the division rows;
- * 'department-…' orders the departments inside each division (the divisions keep their order, the
- * staff inside a department keep theirs). Names A to Z or Z to A; counts high to low ('-desc') or low to
- * high ('-asc'); ties go by name A to Z, then id.
+ * The Sort options; 'default' is the divisions by name A to Z, each with its departments A to Z (listed as
+ * Division name, A to Z). 'division-…' orders the division rows (their departments stay A to Z); 'department-…'
+ * orders the departments inside each division (the divisions stay A to Z; the staff inside a department keep
+ * their order). Names A to Z or Z to A; counts high to low ('-desc') or low to high ('-asc'); ties go by name
+ * A to Z, then id.
  */
 export const ORGANIZATION_SORTS = [
-  'default',
-  'division-name-asc', 'division-name-desc',
+  'default', 'division-name-desc',
   'division-departments-desc', 'division-departments-asc',
   'department-name-asc', 'department-name-desc',
   'department-staff-desc', 'department-staff-asc',
@@ -30,9 +30,9 @@ export const ORGANIZATION_SORTS = [
 export type OrganizationSort = (typeof ORGANIZATION_SORTS)[number]
 /** The Sort menu's groups: what each sort orders by (e.g. 'division-departments': a division's departments). */
 export type OrganizationSortGroup = 'division-name' | 'division-departments' | 'department-name' | 'department-staff'
-/** The group each sort is listed under in the Sort menu ('default' has none). */
-export const organizationSortGroup = (sort: OrganizationSort): OrganizationSortGroup | undefined =>
-  sort === 'default' ? undefined : (sort.slice(0, sort.lastIndexOf('-')) as OrganizationSortGroup)
+/** The group each sort is listed under in the Sort menu; the default is under Division name (it is A to Z). */
+export const organizationSortGroup = (sort: OrganizationSort): OrganizationSortGroup =>
+  sort === 'default' ? 'division-name' : (sort.slice(0, sort.lastIndexOf('-')) as OrganizationSortGroup)
 
 export interface OrganizationFilters {
   query: string
@@ -100,7 +100,6 @@ const byName = (a: { name: string; id: string }, b: { name: string; id: string }
 type DivisionCompare = (a: DivisionRow, b: DivisionRow) => number
 type DepartmentCompare = (a: DepartmentRow, b: DepartmentRow) => number
 const DIVISION_COMPARE: Record<Extract<OrganizationSort, `division-${string}`>, DivisionCompare> = {
-  'division-name-asc': byName,
   'division-name-desc': (a, b) => -byName(a, b),
   'division-departments-desc': (a, b) => b.departmentCount - a.departmentCount || byName(a, b),
   'division-departments-asc': (a, b) => a.departmentCount - b.departmentCount || byName(a, b),
@@ -112,12 +111,17 @@ const DEPARTMENT_COMPARE: Record<Extract<OrganizationSort, `department-${string}
   'department-staff-asc': (a, b) => a.department.employees.length - b.department.employees.length || byName(a.department, b.department),
 }
 
-/** The divisions reordered (division sorts), or each division's departments reordered (department sorts). */
+/**
+ * Every order starts from the default (the divisions by name, A to Z, and each one's departments by name, A to Z);
+ * a division sort then reorders the divisions, a department sort each division's departments.
+ */
 function sortRows(rows: DivisionRow[], sort: OrganizationSort): DivisionRow[] {
-  if (sort === 'default') return rows
-  if (sort in DIVISION_COMPARE) return [...rows].sort(DIVISION_COMPARE[sort as keyof typeof DIVISION_COMPARE])
+  const departmentsByName = DEPARTMENT_COMPARE['department-name-asc']
+  const byDefault = [...rows].sort(byName).map((row) => ({ ...row, departments: [...row.departments].sort(departmentsByName) }))
+  if (sort === 'default') return byDefault
+  if (sort in DIVISION_COMPARE) return byDefault.sort(DIVISION_COMPARE[sort as keyof typeof DIVISION_COMPARE])
   const compare = DEPARTMENT_COMPARE[sort as keyof typeof DEPARTMENT_COMPARE]
-  return rows.map((row) => ({ ...row, departments: [...row.departments].sort(compare) }))
+  return byDefault.map((row) => ({ ...row, departments: [...row.departments].sort(compare) }))
 }
 
 /**

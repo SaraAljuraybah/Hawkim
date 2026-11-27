@@ -323,24 +323,30 @@ describe('the Staff Sort', () => {
     // The Filter panel lines up with the toolbar's right edge from lg, as on Divisions and Departments.
     expect(html).toContain('class="relative min-w-0 lg:static"')
     const select = html.match(/<select[^>]*name="staffSort"[^>]*>([\s\S]*?)<\/select>/)![1]
+    // The default is by name, A to Z: listed as Staff name's A to Z, marked "(default)", and not twice.
     expect([...select.matchAll(/<option value="([^"]+)"[^>]*>([^<]+)<\/option>/g)].map((match) => [match[1], match[2]])).toEqual([
-      ['default', 'Default order'],
-      ['name-asc', 'A to Z'], ['name-desc', 'Z to A'],
+      ['default', 'A to Z (default)'], ['name-desc', 'Z to A'],
       ['division-asc', 'A to Z'], ['division-desc', 'Z to A'],
       ['department-asc', 'A to Z'], ['department-desc', 'Z to A'],
     ])
     // No Permission sort (the Permission column and the Filter's Permission stay).
     expect(select).not.toContain('permission')
-    // Closed, nothing chosen: Default order.
-    expect(select).toMatch(/<option value="default"[^>]*selected="">Default order</)
-    // Default order on its own, then a group per column, each with A to Z and Z to A.
+    expect(select).not.toContain('Default order')
+    // Closed, nothing chosen: the default.
+    expect(select).toMatch(/<option value="default"[^>]*selected="">A to Z \(default\)</)
+    // A group per column, each with A to Z and Z to A.
     expect([...select.matchAll(/<optgroup label="([^"]+)">((?:(?!<\/optgroup>)[\s\S])*)<\/optgroup>/g)].map((match) => [match[1], [...match[2].matchAll(/value="([^"]+)"/g)].map((value) => value[1])]))
       .toEqual([
-        ['Staff name', ['name-asc', 'name-desc']],
+        ['Staff name', ['default', 'name-desc']],
         ['Division name', ['division-asc', 'division-desc']],
         ['Department name', ['department-asc', 'department-desc']],
       ])
-    expect(select.indexOf('value="default"')).toBeLessThan(select.indexOf('<optgroup'))
+  })
+
+  it('on Sent Invitations, lists its own default (the newest sent first) on its own, then A to Z by name too', () => {
+    const select = render('?status=invitations').match(/<select[^>]*name="staffSort"[^>]*>([\s\S]*?)<\/select>/)![1]
+    expect(select).toMatch(/^<option value="default"[^>]*selected="">Newest sent first \(default\)<\/option><optgroup label="Staff name"><option value="name-asc"[^>]*>A to Z<\/option><option value="name-desc"[^>]*>Z to A<\/option><\/optgroup>/)
+    expect(render('?status=invitations&sort=name-asc')).toMatch(/<option value="name-asc"[^>]*selected="">/)
   })
 
   it('orders by name: Default order is A to Z (as before), or Z to A, after the search and the Filter', () => {
@@ -376,16 +382,17 @@ describe('the Staff Sort', () => {
     expect(desc).toMatch(/<option value="name-desc"[^>]*selected="">/)
     expect(rows(render('?sort=bogus'))).toEqual(['Reem Alharbi', 'Sara Aljuraybah'])
     expect(render('?sort=bogus')).toMatch(/<option value="default"[^>]*selected="">/)
+    // An old ?sort=name-asc link is the default itself: A to Z (default).
     const asc = render('?sort=name-asc')
     expect(rows(asc)).toEqual(['Reem Alharbi', 'Sara Aljuraybah'])
-    expect(asc).toMatch(/<option value="name-asc"[^>]*selected="">/)
+    expect(asc).toMatch(/<option value="default"[^>]*selected="">A to Z \(default\)</)
     // With the Filter: still sorted, still filtered.
     expect(rows(render('?sort=name-desc&dept=qa,pv'))).toEqual(['Sara Aljuraybah', 'Reem Alharbi'])
   })
 
   it('is reset by Clear Filters, shown when only the sort differs from the default', () => {
     expect(render('?sort=name-desc')).toContain('>Clear Filters<')
-    expect(render('?sort=name-asc')).toContain('>Clear Filters<')
+    expect(render('?sort=name-asc')).not.toContain('>Clear Filters<')
     expect(render()).not.toContain('>Clear Filters<')
     expect(render('?sort=default')).not.toContain('>Clear Filters<')
     const cleared = clearedStaffParams(new URLSearchParams('division=x&dept=y&permission=author&sort=name-desc&other=1'))

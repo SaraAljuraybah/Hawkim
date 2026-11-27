@@ -1970,8 +1970,11 @@ export interface AdminUsersListContent {
   subtitle: string
   addUser: LinkContent
   search: { label: string; placeholder: string }
-  /** The Sort dropdown: its label, one option per order (the first is the default) and the headings of its groups. */
-  sort: { label: string; options: Record<StaffSort, string>; groups: Record<StaffSortGroup, string> }
+  /**
+   * The Sort dropdown: its label, one option per order (the first is the default, marked "(default)") and the headings
+   * of its groups. `invitationsDefault`: the default's name on Sent Invitations, where it is the newest sent first.
+   */
+  sort: { label: string; options: Record<StaffSort, string>; invitationsDefault: string; groups: Record<StaffSortGroup, string> }
   /** Clears the search, the Filter and the sort. */
   clearFilters: string
   /** The tabs above the table: active staff (the default), deactivated staff and sent invitations. `label` names the tab list. */

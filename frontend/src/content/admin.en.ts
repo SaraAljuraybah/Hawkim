@@ -48,11 +48,13 @@ export const adminEn: AdminContent = {
     sort: {
       label: 'Sort',
       options: {
-        default: 'Default order',
+        // On Active and Deactive Staff, listed under Staff name (the default is by name, A to Z).
+        default: 'A to Z (default)',
         'name-asc': 'A to Z', 'name-desc': 'Z to A',
         'division-asc': 'A to Z', 'division-desc': 'Z to A',
         'department-asc': 'A to Z', 'department-desc': 'Z to A',
       },
+      invitationsDefault: 'Newest sent first (default)',
       groups: { name: 'Staff name', division: 'Division name', department: 'Department name' },
     },
     clearFilters: 'Clear Filters',
