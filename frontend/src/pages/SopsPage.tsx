@@ -43,7 +43,11 @@ function readStoredView(): ViewMode {
   }
 }
 
-/** SOPs list ("/sops"): the active department's SOPs (chosen with the top bar's switcher), with tabs, Grid/List views and an empty state. */
+/**
+ * The SOP Directory ("/sops"): the published SOPs of the user's home department, plus those they worked on in any
+ * department (lib/sopAccess.ts), with tabs, Grid/List views and an empty state. The active department doesn't
+ * change the list, so the top bar shows no department switcher here (DepartmentSwitcher).
+ */
 export function SopsPage() {
   const { activeDepartment } = useActiveDepartment()
   return <SopDirectory activeDepartment={activeDepartment} />
@@ -108,6 +112,8 @@ function SopDirectory({ activeDepartment, admin = false }: { activeDepartment: D
   // The Department chips follow the selected divisions; a selected department no longer offered is dropped.
   const { divisionChoices, divisions: filterDivisions, groups: departmentGroups, departments: filterDepartments } = useMemo(
     () => filterSelection(filterData, urlDivisions, urlDepartments), [filterData, urlDivisions, urlDepartments])
+  // An employee with no division or department to choose from gets no Filter (rather than an empty panel).
+  const showFilter = admin || divisionChoices.length > 0
   // The sort order isn't a filter: it doesn't show Clear Filters and isn't reset by it.
   const hasFilters = query.length > 0 || filterDivisions.length > 0 || filterDepartments.length > 0
   // Clear Filters: for the search and the filters; the admin's also for a sort other than the default.
@@ -195,7 +201,7 @@ function SopDirectory({ activeDepartment, admin = false }: { activeDepartment: D
             endAdornment={<Search aria-hidden="true" className="mr-2 size-4 text-text-gray" />}
           />
           {/* The Filter field of every list page; its panel lines up with this row's right edge (from lg). */}
-          <FilterPopover className="relative min-w-0 lg:static" label={filtersEn.label} allLabel={filtersEn.all}
+          {showFilter && <FilterPopover className="relative min-w-0 lg:static" label={filtersEn.label} allLabel={filtersEn.all}
               title={filtersEn.title} clearLabel={filtersEn.clearAll} onClear={clearDivisionsAndDepartments}
               sections={[
                 { id: 'division', legend: filtersEn.division.legend, options: divisionChoices, value: filterDivisions, onChange: setDivisions,
@@ -203,9 +209,11 @@ function SopDirectory({ activeDepartment, admin = false }: { activeDepartment: D
                 { id: 'department', legend: filtersEn.department.legend, value: filterDepartments, onChange: setDepartments,
                   emptyText: filtersEn.department.empty, summary: filtersEn.department.count, scrollable: true,
                   groups: departmentGroups },
-              ]} />
+              ]} />}
           <SelectField
             name="sopSort"
+            // Without the Filter, Sort keeps its column, as on the pages that have no filter.
+            className={showFilter ? '' : 'lg:col-start-3'}
             label={content.filters.sortLabel}
             value={sort}
             onChange={(event) => setSort(event.target.value as MySopSort)}

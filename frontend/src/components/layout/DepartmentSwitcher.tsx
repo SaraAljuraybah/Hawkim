@@ -4,6 +4,7 @@ import { Check, ChevronDown } from 'lucide-react'
 import type { AppShellContent } from '../../content/types'
 import type { DepartmentId } from '../../data/mock/types'
 import { searchWithoutPage } from '../../lib/pagination'
+import { SOP_DIRECTORY_PATH } from '../../lib/routes'
 import { useActiveDepartment } from '../../state/activeDepartmentContext'
 
 interface DepartmentSwitcherProps {
@@ -61,14 +62,17 @@ export function DepartmentSwitcher({ content, variant, onSwitched }: DepartmentS
   )
   const srLabel = <span className="sr-only">{content.label}: </span>
 
-  // One department: plain text, no menu.
-  if (directoryDepartments.length < 2) {
+  // The SOP Directory lists the home department's SOPs (plus those the user worked on) whatever department is
+  // active, so switching would change nothing there: it shows the home department as plain text, no menu.
+  const onSopDirectory = location.pathname === SOP_DIRECTORY_PATH
+  // One department, or the SOP Directory: plain text, no menu.
+  if (directoryDepartments.length < 2 || onSopDirectory) {
     return (
       <div className={isDrawer ? 'rounded-lg bg-white/10 px-3 py-2.5' : ''}>
         {isDrawer && visibleLabel}
         <p className={isDrawer ? 'text-sm font-medium text-offwhite' : 'text-xs text-text-gray'}>
           {srLabel}
-          {activeDepartment.name}
+          {onSopDirectory ? homeDepartment.name : activeDepartment.name}
         </p>
       </div>
     )

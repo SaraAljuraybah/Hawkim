@@ -284,9 +284,22 @@ describe('the SOP Directory Filter for an employee', () => {
     expect(chips(render(<SopsPage />))).toEqual(['Foreign Division', 'Home Division', 'Foreign Directory', 'Home Department'])
   })
 
-  it('offers nothing to choose while they can see no SOP', () => {
+  it('shows no Filter while they can see no SOP (nothing to choose), keeping Search and Sort in their columns', () => {
     fixture.sops = [sop('foreign-published', 'other', 'published')]
-    expect(chips(render(<SopsPage />))).toEqual([])
+    const html = render(<SopsPage />)
+    expect(chips(html)).toEqual([])
+    expect(html).not.toContain('>Filter</label>')
+    expect(html).not.toContain('No divisions yet.')
+    expect(html).not.toContain('No departments yet.')
+    expect(html).toContain('name="sopSearch"')
+    expect(html).toMatch(/<div class="lg:col-start-3"><label[^>]*>Sort By<\/label>/)
+  })
+
+  it('shows the Filter, with Sort in its usual place, once there is something to choose', () => {
+    fixture.sops = [sop('home-published', 'home', 'published')]
+    const html = render(<SopsPage />)
+    expect(html).toContain('>Filter</label>')
+    expect(html).not.toContain('lg:col-start-3')
   })
 
   it('ignores a division from an old link that is no longer offered, instead of showing an empty list', () => {
@@ -295,5 +308,24 @@ describe('the SOP Directory Filter for an employee', () => {
     expect(html).not.toMatch(/aria-pressed="true"[^>]*>(?:<svg.*?<\/svg>)?<span class="min-w-0 break-words">/)
     expect(html).toContain('>home-published<')
     expect(html).toContain('>1 SOP<')
+  })
+})
+
+describe('the department switcher on the SOP Directory', () => {
+  // The SOP Directory doesn't depend on the active department (lib/sopAccess.ts), so it offers no switching there.
+  it.each(['topbar', 'drawer'] as const)('%s: shows the home department as plain text on /sops, with no menu', (variant) => {
+    const html = render(<DepartmentSwitcher content={appShellEn.departmentSwitcher} variant={variant} />, '/sops')
+    expect(html).not.toContain('aria-haspopup="menu"')
+    expect(html).not.toContain('<button')
+    expect(html).toContain('Home Department')
+    // Not the active (foreign) directory, and nothing read-only about it.
+    expect(html).not.toContain('Foreign Directory')
+    expect(html).not.toContain('(Read-only)')
+  })
+
+  it('stays a menu on the other pages', () => {
+    for (const url of ['/my-sops', '/reviews', '/dashboard']) {
+      expect(render(<DepartmentSwitcher content={appShellEn.departmentSwitcher} variant="topbar" />, url), url).toContain('aria-haspopup="menu"')
+    }
   })
 })
