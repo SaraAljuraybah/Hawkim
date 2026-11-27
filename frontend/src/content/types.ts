@@ -2232,7 +2232,7 @@ export interface AdminsContent {
     search: { label: string; placeholder: string }
     /** The Filter's Role section. */
     role: { legend: string; count: CountText }
-    /** The orders, each listed under its group: Date added (the default, newest first, and oldest first) or Name. */
+    /** The orders, each listed under its group: Date added (the default, oldest first, and newest first) or Name. */
     sort: { label: string; options: Record<AdminSort, string>; groups: Record<AdminSortGroup, string> }
     clearFilters: string
     tableLabel: string

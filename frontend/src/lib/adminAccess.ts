@@ -57,14 +57,14 @@ export function canMakeSuperAdmin(viewerId: string, targetId: string, superAdmin
 
 /**
  * The Admins page's Filter (Role) choices and Sort orders. By date added as an admin (User.adminSince): 'default' is
- * the newest first, 'oldest' the oldest first; or by name, A to Z or Z to A. Admins without a known date are listed
+ * the oldest first, 'newest' the newest first; or by name, A to Z or Z to A. Admins without a known date are listed
  * last either way; ties go by name, then the id.
  */
 export const ADMIN_ROLES: AdminRoleKey[] = ['superAdmin', 'admin']
-export const ADMIN_SORTS = ['default', 'oldest', 'name-asc', 'name-desc'] as const
+export const ADMIN_SORTS = ['default', 'newest', 'name-asc', 'name-desc'] as const
 export type AdminSort = (typeof ADMIN_SORTS)[number]
 export type AdminSortGroup = 'added' | 'name'
-/** The group each sort is listed under in the Sort menu: Date added (the default is its newest first) or Name. */
+/** The group each sort is listed under in the Sort menu: Date added (the default is its oldest first) or Name. */
 export const adminSortGroup = (sort: AdminSort): AdminSortGroup => (sort.startsWith('name-') ? 'name' : 'added')
 
 export function listAdmins(
@@ -80,8 +80,8 @@ export function listAdmins(
     return (newest ? second - first : first - second) || byName(a, b)
   }
   const orders: Record<AdminSort, (a: User, b: User) => number> = {
-    default: byAdded(true),
-    oldest: byAdded(false),
+    default: byAdded(false),
+    newest: byAdded(true),
     'name-asc': byName,
     'name-desc': (a, b) => -byName(a, b),
   }

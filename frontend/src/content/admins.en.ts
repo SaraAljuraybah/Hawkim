@@ -32,7 +32,7 @@ export const adminsEn: AdminsContent = {
     role: { legend: 'Admin permission', count: { one: '{count} permission', other: '{count} permissions' } },
     sort: {
       label: 'Sort',
-      options: { default: 'Newest first (default)', oldest: 'Oldest first', 'name-asc': 'A to Z', 'name-desc': 'Z to A' },
+      options: { default: 'Oldest first (default)', newest: 'Newest first', 'name-asc': 'A to Z', 'name-desc': 'Z to A' },
       groups: { added: 'Date added', name: 'Name' },
     },
     clearFilters: 'Clear Filters',
