@@ -71,7 +71,7 @@ export const adminEn: AdminContent = {
     invitations: {
       note: 'Invitations expire 24 hours after being sent. Expired invitations can be resent.',
       tableLabel: 'Sent invitations',
-      columns: { name: 'Full Name', email: 'Email', status: 'Invitation Status', sentDate: 'Sent Date', actions: 'Actions' },
+      columns: { name: 'Name', email: 'Email', status: 'Invitation Status', sentDate: 'Sent Date', actions: 'Actions' },
       statuses: { sent: 'Sent', expired: 'Expired' },
       filter: { legend: 'Invitation status', all: 'All Statuses', count: { one: '{count} status', other: '{count} statuses' } },
       copyEmail: 'Copy {name}’s email',

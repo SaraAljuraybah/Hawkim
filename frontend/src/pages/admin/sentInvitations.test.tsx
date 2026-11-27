@@ -78,7 +78,7 @@ describe('the Sent Invitations tab', () => {
 
   it('has the columns in order: Full Name, Email, Invitation Status, Sent Date, Actions (no Expires At)', () => {
     const html = render('?status=invitations')
-    expect(headings(html)).toEqual(['Full Name', 'Email', 'Invitation Status', 'Sent Date', 'Actions'])
+    expect(headings(html)).toEqual(['Name', 'Email', 'Invitation Status', 'Sent Date', 'Actions'])
     expect(html).not.toMatch(/Expires At/i)
   })
 
