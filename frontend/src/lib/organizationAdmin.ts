@@ -8,18 +8,17 @@ import { matchesDivisionDepartmentFilter, type FilterDepartments } from './organ
  * Ties go by name A to Z (then the id).
  */
 /**
- * The shared Sort area above Divisions and Departments: Number of Staff or Number of SOPs, each ascending or
- * descending, or neither ('default': the server order). One choice orders the divisions by their totals and,
- * inside each division, its departments by their own counts.
+ * The Sort field of Divisions and Departments: Number of Staff or Number of SOPs, each ascending or descending, or
+ * neither ('default': the server order). One choice orders the divisions by their totals and, inside each division,
+ * its departments by their own counts.
  */
-export const DIVISION_SORT_KEYS = ['staff', 'sops'] as const
-export type DivisionSortKey = (typeof DIVISION_SORT_KEYS)[number]
+export const DIVISION_SORTS = ['default', 'staff-asc', 'staff-desc', 'sops-asc', 'sops-desc'] as const
+export type DivisionSort = (typeof DIVISION_SORTS)[number]
+export type DivisionSortKey = 'staff' | 'sops'
 export type SortDirection = 'asc' | 'desc'
-export type DivisionSort = 'default' | `${DivisionSortKey}-${SortDirection}`
-
-/** The sort after pressing a button: the same button again goes back to the default order. */
-export const nextDivisionSort = (current: DivisionSort, pressed: Exclude<DivisionSort, 'default'>): DivisionSort =>
-  current === pressed ? 'default' : pressed
+/** The group each sort is listed under in the Sort menu ('default' has none). */
+export const divisionSortGroup = (sort: DivisionSort): DivisionSortKey | undefined =>
+  sort === 'default' ? undefined : (sort.slice(0, sort.lastIndexOf('-')) as DivisionSortKey)
 
 export interface HierarchyOptions {
   /** Division ids to show (any of them); empty or missing shows every division. */

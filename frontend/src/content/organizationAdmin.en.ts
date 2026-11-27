@@ -21,12 +21,17 @@ export const organizationAdminEn = {
   // Above the table, as on Staff and Admins: the divisions shown (after search and filters).
   divisionCount: { one: '{count} division', other: '{count} divisions' },
   /**
-   * The shared Sort area above the table: one choice orders the divisions by their totals and each division's
-   * departments by their own counts. Pressing the selected direction again goes back to the default order.
+   * The Sort field in the toolbar, as on Staff: one choice orders the divisions by their totals and each division's
+   * departments by their own counts. Each option names its count and direction, so it reads clearly when closed.
    */
-  sortArea: {
-    label: 'Sort by', staff: 'Number of Staff', sops: 'Number of SOPs',
-    asc: 'Ascending', desc: 'Descending',
+  sort: {
+    label: 'Sort',
+    options: {
+      default: 'Default order',
+      'staff-asc': 'Fewest staff first', 'staff-desc': 'Most staff first',
+      'sops-asc': 'Fewest SOPs first', 'sops-desc': 'Most SOPs first',
+    },
+    groups: { staff: 'Number of Staff', sops: 'Number of SOPs' },
   },
   addDivision: 'Add Division', addDepartment: 'Add Department', departments: 'Departments',
   name: 'Name', users: 'Users', staff: 'Staff', sops: 'SOPs',

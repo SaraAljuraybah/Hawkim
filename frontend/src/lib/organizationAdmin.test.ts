@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { ManagedDepartment, ManagementSnapshot } from '../services/organizationAdmin'
-import { divisionNameTaken, hierarchyRows, departmentDeleteBlocker, managementFilterData, nextDivisionSort, sortDepartments } from './organizationAdmin'
+import { divisionNameTaken, hierarchyRows, departmentDeleteBlocker, managementFilterData, DIVISION_SORTS, divisionSortGroup, sortDepartments } from './organizationAdmin'
 
 const department = (id: string, name: string, division: string | null, employees = 0, sops = 0): ManagedDepartment =>
   ({ id, name, initials: 'XX', description: '', division_id: division, updated_at: 'r', employees, sops, status_counts: {}, people: [] })
@@ -94,11 +94,9 @@ describe('sorting division rows', () => {
     expect(hierarchyRows(twins, '', { sort: 'staff-asc' }).map((row) => row.division.id)).toEqual(['y', 'z'])
   })
 
-  it('selects a direction, switches to another, and goes back to the default when the selected one is pressed again', () => {
-    expect(nextDivisionSort('default', 'staff-asc')).toBe('staff-asc')
-    expect(nextDivisionSort('staff-asc', 'staff-desc')).toBe('staff-desc')
-    expect(nextDivisionSort('staff-desc', 'sops-asc')).toBe('sops-asc')
-    expect(nextDivisionSort('sops-asc', 'sops-asc')).toBe('default')
+  it('lists the Sort menu: Default order, then Number of Staff and Number of SOPs, each ascending and descending', () => {
+    expect(DIVISION_SORTS).toEqual(['default', 'staff-asc', 'staff-desc', 'sops-asc', 'sops-desc'])
+    expect(DIVISION_SORTS.map(divisionSortGroup)).toEqual([undefined, 'staff', 'staff', 'sops', 'sops'])
   })
 })
 

@@ -3,7 +3,7 @@ import { isValidElement, type ReactElement, type ReactNode } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { MemoryRouter } from 'react-router-dom'
 import type { ManagementSnapshot } from '../../services/organizationAdmin'
-import { ActiveFilters, AdminDepartmentsPage, HierarchyTable, SortArea } from './AdminDepartmentsPage'
+import { ActiveFilters, AdminDepartmentsPage, HierarchyTable } from './AdminDepartmentsPage'
 
 const management = vi.hoisted(() => ({ value: {} as { data?: unknown; error?: string; refresh: () => Promise<void> } }))
 vi.mock('../../hooks/useDocumentTitle', () => ({ useDocumentTitle: () => {} }))
@@ -21,8 +21,8 @@ const snapshot: ManagementSnapshot = {
   ],
 }
 const page = () => renderToStaticMarkup(<MemoryRouter><AdminDepartmentsPage /></MemoryRouter>)
-/** The shared Sort area's markup. */
-const sortArea = (html: string) => html.slice(html.indexOf('aria-label="Sort by"'), html.indexOf('<table'))
+/** The Sort field's <select>. */
+const sortSelect = (html: string) => html.match(/<select[^>]*name="divisionSort"[^>]*>[\s\S]*?<\/select>/)![0]
 const table = (props: Partial<Parameters<typeof HierarchyTable>[0]> = {}) => renderToStaticMarkup(<MemoryRouter>
   <HierarchyTable snapshot={snapshot} onEdit={vi.fn()} onPreview={vi.fn()} onViewDepartment={vi.fn()} onAddDepartment={vi.fn()} onEditDepartment={vi.fn()} onDeleteDivision={vi.fn()} onDeleteDepartment={vi.fn()} {...props} />
 </MemoryRouter>)
@@ -36,7 +36,7 @@ describe('the Divisions and Departments page', () => {
     expect(html).toContain('Add Division')
   })
 
-  it('has the toolbar of every list page: Search and Filter, in that order, then the shared Sort area, above the table', () => {
+  it('has the toolbar of every list page: Search, Filter and Sort, in that order, above the table', () => {
     management.value = { data: snapshot, refresh: vi.fn() }
     const html = page()
     // One column on small screens; on large screens 2fr : 1fr : 1fr, as on every list page.
@@ -44,22 +44,31 @@ describe('the Divisions and Departments page', () => {
     expect(toolbar).not.toBeNull()
     expect(toolbar![0]).not.toMatch(/(?<!lg:)grid-cols/)
     expect(html).not.toContain('max-w-md')
-    const order = ['name="organizationSearch"', '>Filter</label>', 'aria-label="Sort by"', '<table']
+    const order = ['name="organizationSearch"', '>Filter</label>', 'name="divisionSort"', '<table']
     expect(order.map((text) => html.indexOf(text))).toEqual([...order.map((text) => html.indexOf(text))].sort((a, b) => a - b))
     expect(html).toContain('placeholder="Search divisions or departments..."')
-    // No Sort dropdown any more, and only one Sort area for both divisions and departments.
-    expect(html).not.toContain('name="divisionSort"')
-    expect(html.match(/aria-label="Sort by"/g)).toHaveLength(1)
+    // Sort is the toolbar's third field (its last column), and the old Sort area with its buttons is gone.
+    const row = html.slice(toolbar!.index!, html.indexOf('<p role="status"', toolbar!.index!))
+    expect(row).toContain('name="divisionSort"')
+    expect(html.match(/name="divisionSort"/g)).toHaveLength(1)
+    expect(html).not.toContain('aria-label="Sort by"')
+    expect(html).not.toContain('aria-pressed="true"')
   })
 
-  it('offers Number of Staff and Number of SOPs, each Ascending and Descending, none selected by default', () => {
+  it('has the Sort field of every list page: the same label, look and grouped options as Staff', () => {
     management.value = { data: snapshot, refresh: vi.fn() }
-    const area = sortArea(page())
-    const groups = [...area.matchAll(/<div role="group" aria-labelledby="(division-sort-[a-z]+)"[^>]*><span id="\1"[^>]*>([^<]+)<\/span>([\s\S]*?)<\/span><\/div>/g)]
-      .map((group) => [group[2], [...group[3].matchAll(/<button type="button" aria-pressed="(true|false)"[^>]*><svg[\s\S]*?<\/svg>([^<]+)<\/button>/g)].map((button) => `${button[2]}:${button[1]}`)])
+    const html = page()
+    const select = sortSelect(html)
+    // Labelled "Sort", as on Staff, My SOPs and the SOP Directory, in the same SelectField wrapper as Staff's Sort.
+    const id = select.match(/id="([^"]+)"/)![1]
+    expect(html).toMatch(new RegExp(`<div class="min-w-0"><label for="${id}"[^>]*>Sort</label>`))
+    // Default order first (selected), then Number of Staff and Number of SOPs, each option clear on its own when closed.
+    expect(select).toMatch(/<select[^>]*><option value="default"[^>]* selected="">Default order<\/option><optgroup/)
+    const groups = [...select.matchAll(/<optgroup label="([^"]+)">([\s\S]*?)<\/optgroup>/g)]
+      .map((group) => [group[1], [...group[2].matchAll(/<option value="([^"]+)"[^>]*>([^<]+)<\/option>/g)].map((option) => `${option[1]}:${option[2]}`)])
     expect(groups).toEqual([
-      ['Number of Staff', ['Ascending:false', 'Descending:false']],
-      ['Number of SOPs', ['Ascending:false', 'Descending:false']],
+      ['Number of Staff', ['staff-asc:Fewest staff first', 'staff-desc:Most staff first']],
+      ['Number of SOPs', ['sops-asc:Fewest SOPs first', 'sops-desc:Most SOPs first']],
     ])
   })
 
@@ -81,8 +90,7 @@ describe('the Divisions and Departments page', () => {
   it('shows the number of divisions above the table, like Staff and Admins', () => {
     management.value = { data: snapshot, refresh: vi.fn() }
     const html = page()
-    // On one row with the shared Sort area (the row has the top margin).
-    expect(html).toMatch(/<div class="mt-6 flex flex-wrap items-center justify-between gap-x-6 gap-y-3"><p role="status" class="text-sm font-medium text-text-gray">2 divisions<\/p><div role="group" aria-label="Sort by"/)
+    expect(html).toContain('<p role="status" class="mt-6 text-sm font-medium text-text-gray">2 divisions</p>')
     expect(html.indexOf('2 divisions')).toBeLessThan(html.indexOf('<table'))
     management.value = { data: { ...snapshot, divisions: snapshot.divisions.slice(0, 1) }, refresh: vi.fn() }
     expect(page()).toContain('>1 division<')
@@ -252,15 +260,7 @@ describe('the organization name', () => {
   })
 })
 
-describe('the shared Sort area', () => {
-  const area = (value: Parameters<typeof SortArea>[0]['value']) => renderToStaticMarkup(<SortArea value={value} onChange={vi.fn()} />)
-
-  it('shows the selected direction as pressed, and only that one', () => {
-    const html = area('sops-desc')
-    expect(html.match(/aria-pressed="true"/g)).toHaveLength(1)
-    expect(html).toMatch(/aria-labelledby="division-sort-sops"[\s\S]*?aria-pressed="false"[\s\S]*?aria-pressed="true" class="[^"]*bg-maroon text-white[^"]*"><svg[\s\S]*?<\/svg>Descending</)
-  })
-
+describe('sorting the table', () => {
   it('sorts divisions and their departments together, with real numbers', () => {
     const order = (sort: Parameters<typeof HierarchyTable>[0]['sort']) => {
       const html = table({ sort })
