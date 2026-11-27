@@ -9,7 +9,7 @@ export interface FileDropzoneText {
   optionalTag?: string
   /** e.g. "(required)": read by screen readers only; a red asterisk is shown instead. */
   requiredTag?: string
-  /** e.g. "PDF, DOC, DOCX or PNG, up to 10 MB each" */
+  /** e.g. "PDF, up to {max}": `{max}` is replaced with the size limit (maxSizeBytes). */
   hint: string
   dropPrompt: string
   browse: string
@@ -17,7 +17,7 @@ export interface FileDropzoneText {
   remove: string
   /** `{name}` is replaced with the file name. */
   typeError: string
-  /** `{name}` and `{max}` are replaced. */
+  /** `{name}`, `{size}` (the file's size) and `{max}` are replaced. */
   sizeError: string
 }
 
@@ -35,6 +35,15 @@ interface FileDropzoneProps {
   /** Validation error from the form (e.g. "Add an SOP file."), shown under the zone. */
   error?: string
   className?: string
+}
+
+/**
+ * A too-large file's size, e.g. "18 MB". When it would read the same as the limit ("10 MB" for 10.04 MB), with two
+ * decimals ("10.04 MB"), so the message never says a file is as large as the limit it exceeds.
+ */
+function oversizeLabel(size: number, maxSizeBytes: number): string {
+  const label = formatFileSize(size)
+  return label === formatFileSize(maxSizeBytes) ? `${(size / (1024 * 1024)).toFixed(2)} MB` : label
 }
 
 /**
@@ -74,7 +83,7 @@ export function FileDropzone({
       if (!extensions.includes(extension)) {
         problems.push(text.typeError.replace('{name}', file.name))
       } else if (file.size > maxSizeBytes) {
-        problems.push(text.sizeError.replace('{name}', file.name).replace('{max}', formatFileSize(maxSizeBytes)))
+        problems.push(text.sizeError.replace('{name}', file.name).replace('{size}', oversizeLabel(file.size, maxSizeBytes)).replace('{max}', formatFileSize(maxSizeBytes)))
       } else if (!multiple || !files.some((existing) => existing.name === file.name && existing.size === file.size)) {
         accepted.push(file) // skip exact duplicates silently
       }
@@ -139,7 +148,7 @@ export function FileDropzone({
           </button>
         </p>
         <p id={hintId} className="mt-1 text-xs text-text-gray">
-          {text.hint}
+          {text.hint.replace('{max}', formatFileSize(maxSizeBytes))}
         </p>
         {/* Hidden native input; the browse button opens it. */}
         <input

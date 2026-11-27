@@ -5,7 +5,7 @@ import { SOP_FILE_MAX_BYTES } from '../../lib/fileLimits'
 import { FileDropzone } from '../ui/FileDropzone'
 import { FormDialog } from '../ui/FormDialog'
 
-/** Same rules as Add SOP: one .docx or PDF file, up to 10 MB. */
+/** Same rules as Add SOP: one .docx or PDF file, up to SOP_FILE_MAX_BYTES. */
 const FILE_EXTENSIONS = ['.docx', '.pdf']
 
 interface FileDialogProps {

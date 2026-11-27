@@ -76,13 +76,13 @@ export const uploadSopEn: UploadSopContent = {
     file: {
       label: 'SOP File',
       requiredTag: '(required)',
-      hint: '.docx or PDF, up to 10 MB',
+      hint: '.docx or PDF, up to {max}',
       dropPrompt: 'Drag and drop the file here, or',
       browse: 'browse',
       remove: 'Remove {name}',
       // PBI 1: unsupported formats are rejected with this message.
       typeError: "This file type isn't supported. Add a .docx or PDF file.",
-      sizeError: '{name} is too large. Files must be {max} or smaller.',
+      sizeError: 'This file is {size}. The maximum size is {max}.',
     },
     description: {
       label: 'Description',

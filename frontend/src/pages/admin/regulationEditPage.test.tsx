@@ -24,7 +24,7 @@ const render = (id = 'gvp-4-0') => renderToStaticMarkup(
   </MemoryRouter>,
 )
 const input = (html: string, name: string) => html.match(new RegExp(`<input[^>]*name="${name}"[^>]*>`))![0]
-const ATTACH_HINT = 'Add the PDF for this version. Once added, it can&#x27;t be replaced.'
+const ATTACH_HINT = 'Add the PDF for this version (PDF, up to 20 MB). Once added, it can&#x27;t be replaced.'
 
 describe('Edit GVP version', () => {
   it('reuses the form, pre-filled, with Save and Cancel', () => {

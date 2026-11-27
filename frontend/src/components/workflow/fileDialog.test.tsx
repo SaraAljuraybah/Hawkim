@@ -54,7 +54,7 @@ describe('"add" instead of "upload" for SOPs and versions', () => {
     for (const content of [mySopsEn, uploadSopEn, sopWorkflowEn, reviewsEn, appShellEn, dashboardEn, adminEn.permissionDescriptions]) {
       expect(texts(content).filter((text) => /upload/i.test(text))).toEqual([])
     }
-    expect(uploadSopEn.fields.file).toMatchObject({ dropPrompt: 'Drag and drop the file here, or', browse: 'browse', hint: '.docx or PDF, up to 10 MB' })
+    expect(uploadSopEn.fields.file).toMatchObject({ dropPrompt: 'Drag and drop the file here, or', browse: 'browse', hint: '.docx or PDF, up to {max}' })
     expect(dialog.fileField.typeError).toBe("This file type isn't supported. Add a .docx or PDF file.")
   })
 })

@@ -237,16 +237,16 @@ export const sopWorkflowEn: SopWorkflowContent = {
 
   dialogs: {
     cancel: 'Cancel',
-    // Same rules as Add SOP (.docx or PDF, up to 10 MB).
+    // Same rules as Add SOP (.docx or PDF, the same size limit: lib/fileLimits.ts).
     fileField: {
       label: 'SOP File',
       requiredTag: '(required)',
-      hint: '.docx or PDF, up to 10 MB',
+      hint: '.docx or PDF, up to {max}',
       dropPrompt: 'Drag and drop the file here, or',
       browse: 'browse',
       remove: 'Remove {name}',
       typeError: "This file type isn't supported. Add a .docx or PDF file.",
-      sizeError: '{name} is too large. Files must be {max} or smaller.',
+      sizeError: 'This file is {size}. The maximum size is {max}.',
     },
     fileRequired: 'Add an SOP file.',
     uploadFailed: 'The file could not be added. Your draft has been kept.',
