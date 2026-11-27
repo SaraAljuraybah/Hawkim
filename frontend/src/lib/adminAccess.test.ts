@@ -52,8 +52,15 @@ describe('the administrators list', () => {
     expect(administrators([nouf, sara, amal]).map((user) => user.id)).toEqual(['n', 'a'])
   })
 
-  it('puts the Super Admin first, then sorts by name', () => {
-    expect(listAdmins([nouf, amal, zaid], 'z', '').map((user) => user.id)).toEqual(['z', 'a', 'n'])
+  it('lists the newest added first by default, admins without a known date last, by name', () => {
+    const added = (user: typeof nouf, adminSince?: string) => (adminSince ? { ...user, adminSince } : user)
+    const list = [added(nouf, '2026-11-02T08:00:00Z'), added(amal, '2026-10-01T08:00:00Z'), added(zaid), added(sara, '2026-11-20T08:00:00Z')]
+    // The Super Admin (z) has no special place any more.
+    expect(listAdmins(list, 'z', '').map((user) => user.id)).toEqual(['s', 'n', 'a', 'z'])
+    expect(listAdmins(list, 'z', '', { sort: 'oldest' }).map((user) => user.id)).toEqual(['a', 'n', 's', 'z'])
+    // Unknown dates: by name, both ways.
+    expect(listAdmins([nouf, amal, zaid], 'z', '').map((user) => user.id)).toEqual(['a', 'n', 'z'])
+    expect(listAdmins([nouf, amal, zaid], 'z', '', { sort: 'oldest' }).map((user) => user.id)).toEqual(['a', 'n', 'z'])
   })
 
   it('searches by name or email, ignoring case and surrounding spaces', () => {

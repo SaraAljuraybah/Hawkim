@@ -55,11 +55,17 @@ export function canMakeSuperAdmin(viewerId: string, targetId: string, superAdmin
   return canDeleteAdmin(viewerId, targetId, superAdminId)
 }
 
-/** The Super Admin first, then by name; filtered by name or email, ignoring case. */
-/** The Admins page's Filter (Role) choices and Sort orders; 'default' puts the Super Admin first, then by name. */
+/**
+ * The Admins page's Filter (Role) choices and Sort orders. By date added as an admin (User.adminSince): 'default' is
+ * the newest first, 'oldest' the oldest first; or by name, A to Z or Z to A. Admins without a known date are listed
+ * last either way; ties go by name, then the id.
+ */
 export const ADMIN_ROLES: AdminRoleKey[] = ['superAdmin', 'admin']
-export const ADMIN_SORTS = ['default', 'name-asc', 'name-desc'] as const
+export const ADMIN_SORTS = ['default', 'oldest', 'name-asc', 'name-desc'] as const
 export type AdminSort = (typeof ADMIN_SORTS)[number]
+export type AdminSortGroup = 'added' | 'name'
+/** The group each sort is listed under in the Sort menu: Date added (the default is its newest first) or Name. */
+export const adminSortGroup = (sort: AdminSort): AdminSortGroup => (sort.startsWith('name-') ? 'name' : 'added')
 
 export function listAdmins(
   admins: User[], superAdminId: string | null, query: string,
@@ -67,8 +73,15 @@ export function listAdmins(
 ): User[] {
   const needle = query.trim().toLowerCase()
   const byName = (a: User, b: User) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id)
+  /** By date added (newest first when `newest`); unknown dates last either way. */
+  const byAdded = (newest: boolean) => (a: User, b: User) => {
+    const first = a.adminSince ? Date.parse(a.adminSince) : NaN, second = b.adminSince ? Date.parse(b.adminSince) : NaN
+    if (Number.isNaN(first) || Number.isNaN(second)) return Number(Number.isNaN(first)) - Number(Number.isNaN(second)) || byName(a, b)
+    return (newest ? second - first : first - second) || byName(a, b)
+  }
   const orders: Record<AdminSort, (a: User, b: User) => number> = {
-    default: (a, b) => Number(b.id === superAdminId) - Number(a.id === superAdminId) || byName(a, b),
+    default: byAdded(true),
+    oldest: byAdded(false),
     'name-asc': byName,
     'name-desc': (a, b) => -byName(a, b),
   }

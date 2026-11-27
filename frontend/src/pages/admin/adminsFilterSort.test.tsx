@@ -13,24 +13,26 @@ vi.mock('../../hooks/useDocumentTitle', () => ({ useDocumentTitle: () => {} }))
 vi.mock('../../state/usersContext', () => ({ useUsers: () => ({ status: fixture.status, users: fixture.users, activeUsers: fixture.users.filter((user) => !user.deletedAt) }) }))
 vi.mock('../../state/sessionContext', () => ({ useCurrentUser: () => fixture.users[0] }))
 vi.mock('../../hooks/useSuperAdmin', () => ({ useSuperAdmin: () => ({ status: 'ready', superAdminId: 'amal', reload: vi.fn(), set: vi.fn() }) }))
-const admin = (id: string, name: string): User =>
-  ({ id, name, email: `${id}@example.test`, phone: '+966512345678', initials: name.slice(0, 2).toUpperCase(), departmentId: '', permissions: ['admin'] })
+const admin = (id: string, name: string, adminSince: string): User =>
+  ({ id, name, email: `${id}@example.test`, phone: '+966512345678', initials: name.slice(0, 2).toUpperCase(), departmentId: '', permissions: ['admin'], adminSince })
 beforeEach(() => {
-  fixture.users = [admin(SUPER, 'Zainab Super'), admin('nouf', 'Nouf Saleh'), admin('abeer', 'Abeer Omar')]
+  // Added: Zainab first (the Super Admin), then Abeer, then Nouf.
+  fixture.users = [admin(SUPER, 'Zainab Super', '2026-10-01T08:00:00Z'), admin('nouf', 'Nouf Saleh', '2026-11-15T08:00:00Z'), admin('abeer', 'Abeer Omar', '2026-11-01T08:00:00Z')]
 })
 const names = (users: User[]) => users.map((user) => user.name)
 const page = (search = '') => renderToStaticMarkup(<MemoryRouter initialEntries={[`/admin/admins${search}`]}><AdminAdminsPage /></MemoryRouter>)
 
 describe('the Admins Filter (Role) and Sort', () => {
-  it('keeps the Super Admin first by default, then sorts by name', () => {
-    expect(names(listAdmins(fixture.users, SUPER, ''))).toEqual(['Zainab Super', 'Abeer Omar', 'Nouf Saleh'])
+  it('sorts by date added, newest first by default or oldest first, or by name', () => {
+    expect(names(listAdmins(fixture.users, SUPER, ''))).toEqual(['Nouf Saleh', 'Abeer Omar', 'Zainab Super'])
+    expect(names(listAdmins(fixture.users, SUPER, '', { sort: 'oldest' }))).toEqual(['Zainab Super', 'Abeer Omar', 'Nouf Saleh'])
     expect(names(listAdmins(fixture.users, SUPER, '', { sort: 'name-asc' }))).toEqual(['Abeer Omar', 'Nouf Saleh', 'Zainab Super'])
     expect(names(listAdmins(fixture.users, SUPER, '', { sort: 'name-desc' }))).toEqual(['Zainab Super', 'Nouf Saleh', 'Abeer Omar'])
   })
 
   it('filters by role, together with the search', () => {
     expect(names(listAdmins(fixture.users, SUPER, '', { roles: ['superAdmin'] }))).toEqual(['Zainab Super'])
-    expect(names(listAdmins(fixture.users, SUPER, '', { roles: ['admin'] }))).toEqual(['Abeer Omar', 'Nouf Saleh'])
+    expect(names(listAdmins(fixture.users, SUPER, '', { roles: ['admin'] }))).toEqual(['Nouf Saleh', 'Abeer Omar'])
     expect(names(listAdmins(fixture.users, SUPER, 'nouf', { roles: ['admin'] }))).toEqual(['Nouf Saleh'])
     expect(names(listAdmins(fixture.users, SUPER, '', { roles: ['superAdmin', 'admin'] }))).toHaveLength(3)
   })
@@ -44,12 +46,17 @@ describe('the Admins Filter (Role) and Sort', () => {
     expect(html).not.toContain(adminsEn.list.clearFilters)
   })
 
-  it('lists the default (Super Admin first), then the Admin name group with A to Z and Z to A, as on the other list pages', () => {
+  it('lists Date added (Newest first, the default, and Oldest first), then Name (A to Z and Z to A)', () => {
     const select = page().match(/<select[^>]*name="adminSort"[^>]*>([\s\S]*?)<\/select>/)![1]
-    expect(select).toMatch(/^<option value="default"[^>]*>Super Admin first \(default\)<\/option><optgroup/)
+    expect(select).toMatch(/^<optgroup label="Date added"><option value="default"[^>]*selected="">Newest first \(default\)<\/option>/)
+    expect(select).not.toContain('Super Admin first')
     const groups = [...select.matchAll(/<optgroup label="([^"]+)">([\s\S]*?)<\/optgroup>/g)]
       .map((group) => [group[1], [...group[2].matchAll(/value="([^"]+)"[^>]*>([^<]+)</g)].map((option) => [option[1], option[2]])])
-    expect(groups).toEqual([['Admin name', [['name-asc', 'A to Z'], ['name-desc', 'Z to A']]]])
+    expect(groups).toEqual([
+      ['Date added', [['default', 'Newest first (default)'], ['oldest', 'Oldest first']]],
+      ['Name', [['name-asc', 'A to Z'], ['name-desc', 'Z to A']]],
+    ])
+    expect(page('?sort=oldest')).toMatch(/<option value="oldest"[^>]*selected="">Oldest first</)
     // The values (and old links) are unchanged.
     expect(page('?sort=name-desc')).toMatch(/<option value="name-desc"[^>]*selected="">Z to A</)
   })

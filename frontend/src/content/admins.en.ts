@@ -30,11 +30,15 @@ export const adminsEn: AdminsContent = {
     search: { label: 'Search Admins', placeholder: 'Search by admin name or email' },
     // The Filter (Permission) and Sort, as on the Staff page.
     role: { legend: 'Admin permission', count: { one: '{count} permission', other: '{count} permissions' } },
-    sort: { label: 'Sort', options: { default: 'Super Admin first (default)', 'name-asc': 'A to Z', 'name-desc': 'Z to A' }, groups: { name: 'Admin name' } },
+    sort: {
+      label: 'Sort',
+      options: { default: 'Newest first (default)', oldest: 'Oldest first', 'name-asc': 'A to Z', 'name-desc': 'Z to A' },
+      groups: { added: 'Date added', name: 'Name' },
+    },
     clearFilters: 'Clear Filters',
     tableLabel: 'Admins',
     tabs: { label: 'Admin status', active: 'Active Admins', deactivated: 'Deactivated Admins' },
-    columns: { name: 'Full Name', email: 'Email', phone: 'Phone Number', role: 'Permission', preview: 'Preview', edit: 'Edit', delete: 'Delete', reactivate: 'Reactivate' },
+    columns: { name: 'Name', email: 'Email', phone: 'Phone Number', role: 'Permission', preview: 'Preview', edit: 'Edit', delete: 'Delete', reactivate: 'Reactivate' },
     none: '—',
     actions: { view: 'View {name}', edit: 'Edit {name}' },
     empty: 'No Admins yet.',

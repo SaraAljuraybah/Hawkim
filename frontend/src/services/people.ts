@@ -14,7 +14,7 @@ import { PERMISSIONS } from '../lib/userAdmin'
 import { supabase } from './supabase'
 
 /** The columns read for a person, with their roles. */
-const PROFILE_COLUMNS = 'id, full_name, email, initials, department_id, phone, position, deleted_at, user_roles(role)'
+const PROFILE_COLUMNS = 'id, full_name, email, initials, department_id, phone, position, deleted_at, user_roles(role, created_at)'
 // The division comes from departments.division_id (managed in Divisions and Departments) with its name,
 // through the departments_division_id_fkey relationship; every active user can read both.
 const DEPARTMENT_COLUMNS = 'id, name, initials, description, is_quality, removed_at, requires_compliance_check, division_id, division:divisions(name)'
@@ -31,7 +31,8 @@ export interface ProfileRow {
   /** Job title; null on profiles added before it was required. */
   position: string | null
   deleted_at: string | null
-  user_roles: { role: Permission }[]
+  /** `created_at`: when the role was given (save_user keeps a role's row while it stays). */
+  user_roles: { role: Permission; created_at?: string }[]
 }
 
 export interface DepartmentRow {
@@ -49,6 +50,7 @@ export interface DepartmentRow {
 /** A profile row as a User: roles become permissions, in the usual display order. */
 export function toUser(row: ProfileRow): User {
   const roles = row.user_roles.map((item) => item.role)
+  const adminSince = row.user_roles.find((item) => item.role === 'admin')?.created_at
   return {
     id: row.id,
     name: row.full_name,
@@ -60,6 +62,7 @@ export function toUser(row: ProfileRow): User {
     ...(row.position ? { position: row.position } : {}),
     permissions: PERMISSIONS.filter((permission) => roles.includes(permission)),
     ...(row.deleted_at ? { deletedAt: row.deleted_at } : {}),
+    ...(adminSince ? { adminSince } : {}),
   }
 }
 

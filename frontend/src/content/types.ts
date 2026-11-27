@@ -12,6 +12,7 @@ import type {
 import type { SopDeleteErrorCode } from '../lib/mySops'
 import type { OrganizationSort, OrganizationSortGroup } from '../lib/organization'
 import type { StaffSort, StaffSortGroup } from '../lib/userAdmin'
+import type { AdminSort, AdminSortGroup } from '../lib/adminAccess'
 import type { SopStatus } from '../types/status'
 
 /*
@@ -2231,8 +2232,8 @@ export interface AdminsContent {
     search: { label: string; placeholder: string }
     /** The Filter's Role section. */
     role: { legend: string; count: CountText }
-    /** `groups.name`: the title the two name orders are listed under (Default order stands alone). */
-    sort: { label: string; options: Record<'default' | 'name-asc' | 'name-desc', string>; groups: { name: string } }
+    /** The orders, each listed under its group: Date added (the default, newest first, and oldest first) or Name. */
+    sort: { label: string; options: Record<AdminSort, string>; groups: Record<AdminSortGroup, string> }
     clearFilters: string
     tableLabel: string
     /** The Active Admins / Deactivated Admins tabs (`?status=deactivated`), as on the Staff page. */

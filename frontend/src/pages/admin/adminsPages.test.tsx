@@ -79,7 +79,7 @@ describe('the Admins list', () => {
   it('has the columns Name, Email, Phone Number, Role, then Preview, Edit and Delete with visible headings', () => {
     const html = at('/admin/admins')
     const columns = [...html.matchAll(/<th scope="col"[^>]*>([^<]+)<\/th>/g)].map((match) => match[1])
-    expect(columns).toEqual(['Full Name', 'Email', 'Phone Number', 'Permission', 'Preview', 'Edit', 'Delete'])
+    expect(columns).toEqual(['Name', 'Email', 'Phone Number', 'Permission', 'Preview', 'Edit', 'Delete'])
     expect(html).not.toContain('sr-only">Actions')
     // As on Divisions and Departments: 6rem per action column, each heading centred above its button.
     expect(html).toContain('<colgroup><col/><col/><col/><col/><col class="w-24"/><col class="w-24"/><col class="w-24"/></colgroup>')
@@ -103,11 +103,11 @@ describe('the Admins list', () => {
     const headings = (html: string) => [...table(html).matchAll(/<th scope="col"[^>]*>([^<]+)<\/th>/g)].map((match) => match[1])
     const actionCols = (html: string) => (table(html).match(/<col class="w-24"\/>/g) ?? []).length
     const superAdminView = at('/admin/admins')
-    expect(headings(superAdminView)).toEqual(['Full Name', 'Email', 'Phone Number', 'Permission', 'Preview', 'Edit', 'Delete'])
+    expect(headings(superAdminView)).toEqual(['Name', 'Email', 'Phone Number', 'Permission', 'Preview', 'Edit', 'Delete'])
     expect(actionCols(superAdminView)).toBe(3)
     fixture.viewer = 'nouf'
     const regular = at('/admin/admins')
-    expect(headings(regular)).toEqual(['Full Name', 'Email', 'Phone Number', 'Permission', 'Preview', 'Edit'])
+    expect(headings(regular)).toEqual(['Name', 'Email', 'Phone Number', 'Permission', 'Preview', 'Edit'])
     expect(actionCols(regular)).toBe(2)
     // Every row has as many cells as there are headings: no empty Delete cells left behind.
     for (const name of ['Amal Fahad', 'Nouf Saleh', 'Zaid Omar']) {
@@ -411,7 +411,7 @@ describe('Active Admins and Deactivated Admins', () => {
 
   it('gives the Super Admin Preview and Reactivate on Deactivated Admins (no Edit or Delete)', () => {
     const html = at('/admin/admins?status=deactivated')
-    expect(headings(html)).toEqual(['Full Name', 'Email', 'Phone Number', 'Permission', 'Preview', 'Reactivate'])
+    expect(headings(html)).toEqual(['Name', 'Email', 'Phone Number', 'Permission', 'Preview', 'Reactivate'])
     expect(labels(row(html, 'Huda Saleh'))).toEqual(expect.arrayContaining(['View Huda Saleh', 'Reactivate Huda Saleh']))
     expect(labels(html)).not.toContain('Edit Huda Saleh')
     expect(labels(html)).not.toContain('Delete Huda Saleh')
@@ -420,7 +420,7 @@ describe('Active Admins and Deactivated Admins', () => {
   it('shows a regular Admin no Reactivate at all', () => {
     fixture.viewer = 'nouf'
     const html = at('/admin/admins?status=deactivated')
-    expect(headings(html)).toEqual(['Full Name', 'Email', 'Phone Number', 'Permission', 'Preview'])
+    expect(headings(html)).toEqual(['Name', 'Email', 'Phone Number', 'Permission', 'Preview'])
     expect(html).not.toContain('Reactivate')
   })
 

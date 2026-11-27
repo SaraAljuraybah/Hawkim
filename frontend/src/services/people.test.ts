@@ -43,6 +43,15 @@ describe('people from the database', () => {
     })
   })
 
+  it('reads when an admin was added as an admin (the admin role\'s created_at), only for admins', async () => {
+    const asAdmin = toUser({ ...abeerRow, department_id: null, user_roles: [{ role: 'admin', created_at: '2026-11-01T08:00:00Z' }] })
+    expect(asAdmin.adminSince).toBe('2026-11-01T08:00:00Z')
+    expect(toUser({ ...abeerRow, user_roles: [{ role: 'author', created_at: '2026-11-01T08:00:00Z' }] })).not.toHaveProperty('adminSince')
+    result = { data: [abeerRow], error: null }
+    await fetchPeople()
+    expect(query.select.mock.calls.at(-1)?.[0]).toContain('user_roles(role, created_at)')
+  })
+
   it('shows a person without roles as an employee and keeps when a profile was ended', () => {
     const ended = toUser({ ...abeerRow, user_roles: [], deleted_at: '2026-10-20T09:00:00Z' })
     expect(ended.permissions).toEqual([])

@@ -25,7 +25,7 @@ import type { User } from '../../data/mock/types'
 import { useDocumentTitle } from '../../hooks/useDocumentTitle'
 import { useSuperAdmin } from '../../hooks/useSuperAdmin'
 import {
-  ADMIN_ROLES, ADMIN_SORTS, ADMIN_STATUSES, adminRole, administratorsWithStatus, canDeleteAdmin, canEditAdmin, canReactivateAdmin, listAdmins,
+  ADMIN_ROLES, ADMIN_SORTS, ADMIN_STATUSES, adminRole, adminSortGroup, administratorsWithStatus, canDeleteAdmin, canEditAdmin, canReactivateAdmin, listAdmins,
   type AdminSort, type AdminStatus,
 } from '../../lib/adminAccess'
 import { listParam, readChoice, readList, updateParams } from '../../lib/pagination'
@@ -185,7 +185,7 @@ export function AdminAdminsPage() {
               value: roles, onChange: setRoles, emptyText: '', summary: content.role.count },
           ]} />
         <SelectField className="min-w-0" name="adminSort" label={content.sort.label} value={sort}
-          options={ADMIN_SORTS.map((value) => ({ value, label: content.sort.options[value], ...(value === 'default' ? {} : { group: content.sort.groups.name }) }))}
+          options={ADMIN_SORTS.map((value) => ({ value, label: content.sort.options[value], group: content.sort.groups[adminSortGroup(value)] }))}
           onChange={(event) => setSort(event.target.value as AdminSort)} />
       </div>
 
